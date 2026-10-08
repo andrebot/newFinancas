@@ -9,6 +9,10 @@
   "scripts": {
     "prepare": "husky",
     "dev": "pnpm --parallel --filter \"./apps/*\" dev",
+    "db:up": "docker compose up --detach --wait db",
+    "db:down": "docker compose down",
+    "db:reset": "docker compose down --volumes && docker compose up --detach --wait db",
+    "db:psql": "docker compose exec db psql --username financas --dbname financas",
     "lint": "eslint .",
     "typecheck": "pnpm --recursive typecheck && tsc --project tsconfig.json",
     "test": "vitest run",
