@@ -281,14 +281,15 @@ erDiagram
         uuid budget_id FK
         uuid category_id FK "nullable, exactly one of the two"
         uuid subcategory_id FK "nullable, exactly one of the two"
-        uuid household_id "denormalized, for the scope index"
+        uuid household_id "denormalized, for the scope indexes"
         string visibility "denormalized"
         uuid owner_user_id "denormalized, nullable"
-        timestamp created_at
     }
     budget_periods {
         uuid id PK
         uuid budget_id FK "nullable, ON DELETE SET NULL"
+        uuid household_id FK "snapshot, OQ-95"
+        string currency "snapshot, OQ-95"
         int year
         int month
         bigint target_amount "immutable snapshot"
@@ -300,6 +301,7 @@ erDiagram
     users |o--o{ budgets : "owner (dual-role)"
     budgets ||--o{ budget_targets : "claims targets"
     budgets |o--o{ budget_periods : "has monthly periods"
+    households ||--o{ budget_periods : "keeps history"
     categories |o--o{ budget_targets : "claimed as target"
     subcategories |o--o{ budget_targets : "claimed as target"
     </pre>
@@ -566,7 +568,7 @@ erDiagram
       <li><strong>Partial unique indexes and <code>CHECK</code>
       constraints</strong> (e.g. "exactly one Owner per household" on
       <code>household_memberships</code>; the scope-based partial unique
-      index on <code>budget_targets</code>; <code>percentage &gt; 0 AND
+      indexes on <code>budget_targets</code> (split shared/personal, OQ-95); <code>percentage &gt; 0 AND
       &lt;= 100</code> (whole percent) on <code>goal_allocations</code>) — ER
       notation shows cardinality between tables, not intra-table
       constraints. All of these are spelled out in

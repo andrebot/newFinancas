@@ -27,6 +27,27 @@ the backend doc, revisited when their CUCs are un-deferred.
 Stack: PostgreSQL + Drizzle ORM (per the project's stack table in
 `README.md`).
 
+**Implemented in N5 (Oct 2026, OQ-95):**
+- The schema is `apps/api/src/db/schema/`; migrations are in
+  `apps/api/drizzle/`.
+- Every `id` is a `uuid` defaulting to Postgres 18's `uuidv7()`, and
+  every time column is `timestamptz`.
+- Closed value sets are `text` + `CHECK`. Extensible reference data
+  stays plain `text`, validated in code.
+- **`ON DELETE` follows three rules:**
+  - **(A)** rows that are parts of a parent `CASCADE` with it;
+  - **(B)** owner/actor references (`owner_user_id`,
+    `invited_by_user_id`, `created_by_user_id`) are nullable and
+    `NO ACTION`, so deleting a user fails unless the FR-1.17 routine has
+    already deleted their personal rows and nulled their shared ones.
+    The database is the safety net for that application-level rule;
+  - **(C)** references to rows that are never hard-deleted (categories,
+    subcategories, holdings) are `NO ACTION`.
+  - The two history-keeping references are `SET NULL`:
+    `budget_periods.budget_id` and `account_transactions.credit_card_id`.
+    The second means paying a card from another account keeps that
+    account's history if the card's personal account is deleted.
+
 **Cross-cutting design point, applies across every domain below:**
 FR-1.17's GDPR/LGPD hard-delete distinguishes **personal** data (deleted
 outright with the user) from **shared** household data the user
@@ -342,7 +363,12 @@ name`/`last_name` closed OQ-29 earlier:
   `household_id`, `visibility`, `owner_user_id`, denormalized from the
   parent Budget at insert time — see the FR-4.7 invariant below for why.
 - **`budget_periods`** — `id` (PK), `budget_id` (FK → `budgets`,
-  **nullable** — see the FR-4.10 invariant below), `year`, `month`,
+  **nullable** — see the FR-4.10 invariant below), **`household_id`**
+  (FK → `households`, `CASCADE`) and **`currency`** — both snapshotted
+  from the Budget at insert *(added in N5, OQ-95: once `budget_id` is
+  nulled, a surviving period could otherwise not be found by household,
+  its `target_amount` had no currency, and household deletion left it
+  orphaned)*, `year`, `month`,
   `target_amount` (immutable snapshot, FR-4.9), `spend_amount` (running
   accrual total, updated by `accrueIfClaimed`), `created_at`. Unique on
   `(budget_id, year, month)` — Postgres treats each `NULL` as distinct, so
@@ -364,10 +390,17 @@ name`/`last_name` closed OQ-29 earlier:
 - **A Category/Subcategory claimed by at most one Budget in the same
   scope — the literal-duplicate half of FR-4.7** → **real DB constraint**,
   matching the VBD doc's own characterization ("a uniqueness constraint,
-  not application logic," §2.3): partial unique indexes on
-  `budget_targets (household_id, visibility, owner_user_id, category_id)
-  WHERE category_id IS NOT NULL`, and the mirror-image index for
-  `subcategory_id`. The three scope columns are denormalized onto
+  not application logic," §2.3).
+  - **Corrected in N5 (OQ-95):** a *shared* scope is the household, and
+    there `owner_user_id` is only provenance. One index over
+    `(household_id, visibility, owner_user_id, category_id)` would have
+    let two members' shared Budgets claim the same Category.
+  - It is now split by scope:
+    - `(household_id, category_id) WHERE visibility = 'shared'`;
+    - `(household_id, owner_user_id, category_id) WHERE visibility =
+      'personal'`;
+    - plus the mirror pair for `subcategory_id`.
+  - The three scope columns are denormalized onto
   `budget_targets` specifically so this can be a plain index — a unique
   constraint can't reach into a separate `budgets` row to read its
   `visibility`/`owner_user_id`.
@@ -543,7 +576,8 @@ Backs `AccountManager`'s `InvestmentHoldingAccessor`,
 - **Goal supports both hard delete (FR-8.6, no history) and
   reversible archive (FR-8.8/8.9) — OQ-47's "third lifecycle pattern"**
   → two independent, real mechanisms on the same table: `DELETE` for the
-  former, the nullable `archived_at` column (settable **and** clearable)
+  former, the nullable `completed_at` column (renamed from `archived_at`,
+  OQ-78; settable **and** clearable)
   for the latter. Neither needs more machinery than that.
 - **Cascade tension, resolved (confirmed this pass):** `investment_
   holdings.account_id` cascading with its account, transitively taking

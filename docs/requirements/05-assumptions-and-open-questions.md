@@ -861,6 +861,46 @@ locally and on GitHub Actions, using the same root scripts in both places.
 - **Texts are drafts** written during implementation; reviewing the
   wording is welcome at any time and is a catalog-only change.
 
+### OQ-95: Schema + migrations baseline (task N5)
+**Confirmed, implementation (Oct 2026):**
+- **Drizzle + node-postgres:**
+  - The schema is `apps/api/src/db/schema/`, one file per domain.
+  - `drizzle-kit` generates SQL migrations into `apps/api/drizzle/`,
+    and they are committed.
+  - `pnpm db:generate` creates a migration; `pnpm db:migrate` applies
+    them as the owner role (`DATABASE_MIGRATION_URL`).
+- **Conventions:**
+  - `uuid` keys default to `uuidv7()` (Postgres 18);
+  - `timestamptz` everywhere;
+  - money, quantity and rates are `bigint`, read as JS `number`;
+  - closed value sets are `text` + `CHECK`, while extensible reference
+    data stays `text`.
+- **`ON DELETE` rules A/B/C** are as in `02-data-model.md`. A unit test
+  pins all 43 foreign keys to their rule.
+- **Grants (migration `0001_app_role_grants`):**
+  - `financas_app` gets CRUD on every table, and default privileges
+    cover future tables;
+  - `UPDATE`/`DELETE`/`TRUNCATE` on `audit_log_entries` are revoked
+    (NFR-AUD-1).
+- **Data model corrections:**
+  - `budget_periods` gains `household_id` and `currency`;
+  - the FR-4.7 claim index is split by scope (shared = household,
+    personal = owner);
+  - a stale `archived_at` reference for Goals now says `completed_at`;
+  - the ERD panel is updated.
+- **Real-database check:** Playwright's global setup resets and migrates
+  `financas_test` before every E2E run. The `@smoke` specs then check, as
+  the app role:
+  - the 26 tables and `uuidv7` ids;
+  - one Owner per household;
+  - the FR-4.7 scopes;
+  - an append-only audit log;
+  - that the app role cannot change the schema.
+
+  CI starts Postgres with `docker compose`, and the local pre-push hook
+  needs `pnpm db:up`.
+- **Node ≥ 24.10** (for `process.loadEnvFile`).
+
 ## Refined (resolved, with a follow-up still open)
 
 *(OQ-4's legal-review follow-up below is closed for v1 by OQ-89.)*

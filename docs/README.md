@@ -106,7 +106,8 @@ Each step is presented for review and confirmation before moving on.
 ```
 newFinancas/
 ├── apps/
-│   ├── api/                Hono backend — src/, tests/{unit,integration}/
+│   ├── api/                Hono backend — src/, tests/{unit,integration}/,
+│   │                       src/db/schema/ (Drizzle) + drizzle/ (migrations)
 │   └── web/                Vite + React frontend — src/, tests/unit/
 ├── packages/
 │   ├── i18n/               shared ICU catalog (pt-BR, en-US)

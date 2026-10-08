@@ -8,12 +8,13 @@ entry. Open Banking sync is planned for v2.
 
 ## Getting started
 
-Requires Node 24 (`.nvmrc`), pnpm (`corepack enable pnpm`) and Docker.
+Requires Node 24.10+ (`.nvmrc`), pnpm (`corepack enable pnpm`) and Docker.
 
 ```sh
 pnpm install        # also installs the git hooks (husky)
 cp .env.example .env
 pnpm db:up          # Postgres 18 on 127.0.0.1:5432 (db:down, db:reset, db:psql)
+pnpm --filter @financas/api db:migrate   # apply migrations (db:generate after schema changes)
 pnpm dev            # api on :3000, web on :5173
 pnpm check          # lint + typecheck + API contract + unit + integration, 100% coverage gate
 pnpm generate:api   # regenerate types + Zod from docs/architecture/api/openapi.yaml
@@ -23,7 +24,8 @@ pnpm test:e2e       # every Playwright test (Full E2E)
 ```
 
 Git hooks: **pre-commit** runs `pnpm check`, **pre-push** runs
-`pnpm test:smoke`. GitHub Actions runs the same on every PR, plus Core
+`pnpm test:smoke` (needs `pnpm db:up`; E2E resets and migrates the
+`financas_test` database). GitHub Actions runs the same on every PR, plus Core
 E2E after a merge to `main` (OQ-91).
 
 Playwright needs a browser: `pnpm exec playwright install chromium`, or

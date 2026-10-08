@@ -33,7 +33,7 @@ identity screens, the rest as later slices use them.
 - [x] **4.** `N4` Local environment (Docker Postgres, console email)
 - [x] **5.** `N7` API contract tooling
 - [x] **6.** `N8` i18n catalog package
-- [ ] **7.** `N5` Schema + migrations baseline
+- [x] **7.** `N5` Schema + migrations baseline
 - [ ] **8.** `N12` Local operations (backup/restore)
 - [ ] **9.** `N6` Reference data + seeds
 
