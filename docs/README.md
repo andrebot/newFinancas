@@ -112,6 +112,7 @@ newFinancas/
 ├── packages/
 │   ├── i18n/               shared ICU catalog (pt-BR, en-US)
 │   └── api-types/          types generated from openapi.yaml (task N7)
+├── tools/ops/              local operations: db:backup / db:restore / db:restore-drill (OQ-97)
 ├── tests/e2e/              Playwright specs (span api + web), tiers by tag: @smoke, @core
 ├── .husky/                 git hook: pre-commit `pnpm check`
 ├── .github/workflows/      CI: check + smoke on PRs, + Core E2E on main (OQ-91)
@@ -142,6 +143,7 @@ newFinancas/
     │   ├── api/                openapi.yaml (v1.1.0), index.html, build_index.py
     │   ├── backend/01-vbd-decomposition.md
     │   └── frontend/01-ebd-decomposition.md
+    ├── operations/             backup-restore.md (runbook + drill log)
     ├── planning/               01-pd-activity-list, 02-pd-dependency-network,
     │                           03-pd-execution-order (the task checklist)
     └── design/

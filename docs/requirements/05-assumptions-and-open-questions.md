@@ -932,6 +932,31 @@ driver.**
   transaction would need savepoints or a per-file reset instead.
 - Recorded in `04-bdt-test-plan.md`.
 
+### OQ-97: Local operations — backups and log files (task N12)
+**Confirmed, implementation (Oct 2026):**
+- **Backups:**
+  - `pnpm db:backup`, `db:restore` and `db:restore-drill` live in a
+    `tools/ops` workspace (`@financas/ops`): pure, tested functions plus a
+    thin entry point.
+  - They run `pg_dump`/`pg_restore` **inside the container** in custom
+    format, which includes grants.
+  - **Stored outside the repository** in `~/.local/share/financas/backups`
+    (`BACKUP_DIR`), owner-only (`700`/`600`).
+  - **Manual only**, no schedule.
+  - **The newest 30 are kept** (`BACKUP_KEEP`).
+- **Restore safety:**
+  - A restore goes to a scratch database (`financas_restore`) unless
+    `--into-live` is given.
+  - `--into-live` first takes a safety backup of the live data.
+- **Drill:** back up, restore into scratch, compare row counts per
+  table, drop the scratch copy. The first drill ran on 2026-10-08 and
+  passed. The runbook is `docs/operations/backup-restore.md`.
+- **Log files (decided now, built in U2):** besides stdout, LoggingUtility
+  writes **JSON lines to a daily-rotated file** in
+  `~/.local/state/financas/logs` (`LOG_DIR`), keeping 14 days. This is a
+  second Winston transport, i.e. configuration (NFR-OBS-5, OQ-10). Logs
+  then survive closing the terminal.
+
 ## Refined (resolved, with a follow-up still open)
 
 *(OQ-4's legal-review follow-up below is closed for v1 by OQ-89.)*
