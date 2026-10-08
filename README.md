@@ -15,7 +15,8 @@ pnpm install        # also installs the git hooks (husky)
 cp .env.example .env
 pnpm db:up          # Postgres 18 on 127.0.0.1:5432 (db:down, db:reset, db:psql)
 pnpm dev            # api on :3000, web on :5173
-pnpm check          # lint + typecheck + unit + integration, 100% coverage gate
+pnpm check          # lint + typecheck + API contract + unit + integration, 100% coverage gate
+pnpm generate:api   # regenerate types + Zod from docs/architecture/api/openapi.yaml
 pnpm test:smoke     # Playwright @smoke
 pnpm test:e2e:core  # Playwright @core (Core E2E)
 pnpm test:e2e       # every Playwright test (Full E2E)

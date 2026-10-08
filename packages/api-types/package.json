@@ -3,9 +3,20 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./zod": "./src/zod.ts"
   },
   "scripts": {
+    "generate": "openapi-ts",
+    "lint:spec": "REDOCLY_TELEMETRY=off REDOCLY_SUPPRESS_UPDATE_NOTICE=true redocly lint ../../docs/architecture/api/openapi.yaml --extends minimal",
     "typecheck": "tsc --project tsconfig.json"
+  },
+  "devDependencies": {
+    "@hey-api/openapi-ts": "0.99.0",
+    "@redocly/cli": "2.60.0",
+    "@types/node": "^24.19.1"
+  },
+  "dependencies": {
+    "zod": "^4.6.5"
   }
 }

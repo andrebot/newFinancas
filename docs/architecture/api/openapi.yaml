@@ -46,6 +46,7 @@ paths:
   /auth/register:
     post:
       tags: [Auth]
+      operationId: registerUser
       summary: Register a new user (Create User)
       description: >
         FR-1.1/FR-1.15. Enrolls TOTP-based MFA and issues recovery codes
@@ -84,6 +85,7 @@ paths:
   /auth/login:
     post:
       tags: [Auth]
+      operationId: login
       summary: Login (password + MFA code together)
       description: >
         FR-1.2/OQ-30. Password and MFA code supplied in one request. The
@@ -121,6 +123,7 @@ paths:
   /auth/logout:
     post:
       tags: [Auth]
+      operationId: logout
       summary: Logout (current session only)
       description: >
         FR-1.9. Terminates the current session only; every other active
@@ -132,6 +135,7 @@ paths:
   /auth/change-password:
     post:
       tags: [Auth]
+      operationId: changePassword
       summary: Change password (authenticated)
       description: >
         FR-1.14. Requires re-supplying the current password; invalidates
@@ -154,6 +158,7 @@ paths:
   /auth/password-reset/request:
     post:
       tags: [Auth]
+      operationId: requestPasswordReset
       summary: Request a password reset token (step 1 of 2)
       description: >-
         FR-1.13. Always returns 202 regardless of whether the email matched an account — the branch is entirely internal, so there is no observable response difference that would leak account existence.
@@ -174,6 +179,7 @@ paths:
   /auth/password-reset/confirm:
     post:
       tags: [Auth]
+      operationId: confirmPasswordReset
       summary: Submit a reset token + new password (step 2 of 2)
       description: >
         FR-1.13. A valid token invalidates every active session, not
@@ -201,6 +207,7 @@ paths:
   /auth/mfa/recover:
     post:
       tags: [Auth]
+      operationId: recoverWithMfaCode
       summary: Log in using a single-use MFA recovery code
       description: >
         FR-1.16. Requires the correct password too, same as normal
@@ -230,6 +237,7 @@ paths:
   /users/me:
     get:
       tags: [Auth]
+      operationId: getCurrentUser
       summary: Get the current user's profile
       responses:
         "200":
@@ -239,6 +247,7 @@ paths:
               schema: { $ref: "#/components/schemas/User" }
     patch:
       tags: [Auth]
+      operationId: editCurrentUser
       summary: Edit profile (first/last name) and preferences (theme, language)
       description: >
         Email and password each have their own dedicated flow — this
@@ -264,6 +273,7 @@ paths:
         "422": { $ref: "#/components/responses/ValidationError" }
     delete:
       tags: [Auth]
+      operationId: deleteCurrentUser
       summary: Delete own account (GDPR right-to-erasure)
       description: >
         FR-1.17/FR-1.18/OQ-25. Unconditional — no rejection path exists,
@@ -281,6 +291,7 @@ paths:
   /users/me/sessions:
     get:
       tags: [Auth]
+      operationId: listSessions
       summary: List active sessions/devices
       description: FR-1.3.
       responses:
@@ -309,6 +320,7 @@ paths:
       - $ref: "#/components/parameters/SessionId"
     delete:
       tags: [Auth]
+      operationId: revokeSession
       summary: Revoke a session
       description: >
         FR-1.3. 404, not 403, for a session belonging to someone else —
@@ -321,6 +333,7 @@ paths:
   /users/me/invitations:
     get:
       tags: [Households]
+      operationId: listMyInvitations
       summary: List pending invitations addressed to the current user
       description: FR-1.5/FR-1.10. Only ever shows this user's own pending invitations.
       responses:
@@ -339,6 +352,7 @@ paths:
   /households:
     get:
       tags: [Households]
+      operationId: listHouseholds
       summary: List households the current user belongs to
       description: FR-1.8 — a user may belong to more than one household.
       responses:
@@ -354,6 +368,7 @@ paths:
                     items: { $ref: "#/components/schemas/Household" }
     post:
       tags: [Households]
+      operationId: createHousehold
       summary: Create a household
       description: >
         FR-1.4. Also seeds the predefined default Category set — a
@@ -383,6 +398,7 @@ paths:
       - $ref: "#/components/parameters/HouseholdId"
     get:
       tags: [Households]
+      operationId: getHousehold
       summary: Get a household
       responses:
         "200":
@@ -392,6 +408,7 @@ paths:
               schema: { $ref: "#/components/schemas/Household" }
     delete:
       tags: [Households]
+      operationId: deleteHousehold
       summary: Delete a household (Owner only, deliberate dissolution)
       description: >
         FR-1.7. Owner-only, cascading hard delete of every
@@ -409,6 +426,7 @@ paths:
       - $ref: "#/components/parameters/HouseholdId"
     get:
       tags: [Households]
+      operationId: listMembers
       summary: List household members
       responses:
         "200":
@@ -428,6 +446,7 @@ paths:
       - $ref: "#/components/parameters/UserId"
     delete:
       tags: [Households]
+      operationId: removeMember
       summary: Remove a member, or leave the household yourself
       description: >
         FR-1.11/FR-1.18/OQ-27. One endpoint, two actor/target
@@ -449,6 +468,7 @@ paths:
       - $ref: "#/components/parameters/UserId"
     patch:
       tags: [Households]
+      operationId: changeMemberRole
       summary: Change a member's role
       description: >
         FR-1.12. Owner/Admin only; can never assign or remove the Owner
@@ -473,6 +493,7 @@ paths:
       - $ref: "#/components/parameters/HouseholdId"
     post:
       tags: [Households]
+      operationId: transferOwnership
       summary: Transfer ownership to another member
       description: >
         FR-1.20/OQ-28. Owner-only; a single atomic dual-role swap — the
@@ -500,6 +521,7 @@ paths:
       - $ref: "#/components/parameters/HouseholdId"
     get:
       tags: [Households]
+      operationId: listHouseholdInvitations
       summary: List this household's invitations
       responses:
         "200":
@@ -514,6 +536,7 @@ paths:
                     items: { $ref: "#/components/schemas/Invitation" }
     post:
       tags: [Households]
+      operationId: createInvitation
       summary: Invite a user to the household
       description: >
         FR-1.5/FR-1.19/OQ-26. Owner/Admin only. Target must be an
@@ -549,6 +572,7 @@ paths:
       - $ref: "#/components/parameters/InvitationId"
     delete:
       tags: [Households]
+      operationId: revokeInvitation
       summary: Revoke a pending invitation
       description: FR-1.10. Owner/Admin only, before the invitee responds.
       responses:
@@ -565,6 +589,7 @@ paths:
       - $ref: "#/components/parameters/InvitationId"
     post:
       tags: [Households]
+      operationId: acceptInvitation
       summary: Accept a household invitation
       description: >
         FR-1.10. Only the invited user can accept. Establishes
@@ -591,6 +616,7 @@ paths:
       - $ref: "#/components/parameters/InvitationId"
     post:
       tags: [Households]
+      operationId: declineInvitation
       summary: Decline a household invitation
       description: FR-1.10. Only the invited user can decline. No membership is ever created.
       responses:
@@ -606,6 +632,7 @@ paths:
   /accounts:
     get:
       tags: [Accounts]
+      operationId: listAccounts
       summary: List financial accounts visible to the current user
       parameters:
         - name: householdId
@@ -630,6 +657,7 @@ paths:
                   pagination: { $ref: "#/components/schemas/Pagination" }
     post:
       tags: [Accounts]
+      operationId: createAccount
       summary: Create a financial account
       description: >
         FR-2.1. `type` and `currency` are immutable once set (OQ-32) —
@@ -654,6 +682,7 @@ paths:
       - $ref: "#/components/parameters/AccountId"
     get:
       tags: [Accounts]
+      operationId: getAccount
       summary: Get a financial account
       responses:
         "200":
@@ -664,6 +693,7 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
     patch:
       tags: [Accounts]
+      operationId: editAccount
       summary: Edit a financial account, including its Credit Cards
       description: >
         FR-2.9/OQ-35. Attaching, editing, and removing this account's
@@ -690,6 +720,7 @@ paths:
       - $ref: "#/components/parameters/AccountId"
     post:
       tags: [Accounts]
+      operationId: archiveAccount
       summary: Archive a financial account
       description: >
         FR-2.4/OQ-34. One-way, no unarchive path. Auto-disconnects Open
@@ -703,6 +734,7 @@ paths:
       - $ref: "#/components/parameters/AccountId"
     get:
       tags: [Accounts]
+      operationId: listCreditCards
       summary: List credit cards attached to an account
       responses:
         "200":
@@ -721,6 +753,7 @@ paths:
       - $ref: "#/components/parameters/AccountId"
     get:
       tags: [Accounts]
+      operationId: getAccountBalances
       summary: Get an account's balance history by month
       description: >
         FR-5.4/FR-6.6. Backed by account_month_balances — "current
@@ -746,6 +779,7 @@ paths:
       - $ref: "#/components/parameters/CreditCardId"
     get:
       tags: [Accounts]
+      operationId: getCreditCardBalances
       summary: Get a credit card's outstanding-balance history by month
       parameters:
         - $ref: "#/components/parameters/StartDate"
@@ -766,6 +800,7 @@ paths:
   /categories:
     get:
       tags: [Categories]
+      operationId: listCategories
       summary: List categories (with their subcategories)
       parameters:
         - name: includeArchived
@@ -784,6 +819,7 @@ paths:
                     items: { $ref: "#/components/schemas/Category" }
     post:
       tags: [Categories]
+      operationId: createCategory
       summary: Create a category
       description: >
         FR-10.1. A custom Category supplementing the predefined default
@@ -838,6 +874,7 @@ paths:
       - $ref: "#/components/parameters/CategoryId"
     get:
       tags: [Categories]
+      operationId: getCategory
       summary: Get a category (with its subcategories)
       responses:
         "200":
@@ -847,6 +884,7 @@ paths:
               schema: { $ref: "#/components/schemas/Category" }
     patch:
       tags: [Categories]
+      operationId: editCategory
       summary: Edit a category, including its Subcategories
       description: >
         FR-10.2. Creating a new Subcategory under this Category is
@@ -871,6 +909,7 @@ paths:
       - $ref: "#/components/parameters/CategoryId"
     post:
       tags: [Categories]
+      operationId: archiveCategory
       summary: Archive a category (cascades to its Subcategories)
       description: >
         FR-10.3/FR-10.4. One-way. Cascades: stamps this Category's
@@ -884,6 +923,7 @@ paths:
       - $ref: "#/components/parameters/SubcategoryId"
     post:
       tags: [Categories]
+      operationId: archiveSubcategory
       summary: Archive a single subcategory (parent/siblings unaffected)
       description: FR-10.3/FR-10.4. One-way, single-row — no cascade in this direction.
       responses:
@@ -893,6 +933,7 @@ paths:
   /budgets:
     get:
       tags: [Budgets]
+      operationId: listBudgets
       summary: List budgets
       parameters:
         - name: visibility
@@ -914,6 +955,7 @@ paths:
                   pagination: { $ref: "#/components/schemas/Pagination" }
     post:
       tags: [Budgets]
+      operationId: createBudget
       summary: Create a budget
       description: >
         FR-4.1/FR-4.7. A Category or Subcategory can be claimed by at
@@ -942,6 +984,7 @@ paths:
       - $ref: "#/components/parameters/BudgetId"
     get:
       tags: [Budgets]
+      operationId: getBudget
       summary: Get a budget
       responses:
         "200":
@@ -951,6 +994,7 @@ paths:
               schema: { $ref: "#/components/schemas/Budget" }
     patch:
       tags: [Budgets]
+      operationId: editBudget
       summary: Edit a budget
       description: >
         FR-4.9. Changing targetAmount only affects the current and
@@ -975,6 +1019,7 @@ paths:
         "422": { $ref: "#/components/responses/ValidationError" }
     delete:
       tags: [Budgets]
+      operationId: deleteBudget
       summary: Delete a budget
       description: >
         FR-4.10/OQ-40. Hard delete of the live definition only — unlike
@@ -990,6 +1035,7 @@ paths:
       - $ref: "#/components/parameters/BudgetId"
     get:
       tags: [Budgets]
+      operationId: listBudgetPeriods
       summary: Get a budget's monthly period history (target vs. actual spend)
       description: FR-4.3/FR-4.9. Backs the Budget status display.
       parameters:
@@ -1013,6 +1059,7 @@ paths:
       - $ref: "#/components/parameters/AccountId"
     get:
       tags: [Investments]
+      operationId: listHoldings
       summary: List Investment Holdings for an account
       parameters:
         - name: includeArchived
@@ -1034,6 +1081,7 @@ paths:
       - $ref: "#/components/parameters/HoldingId"
     get:
       tags: [Investments]
+      operationId: getHolding
       summary: Get an Investment Holding
       responses:
         "200":
@@ -1043,6 +1091,7 @@ paths:
               schema: { $ref: "#/components/schemas/InvestmentHolding" }
     patch:
       tags: [Investments]
+      operationId: editHolding
       summary: Edit a Holding's goal allocations
       description: >
         FR-8.2/8.3/OQ-48. Goal allocations only (narrowed Oct 2026) — the
@@ -1074,6 +1123,7 @@ paths:
       - $ref: "#/components/parameters/HoldingId"
     post:
       tags: [Investments]
+      operationId: archiveHolding
       summary: Archive an Investment Holding
       description: >
         FR-5.8/OQ-43. One-way, no unarchive — Valuation Snapshot history
@@ -1087,6 +1137,7 @@ paths:
       - $ref: "#/components/parameters/HoldingId"
     get:
       tags: [Investments]
+      operationId: listValuationSnapshots
       summary: Get a Holding's valuation history
       description: >
         FR-5.2/FR-5.4. Market-priced assetTypes only (OQ-51) — a
@@ -1137,6 +1188,7 @@ paths:
       - $ref: "#/components/parameters/HoldingId"
     get:
       tags: [Investments]
+      operationId: listScheduleEntries
       summary: Get a fixed-term Holding's contractual cash-event schedule
       description: >
         FR-11.1/FR-11.2. Read-only from this API — entries are computed
@@ -1159,6 +1211,7 @@ paths:
   /transactions:
     get:
       tags: [Transactions]
+      operationId: listTransactions
       summary: Browse & filter all transactions (both ledgers, newest first)
       description: >-
         FR-3.12 / OQ-61 — not limited to a month; cursor pagination on (date, id). Owned by TransactionManager (read-ownership rule).
@@ -1233,6 +1286,7 @@ paths:
                 $ref: '#/components/schemas/TransactionPage'
     post:
       tags: [Transactions]
+      operationId: recordTransaction
       summary: Record a transaction (unified entry point)
       description: >
         FR-3.1/OQ-39. One unified entry point for both Account and Card
@@ -1289,6 +1343,7 @@ paths:
       - $ref: "#/components/parameters/TransactionId"
     get:
       tags: [Transactions]
+      operationId: getTransaction
       summary: Get an Account Transaction
       responses:
         "200":
@@ -1298,6 +1353,7 @@ paths:
               schema: { $ref: "#/components/schemas/AccountTransaction" }
     patch:
       tags: [Transactions]
+      operationId: editTransaction
       summary: Edit a transaction
       description: >
         FR-3.2/OQ-39. Works for either ledger. Real complexity: every
@@ -1321,6 +1377,7 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
     delete:
       tags: [Transactions]
+      operationId: deleteTransaction
       summary: Delete a transaction
       description: >
         FR-3.2. Same reverse-effect complexity as Edit, without a
@@ -1334,6 +1391,7 @@ paths:
       - $ref: "#/components/parameters/CreditCardId"
     get:
       tags: [Transactions]
+      operationId: listCardTransactions
       summary: List Card Transactions for a credit card
       description: FR-3.9. Its own ledger, separate from Account Transactions (OQ-16).
       parameters:
@@ -1358,6 +1416,7 @@ paths:
   /dashboard:
     get:
       tags: [Insights]
+      operationId: getDashboard
       summary: 'Get the Dashboard (v1: fixed panels)'
       description: >-
         FR-6.0 / OQ-67 — no stored layout in v1; widgets are v3.
@@ -1385,6 +1444,7 @@ paths:
   /dashboard/widgets:
     patch:
       tags: [Insights]
+      operationId: editDashboardWidgets
       summary: '[v3] Edit dashboard layout (add/remove/reorder widgets)'
       description: >
         FR-6.1/FR-6.8. The same widgetType can appear more than once
@@ -1426,6 +1486,7 @@ paths:
     get:
       tags:
         - Reports
+      operationId: getReport
       summary: 'Get a report (v1 fixed types: month-overview, investments-overview, payouts)'
       description: >-
         Fixed v1 report types (sequence review Q1 — reports expand later). Ad-hoc types (spending by category, income vs expense) are v2 (OQ-71).
@@ -1488,6 +1549,7 @@ paths:
     get:
       tags:
         - Reports
+      operationId: exportTransactions
       summary: '[v2] Export transactions to CSV'
       description: >
         FR-6.4. A formatted PDF is a nice-to-have, not a v1 commitment
@@ -1506,6 +1568,7 @@ paths:
   /notifications:
     get:
       tags: [Insights]
+      operationId: listNotifications
       summary: List the current user's notification inbox
       description: >
         FR-6.10/OQ-45. Opening the inbox marks every notification
@@ -1531,6 +1594,7 @@ paths:
       - $ref: "#/components/parameters/NotificationId"
     delete:
       tags: [Insights]
+      operationId: deleteNotification
       summary: Delete a notification
       description: >
         FR-6.10/OQ-45. Hard delete, no archive. 404, not 403, for a
@@ -1545,6 +1609,7 @@ paths:
       - $ref: "#/components/parameters/HouseholdId"
     get:
       tags: [Audit]
+      operationId: exportAuditLog
       summary: Export the household's audit log to CSV
       description: >
         FR-7.2/OQ-46. Owner/Admin only. This is the Audit Log's ONLY
@@ -1716,6 +1781,7 @@ paths:
     get:
       tags:
         - Goals
+      operationId: listGoals
       summary: List goals with progress per currency (View Goals)
       parameters:
         - name: status
@@ -1739,7 +1805,8 @@ paths:
     post:
       tags:
         - Goals
-      summary: Create an Goal
+      operationId: createGoal
+      summary: Create a Goal
       description: >
         FR-8.1. Starts unfunded — allocating a Holding to it happens later, from the Holding's own edit flow (OQ-48).
       requestBody:
@@ -1760,7 +1827,8 @@ paths:
     get:
       tags:
         - Goals
-      summary: Get an Goal
+      operationId: getGoal
+      summary: Get a Goal
       responses:
         "200":
           description: OK
@@ -1770,7 +1838,8 @@ paths:
     patch:
       tags:
         - Goals
-      summary: Edit an Goal's name/target/due date
+      operationId: editGoal
+      summary: Edit a Goal's name/target/due date
       description: >
         FR-8.1. Never editable here: allocations — see PATCH /holdings/{holdingId} (OQ-48).
       requestBody:
@@ -1788,7 +1857,8 @@ paths:
     delete:
       tags:
         - Goals
-      summary: Delete an Goal
+      operationId: deleteGoal
+      summary: Delete a Goal
       description: >
         FR-8.6/OQ-47. Hard delete, no history — "this goal no longer makes sense." The underlying Investment Holdings are never deleted; only this Goal's allocations cascade away.
       responses:
@@ -1799,7 +1869,8 @@ paths:
     post:
       tags:
         - Goals
-      summary: Complete an Goal ("this goal is completed")
+      operationId: completeGoal
+      summary: Complete a Goal ("this goal is completed")
       description: >
         FR-8.8/OQ-47. Unlike every other complete in this project, this one is reversible — see POST .../reopen. Keeps the record intact so historical progress-by-month stays viewable.
       responses:
@@ -1810,7 +1881,8 @@ paths:
     post:
       tags:
         - Goals
-      summary: Reopen an Goal
+      operationId: reopenGoal
+      summary: Reopen a Goal
       description: >
         FR-8.9. The only "reopen" endpoint in the entire API — every other completed entity in this project stays completed, one-way.
       responses:
@@ -1821,6 +1893,7 @@ paths:
     get:
       tags:
         - Goals
+      operationId: listGoalAllocations
       summary: List which Holdings fund this Goal (read-only)
       description: >
         FR-8.2/OQ-48. Display-only — editing an allocation always happens via PATCH /holdings/{holdingId}, never here.
@@ -1841,7 +1914,8 @@ paths:
     get:
       tags:
         - Goals
-      summary: Get an Goal's funding progress, current or by month
+      operationId: getGoalProgress
+      summary: Get a Goal's funding progress, current or by month
       description: >
         FR-8.5/FR-8.7/OQ-49. Returns each allocated Holding's contribution in its own native currency — cross-currency blending into one target-currency figure is a frontend concern, using a rate the user enters on the progress view itself (FR-8.4), not computed or stored here.
       parameters:
@@ -2107,7 +2181,7 @@ components:
         role: { type: string, enum: [Admin, Member, Viewer] }
         status: { type: string, enum: [pending, accepted, declined, revoked] }
         createdAt: { type: string, format: date-time }
-        resolvedAt: { type: string, format: date-time, nullable: true }
+        resolvedAt: { type: [string, "null"], format: date-time }
 
     # ---------------------------------------------------- accounts
     Account:
@@ -2115,12 +2189,12 @@ components:
       properties:
         id: { type: string, format: uuid }
         householdId: { type: string, format: uuid }
-        ownerUserId: { type: string, format: uuid, nullable: true, description: "Identity for personal, provenance for shared (dual-role, FR-1.17)" }
+        ownerUserId: { type: [string, "null"], format: uuid, description: "Identity for personal, provenance for shared (dual-role, FR-1.17)" }
         name: { type: string }
         type: { type: string, enum: [checking, savings, credit_card_only, investment], description: "Immutable once set, OQ-32. Four types since OQ-76." }
         currency: { type: string, description: "ISO 4217, immutable once set, FR-2.2" }
         visibility: { type: string, enum: [personal, shared] }
-        archivedAt: { type: string, format: date-time, nullable: true, description: "One-way, FR-2.4/OQ-34" }
+        archivedAt: { type: [string, "null"], format: date-time, description: "One-way, FR-2.4/OQ-34" }
         createdAt: { type: string, format: date-time }
 
     AccountCreateRequest:
@@ -2195,7 +2269,7 @@ components:
         id: { type: string, format: uuid }
         categoryId: { type: string, format: uuid }
         name: { type: string }
-        archivedAt: { type: string, format: date-time, nullable: true }
+        archivedAt: { type: [string, "null"], format: date-time }
         createdAt: { type: string, format: date-time }
 
     Category:
@@ -2204,7 +2278,7 @@ components:
         id: { type: string, format: uuid }
         householdId: { type: string, format: uuid }
         name: { type: string }
-        archivedAt: { type: string, format: date-time, nullable: true, description: "One-way, cascades to Subcategories, FR-10.3/10.4" }
+        archivedAt: { type: [string, "null"], format: date-time, description: "One-way, cascades to Subcategories, FR-10.3/10.4" }
         createdAt: { type: string, format: date-time }
         subcategories:
           type: array
@@ -2285,7 +2359,7 @@ components:
       properties:
         id: { type: string, format: uuid }
         householdId: { type: string, format: uuid }
-        ownerUserId: { type: string, format: uuid, nullable: true }
+        ownerUserId: { type: [string, "null"], format: uuid }
         name: { type: string }
         targetAmount: { $ref: "#/components/schemas/Money" }
         currency: { type: string }
@@ -2359,8 +2433,7 @@ components:
         quantity: { $ref: "#/components/schemas/Quantity" }
         costBasis: { $ref: "#/components/schemas/Money" }
         rate:
-          type: object
-          nullable: true
+          type: [object, "null"]
           description: "Fixed-term instrument types only (OQ-50) — this purchase's own immutable rate, set at creation and never recomputed."
           properties:
             type: { type: string, enum: [fixed, cdi, ipca, igpm, selic] }
@@ -2368,27 +2441,24 @@ components:
               type: integer
               description: Percent × 10,000 — 10.50% = 105000 (bigint fixed-point, OQ-86)
         archivedAt:
-          type: string
+          type: [string, "null"]
           format: date-time
-          nullable: true
         createdAt: { type: string, format: date-time }
         incentivised:
-          type: boolean
-          nullable: true
+          type: [boolean, "null"]
           description: Debentures only — incentivised debentures are income-tax exempt for individuals (OQ-79)
         archivedBy:
-          type: string
+          type: [string, "null"]
           enum:
             - system
             - user
-          nullable: true
+            - null
           description: '`system` = quantity reached 0, undone automatically if that transaction changes (OQ-80); `user` = one-way'
         expectedPayout:
           $ref: '#/components/schemas/Money'
           description: Fixed-term only, computed on read by InvestmentProductEngine.project (FR-11.2) — gross at maturity
         expectedTaxes:
-          type: object
-          nullable: true
+          type: [object, "null"]
           description: 'Fixed-term only. `estimated: false` for US instruments (OQ-79)'
           properties:
             estimated:
@@ -2433,9 +2503,8 @@ components:
             - transaction
           description: Only `manual` snapshots can be edited/deleted (OQ-56)
         accountTransactionId:
-          type: string
+          type: [string, "null"]
           format: uuid
-          nullable: true
           description: Set for `transaction` snapshots
 
     InvestmentScheduleEntry:
@@ -2446,7 +2515,7 @@ components:
         kind: { type: string, enum: [interest_payment, redemption, tax] }
         amount: { $ref: "#/components/schemas/Money" }
         date: { type: string, format: date }
-        postedAt: { type: string, format: date-time, nullable: true }
+        postedAt: { type: [string, "null"], format: date-time }
         createdAt: { type: string, format: date-time }
 
     # ---------------------------------------------------- transactions
@@ -2467,8 +2536,7 @@ components:
         ticker: { type: string, description: "Investment kinds only, required (FR-5.1) — matches an existing Holding in this account by ticker; a new ticker on investment_buy creates one." }
         quantity: { $ref: "#/components/schemas/Quantity" }
         rate:
-          type: object
-          nullable: true
+          type: [object, "null"]
           description: "Fixed-term instrument types only, investment_buy only (OQ-50) — this purchase's own immutable rate, set at creation and never recomputed."
           properties:
             type: { type: string, enum: [fixed, cdi, ipca, igpm, selic] }
@@ -2514,11 +2582,11 @@ components:
         date: { type: string, format: date }
         amount: { $ref: "#/components/schemas/Money" }
         currency: { type: string }
-        categoryId: { type: string, format: uuid, nullable: true }
-        subcategoryId: { type: string, format: uuid, nullable: true }
+        categoryId: { type: [string, "null"], format: uuid }
+        subcategoryId: { type: [string, "null"], format: uuid }
         description: { type: string }
-        holdingId: { type: string, format: uuid, nullable: true, description: "Investment kinds only" }
-        creditCardId: { type: string, format: uuid, nullable: true, description: "Bill payment only — the one bridge between the two ledgers" }
+        holdingId: { type: [string, "null"], format: uuid, description: "Investment kinds only" }
+        creditCardId: { type: [string, "null"], format: uuid, description: "Bill payment only — the one bridge between the two ledgers" }
         source:
           type: string
           enum:
@@ -2540,8 +2608,8 @@ components:
         date: { type: string, format: date }
         amount: { $ref: "#/components/schemas/Money" }
         currency: { type: string }
-        categoryId: { type: string, format: uuid, nullable: true }
-        subcategoryId: { type: string, format: uuid, nullable: true }
+        categoryId: { type: [string, "null"], format: uuid }
+        subcategoryId: { type: [string, "null"], format: uuid }
         description: { type: string }
         createdAt: { type: string, format: date-time }
         ledger:
@@ -2582,8 +2650,7 @@ components:
       type: object
       properties:
         nextCursor:
-          type: string
-          nullable: true
+          type: [string, "null"]
           description: null when there are no more items
     UserPreferences:
       type: object
@@ -2658,7 +2725,7 @@ components:
       properties:
         id: { type: string, format: uuid }
         householdId: { type: string, format: uuid }
-        ownerUserId: { type: string, format: uuid, nullable: true }
+        ownerUserId: { type: [string, "null"], format: uuid }
         name: { type: string }
         targetAmount: { $ref: "#/components/schemas/Money" }
         targetCurrency: { type: string }
@@ -2666,9 +2733,8 @@ components:
         visibility: { type: string, enum: [personal, shared] }
         createdAt: { type: string, format: date-time }
         completedAt:
-          type: string
+          type: [string, "null"]
           format: date-time
-          nullable: true
           description: Complete sets it, reopen nulls it — the one reversible lifecycle flag (FR-8.8/8.9, OQ-78)
     GoalAllocation:
       type: object
@@ -2824,9 +2890,8 @@ components:
                 type: string
                 format: uuid
               creditCardId:
-                type: string
+                type: [string, "null"]
                 format: uuid
-                nullable: true
               currency:
                 type: string
               amount:
@@ -2898,9 +2963,8 @@ components:
               currency:
                 type: string
               holdingId:
-                type: string
+                type: [string, "null"]
                 format: uuid
-                nullable: true
               amount:
                 $ref: '#/components/schemas/Money'
         comingDue:
@@ -2957,9 +3021,8 @@ components:
           type: string
           format: uuid
         seenAt:
-          type: string
+          type: [string, "null"]
           format: date-time
-          nullable: true
         createdAt:
           type: string
           format: date-time
@@ -2991,9 +3054,8 @@ components:
           type: string
           format: uuid
         seenAt:
-          type: string
+          type: [string, "null"]
           format: date-time
-          nullable: true
         createdAt:
           type: string
           format: date-time
