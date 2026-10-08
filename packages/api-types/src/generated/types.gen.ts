@@ -513,9 +513,9 @@ export type DashboardWidgetInput = {
  * OQ-82 — type + params, never text; the frontend renders and localizes it (NFR-I18N-3).
  */
 export type Notification = ({
-    type: 'InvitationReceivedNotification';
+    type: 'invitation.received';
 } & InvitationReceivedNotification) | ({
-    type: 'HoldingMaturedNotification';
+    type: 'holding.matured';
 } & HoldingMaturedNotification);
 
 export type CursorPage = {
@@ -631,9 +631,9 @@ export type GoalWithProgress = Goal & {
  * Both ledgers merged; `ledger` is `account` or `card`
  */
 export type LedgerItem = ({
-    ledger: 'AccountTransaction';
+    ledger: 'account';
 } & AccountTransaction) | ({
-    ledger: 'CardTransaction';
+    ledger: 'card';
 } & CardTransaction);
 
 export type TransactionPage = CursorPage & {
@@ -2437,11 +2437,11 @@ export type GetReportResponses = {
      * OK
      */
     200: ({
-        reportType: 'MonthOverviewReport';
+        reportType: 'month-overview';
     } & MonthOverviewReport) | ({
-        reportType: 'InvestmentsOverviewReport';
+        reportType: 'investments-overview';
     } & InvestmentsOverviewReport) | ({
-        reportType: 'PayoutsReport';
+        reportType: 'payouts';
     } & PayoutsReport);
 };
 

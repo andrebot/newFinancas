@@ -20,7 +20,9 @@ describe('createApiError', () => {
 
 describe('isApiError', () => {
   it('recognizes errors made by createApiError', () => {
-    expect(isApiError(createApiError({ status: 404, code: 'x.y', message: 'm' }))).toBe(true);
+    const error = createApiError({ status: 404, code: 'route.not_found', message: 'm' });
+
+    expect(isApiError(error)).toBe(true);
   });
 
   it.each([

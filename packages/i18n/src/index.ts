@@ -1,18 +1,14 @@
-/** Locales supported from day one; pt-BR is the primary one. */
-export const SUPPORTED_LOCALES = ['pt-BR', 'en-US'] as const;
+import type { Catalog } from './catalog';
+import enUS from './catalogs/en-US';
+import ptBR from './catalogs/pt-BR';
+import type { Locale } from './locales';
 
-/** A locale the catalog has messages for. */
-export type Locale = (typeof SUPPORTED_LOCALES)[number];
+export {
+  DEFAULT_LOCALE, isSupportedLocale, SUPPORTED_LOCALES, type Locale,
+} from './locales';
+export type {
+  Catalog, EmailType, ErrorCode, FieldCode, NotificationType,
+} from './catalog';
 
-/** Locale used when the user has not chosen one. */
-export const DEFAULT_LOCALE: Locale = 'pt-BR';
-
-/**
- * Tells whether a locale tag is one the catalog supports.
- *
- * @param value - A BCP 47 tag, e.g. from a user preference or `Accept-Language`.
- * @returns `true` (narrowing `value` to `Locale`) when it is supported.
- */
-export const isSupportedLocale = (value: string): value is Locale => (
-  (SUPPORTED_LOCALES as readonly string[]).includes(value)
-);
+/** The shared ICU message catalog, one complete `Catalog` per supported locale. */
+export const catalogs: Readonly<Record<Locale, Catalog>> = { 'pt-BR': ptBR, 'en-US': enUS };

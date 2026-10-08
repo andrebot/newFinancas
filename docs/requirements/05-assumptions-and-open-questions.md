@@ -811,12 +811,55 @@ locally and on GitHub Actions, using the same root scripts in both places.
   - The field-level codes (`field.required`, `field.invalid_type`,
     `field.invalid_option`, `field.invalid`, `object.unknown_keys`,
     `string.format`, `number.multiple_of`, and
-    `number|string|array|date|value.min|max`) are listed in
-    `FIELD_DETAIL_CODES`, for N8's catalog-completeness check.
+    `number|string|array|date|value.min|max`) are now typed by the i18n
+    catalog (OQ-94).
   - Until U1 sets it on every request, `correlationId` falls back to a
     new UUID.
   - Until U2 provides logging, `onUnexpectedError` is console output
     from the composition root.
+
+### OQ-94: i18n catalog (task N8)
+**Confirmed, implementation (Oct 2026):**
+- **Format:** the catalog is TypeScript modules in `packages/i18n`
+  (`catalogs/pt-BR.ts`, `catalogs/en-US.ts`), with ICU MessageFormat
+  strings.
+  - **pt-BR (primary) defines the key set;** every other locale is typed
+    as `Catalog`.
+  - Sections: `errors`, `fields`, `notifications` and `emails`
+    (`<type>.subject` / `<type>.body`). A `ui` section arrives with
+    FU5 and the UI kit.
+- **Completeness is enforced at three levels:**
+  1. A missing or extra key in any locale fails typecheck.
+  2. `notifications` must cover the generated `Notification['type']`
+     union, so a type added to the spec fails typecheck until both
+     catalogs have it.
+  3. A unit test parses every message as ICU and checks that each key
+     uses **the same argument names in every locale**.
+- **Backend codes are typed by the catalog:** `ApiErrorInit.code` is
+  `ErrorCode` and `FieldDetail.code` is `FieldCode`, so the API cannot
+  emit a code that has no translation (OQ-82's "catalog before the
+  backend emits it"). New codes are added to the catalog as each
+  Manager is built. Today's catalog covers:
+  - the 4 generic codes (OQ-93) and the 16 codes the spec names;
+  - the 17 field codes;
+  - both notification types;
+  - the `password.reset` email.
+- **Fallbacks (OQ-82):** `errors.fallback` and `notifications.fallback`
+  are shown for codes and types the frontend doesn't know.
+- **Message parameters:**
+  - People and households arrive already resolved to names
+    (`{inviterName}`).
+  - Dates arrive already formatted by FormattingUtility (NFR-I18N-2).
+  - Counts use ICU `plural` and enum values use ICU `select` (e.g.
+    `role`).
+- **Spec correction:** the three discriminated unions (`Notification`,
+  `LedgerItem`, the report response) had no `mapping`. OpenAPI then
+  defines the discriminator value as the schema name, which contradicts
+  the real `type`/`ledger`/`reportType` values, and made the generated
+  `Notification` type unusable. Each union now has an explicit
+  `mapping`.
+- **Texts are drafts** written during implementation; reviewing the
+  wording is welcome at any time and is a catalog-only change.
 
 ## Refined (resolved, with a follow-up still open)
 

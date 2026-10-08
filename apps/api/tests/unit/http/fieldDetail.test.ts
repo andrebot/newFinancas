@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import {
-  FIELD_DETAIL_CODES, formatFieldPath, toFieldDetail, valueAt,
-} from '../../../src/http/fieldDetail';
+import { catalogs } from '@financas/i18n';
+import { formatFieldPath, toFieldDetail, valueAt } from '../../../src/http/fieldDetail';
 
 /**
  * Parses `input` with `schema` and returns the first issue's detail.
@@ -97,8 +96,8 @@ describe('toFieldDetail', () => {
       .toEqual({ field: '', code: 'field.invalid' });
   });
 
-  it('only emits codes from FIELD_DETAIL_CODES', () => {
-    const codes = new Set<string>(FIELD_DETAIL_CODES);
+  it('only emits codes the i18n catalog translates', () => {
+    const codes = new Set(Object.keys(catalogs['pt-BR'].fields));
     const samples = [
       detailFor(z.object({ a: z.string() }), {}),
       detailFor(z.string().min(2), 'a'),

@@ -567,8 +567,8 @@ export const zGoalWithProgress = zGoal.and(z.object({
  * Both ledgers merged; `ledger` is `account` or `card`
  */
 export const zLedgerItem = z.discriminatedUnion('ledger', [
-    zAccountTransaction.extend({ ledger: z.literal('AccountTransaction') }),
-    zCardTransaction.extend({ ledger: z.literal('CardTransaction') })
+    zAccountTransaction.extend({ ledger: z.literal('account') }),
+    zCardTransaction.extend({ ledger: z.literal('card') })
 ]);
 
 export const zTransactionPage = zCursorPage.and(z.object({
@@ -693,8 +693,8 @@ export const zHoldingMaturedNotification = z.object({
  * OQ-82 — type + params, never text; the frontend renders and localizes it (NFR-I18N-3).
  */
 export const zNotification = z.discriminatedUnion('type', [
-    zInvitationReceivedNotification.extend({ type: z.literal('InvitationReceivedNotification') }),
-    zHoldingMaturedNotification.extend({ type: z.literal('HoldingMaturedNotification') })
+    zInvitationReceivedNotification.extend({ type: z.literal('invitation.received') }),
+    zHoldingMaturedNotification.extend({ type: z.literal('holding.matured') })
 ]);
 
 export const zHouseholdId = z.uuid();
@@ -1441,9 +1441,9 @@ export const zGetReportQuery = z.object({
  * OK
  */
 export const zGetReportResponse = z.discriminatedUnion('reportType', [
-    zMonthOverviewReport.extend({ reportType: z.literal('MonthOverviewReport') }),
-    zInvestmentsOverviewReport.extend({ reportType: z.literal('InvestmentsOverviewReport') }),
-    zPayoutsReport.extend({ reportType: z.literal('PayoutsReport') })
+    zMonthOverviewReport.extend({ reportType: z.literal('month-overview') }),
+    zInvestmentsOverviewReport.extend({ reportType: z.literal('investments-overview') }),
+    zPayoutsReport.extend({ reportType: z.literal('payouts') })
 ]);
 
 export const zExportTransactionsQuery = z.object({
