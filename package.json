@@ -13,6 +13,8 @@
     "db:down": "docker compose down",
     "db:reset": "docker compose down --volumes && docker compose up --detach --wait db",
     "db:psql": "docker compose exec db psql --username financas --dbname financas",
+    "db:migrate": "pnpm --filter @financas/api db:migrate",
+    "db:seed:demo": "pnpm --filter @financas/api db:seed:demo",
     "db:backup": "pnpm --filter @financas/ops ops backup",
     "db:restore": "pnpm --filter @financas/ops ops restore",
     "db:restore-drill": "pnpm --filter @financas/ops ops restore-drill",

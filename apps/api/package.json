@@ -7,11 +7,13 @@
     "start": "tsx --env-file-if-exists=../../.env src/server.ts",
     "typecheck": "tsc --project tsconfig.json",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "node --env-file-if-exists=../../.env ./node_modules/drizzle-kit/bin.cjs migrate"
+    "db:migrate": "node --env-file-if-exists=../../.env ./node_modules/drizzle-kit/bin.cjs migrate",
+    "db:seed:demo": "tsx --env-file-if-exists=../../.env src/db/seed/main.ts"
   },
   "dependencies": {
     "@financas/api-types": "workspace:*",
     "@financas/i18n": "workspace:*",
+    "@financas/reference": "workspace:*",
     "@hono/node-server": "^2.1.3",
     "@hono/zod-validator": "^0.9.1",
     "drizzle-orm": "^0.45.3",

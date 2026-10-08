@@ -35,6 +35,8 @@ export const accountTransactions = pgTable('account_transactions', {
   check('account_transactions_effect_check', isOneOf(t.effect, TRANSACTION_EFFECTS)),
   check('account_transactions_source_check', isOneOf(t.source, TRANSACTION_SOURCES)),
   check('account_transactions_currency_check', sql`${t.currency} ~ '^[A-Z]{3}$'`),
+  // Amounts are positive; the kind says which way money moves (OQ-98).
+  check('account_transactions_amount_check', sql`${t.amount} > 0`),
   index('account_transactions_browse_idx').on(t.accountId, t.date.desc(), t.id),
   index('account_transactions_holding_idx').on(t.holdingId),
 ]);
@@ -52,5 +54,6 @@ export const cardTransactions = pgTable('card_transactions', {
   createdAt: createdAt(),
 }, (t) => [
   check('card_transactions_currency_check', sql`${t.currency} ~ '^[A-Z]{3}$'`),
+  check('card_transactions_amount_check', sql`${t.amount} > 0`),
   index('card_transactions_browse_idx').on(t.creditCardId, t.date.desc(), t.id),
 ]);

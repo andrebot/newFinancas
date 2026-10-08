@@ -957,6 +957,51 @@ driver.**
   second Winston transport, i.e. configuration (NFR-OBS-5, OQ-10). Logs
   then survive closing the terminal.
 
+### OQ-98: Reference data, amount sign and the demo seed (task N6)
+**Confirmed, implementation (Oct 2026):**
+- **Reference data lives in `packages/reference`** (`@financas/reference`).
+  These are the in-code lists the data model keeps out of the database,
+  shared by the API (validation), the web app (pickers) and the seeds:
+  - the 16 transaction kinds, each with picker group (Cash / Transfer /
+    Credit card / Investment), target ledger, direction and
+    `EFFECT_BY_KIND` effect;
+  - asset types (8 market-priced, 11 fixed-term, the latter marked BR or
+    US);
+  - index codes with their unit;
+  - schedule-entry kinds;
+  - card networks (`visa`, `mastercard`, `amex`, `elo`, `hipercard`,
+    `diners`, `discover`, `other` — the spec only named examples);
+  - the 18 palette tokens;
+  - category icons (Material Symbols names, as in the mockups; K3 grows
+    the set);
+  - the default categories from mockups 12/41, with icon, colour and
+    pt-BR/en-US names.
+
+  Pure validators cover the FR-3.1/OQ-76 kind–target rules. The 12
+  closed value sets from N5 stay with the schema; a test keeps the
+  effects in agreement.
+- **Default categories are seeded in the household creator's language**
+  (`defaultCategoriesFor(locale)`); after that they are ordinary,
+  renameable data.
+- **Amounts are always positive; the kind gives the direction.** This
+  applies to `account_transactions`, `card_transactions` and
+  `investment_schedule_entries`, enforced by `CHECK (amount > 0)` in
+  migration `0002_positive_amounts`. The UI renders −R$85.40 from
+  "8540 + an outgoing kind"; a stored sign could disagree with its kind.
+- **Demo seed:** `pnpm db:seed:demo` runs as the app role and is
+  idempotent (fixed ids). It creates:
+  - Ana (Owner, pt-BR) and Ben (Member, en-US);
+  - the "Casa Demo" household with the default categories;
+  - four accounts (BRL and USD checking, investment, credit-card-only)
+    with current-month opening balances;
+  - a credit card;
+  - index rates.
+
+  The demo users get real credentials once U4 exists; until then they
+  can't log in. Each later slice extends the seed through its own
+  Accessors, rather than hand-writing rows whose consistency those
+  Accessors own.
+
 ## Refined (resolved, with a follow-up still open)
 
 *(OQ-4's legal-review follow-up below is closed for v1 by OQ-89.)*
