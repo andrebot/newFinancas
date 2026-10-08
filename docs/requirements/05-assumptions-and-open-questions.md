@@ -716,6 +716,24 @@ before the app is ever offered to other people.
   hold no functions or logic; they are excluded from unit coverage and
   covered by the E2E smoke test.
 
+### OQ-91: Local and hosted CI (task N3)
+**Confirmed, implementation (Oct 2026):** the BDT cadence runs both
+locally and on GitHub Actions, using the same root scripts in both places.
+- **Local (husky):**
+  - `pre-commit` runs `pnpm check`: lint, typecheck, unit + integration
+    tests, and the **100% coverage gate** (Vitest thresholds on every
+    `src/`, composition roots excluded).
+  - `pre-push` runs `pnpm test:smoke`.
+- **Hosted (`.github/workflows/ci.yml`):** every PR to `main` runs
+  `check` then smoke, and both are merge gates. A push to `main` also
+  runs Core E2E, post-merge and non-blocking, per the BDT cadence table.
+- **E2E tiers are selected by tag:** `@smoke`, `@core`, and untagged
+  tests are Full E2E (`pnpm test:e2e`). Full E2E and load testing are
+  on demand. There is no load script until a load tool is chosen; k6 is
+  still only a candidate.
+- **Contract checks:** N7 and N8 add theirs to `pnpm check`, so they run
+  in both places without touching the hooks or the workflow.
+
 ## Refined (resolved, with a follow-up still open)
 
 *(OQ-4's legal-review follow-up below is closed for v1 by OQ-89.)*
