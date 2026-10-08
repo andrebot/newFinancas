@@ -43,6 +43,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
       - run: cp .env.example .env
+      - run: docker compose up --detach --wait db
       - run: pnpm test:smoke
       - if: failure()
         uses: actions/upload-artifact@v7
@@ -64,6 +65,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium
       - run: cp .env.example .env
+      - run: docker compose up --detach --wait db
       - run: pnpm test:e2e:core
       - if: failure()
         uses: actions/upload-artifact@v7

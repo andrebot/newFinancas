@@ -723,7 +723,9 @@ locally and on GitHub Actions, using the same root scripts in both places.
   - `pre-commit` runs `pnpm check`: lint, typecheck, unit + integration
     tests, and the **100% coverage gate** (Vitest thresholds on every
     `src/`, composition roots excluded).
-  - `pre-push` runs `pnpm test:smoke`.
+  - ~~`pre-push` runs `pnpm test:smoke`~~ — **removed in N5 (OQ-95):**
+    E2E needs Postgres running, and smoke is already a CI merge gate
+    (branch protection). Run `pnpm test:smoke` locally on demand.
 - **Hosted (`.github/workflows/ci.yml`):** every PR to `main` runs
   `check` then smoke, and both are merge gates. A push to `main` also
   runs Core E2E, post-merge and non-blocking, per the BDT cadence table.
@@ -860,6 +862,75 @@ locally and on GitHub Actions, using the same root scripts in both places.
   `mapping`.
 - **Texts are drafts** written during implementation; reviewing the
   wording is welcome at any time and is a catalog-only change.
+
+### OQ-95: Schema + migrations baseline (task N5)
+**Confirmed, implementation (Oct 2026):**
+- **Drizzle + node-postgres:**
+  - The schema is `apps/api/src/db/schema/`, one file per domain.
+  - `drizzle-kit` generates SQL migrations into `apps/api/drizzle/`,
+    and they are committed.
+  - `pnpm db:generate` creates a migration; `pnpm db:migrate` applies
+    them as the owner role (`DATABASE_MIGRATION_URL`).
+- **Conventions:**
+  - `uuid` keys default to `uuidv7()` (Postgres 18);
+  - `timestamptz` everywhere;
+  - money, quantity and rates are `bigint`, read as JS `number`;
+  - closed value sets are `text` + `CHECK`, while extensible reference
+    data stays `text`.
+- **`ON DELETE` rules A/B/C** are as in `02-data-model.md`. A unit test
+  pins all 43 foreign keys to their rule.
+- **Grants (migration `0001_app_role_grants`):**
+  - `financas_app` gets CRUD on every table, and default privileges
+    cover future tables;
+  - `UPDATE`/`DELETE`/`TRUNCATE` on `audit_log_entries` are revoked
+    (NFR-AUD-1).
+- **Data model corrections:**
+  - `budget_periods` gains `household_id` and `currency`;
+  - the FR-4.7 claim index is split by scope (shared = household,
+    personal = owner);
+  - a stale `archived_at` reference for Goals now says `completed_at`;
+  - the ERD panel is updated.
+- **Schema checks run on PGlite** (embedded Postgres 18, in-process,
+  same approach as the `financas` app's integration tests):
+  - `apps/api/tests/db/` applies the real migrations to an in-memory
+    database and checks, as the app role:
+    - the 26 tables and `uuidv7` ids;
+    - one Owner per household;
+    - the FR-4.7 scopes;
+    - an append-only audit log;
+    - that the app role cannot change the schema.
+  - They run in `pnpm check`, so no Docker is needed to commit or push.
+- **E2E keeps the real container:** Playwright's global setup resets
+  and migrates `financas_test` before every run, and CI starts Postgres
+  with `docker compose`.
+- **Node ≥ 24.10** (for `process.loadEnvFile`).
+
+### OQ-96: How are Resource Accessors tested?
+**Confirmed (Oct 2026): against embedded Postgres (PGlite), not a mocked
+driver.**
+- **The approach:**
+  - Accessors receive their Drizzle database as a parameter.
+  - Tests inject PGlite with the real migrations applied, the same
+    approach as the `financas` app's integration tests.
+  - Each Accessor gets real behaviour tests: round-trips, database
+    errors translated to domain errors, and the application-level
+    invariants the data model places inside Accessors (archive cascades,
+    backdated-balance walks, `seedDefaults` exactly once, the 100%
+    allocation cap, cursor pagination).
+- **Why not the strict "mock the driver" reading:**
+  - Mocks of Drizzle's chained builder mirror the implementation and
+    break on refactors.
+  - They cannot catch SQL that is wrong but plausible, so those bugs
+    would surface only in the deliberately partial E2E suite.
+- **Still with real infrastructure:** concurrency, locking and
+  connection pooling (E2E and load, against the container).
+- **Unchanged:** Managers still mock the Accessors (BDT integration
+  tier).
+- **To settle at task 13 (A1 UserAccessor), the first Accessor:** test
+  isolation. The default is one migrated database per test file with a
+  rolled-back transaction per test; an Accessor that opens its own
+  transaction would need savepoints or a per-file reset instead.
+- Recorded in `04-bdt-test-plan.md`.
 
 ## Refined (resolved, with a follow-up still open)
 

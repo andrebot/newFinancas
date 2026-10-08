@@ -106,13 +106,14 @@ Each step is presented for review and confirmation before moving on.
 ```
 newFinancas/
 ├── apps/
-│   ├── api/                Hono backend — src/, tests/{unit,integration}/
+│   ├── api/                Hono backend — src/, tests/{unit,integration}/,
+│   │                       src/db/schema/ (Drizzle) + drizzle/ (migrations)
 │   └── web/                Vite + React frontend — src/, tests/unit/
 ├── packages/
 │   ├── i18n/               shared ICU catalog (pt-BR, en-US)
 │   └── api-types/          types generated from openapi.yaml (task N7)
 ├── tests/e2e/              Playwright specs (span api + web), tiers by tag: @smoke, @core
-├── .husky/                 git hooks: pre-commit `pnpm check`, pre-push smoke
+├── .husky/                 git hook: pre-commit `pnpm check`
 ├── .github/workflows/      CI: check + smoke on PRs, + Core E2E on main (OQ-91)
 ├── infra/db/init/          Postgres first-run script: app role + test database (OQ-92)
 ├── compose.yaml            local Postgres 18

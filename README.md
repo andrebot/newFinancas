@@ -8,12 +8,13 @@ entry. Open Banking sync is planned for v2.
 
 ## Getting started
 
-Requires Node 24 (`.nvmrc`), pnpm (`corepack enable pnpm`) and Docker.
+Requires Node 24.10+ (`.nvmrc`), pnpm (`corepack enable pnpm`) and Docker.
 
 ```sh
 pnpm install        # also installs the git hooks (husky)
 cp .env.example .env
 pnpm db:up          # Postgres 18 on 127.0.0.1:5432 (db:down, db:reset, db:psql)
+pnpm --filter @financas/api db:migrate   # apply migrations (db:generate after schema changes)
 pnpm dev            # api on :3000, web on :5173
 pnpm check          # lint + typecheck + API contract + unit + integration, 100% coverage gate
 pnpm generate:api   # regenerate types + Zod from docs/architecture/api/openapi.yaml
@@ -22,9 +23,12 @@ pnpm test:e2e:core  # Playwright @core (Core E2E)
 pnpm test:e2e       # every Playwright test (Full E2E)
 ```
 
-Git hooks: **pre-commit** runs `pnpm check`, **pre-push** runs
-`pnpm test:smoke`. GitHub Actions runs the same on every PR, plus Core
-E2E after a merge to `main` (OQ-91).
+Git hook: **pre-commit** runs `pnpm check`, including the schema checks
+on an embedded Postgres (PGlite), so no database needs to be running.
+E2E (`test:smoke` and the rest) needs `pnpm db:up`; it resets and
+migrates the `financas_test` database before each run.
+GitHub Actions runs `check` and smoke on every PR (both required to
+merge), plus Core E2E after a merge to `main` (OQ-91).
 
 Playwright needs a browser: `pnpm exec playwright install chromium`, or
 point it at a local one (fish: `set -Ux PLAYWRIGHT_CHROMIUM_PATH /usr/bin/chromium`).

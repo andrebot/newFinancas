@@ -80,11 +80,26 @@ needs its own assertion, backed by a CI coverage gate on these files.
 | `ReportingEngine` | `AccountAccessor`, `CreditCardAccessor`, `ValuationSnapshotAccessor`, `InvestmentHoldingAccessor`, `AccountTransactionAccessor`, `CardTransactionAccessor`, `BudgetAccessor`, `GoalAccessor` | **Round 9 shapes:** month overview (in/out/net per currency — own-account transfers and bill payments excluded via `effect`; 12-month strip; month-end balances; budgets over-budget first), payout series (only dividend/interest transactions *linked to a Holding*; a month with no payout is zero, not missing; multiple currencies never summed), net worth **change vs previous month** (incl. first month with no previous = null), goal progress per currency (whole-percent allocation: `value × pct / 100`, half-up to the cent — assert the rounding on an odd-cent case). Plus the v1-retained shapes (net worth, budget status, balance-by-month) × at least: normal data, empty data (new household), and — specifically for Objective progress/net worth — the OQ-51 branch (market-priced Holding reads `ValuationSnapshotAccessor`; fixed-term Holding reads `InvestmentHoldingAccessor.cost_basis` instead, zero snapshot rows). Income-vs-expense must assert transfers are excluded via the persisted `effect` column (FR-3.6), not recomputed from `kind`. |
 | `InvestmentProductEngine` | `InvestmentHoldingAccessor` (write side, `schedule`), `IndexRateAccessor` (read side, `project` — Round 9) | **`schedule`:** one scenario per FR-11.1 type (OQ-79: CDB, LC, LF, LCI, LCA, CRA, CRI, Debenture incentivised/not, Tesouro Direto; CD, Treasury) — the coded tax rules must differ where the law differs: regressive IR by holding period (assert each bracket boundary), exemption for LCI/LCA/CRA/CRI/incentivised debentures, US = taxes not estimated. **`project`:** fixed-rate (no index read), index-linked with a latest value, index-linked with **no value yet** (defined fallback, not a crash), US instrument (`estimated: false`); rates are integers × 10,000 — assert no float drift on a long term. Plus: an instrument type *not* in FR-11.1's list never reaches this Engine at all (asserted at the `TransactionManager` integration level, not here — there's nothing to unit-test for a call that never happens). |
 
-### Resource Accessors — unit, mock only the DB driver; assert the validated-write invariant
+### Resource Accessors — unit, against embedded Postgres (PGlite); assert the validated-write invariant
+
+**Revised Oct 2026 (OQ-96).** Accessors are no longer tested with a
+mocked DB driver.
+- **The database is injected:** each Accessor receives its Drizzle
+  database as a parameter, e.g. `createUserAccessor(db)`.
+- **Tests inject PGlite:** an embedded Postgres 18 with the **real
+  migrations** applied (`apps/api/tests/db/support/`), so nothing is
+  mocked.
+- **Why:** a mocked Drizzle builder mirrors the query shape and cannot
+  catch a wrong `WHERE`, pagination bug or cascade walk. PGlite is a
+  faithful stand-in for the external system *at* the boundary, not a
+  mock of our code.
+- **What stays with real infrastructure:** concurrency, locking and
+  connection pooling (PGlite is a single connection) remain with E2E and
+  load testing against the real container.
 
 Every row below is "translation + the one invariant documented in the
-VBD doc's component table" — if a test needs more than the DB driver
-mocked, that's the BDT smell (see "Structural signals to watch for"
+VBD doc's component table". If a test needs anything beyond the injected
+database, that's the BDT smell (see "Structural signals to watch for"
 below), not a reason to add scope here. **100% coverage target**, same
 as Engines — every CRUD method each Accessor exposes gets a test, not
 just the validated-write invariant highlighted below (that's the
@@ -95,7 +110,7 @@ the rest).
 |---|---|
 | `UserAccessor` | Insert (success, duplicate email → real DB unique constraint surfaces as a driver error this Accessor translates); preferences update (`theme`, `language` — unknown values rejected); **password reset tokens** (`password_reset_tokens`): insert stores only the hash, find by token valid / expired / already used, mark used |
 | `SessionAccessor` | Insert; delete (revoke); `deleteAllForUser`; `deleteAllExceptCurrent` (also serves "sign out all others" — assert the current session survives) |
-| `HouseholdAccessor` | `transitionMembership`: normal removal, Owner removed by non-self → rejected (FR-1.11/OQ-27), Owner leaves with a successor available → atomic promotion, Owner leaves with none available → household deleted (FR-1.18). `transferOwnership`: atomic dual-role swap (OQ-28) — assert via a concurrency-shaped test that the partial unique index genuinely prevents an observable zero/two-Owner state, not just that the two writes look sequential in a mock. |
+| `HouseholdAccessor` | `transitionMembership`: normal removal, Owner removed by non-self → rejected (FR-1.11/OQ-27), Owner leaves with a successor available → atomic promotion, Owner leaves with none available → household deleted (FR-1.18). `transferOwnership`: atomic dual-role swap (OQ-28) — on PGlite, assert a second Owner is rejected by the partial unique index and the swap leaves exactly one Owner; the concurrency-shaped version (two transfers at once) needs real connections, so it belongs to E2E against the container (OQ-96). |
 | `InvitationAccessor` | Insert: target exists (success) vs. no matching user (rejected, FR-1.19/OQ-26 — this should be the real `NOT NULL` FK constraint surfacing, not an app-level pre-check masking it). Accept/decline/revoke: pending → resolved (each of the three), and reject-if-not-pending for all three. |
 | `AccountAccessor` | `applyMovement`: currency match (success) vs. mismatch (rejected, FR-2.2) |
 | `CreditCardAccessor` | `applyChargeOrRefund`/`applyBillPayment`: cycle-bucket resolution on both sides of the closing-day boundary (FR-2.8) — this is the one Accessor whose "invariant" is actually a small computation (which cycle), worth two explicit boundary-day test cases, not just one generic case |
@@ -107,7 +122,7 @@ the rest).
 | `ValuationSnapshotAccessor` | **Revised (OQ-56):** `insertManual` / `updateManual` / `deleteManual` succeed on `source = manual`; `updateManual`/`deleteManual` **rejected on `source = transaction`**; `insertAutomatic` links the transaction, and deleting that transaction cascades the snapshot (FK `ON DELETE CASCADE`); fixed-term Holdings never get a snapshot |
 | `IndexRateAccessor` *(new, Round 9)* | Insert (unique per household + index + day — a second value for the same day is the real unique index firing); update / delete; `latest(index)` picks the highest `as_of_date`, returns none when empty; values stored as integers × 10,000 |
 | `GoalAccessor` *(renamed from `ObjectiveAccessor`)* | `allocate` / `replaceAllocations` with **whole-percent integers** (OQ-87): exactly 100 (success), 101 (rejected, FR-8.3 — cross-row `SUM`, so set up at least two prior rows), 0 or > 100 per row rejected; complete/reopen (the one reversible pair) vs. delete (hard, allocations cascade away, Holdings untouched) |
-| `AuditLogAccessor` | Insert (via `recordAudit` only — never directly); `exportCsv` over a date range. Separately, at the schema/migration level (not a unit test): assert no `UPDATE`/`DELETE` grant exists for the app role — this is a database-privilege check, the third BDT category alongside unit/integration, and belongs in a migration or infra test, not application code. |
+| `AuditLogAccessor` | Insert (via `recordAudit` only — never directly); `exportCsv` over a date range. The no-`UPDATE`/`DELETE` privilege is verified by the schema checks (`apps/api/tests/db/`, OQ-95), not by this Accessor's tests. |
 | `NotificationInboxAccessor` | Insert stores `type` + `params` JSON (no text column exists — OQ-82); `listByUser`; `markAllSeen` (bulk); delete (hard) |
 
 ### Managers — integration, mock the Engines/Accessors they call directly
@@ -202,6 +217,25 @@ gap there as a missing scenario, not an acceptable gap.
 | `ServiceBusUtility` | Unit | The in-process event emitter it wraps — assert publish/subscribe semantics only, not any Manager's handler logic |
 | `LoggingUtility` | Unit | Winston (the external sink) for `logActivity`; `AuditLogAccessor` for `recordAudit` — assert the two entry points stay schema-distinct (rich context vs. locked-down `{actor, timestamp, action, entityType, entityId}`, FR-7.1) |
 | `NotificationDeliveryUtility` | Unit | `NotificationInboxAccessor` (in-app) and the **email provider client** (the external sink, configured — OQ-84). In-app stores `type` + `params` only; email renders the template from the shared i18n catalog in the requested language — assert one test per v1 email type (`password.reset`) × each locale, and that switching the configured provider changes no call site |
+
+### Schema checks — embedded Postgres, unit speed, no running system
+
+Added Oct 2026 (N5, OQ-95). Not a BDT tier: these check that the
+**migrations themselves** produce the constraints and privileges the
+data model requires.
+- **Where:** `apps/api/tests/db/`.
+- **How:** the real migration SQL is applied to **PGlite**, an embedded
+  Postgres 18 running in the test process, and each check runs as the
+  application role.
+- **What they check:**
+  - the 26 tables and `uuidv7` ids;
+  - one Owner per household;
+  - the FR-4.7 claim scopes;
+  - the append-only audit log;
+  - that the app role cannot change the schema.
+- **When:** in `pnpm check` (pre-commit and CI), so they run without
+  Docker in under a second.
+- The real container is still what E2E runs against.
 
 ### Cross-boundary contract checks — CI, unit speed, no running system
 

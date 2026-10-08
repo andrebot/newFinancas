@@ -50,7 +50,7 @@ export default [
     name: 'project/node-version',
     files: NODE_FILES,
     // Matches `engines` / .nvmrc; workspace package.json files don't repeat it.
-    settings: { node: { version: '>=24.0.0' } },
+    settings: { node: { version: '>=24.10.0' } },
   },
 
   // Tests and tool configs may import devDependencies.
