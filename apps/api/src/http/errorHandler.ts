@@ -50,7 +50,9 @@ export const correlationIdOf = (c: Context<AppEnv>): string => (
 const describeError = (err: Error): { init: ApiErrorInit; unexpected: boolean } => {
   if (isApiError(err)) return { init: err.apiError, unexpected: false };
   if (err instanceof HTTPException) {
-    const init = { status: err.status, code: 'request.invalid', message: err.message };
+    const init: ApiErrorInit = {
+      status: err.status, code: 'request.invalid', message: err.message,
+    };
     return { init, unexpected: false };
   }
   return { init: UNEXPECTED, unexpected: true };

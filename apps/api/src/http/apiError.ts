@@ -1,17 +1,22 @@
+import type { ErrorCode, FieldCode } from '@financas/i18n';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
 
 /** One field-level problem, rendered by the frontend from `code` + `params`. */
 export interface FieldDetail {
   readonly field: string;
-  readonly code: string;
+  /** A code the shared i18n catalog translates (NFR-I18N-3). */
+  readonly code: FieldCode;
   readonly params?: Record<string, unknown>;
 }
 
 /** Everything the error envelope (`components/schemas/Error`) needs, minus the correlation id. */
 export interface ApiErrorInit {
   readonly status: ContentfulStatusCode;
-  /** Namespaced and stable (`domain.reason`), localized by the frontend (OQ-83). */
-  readonly code: string;
+  /**
+   * Namespaced and stable (`domain.reason`), localized by the frontend (OQ-83).
+   * Typed by the i18n catalog: a code without translations does not compile.
+   */
+  readonly code: ErrorCode;
   /** English, for developers and logs only — never shown to users. */
   readonly message: string;
   readonly params?: Record<string, unknown>;

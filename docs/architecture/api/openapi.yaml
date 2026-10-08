@@ -1543,6 +1543,10 @@ paths:
                   - $ref: '#/components/schemas/PayoutsReport'
                 discriminator:
                   propertyName: reportType
+                  mapping:
+                    month-overview: '#/components/schemas/MonthOverviewReport'
+                    investments-overview: '#/components/schemas/InvestmentsOverviewReport'
+                    payouts: '#/components/schemas/PayoutsReport'
         "400": { $ref: "#/components/responses/BadRequest" }
 
   /reports/transactions/export:
@@ -2646,6 +2650,9 @@ components:
         - $ref: '#/components/schemas/HoldingMaturedNotification'
       discriminator:
         propertyName: type
+        mapping:
+          invitation.received: '#/components/schemas/InvitationReceivedNotification'
+          holding.matured: '#/components/schemas/HoldingMaturedNotification'
     CursorPage:
       type: object
       properties:
@@ -2817,6 +2824,9 @@ components:
         - $ref: '#/components/schemas/CardTransaction'
       discriminator:
         propertyName: ledger
+        mapping:
+          account: '#/components/schemas/AccountTransaction'
+          card: '#/components/schemas/CardTransaction'
       description: Both ledgers merged; `ledger` is `account` or `card`
     TransactionPage:
       allOf:

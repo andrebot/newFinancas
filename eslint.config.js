@@ -60,6 +60,13 @@ export default [
     rules: { 'import-x/no-extraneous-dependencies': ['error', { devDependencies: true }] },
   },
 
+  // Message catalogs: an ICU message stays one readable string, however long.
+  {
+    name: 'project/i18n-catalogs',
+    files: ['packages/i18n/src/catalogs/**'],
+    rules: { '@stylistic/max-len': ['error', { code: 100, ignoreStrings: true }] },
+  },
+
   // Project rules (CLAUDE.md / NFR-MAINT-1, NFR-MAINT-2).
   {
     name: 'project/rules',

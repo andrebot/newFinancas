@@ -35,21 +35,21 @@ const appThrowing = (thrown: unknown, correlationId?: string) => {
 
 describe('toErrorBody', () => {
   it('includes params and details only when present', () => {
-    expect(toErrorBody({ status: 404, code: 'a.b', message: 'm' }, 'cid'))
-      .toEqual({ error: { code: 'a.b', message: 'm', correlationId: 'cid' } });
+    expect(toErrorBody({ status: 404, code: 'request.invalid', message: 'm' }, 'cid'))
+      .toEqual({ error: { code: 'request.invalid', message: 'm', correlationId: 'cid' } });
     expect(toErrorBody({
       status: 422,
-      code: 'a.b',
+      code: 'request.invalid',
       message: 'm',
       params: { x: 1 },
-      details: [{ field: 'f', code: 'c' }],
+      details: [{ field: 'f', code: 'field.required' }],
     }, 'cid')).toEqual({
       error: {
-        code: 'a.b',
+        code: 'request.invalid',
         message: 'm',
         correlationId: 'cid',
         params: { x: 1 },
-        details: [{ field: 'f', code: 'c' }],
+        details: [{ field: 'f', code: 'field.required' }],
       },
     });
   });

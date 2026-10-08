@@ -4,18 +4,9 @@ import type { FieldDetail } from './apiError';
 type Issue = core.$ZodIssue;
 type DetailBody = Omit<FieldDetail, 'field'>;
 
-/**
- * Every field-level detail code the API can emit for a validation failure.
- * The i18n catalog (N8) must translate each one.
- */
-export const FIELD_DETAIL_CODES = [
-  'field.required', 'field.invalid_type', 'field.invalid_option', 'field.invalid',
-  'object.unknown_keys', 'string.format', 'number.multiple_of',
-  'number.min', 'number.max', 'string.min', 'string.max',
-  'array.min', 'array.max', 'date.min', 'date.max', 'value.min', 'value.max',
-] as const;
+type SizeKind = 'number' | 'string' | 'array' | 'date' | 'value';
 
-const SIZE_KINDS: Record<string, string> = {
+const SIZE_KINDS: Record<string, SizeKind> = {
   number: 'number',
   int: 'number',
   bigint: 'number',
@@ -64,7 +55,7 @@ export const valueAt = (
  * @param origin - Zod's `origin` (number, int, string, array, …).
  * @returns `number`, `string`, `array`, `date`, or `value` for anything else.
  */
-const sizeKind = (origin: string): string => SIZE_KINDS[origin] ?? 'value';
+const sizeKind = (origin: string): SizeKind => SIZE_KINDS[origin] ?? 'value';
 
 type Describers = { [C in Issue['code']]?: (issue: Extract<Issue, { code: C }>) => DetailBody };
 
@@ -89,7 +80,8 @@ const DESCRIBE: Describers = {
  *
  * @param issue - A Zod validation issue.
  * @param input - The raw request value, used to tell "missing" from "wrong type".
- * @returns The field detail; unknown issue kinds become `field.invalid`.
+ * @returns The field detail; unknown issue kinds become `field.invalid`. Every
+ *   code it can produce is a `FieldCode`, so the catalog translates it.
  */
 export const toFieldDetail = (issue: Issue, input: unknown): FieldDetail => {
   const field = formatFieldPath(issue.path);
