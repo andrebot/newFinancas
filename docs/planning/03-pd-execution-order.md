@@ -28,7 +28,7 @@ identity screens, the rest as later slices use them.
 *Done when:* repo, local environment, database, contracts and catalog ready.
 
 - [x] **1.** `N1` Project plan
-- [ ] **2.** `N2` Repository + monorepo setup
+- [x] **2.** `N2` Repository + monorepo setup
 - [ ] **3.** `N3` Local CI (scripts + hooks)
 - [ ] **4.** `N4` Local environment (Docker Postgres, console email)
 - [ ] **5.** `N7` API contract tooling
