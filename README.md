@@ -6,6 +6,20 @@ and the US (USD). Several people share one household, each with their own
 role, and manage both shared and personal money — mainly through manual
 entry. Open Banking sync is planned for v2.
 
+## Getting started
+
+Requires Node 24 (`.nvmrc`) and pnpm (`corepack enable pnpm`).
+
+```sh
+pnpm install
+pnpm dev            # api on :3000, web on :5173
+pnpm lint
+pnpm typecheck
+pnpm test           # unit + integration (Vitest); test:coverage for the report
+pnpm test:e2e       # Playwright; first run: pnpm exec playwright install chromium
+                    # (or set PLAYWRIGHT_CHROMIUM_PATH=/usr/bin/chromium)
+```
+
 ## Documentation
 
 Start with the [documentation overview](docs/README.md) — status, design

@@ -695,6 +695,27 @@ The privacy-by-design choices already made (right to erasure FR-1.17,
 PII-free audit log, last-4-only cards) stay as good practice. Revisit
 before the app is ever offered to other people.
 
+### OQ-90: Monorepo and lint tooling (task N2)
+**Confirmed, implementation (Oct 2026):**
+- **pnpm workspaces** (`apps/api`, `apps/web`, `packages/i18n`,
+  `packages/api-types`); each workspace declares every dependency it
+  imports. Install scripts are blocked except those listed under
+  `allowBuilds` in `pnpm-workspace.yaml`.
+- **Airbnb via `eslint-config-airbnb-extended`** (NFR-MAINT-3): the
+  original `eslint-config-airbnb` has no ESLint 9 flat config or
+  TypeScript support. This config needs **ESLint 9**, and
+  `typescript-eslint` needs **TypeScript < 6.1**, so both are held there
+  until those packages catch up. Airbnb's `prefer-default-export` is
+  followed; only `react-in-jsx-scope` is off (automatic JSX runtime).
+- Project rules are enforced in `eslint.config.js`: `complexity` 7,
+  `max-params` 7, no `class` (NFR-MAINT-1/2).
+- **E2E browser:** Playwright's bundled Chromium by default; setting
+  `PLAYWRIGHT_CHROMIUM_PATH` (e.g. `/usr/bin/chromium`) uses a local one
+  when the browser download is unavailable.
+- Composition roots (`apps/api/src/server.ts`, `apps/web/src/main.tsx`)
+  hold no functions or logic; they are excluded from unit coverage and
+  covered by the E2E smoke test.
+
 ## Refined (resolved, with a follow-up still open)
 
 *(OQ-4's legal-review follow-up below is closed for v1 by OQ-89.)*
