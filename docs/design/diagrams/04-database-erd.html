@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Database ERD — New Finance App</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2236;
+    --panel-border: #2f3b56;
+    --text: #eef1f8;
+    --muted: #9aa4bb;
+    --d-identity: #24304a;    --d-identity-border: #5b8ac7;
+    --d-accounts: #1f3a3a;    --d-accounts-border: #4fb8ac;
+    --d-categories: #3a3320;  --d-categories-border: #d0a24f;
+    --d-budgets: #3a2430;     --d-budgets-border: #c76b8a;
+    --d-invest: #302043;      --d-invest-border: #9163c9;
+    --d-txn: #3a2c1f;         --d-txn-border: #d68a4f;
+    --d-insights: #1f333a;    --d-insights-border: #4fb8d6;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px 0; }
+  h2 {
+    font-size: 15px;
+    margin: 40px 0 4px 0;
+    padding: 8px 14px;
+    border-radius: 8px;
+    display: inline-block;
+  }
+  h2 + p.subtitle { margin-top: 8px; }
+  p.subtitle { margin: 0 0 12px 0; color: var(--muted); font-size: 14px; max-width: 980px; line-height: 1.6; }
+  .diagram-card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 20px;
+    overflow-x: auto;
+    max-width: 100%;
+  }
+  .domain-identity h2  { background: var(--d-identity);  border: 1px solid var(--d-identity-border); }
+  .domain-accounts h2  { background: var(--d-accounts);  border: 1px solid var(--d-accounts-border); }
+  .domain-categories h2{ background: var(--d-categories);border: 1px solid var(--d-categories-border); }
+  .domain-budgets h2   { background: var(--d-budgets);   border: 1px solid var(--d-budgets-border); }
+  .domain-invest h2    { background: var(--d-invest);    border: 1px solid var(--d-invest-border); }
+  .domain-txn h2       { background: var(--d-txn);       border: 1px solid var(--d-txn-border); }
+  .domain-insights h2  { background: var(--d-insights);  border: 1px solid var(--d-insights-border); }
+  .notes {
+    max-width: 980px;
+    margin: 40px 0 0 0;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.65;
+  }
+  .notes h3 { color: var(--text); font-size: 14px; margin: 24px 0 8px 0; }
+  .notes code { color: var(--text); }
+  .notes ul { padding-left: 20px; }
+  .notes li { margin-bottom: 6px; }
+  a { color: #7db4f0; }
+</style>
+</head>
+<body>
+  <h1>Database ERD</h1>
+  <p class="subtitle">
+    Every table confirmed in <code>docs/architecture/02-data-model.md</code>,
+    grouped into the same 7 domains that document uses, in the order it
+    presents them. Each panel is its own diagram rather than one giant
+    interconnected graph — with 26 tables across the whole schema, one
+    canvas would be unreadable. Where a table's <strong>full</strong>
+    definition lives in another panel, it appears here as a two-attribute
+    stub (just <code>id</code> and a pointer) purely so the relationship
+    is visible in context — see the "How to read this" note below the
+    diagrams for exactly what that means.
+  </p>
+
+  <div class="diagram-card domain-identity">
+    <h2>Identity &amp; Household</h2>
+    <p class="subtitle">Backs <code>IdentityManager</code>'s <code>UserAccessor</code>, <code>SessionAccessor</code>, <code>HouseholdAccessor</code>, <code>InvitationAccessor</code>.</p>
+    <pre class="mermaid">
+erDiagram
+    users {
+        uuid id PK
+        string email UK
+        string password_hash
+        string first_name
+        string last_name
+        string mfa_secret
+        string theme "dark/light/system"
+        string language "pt-BR/en-US"
+        timestamp created_at
+    }
+    password_reset_tokens {
+        uuid id PK
+        uuid user_id FK "ON DELETE CASCADE"
+        string token_hash
+        timestamp expires_at
+        timestamp used_at "nullable, single-use"
+        timestamp created_at
+    }
+    mfa_recovery_codes {
+        uuid id PK
+        uuid user_id FK
+        string code_hash
+        timestamp used_at "nullable"
+    }
+    sessions {
+        uuid id PK
+        uuid user_id FK
+        string refresh_token_hash
+        string device_info
+        timestamp created_at
+        timestamp last_used_at
+    }
+    households {
+        uuid id PK
+        string name
+        timestamp created_at
+    }
+    household_memberships {
+        uuid id PK
+        uuid household_id FK
+        uuid user_id FK
+        string role
+        timestamp joined_at
+    }
+    invitations {
+        uuid id PK
+        uuid household_id FK
+        uuid invited_user_id FK "not null"
+        uuid invited_by_user_id FK
+        string role
+        string status
+        timestamp created_at
+        timestamp resolved_at "nullable"
+    }
+
+    users ||--o{ mfa_recovery_codes : "has"
+    users ||--o{ sessions : "has"
+    users ||--o{ password_reset_tokens : "has"
+    households ||--o{ household_memberships : "has"
+    users ||--o{ household_memberships : "belongs to"
+    households ||--o{ invitations : "issues"
+    users ||--o{ invitations : "invited (target)"
+    users ||--o{ invitations : "invited by (actor)"
+    </pre>
+  </div>
+
+  <div class="diagram-card domain-accounts">
+    <h2>Financial Accounts + Credit Cards</h2>
+    <p class="subtitle">Backs <code>AccountManager</code>'s <code>AccountAccessor</code>, <code>CreditCardAccessor</code>. <code>households</code>/<code>users</code> shown as stubs — full definitions above.</p>
+    <pre class="mermaid">
+erDiagram
+    households {
+        uuid id PK
+        string ref "full definition: Identity & Household"
+    }
+    users {
+        uuid id PK
+        string ref "full definition: Identity & Household"
+    }
+    accounts {
+        uuid id PK
+        uuid household_id FK
+        uuid owner_user_id FK "nullable, dual-role"
+        string name
+        string type "checking/savings/credit_card_only/investment"
+        string currency
+        string visibility
+        timestamp archived_at "nullable, one-way"
+        timestamp created_at
+    }
+    credit_cards {
+        uuid id PK
+        uuid account_id FK
+        string network
+        string last4
+        int closing_day
+        int due_day
+        int expiration_month
+        int expiration_year
+        timestamp created_at
+    }
+    account_month_balances {
+        uuid id PK
+        uuid account_id FK
+        int year
+        int month
+        bigint opening_balance
+        bigint ending_balance
+        timestamp updated_at
+    }
+    credit_card_month_balances {
+        uuid id PK
+        uuid credit_card_id FK
+        int year
+        int month
+        bigint opening_outstanding_balance
+        bigint ending_outstanding_balance
+        timestamp updated_at
+    }
+
+    households ||--o{ accounts : "owns"
+    users |o--o{ accounts : "owner (dual-role)"
+    accounts ||--o{ credit_cards : "has"
+    accounts ||--o{ account_month_balances : "has monthly rows"
+    credit_cards ||--o{ credit_card_month_balances : "has monthly rows"
+    </pre>
+  </div>
+
+  <div class="diagram-card domain-categories">
+    <h2>Categories</h2>
+    <p class="subtitle">Backs <code>AccountManager</code>'s <code>CategoryAccessor</code>.</p>
+    <pre class="mermaid">
+erDiagram
+    households {
+        uuid id PK
+        string ref "full definition: Identity & Household"
+    }
+    categories {
+        uuid id PK
+        uuid household_id FK
+        string name
+        string icon
+        string color "palette token, 18 colours"
+        timestamp archived_at "nullable, one-way"
+        timestamp created_at
+    }
+    subcategories {
+        uuid id PK
+        uuid category_id FK "not null"
+        string name
+        timestamp archived_at "nullable, independent"
+        timestamp created_at
+    }
+
+    households ||--o{ categories : "has taxonomy"
+    categories ||--o{ subcategories : "has"
+    </pre>
+  </div>
+
+  <div class="diagram-card domain-budgets">
+    <h2>Budgets</h2>
+    <p class="subtitle">Backs <code>AccountManager</code>'s <code>BudgetAccessor</code>.</p>
+    <pre class="mermaid">
+erDiagram
+    households {
+        uuid id PK
+        string ref "full definition: Identity & Household"
+    }
+    users {
+        uuid id PK
+        string ref "full definition: Identity & Household"
+    }
+    categories {
+        uuid id PK
+        string ref "full definition: Categories"
+    }
+    subcategories {
+        uuid id PK
+        string ref "full definition: Categories"
+    }
+    budgets {
+        uuid id PK
+        uuid household_id FK
+        uuid owner_user_id FK "nullable, dual-role"
+        string name
+        bigint target_amount
+        string currency
+        string visibility
+        timestamp created_at
+    }
+    budget_targets {
+        uuid id PK
+        uuid budget_id FK
+        uuid category_id FK "nullable, exactly one of the two"
+        uuid subcategory_id FK "nullable, exactly one of the two"
+        uuid household_id "denormalized, for the scope index"
+        string visibility "denormalized"
+        uuid owner_user_id "denormalized, nullable"
+        timestamp created_at
+    }
+    budget_periods {
+        uuid id PK
+        uuid budget_id FK "nullable, ON DELETE SET NULL"
+        int year
+        int month
+        bigint target_amount "immutable snapshot"
+        bigint spend_amount
+        timestamp created_at
+    }
+
+    households ||--o{ budgets : "has"
+    users |o--o{ budgets : "owner (dual-role)"
+    budgets ||--o{ budget_targets : "claims targets"
+    budgets |o--o{ budget_periods : "has monthly periods"
+    categories |o--o{ budget_targets : "claimed as target"
+    subcategories |o--o{ budget_targets : "claimed as target"
+    </pre>
+  </div>
+
+  <div class="diagram-card domain-invest">
+    <h2>Investments &amp; Goals</h2>
+    <p class="subtitle">Backs <code>AccountManager</code>'s <code>InvestmentHoldingAccessor</code>, <code>ValuationSnapshotAccessor</code>, <code>GoalAccessor</code>.</p>
+    <pre class="mermaid">
+erDiagram
+    accounts {
+        uuid id PK
+        string ref "full definition: Financial Accounts"
+    }
+    households {
+        uuid id PK
+        string ref "full definition: Identity & Household"
+    }
+    users {
+        uuid id PK
+        string ref "full definition: Identity & Household"
+    }
+    investment_holdings {
+        uuid id PK
+        uuid account_id FK "not null, ON DELETE CASCADE"
+        string asset_type
+        string ticker
+        bigint quantity
+        bigint cost_basis
+        string rate_type "nullable, fixed-term only"
+        bigint rate_value "nullable, percent x 10000"
+        boolean incentivised "nullable, debentures only"
+        timestamp archived_at "nullable"
+        string archived_by "system/user, nullable"
+        timestamp matured_notified_at "nullable"
+        timestamp created_at
+    }
+    valuation_snapshots {
+        uuid id PK
+        uuid holding_id FK "not null; market-priced Holdings only"
+        bigint valuation "total, not per-unit"
+        date as_of_date
+        string source "manual/transaction"
+        uuid account_transaction_id FK "nullable, unique, cascade"
+        timestamp created_at
+    }
+    index_rate_values {
+        uuid id PK
+        uuid household_id FK
+        string index_code "selic/cdi/ipca/igpm"
+        bigint value "percent x 10000"
+        date as_of_date
+        uuid created_by_user_id FK "nullable"
+        timestamp created_at
+    }
+    investment_schedule_entries {
+        uuid id PK
+        uuid holding_id FK "fixed-term Holdings only"
+        string kind
+        bigint amount
+        date date
+        timestamp posted_at "nullable"
+        timestamp created_at
+    }
+    goals {
+        uuid id PK
+        uuid household_id FK
+        uuid owner_user_id FK "nullable, dual-role"
+        string name
+        bigint target_amount
+        string target_currency
+        date due_date
+        string visibility
+        timestamp completed_at "nullable, reversible"
+        timestamp created_at
+    }
+    goal_allocations {
+        uuid id PK
+        uuid holding_id FK
+        uuid goal_id FK
+        int percentage "whole percent, 1-100"
+        timestamp created_at
+    }
+
+    accounts ||--o{ investment_holdings : "holds"
+    investment_holdings ||--o{ valuation_snapshots : "has"
+    investment_holdings ||--o{ investment_schedule_entries : "has"
+    investment_holdings ||--o{ goal_allocations : "allocated from"
+    goals ||--o{ goal_allocations : "funded by"
+    households ||--o{ goals : "has"
+    users |o--o{ goals : "owner (dual-role)"
+    households ||--o{ index_rate_values : "has"
+    </pre>
+  </div>
+
+  <div class="diagram-card domain-txn">
+    <h2>Transactions</h2>
+    <p class="subtitle">Backs <code>TransactionManager</code>'s <code>AccountTransactionAccessor</code>, <code>CardTransactionAccessor</code>. Open Banking sync deferred — not modeled.</p>
+    <pre class="mermaid">
+erDiagram
+    accounts {
+        uuid id PK
+        string ref "full definition: Financial Accounts"
+    }
+    credit_cards {
+        uuid id PK
+        string ref "full definition: Financial Accounts"
+    }
+    investment_holdings {
+        uuid id PK
+        string ref "full definition: Investments & Goals"
+    }
+    categories {
+        uuid id PK
+        string ref "full definition: Categories"
+    }
+    subcategories {
+        uuid id PK
+        string ref "full definition: Categories"
+    }
+    account_transactions {
+        uuid id PK
+        uuid account_id FK
+        string kind
+        string effect "persisted, via EFFECT_BY_KIND"
+        date date
+        bigint amount
+        string currency
+        uuid category_id FK "nullable"
+        uuid subcategory_id FK "nullable"
+        string description
+        uuid holding_id FK "nullable, investment kinds only"
+        uuid credit_card_id FK "nullable, bill payment only"
+        string source "manual/schedule"
+        timestamp created_at
+    }
+    card_transactions {
+        uuid id PK
+        uuid credit_card_id FK
+        string kind "charge/refund"
+        date date
+        bigint amount
+        string currency
+        uuid category_id FK "nullable"
+        uuid subcategory_id FK "nullable"
+        string description
+        timestamp created_at
+    }
+
+    accounts ||--o{ account_transactions : "ledger"
+    credit_cards ||--o{ card_transactions : "ledger"
+    investment_holdings |o--o{ account_transactions : "investment kinds"
+    credit_cards |o--o{ account_transactions : "bill payment bridge"
+    categories |o--o{ account_transactions : "tags"
+    subcategories |o--o{ account_transactions : "tags"
+    categories |o--o{ card_transactions : "tags"
+    subcategories |o--o{ card_transactions : "tags"
+    </pre>
+  </div>
+
+  <div class="diagram-card domain-insights">
+    <h2>Insights</h2>
+    <p class="subtitle">Backs <code>InsightsManager</code>'s <code>DashboardAccessor</code>, <code>AuditLogAccessor</code>, <code>NotificationInboxAccessor</code>.</p>
+    <pre class="mermaid">
+erDiagram
+    users {
+        uuid id PK
+        string ref "full definition: Identity & Household"
+    }
+    dashboard_widgets {
+        string parked "v3, not migrated in v1"
+        uuid id PK
+        uuid user_id FK "not null"
+        string widget_type
+        int position
+        jsonb settings
+        timestamp created_at
+    }
+    notifications {
+        uuid id PK
+        uuid user_id FK "not null"
+        string type "invitation.received/holding.matured"
+        jsonb params "IDs + raw values, no text"
+        timestamp seen_at "nullable"
+        timestamp created_at
+    }
+    audit_log_entries {
+        uuid id PK
+        uuid actor_id "plain value, no FK, see notes"
+        uuid household_id "plain value, no FK"
+        string action
+        string entity_type
+        uuid entity_id "plain value, no FK"
+        timestamp created_at
+    }
+
+    users ||--o{ dashboard_widgets : "has"
+    users ||--o{ notifications : "has"
+    </pre>
+  </div>
+
+  <div class="notes">
+    <h3>How to read this</h3>
+    <p>Each panel is one domain from <code>02-data-model.md</code>, in the
+    same order. A table shown with just <code>id PK</code> and a
+    <code>ref</code> line (e.g. <code>households</code> inside the
+    Financial Accounts panel) is <strong>the same real table</strong>,
+    not a copy — it's drawn minimally in a non-owning panel purely so the
+    relationship line has somewhere to land. Its full column list only
+    appears once, in the panel that owns it. Relationship cardinality
+    follows the FK's actual nullability in the data model — a nullable FK
+    (e.g. <code>accounts.owner_user_id</code>) is drawn <code>zero-or-one</code>
+    on that side, not <code>exactly-one</code>.</p>
+
+    <h3>Cross-domain relationships (consolidated)</h3>
+    <p>This closes the "Not yet done" item in <code>02-data-model.md</code>
+    asking for a consolidated summary of which tables carry the nullable
+    actor-reference-for-anonymization pattern (FR-1.17), rather than
+    repeating the reasoning per table:</p>
+    <ul>
+      <li><strong>Dual-role nullable <code>owner_user_id</code>
+      (identity for personal, provenance for shared, nulled on user
+      deletion <em>or</em> leaving/removal from the household):</strong>
+      <code>accounts</code>, <code>budgets</code> (and denormalized onto
+      <code>budget_targets</code>), <code>goals</code>.</li>
+      <li><strong>Never holds shared data, so no anonymization branch at
+      all — always just cascade-deletes with its owner:</strong>
+      <code>dashboard_widgets</code>, <code>notifications</code>,
+      <code>sessions</code>, <code>mfa_recovery_codes</code>.</li>
+      <li><strong>Pure household-shared taxonomy, no personal/shared
+      split, so no actor reference to null in the first place:</strong>
+      <code>categories</code>, <code>subcategories</code>.</li>
+      <li><strong>Nullable FK for a different reason entirely — history
+      preservation on a hard delete, not anonymization:</strong>
+      <code>budget_periods.budget_id</code> (<code>ON DELETE SET NULL</code>
+      when a Budget is deleted, FR-4.10/OQ-40).</li>
+      <li><strong>No foreign keys at all, by design:</strong>
+      <code>audit_log_entries</code> — see FR-7.1/OQ-25/NFR-AUD-1's
+      append-only requirement; a real FK would force a wrong outcome on
+      every hard delete (destroy the entry, block the delete, or mutate
+      an immutable table). It's the one entity in this whole ERD drawn
+      with no connecting lines at all — that isolation is the correct,
+      confirmed shape, not a missing relationship.</li>
+      <li><strong>Cascades transitively, confirmed intended:</strong>
+      deleting a personal <code>accounts</code> row (user deletion or
+      household departure) cascades to <code>investment_holdings</code>,
+      which cascades to <code>valuation_snapshots</code>/<code>investment_
+      schedule_entries</code>/<code>goal_allocations</code> — even
+      when the allocation fed a still-live <em>shared</em> Goal. The
+      Goal survives; its live-derived progress (FR-8.8) simply
+      recomputes from whatever Holdings remain.</li>
+    </ul>
+
+    <h3>What's deliberately not shown</h3>
+    <ul>
+      <li><strong>The 5 parked Accessors</strong> (<code>PortfolioAccessor</code>,
+      <code>OpenBankingConnectionAccessor</code>, <code>OpenFinanceBrasilAccessor</code>,
+      <code>USOpenBankingAccessor</code>, <code>MarketAnalysisProviderAccessor</code>)
+      — unlike the VBD/EBD diagrams, which draw parked <em>components</em>
+      dashed-and-visible because their architectural role is already
+      decided, these have no table design decided at all yet. There's
+      nothing concrete to draw even as a placeholder; they're absent from
+      this ERD entirely, not dashed.</li>
+      <li><strong>Partial unique indexes and <code>CHECK</code>
+      constraints</strong> (e.g. "exactly one Owner per household" on
+      <code>household_memberships</code>; the scope-based partial unique
+      index on <code>budget_targets</code>; <code>percentage &gt; 0 AND
+      &lt;= 100</code> (whole percent) on <code>goal_allocations</code>) — ER
+      notation shows cardinality between tables, not intra-table
+      constraints. All of these are spelled out in
+      <code>02-data-model.md</code>'s per-domain Invariants sections.</li>
+      <li><strong>Application-level invariants</strong> that cross
+      tables but aren't expressible as any DB constraint (subcategory-
+      belongs-to-category, the backdated-balance cascade, the FR-8.3
+      100%-allocation cap) — same reason, and same pointer to the prose
+      doc.</li>
+    </ul>
+
+    <h3>Status</h3>
+    <ul>
+      <li>All earlier cascades (budget-threshold removal, the OQ-50/51 <code>asset_type</code> branches, <code>EFFECT_BY_KIND</code>) were closed in VBD Round 8.</li>
+      <li><strong>Oct 2026 data model review</strong> (<code>docs/architecture/09-data-model-review-2026-10.md</code>): Goal rename, recurring schedules dropped, <code>password_reset_tokens</code> and <code>index_rate_values</code> added, preferences, category icon/colour, holding archive/maturity fields, snapshot source, notification <code>params</code>, rates as <code>bigint</code> × 10,000, <code>dashboard_widgets</code> parked until v3. 27 tables documented, 26 migrated in v1.</li>
+    </ul>
+  </div>
+
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      securityLevel: 'loose',
+      er: { useMaxWidth: true }
+    });
+  </script>
+</body>
+</html>

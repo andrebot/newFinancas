@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Sequence — Track Investments — Holding Maintenance — New Finance App</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2236;
+    --panel-border: #2f3b56;
+    --text: #eef1f8;
+    --muted: #9aa4bb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px 0; }
+  p.subtitle { margin: 0 0 16px 0; color: var(--muted); font-size: 14px; max-width: 980px; line-height: 1.6; }
+  .diagram-card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 20px;
+    overflow-x: auto;
+    max-width: 100%;
+  }
+  .notes {
+    max-width: 980px;
+    margin: 16px 0 0 0;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.65;
+  }
+  .notes code { color: var(--text); }
+  .notes ul { padding-left: 20px; }
+  .notes li { margin-bottom: 6px; }
+  a { color: #7db4f0; }
+  .route {
+    display: inline-block;
+    background: #1f2b45;
+    border: 1px solid #3a4a70;
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    color: #a9c6f5;
+  }
+</style>
+</head>
+<body>
+  <h1>Track Investments — Holding Maintenance</h1>
+  <p class="subtitle"><span class="route">GET /accounts/:id/holdings</span>, <span class="route">PATCH /holdings/:id</span>, <span class="route">…/valuation-snapshots</span>.</p>
+  <div class="diagram-card">
+    <pre class="mermaid">
+sequenceDiagram
+    actor User
+    participant AP as Account Picker
+    participant HT as Holdings Table
+    participant GA as Goal Allocation Editor
+    participant MV as Market Value Entry
+    participant VH as Value History Editor
+    participant FLOW as Holding Maintenance<br/>Flow
+    participant EXP as Track Investments<br/>Experience
+    participant API as Backend API
+    User->>AP: pick account
+    AP->>FLOW: emit accountChosen
+    FLOW->>EXP: request holdings(accountId)
+    EXP->>API: GET /accounts/:accountId/holdings
+    API-->>EXP: positions (+ expected payout / taxes for fixed-term)
+    EXP-->>FLOW: state
+    User->>HT: expand a holding
+    HT->>FLOW: emit holdingExpanded
+    alt edit goal allocations
+        User->>GA: rows with whole %
+        GA->>FLOW: emit allocations
+        FLOW->>EXP: request saveAllocations
+        EXP->>API: PATCH /holdings/:holdingId
+    else record a market value (market-priced only)
+        User->>MV: value + as-of date
+        MV->>FLOW: emit marketValue
+        FLOW->>EXP: request recordValue
+        EXP->>API: POST /holdings/:holdingId/valuation-snapshots
+    else fix a past value
+        User->>VH: edit or delete an entry
+        VH->>FLOW: emit historyChange
+        FLOW->>EXP: request edit / delete snapshot
+        EXP->>API: PATCH or DELETE …/valuation-snapshots/:snapshotId
+    end
+    API-->>EXP: done or error code (e.g. 409 snapshot.automatic_not_editable)
+    EXP-->>FLOW: state refreshed
+    </pre>
+  </div>
+  <div class="notes">
+<ul><li>Positions are read-only (transactions only).</li><li>'See in Transactions' asks the Experience to route to Manage Finances with holdingId — no Flow-to-Flow call.</li></ul>
+  </div>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      securityLevel: 'loose'
+    });
+  </script>
+</body>
+</html>

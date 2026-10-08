@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard — New Finance App</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        bg: '#0C100F', card: '#131917', raised: '#1A211E', line: '#232C28',
+        ink: '#E7ECE9', muted: '#97A39D', faint: '#5F6B65',
+        mint: '#5EE6B8', mintdeep: '#0F3B2E', coral: '#FF6B6B', coraldeep: '#3A1717',
+        sky: '#7CB9FF', sun: '#FFD166', lilac: '#C792EA', peach: '#FF8C69'
+      },
+      fontFamily: { display: ['Manrope', 'sans-serif'], sans: ['Inter', 'sans-serif'] },
+      borderRadius: { xl2: '20px' }
+    }
+  }
+}
+</script>
+<style>
+  .num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+  .bar { position: relative; height: 28px; border-radius: 999px; background: #222B27; overflow: hidden; }
+  .bar > .fill { position: absolute; inset: 0 auto 0 0; border-radius: 999px; }
+  .bar > .lbl { position: absolute; inset: 0; display: flex; align-items: center; padding: 0 14px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+  .bar > .lbl.on { color: #062A1F; }
+  .month { position: relative; }
+  .month .spark { display: flex; align-items: flex-end; gap: 2px; height: 22px; }
+  .month .spark i { display: block; width: 5px; border-radius: 3px; }
+  .day { display: flex; justify-content: space-between; padding: 8px 20px; background: rgba(26,33,30,.6); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: #97A39D; }
+  .day span { text-transform: none; letter-spacing: 0; }
+  .tx { width: 100%; text-align: left; display: flex; align-items: center; gap: 12px; padding: 12px 16px 12px 20px; border-bottom: 1px solid rgba(35,44,40,.7); cursor: pointer; background: transparent; color: inherit; font: inherit; }
+  .tx:hover { background: rgba(255,255,255,.03); }
+  .tx:focus-visible { outline: 2px solid #5EE6B8; outline-offset: -2px; }
+  .tx .ico { width: 36px; height: 36px; border-radius: 999px; display: grid; place-items: center; flex-shrink: 0; }
+  .tx .meta { font-size: 13px; color: #97A39D; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tx .chev { color: #5F6B65; flex-shrink: 0; transition: transform .2s; }
+  .rail-head { display: flex; align-items: center; justify-content: space-between; }
+  .period { margin-left: 8px; padding: 2px 10px; border-radius: 999px; background: #0F3B2E; color: #5EE6B8; font-family: Inter, sans-serif; font-size: 12px; font-weight: 600; vertical-align: middle; }
+  .arrow { width: 32px; height: 32px; border-radius: 999px; display: grid; place-items: center; border: 1px solid #232C28; color: #97A39D; }
+  .arrow:hover { background: rgba(255,255,255,.05); color: #E7ECE9; }
+  .rail-wrap { position: relative; }
+  .rail-wrap::after { content: ""; position: absolute; top: 0; right: 0; bottom: 8px; width: 56px; background: linear-gradient(to right, rgba(12,16,15,0), #0C100F); pointer-events: none; }
+  .rail { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 8px; scrollbar-width: thin; scrollbar-color: #232C28 transparent; }
+  .rail > * { scroll-snap-align: start; flex-shrink: 0; }
+  .bcard { width: 196px; border-radius: 20px; background: #131917; border: 1px solid #232C28; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .blabel { display: flex; align-items: center; gap: 8px; color: #97A39D; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ico-sm { width: 28px; height: 28px; border-radius: 999px; display: grid; place-items: center; flex-shrink: 0; }
+  .bval { font-family: Manrope, sans-serif; font-size: 22px; font-weight: 700; }
+  .cap { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #97A39D; font-weight: 600; }
+  .rcard { width: 272px; border-radius: 20px; background: #131917; border: 1px solid #232C28; padding: 14px 16px; display: flex; align-items: center; gap: 14px; }
+  .ring { --p: 0; --c: #5EE6B8; width: 64px; height: 64px; border-radius: 999px; flex-shrink: 0; display: grid; place-items: center;
+          background: radial-gradient(closest-side, #131917 78%, transparent 79%), conic-gradient(var(--c) calc(var(--p) * 1%), #232C28 0); }
+  .ring span { font-size: 13px; font-weight: 700; }
+  .ghost { width: 32px; height: 32px; border-radius: 999px; display: grid; place-items: center; color: #5F6B65; }
+  .ghost:hover { background: rgba(255,255,255,.05); color: #E7ECE9; }
+  .field label, .flabel { display: block; font-size: 12px; font-weight: 600; color: #97A39D; margin-bottom: 6px; }
+  .field input { width: 100%; height: 46px; border-radius: 14px; background: #0C100F; border: 1px solid #232C28; padding: 0 14px; color: #E7ECE9; font-size: 15px; }
+  .field input:focus { outline: none; border-color: #5EE6B8; box-shadow: 0 0 0 3px rgba(94,230,184,.15); }
+  .opt { height: 38px; padding: 0 14px; border-radius: 12px; border: 1px solid #232C28; font-size: 14px; color: #E7ECE9; display: inline-flex; align-items: center; gap: 6px; }
+  .opt[aria-pressed="true"] { border-color: rgba(94,230,184,.6); background: #0F3B2E; color: #5EE6B8; font-weight: 600; }
+  .tag { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 9px; border-radius: 999px; font-size: 11px; font-weight: 600; background: #1A211E; color: #97A39D; }
+  .kindtab { flex: 1; height: 64px; border-radius: 16px; border: 1px solid #232C28; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 12.5px; font-weight: 600; color: #97A39D; }
+  .kindtab[aria-selected="true"] { border-color: rgba(94,230,184,.6); background: #0F3B2E; color: #5EE6B8; }
+  .switch { width: 40px; height: 24px; border-radius: 999px; background: #232C28; position: relative; flex-shrink: 0; }
+  .switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 999px; background: #97A39D; }
+  .switch[aria-checked="true"] { background: #5EE6B8; } .switch[aria-checked="true"]::after { left: 19px; background: #062A1F; }
+  .drawer-scrim { position: fixed; inset: 64px 0 0 0; background: rgba(0,0,0,.55); }
+  .drawer { position: fixed; top: 64px; right: 0; bottom: 0; width: 520px; background: #131917; border-left: 1px solid #232C28; display: flex; flex-direction: column; }
+  .month-head { position: sticky; top: 0; z-index: 1; display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; background: #131917; border-top: 1px solid #232C28; border-bottom: 1px solid #232C28; font-family: Manrope, sans-serif; font-weight: 700; font-size: 14px; color: #5EE6B8; }
+  .month-head span:last-child { font-family: Inter, sans-serif; font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="min-h-screen bg-bg text-ink font-sans">
+
+  <!-- App bar -->
+  <header class="h-16 flex items-center gap-3 px-6 border-b border-line bg-card/80">
+    <button class="w-10 h-10 rounded-full grid place-items-center hover:bg-white/5" aria-label="Open navigation menu">
+      <iconify-icon icon="material-symbols:menu" width="22"></iconify-icon>
+    </button>
+    <div class="w-8 h-8 rounded-[10px] bg-mint grid place-items-center text-[#00382B]">
+      <iconify-icon icon="material-symbols:savings-outline" width="18"></iconify-icon>
+    </div>
+    <span class="font-display font-700 font-semibold">New Finance App</span>
+      <div class="ml-auto relative">
+      <button class="w-10 h-10 rounded-full grid place-items-center hover:bg-white/5 relative" aria-label="Notifications, 2 unseen">
+        <iconify-icon icon="material-symbols:notifications-outline" width="22"></iconify-icon>
+        <span class="absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-coral text-[10px] font-bold text-[#2A0A0A] grid place-items-center">2</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="max-w-[1400px] mx-auto px-12 pt-8 pb-16 flex flex-col gap-6">
+
+    <!-- Title -->
+    <div class="flex items-end justify-between gap-6">
+      <div>
+        <h1 class="font-display text-[34px] leading-10 font-extrabold tracking-tight">Dashboard</h1>
+        <p class="text-muted mt-1">Net worth, balances, budgets, goals, and what's coming due — gathered in one place.</p>
+      </div>
+      <span class="period !text-[13px] !px-3 !py-1">September/2026</span>
+    </div>
+
+    <!-- Net worth (one card per currency, never merged) + coming due -->
+    <div class="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_380px] gap-6 items-stretch">
+
+      <section class="rounded-xl2 bg-card border border-line p-5 flex flex-col gap-3">
+        <div class="flex items-center justify-between">
+          <span class="cap">Net worth · USD</span>
+          <span class="text-xs font-semibold text-mint num inline-flex items-center gap-0.5 bg-mint/10 rounded-full px-2 py-0.5"><iconify-icon icon="material-symbols:arrow-upward" width="13"></iconify-icon>+$2,410.00 vs Aug</span>
+        </div>
+        <div class="font-display text-[34px] leading-none font-extrabold num">$19,130.00</div>
+        <svg viewBox="0 0 600 160" preserveAspectRatio="none" class="w-full h-[150px]">
+          <defs><linearGradient id="gUsd" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5EE6B8" stop-opacity=".35"/><stop offset="1" stop-color="#5EE6B8" stop-opacity="0"/></linearGradient></defs>
+          <line x1="0" y1="40" x2="600" y2="40" stroke="#232C28" stroke-dasharray="4 6"/><line x1="0" y1="90" x2="600" y2="90" stroke="#232C28" stroke-dasharray="4 6"/><line x1="0" y1="140" x2="600" y2="140" stroke="#232C28" stroke-dasharray="4 6"/>
+          <path d="M0,110 C60,104 80,96 120,93 C180,88 200,82 240,79 C300,74 320,66 360,63 C420,57 440,50 480,46 C540,40 560,28 600,22 L600,160 L0,160 Z" fill="url(#gUsd)"/>
+          <path d="M0,110 C60,104 80,96 120,93 C180,88 200,82 240,79 C300,74 320,66 360,63 C420,57 440,50 480,46 C540,40 560,28 600,22" fill="none" stroke="#5EE6B8" stroke-width="2.5" stroke-linecap="round"/>
+          <circle cx="596" cy="22" r="5" fill="#5EE6B8" stroke="#131917" stroke-width="3"/>
+        </svg>
+        <div class="flex justify-between text-[11px] uppercase tracking-wider text-faint font-semibold"><span>Apr</span><span>May</span><span>Jun</span><span>Jul</span><span>Aug</span><span class="text-mint">Sep</span></div>
+      </section>
+
+      <section class="rounded-xl2 bg-card border border-line p-5 flex flex-col gap-3">
+        <div class="flex items-center justify-between">
+          <span class="cap">Net worth · BRL</span>
+          <span class="text-xs font-semibold text-mint num inline-flex items-center gap-0.5 bg-mint/10 rounded-full px-2 py-0.5"><iconify-icon icon="material-symbols:arrow-upward" width="13"></iconify-icon>+R$31,200.00 vs Aug</span>
+        </div>
+        <div class="font-display text-[34px] leading-none font-extrabold num">R$358,600.00</div>
+        <svg viewBox="0 0 600 160" preserveAspectRatio="none" class="w-full h-[150px]">
+          <defs><linearGradient id="gBrl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7CB9FF" stop-opacity=".35"/><stop offset="1" stop-color="#7CB9FF" stop-opacity="0"/></linearGradient></defs>
+          <line x1="0" y1="40" x2="600" y2="40" stroke="#232C28" stroke-dasharray="4 6"/><line x1="0" y1="90" x2="600" y2="90" stroke="#232C28" stroke-dasharray="4 6"/><line x1="0" y1="140" x2="600" y2="140" stroke="#232C28" stroke-dasharray="4 6"/>
+          <path d="M0,118 C60,112 80,100 120,98 C180,95 200,90 240,84 C300,76 320,72 360,66 C420,60 440,52 480,50 C540,46 560,34 600,26 L600,160 L0,160 Z" fill="url(#gBrl)"/>
+          <path d="M0,118 C60,112 80,100 120,98 C180,95 200,90 240,84 C300,76 320,72 360,66 C420,60 440,52 480,50 C540,46 560,34 600,26" fill="none" stroke="#7CB9FF" stroke-width="2.5" stroke-linecap="round"/>
+          <circle cx="596" cy="26" r="5" fill="#7CB9FF" stroke="#131917" stroke-width="3"/>
+        </svg>
+        <div class="flex justify-between text-[11px] uppercase tracking-wider text-faint font-semibold"><span>Apr</span><span>May</span><span>Jun</span><span>Jul</span><span>Aug</span><span class="text-sky">Sep</span></div>
+      </section>
+
+      <!-- Coming due: fixed-income maturities, soonest first -->
+      <section class="rounded-xl2 bg-card border border-line p-5 flex flex-col gap-3">
+        <div class="flex items-center justify-between">
+          <h2 class="font-display text-lg font-bold">Coming due</h2>
+          <span class="text-xs text-muted">Fixed income</span>
+        </div>
+        <div class="flex flex-col">
+          <div class="flex items-center gap-3 py-2.5 border-b border-line/70">
+            <div class="w-12 shrink-0 rounded-xl bg-sun/10 text-sun flex flex-col items-center py-1"><span class="text-[10px] font-bold uppercase">Dec</span><span class="font-display text-lg font-extrabold leading-5">15</span></div>
+            <div class="min-w-0 flex-1"><div class="font-medium truncate">Used Car Savings CD</div><div class="text-[12.5px] text-muted">CDB · 15/12/2026 · <span class="text-sun font-medium">in 3 months</span></div></div>
+            <span class="num font-semibold">$5,000.00</span>
+          </div>
+          <div class="flex items-center gap-3 py-2.5 border-b border-line/70">
+            <div class="w-12 shrink-0 rounded-xl bg-white/5 text-muted flex flex-col items-center py-1"><span class="text-[10px] font-bold uppercase">Jun</span><span class="font-display text-lg font-extrabold leading-5">30</span></div>
+            <div class="min-w-0 flex-1"><div class="font-medium truncate">US Treasury I-Bonds</div><div class="text-[12.5px] text-muted">Treasury · 30/06/2028</div></div>
+            <span class="num font-semibold">$3,200.00</span>
+          </div>
+          <div class="flex items-center gap-3 py-2.5 border-b border-line/70">
+            <div class="w-12 shrink-0 rounded-xl bg-white/5 text-muted flex flex-col items-center py-1"><span class="text-[10px] font-bold uppercase">Mar</span><span class="font-display text-lg font-extrabold leading-5">15</span></div>
+            <div class="min-w-0 flex-1"><div class="font-medium truncate">Tesouro Selic 2029</div><div class="text-[12.5px] text-muted">Treasury · 15/03/2029</div></div>
+            <span class="num font-semibold">R$140,000.00</span>
+          </div>
+          <div class="flex items-center gap-3 py-2.5">
+            <div class="w-12 shrink-0 rounded-xl bg-white/5 text-muted flex flex-col items-center py-1"><span class="text-[10px] font-bold uppercase">May</span><span class="font-display text-lg font-extrabold leading-5">15</span></div>
+            <div class="min-w-0 flex-1"><div class="font-medium truncate">Tesouro IPCA+ 2035</div><div class="text-[12.5px] text-muted">Treasury · 15/05/2035</div></div>
+            <span class="num font-semibold">R$60,000.00</span>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Payout over time (FR-5.9) -->
+    <section class="rounded-xl2 bg-card border border-line p-5 flex flex-col gap-4">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <h2 class="font-display text-lg font-bold">Payout over time</h2>
+            <p class="text-xs text-muted mt-0.5">Dividends and interest received, from your transactions · last 12 months</p>
+          </div>
+          <div class="flex items-center gap-4">
+            <div class="text-right"><div class="cap">September/2026</div><div class="font-display text-[22px] font-extrabold num text-mint">R$1,841.00</div></div>
+            <div class="flex rounded-full bg-raised p-0.5 text-xs font-semibold" role="tablist" aria-label="Payout currency"><button class="px-2.5 py-1 rounded-full text-muted" aria-selected="false">$</button><button class="px-2.5 py-1 rounded-full bg-mint text-[#062A1F]" aria-selected="true">R$</button></div>
+          </div>
+        </div>
+        <div class="relative"><button class="w-full h-11 rounded-[14px] border border-line bg-bg px-3 flex items-center gap-2 text-left" aria-haspopup="listbox" aria-expanded="false">
+            <iconify-icon icon="material-symbols:filter-list" width="18" class="text-muted"></iconify-icon>
+            <span class="text-sm font-semibold num">7 of 10 holdings</span>
+            <span class="text-sm text-muted truncate">· XPML11, HGLG11, KNRI11 +4</span>
+            <iconify-icon icon="material-symbols:expand-more" width="20" class="ml-auto text-muted"></iconify-icon>
+          </button></div>
+        <div class="flex flex-col gap-1.5">
+          <svg viewBox="0 0 600 170" preserveAspectRatio="none" class="w-full" style="height:170px" aria-label="Payout per month">
+            <line x1="0" y1="170" x2="600" y2="170" stroke="#232C28"/>
+            <rect x="0.0" y="145.2" width="34" height="24.8" rx="4" fill="#5EE6B8" fill-opacity="0.55"/><rect x="0.0" y="129.6" width="34" height="15.6" rx="4" fill="#7CB9FF" fill-opacity="0.55"/><rect x="0.0" y="117.6" width="34" height="12.0" rx="4" fill="#FFD166" fill-opacity="0.55"/><rect x="0.0" y="108.0" width="34" height="9.6" rx="4" fill="#FF8C69" fill-opacity="0.55"/><rect x="0.0" y="101.6" width="34" height="6.4" rx="4" fill="#4A5550" fill-opacity="0.55"/><rect x="51.5" y="145.0" width="34" height="25.0" rx="4" fill="#5EE6B8" fill-opacity="0.55"/><rect x="51.5" y="129.2" width="34" height="15.8" rx="4" fill="#7CB9FF" fill-opacity="0.55"/><rect x="51.5" y="117.0" width="34" height="12.2" rx="4" fill="#FFD166" fill-opacity="0.55"/><rect x="51.5" y="107.3" width="34" height="9.7" rx="4" fill="#FF8C69" fill-opacity="0.55"/><rect x="51.5" y="100.7" width="34" height="6.6" rx="4" fill="#4A5550" fill-opacity="0.55"/><rect x="102.9" y="144.8" width="34" height="25.2" rx="4" fill="#5EE6B8" fill-opacity="0.55"/><rect x="102.9" y="128.8" width="34" height="16.0" rx="4" fill="#7CB9FF" fill-opacity="0.55"/><rect x="102.9" y="116.7" width="34" height="12.1" rx="4" fill="#FFD166" fill-opacity="0.55"/><rect x="102.9" y="106.9" width="34" height="9.8" rx="4" fill="#FF8C69" fill-opacity="0.55"/><rect x="102.9" y="94.8" width="34" height="12.1" rx="4" fill="#4A5550" fill-opacity="0.55"/><rect x="154.4" y="144.6" width="34" height="25.4" rx="4" fill="#5EE6B8" fill-opacity="0.55"/><rect x="154.4" y="128.5" width="34" height="16.1" rx="4" fill="#7CB9FF" fill-opacity="0.55"/><rect x="154.4" y="116.3" width="34" height="12.2" rx="4" fill="#FFD166" fill-opacity="0.55"/><rect x="154.4" y="106.5" width="34" height="9.8" rx="4" fill="#FF8C69" fill-opacity="0.55"/><rect x="154.4" y="99.8" width="34" height="6.7" rx="4" fill="#4A5550" fill-opacity="0.55"/><rect x="205.8" y="144.4" width="34" height="25.6" rx="4" fill="#5EE6B8" fill-opacity="0.55"/><rect x="205.8" y="128.2" width="34" height="16.2" rx="4" fill="#7CB9FF" fill-opacity="0.55"/><rect x="205.8" y="115.8" width="34" height="12.4" rx="4" fill="#FFD166" fill-opacity="0.55"/><rect x="205.8" y="106.0" width="34" height="9.8" rx="4" fill="#FF8C69" fill-opacity="0.55"/><rect x="205.8" y="99.2" width="34" height="6.8" rx="4" fill="#4A5550" fill-opacity="0.55"/><rect x="257.3" y="144.2" width="34" height="25.8" rx="4" fill="#5EE6B8" fill-opacity="0.55"/><rect x="257.3" y="127.8" width="34" height="16.4" rx="4" fill="#7CB9FF" fill-opacity="0.55"/><rect x="257.3" y="115.5" width="34" height="12.3" rx="4" fill="#FFD166" fill-opacity="0.55"/><rect x="257.3" y="105.6" width="34" height="9.9" rx="4" fill="#FF8C69" fill-opacity="0.55"/><rect x="257.3" y="93.0" width="34" height="12.6" rx="4" fill="#4A5550" fill-opacity="0.55"/><rect x="308.7" y="102.4" width="34" height="67.6" rx="4" fill="#C792EA" fill-opacity="0.55"/><rect x="308.7" y="76.4" width="34" height="26.0" rx="4" fill="#5EE6B8" fill-opacity="0.55"/><rect x="308.7" y="60.0" width="34" height="16.4" rx="4" fill="#7CB9FF" fill-opacity="0.55"/><rect x="308.7" y="47.5" width="34" height="12.5" rx="4" fill="#FFD166" fill-opacity="0.55"/><rect x="308.7" y="37.5" width="34" height="10.0" rx="4" fill="#FF8C69" fill-opacity="0.55"/><rect x="308.7" y="30.5" width="34" height="7.0" rx="4" fill="#4A5550" fill-opacity="0.55"/><rect x="360.2" y="101.2" width="34" height="68.8" rx="4" fill="#C792EA" fill-opacity="0.55"/><rect x="360.2" y="75.1" width="34" height="26.1" rx="4" fill="#5EE6B8" fill-opacity="0.55"/><rect x="360.2" y="58.6" width="34" height="16.5" rx="4" fill="#7CB9FF" fill-opacity="0.55"/><rect x="360.2" y="46.0" width="34" height="12.6" rx="4" fill="#FFD166" fill-opacity="0.55"/><rect x="360.2" y="36.0" width="34" height="10.0" rx="4" fill="#FF8C69" fill-opacity="0.55"/><rect x="360.2" y="29.0" width="34" height="7.0" rx="4" fill="#4A5550" fill-opacity="0.55"/><rect x="411.6" y="100.4" width="34" height="69.6" rx="4" fill="#C792EA" fill-opacity="0.55"/><rect x="411.6" y="74.2" width="34" height="26.2" rx="4" fill="#5EE6B8" fill-opacity="0.55"/><rect x="411.6" y="57.6" width="34" height="16.6" rx="4" fill="#7CB9FF" fill-opacity="0.55"/><rect x="411.6" y="45.0" width="34" height="12.6" rx="4" fill="#FFD166" fill-opacity="0.55"/><rect x="411.6" y="34.9" width="34" height="10.1" rx="4" fill="#FF8C69" fill-opacity="0.55"/><rect x="411.6" y="21.9" width="34" height="13.0" rx="4" fill="#4A5550" fill-opacity="0.55"/><rect x="463.1" y="99.6" width="34" height="70.4" rx="4" fill="#C792EA" fill-opacity="0.55"/><rect x="463.1" y="73.2" width="34" height="26.4" rx="4" fill="#5EE6B8" fill-opacity="0.55"/><rect x="463.1" y="56.6" width="34" height="16.6" rx="4" fill="#7CB9FF" fill-opacity="0.55"/><rect x="463.1" y="43.9" width="34" height="12.7" rx="4" fill="#FFD166" fill-opacity="0.55"/><rect x="463.1" y="33.7" width="34" height="10.2" rx="4" fill="#FF8C69" fill-opacity="0.55"/><rect x="463.1" y="26.6" width="34" height="7.1" rx="4" fill="#4A5550" fill-opacity="0.55"/><rect x="514.5" y="99.2" width="34" height="70.8" rx="4" fill="#C792EA" fill-opacity="0.55"/><rect x="514.5" y="72.6" width="34" height="26.6" rx="4" fill="#5EE6B8" fill-opacity="0.55"/><rect x="514.5" y="55.9" width="34" height="16.7" rx="4" fill="#7CB9FF" fill-opacity="0.55"/><rect x="514.5" y="43.1" width="34" height="12.8" rx="4" fill="#FFD166" fill-opacity="0.55"/><rect x="514.5" y="32.9" width="34" height="10.2" rx="4" fill="#FF8C69" fill-opacity="0.55"/><rect x="514.5" y="25.7" width="34" height="7.2" rx="4" fill="#4A5550" fill-opacity="0.55"/><rect x="566.0" y="98.8" width="34" height="71.2" rx="4" fill="#C792EA" fill-opacity="1"/><rect x="566.0" y="72.0" width="34" height="26.8" rx="4" fill="#5EE6B8" fill-opacity="1"/><rect x="566.0" y="55.2" width="34" height="16.8" rx="4" fill="#7CB9FF" fill-opacity="1"/><rect x="566.0" y="42.2" width="34" height="13.0" rx="4" fill="#FFD166" fill-opacity="1"/><rect x="566.0" y="32.0" width="34" height="10.2" rx="4" fill="#FF8C69" fill-opacity="1"/><rect x="566.0" y="22.7" width="34" height="9.3" rx="4" fill="#4A5550" fill-opacity="1"/>
+          </svg>
+          <div class="flex justify-between text-[10.5px] uppercase tracking-wider text-faint font-semibold px-1"><span class="">Oct</span><span class="">Nov</span><span class="">Dec</span><span class="">Jan</span><span class="">Feb</span><span class="">Mar</span><span class="">Apr</span><span class="">May</span><span class="">Jun</span><span class="">Jul</span><span class="">Aug</span><span class="text-mint">Sep</span></div>
+        </div>
+        <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted"><span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm" style="background:#C792EA"></span>XPML11</span><span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm" style="background:#5EE6B8"></span>HGLG11</span><span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm" style="background:#7CB9FF"></span>KNRI11</span><span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm" style="background:#FFD166"></span>MXRF11</span><span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm" style="background:#FF8C69"></span>VISC11</span><span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm" style="background:#4A5550"></span>Others (2)</span></div>
+      </section>
+
+    <!-- Balances rail (same component as Transactions) -->
+    <section class="flex flex-col gap-3 min-w-0">
+      <div class="rail-head">
+        <h2 class="font-display text-lg font-bold">Balances <span class="period">September/2026</span></h2>
+        <div class="flex gap-1"><button class="arrow" aria-label="Scroll balances left"><iconify-icon icon="material-symbols:chevron-left" width="20"></iconify-icon></button><button class="arrow" aria-label="Scroll balances right"><iconify-icon icon="material-symbols:chevron-right" width="20"></iconify-icon></button></div>
+      </div>
+      <div class="rail-wrap"><div class="rail">
+        <div class="bcard"><div class="blabel"><div class="ico-sm bg-mint/15 text-mint"><iconify-icon icon="material-symbols:account-balance-outline" width="16"></iconify-icon></div>Main Checking</div><div class="bval num">$3,240.50</div></div>
+        <div class="bcard"><div class="blabel"><div class="ico-sm bg-sky/15 text-sky"><iconify-icon icon="material-symbols:savings-outline" width="16"></iconify-icon></div>Emergency Fund</div><div class="bval num">$8,500.00</div></div>
+        <div class="bcard"><div class="blabel"><div class="ico-sm bg-peach/15 text-peach"><iconify-icon icon="material-symbols:credit-card-outline" width="16"></iconify-icon></div>Nubank Cartão</div><div><div class="cap">Outstanding</div><div class="bval num">R$450.00</div></div></div>
+        <div class="bcard"><div class="blabel"><div class="ico-sm bg-lilac/15 text-lilac"><iconify-icon icon="material-symbols:credit-card-outline" width="16"></iconify-icon></div>Visa •••• 1111</div><div><div class="cap">Outstanding</div><div class="bval num">$45.99</div></div></div>
+        <div class="bcard"><div class="blabel"><div class="ico-sm bg-sun/15 text-sun"><iconify-icon icon="material-symbols:account-balance-outline" width="16"></iconify-icon></div>Itaú Conta</div><div class="bval num">R$2,180.35</div></div>
+        <div class="bcard"><div class="blabel"><div class="ico-sm bg-mint/15 text-mint"><iconify-icon icon="material-symbols:trending-up" width="16"></iconify-icon></div>XP Investimentos</div><div class="bval num">R$12,400.00</div></div>
+        <div class="bcard"><div class="blabel"><div class="ico-sm bg-sky/15 text-sky"><iconify-icon icon="material-symbols:account-balance-outline" width="16"></iconify-icon></div>Joint Savings</div><div class="bval num">$1,950.00</div></div>
+      </div></div>
+    </section>
+
+    <!-- Budgets + Goals rails side by side on desktop -->
+    <div class="grid grid-cols-2 gap-6">
+      <section class="flex flex-col gap-3 min-w-0">
+        <div class="rail-head">
+          <h2 class="font-display text-lg font-bold">Budgets <span class="period">September/2026</span></h2>
+          <div class="flex gap-1"><button class="arrow" aria-label="Scroll budgets left"><iconify-icon icon="material-symbols:chevron-left" width="20"></iconify-icon></button><button class="arrow" aria-label="Scroll budgets right"><iconify-icon icon="material-symbols:chevron-right" width="20"></iconify-icon></button></div>
+        </div>
+        <div class="rail-wrap"><div class="rail">
+          <div class="rcard ring-1 ring-coral/50">
+            <div class="ring" style="--p:100; --c:#FF6B6B"><span class="num text-coral">106%</span></div>
+            <div class="min-w-0"><div class="font-semibold truncate">Household Essentials</div><div class="text-[13px] num">R$4,250.00 <span class="text-muted">/ R$4,000.00</span></div><div class="text-xs text-coral font-medium num inline-flex items-center gap-1"><iconify-icon icon="material-symbols:warning-outline" width="13"></iconify-icon>Over by R$250.00</div></div>
+          </div>
+          <div class="rcard">
+            <div class="ring" style="--p:48; --c:#5EE6B8"><span class="num">48%</span></div>
+            <div class="min-w-0"><div class="font-semibold truncate">Fun Money</div><div class="text-[13px] num">$145.50 <span class="text-muted">/ $300.00</span></div><div class="text-xs text-muted num">$154.50 left</div></div>
+          </div>
+          <div class="rcard">
+            <div class="ring" style="--p:78; --c:#FFD166"><span class="num">78%</span></div>
+            <div class="min-w-0"><div class="font-semibold truncate">Dining Out</div><div class="text-[13px] num">R$312.00 <span class="text-muted">/ R$400.00</span></div><div class="text-xs text-muted num">R$88.00 left</div></div>
+          </div>
+        </div></div>
+      </section>
+
+      <section class="flex flex-col gap-3 min-w-0">
+        <div class="rail-head">
+          <h2 class="font-display text-lg font-bold">Goals <span class="period">September/2026</span></h2>
+          <div class="flex gap-1"><button class="arrow" aria-label="Scroll goals left"><iconify-icon icon="material-symbols:chevron-left" width="20"></iconify-icon></button><button class="arrow" aria-label="Scroll goals right"><iconify-icon icon="material-symbols:chevron-right" width="20"></iconify-icon></button></div>
+        </div>
+        <div class="rail-wrap"><div class="rail">
+          <div class="rcard">
+            <div class="ring" style="--p:57; --c:#7CB9FF"><span class="num">57%</span></div>
+            <div class="min-w-0"><div class="font-semibold truncate">House Down Payment</div><div class="text-[13px] num">R$85,000.00 <span class="text-muted">/ R$150,000.00</span></div><div class="text-xs text-muted num">R$65,000.00 to go</div></div>
+          </div>
+          <div class="rcard">
+            <div class="ring" style="--p:32; --c:#7CB9FF"><span class="num">32%</span></div>
+            <div class="min-w-0"><div class="font-semibold truncate">Emergency Fund</div><div class="text-[13px] num">$3,200.00 <span class="text-muted">/ $10,000.00</span></div><div class="text-xs text-muted num">$6,800.00 to go</div></div>
+          </div>
+          <div class="rcard">
+            <div class="ring" style="--p:0; --c:#7CB9FF"><span class="num text-faint">0%</span></div>
+            <div class="min-w-0"><div class="font-semibold truncate">New Laptop Fund</div><div class="text-[13px] text-faint italic">Not funded yet</div></div>
+          </div>
+        </div></div>
+      </section>
+    </div>
+  </main>
+
+  <div class="fixed inset-0 bg-black/60 z-40 grid place-items-center">
+    <div class="w-[440px] rounded-[24px] bg-card border border-line p-6 flex flex-col gap-5 shadow-[0_30px_80px_-20px_rgba(0,0,0,.9)]" role="dialog" aria-label="Export audit log">
+      <div class="flex items-start justify-between">
+        <div class="flex items-center gap-3"><span class="w-10 h-10 rounded-xl bg-mint/15 text-mint grid place-items-center"><iconify-icon icon="material-symbols:download" width="20"></iconify-icon></span><div><div class="font-display text-lg font-bold">Export audit log</div><div class="text-xs text-muted">The Doe Household · CSV</div></div></div>
+        <button class="ghost !w-9 !h-9" aria-label="Close"><iconify-icon icon="material-symbols:close" width="20"></iconify-icon></button>
+      </div>
+      <div class="flex flex-wrap gap-2"><button class="opt !h-8 !text-[13px]" aria-pressed="false">Last 30 days</button><button class="opt !h-8 !text-[13px]" aria-pressed="true">Last 90 days</button><button class="opt !h-8 !text-[13px]" aria-pressed="false">This year</button><button class="opt !h-8 !text-[13px]" aria-pressed="false">Custom</button></div>
+      <div class="grid grid-cols-2 gap-3">
+        <div class="field"><label for="al-from">From</label><input id="al-from" value="03/07/2026" class="num"></div>
+        <div class="field"><label for="al-to">To</label><input id="al-to" value="01/10/2026" class="num"></div>
+      </div>
+      <p class="text-xs text-faint">Who did what and when — actor, action, entity type and ID. No amounts or personal details.</p>
+      <div class="flex justify-end gap-2"><button class="h-10 px-5 rounded-full text-muted hover:bg-white/5">Cancel</button><button class="h-10 px-6 rounded-full bg-mint text-[#062A1F] font-semibold flex items-center gap-2"><iconify-icon icon="material-symbols:download" width="18"></iconify-icon>Download CSV</button></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

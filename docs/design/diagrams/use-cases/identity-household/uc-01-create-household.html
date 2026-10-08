@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>UC-1: Create Household — New Finance App</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2236;
+    --panel-border: #2f3b56;
+    --text: #eef1f8;
+    --muted: #9aa4bb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px 0; }
+  p.subtitle { margin: 0 0 12px 0; color: var(--muted); font-size: 14px; max-width: 900px; line-height: 1.6; }
+  .diagram-card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 20px;
+    overflow-x: auto;
+    max-width: 100%;
+  }
+  .notes {
+    max-width: 900px;
+    margin: 16px 0 0 0;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .notes code { color: var(--text); }
+  .notes ul { padding-left: 20px; }
+</style>
+</head>
+<body>
+  <h1>UC-1: Create Household</h1>
+  <p class="subtitle">
+    Use case 1 of 21 in the Identity &amp; Household set (<code>docs/requirements/01-core-use-cases.md</code>,
+    CUC-1). Traces to <code>FR-1.4</code>/<code>FR-10.1</code>. High-level
+    activity view only — two lanes (Frontend / Backend), no component
+    names or API details yet.
+  </p>
+
+  <div class="diagram-card">
+    <pre class="mermaid">
+flowchart LR
+    subgraph FE["Frontend"]
+        direction TB
+        FE1(["Start"])
+        FE2["Open Household Settings page"]
+        FE3["Start Create Household flow"]
+        FE4["Fill in household form"]
+        FE5["Submit"]
+        FE6["Receive result"]
+        FE7["Notify user (created / error)"]
+        FE8(["End"])
+        FE1 --> FE2 --> FE3 --> FE4 --> FE5
+        FE6 --> FE7 --> FE8
+    end
+
+    subgraph BE["Backend"]
+        direction TB
+        BE1["Receive request"]
+        BE2["Validate &amp; create household"]
+        BE3["Seed default categories for the household"]
+        BE4["Record the action (log)"]
+        BE5["Send response"]
+        BE1 --> BE2 --> BE3 --> BE4 --> BE5
+    end
+
+    FE5 -- request --> BE1
+    BE5 -- response --> FE6
+    </pre>
+  </div>
+
+  <div class="notes">
+    <p><strong>Two entry points (FR-1.4, OQ-75, Oct 2026 review):</strong> onboarding, or 'Create household' in the main menu's household switcher. Either way the guided setup follows, with the first account mandatory (FR-1.22, OQ-81).</p>
+    <p><strong>Reading this diagram:</strong> deliberately non-technical —
+    no URLs, no manager/accessor names, no auth-middleware placement. Those
+    are component-call decisions that come later, once the full 19-use-case
+    set for this area is confirmed.</p>
+    <p><strong>Outcome (FR-1.4/FR-1.6):</strong> the creating user is
+    automatically assigned the Owner role on the new household — not a
+    separate step the user performs.</p>
+    <p><strong>Default categories (FR-10.1), fixed after a gap was found:</strong>
+    creating a household also seeds the predefined default Category set —
+    the user never has to set this up manually before categorizing their
+    first transaction. On the backend this is a Manager↔Manager effect
+    routed through pub/sub, not a direct call — see
+    <code>docs/architecture/backend/01-vbd-decomposition.md</code> §3.1b.</p>
+    <p><strong>Precondition:</strong> user is already authenticated (see
+    UC for Login).</p>
+  </div>
+
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      securityLevel: 'loose',
+      flowchart: { htmlLabels: true, curve: 'basis' }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>UC-3: Complete Goal — New Finance App</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2236;
+    --panel-border: #2f3b56;
+    --text: #eef1f8;
+    --muted: #9aa4bb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px 0; }
+  p.subtitle { margin: 0 0 12px 0; color: var(--muted); font-size: 14px; max-width: 900px; line-height: 1.6; }
+  .diagram-card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 20px;
+    overflow-x: auto;
+    max-width: 100%;
+  }
+  .notes {
+    max-width: 900px;
+    margin: 16px 0 0 0;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .notes code { color: var(--text); }
+  .badge { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 10px; border-radius: 999px; background: #3a2f12; color: #ffd166; margin: 0 0 12px 0; }
+</style>
+</head>
+<body>
+  <h1>UC-3: Complete Goal</h1>
+  
+  <p class="subtitle">
+    Use case 3 of 6 in the Goals set (<code>docs/requirements/01-core-use-cases.md</code>, CUC-10). Traces to <code>FR-8.8</code> (OQ-47, OQ-78). High-level activity view only — no component names or API details yet. Updated in the Oct 2026 use case review (<code>docs/architecture/05-use-case-review-2026-10.md</code>).
+  </p>
+
+  <div class="diagram-card">
+    <pre class="mermaid">
+flowchart LR
+    subgraph FE["Frontend"]
+        direction TB
+        FE1(["Start"])
+        FE2["Open Goals page"]
+        FE3["Select 'Mark completed' on a goal"]
+        FE4["Confirm inline (reversible)"]
+        FE5["Submit"]
+        FE6["Receive result"]
+        FE7["Move goal to the Completed list"]
+        FE8(["End"])
+        FE1 --> FE2 --> FE3 --> FE4 --> FE5
+        FE6 --> FE7 --> FE8
+    end
+
+    subgraph BE["Backend"]
+        direction TB
+        BE1["Receive request"]
+        BE2["Verify actor may edit this goal"]
+        BE3["Set goal status = completed<br/>(record kept, allocations kept)"]
+        BE4["Record the action (log)"]
+        BE5["Send response"]
+        BE1 --> BE2 --> BE3 --> BE4 --> BE5
+    end
+
+    FE5 -- request --> BE1
+    BE5 -- response --> FE6
+
+    </pre>
+  </div>
+
+  <div class="notes">
+    <p><strong>Renamed from Archive Goal (OQ-78).</strong> Same behavior: the goal record stays so its progress-by-month history (FR-8.7) remains viewable; it just leaves the Active list.</p>
+    <p><strong>Reversible</strong> — the only lifecycle transition in the app that is; see Reopen Goal (UC-4).</p>
+  </div>
+
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      securityLevel: 'loose',
+      flowchart: { htmlLabels: true, curve: 'basis' }
+    });
+  </script>
+</body>
+</html>

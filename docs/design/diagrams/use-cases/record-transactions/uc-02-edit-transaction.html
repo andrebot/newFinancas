@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>UC-2: Edit Transaction — New Finance App</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2236;
+    --panel-border: #2f3b56;
+    --text: #eef1f8;
+    --muted: #9aa4bb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px 0; }
+  p.subtitle { margin: 0 0 12px 0; color: var(--muted); font-size: 14px; max-width: 900px; line-height: 1.6; }
+  .diagram-card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 20px;
+    overflow-x: auto;
+    max-width: 100%;
+  }
+  .notes {
+    max-width: 900px;
+    margin: 16px 0 0 0;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .notes code { color: var(--text); }
+  .badge { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 10px; border-radius: 999px; background: #3a2f12; color: #ffd166; margin: 0 0 12px 0; }
+</style>
+</head>
+<body>
+  <h1>UC-2: Edit Transaction</h1>
+  
+  <p class="subtitle">
+    Use case 2 of 5 in the Record Transactions set (<code>docs/requirements/01-core-use-cases.md</code>, CUC-4). Traces to <code>FR-3.2</code>, <code>FR-3.9</code>, <code>FR-5.2</code>, <code>FR-5.8</code> (OQ-37, OQ-39, OQ-80). High-level activity view only — no component names or API details yet. Updated in the Oct 2026 use case review (<code>docs/architecture/05-use-case-review-2026-10.md</code>).
+  </p>
+
+  <div class="diagram-card">
+    <pre class="mermaid">
+flowchart LR
+    subgraph FE["Frontend"]
+        direction TB
+        FE1(["Start"])
+        FE2["Open Transactions page"]
+        FE3["Expand the transaction row → Edit"]
+        FE4["Edit date, amount, category, description<br/>(kind and target are fixed)"]
+        FE5["Submit"]
+        FE6["Receive result"]
+        FE7["Notify user (updated / error)"]
+        FE8(["End"])
+        FE1 --> FE2 --> FE3 --> FE4 --> FE5
+        FE6 --> FE7 --> FE8
+    end
+
+    subgraph BE["Backend"]
+        direction TB
+        BE1["Receive request"]
+        BE2["Verify the transaction is editable (manual)"]
+        BE3["Reverse previous effect, apply updated<br/>effect (balances / holding quantity)"]
+        BE4["Update its automatic valuation snapshot,<br/>if investment"]
+        BE5["If the Holding was auto-archived by this<br/>transaction and quantity is now > 0:<br/>un-archive it"]
+        BE6["Update budget accrual accordingly"]
+        BE7["Save updated transaction"]
+        BE8["Record the action (log)"]
+        BE9["Send response"]
+        BE1 --> BE2 --> BE3 --> BE4 --> BE5 --> BE6 --> BE7 --> BE8 --> BE9
+    end
+
+    FE5 -- request --> BE1
+    BE9 -- response --> FE6
+
+    </pre>
+  </div>
+
+  <div class="notes">
+    <p><strong>Kind and target can't change</strong> after recording — the edit drawer shows them read-only.</p>
+    <p><strong>Auto-unarchive (OQ-80):</strong> only a system-made archive is undone; a user-made archive stays one-way.</p>
+  </div>
+
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      securityLevel: 'loose',
+      flowchart: { htmlLabels: true, curve: 'basis' }
+    });
+  </script>
+</body>
+</html>

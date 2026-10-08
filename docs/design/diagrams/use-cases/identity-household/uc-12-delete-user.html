@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>UC-12: Delete User — New Finance App</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2236;
+    --panel-border: #2f3b56;
+    --text: #eef1f8;
+    --muted: #9aa4bb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px 0; }
+  p.subtitle { margin: 0 0 12px 0; color: var(--muted); font-size: 14px; max-width: 900px; line-height: 1.6; }
+  .diagram-card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 20px;
+    overflow-x: auto;
+    max-width: 100%;
+  }
+  .notes {
+    max-width: 900px;
+    margin: 16px 0 0 0;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .notes code { color: var(--text); }
+</style>
+</head>
+<body>
+  <h1>UC-12: Delete User</h1>
+  <p class="subtitle">
+    Use case 12 of 21 in the Identity &amp; Household set (<code>docs/requirements/01-core-use-cases.md</code>,
+    CUC-2). Traces to <code>FR-1.17</code> — self-service hard delete
+    supporting GDPR/LGPD right-to-erasure (NFR-COMP-4). High-level activity
+    view only — no component names or API details yet.
+  </p>
+
+  <div class="diagram-card">
+    <pre class="mermaid">
+flowchart LR
+    subgraph FE["Frontend"]
+        direction TB
+        FE1(["Start"])
+        FE2["Open Account Settings page"]
+        FE3["Select 'Delete Account'"]
+        FE4["Confirm deletion<br/>(irreversible warning)"]
+        FE5["Submit"]
+        FE6["Receive result"]
+        FE7["Notify user (account deleted)"]
+        FE8(["End — sessions terminated,<br/>redirected to logged-out state"])
+        FE1 --> FE2 --> FE3 --> FE4 --> FE5
+        FE6 --> FE7 --> FE8
+    end
+
+    subgraph BE["Backend"]
+        direction TB
+        BE1["Receive request"]
+        BE2["For each household where actor is<br/>Owner: apply Owner-succession"]
+        BE3["Anonymize actor's contributions<br/>to shared household data"]
+        BE4["Hard-delete actor's personal data<br/>and account (credentials, sessions)"]
+        BE5["Record the action (log)"]
+        BE6["Send response"]
+        BE1 --> BE2 --> BE3 --> BE4 --> BE5 --> BE6
+    end
+
+    FE5 -- request --> BE1
+    BE6 -- response --> FE6
+    </pre>
+  </div>
+
+  <div class="notes">
+    <p><strong>Ties together the GDPR/LGPD decisions (OQ-25, OQ-27,
+    OQ-28, FR-1.18):</strong> succession runs per-household (a user can own
+    more than one, FR-1.8), shared contributions are anonymized not
+    deleted, and only truly personal data is hard-deleted. The Audit Log
+    entry for this action (and every prior action by this user) needs no
+    cleanup — it never stored anything beyond actor ID, timestamp, action,
+    and entity ID (FR-7.1).</p>
+  </div>
+
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      securityLevel: 'loose',
+      flowchart: { htmlLabels: true, curve: 'basis' }
+    });
+  </script>
+</body>
+</html>

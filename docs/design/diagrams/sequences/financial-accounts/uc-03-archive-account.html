@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Sequence — Archive Financial Account — New Finance App</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2236;
+    --panel-border: #2f3b56;
+    --text: #eef1f8;
+    --muted: #9aa4bb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px 0; }
+  p.subtitle { margin: 0 0 16px 0; color: var(--muted); font-size: 14px; max-width: 980px; line-height: 1.6; }
+  .diagram-card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 20px;
+    overflow-x: auto;
+    max-width: 100%;
+  }
+  .notes {
+    max-width: 980px;
+    margin: 16px 0 0 0;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.65;
+  }
+  .notes code { color: var(--text); }
+  .notes ul { padding-left: 20px; }
+  .notes li { margin-bottom: 6px; }
+  a { color: #7db4f0; }
+  .route {
+    display: inline-block;
+    background: #1f2b45;
+    border: 1px solid #3a4a70;
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    color: #a9c6f5;
+  }
+</style>
+</head>
+<body>
+  <h1>Archive Financial Account</h1>
+  <p class="subtitle"><span class="route">POST /accounts/:accountId/archive</span> &mdash; FR-2.4/OQ-34. One-way, no unarchive path. Auto-disconnects Open Banking sync if linked (OQ-36) &mdash; currently a no-op since that trigger is parked.</p>
+  <div class="diagram-card">
+    <pre class="mermaid">
+sequenceDiagram
+    actor User
+    participant API as Hono route
+    participant AM as AccountManager
+    participant AA as AccountAccessor
+    participant OB as OpenBankingConnectionAccessor
+    participant LOG as LoggingUtility
+
+    User->>API: POST /accounts/:accountId/archive
+    API->>AM: archiveAccount(actor, accountId)
+    AM->>AA: archive(accountId)
+    Note over AA: sets archived_at, one-way &mdash; no unarchive endpoint exists (OQ-34)
+    AA-->>AM: archived
+    opt account has an active Open Banking connection
+        AM->>OB: disconnect(accountId)
+        Note over OB: parked &mdash; Open Banking trio deferred (CUC-3/CUC-4)<br/>&mdash; this branch is currently unreachable, kept here since<br/>OQ-36 already confirmed the intended behavior
+        OB-->>AM: disconnected
+    end
+    AM-->>LOG: logActivity(correlationId, actor, "ArchiveAccount")
+    AM-->>LOG: recordAudit(actor, "Account", accountId)
+    AM-->>API: archived
+    API-->>User: 204 No Content
+    </pre>
+  </div>
+  <div class="notes">
+    <ul>
+      <li>No alt/rejection branch shown &mdash; matches the confirmed call chain (<code>docs/design/diagrams/call-chains/financial-accounts/uc-03-archive-account.html</code>), which has no <code>AuthorizationUtility</code> edge for this flow.</li>
+      <li>See FR-2.4, OQ-34, OQ-36.</li>
+    </ul>
+  </div>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      securityLevel: 'loose'
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+  .ghost { width: 32px; height: 32px; border-radius: 999px; display: grid; place-items: center; color: #5F6B65; }
+  .ghost:hover { background: rgba(255,255,255,.05); color: #E7ECE9; }
+  .field label, .flabel { display: block; font-size: 12px; font-weight: 600; color: #97A39D; margin-bottom: 6px; }
+  .field input { width: 100%; height: 46px; border-radius: 14px; background: #0C100F; border: 1px solid #232C28; padding: 0 14px; color: #E7ECE9; font-size: 15px; }
+  .field input:focus { outline: none; border-color: #5EE6B8; box-shadow: 0 0 0 3px rgba(94,230,184,.15); }
+  .opt { height: 38px; padding: 0 14px; border-radius: 12px; border: 1px solid #232C28; font-size: 14px; color: #E7ECE9; display: inline-flex; align-items: center; gap: 6px; }
+  .opt[aria-pressed="true"] { border-color: rgba(94,230,184,.6); background: #0F3B2E; color: #5EE6B8; font-weight: 600; }
+  .tag { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 9px; border-radius: 999px; font-size: 11px; font-weight: 600; background: #1A211E; color: #97A39D; }
+  .kindtab { flex: 1; height: 64px; border-radius: 16px; border: 1px solid #232C28; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 12.5px; font-weight: 600; color: #97A39D; }
+  .kindtab[aria-selected="true"] { border-color: rgba(94,230,184,.6); background: #0F3B2E; color: #5EE6B8; }
+  .switch { width: 40px; height: 24px; border-radius: 999px; background: #232C28; position: relative; flex-shrink: 0; }
+  .switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 999px; background: #97A39D; }
+  .switch[aria-checked="true"] { background: #5EE6B8; } .switch[aria-checked="true"]::after { left: 19px; background: #062A1F; }
+  .drawer-scrim { position: fixed; inset: 64px 0 0 0; background: rgba(0,0,0,.55); }
+  .drawer { position: fixed; top: 64px; right: 0; bottom: 0; width: 520px; background: #131917; border-left: 1px solid #232C28; display: flex; flex-direction: column; }
+  .month-head { position: sticky; top: 0; z-index: 1; display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; background: #131917; border-top: 1px solid #232C28; border-bottom: 1px solid #232C28; font-family: Manrope, sans-serif; font-weight: 700; font-size: 14px; color: #5EE6B8; }
+  .month-head span:last-child { font-family: Inter, sans-serif; font-size: 12px; }

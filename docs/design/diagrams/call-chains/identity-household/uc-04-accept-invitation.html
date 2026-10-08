@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Call Chain — Accept Household Invitation — New Finance App</title>
+<style>
+  :root {
+    --bg: #0f1420; --panel: #1a2236; --panel-border: #2f3b56; --text: #eef1f8; --muted: #9aa4bb;
+    --manager: #2b4a7a; --manager-border: #4d78b8;
+    --engine: #5b3a7a; --engine-border: #9163c9;
+    --accessor: #2f5f4a; --accessor-border: #4fa87e;
+    --utility: #7a5a20; --utility-border: #d0a24f;
+    --parked-bg: #262c3d; --parked-border: #454e68;
+    --sync: #e8c76a; --async: #7dc4e8;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 32px; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  h1 { font-size: 20px; margin: 0 0 4px 0; }
+  p.subtitle { margin: 0 0 24px 0; color: var(--muted); font-size: 14px; max-width: 1000px; line-height: 1.6; }
+  .architecture { position: relative; display: flex; gap: 16px; align-items: stretch; max-width: 1400px; margin: 0 auto; }
+  #arrows-svg { position: absolute; top: 0; left: 0; pointer-events: none; z-index: 5; }
+  .layers { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+  .layer-band { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 10px; padding: 16px; }
+  .band-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 12px; font-weight: 600; }
+  .tier-row { margin-bottom: 14px; }
+  .tier-row:last-child { margin-bottom: 0; }
+  .tier-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 6px; }
+  .tier-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .col-label { font-size: 10px; color: var(--muted); text-align: center; margin-bottom: 4px; }
+  .accessor-column { display: flex; flex-direction: column; gap: 8px; align-items: stretch; }
+  .box { border-radius: 8px; padding: 10px 12px; font-size: 12.5px; line-height: 1.35; text-align: center; border: 1px solid; transition: opacity 0.15s; }
+  .box.manager { background: var(--manager); border-color: var(--manager-border); font-weight: 600; padding: 14px 12px; }
+  .box.engine { background: var(--engine); border-color: var(--engine-border); font-weight: 600; }
+  .box.accessor { background: var(--accessor); border-color: var(--accessor-border); }
+  .box.parked { background: var(--parked-bg); border-color: var(--parked-border); border-style: dashed; color: var(--muted); }
+  .box.empty-slot { visibility: hidden; }
+  .box.utility { background: var(--utility); border-color: var(--utility-border); margin-bottom: 10px; font-weight: 600; }
+  .box.dimmed { opacity: 0.22; }
+  .box.active { opacity: 1; box-shadow: 0 0 0 2px #ffffff88; position: relative; z-index: 2; }
+  .utilities-sidebar { width: 220px; background: var(--panel); border: 1px solid var(--panel-border); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; }
+  .utility-note { margin-top: auto; padding-top: 12px; font-size: 11px; color: var(--muted); line-height: 1.5; border-top: 1px solid var(--panel-border); }
+  .legend { max-width: 1000px; margin: 20px auto 0 auto; display: flex; gap: 22px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+  .legend-item { display: flex; align-items: center; gap: 8px; }
+  .swatch { width: 14px; height: 14px; border-radius: 4px; display: inline-block; border: 1px solid; }
+  .swatch.line { width: 22px; height: 0; border: none; border-top: 2px solid; }
+  .swatch.line.dashed { border-top-style: dashed; }
+  .notes { max-width: 1000px; margin: 20px auto 0 auto; font-size: 13px; color: var(--muted); line-height: 1.6; }
+  .notes code { color: var(--text); }
+</style>
+</head>
+<body>
+  <h1>Call Chain — Accept Household Invitation</h1>
+  <p class="subtitle">Use case 4 of 20 in the Identity &amp; Household set (CUC-1, FR-1.10). Lifecycle Transition (Invitation → accepted) with a Create cascade (Membership).</p>
+
+  <div class="architecture">
+    <svg id="arrows-svg"></svg>
+    <div class="layers">
+      <div class="layer-band">
+        <div class="band-label">Business Layer</div>
+        <div class="tier-row">
+          <div class="tier-label">Managers</div>
+          <div class="tier-grid">
+            <div class="col-label">Identity</div><div class="col-label">Account</div><div class="col-label">Transactions</div><div class="col-label">Insights</div>
+          </div>
+          <div class="tier-grid">
+            <div class="box manager" id="mgr-identity">IdentityManager</div>
+            <div class="box manager" id="mgr-account">AccountManager</div>
+            <div class="box manager" id="mgr-transaction">TransactionManager</div>
+            <div class="box manager" id="mgr-insights">InsightsManager</div>
+          </div>
+        </div>
+        <div class="tier-row">
+          <div class="tier-label">Engines</div>
+          <div class="tier-grid">
+            <div class="box empty-slot">—</div><div class="box empty-slot">—</div>
+            <div class="box engine" id="eng-product">InvestmentProductEngine</div>
+            <div class="box engine" id="eng-reporting">ReportingEngine</div>
+          </div>
+        </div>
+      </div>
+      <div class="layer-band">
+        <div class="band-label">Access Layer — Resource Accessors</div>
+        <div class="tier-grid">
+          <div class="accessor-column">
+            <div class="box accessor" id="acc-user">UserAccessor</div>
+            <div class="box accessor" id="acc-session">SessionAccessor</div>
+            <div class="box accessor" id="acc-household">HouseholdAccessor</div>
+            <div class="box accessor" id="acc-invitation">InvitationAccessor</div>
+          </div>
+          <div class="accessor-column">
+            <div class="box accessor" id="acc-account">AccountAccessor</div>
+            <div class="box accessor" id="acc-creditcard">CreditCardAccessor</div>
+            <div class="box accessor" id="acc-category">CategoryAccessor</div>
+            <div class="box accessor" id="acc-budget">BudgetAccessor</div>
+            <div class="box accessor" id="acc-holding">InvestmentHoldingAccessor</div>
+            <div class="box accessor" id="acc-snapshot">ValuationSnapshotAccessor</div>
+            <div class="box accessor" id="acc-goal">GoalAccessor</div>
+            <div class="box accessor" id="acc-indexrate">IndexRateAccessor</div>
+            <div class="box parked" id="acc-portfolio">PortfolioAccessor (parked, CUC-7)</div>
+            <div class="box parked" id="acc-obconn">OpenBankingConnectionAccessor (parked)</div>
+            <div class="box parked" id="acc-ofb">OpenFinanceBrasilAccessor (parked)</div>
+            <div class="box parked" id="acc-usob">USOpenBankingAccessor (parked)</div>
+            <div class="box parked" id="acc-market">MarketAnalysisProviderAccessor (parked stub)</div>
+          </div>
+          <div class="accessor-column">
+            <div class="box accessor" id="acc-accounttxn">AccountTransactionAccessor</div>
+            <div class="box accessor" id="acc-cardtxn">CardTransactionAccessor</div>
+          </div>
+          <div class="accessor-column">
+            <div class="box parked" id="acc-dashboard">DashboardAccessor (parked, v3)</div>
+            <div class="box accessor" id="acc-audit">AuditLogAccessor</div>
+            <div class="box accessor" id="acc-inbox">NotificationInboxAccessor</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="utilities-sidebar">
+      <div class="band-label">Cross-Cutting Utilities</div>
+      <div class="box utility" id="util-authz">AuthorizationUtility</div>
+      <div class="box utility" id="util-authn">AuthenticationUtility</div>
+      <div class="box utility" id="util-logging">LoggingUtility</div>
+      <div class="box utility" id="util-servicebus">ServiceBusUtility</div>
+      <div class="box utility" id="util-notify">NotificationDeliveryUtility</div>
+      <div class="box utility" id="util-validation">ValidationUtility</div>
+      <div class="box utility" id="util-correlation">CorrelationIdUtility</div>
+      <div class="utility-note">Dimmed utilities aren't called in this flow.</div>
+    </div>
+  </div>
+  <div class="legend">
+    <div class="legend-item"><span class="swatch line" style="border-color:var(--sync);"></span> Synchronous call</div>
+    <div class="legend-item"><span class="swatch line dashed" style="border-color:var(--async);"></span> Async / fire-and-forget</div>
+    <div class="legend-item"><span class="swatch" style="background:var(--manager); border-color:var(--manager-border);"></span> Manager</div>
+    <div class="legend-item"><span class="swatch" style="background:var(--accessor); border-color:var(--accessor-border);"></span> Resource Accessor</div>
+    <div class="legend-item"><span class="swatch" style="background:var(--utility); border-color:var(--utility-border);"></span> Utility</div>
+  </div>
+
+  <div class="notes">
+    <p><strong>Chain:</strong> <code>IdentityManager</code> ① <code>InvitationAccessor.transitionStatus(id, "accepted")</code> (sync, validated write — verifies pending and belongs to this user) → ② <code>HouseholdAccessor.createMembership(...)</code> (sync, cascade) → ③ <code>LoggingUtility</code> (async).</p>
+    <p><strong>No smell:</strong> self-service, so no <code>AuthorizationUtility</code> call — ownership of the invitation is verified inside the Accessor's own transition, not by a separate permission gate. Two Accessor calls is the minimum this cascade can be (transition the invitation, then create the membership it produces).</p>
+  </div>
+
+  <script>
+    window.addEventListener('load', function () {
+      var container = document.querySelector('.architecture');
+      var svg = document.getElementById('arrows-svg');
+      var containerRect = container.getBoundingClientRect();
+      svg.setAttribute('width', containerRect.width);
+      svg.setAttribute('height', containerRect.height);
+      svg.style.width = containerRect.width + 'px';
+      svg.style.height = containerRect.height + 'px';
+
+      var edges = [{"from": "mgr-identity", "to": "acc-invitation", "type": "sync", "order": 1}, {"from": "mgr-identity", "to": "acc-household", "type": "sync", "order": 2}, {"from": "mgr-identity", "to": "util-logging", "type": "async", "order": 3}];
+
+      var activeIds = {};
+      edges.forEach(function (e) { activeIds[e.from] = true; activeIds[e.to] = true; });
+      document.querySelectorAll('.box').forEach(function (box) {
+        if (activeIds[box.id]) { box.classList.add('active'); }
+        else if (!box.classList.contains('empty-slot')) { box.classList.add('dimmed'); }
+      });
+
+      function anchorPoints(fromEl, toEl) {
+        var fr = fromEl.getBoundingClientRect();
+        var tr = toEl.getBoundingClientRect();
+        var fx = fr.left + fr.width / 2 - containerRect.left;
+        var fy = fr.top + fr.height / 2 - containerRect.top;
+        var tx = tr.left + tr.width / 2 - containerRect.left;
+        var ty = tr.top + tr.height / 2 - containerRect.top;
+        var dx = tx - fx, dy = ty - fy;
+        var fromPt, toPt;
+        if (Math.abs(dy) >= Math.abs(dx)) {
+          fromPt = { x: fx, y: (dy >= 0 ? fr.bottom : fr.top) - containerRect.top };
+          toPt = { x: tx, y: (dy >= 0 ? tr.top : tr.bottom) - containerRect.top };
+        } else {
+          fromPt = { x: (dx >= 0 ? fr.right : fr.left) - containerRect.left, y: fy };
+          toPt = { x: (dx >= 0 ? tr.left : tr.right) - containerRect.left, y: ty };
+        }
+        return { fromPt: fromPt, toPt: toPt };
+      }
+
+      var svgContent = '<defs>' +
+        '<marker id="arrow-sync" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">' +
+        '<path d="M0,0 L0,6 L9,3 z" fill="' + getComputedStyle(document.documentElement).getPropertyValue('--sync') + '" /></marker>' +
+        '<marker id="arrow-async" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">' +
+        '<path d="M0,0 L0,6 L9,3 z" fill="' + getComputedStyle(document.documentElement).getPropertyValue('--async') + '" /></marker>' +
+        '</defs>';
+
+      edges.forEach(function (e) {
+        var fromEl = document.getElementById(e.from);
+        var toEl = document.getElementById(e.to);
+        if (!fromEl || !toEl) return;
+        var pts = anchorPoints(fromEl, toEl);
+        var isSync = e.type === 'sync';
+        var strokeVar = isSync ? '--sync' : '--async';
+        var stroke = getComputedStyle(document.documentElement).getPropertyValue(strokeVar);
+        var dashAttr = isSync ? '' : 'stroke-dasharray="6,5"';
+        var marker = isSync ? 'arrow-sync' : 'arrow-async';
+        svgContent += '<line x1="' + pts.fromPt.x + '" y1="' + pts.fromPt.y + '" x2="' + pts.toPt.x + '" y2="' + pts.toPt.y +
+          '" stroke="' + stroke + '" stroke-width="2" ' + dashAttr + ' marker-end="url(#' + marker + ')" />';
+        var mx = (pts.fromPt.x + pts.toPt.x) / 2;
+        var my = (pts.fromPt.y + pts.toPt.y) / 2;
+        svgContent += '<circle cx="' + mx + '" cy="' + my + '" r="9" fill="#0f1420" stroke="' + stroke + '" stroke-width="1.5" />';
+        svgContent += '<text x="' + mx + '" y="' + (my + 3.5) + '" font-size="10" fill="' + stroke + '" text-anchor="middle" font-family="sans-serif">' + e.order + '</text>';
+      });
+
+      svg.innerHTML = svgContent;
+    });
+  </script>
+</body>
+</html>

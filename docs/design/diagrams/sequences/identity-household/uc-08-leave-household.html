@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Sequence — Leave Household — New Finance App</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2236;
+    --panel-border: #2f3b56;
+    --text: #eef1f8;
+    --muted: #9aa4bb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px 0; }
+  p.subtitle { margin: 0 0 16px 0; color: var(--muted); font-size: 14px; max-width: 980px; line-height: 1.6; }
+  .diagram-card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 20px;
+    overflow-x: auto;
+    max-width: 100%;
+  }
+  .notes {
+    max-width: 980px;
+    margin: 16px 0 0 0;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.65;
+  }
+  .notes code { color: var(--text); }
+  .notes ul { padding-left: 20px; }
+  .notes li { margin-bottom: 6px; }
+  a { color: #7db4f0; }
+  .route {
+    display: inline-block;
+    background: #1f2b45;
+    border: 1px solid #3a4a70;
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    color: #a9c6f5;
+  }
+</style>
+</head>
+<body>
+  <h1>Leave Household</h1>
+  <p class="subtitle"><span class="route">DELETE /households/:householdId/members/me</span> (actor == target) &mdash; FR-1.11/FR-1.18. Self-service, no authorization check needed. If the leaving member is the Owner, auto-succession fires atomically.</p>
+  <div class="diagram-card">
+    <pre class="mermaid">
+sequenceDiagram
+    actor User
+    participant API as Hono route
+    participant IM as IdentityManager
+    participant HA as HouseholdAccessor
+    participant LOG as LoggingUtility
+
+    User->>API: DELETE /households/:householdId/members/me
+    API->>IM: removeMember(actor, householdId, actor)
+    Note over IM: actor == target — leaving is always self-service,<br/>the authorization check is skipped entirely (FR-1.11)
+    IM->>HA: transitionMembership(householdId, actor, "removed")
+    alt actor is the Owner AND another member remains
+        HA-->>IM: membership removed,<br/>longest-tenured Admin (else Member, else Viewer) promoted to Owner
+        Note over HA: one atomic write — FR-1.18&#39;s succession rule,<br/>never observably zero or two Owners (OQ-25)
+    else actor is the Owner AND no other member remains
+        HA-->>IM: membership removed, household itself deleted (FR-1.18)
+    else actor is not the Owner
+        HA-->>IM: membership removed
+    end
+    IM-->>LOG: logActivity(correlationId, actor, "LeaveHousehold")
+    IM-->>LOG: recordAudit(actor, "HouseholdMembership", householdId)
+    IM-->>API: left
+    API-->>User: 204 No Content
+    </pre>
+  </div>
+  <div class="notes">
+    <ul>
+      <li><strong>All three branches return the same 204</strong> — the succession/deletion complexity is entirely internal to <code>HouseholdAccessor</code>&#39;s validated write; the caller never needs to know which branch fired.</li>
+      <li>This is the richest of the three "membership ends" flows (Remove Member, Leave, and — via FR-1.17 — Delete User) precisely because it&#39;s the one place FR-1.18&#39;s succession rule is directly, voluntarily triggered rather than a side effect of account deletion.</li>
+      <li>See FR-1.11, FR-1.18, OQ-25, OQ-27.</li>
+    </ul>
+  </div>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      securityLevel: 'loose'
+    });
+  </script>
+</body>
+</html>

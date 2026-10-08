@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>UC-5: View Notifications — New Finance App</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2236;
+    --panel-border: #2f3b56;
+    --text: #eef1f8;
+    --muted: #9aa4bb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px 0; }
+  p.subtitle { margin: 0 0 12px 0; color: var(--muted); font-size: 14px; max-width: 900px; line-height: 1.6; }
+  .diagram-card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 20px;
+    overflow-x: auto;
+    max-width: 100%;
+  }
+  .notes {
+    max-width: 900px;
+    margin: 16px 0 0 0;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .notes code { color: var(--text); }
+  .badge { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 10px; border-radius: 999px; background: #3a2f12; color: #ffd166; margin: 0 0 12px 0; }
+</style>
+</head>
+<body>
+  <h1>UC-5: View Notifications</h1>
+  
+  <p class="subtitle">
+    Use case 5 of 6 in the Insights &amp; Reports set (<code>docs/requirements/01-core-use-cases.md</code>, CUC-8). Traces to <code>FR-6.5</code>, <code>FR-6.10</code> (OQ-68). High-level activity view only — no component names or API details yet. Updated in the Oct 2026 use case review (<code>docs/architecture/05-use-case-review-2026-10.md</code>).
+  </p>
+
+  <div class="diagram-card">
+    <pre class="mermaid">
+flowchart LR
+    subgraph FE["Frontend"]
+        direction TB
+        FE1(["Start"])
+        FE2["Click the bell in the header<br/>(shows unseen count)"]
+        FE3["Request notifications"]
+        FE4["Receive list"]
+        FE5["Show inbox; items are actionable:<br/>accept / decline invitation (Identity<br/>UC-4/5), archive matured holding<br/>(Track Investments UC-3)"]
+        FE6(["End"])
+        FE1 --> FE2 --> FE3
+        FE4 --> FE5 --> FE6
+    end
+
+    subgraph BE["Backend"]
+        direction TB
+        BE1["Receive request"]
+        BE2["Fetch the user's notifications"]
+        BE3["Mark the fetched ones as seen"]
+        BE4["Send response"]
+        BE1 --> BE2 --> BE3 --> BE4
+    end
+
+    FE3 -- request --> BE1
+    BE4 -- response --> FE4
+
+    </pre>
+  </div>
+
+  <div class="notes">
+    <p><strong>v1 triggers (OQ-68):</strong> invitation received (Identity UC-3) and fixed-term holding past due (Track Investments UC-11). Open Banking sync failure stays dormant (OQ-69).</p>
+    <p>Actions inside a notification call the use case they belong to; this use case only lists and marks seen.</p>
+  </div>
+
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      securityLevel: 'loose',
+      flowchart: { htmlLabels: true, curve: 'basis' }
+    });
+  </script>
+</body>
+</html>

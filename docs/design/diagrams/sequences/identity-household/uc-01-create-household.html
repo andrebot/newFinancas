@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Sequence — Create Household — New Finance App</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2236;
+    --panel-border: #2f3b56;
+    --text: #eef1f8;
+    --muted: #9aa4bb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px 0; }
+  p.subtitle { margin: 0 0 16px 0; color: var(--muted); font-size: 14px; max-width: 980px; line-height: 1.6; }
+  .diagram-card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 20px;
+    overflow-x: auto;
+    max-width: 100%;
+  }
+  .notes {
+    max-width: 980px;
+    margin: 16px 0 0 0;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.65;
+  }
+  .notes code { color: var(--text); }
+  .notes ul { padding-left: 20px; }
+  .notes li { margin-bottom: 6px; }
+  a { color: #7db4f0; }
+  .route {
+    display: inline-block;
+    background: #1f2b45;
+    border: 1px solid #3a4a70;
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    color: #a9c6f5;
+  }
+</style>
+</head>
+<body>
+  <h1>Create Household</h1>
+  <p class="subtitle"><span class="route">POST /households</span> — FR-1.4. The one Manager&harr;Manager effect in the whole system (VBD doc &sect;3.1b): seeding default Categories is <code>AccountManager</code>&#39;s job, reached only through the Service Bus, never a direct call.</p>
+  <div class="diagram-card">
+    <pre class="mermaid">
+sequenceDiagram
+    actor User
+    participant API as Hono route
+    participant IM as IdentityManager
+    participant VU as ValidationUtility
+    participant HA as HouseholdAccessor
+    participant SB as ServiceBusUtility
+    participant AM as AccountManager
+    participant CA as CategoryAccessor
+    participant LOG as LoggingUtility
+
+    User->>API: POST /households {name}
+    API->>IM: createHousehold(actor, input)
+    IM->>VU: check(name)
+    alt name missing/invalid
+        VU-->>IM: rejected
+        IM-->>API: ValidationError
+        API-->>User: 422 validation.failed {details}
+    else valid
+        VU-->>IM: ok
+        IM->>HA: insert(household, ownerId=actor)
+        Note over HA: validated write — auto-assigns actor as Owner
+        HA-->>IM: householdId
+        IM->>SB: publish("household.created", {householdId})
+        SB-->>AM: subscribe("household.created")
+        AM->>CA: seedDefaults(householdId)
+        CA-->>AM: default Categories created
+        IM-->>LOG: logActivity(correlationId, actor, "CreateHousehold")
+        IM-->>LOG: recordAudit(actor, "Household", householdId)
+        IM-->>API: householdId
+        API-->>User: 201 Created {householdId}
+    end
+    </pre>
+  </div>
+  <div class="notes">
+    <ul>
+      <li><strong>No <code>IdentityManager</code> &rarr; <code>AccountManager</code> edge</strong> — the Category-seeding call is entirely on <code>AccountManager</code>&#39;s side of the Service Bus subscription; <code>IdentityManager</code> never learns <code>AccountManager</code> or <code>CategoryAccessor</code> exist (VBD doc &sect;3.1b).</li>
+      <li>The Service Bus hop is fire-and-forget from <code>IdentityManager</code>&#39;s perspective — the 201 response doesn&#39;t wait on Category seeding completing.</li>
+      <li>See <code>docs/architecture/backend/01-vbd-decomposition.md</code> &sect;3.1b and FR-1.4/FR-10.1.</li>
+    </ul>
+  </div>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      securityLevel: 'loose'
+    });
+  </script>
+</body>
+</html>

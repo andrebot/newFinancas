@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Sequence — Export Audit Log — New Finance App</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2236;
+    --panel-border: #2f3b56;
+    --text: #eef1f8;
+    --muted: #9aa4bb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px 0; }
+  p.subtitle { margin: 0 0 16px 0; color: var(--muted); font-size: 14px; max-width: 980px; line-height: 1.6; }
+  .diagram-card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 20px;
+    overflow-x: auto;
+    max-width: 100%;
+  }
+  .notes {
+    max-width: 980px;
+    margin: 16px 0 0 0;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.65;
+  }
+  .notes code { color: var(--text); }
+  .notes ul { padding-left: 20px; }
+  .notes li { margin-bottom: 6px; }
+  a { color: #7db4f0; }
+  .route {
+    display: inline-block;
+    background: #1f2b45;
+    border: 1px solid #3a4a70;
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    color: #a9c6f5;
+  }
+</style>
+</head>
+<body>
+  <h1>Export Audit Log</h1>
+  <p class="subtitle"><span class="route">GET /households/:householdId/audit-log/export</span> &mdash; FR-7.2/OQ-46. Owner/Admin only. This is the Audit Log&#39;s ONLY access method in v1 &mdash; there is no in-app browsable table anywhere in this API.</p>
+  <div class="diagram-card">
+    <pre class="mermaid">
+sequenceDiagram
+    actor User
+    participant API as Hono route
+    participant IM as InsightsManager
+    participant AZ as AuthorizationUtility
+    participant AA as AuditLogAccessor
+
+    User->>API: GET /households/:householdId/audit-log/export?startDate=...&endDate=...
+    API->>IM: exportAuditLog(actor, householdId, dateRange)
+    IM->>AZ: canManageMembers(actor, householdId)?
+    alt not Owner/Admin
+        AZ-->>IM: denied
+        IM-->>API: Forbidden
+        API-->>User: 403 auth.forbidden
+    else authorized
+        AZ-->>IM: allowed
+        IM->>AA: exportCsv(householdId, dateRange)
+        Note over AA: audit_log_entries has zero foreign keys, by design (OQ-25/<br/>NFR-AUD-1) &mdash; actor_id/household_id/entity_id are plain<br/>stored values, permanently orphan-tolerant, never joined
+        AA-->>IM: csv content
+        IM-->>API: csv content
+        API-->>User: 200 OK (Content-Type: text/csv, Content-Disposition: attachment)
+    end
+    </pre>
+  </div>
+  <div class="notes">
+    <ul>
+      <li><strong>No <code>logActivity</code>/<code>recordAudit</code> here</strong> &mdash; matches <code>InsightsManager</code>'s established pattern of reads never triggering the audit write path (FR-7.1 scopes it to financial/household-data mutations).</li>
+      <li><code>AuditLogAccessor</code> itself never grants <code>UPDATE</code>/<code>DELETE</code> to the application role at the database level &mdash; append-only is enforced by privilege, not by this call path's own discipline.</li>
+      <li>See FR-7.1, FR-7.2, OQ-25, OQ-46, NFR-AUD-1.</li>
+    </ul>
+  </div>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      securityLevel: 'loose'
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Sequence — Edit Market Value — New Finance App</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2236;
+    --panel-border: #2f3b56;
+    --text: #eef1f8;
+    --muted: #9aa4bb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px 0; }
+  p.subtitle { margin: 0 0 16px 0; color: var(--muted); font-size: 14px; max-width: 980px; line-height: 1.6; }
+  .diagram-card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 20px;
+    overflow-x: auto;
+    max-width: 100%;
+  }
+  .notes {
+    max-width: 980px;
+    margin: 16px 0 0 0;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.65;
+  }
+  .notes code { color: var(--text); }
+  .notes ul { padding-left: 20px; }
+  .notes li { margin-bottom: 6px; }
+  a { color: #7db4f0; }
+  .route {
+    display: inline-block;
+    background: #1f2b45;
+    border: 1px solid #3a4a70;
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    color: #a9c6f5;
+  }
+</style>
+</head>
+<body>
+  <h1>Edit Market Value</h1>
+  <p class="subtitle"><span class="route">PATCH /holdings/:holdingId/valuation-snapshots/:snapshotId</span> &mdash; FR-5.2/OQ-56. Manual Valuation Snapshot of a market-priced Holding (stock, FII, fund, other).</p>
+  <div class="diagram-card">
+    <pre class="mermaid">
+sequenceDiagram
+    actor User
+    participant API as Hono route
+    participant AM as AccountManager
+    participant AZ as AuthorizationUtility
+    participant VU as ValidationUtility
+    participant IHA as InvestmentHoldingAccessor
+    participant VSA as ValuationSnapshotAccessor
+    participant LOG as LoggingUtility
+
+    User->>API: PATCH /holdings/:holdingId/valuation-snapshots/:snapshotId {value?, asOf?}
+    API->>AM: editMarketValue(actor, holdingId, input)
+    AM->>AZ: canWrite(actor, holdingId)?
+    alt not authorized
+        AZ-->>AM: denied
+        AM-->>API: Forbidden
+        API-->>User: 403 auth.forbidden
+    else authorized
+        AZ-->>AM: allowed
+        AM->>VU: check(input)
+        AM->>IHA: get(holdingId)
+        alt Holding is a fixed-term instrument (OQ-51)
+            IHA-->>AM: assetType = CDB / Tesouro / ...
+            AM-->>API: Conflict
+            API-->>User: 409 holding.not_market_priced
+        else market-priced
+            IHA-->>AM: ok
+            AM->>VSA: updateManual(snapshotId, value, asOf)
+        else snapshot is automatic (source = transaction)
+            VSA-->>AM: rejected
+            AM-->>API: Conflict
+            API-->>User: 409 snapshot.automatic_not_editable
+        end
+        AM-->>LOG: logActivity(correlationId, actor, "EditMarketValue")
+        AM-->>LOG: recordAudit(actor, "ValuationSnapshot", snapshotId)
+        AM-->>API: done
+        API-->>User: 200 OK
+    end
+    </pre>
+  </div>
+  <div class="notes">
+<ul><li>Corrects a typo in a past value (OQ-56).</li><li>Net worth and goal progress read &ldquo;latest snapshot at or before month end&rdquo; on demand &mdash; nothing to recompute here.</li><li>See FR-5.2, OQ-51, OQ-56, OQ-83.</li></ul>
+  </div>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      securityLevel: 'loose'
+    });
+  </script>
+</body>
+</html>

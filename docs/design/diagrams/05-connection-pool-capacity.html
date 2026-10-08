@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Database Connection Pool Capacity — New Finance App</title>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2236;
+    --panel-border: #2f3b56;
+    --text: #eef1f8;
+    --muted: #9aa4bb;
+    --slot-empty: #1a2236;
+    --slot-empty-border: #2f3b56;
+    --hold-read: #2f5f4a;      --hold-read-border: #4fa87e;
+    --hold-write: #2b4a7a;     --hold-write-border: #4d78b8;
+    --hold-cascade: #5b3a7a;   --hold-cascade-border: #9163c9;
+    --hold-gap: #262c3d;       --hold-gap-border: #454e68;
+    --waiting: #7a5a20;        --waiting-border: #d0a24f;
+    --rejected: #7a2b2b;       --rejected-border: #c75d5d;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px 0; }
+  h2 { font-size: 15px; margin: 40px 0 4px 0; color: var(--text); }
+  p.subtitle { margin: 0 0 12px 0; color: var(--muted); font-size: 14px; max-width: 980px; line-height: 1.6; }
+  .diagram-card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 20px;
+    overflow-x: auto;
+    max-width: 100%;
+  }
+  .timeline {
+    display: grid;
+    grid-template-columns: 90px repeat(40, minmax(0, 1fr));
+    gap: 3px;
+    min-width: 900px;
+    font-size: 11px;
+  }
+  .timeline.short { grid-template-columns: 90px repeat(20, minmax(0, 1fr)); min-width: 0; }
+  .row-label {
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    padding-right: 8px;
+    white-space: nowrap;
+  }
+  .cell-track {
+    grid-column: 2 / -1;
+    display: grid;
+    grid-template-columns: subgrid;
+    background: var(--slot-empty);
+    border: 1px solid var(--slot-empty-border);
+    border-radius: 4px;
+    height: 28px;
+    position: relative;
+  }
+  .hold {
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text);
+    padding: 0 4px;
+    overflow: hidden;
+    min-width: 0;
+    white-space: nowrap;
+  }
+  .hold-read { background: var(--hold-read); border: 1px solid var(--hold-read-border); }
+  .hold-write { background: var(--hold-write); border: 1px solid var(--hold-write-border); }
+  .hold-cascade { background: var(--hold-cascade); border: 1px solid var(--hold-cascade-border); }
+  .hold-gap { background: var(--hold-gap); border: 1px dashed var(--hold-gap-border); color: var(--muted); }
+  .hold-waiting { background: var(--waiting); border: 1px dashed var(--waiting-border); color: var(--text); }
+  .hold-rejected { background: var(--rejected); border: 1px solid var(--rejected-border); color: var(--text); }
+  .time-axis { grid-column: 2 / -1; display: flex; justify-content: space-between; color: var(--muted); font-size: 10px; margin-top: 4px; }
+  .legend {
+    max-width: 980px;
+    margin: 12px 0 0 0;
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+  .panels-row { display: flex; gap: 20px; flex-wrap: wrap; }
+  .panels-row .diagram-card { flex: 1; min-width: 380px; }
+  .notes {
+    max-width: 980px;
+    margin: 16px 0 0 0;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.65;
+  }
+  .notes code { color: var(--text); }
+  .notes ul { padding-left: 20px; }
+  .notes li { margin-bottom: 6px; }
+  .callout {
+    background: #1f2b45;
+    border: 1px solid #3a4a70;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin: 10px 0;
+    font-size: 13px;
+    color: #d5e2f7;
+  }
+</style>
+</head>
+<body>
+  <h1>Database Connection Pool Capacity</h1>
+  <p class="subtitle">
+    Every Resource Accessor call draws from one shared, fixed-size
+    PostgreSQL connection pool — this is the real concurrency bottleneck
+    for the system, not Node/Hono's request handling itself (event-loop
+    based, not thread-per-request). Three scenarios below, each tied to
+    a flow already documented elsewhere in this project, not invented
+    for this diagram. Pool size shown as <strong>10</strong> throughout —
+    illustrative, not yet a decided NFR; see the notes.
+  </p>
+
+  <h2>1. Normal load — plenty of headroom</h2>
+  <p class="subtitle">Six independent, simple requests, each a single short-held connection. Comfortably inside a 10-slot pool.</p>
+  <div class="diagram-card">
+    <div class="timeline">
+      <div class="row-label">Slot 1</div>
+      <div class="cell-track"><div class="hold hold-read" style="grid-column: 1 / 4;">GET /accounts</div></div>
+      <div class="row-label">Slot 2</div>
+      <div class="cell-track"><div class="hold hold-read" style="grid-column: 2 / 6;">GET /transactions</div></div>
+      <div class="row-label">Slot 3</div>
+      <div class="cell-track"><div class="hold hold-read" style="grid-column: 1 / 3;">GET /budgets</div></div>
+      <div class="row-label">Slot 4</div>
+      <div class="cell-track"><div class="hold hold-write" style="grid-column: 3 / 6;">POST /transactions</div></div>
+      <div class="row-label">Slot 5</div>
+      <div class="cell-track"><div class="hold hold-read" style="grid-column: 2 / 4;">GET /objectives</div></div>
+      <div class="row-label">Slot 6</div>
+      <div class="cell-track"><div class="hold hold-read" style="grid-column: 4 / 7;">GET /dashboard (1 widget)</div></div>
+      <div class="row-label">Slots 7–10</div>
+      <div class="cell-track" style="opacity: 0.4;"><div class="hold" style="grid-column: 1 / 21; background:none; border:none; color: var(--muted); justify-content:flex-start;">idle — free</div></div>
+      <div class="row-label"></div>
+      <div class="time-axis"><span>0ms</span><span>50ms</span><span>100ms</span><span>150ms</span><span>200ms</span></div>
+    </div>
+  </div>
+
+  <h2>2. Delete User's cascade — the real design question this diagram surfaces</h2>
+  <p class="subtitle">
+    FR-1.17's cascade (<code>docs/design/diagrams/sequences/identity-household/uc-12-delete-user.html</code>)
+    touches ~9 Accessors in sequence. The VBD doc's pipeline is written as
+    numbered sequential steps, which settles <em>order</em> — it doesn't
+    settle whether those 9 steps run inside <strong>one Postgres
+    transaction</strong> or as <strong>9 separate connection
+    checkouts</strong>. Both are consistent with the VBD doc as written;
+    they have opposite pool-occupancy shapes.
+  </p>
+  <div class="panels-row">
+    <div class="diagram-card">
+      <p class="subtitle" style="margin-top:0;"><strong>Option A — one atomic transaction.</strong> Data-integrity-safest (a half-completed GDPR delete would be a real compliance problem) — exclusive hold for the full cascade.</p>
+      <div class="timeline short">
+        <div class="row-label">Slot 1</div>
+        <div class="cell-track"><div class="hold hold-cascade" style="grid-column: 1 / 17;">BEGIN … 9 statements … COMMIT</div></div>
+        <div class="row-label"></div>
+        <div class="time-axis"><span>0ms</span><span>50ms</span><span>100ms</span><span>150ms</span></div>
+      </div>
+    </div>
+    <div class="diagram-card">
+      <p class="subtitle" style="margin-top:0;"><strong>Option B — 9 separate checkouts.</strong> Releases the connection between steps (another request can use that slot in the gaps) — but a crash mid-cascade leaves a partially-deleted user.</p>
+      <div class="timeline short">
+        <div class="row-label">Slot 1</div>
+        <div class="cell-track">
+          <div class="hold hold-cascade" style="grid-column: 1 / 3;">1</div>
+          <div class="hold hold-gap" style="grid-column: 3 / 4;"></div>
+          <div class="hold hold-cascade" style="grid-column: 4 / 6;">2</div>
+          <div class="hold hold-gap" style="grid-column: 6 / 7;"></div>
+          <div class="hold hold-cascade" style="grid-column: 7 / 9;">3</div>
+          <div class="hold hold-gap" style="grid-column: 9 / 10;"></div>
+          <div class="hold hold-cascade" style="grid-column: 10 / 12;">…</div>
+          <div class="hold hold-gap" style="grid-column: 12 / 13;"></div>
+          <div class="hold hold-cascade" style="grid-column: 13 / 15;">9</div>
+        </div>
+        <div class="row-label"></div>
+        <div class="time-axis"><span>0ms</span><span>50ms</span><span>100ms</span><span>150ms</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="callout">
+    <strong>Not yet decided — flagging for the implementation phase, not resolving it here:</strong>
+    the VBD/data-model docs never actually specified which of these two
+    shapes Delete User uses. Given FR-1.17's GDPR stakes, Option A (one
+    transaction) is the safer default — a half-completed erasure is a
+    real compliance failure, not just a UX glitch — but it holds a
+    connection roughly <strong>9× longer</strong> than any other single
+    request in this system, which is exactly the kind of thing worth
+    knowing before, not after, a slow query inside that transaction ties
+    up a slot under load.
+  </div>
+
+  <h2>3. Burst exceeding pool capacity</h2>
+  <p class="subtitle">12 concurrent simple requests arrive at once against a 10-slot pool — the first 10 get served immediately, 2 queue until a slot frees.</p>
+  <div class="diagram-card">
+    <div class="timeline">
+      <div class="row-label">Slot 1</div>
+      <div class="cell-track"><div class="hold hold-read" style="grid-column: 2 / 8;">req A</div></div>
+      <div class="row-label">Slot 2</div>
+      <div class="cell-track"><div class="hold hold-read" style="grid-column: 2 / 6;">req B</div></div>
+      <div class="row-label">Slot 3</div>
+      <div class="cell-track"><div class="hold hold-write" style="grid-column: 2 / 10;">req C</div></div>
+      <div class="row-label">Slot 4</div>
+      <div class="cell-track"><div class="hold hold-read" style="grid-column: 2 / 7;">req D</div></div>
+      <div class="row-label">Slot 5</div>
+      <div class="cell-track"><div class="hold hold-read" style="grid-column: 2 / 5;">req E</div></div>
+      <div class="row-label">Slot 6</div>
+      <div class="cell-track"><div class="hold hold-write" style="grid-column: 2 / 9;">req F</div></div>
+      <div class="row-label">Slot 7</div>
+      <div class="cell-track"><div class="hold hold-read" style="grid-column: 2 / 6;">req G</div></div>
+      <div class="row-label">Slot 8</div>
+      <div class="cell-track"><div class="hold hold-read" style="grid-column: 2 / 7;">req H</div></div>
+      <div class="row-label">Slot 9</div>
+      <div class="cell-track"><div class="hold hold-write" style="grid-column: 2 / 10;">req I</div></div>
+      <div class="row-label">Slot 10</div>
+      <div class="cell-track"><div class="hold hold-read" style="grid-column: 2 / 5;">req J</div></div>
+      <div class="row-label" style="color: var(--waiting); font-weight:600;">Queue</div>
+      <div class="cell-track">
+        <div class="hold hold-waiting" style="grid-column: 2 / 5;">req K — waiting</div>
+        <div class="hold hold-read" style="grid-column: 5 / 8;">req K — served (slot 5)</div>
+        <div class="hold hold-waiting" style="grid-column: 2 / 9;">req L — waiting</div>
+        <div class="hold hold-read" style="grid-column: 9 / 12;">req L — served (slot 3)</div>
+      </div>
+      <div class="row-label"></div>
+      <div class="time-axis"><span>0ms</span><span>50ms</span><span>100ms</span><span>150ms</span><span>200ms</span></div>
+    </div>
+  </div>
+  <div class="callout">
+    <strong>What happens past the queue's own limit isn't shown here on
+    purpose</strong> — that's a pool-configuration decision (queue depth,
+    checkout timeout → reject with a 503) with no NFR in this project
+    specifying it yet, same category as rate limiting and CORS already
+    flagged as "not yet done" in <code>03-api-design.md</code>.
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><span class="swatch" style="background:var(--hold-read);"></span> Read query</div>
+    <div class="legend-item"><span class="swatch" style="background:var(--hold-write);"></span> Write query</div>
+    <div class="legend-item"><span class="swatch" style="background:var(--hold-cascade);"></span> Delete User cascade step</div>
+    <div class="legend-item"><span class="swatch" style="background:var(--hold-gap); border: 1px dashed var(--hold-gap-border);"></span> Connection released between steps (Option B only)</div>
+    <div class="legend-item"><span class="swatch" style="background:var(--waiting); border: 1px dashed var(--waiting-border);"></span> Queued, no free slot yet</div>
+  </div>
+
+  <div class="notes">
+    <h3 style="color:var(--text); font-size:14px;">Notes</h3>
+    <ul>
+      <li><strong>Not a diagram type from <code>harmonic-diagrams</code>'s original five</strong> (use-case activity, layered static architecture, call chain, component call-graph, sequence) — this is an infrastructure-capacity concern, not an architectural-decomposition one, hand-crafted with CSS Grid the same way layered static architecture diagrams are (precise banding mermaid's layout engine won't reliably guarantee).</li>
+      <li><strong>Pool size 10 is illustrative</strong>, not a decided requirement — no NFR in this project specifies connection pool sizing yet. Same open-infrastructure-decision category as rate limiting, CORS, and queue/timeout behavior (see the callout above).</li>
+      <li><strong>Node/Hono's own concurrency model is deliberately not shown as a bottleneck here</strong> — the event loop handles many concurrent requests without a thread per request; the pool above is the actual finite resource. A separate, smaller concern is Node's <em>libuv thread pool</em> (default size 4), relevant only where genuinely CPU-bound work gets offloaded off the event loop — in this system, that's specifically <code>AuthenticationUtility</code>'s password hashing (Argon2/bcrypt) during register/login/change-password. Worth its own diagram only if/when that path is suspected to be a real bottleneck, not by default.</li>
+      <li>Every hold in scenarios 1 and 3 corresponds to exactly one Resource Accessor call from an already-documented sequence diagram — nothing here invents new request shapes.</li>
+    </ul>
+  </div>
+</body>
+</html>

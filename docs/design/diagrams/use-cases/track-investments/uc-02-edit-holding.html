@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>UC-2: Edit Holding Goal Allocations — New Finance App</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2236;
+    --panel-border: #2f3b56;
+    --text: #eef1f8;
+    --muted: #9aa4bb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px 0; }
+  p.subtitle { margin: 0 0 12px 0; color: var(--muted); font-size: 14px; max-width: 900px; line-height: 1.6; }
+  .diagram-card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 20px;
+    overflow-x: auto;
+    max-width: 100%;
+  }
+  .notes {
+    max-width: 900px;
+    margin: 16px 0 0 0;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .notes code { color: var(--text); }
+  .badge { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 10px; border-radius: 999px; background: #3a2f12; color: #ffd166; margin: 0 0 12px 0; }
+</style>
+</head>
+<body>
+  <h1>UC-2: Edit Holding Goal Allocations</h1>
+  
+  <p class="subtitle">
+    Use case 2 of 12 in the Track Investments &amp; Net Worth set (<code>docs/requirements/01-core-use-cases.md</code>, CUC-6). Traces to <code>FR-5.2</code>, <code>FR-8.2</code>, <code>FR-8.3</code>, <code>FR-8.6</code> (OQ-48, OQ-56). High-level activity view only — no component names or API details yet. Updated in the Oct 2026 use case review (<code>docs/architecture/05-use-case-review-2026-10.md</code>).
+  </p>
+
+  <div class="diagram-card">
+    <pre class="mermaid">
+flowchart LR
+    subgraph FE["Frontend"]
+        direction TB
+        FE1(["Start"])
+        FE2["Open Investments → Holdings by account"]
+        FE3["Expand a holding"]
+        FE4["Edit 'Counts toward goals':<br/>add / remove goals, change %"]
+        FE5["Save"]
+        FE6["Receive result"]
+        FE7["Notify user (saved / error)"]
+        FE8(["End"])
+        FE1 --> FE2 --> FE3 --> FE4 --> FE5
+        FE6 --> FE7 --> FE8
+    end
+
+    subgraph BE["Backend"]
+        direction TB
+        BE1["Receive request"]
+        BE2["Verify actor may edit this Holding"]
+        BE3["Verify allocations total ≤ 100%"]
+        BE4["Replace the Holding's goal allocations"]
+        BE5["Record the action (log)"]
+        BE6["Send response"]
+        BE1 --> BE2 --> BE3 --> BE4 --> BE5 --> BE6
+    end
+
+    FE5 -- request --> BE1
+    BE6 -- response --> FE6
+
+    </pre>
+  </div>
+
+  <div class="notes">
+    <p><strong>Narrowed in this review:</strong> a Holding's position is read-only (it changes only through its transactions), and its market value has its own use cases (Record / Edit / Delete Market Value). What's left to edit on the Holding itself is goal allocation.</p>
+    <p><strong>Direction of control (OQ-48):</strong> allocations are edited from the Holding, never from the Goal.</p>
+  </div>
+
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      securityLevel: 'loose',
+      flowchart: { htmlLabels: true, curve: 'basis' }
+    });
+  </script>
+</body>
+</html>

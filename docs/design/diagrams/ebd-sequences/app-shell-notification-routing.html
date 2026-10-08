@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Sequence — App Shell — Notification Routing — New Finance App</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2236;
+    --panel-border: #2f3b56;
+    --text: #eef1f8;
+    --muted: #9aa4bb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px 0; }
+  p.subtitle { margin: 0 0 16px 0; color: var(--muted); font-size: 14px; max-width: 980px; line-height: 1.6; }
+  .diagram-card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 20px;
+    overflow-x: auto;
+    max-width: 100%;
+  }
+  .notes {
+    max-width: 980px;
+    margin: 16px 0 0 0;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.65;
+  }
+  .notes code { color: var(--text); }
+  .notes ul { padding-left: 20px; }
+  .notes li { margin-bottom: 6px; }
+  a { color: #7db4f0; }
+  .route {
+    display: inline-block;
+    background: #1f2b45;
+    border: 1px solid #3a4a70;
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    color: #a9c6f5;
+  }
+</style>
+</head>
+<body>
+  <h1>App Shell — Notification Routing</h1>
+  <p class="subtitle"><span class="route">GET /notifications</span>, <span class="route">DELETE /notifications/:id</span> + the owning Experience's own endpoint.</p>
+  <div class="diagram-card">
+    <pre class="mermaid">
+sequenceDiagram
+    actor User
+    participant BELL as Notification Inbox<br/>(Review Insights)
+    participant SHELL as App Shell
+    participant MP as Manage Profile<br/>Experience
+    participant TI as Track Investments<br/>Experience
+    participant API as Backend API
+    User->>BELL: open the bell
+    BELL->>SHELL: emit inboxOpened
+    SHELL->>API: GET /notifications (via Review Insights)
+    API-->>SHELL: [{type, params}] — marked seen
+    SHELL-->>BELL: render each via I18nUtility (type → catalog string, IDs resolved)
+    alt invitation.received — Accept
+        User->>BELL: Accept
+        BELL->>SHELL: emit action {type: invitation.received, accept, params}
+        SHELL->>MP: route (routing config) → Respond to Invitation
+        MP->>API: POST /invitations/:invitationId/accept
+    else holding.matured — Archive holding
+        User->>BELL: Archive holding
+        BELL->>SHELL: emit action {type: holding.matured, archive, params}
+        SHELL->>TI: route → Archive Matured Holding
+        TI->>API: POST /holdings/:holdingId/archive
+    end
+    API-->>SHELL: done
+    SHELL->>API: DELETE /notifications/:notificationId
+    </pre>
+  </div>
+  <div class="notes">
+<ul><li>The inbox never performs the action itself — the owning Experience does (Q3).</li><li>A new type = one routing entry + one catalog string.</li></ul>
+  </div>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      securityLevel: 'loose'
+    });
+  </script>
+</body>
+</html>

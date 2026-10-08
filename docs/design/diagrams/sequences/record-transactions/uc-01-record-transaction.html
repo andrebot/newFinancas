@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Sequence — Record Transaction — New Finance App</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2236;
+    --panel-border: #2f3b56;
+    --text: #eef1f8;
+    --muted: #9aa4bb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px 0; }
+  p.subtitle { margin: 0 0 16px 0; color: var(--muted); font-size: 14px; max-width: 980px; line-height: 1.6; }
+  .diagram-card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 20px;
+    overflow-x: auto;
+    max-width: 100%;
+  }
+  .notes {
+    max-width: 980px;
+    margin: 16px 0 0 0;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.65;
+  }
+  .notes code { color: var(--text); }
+  .notes ul { padding-left: 20px; }
+  .notes li { margin-bottom: 6px; }
+  a { color: #7db4f0; }
+  .route {
+    display: inline-block;
+    background: #1f2b45;
+    border: 1px solid #3a4a70;
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    color: #a9c6f5;
+  }
+</style>
+</head>
+<body>
+  <h1>Record Transaction</h1>
+  <p class="subtitle"><span class="route">POST /transactions</span> &mdash; FR-3.1/OQ-39. One unified entry point for both Account and Card Transactions &mdash; target narrows which kinds are valid, itself data-driven. The investment-buy-against-a-fixed-term-instrument sub-case is one of the two widest-fan-out flows in the whole system.</p>
+  <div class="diagram-card">
+    <pre class="mermaid">
+sequenceDiagram
+    actor User
+    participant API as Hono route
+    participant TM as TransactionManager
+    participant AZ as AuthorizationUtility
+    participant AA as AccountAccessor
+    participant CCA as CreditCardAccessor
+    participant IHA as InvestmentHoldingAccessor
+    participant IPE as InvestmentProductEngine
+    participant VSA as ValuationSnapshotAccessor
+    participant GA as GoalAccessor
+    participant BA as BudgetAccessor
+    participant ATA as AccountTransactionAccessor
+    participant CTA as CardTransactionAccessor
+    participant LOG as LoggingUtility
+
+    User->>API: POST /transactions {target, kind, date, amount, currency, categoryId, description, assetType?, ticker?, quantity?, rate?, dueDate?, incentivised?, allocations?}
+    API->>TM: record(actor, input)
+    TM->>AZ: canWrite(actor, targetId)?
+    alt not authorized
+        AZ-->>TM: denied
+        TM-->>API: Forbidden
+        API-->>User: 403 auth.forbidden
+    else authorized, target is a Credit Card
+        AZ-->>TM: allowed
+        alt kind not in {charge, refund}
+            TM-->>API: ValidationError (FR-3.1 &mdash; a Credit Card target only offers charge/refund)
+            API-->>User: 422 transaction.kind_not_allowed_for_target
+        else charge or refund
+            TM->>CCA: applyChargeOrRefund(cardId, amount, kind)
+            CCA-->>TM: outstanding balance updated
+            TM->>BA: accrueIfClaimed(categoryId, subcategoryId, amount, date)
+            BA-->>TM: spend updated (no-op if unclaimed)
+            TM->>CTA: insert(cardTransaction)
+            CTA-->>TM: transactionId
+        end
+    else authorized, target is an Account
+        AZ-->>TM: allowed
+        Note over TM: effect = EFFECT_BY_KIND[kind] &mdash; inline reference-data lookup
+        alt currency does not match the target account's currency
+            TM-->>API: ValidationError (FR-2.2 &mdash; no cross-currency movements)
+            API-->>User: 422 transaction.currency_mismatch
+        else investment kind on a credit-card-only account
+            TM-->>API: ValidationError (OQ-76 &mdash; investments live in checking, savings or investment accounts)
+            API-->>User: 422 transaction.investment_not_allowed_on_account
+        else effect = movement or transfer
+            TM->>AA: applyMovement(accountId, amount, currency)
+            AA-->>TM: new balance
+        else effect = bill_payment
+            TM->>CCA: applyBillPayment(cardId, amount)
+            CCA-->>TM: outstanding balance reduced
+        else effect = investment_trade
+            Note over TM: quantityDelta computed here (buy/sell/redemption rule, FR-3.8)
+            opt kind = investment buy
+                alt assetType is one of FR-11.1's fixed-term instruments
+                    TM->>IHA: create a new Holding, always (OQ-50)
+                    IHA-->>TM: new holdingId
+                else no existing Holding for this ticker+account
+                    TM->>IHA: create Holding (auto-create, FR-5.1/OQ-41)
+                    IHA-->>TM: new holdingId
+                end
+            end
+            TM->>IHA: applyTrade(holdingId, quantityDelta, date)
+            IHA-->>TM: {newQuantity}
+            opt market-priced assetType (OQ-51)
+                TM->>VSA: insertAutomatic(holdingId, transactionId, valuation, date)
+                Note over VSA: source = transaction &mdash; changes only with its transaction (OQ-56)
+            end
+            opt newQuantity = 0 (full sell or redemption)
+                TM->>IHA: archive(holdingId, by = system)
+                Note over IHA: auto-archive (FR-5.8, OQ-72) &mdash; undone if this<br/>transaction is later edited or deleted (OQ-80)
+            end
+            opt assetType is a defined FR-11.1 instrument type
+                Note over TM,IPE: dueDate, rate and the debenture incentivised flag are<br/>user-supplied &mdash; not derivable from assetType alone (OQ-50, OQ-79)
+                TM->>IPE: schedule(assetType, incentivised, dueDate, rate, purchaseDate, amount)
+                IPE-->>TM: {cashEvents[], taxes} &mdash; tax rules coded per type, US = none estimated
+                TM->>IHA: applySchedule(holdingId, schedule)
+                IHA-->>TM: schedule stored
+            end
+            opt allocations provided (OQ-54)
+                loop for each {goalId, percentage}
+                    TM->>GA: allocate(holdingId, goalId, percentage)
+                    alt this Holding's total allocated percentage would exceed 100%
+                        GA-->>TM: rejected (FR-8.3)
+                        TM-->>API: Conflict
+                        API-->>User: 409 goal.allocation_exceeds_100 {current, requested}
+                    else within budget
+                        GA-->>TM: applied
+                    end
+                end
+            end
+        end
+        TM->>BA: accrueIfClaimed(categoryId, subcategoryId, amount, date)
+        BA-->>TM: spend updated
+        TM->>ATA: insert(accountTransaction, effect)
+        ATA-->>TM: transactionId
+    end
+    TM-->>LOG: logActivity(correlationId, actor, "RecordTransaction")
+    TM-->>LOG: recordAudit(actor, "Transaction", transactionId)
+    TM-->>API: transactionId
+    API-->>User: 201 Created {transactionId}
+    </pre>
+  </div>
+  <div class="notes">
+    <ul>
+      <li>This is the same pipeline as the VBD backend doc&#39;s &sect;5 sequence diagram (Record an Account Transaction), reused here rather than redrawn from scratch &mdash; the Card Transaction branch and the HTTP/route layer are the only genuinely new detail added.</li>
+      <li><strong>Two separate ledgers, one bridge:</strong> Card Transactions and Account Transactions are two distinct tables with no FK between them (OQ-16) &mdash; the only bridge is a Credit Card Bill Payment, an Account Transaction carrying a <code>credit_card_id</code>.</li>
+      <li>No <code>NotificationDeliveryUtility</code> call anywhere in this flow &mdash; FR-4.4's threshold alert was removed (OQ-52, Round 8).</li>
+      <li><strong>Oct 2026 review:</strong> automatic Valuation Snapshot is explicit (<code>source = transaction</code>, OQ-56); a full sell/redemption auto-archives the Holding (OQ-72); investment kinds rejected on credit-card-only accounts (OQ-76); the Engine call carries the debenture flag and returns coded taxes (OQ-79); error responses use OQ-83 codes. No recurring option (OQ-55).</li>
+      <li><strong>Goal allocation can be bundled here (OQ-54, added after the API coverage audit):</strong> one call in, no separate <code>PATCH /holdings/{holdingId}</code> follow-up required &mdash; same 100%-cap rejection as that endpoint's own allocation edit (FR-8.3), just reachable from this pipeline too. Direction of control is unchanged (OQ-48): still written from the Holding's side, never the Goal's.</li>
+      <li>See FR-3.1, FR-3.6&ndash;3.9, FR-5.2, FR-5.8, FR-8.2, FR-8.3, FR-11.1&ndash;11.3, OQ-16, OQ-39, OQ-48, OQ-50, OQ-51, OQ-54, OQ-56, OQ-72, OQ-76, OQ-79, OQ-83.</li>
+    </ul>
+  </div>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      securityLevel: 'loose'
+    });
+  </script>
+</body>
+</html>

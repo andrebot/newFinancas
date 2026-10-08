@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Sequence — Account Setup — Goal Management — New Finance App</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2236;
+    --panel-border: #2f3b56;
+    --text: #eef1f8;
+    --muted: #9aa4bb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px 0; }
+  p.subtitle { margin: 0 0 16px 0; color: var(--muted); font-size: 14px; max-width: 980px; line-height: 1.6; }
+  .diagram-card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 20px;
+    overflow-x: auto;
+    max-width: 100%;
+  }
+  .notes {
+    max-width: 980px;
+    margin: 16px 0 0 0;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.65;
+  }
+  .notes code { color: var(--text); }
+  .notes ul { padding-left: 20px; }
+  .notes li { margin-bottom: 6px; }
+  a { color: #7db4f0; }
+  .route {
+    display: inline-block;
+    background: #1f2b45;
+    border: 1px solid #3a4a70;
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    color: #a9c6f5;
+  }
+</style>
+</head>
+<body>
+  <h1>Account Setup — Goal Management</h1>
+  <p class="subtitle"><span class="route">POST/PATCH/DELETE /goals</span>, <span class="route">POST /goals/:id/complete|reopen</span>, <span class="route">GET /goals</span>.</p>
+  <div class="diagram-card">
+    <pre class="mermaid">
+sequenceDiagram
+    actor User
+    participant GF as Goal Form
+    participant GP as Goal Progress Card
+    participant FX as Exchange-Rate<br/>Calculator
+    participant CR as Complete / Reopen<br/>Confirm
+    participant FLOW as Goal Management<br/>Flow
+    participant EXP as Account Setup<br/>Experience
+    participant API as Backend API
+    FLOW->>EXP: request goals(status)
+    EXP->>API: GET /goals?status=active
+    API-->>EXP: goals with per-currency contributions + funded by
+    EXP-->>FLOW: state
+    FLOW-->>GP: render progress
+    opt goal mixes currencies
+        User->>FX: '1 USD = 5.20 BRL'
+        FX->>FLOW: emit rateEntered (kept in Flow state only)
+        FLOW-->>GP: re-render blended estimate (nothing sent)
+    end
+    alt create / edit
+        User->>GF: name, currency, visibility, target, due date
+        GF->>FLOW: emit goalSubmitted
+        FLOW->>EXP: request saveGoal
+        EXP->>API: POST /goals (or PATCH)
+    else complete / reopen
+        User->>CR: confirm
+        CR->>FLOW: emit transition
+        FLOW->>EXP: request complete or reopen
+        EXP->>API: POST /goals/:goalId/complete (or /reopen)
+    end
+    </pre>
+  </div>
+  <div class="notes">
+<ul><li>Allocations are never edited here — always from the Holding (OQ-48).</li><li>FX never leaves the browser (FR-9).</li></ul>
+  </div>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      securityLevel: 'loose'
+    });
+  </script>
+</body>
+</html>

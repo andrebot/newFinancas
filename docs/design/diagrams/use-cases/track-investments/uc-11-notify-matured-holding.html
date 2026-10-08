@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>UC-11: Notify Matured Holding — New Finance App</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2236;
+    --panel-border: #2f3b56;
+    --text: #eef1f8;
+    --muted: #9aa4bb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px 0; }
+  p.subtitle { margin: 0 0 12px 0; color: var(--muted); font-size: 14px; max-width: 900px; line-height: 1.6; }
+  .diagram-card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 20px;
+    overflow-x: auto;
+    max-width: 100%;
+  }
+  .notes {
+    max-width: 900px;
+    margin: 16px 0 0 0;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .notes code { color: var(--text); }
+  .badge { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 10px; border-radius: 999px; background: #3a2f12; color: #ffd166; margin: 0 0 12px 0; }
+</style>
+</head>
+<body>
+  <h1>UC-11: Notify Matured Holding</h1>
+  
+  <p class="subtitle">
+    Use case 11 of 12 in the Track Investments &amp; Net Worth set (<code>docs/requirements/01-core-use-cases.md</code>, CUC-6). Traces to <code>FR-5.8</code>, <code>FR-6.5</code> (OQ-68, OQ-72). High-level activity view only — no component names or API details yet. Added in the Oct 2026 use case review (<code>docs/architecture/05-use-case-review-2026-10.md</code>).
+  </p>
+
+  <div class="diagram-card">
+    <pre class="mermaid">
+flowchart LR
+    subgraph BE["Backend (system trigger)"]
+        direction TB
+        BE1["Scheduled trigger (daily)"]
+        BE2["Find fixed-term holdings past their due<br/>date that still have a position"]
+        BE3["Skip ones already notified"]
+        BE4["Create an in-app notification for each<br/>holding's owner(s): 'past due — archive?'"]
+        BE5["Record the action (log)"]
+        BE1 --> BE2 --> BE3 --> BE4 --> BE5
+    end
+    </pre>
+  </div>
+
+  <div class="notes">
+    <p>The notification's 'Archive holding' action runs Archive Matured Holding (UC-3).</p>
+    <p>Normally a redemption (UC-4) zeroes and auto-archives the holding first; this catches the cases where it didn't.</p>
+  </div>
+
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      securityLevel: 'loose',
+      flowchart: { htmlLabels: true, curve: 'basis' }
+    });
+  </script>
+</body>
+</html>

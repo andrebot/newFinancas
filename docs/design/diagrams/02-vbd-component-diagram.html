@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Backend VBD Decomposition — New Finance App</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2236;
+    --panel-border: #2f3b56;
+    --text: #eef1f8;
+    --muted: #9aa4bb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px 0; }
+  h2 { font-size: 15px; margin: 40px 0 12px 0; color: var(--text); border-bottom: 1px solid var(--panel-border); padding-bottom: 6px; }
+  p.subtitle { margin: 0 0 12px 0; color: var(--muted); font-size: 14px; max-width: 900px; line-height: 1.6; }
+  .diagram-card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 20px;
+    overflow-x: auto;
+    max-width: 100%;
+  }
+  .notes {
+    max-width: 900px;
+    margin: 16px 0 0 0;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .notes code { color: var(--text); }
+  .legend {
+    max-width: 900px;
+    margin: 12px 0 0 0;
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+  a { color: #7db4f0; }
+</style>
+</head>
+<body>
+  <h1>Backend VBD Decomposition</h1>
+  <p class="subtitle">
+    Managers / Engines / Resource Accessors / Utilities for the New
+    Finance App backend, derived from
+    <code>docs/requirements/01-core-use-cases.md</code>,
+    <code>02-functional-requirements.md</code>, and — as of Round 7 —
+    <code>docs/architecture/00-core-process-patterns.md</code>'s 4 core
+    process patterns, which now supersede the CUC list as the primary
+    decomposition input. Full component tables, the per-Manager call
+    table, and the household-lifecycle/scheduled-trigger flows live in
+    <code>docs/architecture/backend/01-vbd-decomposition.md</code> — this
+    page is the rendered version of the two diagrams from that document.
+  </p>
+
+  <h2>Component Diagram</h2>
+  <p class="subtitle">
+    <strong>Revised seven times.</strong> Rounds 1–5: 18→4 Managers
+    (grouped by trigger pattern, fractal, pub/sub-only between them),
+    14→9 Engines (removing dispatch tables and thin validate-then-write
+    logic). Round 6: <code>AccessControlEngine</code> reclassified as a
+    Utility; <code>PortfolioBuilderEngine</code> and
+    <code>OpenBankingSyncEngine</code> removed (no real backend
+    computation to isolate); <code>HoldingValuationEngine</code>,
+    <code>BudgetTrackingEngine</code>, <code>GoalProgressEngine</code>,
+    <code>CreditCardBalanceEngine</code> removed (each a workflow decision
+    plus a validated write, not computation) → 1 Engine
+    (<code>ReportingEngine</code>).
+    <strong>Round 7 — driven by full use-case verification and
+    volatility reconciliation, not a fresh guess:</strong>
+    <strong>Engines → 2</strong> (added <code>InvestmentProductEngine</code>
+    for FR-11's instrument-specific maturity/interest/tax rules, called
+    inline by <code>TransactionManager</code> — never by
+    <code>AccountManager</code>). <strong>Resource Accessors: 17 active +
+    4 parked</strong> (removed <code>CurrencyReferenceRateAccessor</code>
+    entirely — currency conversion turned out to be frontend-only, never
+    persisted; split <code>InvitationAccessor</code> out of
+    <code>HouseholdAccessor</code>; parked the Open Banking/analysis
+    Accessors alongside their deferred CUCs, not dropped).
+    <strong>Utilities: 7, down from 9</strong> — merged
+    <code>ApplicationLogUtility</code> + <code>AuditLogUtility</code> →
+    <code>LoggingUtility</code>; split the old
+    <code>AccessControlUtility</code> grouping into
+    <code>AuthenticationUtility</code> (crypto primitives) and
+    <code>AuthorizationUtility</code> (role/permission gate — a different
+    volatility driver). <strong>Managers stay at 4</strong> — the
+    process-pattern axis is orthogonal to the trigger-pattern axis that
+    already grouped them.
+    <strong>Round 8 — closing three cascades the
+    data-modeling pass surfaced, not a fresh design pass:</strong>
+    <strong>Resource Accessors: 18 active, up from 17</strong> (added
+    <code>RecurringTransactionScheduleAccessor</code>, backing FR-3.5's
+    recurring transactions — a fourth entry point into
+    <code>TransactionManager</code>'s pipeline, the same shape as Open
+    Banking sync and the scheduled investment-cash-event trigger). FR-4.4's
+    budget-alert threshold is removed (OQ-52) — no more
+    <code>NotificationDeliveryUtility</code> edge from
+    <code>TransactionManager</code>. Fixed-term instrument Holdings
+    (OQ-50/51) now branch <code>TransactionManager</code>'s Holding-create
+    step and <code>ReportingEngine</code>'s read path on
+    <code>assetType</code>.
+    <strong>Round 9 (this revision, Oct 2026 design round):</strong>
+    "Objective" → "Goal"; <code>RecurringTransactionScheduleAccessor</code>
+    removed (OQ-55); new <code>IndexRateAccessor</code> (FR-11.6);
+    <code>DashboardAccessor</code> parked until v3; one daily
+    <code>investmentsDaily</code> trigger for cash events + matured
+    holdings; <code>InvestmentProductEngine.project</code> called by
+    <code>InsightsManager</code>; <code>NotificationDeliveryUtility</code>
+    wired again (invitations, matured holdings). Still 4 Managers,
+    2 Engines, 7 Utilities, 18 active Accessors.
+  </p>
+  <div class="diagram-card">
+    <pre class="mermaid">
+graph TB
+    CRON_OB(("Scheduled: Open Banking sync<br/>parked — infrastructure, not a Manager"))
+    CRON_INV(("Scheduled daily: investmentsDaily<br/>cash events + matured holdings<br/>infrastructure, not a Manager"))
+
+    subgraph Identity["Identity & Household"]
+        M_Id[IdentityManager]
+        A_User[(UserAccessor)]
+        A_Sess[(SessionAccessor)]
+        A_HH[(HouseholdAccessor)]
+        A_Inv[(InvitationAccessor)]
+    end
+
+    subgraph AccountConfig["Account: Containers, Cards, Categories, Budgets, Goals, Investment admin"]
+        M_Acct[AccountManager]
+        A_Acct[(AccountAccessor)]
+        A_Card[(CreditCardAccessor)]
+        A_Cat[(CategoryAccessor)]
+        A_Budget[(BudgetAccessor)]
+        A_Hold[(InvestmentHoldingAccessor)]
+        A_Snap[(ValuationSnapshotAccessor)]
+        A_Obj[(GoalAccessor)]
+        A_Rate[(IndexRateAccessor)]
+        A_Port[(PortfolioAccessor - parked, CUC-7)]
+        A_OBConn[(OpenBankingConnectionAccessor - parked)]
+        A_OFB[(OpenFinanceBrasilAccessor - parked)]
+        A_USOB[(USOpenBankingAccessor - parked)]
+        A_Market[(MarketAnalysisProviderAccessor - parked stub)]
+    end
+
+    subgraph Transactions["Transactions"]
+        M_Txn[TransactionManager]
+        E_Prod[InvestmentProductEngine]
+        A_AcctTxn[(AccountTransactionAccessor)]
+        A_CardTxn[(CardTransactionAccessor)]
+    end
+
+    subgraph Insights["Insights: Dashboard, Reports, Audit"]
+        M_Insight[InsightsManager]
+        E_Report[ReportingEngine]
+        A_Dash[(DashboardAccessor - parked, v3)]
+        A_Audit[(AuditLogAccessor)]
+        A_Inbox[(NotificationInboxAccessor)]
+    end
+
+    subgraph Utilities["Cross-Cutting Utilities"]
+        U_Authz[AuthorizationUtility]
+        U_Authn[AuthenticationUtility]
+        U_Log[LoggingUtility]
+        U_Notify[NotificationDeliveryUtility]
+        U_Valid[ValidationUtility]
+        U_Corr[CorrelationIdUtility]
+        U_Bus{{ServiceBusUtility}}
+    end
+
+    M_Id --> A_User
+    M_Id --> A_Sess
+    M_Id --> A_Inv
+    M_Id --> U_Authz --> A_HH
+    M_Id --> U_Authn
+    M_Id -- "publish: household.created" --> U_Bus
+    U_Bus -- "subscribe: household.created" --> M_Acct
+
+    M_Acct --> U_Authz
+    M_Acct --> A_Acct
+    M_Acct --> A_Card
+    M_Acct --> A_Cat
+    M_Acct --> A_Budget
+    M_Acct --> A_Hold
+    M_Acct --> A_Obj
+    M_Acct --> A_Snap
+    M_Acct --> A_Rate
+    M_Acct --> U_Notify
+    M_Id --> U_Notify
+    M_Acct -.-> A_Port
+    M_Acct -.-> A_OBConn
+    M_Acct -.-> A_OFB
+    M_Acct -.-> A_USOB
+    CRON_OB -.-> A_OFB
+    CRON_OB -.-> A_USOB
+    CRON_OB -. "publish: transaction.import.requested (parked)" .-> U_Bus
+    CRON_INV --> A_Hold
+    CRON_INV -- "publish: transaction.import.requested" --> U_Bus
+    CRON_INV -- "publish: holding.matured" --> U_Bus
+    U_Bus -- "subscribe: holding.matured" --> M_Acct
+    U_Bus -- "subscribe: transaction.import.requested" --> M_Txn
+
+    M_Txn --> U_Authz
+    M_Txn --> E_Prod
+    M_Txn --> A_Acct
+    M_Txn --> A_Card
+    M_Txn --> A_Hold
+    M_Txn --> A_Snap
+    M_Txn --> A_Budget
+    M_Txn --> A_AcctTxn
+    M_Txn --> A_CardTxn
+    M_Txn --> A_Obj
+
+    M_Insight --> U_Authz
+    M_Insight --> E_Report
+    E_Report --> A_Acct
+    E_Report --> A_Snap
+    E_Report --> A_Hold
+    E_Report --> A_AcctTxn
+    E_Report --> A_CardTxn
+    E_Report --> A_Budget
+    E_Report --> A_Obj
+    M_Insight -.-> A_Dash
+    M_Insight --> E_Prod
+    E_Prod --> A_Rate
+    M_Insight --> A_Audit
+    M_Insight --> A_Inbox
+
+    Identity -.-> Utilities
+    AccountConfig -.-> Utilities
+    Transactions -.-> Utilities
+    Insights -.-> Utilities
+    U_Log --> A_Audit
+</pre>
+  </div>
+  <div class="legend">
+    <div class="legend-item"><span class="swatch" style="background:#2b4a7a;"></span> Solid edge = live, in-scope call</div>
+    <div class="legend-item"><span class="swatch" style="background:#3a3f4b;"></span> Dashed edge/node = parked (deferred CUC), not dropped</div>
+  </div>
+  <div class="notes">
+    <p><strong>Two Engines now</strong> — <code>ReportingEngine</code>
+    under <code>InsightsManager</code>, <code>InvestmentProductEngine</code>
+    under <code>TransactionManager</code>, called inline within the
+    investment-buy path — and, since Round 9, by <code>InsightsManager</code>
+    for <code>project</code> (expected payout/taxes). <strong>Two scheduled
+    triggers</strong> — <code>CRON_INV</code> (Round 9: cash events +
+    matured holdings in one daily job) is live; <code>CRON_OB</code> is parked alongside the four dashed
+    Open-Banking/analysis Accessors it feeds. There is still no
+    <em>direct</em> Manager↔Manager edge anywhere in this diagram — every
+    Manager-to-Manager effect, including the new
+    <code>household.created</code> → Category-seeding edge, routes through
+    <code>ServiceBusUtility</code>, never one Manager calling another
+    directly. <strong>Round 8:</strong> <code>TransactionManager</code>'s
+    fire-and-forget edge to <code>NotificationDeliveryUtility</code> is
+    removed — the threshold-crossed signal it fired on is gone (FR-4.4
+    removed, OQ-52); the Utility stays in the diagram, just currently
+    unwired from any Manager. <code>ReportingEngine</code> gains a new
+    edge to <code>InvestmentHoldingAccessor</code> (OQ-51) — it now reads
+    a fixed-term Holding's <code>cost_basis</code> directly, since those
+    Holdings never populate a Valuation Snapshot.</p>
+  </div>
+
+  <h2>Sequence Diagram — Record an Account Transaction (richest flow)</h2>
+  <p class="subtitle">
+    <strong>Redrawn, Round 7 — genuinely richer than before.</strong>
+    Round 7 found an even denser variant than this diagram used to show:
+    buying a <em>new</em> fixed-term instrument for the first time, the
+    one path where <code>InvestmentProductEngine</code> actually appears.
+    Every participant is <code>TransactionManager</code> itself, a
+    Utility, or a Resource Accessor — except the Engine, called inline,
+    once, only for that sub-case. <strong>Round 8:</strong> the Holding
+    auto-create step now branches on <code>assetType</code> (OQ-50 — a
+    fixed-term instrument always gets a new Holding, never matches by
+    ticker) rather than testing "no existing Holding" alone; the
+    Valuation Snapshot side effect is annotated as market-priced-only
+    (OQ-51); and the threshold-crossed branch plus
+    <code>NotificationDeliveryUtility</code> participant are removed
+    entirely, since FR-4.4's alert threshold no longer exists (OQ-52).
+  </p>
+  <div class="diagram-card">
+    <pre class="mermaid">
+sequenceDiagram
+    actor User
+    participant API as Hono route
+    participant TM as TransactionManager
+    participant AZ as AuthorizationUtility
+    participant AA as AccountAccessor
+    participant IHA as InvestmentHoldingAccessor
+    participant IPE as InvestmentProductEngine
+    participant BA as BudgetAccessor
+    participant ATA as AccountTransactionAccessor
+    participant LOG as LoggingUtility
+
+    User->>API: POST /transactions {kind, amount, category, ...}
+    API->>TM: recordTransaction(input)
+    TM->>AZ: canWrite(actor, accountId)?
+    AZ-->>TM: allowed
+    Note over TM: effect = EFFECT_BY_KIND[kind] — inline lookup (see doc §3.1)
+    alt effect = simple movement / transfer / bill-payment debit
+        TM->>AA: applyMovement(accountId, amount, currency)
+        AA-->>TM: new balance (rejects on currency mismatch, FR-2.2)
+    else effect = investment trade
+        Note over TM: quantityDelta computed here (buy/sell/redemption rule)
+        opt kind = investment buy
+            alt assetType is one of FR-11.1's fixed-term instruments (e.g. CDB, Tesouro Direto)
+                TM->>IHA: create a new Holding — always, never accumulates (OQ-50)
+                IHA-->>TM: new holdingId
+            else no existing Holding for this ticker+account
+                TM->>IHA: create Holding (auto-create, FR-5.1/OQ-41)
+                IHA-->>TM: new holdingId
+            end
+        end
+        TM->>IHA: applyTrade(holdingId, quantityDelta, valuation, date)
+        IHA-->>TM: updated Holding + Valuation Snapshot recorded (market-priced assetType only — OQ-51)
+        opt assetType is a defined FR-11.1 instrument type (e.g. CDB, Tesouro Direto)
+            TM->>IPE: computeSchedule(assetType, region, purchaseTerms)
+            IPE-->>TM: {maturityDate, interestDates[], taxRule}
+            TM->>IHA: applySchedule(holdingId, schedule)
+            IHA-->>TM: schedule stored
+        end
+    end
+    TM->>BA: accrueIfClaimed(categoryId, subcategoryId, amount, date)
+    BA-->>TM: spend updated
+    TM->>ATA: insert(transactionRecord, effect)
+    ATA-->>TM: transactionId
+    TM-->>LOG: logActivity(correlationId, userId, action)
+    TM-->>LOG: recordAudit(actor, "Transaction", transactionId)
+    TM-->>API: transactionId, updated balances
+    API-->>User: 201 Created
+    </pre>
+  </div>
+
+  <div class="notes">
+    <p><strong>Full detail</strong> — every Manager's responsibilities, the
+    complete Engine/Accessor/Utility tables, the general communication
+    rules, the household-lifecycle and scheduled-trigger flows (§3.1a,
+    §3.2a, §3.2b), and the per-CUC validation trace are in
+    <code>docs/architecture/backend/01-vbd-decomposition.md</code>. This
+    page exists only to render the two diagrams; it isn't a substitute for
+    that document.</p>
+  </div>
+
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      securityLevel: 'loose',
+      flowchart: { htmlLabels: true, curve: 'basis' }
+    });
+  </script>
+</body>
+</html>

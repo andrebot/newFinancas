@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Sequence — Invite User to Household — New Finance App</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2236;
+    --panel-border: #2f3b56;
+    --text: #eef1f8;
+    --muted: #9aa4bb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px 0; }
+  p.subtitle { margin: 0 0 16px 0; color: var(--muted); font-size: 14px; max-width: 980px; line-height: 1.6; }
+  .diagram-card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 20px;
+    overflow-x: auto;
+    max-width: 100%;
+  }
+  .notes {
+    max-width: 980px;
+    margin: 16px 0 0 0;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.65;
+  }
+  .notes code { color: var(--text); }
+  .notes ul { padding-left: 20px; }
+  .notes li { margin-bottom: 6px; }
+  a { color: #7db4f0; }
+  .route {
+    display: inline-block;
+    background: #1f2b45;
+    border: 1px solid #3a4a70;
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    color: #a9c6f5;
+  }
+</style>
+</head>
+<body>
+  <h1>Invite User to Household</h1>
+  <p class="subtitle"><span class="route">POST /households/:householdId/invitations</span> — FR-1.5/FR-1.19/OQ-26. Owner/Admin only; target must be an existing registered user — there is no invite-a-non-user flow.</p>
+  <div class="diagram-card">
+    <pre class="mermaid">
+sequenceDiagram
+    actor User
+    participant API as Hono route
+    participant IM as IdentityManager
+    participant AZ as AuthorizationUtility
+    participant IA as InvitationAccessor
+    participant ND as NotificationDeliveryUtility
+    participant LOG as LoggingUtility
+
+    User->>API: POST /households/:householdId/invitations {email, role}
+    API->>IM: inviteUser(actor, householdId, email, role)
+    IM->>AZ: canManageMembers(actor, householdId)?
+    alt not authorized
+        AZ-->>IM: denied
+        IM-->>API: Forbidden
+        API-->>User: 403 auth.forbidden
+    else authorized
+        AZ-->>IM: allowed
+        IM->>IA: insert(householdId, email, role, invitedBy=actor)
+        alt no registered user matches email
+            IA-->>IM: rejected (FR-1.19)
+            IM-->>API: NotFound
+            API-->>User: 404 invitation.invitee_not_registered
+        else user exists
+            IA-->>IM: invitationId (status: pending)
+            IM-->>ND: deliver(invitedUserId, type = "invitation.received", params = {invitationId, householdId, inviterUserId, role})
+            IM-->>LOG: logActivity(correlationId, actor, "InviteUser")
+            IM-->>LOG: recordAudit(actor, "Invitation", invitationId)
+            IM-->>API: invitationId
+            API-->>User: 201 Created {invitationId, status: "pending"}
+        end
+    end
+    </pre>
+  </div>
+  <div class="notes">
+    <ul>
+      <li><strong>FR-1.19&#39;s "existing user only" rule lives in <code>InvitationAccessor.insert</code>&#39;s validated write</strong> — a real DB constraint per the data model doc (<code>invited_user_id NOT NULL</code>), not application-level filtering before the insert.</li>
+      <li>The notification delivery is fire-and-forget — the 201 response doesn&#39;t wait on the email/in-app delivery succeeding.</li>
+      <li>See FR-1.5, FR-1.19, OQ-26.</li>
+    </ul>
+  </div>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      securityLevel: 'loose'
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>UC-8: Leave Household — New Finance App</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2236;
+    --panel-border: #2f3b56;
+    --text: #eef1f8;
+    --muted: #9aa4bb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px 0; }
+  p.subtitle { margin: 0 0 12px 0; color: var(--muted); font-size: 14px; max-width: 900px; line-height: 1.6; }
+  .diagram-card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 20px;
+    overflow-x: auto;
+    max-width: 100%;
+  }
+  .notes {
+    max-width: 900px;
+    margin: 16px 0 0 0;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .notes code { color: var(--text); }
+</style>
+</head>
+<body>
+  <h1>UC-8: Leave Household</h1>
+  <p class="subtitle">
+    Use case 8 of 21 in the Identity &amp; Household set (<code>docs/requirements/01-core-use-cases.md</code>,
+    CUC-1). Traces to <code>FR-1.11</code>. Self-initiated — any member,
+    including the Owner. See UC-7 for the Owner/Admin-initiated removal of
+    someone else. High-level activity view only — no component names or
+    API details yet.
+  </p>
+
+  <div class="diagram-card">
+    <pre class="mermaid">
+flowchart LR
+    subgraph FE["Frontend"]
+        direction TB
+        FE1(["Start"])
+        FE2["Open Household Settings page"]
+        FE3["Select 'Leave Household'"]
+        FE4["Confirm leaving<br/>(lose access to shared data)"]
+        FE5["Submit"]
+        FE6["Receive result"]
+        FE7["Notify user (left household / error)"]
+        FE8(["End"])
+        FE1 --> FE2 --> FE3 --> FE4 --> FE5
+        FE6 --> FE7 --> FE8
+    end
+
+    subgraph BE["Backend"]
+        direction TB
+        BE1["Receive request"]
+        BE2["Verify actor is a member here"]
+        BE3["If actor is Owner: apply<br/>Owner-succession (promote / dissolve)"]
+        BE4["Remove actor from household"]
+        BE5["Record the action (log)"]
+        BE6["Send response"]
+        BE1 --> BE2 --> BE3 --> BE4 --> BE5 --> BE6
+    end
+
+    FE5 -- request --> BE1
+    BE6 -- response --> FE6
+    </pre>
+  </div>
+
+  <div class="notes">
+    <p><strong>Where FR-1.18 actually lives:</strong> this is the one use
+    case (besides Delete Account, UC-10) where the Owner-succession
+    invariant is exercised — the longest-tenured remaining Admin (then
+    Member, then Viewer) is auto-promoted, or the household is dissolved if
+    the departing Owner was its only member.</p>
+  </div>
+
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      securityLevel: 'loose',
+      flowchart: { htmlLabels: true, curve: 'basis' }
+    });
+  </script>
+</body>
+</html>

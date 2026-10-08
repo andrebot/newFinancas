@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Transactions (mobile) — New Finance App</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        bg: '#0C100F', card: '#131917', raised: '#1A211E', line: '#232C28',
+        ink: '#E7ECE9', muted: '#97A39D', faint: '#5F6B65',
+        mint: '#5EE6B8', mintdeep: '#0F3B2E', coral: '#FF6B6B',
+        sky: '#7CB9FF', sun: '#FFD166', lilac: '#C792EA', peach: '#FF8C69'
+      },
+      fontFamily: { display: ['Manrope', 'sans-serif'], sans: ['Inter', 'sans-serif'] }
+    }
+  }
+}
+</script>
+<style>
+  .num { font-variant-numeric: tabular-nums; }
+  .noscroll { scrollbar-width: none; } .noscroll::-webkit-scrollbar { display: none; }
+  .rail { display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory; padding: 0 16px 4px; scroll-padding-left: 16px; }
+  .rail > * { scroll-snap-align: start; flex-shrink: 0; }
+  .month .spark { display: flex; align-items: flex-end; gap: 2px; height: 18px; }
+  .month .spark i { display: block; width: 4px; border-radius: 2px; }
+  .day { display: flex; justify-content: space-between; padding: 7px 16px; background: rgba(26,33,30,.6); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: #97A39D; }
+  .day span { text-transform: none; letter-spacing: 0; }
+  .tx { width: 100%; text-align: left; display: flex; align-items: center; gap: 12px; padding: 12px 12px 12px 16px; min-height: 60px; border-bottom: 1px solid rgba(35,44,40,.7); background: transparent; color: inherit; font: inherit; }
+  .tx .ico { width: 36px; height: 36px; border-radius: 999px; display: grid; place-items: center; flex-shrink: 0; }
+  .tx .meta { font-size: 12.5px; color: #97A39D; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tx .chev { color: #5F6B65; flex-shrink: 0; }
+  .bcard { width: 150px; border-radius: 18px; background: #131917; border: 1px solid #232C28; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+  .blabel { display: flex; align-items: center; gap: 6px; color: #97A39D; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ico-sm { width: 24px; height: 24px; border-radius: 999px; display: grid; place-items: center; flex-shrink: 0; }
+  .bval { font-family: Manrope, sans-serif; font-size: 18px; font-weight: 700; }
+  .cap { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: #97A39D; font-weight: 600; }
+  .rcard { width: 230px; border-radius: 18px; background: #131917; border: 1px solid #232C28; padding: 12px 14px; display: flex; align-items: center; gap: 12px; }
+  .ring { --p: 0; --c: #5EE6B8; width: 52px; height: 52px; border-radius: 999px; flex-shrink: 0; display: grid; place-items: center;
+          background: radial-gradient(closest-side, #131917 78%, transparent 79%), conic-gradient(var(--c) calc(var(--p) * 1%), #232C28 0); }
+  .ring span { font-size: 12px; font-weight: 700; }
+  .sec-head { display: flex; align-items: center; gap: 8px; padding: 0 16px; }
+  .period { padding: 1px 8px; border-radius: 999px; background: #0F3B2E; color: #5EE6B8; font-size: 11px; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="min-h-screen bg-bg text-ink font-sans relative pb-24">
+
+  <!-- App bar -->
+  <header class="h-14 flex items-center gap-2 px-3 border-b border-line bg-card">
+    <button class="w-10 h-10 rounded-full grid place-items-center" aria-label="Open navigation menu"><iconify-icon icon="material-symbols:menu" width="22"></iconify-icon></button>
+    <div class="w-7 h-7 rounded-[9px] bg-mint grid place-items-center text-[#00382B]"><iconify-icon icon="material-symbols:savings-outline" width="16"></iconify-icon></div>
+    <span class="font-display font-semibold text-[15px]">New Finance App</span>
+      <div class="ml-auto relative">
+      <button class="w-10 h-10 rounded-full grid place-items-center hover:bg-white/5 relative" aria-label="Notifications, 2 unseen">
+        <iconify-icon icon="material-symbols:notifications-outline" width="22"></iconify-icon>
+        <span class="absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-coral text-[10px] font-bold text-[#2A0A0A] grid place-items-center">2</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Sticky period header: the time context follows you down the page -->
+  <section class="sticky top-0 z-10 bg-bg/95 backdrop-blur border-b border-line pt-3 pb-3 flex flex-col gap-3">
+    <div class="flex items-center justify-between px-3">
+      <button class="w-9 h-9 rounded-full grid place-items-center" aria-label="Previous month"><iconify-icon icon="material-symbols:chevron-left" width="22"></iconify-icon></button>
+      <span class="font-display text-xl font-bold num">September/2026</span>
+      <button class="w-9 h-9 rounded-full grid place-items-center" aria-label="Next month"><iconify-icon icon="material-symbols:chevron-right" width="22"></iconify-icon></button>
+    </div>
+
+    <!-- swipeable month strip, selected month kept in view -->
+    <div class="flex gap-1.5 overflow-x-auto noscroll px-3">
+      <button class="month shrink-0 w-[52px] rounded-2xl pt-2 pb-1.5 flex flex-col items-center gap-1"><div class="spark"><i class="bg-mint/60" style="height:13px"></i><i class="bg-coral/60" style="height:10px"></i></div><span class="text-[11px] text-muted">May</span></button>
+      <button class="month shrink-0 w-[52px] rounded-2xl pt-2 pb-1.5 flex flex-col items-center gap-1"><div class="spark"><i class="bg-mint/60" style="height:13px"></i><i class="bg-coral/60" style="height:17px"></i></div><span class="text-[11px] text-muted">Jun</span></button>
+      <button class="month shrink-0 w-[52px] rounded-2xl pt-2 pb-1.5 flex flex-col items-center gap-1"><div class="spark"><i class="bg-mint/60" style="height:13px"></i><i class="bg-coral/60" style="height:12px"></i></div><span class="text-[11px] text-muted">Jul</span></button>
+      <button class="month shrink-0 w-[52px] rounded-2xl pt-2 pb-1.5 flex flex-col items-center gap-1"><div class="spark"><i class="bg-mint/60" style="height:14px"></i><i class="bg-coral/60" style="height:10px"></i></div><span class="text-[11px] text-muted">Aug</span></button>
+      <button class="month shrink-0 w-[52px] rounded-2xl pt-2 pb-1.5 bg-mintdeep ring-1 ring-mint/50 flex flex-col items-center gap-1" aria-current="true"><div class="spark"><i class="bg-mint" style="height:13px"></i><i class="bg-coral" style="height:5px"></i></div><span class="text-[11px] font-semibold text-mint">Sep</span></button>
+      <button class="month shrink-0 w-[52px] rounded-2xl pt-2 pb-1.5 opacity-40 flex flex-col items-center gap-1"><div class="spark"><i class="bg-line" style="height:4px"></i><i class="bg-line" style="height:4px"></i></div><span class="text-[11px] text-faint">Oct</span></button>
+      <button class="month shrink-0 w-[52px] rounded-2xl pt-2 pb-1.5 opacity-40 flex flex-col items-center gap-1"><div class="spark"><i class="bg-line" style="height:4px"></i><i class="bg-line" style="height:4px"></i></div><span class="text-[11px] text-faint">Nov</span></button>
+    </div>
+
+    <!-- In / Out / Total, single currency -->
+    <div class="mx-3 rounded-2xl bg-card border border-line px-3 py-2.5 flex items-center gap-3">
+      <div class="flex-1 grid grid-cols-3 gap-2">
+        <div><div class="text-[10px] uppercase tracking-wider text-muted font-semibold">In</div><div class="num text-[13px] font-semibold text-mint">+$3,200.00</div></div>
+        <div><div class="text-[10px] uppercase tracking-wider text-muted font-semibold">Out</div><div class="num text-[13px] font-semibold text-coral">−$831.39</div></div>
+        <div><div class="text-[10px] uppercase tracking-wider text-muted font-semibold">Total</div><div class="num text-[13px] font-bold">+$2,368.61</div></div>
+      </div>
+      <div class="flex flex-col rounded-xl bg-raised p-0.5 text-[11px] font-semibold" role="tablist" aria-label="Summary currency">
+        <button class="px-2 py-0.5 rounded-lg bg-mint text-[#062A1F]" aria-selected="true">$</button>
+        <button class="px-2 py-0.5 rounded-lg text-muted" aria-selected="false">R$</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Overview first: three swipe rails -->
+  <div class="flex flex-col gap-4 pt-4">
+    <section class="flex flex-col gap-2">
+      <div class="sec-head"><h2 class="font-display font-bold">Balances</h2></div>
+      <div class="rail noscroll">
+        <div class="bcard"><div class="blabel"><div class="ico-sm bg-mint/15 text-mint"><iconify-icon icon="material-symbols:account-balance-outline" width="14"></iconify-icon></div>Main Checking</div><div class="bval num">$3,240.50</div></div>
+        <div class="bcard"><div class="blabel"><div class="ico-sm bg-sky/15 text-sky"><iconify-icon icon="material-symbols:savings-outline" width="14"></iconify-icon></div>Emergency Fund</div><div class="bval num">$8,500.00</div></div>
+        <div class="bcard"><div class="blabel"><div class="ico-sm bg-peach/15 text-peach"><iconify-icon icon="material-symbols:credit-card-outline" width="14"></iconify-icon></div>Nubank Cartão</div><div><div class="cap">Outstanding</div><div class="bval num">R$450.00</div></div></div>
+        <div class="bcard"><div class="blabel"><div class="ico-sm bg-lilac/15 text-lilac"><iconify-icon icon="material-symbols:credit-card-outline" width="14"></iconify-icon></div>Visa •••• 1111</div><div><div class="cap">Outstanding</div><div class="bval num">$45.99</div></div></div>
+      </div>
+    </section>
+
+    <section class="flex flex-col gap-2">
+      <div class="sec-head"><h2 class="font-display font-bold">Budgets</h2></div>
+      <div class="rail noscroll">
+        <div class="rcard"><div class="ring" style="--p:48; --c:#5EE6B8"><span class="num">48%</span></div><div class="min-w-0"><div class="font-semibold text-sm truncate">Fun Money</div><div class="text-xs num">$145.50 <span class="text-muted">/ $300.00</span></div><div class="text-[11px] text-muted num">$154.50 left</div></div></div>
+        <div class="rcard ring-1 ring-coral/50"><div class="ring" style="--p:100; --c:#FF6B6B"><span class="num text-coral">106%</span></div><div class="min-w-0"><div class="font-semibold text-sm truncate">Household Essentials</div><div class="text-xs num">R$4,250.00 <span class="text-muted">/ R$4,000.00</span></div><div class="text-[11px] text-coral font-medium num">Over by R$250.00</div></div></div>
+        <div class="rcard"><div class="ring" style="--p:78; --c:#FFD166"><span class="num">78%</span></div><div class="min-w-0"><div class="font-semibold text-sm truncate">Dining Out</div><div class="text-xs num">R$312.00 <span class="text-muted">/ R$400.00</span></div><div class="text-[11px] text-muted num">R$88.00 left</div></div></div>
+      </div>
+    </section>
+
+    <section class="flex flex-col gap-2">
+      <div class="sec-head"><h2 class="font-display font-bold">Goals</h2></div>
+      <div class="rail noscroll">
+        <div class="rcard"><div class="ring" style="--p:32; --c:#7CB9FF"><span class="num">32%</span></div><div class="min-w-0"><div class="font-semibold text-sm truncate">Emergency Fund</div><div class="text-xs num">$3,200.00 <span class="text-muted">/ $10,000.00</span></div><div class="text-[11px] text-muted num">$6,800.00 to go</div></div></div>
+        <div class="rcard"><div class="ring" style="--p:57; --c:#7CB9FF"><span class="num">57%</span></div><div class="min-w-0"><div class="font-semibold text-sm truncate">House Down Payment</div><div class="text-xs num">R$85,000.00 <span class="text-muted">/ R$150,000.00</span></div><div class="text-[11px] text-muted num">R$65,000.00 to go</div></div></div>
+        <div class="rcard"><div class="ring" style="--p:0; --c:#7CB9FF"><span class="num text-faint">0%</span></div><div class="min-w-0"><div class="font-semibold text-sm truncate">New Laptop Fund</div><div class="text-xs text-faint italic">Not funded yet</div></div></div>
+      </div>
+    </section>
+
+    <!-- Ledger -->
+    <section class="mt-1 border-t border-line bg-card">
+      <div class="flex items-center justify-between pl-4 pr-2 py-2.5">
+        <h2 class="font-display font-bold">September/2026 <span class="text-muted font-medium text-xs ml-1">7 transactions</span></h2>
+        <div class="flex">
+          <button class="w-10 h-10 rounded-full grid place-items-center text-faint" disabled aria-label="Import transactions (available once Open Banking is connected)"><iconify-icon icon="material-symbols:cloud-download-outline" width="20"></iconify-icon></button>
+          <button class="w-10 h-10 rounded-full grid place-items-center text-muted" aria-label="Filter"><iconify-icon icon="material-symbols:filter-list" width="20"></iconify-icon></button>
+        </div>
+      </div>
+
+      <div class="day">Sat · Sep 12<span class="num">−R$58.40</span></div>
+      <button class="tx"><div class="ico bg-sun/15 text-sun"><iconify-icon icon="material-symbols:restaurant" width="18"></iconify-icon></div><div class="min-w-0 flex-1"><div class="font-medium text-[15px] truncate">Netflix</div><div class="meta">Mastercard •••• 4242 · Dining · Monthly</div></div><span class="num font-semibold text-coral text-[15px]">−R$39.90</span><iconify-icon class="chev" icon="material-symbols:expand-more" width="20"></iconify-icon></button>
+      <div class="bg-raised border-y border-mint/30">
+        <button class="tx !border-0" aria-expanded="true"><div class="ico bg-sun/15 text-sun"><iconify-icon icon="material-symbols:restaurant" width="18"></iconify-icon></div><div class="min-w-0 flex-1"><div class="font-medium text-[15px] truncate">Coffee Shop</div><div class="meta">Mastercard •••• 4242 · Dining</div></div><span class="num font-semibold text-coral text-[15px]">−R$18.50</span><iconify-icon class="chev rotate-180 !text-mint" icon="material-symbols:expand-more" width="20"></iconify-icon></button>
+        <div class="px-4 pb-3 flex flex-col gap-3">
+          <dl class="grid grid-cols-3 gap-x-3 text-[12.5px]">
+            <dt class="text-faint text-[10px] uppercase tracking-wider font-semibold">Kind</dt><dt class="text-faint text-[10px] uppercase tracking-wider font-semibold">Date</dt><dt class="text-faint text-[10px] uppercase tracking-wider font-semibold">Category</dt>
+            <dd class="m-0">Charge</dd><dd class="m-0 num">12/09/2026</dd><dd class="m-0 truncate">Dining & Ent.</dd>
+          </dl>
+          <div class="grid grid-cols-2 gap-2">
+            <button class="h-10 rounded-full border border-line flex items-center justify-center gap-1.5 text-sm"><iconify-icon icon="material-symbols:edit-outline" width="16"></iconify-icon>Edit</button>
+            <button class="h-10 rounded-full border border-coral/40 text-coral flex items-center justify-center gap-1.5 text-sm"><iconify-icon icon="material-symbols:delete-outline" width="16"></iconify-icon>Delete</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="day">Thu · Sep 10<span class="num">−$200.00</span></div>
+      <button class="tx"><div class="ico bg-sky/15 text-sky"><iconify-icon icon="material-symbols:credit-card-outline" width="18"></iconify-icon></div><div class="min-w-0 flex-1"><div class="font-medium text-[15px] truncate">Visa Payment</div><div class="meta">Main Checking → Visa •••• 1111</div></div><span class="num font-semibold text-coral text-[15px]">−$200.00</span><iconify-icon class="chev" icon="material-symbols:expand-more" width="20"></iconify-icon></button>
+
+      <div class="day">Mon · Sep 7<span class="num">−$45.99</span></div>
+      <button class="tx"><div class="ico bg-lilac/15 text-lilac"><iconify-icon icon="material-symbols:shopping-bag-outline" width="18"></iconify-icon></div><div class="min-w-0 flex-1"><div class="font-medium text-[15px] truncate">Amazon</div><div class="meta">Visa •••• 1111 · Shopping</div></div><span class="num font-semibold text-coral text-[15px]">−$45.99</span><iconify-icon class="chev" icon="material-symbols:expand-more" width="20"></iconify-icon></button>
+
+      <div class="day">Sat · Sep 5<span class="num">−$500.00</span></div>
+      <button class="tx"><div class="ico bg-white/5 text-muted"><iconify-icon icon="material-symbols:call-made" width="18"></iconify-icon></div><div class="min-w-0 flex-1"><div class="font-medium text-[15px] truncate">To Emergency Fund</div><div class="meta">Main Checking · Transfer sent</div></div><span class="num font-semibold text-coral text-[15px]">−$500.00</span><iconify-icon class="chev" icon="material-symbols:expand-more" width="20"></iconify-icon></button>
+
+      <div class="day">Thu · Sep 3<span class="num">−$85.40</span></div>
+      <button class="tx"><div class="ico bg-mint/15 text-mint"><iconify-icon icon="material-symbols:shopping-cart-outline" width="18"></iconify-icon></div><div class="min-w-0 flex-1"><div class="font-medium text-[15px] truncate">Groceries</div><div class="meta">Main Checking · Groceries · Pix</div></div><span class="num font-semibold text-coral text-[15px]">−$85.40</span><iconify-icon class="chev" icon="material-symbols:expand-more" width="20"></iconify-icon></button>
+
+      <div class="day">Tue · Sep 1<span class="num text-mint">+$3,200.00</span></div>
+      <button class="tx !border-b-0"><div class="ico bg-mint/15 text-mint"><iconify-icon icon="material-symbols:savings-outline" width="18"></iconify-icon></div><div class="min-w-0 flex-1"><div class="font-medium text-[15px] truncate">Paycheck</div><div class="meta">Main Checking · Deposit</div></div><span class="num font-semibold text-mint text-[15px]">+$3,200.00</span><iconify-icon class="chev" icon="material-symbols:expand-more" width="20"></iconify-icon></button>
+    </section>
+  </div>
+
+  <!-- Record Transaction: floating action button -->
+  <button class="fixed bottom-6 right-5 h-14 pl-4 pr-5 rounded-full bg-mint text-[#062A1F] font-semibold flex items-center gap-2 shadow-[0_10px_30px_-8px_rgba(94,230,184,.6)]" aria-label="Record Transaction">
+    <iconify-icon icon="material-symbols:add" width="22"></iconify-icon> Record
+  </button>
+</div>
+</body>
+</html>

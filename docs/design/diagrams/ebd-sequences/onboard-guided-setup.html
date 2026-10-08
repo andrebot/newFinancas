@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Sequence — Onboard — Guided Setup — New Finance App</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2236;
+    --panel-border: #2f3b56;
+    --text: #eef1f8;
+    --muted: #9aa4bb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px 0; }
+  p.subtitle { margin: 0 0 16px 0; color: var(--muted); font-size: 14px; max-width: 980px; line-height: 1.6; }
+  .diagram-card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 20px;
+    overflow-x: auto;
+    max-width: 100%;
+  }
+  .notes {
+    max-width: 980px;
+    margin: 16px 0 0 0;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.65;
+  }
+  .notes code { color: var(--text); }
+  .notes ul { padding-left: 20px; }
+  .notes li { margin-bottom: 6px; }
+  a { color: #7db4f0; }
+  .route {
+    display: inline-block;
+    background: #1f2b45;
+    border: 1px solid #3a4a70;
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    color: #a9c6f5;
+  }
+</style>
+</head>
+<body>
+  <h1>Onboard — Guided Setup</h1>
+  <p class="subtitle">Composes Account Setup's Flows as wizard steps; the account step is mandatory.</p>
+  <div class="diagram-card">
+    <pre class="mermaid">
+sequenceDiagram
+    actor User
+    participant WN as Wizard Navigation
+    participant ACF as Account & Card<br/>Management Flow
+    participant CF as Category<br/>Management Flow
+    participant BF as Budget<br/>Management Flow
+    participant SC as Setup Complete<br/>Summary
+    participant FLOW as Guided Setup<br/>Flow
+    participant EXP as Onboard<br/>Experience
+    participant API as Backend API
+    FLOW-->>ACF: step 1 (no Skip — FR-1.22)
+    ACF->>FLOW: emit accountSubmitted {account, cards}
+    FLOW->>EXP: request createAccount(...)
+    EXP->>API: POST /accounts
+    API-->>EXP: created
+    FLOW-->>CF: step 2 — review seeded categories
+    CF->>FLOW: emit categoriesReviewed {changes}
+    FLOW->>EXP: request apply category changes
+    EXP->>API: POST / PATCH /categories
+    FLOW-->>BF: step 3 — optional budget(s)
+    alt user creates a budget
+        BF->>FLOW: emit budgetSubmitted
+        FLOW->>EXP: request createBudget
+        EXP->>API: POST /budgets
+    else Finish
+        User->>WN: Finish setup
+        WN->>FLOW: emit finish
+    end
+    FLOW-->>SC: render summary + next steps
+    FLOW->>EXP: complete → App Shell (Dashboard)
+    </pre>
+  </div>
+  <div class="notes">
+<ul><li>A composed Flow's backend calls route through whichever Experience hosts it — here Onboard (convention kept from the original decomposition).</li><li>Main nav stays hidden until this completes.</li></ul>
+  </div>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      securityLevel: 'loose'
+    });
+  </script>
+</body>
+</html>

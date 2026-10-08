@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>EBD Tiers — Authenticate — New Finance App</title>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2236;
+    --panel-border: #2f3b56;
+    --text: #eef1f8;
+    --muted: #9aa4bb;
+    --experience: #1a6b6b;
+    --experience-border: #2fa3a3;
+    --flow: #3a4a7a;
+    --flow-border: #5e78c9;
+    --interaction: #7a2f4a;
+    --interaction-border: #c94f7e;
+    --utility: #7a5a20;
+    --utility-border: #d0a24f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px 0; }
+  p.subtitle {
+    margin: 0 0 24px 0;
+    color: var(--muted);
+    font-size: 14px;
+    max-width: 1000px;
+    line-height: 1.6;
+  }
+  .architecture {
+    display: flex;
+    gap: 16px;
+    align-items: stretch;
+    max-width: 1300px;
+    margin: 0 auto;
+  }
+  .layers {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .layer-band {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 16px;
+  }
+  .band-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-bottom: 12px;
+    font-weight: 600;
+  }
+  .tier-row { margin-bottom: 14px; }
+  .tier-row:last-child { margin-bottom: 0; }
+  .tier-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .tier-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+  .col-label {
+    font-size: 10px;
+    color: var(--muted);
+    text-align: center;
+    margin-bottom: 4px;
+  }
+  .interaction-column {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: stretch;
+  }
+  .box {
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 12.5px;
+    line-height: 1.35;
+    text-align: center;
+    border: 1px solid;
+  }
+  .box.experience {
+    background: var(--experience);
+    border-color: var(--experience-border);
+    font-weight: 600;
+    padding: 14px 12px;
+  }
+  .box.flow {
+    background: var(--flow);
+    border-color: var(--flow-border);
+    font-weight: 600;
+  }
+  .box.no-flow {
+    background: transparent;
+    border-color: var(--panel-border);
+    border-style: dashed;
+    color: var(--muted);
+    font-size: 11px;
+  }
+  .box.interaction {
+    background: var(--interaction);
+    border-color: var(--interaction-border);
+  }
+  .box.utility {
+    background: var(--utility);
+    border-color: var(--utility-border);
+    margin-bottom: 10px;
+    font-weight: 600;
+  }
+  .utilities-sidebar {
+    width: 220px;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+  }
+  .utility-note {
+    margin-top: auto;
+    padding-top: 12px;
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.5;
+    border-top: 1px solid var(--panel-border);
+  }
+  .legend {
+    max-width: 1000px;
+    margin: 20px auto 0 auto;
+    display: flex;
+    gap: 22px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .legend-item { display: flex; align-items: center; gap: 8px; }
+  .swatch { width: 14px; height: 14px; border-radius: 4px; display: inline-block; border: 1px solid; }
+  .notes {
+    max-width: 1000px;
+    margin: 20px auto 0 auto;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .notes code { color: var(--text); }
+</style>
+</head>
+<body>
+  <h1>EBD Tiers — Review Insights</h1>
+  <p class="subtitle">
+    See the state of things. Static structure only — no state/event wiring. Oct 2026 re-decomposition
+    (<code>docs/architecture/11-ebd-review-2026-10.md</code>); full reasoning in
+    <code>docs/architecture/frontend/01-ebd-decomposition.md</code>. v1 Dashboard is fixed (widgets v3); Reporting v2. Notification Inbox is hosted by the App Shell's bell. Audit log browsing removed — FR-7.2 is export only.
+  </p>
+
+  <div class="architecture">
+    <div class="layers">
+      <div class="layer-band">
+        <div class="band-label">Experience</div>
+        <div class="tier-grid" style="grid-template-columns: repeat(2, 1fr);">
+          <div class="box experience" style="grid-column: 1 / span 2;">Review Insights</div>
+        </div>
+      </div>
+      <div class="layer-band">
+        <div class="tier-row">
+          <div class="tier-label">Flows</div>
+          <div class="tier-grid" style="grid-template-columns: repeat(2, 1fr);"><div class="col-label">Dashboard</div><div class="col-label">(standalone)</div></div>
+          <div class="tier-grid" style="grid-template-columns: repeat(2, 1fr);"><div class="box flow">Dashboard Flow</div><div class="box no-flow">no Flow — hosted by the Experience</div></div>
+        </div>
+        <div class="tier-row">
+          <div class="tier-label">Interactions</div>
+          <div class="tier-grid" style="grid-template-columns: repeat(2, 1fr);"><div class="interaction-column"><div class="box interaction">Net Worth Cards</div><div class="box interaction">Coming Due</div><div class="box interaction">Payout Holding Selector</div><div class="box interaction">Payout Chart</div><div class="box interaction">Balance / Budget / Goal Rails</div></div><div class="interaction-column"><div class="box interaction">Export Audit Log</div><div class="box interaction">Notification Inbox</div></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="utilities-sidebar">
+      <div class="band-label">Cross-Cutting Utilities</div>
+      <div class="box utility">AlertUtility</div><div class="box utility">ThemeUtility</div><div class="box utility">I18nUtility</div><div class="box utility">FormattingUtility</div>
+      <div class="utility-note">Shared across Experiences; no knowledge of any journey.</div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><span class="swatch" style="background:var(--experience); border-color:var(--experience-border);"></span> Experience</div>
+    <div class="legend-item"><span class="swatch" style="background:var(--flow); border-color:var(--flow-border);"></span> Flow</div>
+    <div class="legend-item"><span class="swatch" style="background:var(--interaction); border-color:var(--interaction-border);"></span> Interaction</div>
+    <div class="legend-item"><span class="swatch" style="background:var(--utility); border-color:var(--utility-border);"></span> Utility</div>
+  </div>
+
+  <div class="notes">
+    <p><strong>Sign Out has no Flow column, deliberately:</strong> it's a
+    single atomic action with no accumulated state — wrapping it in a
+    Flow would be the "Flow Proliferation" smell (a step mistaken for a
+    Flow). It's hosted directly by the Experience, one Interaction, no
+    intermediate tier.</p>
+    <p><strong>No wiring shown, same discipline as the backend's layered
+    diagram:</strong> this page answers "what exists, in which tier" —
+    the sequence diagram (<code>docs/design/diagrams/ebd-sequences/authenticate-sign-in.html</code>)
+    is where the actual state-down/events-up wiring for one Flow is
+    traced in detail.</p>
+  </div>
+</body>
+</html>

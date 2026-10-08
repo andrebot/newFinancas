@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Sequence — Delete Transaction — New Finance App</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2236;
+    --panel-border: #2f3b56;
+    --text: #eef1f8;
+    --muted: #9aa4bb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px 0; }
+  p.subtitle { margin: 0 0 16px 0; color: var(--muted); font-size: 14px; max-width: 980px; line-height: 1.6; }
+  .diagram-card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 20px;
+    overflow-x: auto;
+    max-width: 100%;
+  }
+  .notes {
+    max-width: 980px;
+    margin: 16px 0 0 0;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.65;
+  }
+  .notes code { color: var(--text); }
+  .notes ul { padding-left: 20px; }
+  .notes li { margin-bottom: 6px; }
+  a { color: #7db4f0; }
+  .route {
+    display: inline-block;
+    background: #1f2b45;
+    border: 1px solid #3a4a70;
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    color: #a9c6f5;
+  }
+</style>
+</head>
+<body>
+  <h1>Delete Transaction</h1>
+  <p class="subtitle"><span class="route">DELETE /transactions/:transactionId</span> &mdash; FR-3.2. Same reverse-effect complexity as Edit, without a reapply step.</p>
+  <div class="diagram-card">
+    <pre class="mermaid">
+sequenceDiagram
+    actor User
+    participant API as Hono route
+    participant TM as TransactionManager
+    participant AZ as AuthorizationUtility
+    participant AA as AccountAccessor
+    participant IHA as InvestmentHoldingAccessor
+    participant CCA as CreditCardAccessor
+    participant VSA as ValuationSnapshotAccessor
+    participant BA as BudgetAccessor
+    participant ATA as AccountTransactionAccessor
+    participant LOG as LoggingUtility
+
+    User->>API: DELETE /transactions/:transactionId
+    API->>TM: delete(actor, transactionId)
+    TM->>AZ: canWrite(actor, transactionId)?
+    alt not authorized
+        AZ-->>TM: denied
+        TM-->>API: Forbidden
+        API-->>User: 403 auth.forbidden
+    else authorized
+        AZ-->>TM: allowed
+        alt was a balance movement or bill payment
+            TM->>AA: applyMovement(accountId, -amount, currency)
+        else was an investment trade
+            TM->>IHA: applyTrade(holdingId, -quantityDelta, date)
+            TM->>VSA: deleteAutomatic(transactionId)
+            TM->>IHA: unarchiveIfSystemArchived(holdingId)
+            Note over IHA: if this was the sell/redemption that zeroed the<br/>Holding, it comes back (OQ-80)
+        else was a card charge/refund
+            TM->>CCA: applyChargeOrRefund(cardId, -amount, kind)
+        end
+        TM->>BA: accrueIfClaimed(categoryId, subcategoryId, -amount, date)
+        TM->>ATA: delete(transactionId)
+        ATA-->>TM: deleted
+        TM-->>LOG: logActivity(correlationId, actor, "DeleteTransaction")
+        TM-->>LOG: recordAudit(actor, "Transaction", transactionId)
+        TM-->>API: deleted
+        API-->>User: 204 No Content
+    end
+    </pre>
+  </div>
+  <div class="notes">
+    <ul>
+      <li>A deleted, backdated transaction runs the balance cascade in reverse across every subsequent month, same mechanic as Edit (UC-02) minus the reapply half.</li>
+      <li>See FR-3.2.</li>
+    </ul>
+  </div>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      securityLevel: 'loose'
+    });
+  </script>
+</body>
+</html>

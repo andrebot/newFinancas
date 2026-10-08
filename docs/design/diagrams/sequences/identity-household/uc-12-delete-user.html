@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Sequence — Delete User (GDPR Right-to-Erasure) — New Finance App</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2236;
+    --panel-border: #2f3b56;
+    --text: #eef1f8;
+    --muted: #9aa4bb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px 0; }
+  p.subtitle { margin: 0 0 16px 0; color: var(--muted); font-size: 14px; max-width: 980px; line-height: 1.6; }
+  .diagram-card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 20px;
+    overflow-x: auto;
+    max-width: 100%;
+  }
+  .notes {
+    max-width: 980px;
+    margin: 16px 0 0 0;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.65;
+  }
+  .notes code { color: var(--text); }
+  .notes ul { padding-left: 20px; }
+  .notes li { margin-bottom: 6px; }
+  a { color: #7db4f0; }
+  .route {
+    display: inline-block;
+    background: #1f2b45;
+    border: 1px solid #3a4a70;
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    color: #a9c6f5;
+  }
+</style>
+</head>
+<body>
+  <h1>Delete User (GDPR Right-to-Erasure)</h1>
+  <p class="subtitle"><span class="route">DELETE /users/me</span> &mdash; FR-1.17/FR-1.18/OQ-25. One of the two widest-fan-out flows in the system (the other is Record Transaction&#39;s investment-buy sub-case). Personal data is hard-deleted; shared data is anonymized, not deleted.</p>
+  <div class="diagram-card">
+    <pre class="mermaid">
+sequenceDiagram
+    actor User
+    participant API as Hono route
+    participant IM as IdentityManager
+    participant HA as HouseholdAccessor
+    participant AA as AccountAccessor
+    participant IHA as InvestmentHoldingAccessor
+    participant ATA as AccountTransactionAccessor
+    participant CTA as CardTransactionAccessor
+    participant BA as BudgetAccessor
+    participant OA as GoalAccessor
+    participant UA as UserAccessor
+    participant SA as SessionAccessor
+    participant LOG as LoggingUtility
+
+    User->>API: DELETE /users/me
+    API->>IM: deleteUser(actor)
+    loop for each household actor belongs to
+        IM->>HA: transitionMembership(householdId, actor, "removed")
+        opt actor is the Owner of this household
+            Note over HA: same FR-1.18 succession/dissolution logic<br/>as Leave Household (UC-08) — one atomic write
+        end
+    end
+    Note over IM: for every resource actor owns or contributed to,<br/>branch on personal vs. shared (FR-1.17)
+    IM->>AA: cascade-delete personal Accounts, null owner_user_id on shared Accounts
+    AA-->>IM: done (personal Accounts' own Holdings/balances go with them)
+    IM->>IHA: cascade-delete Holdings under deleted personal Accounts
+    IHA-->>IM: done (Valuation Snapshots, schedule entries, Goal allocations cascade too)
+    IM->>ATA: null actor reference on retained shared Account Transactions
+    ATA-->>IM: done
+    IM->>CTA: null actor reference on retained shared Card Transactions
+    CTA-->>IM: done
+    IM->>BA: cascade-delete personal Budgets, null owner_user_id on shared Budgets
+    BA-->>IM: done
+    IM->>OA: cascade-delete personal Goals, null owner_user_id on shared Goals
+    OA-->>IM: done
+    IM->>UA: delete(actor)
+    Note over UA: credentials, MFA secret/recovery codes — gone (NFR-COMP-4)
+    UA-->>IM: deleted
+    IM->>SA: deleteAllForUser(actor)
+    SA-->>IM: all sessions revoked
+    IM-->>LOG: logActivity(correlationId, actor, "DeleteUser")
+    IM-->>LOG: recordAudit(actor, "User", actor)
+    IM-->>API: deleted
+    API-->>User: 204 No Content
+    </pre>
+  </div>
+  <div class="notes">
+    <ul>
+      <li><strong>No alt/error branches shown</strong> &mdash; this is intentionally the one flow in this area with no rejection path: a user can always delete their own account, unconditionally (FR-1.17).</li>
+      <li><strong>Trigger equivalence:</strong> the personal-vs-shared branch fires identically whether triggered here (full account deletion) or by Leave/Remove Member (household departure alone) &mdash; see the cross-cutting note at the top of <code>docs/architecture/02-data-model.md</code>.</li>
+      <li><strong>Confirmed, not a gap:</strong> if a deleted user&#39;s personal Holding was funding a still-live <em>shared</em> Goal, that Goal survives and its progress simply recomputes from whatever Holdings remain &mdash; "the user removed their finances from the household."</li>
+      <li><code>audit_log_entries.actor_id</code> is a plain value, not a foreign key &mdash; this row (and every other audit entry naming this actor) survives untouched; there is nothing to rewrite or purge (OQ-25/NFR-AUD-1).</li>
+      <li>See FR-1.17, FR-1.18, OQ-25.</li>
+    </ul>
+  </div>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      securityLevel: 'loose'
+    });
+  </script>
+</body>
+</html>

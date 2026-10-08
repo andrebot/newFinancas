@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>UC-10: Transfer Ownership — New Finance App</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2236;
+    --panel-border: #2f3b56;
+    --text: #eef1f8;
+    --muted: #9aa4bb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px 0; }
+  p.subtitle { margin: 0 0 12px 0; color: var(--muted); font-size: 14px; max-width: 900px; line-height: 1.6; }
+  .diagram-card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 20px;
+    overflow-x: auto;
+    max-width: 100%;
+  }
+  .notes {
+    max-width: 900px;
+    margin: 16px 0 0 0;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .notes code { color: var(--text); }
+</style>
+</head>
+<body>
+  <h1>UC-10: Transfer Ownership</h1>
+  <p class="subtitle">
+    Use case 10 of 21 in the Identity &amp; Household set (<code>docs/requirements/01-core-use-cases.md</code>,
+    CUC-1). Traces to <code>FR-1.20</code>. Owner-initiated, voluntary
+    hand-off while remaining a household member — see UC-8 (Leave) and
+    UC-11 (Delete Account) for the auto-succession path (FR-1.18) that
+    applies when the Owner departs entirely. High-level activity view
+    only — no component names or API details yet.
+  </p>
+
+  <div class="diagram-card">
+    <pre class="mermaid">
+flowchart LR
+    subgraph FE["Frontend"]
+        direction TB
+        FE1(["Start"])
+        FE2["Open Household Settings page"]
+        FE3["Select 'Transfer Ownership'"]
+        FE4["Select new Owner from members list"]
+        FE5["Confirm transfer<br/>(you become Admin)"]
+        FE6["Submit"]
+        FE7["Receive result"]
+        FE8["Notify user (ownership transferred / error)"]
+        FE9(["End"])
+        FE1 --> FE2 --> FE3 --> FE4 --> FE5 --> FE6
+        FE7 --> FE8 --> FE9
+    end
+
+    subgraph BE["Backend"]
+        direction TB
+        BE1["Receive request"]
+        BE2["Verify actor is the Owner"]
+        BE3["Verify target is an existing<br/>member of this household"]
+        BE4["Atomically: target becomes Owner,<br/>actor becomes Admin"]
+        BE5["Record the action (log)"]
+        BE6["Send response"]
+        BE1 --> BE2 --> BE3 --> BE4 --> BE5 --> BE6
+    end
+
+    FE6 -- request --> BE1
+    BE6 -- response --> FE7
+    </pre>
+  </div>
+
+  <div class="notes">
+    <p><strong>Atomicity is the invariant (FR-1.20 / OQ-28):</strong> the
+    promotion and demotion are one write, never two — a household must
+    never be observably at zero or two Owners, even momentarily. Same
+    category of invariant as FR-1.18's succession check.</p>
+    <p><strong>Outgoing Owner lands on Admin</strong> — not a choice
+    offered in the UI for v1.</p>
+  </div>
+
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      securityLevel: 'loose',
+      flowchart: { htmlLabels: true, curve: 'basis' }
+    });
+  </script>
+</body>
+</html>

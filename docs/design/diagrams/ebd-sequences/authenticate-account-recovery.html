@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Sequence — Authenticate — Account Recovery — New Finance App</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2236;
+    --panel-border: #2f3b56;
+    --text: #eef1f8;
+    --muted: #9aa4bb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px 0; }
+  p.subtitle { margin: 0 0 16px 0; color: var(--muted); font-size: 14px; max-width: 980px; line-height: 1.6; }
+  .diagram-card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 20px;
+    overflow-x: auto;
+    max-width: 100%;
+  }
+  .notes {
+    max-width: 980px;
+    margin: 16px 0 0 0;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.65;
+  }
+  .notes code { color: var(--text); }
+  .notes ul { padding-left: 20px; }
+  .notes li { margin-bottom: 6px; }
+  a { color: #7db4f0; }
+  .route {
+    display: inline-block;
+    background: #1f2b45;
+    border: 1px solid #3a4a70;
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    color: #a9c6f5;
+  }
+</style>
+</head>
+<body>
+  <h1>Authenticate — Account Recovery</h1>
+  <p class="subtitle"><span class="route">POST /auth/password-reset/request</span> then <span class="route">POST /auth/password-reset/confirm</span>.</p>
+  <div class="diagram-card">
+    <pre class="mermaid">
+sequenceDiagram
+    actor User
+    participant RR as Recovery Request
+    participant NP as New Password Entry
+    participant FLOW as Account Recovery<br/>Flow
+    participant EXP as Authenticate<br/>Experience
+    participant API as Backend API
+    User->>RR: email, submit
+    RR->>FLOW: emit recoveryRequested
+    FLOW->>EXP: request requestReset(email)
+    EXP->>API: POST /auth/password-reset/request
+    API-->>EXP: 202 (same answer whether or not the email exists)
+    EXP-->>FLOW: state: emailSent
+    Note over User,RR: user opens the emailed link (sent by NotificationDeliveryUtility, OQ-84)
+    User->>NP: new password + confirm (strength meter)
+    NP->>FLOW: emit passwordChosen
+    FLOW->>EXP: request confirmReset(token, password)
+    EXP->>API: POST /auth/password-reset/confirm
+    alt 422 password.too_short or 400 password_reset.token_invalid
+        API-->>EXP: error code
+        EXP-->>FLOW: state: error(code)
+    else ok
+        API-->>EXP: reset, all sessions revoked
+        EXP-->>FLOW: state: done → Sign In
+    end
+    </pre>
+  </div>
+  <div class="notes">
+<ul><li>Password ≥ 12 characters (NFR-SEC-4).</li></ul>
+  </div>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      securityLevel: 'loose'
+    });
+  </script>
+</body>
+</html>

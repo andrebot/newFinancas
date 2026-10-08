@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Sequence — Delete Household — New Finance App</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2236;
+    --panel-border: #2f3b56;
+    --text: #eef1f8;
+    --muted: #9aa4bb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px 0; }
+  p.subtitle { margin: 0 0 16px 0; color: var(--muted); font-size: 14px; max-width: 980px; line-height: 1.6; }
+  .diagram-card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 20px;
+    overflow-x: auto;
+    max-width: 100%;
+  }
+  .notes {
+    max-width: 980px;
+    margin: 16px 0 0 0;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.65;
+  }
+  .notes code { color: var(--text); }
+  .notes ul { padding-left: 20px; }
+  .notes li { margin-bottom: 6px; }
+  a { color: #7db4f0; }
+  .route {
+    display: inline-block;
+    background: #1f2b45;
+    border: 1px solid #3a4a70;
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    color: #a9c6f5;
+  }
+</style>
+</head>
+<body>
+  <h1>Delete Household</h1>
+  <p class="subtitle"><span class="route">DELETE /households/:householdId</span> — FR-1.7 ("Owner &mdash; full control, including deleting the household"). Owner-only, deliberate dissolution — distinct from FR-1.18&#39;s auto-delete-when-last-member-leaves case (see Leave Household).</p>
+  <div class="diagram-card">
+    <pre class="mermaid">
+sequenceDiagram
+    actor User
+    participant API as Hono route
+    participant IM as IdentityManager
+    participant AZ as AuthorizationUtility
+    participant HA as HouseholdAccessor
+    participant LOG as LoggingUtility
+
+    User->>API: DELETE /households/:householdId
+    API->>IM: deleteHousehold(actor, householdId)
+    IM->>AZ: canManageMembers(actor, householdId)?
+    alt actor is not the Owner
+        AZ-->>IM: denied
+        IM-->>API: Forbidden
+        API-->>User: 403 auth.forbidden
+    else actor is the Owner
+        AZ-->>IM: allowed
+        IM->>HA: delete(householdId)
+        Note over HA: cascading hard delete — every household-scoped<br/>record (accounts, categories, budgets, goals,<br/>holdings, memberships, invitations) goes with it &mdash;<br/>this is dissolution, not a member departing
+        HA-->>IM: deleted
+        IM-->>LOG: logActivity(correlationId, actor, "DeleteHousehold")
+        IM-->>LOG: recordAudit(actor, "Household", householdId)
+        IM-->>API: deleted
+        API-->>User: 204 No Content
+    end
+    </pre>
+  </div>
+  <div class="notes">
+    <ul>
+      <li><strong>Deliberately not the same code path as FR-1.18&#39;s auto-succession.</strong> This is the Owner <em>choosing</em> to dissolve the household outright; FR-1.18&#39;s "delete the household if no member remains" is a side effect of the last member departing (see Leave Household), not this endpoint.</li>
+      <li>Unlike every personal/shared split elsewhere in this project, there&#39;s no anonymize-instead-of-delete branch here — dissolving the household destroys the shared record itself, by the Owner&#39;s own explicit request, which is exactly the case FR-1.17&#39;s anonymization rule doesn&#39;t apply to (that rule protects shared data from a <em>member&#39;s</em> unilateral departure, not the Owner&#39;s deliberate deletion of the whole household).</li>
+    </ul>
+  </div>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      securityLevel: 'loose'
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Backend Layered Architecture — New Finance App</title>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2236;
+    --panel-border: #2f3b56;
+    --text: #eef1f8;
+    --muted: #9aa4bb;
+    --manager: #2b4a7a;
+    --manager-border: #4d78b8;
+    --engine: #5b3a7a;
+    --engine-border: #9163c9;
+    --accessor: #2f5f4a;
+    --accessor-border: #4fa87e;
+    --utility: #7a5a20;
+    --utility-border: #d0a24f;
+    --parked-bg: #262c3d;
+    --parked-border: #454e68;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px 0; }
+  p.subtitle {
+    margin: 0 0 24px 0;
+    color: var(--muted);
+    font-size: 14px;
+    max-width: 1000px;
+    line-height: 1.6;
+  }
+  .architecture {
+    display: flex;
+    gap: 16px;
+    align-items: stretch;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  .layers {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .layer-band {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 16px;
+  }
+  .band-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-bottom: 12px;
+    font-weight: 600;
+  }
+  .tier-row { margin-bottom: 14px; }
+  .tier-row:last-child { margin-bottom: 0; }
+  .tier-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .tier-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+  .col-label {
+    font-size: 10px;
+    color: var(--muted);
+    text-align: center;
+    margin-bottom: 4px;
+  }
+  .accessor-column {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: stretch;
+  }
+  .box {
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 12.5px;
+    line-height: 1.35;
+    text-align: center;
+    border: 1px solid;
+  }
+  .box.manager {
+    background: var(--manager);
+    border-color: var(--manager-border);
+    font-weight: 600;
+    padding: 14px 12px;
+  }
+  .box.engine {
+    background: var(--engine);
+    border-color: var(--engine-border);
+    font-weight: 600;
+  }
+  .box.accessor {
+    background: var(--accessor);
+    border-color: var(--accessor-border);
+  }
+  .box.parked {
+    background: var(--parked-bg);
+    border-color: var(--parked-border);
+    border-style: dashed;
+    color: var(--muted);
+  }
+  .box.empty-slot {
+    visibility: hidden;
+  }
+  .utilities-sidebar {
+    width: 220px;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+  }
+  .box.utility {
+    background: var(--utility);
+    border-color: var(--utility-border);
+    margin-bottom: 10px;
+    font-weight: 600;
+  }
+  .utility-note {
+    margin-top: auto;
+    padding-top: 12px;
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.5;
+    border-top: 1px solid var(--panel-border);
+  }
+  .legend {
+    max-width: 1000px;
+    margin: 20px auto 0 auto;
+    display: flex;
+    gap: 22px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .legend-item { display: flex; align-items: center; gap: 8px; }
+  .swatch { width: 14px; height: 14px; border-radius: 4px; display: inline-block; border: 1px solid; }
+  .notes {
+    max-width: 1000px;
+    margin: 20px auto 0 auto;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .notes code { color: var(--text); }
+</style>
+</head>
+<body>
+  <h1>Backend Layered Architecture — New Finance App</h1>
+  <p class="subtitle">
+    Static structure only — which tier each component belongs to, and
+    which Manager/Engine column each Accessor sits under. No call-chain
+    wiring here by design; that's a separate, deliberate next pass done
+    use case by use case. Full detail in
+    <code>docs/architecture/backend/01-vbd-decomposition.md</code>
+    (Round 7).
+  </p>
+
+  <div class="architecture">
+    <div class="layers">
+      <div class="layer-band">
+        <div class="band-label">Business Layer</div>
+
+        <div class="tier-row">
+          <div class="tier-label">Managers</div>
+          <div class="tier-grid">
+            <div class="col-label">Identity</div>
+            <div class="col-label">Account</div>
+            <div class="col-label">Transactions</div>
+            <div class="col-label">Insights</div>
+          </div>
+          <div class="tier-grid">
+            <div class="box manager">IdentityManager</div>
+            <div class="box manager">AccountManager</div>
+            <div class="box manager">TransactionManager</div>
+            <div class="box manager">InsightsManager</div>
+          </div>
+        </div>
+
+        <div class="tier-row">
+          <div class="tier-label">Engines</div>
+          <div class="tier-grid">
+            <div class="box empty-slot">—</div>
+            <div class="box empty-slot">—</div>
+            <div class="box engine">InvestmentProductEngine</div>
+            <div class="box engine">ReportingEngine</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="layer-band">
+        <div class="band-label">Access Layer — Resource Accessors</div>
+        <div class="tier-grid">
+          <div class="accessor-column">
+            <div class="box accessor">UserAccessor</div>
+            <div class="box accessor">SessionAccessor</div>
+            <div class="box accessor">HouseholdAccessor</div>
+            <div class="box accessor">InvitationAccessor</div>
+          </div>
+          <div class="accessor-column">
+            <div class="box accessor">AccountAccessor</div>
+            <div class="box accessor">CreditCardAccessor</div>
+            <div class="box accessor">CategoryAccessor</div>
+            <div class="box accessor">BudgetAccessor</div>
+            <div class="box accessor">InvestmentHoldingAccessor</div>
+            <div class="box accessor">ValuationSnapshotAccessor</div>
+            <div class="box accessor">GoalAccessor</div>
+            <div class="box accessor">IndexRateAccessor</div>
+            <div class="box parked">PortfolioAccessor (parked, CUC-7)</div>
+            <div class="box parked">OpenBankingConnectionAccessor (parked)</div>
+            <div class="box parked">OpenFinanceBrasilAccessor (parked)</div>
+            <div class="box parked">USOpenBankingAccessor (parked)</div>
+            <div class="box parked">MarketAnalysisProviderAccessor (parked stub)</div>
+          </div>
+          <div class="accessor-column">
+            <div class="box accessor">AccountTransactionAccessor</div>
+            <div class="box accessor">CardTransactionAccessor</div>
+          </div>
+          <div class="accessor-column">
+            <div class="box parked">DashboardAccessor (parked, v3)</div>
+            <div class="box accessor">AuditLogAccessor</div>
+            <div class="box accessor">NotificationInboxAccessor</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="utilities-sidebar">
+      <div class="band-label">Cross-Cutting Utilities</div>
+      <div class="box utility">AuthorizationUtility</div>
+      <div class="box utility">AuthenticationUtility</div>
+      <div class="box utility">LoggingUtility</div>
+      <div class="box utility">ServiceBusUtility</div>
+      <div class="box utility">NotificationDeliveryUtility</div>
+      <div class="box utility">ValidationUtility</div>
+      <div class="box utility">CorrelationIdUtility</div>
+      <div class="utility-note">
+        Consumed by every Manager and Engine; a few (<code>LoggingUtility</code>,
+        <code>AuthorizationUtility</code>) also reach into specific
+        Accessors for their own concern. Coordinates nothing itself —
+        no Utility calls another Utility, an Engine, or holds workflow
+        state.
+      </div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><span class="swatch" style="background:var(--manager); border-color:var(--manager-border);"></span> Manager</div>
+    <div class="legend-item"><span class="swatch" style="background:var(--engine); border-color:var(--engine-border);"></span> Engine</div>
+    <div class="legend-item"><span class="swatch" style="background:var(--accessor); border-color:var(--accessor-border);"></span> Resource Accessor</div>
+    <div class="legend-item"><span class="swatch" style="background:var(--utility); border-color:var(--utility-border);"></span> Utility</div>
+    <div class="legend-item"><span class="swatch" style="background:var(--parked-bg); border-color:var(--parked-border); border-style:dashed;"></span> Parked (deferred CUC, not dropped)</div>
+  </div>
+
+  <div class="notes">
+    <p><strong>Column alignment is informative, not arbitrary:</strong>
+    each Accessor column sits under the Manager (and, where one exists,
+    the Engine) that owns it — e.g. <code>InvestmentProductEngine</code>
+    sits under <code>TransactionManager</code>'s column because that's
+    who calls it, never <code>AccountManager</code>. The Account column
+    is visibly the tallest (13 Accessors, 5 parked — Round 9 adds IndexRateAccessor) — that's the honest
+    shape of <code>AccountManager</code>'s scope (Financial Accounts,
+    Credit Cards, Categories, Budgets, Investment Holdings, Goals, Index Rates,
+    Portfolio, Open Banking config), not a layout artifact.</p>
+    <p><strong>No wiring shown deliberately.</strong> This page answers
+    "what exists, and in which tier" — the call-chain-by-use-case pass
+    (next) answers "who actually calls whom, for this specific flow,"
+    which is where smells like Manager sprawl, hidden Manager↔Manager
+    coupling, or Accessor over-fan-out would actually show up.</p>
+  </div>
+</body>
+</html>

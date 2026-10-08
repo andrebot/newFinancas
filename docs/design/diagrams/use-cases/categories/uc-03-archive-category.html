@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>UC-3: Archive Category or Subcategory — New Finance App</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2236;
+    --panel-border: #2f3b56;
+    --text: #eef1f8;
+    --muted: #9aa4bb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px 0; }
+  p.subtitle { margin: 0 0 12px 0; color: var(--muted); font-size: 14px; max-width: 900px; line-height: 1.6; }
+  .diagram-card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 20px;
+    overflow-x: auto;
+    max-width: 100%;
+  }
+  .notes {
+    max-width: 900px;
+    margin: 16px 0 0 0;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .notes code { color: var(--text); }
+</style>
+</head>
+<body>
+  <h1>UC-3: Archive Category or Subcategory</h1>
+  <p class="subtitle">
+    Use case 3 of 3 in the Categories set (FR-10.3/FR-10.4). Lifecycle
+    Transition, one-way, same pattern as Accounts/Holdings — archiving a
+    Category cascades to its Subcategories. High-level activity view
+    only — no component names or API details yet.
+  </p>
+
+  <div class="diagram-card">
+    <pre class="mermaid">
+flowchart LR
+    subgraph FE["Frontend"]
+        direction TB
+        FE1(["Start"])
+        FE2["Open Categories page"]
+        FE3["Select category or subcategory to archive"]
+        FE4["Confirm (irreversible; archiving a Category<br/>also archives its Subcategories)"]
+        FE5["Submit"]
+        FE6["Receive result"]
+        FE7["Notify user (archived / error)"]
+        FE8(["End"])
+        FE1 --> FE2 --> FE3 --> FE4 --> FE5
+        FE6 --> FE7 --> FE8
+    end
+
+    subgraph BE["Backend"]
+        direction TB
+        BE1["Receive request"]
+        BE2["Archive (cascades to Subcategories<br/>if target is a Category, FR-10.4)"]
+        BE3["Record the action (log)"]
+        BE4["Send response"]
+        BE1 --> BE2 --> BE3 --> BE4
+    end
+
+    FE5 -- request --> BE1
+    BE4 -- response --> FE6
+    </pre>
+  </div>
+
+  <div class="notes">
+    <p><strong>Archiving a Subcategory alone does not affect its parent
+    Category or siblings (FR-10.4):</strong> the cascade only flows
+    downward (Category → its Subcategories), never upward or sideways.
+    Existing categorizations and Budget targets that reference an
+    archived Category/Subcategory remain intact and meaningful, same as
+    the Account/Holding archive pattern.</p>
+  </div>
+
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      securityLevel: 'loose',
+      flowchart: { htmlLabels: true, curve: 'basis' }
+    });
+  </script>
+</body>
+</html>

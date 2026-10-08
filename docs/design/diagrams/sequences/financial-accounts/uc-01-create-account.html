@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Sequence — Create Financial Account — New Finance App</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2236;
+    --panel-border: #2f3b56;
+    --text: #eef1f8;
+    --muted: #9aa4bb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px 0; }
+  p.subtitle { margin: 0 0 16px 0; color: var(--muted); font-size: 14px; max-width: 980px; line-height: 1.6; }
+  .diagram-card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 20px;
+    overflow-x: auto;
+    max-width: 100%;
+  }
+  .notes {
+    max-width: 980px;
+    margin: 16px 0 0 0;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.65;
+  }
+  .notes code { color: var(--text); }
+  .notes ul { padding-left: 20px; }
+  .notes li { margin-bottom: 6px; }
+  a { color: #7db4f0; }
+  .route {
+    display: inline-block;
+    background: #1f2b45;
+    border: 1px solid #3a4a70;
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    color: #a9c6f5;
+  }
+</style>
+</head>
+<body>
+  <h1>Create Financial Account</h1>
+  <p class="subtitle"><span class="route">POST /accounts</span> &mdash; FR-2.1. <code>type</code> and <code>currency</code> are immutable once set (OQ-32) &mdash; there is no edit path for either, ever.</p>
+  <div class="diagram-card">
+    <pre class="mermaid">
+sequenceDiagram
+    actor User
+    participant API as Hono route
+    participant AM as AccountManager
+    participant VU as ValidationUtility
+    participant AA as AccountAccessor
+    participant CA as CreditCardAccessor
+    participant LOG as LoggingUtility
+
+    User->>API: POST /accounts {name, type: checking|savings|credit_card_only|investment, currency, visibility, openingBalance, cards?}
+    API->>AM: createAccount(actor, input)
+    AM->>VU: check(name, type, currency)
+    alt validation fails (missing name, unsupported type/currency)
+        VU-->>AM: rejected
+        AM-->>API: ValidationError
+        API-->>User: 422 validation.failed {details}
+    else valid
+        VU-->>AM: ok
+        AM->>AA: insert(account, ownerId=actor)
+        Note over AA: also creates the account's FIRST account_month_balances<br/>row, opening_balance = input (no opening_balance column<br/>on accounts itself, see 02-data-model.md)
+        AA-->>AM: accountId
+        opt cards included in the request
+            AM->>CA: insert(accountId, cardDetails)
+            CA-->>AM: cardId
+        end
+        AM-->>LOG: logActivity(correlationId, actor, "CreateAccount")
+        AM-->>LOG: recordAudit(actor, "Account", accountId)
+        AM-->>API: accountId
+        API-->>User: 201 Created {accountId}
+    end
+    </pre>
+  </div>
+  <div class="notes">
+    <ul>
+      <li>Attaching a card at creation is optional (FR-2.7 doesn&#39;t require an account to have a card at all) &mdash; the same combined-form principle used for editing (OQ-35) applies from the start.</li>
+      <li><strong>Oct 2026 review:</strong> four account types (OQ-76); also the mandatory first step of every household&#39;s guided setup (FR-1.22).</li>
+      <li>See FR-2.1, FR-2.2, FR-2.7.</li>
+    </ul>
+  </div>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      securityLevel: 'loose'
+    });
+  </script>
+</body>
+</html>

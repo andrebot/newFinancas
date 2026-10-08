@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Sequence — Browse &amp; Filter Transactions — New Finance App</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2236;
+    --panel-border: #2f3b56;
+    --text: #eef1f8;
+    --muted: #9aa4bb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px 0; }
+  p.subtitle { margin: 0 0 16px 0; color: var(--muted); font-size: 14px; max-width: 980px; line-height: 1.6; }
+  .diagram-card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 20px;
+    overflow-x: auto;
+    max-width: 100%;
+  }
+  .notes {
+    max-width: 980px;
+    margin: 16px 0 0 0;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.65;
+  }
+  .notes code { color: var(--text); }
+  .notes ul { padding-left: 20px; }
+  .notes li { margin-bottom: 6px; }
+  a { color: #7db4f0; }
+  .route {
+    display: inline-block;
+    background: #1f2b45;
+    border: 1px solid #3a4a70;
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    color: #a9c6f5;
+  }
+</style>
+</head>
+<body>
+  <h1>Browse &amp; Filter Transactions</h1>
+  <p class="subtitle"><span class="route">GET /transactions?kinds=&amp;accountIds=&amp;creditCardIds=&amp;categoryIds=&amp;holdingId=&amp;from=&amp;to=&amp;cursor=</span> &mdash; FR-3.12/OQ-61. Both ledgers merged, newest first, cursor-paginated. Owned by <code>TransactionManager</code> (plain read of its own ledger &mdash; read-ownership rule).</p>
+  <div class="diagram-card">
+    <pre class="mermaid">
+sequenceDiagram
+    actor User
+    participant API as Hono route
+    participant TM as TransactionManager
+    participant AZ as AuthorizationUtility
+    participant ATA as AccountTransactionAccessor
+    participant CTA as CardTransactionAccessor
+
+    User->>API: GET /transactions?{filters}&cursor
+    API->>TM: browse(actor, filters, cursor)
+    TM->>AZ: visibleScope(actor)
+    AZ-->>TM: {accountIds, creditCardIds} the actor may see (personal / shared)
+    par account ledger
+        TM->>ATA: list(filters within scope, cursor, limit)
+        ATA-->>TM: page
+    and card ledger
+        TM->>CTA: list(filters within scope, cursor, limit)
+        CTA-->>TM: page
+    end
+    Note over TM: merge newest-first, cut to limit, compute day totals<br/>per currency and the next cursor
+    TM-->>API: {items, dayTotals, nextCursor}
+    API-->>User: 200 OK
+    </pre>
+  </div>
+  <div class="notes">
+    <ul>
+      <li><strong>Not scoped to the period bar (OQ-61):</strong> any date range, including none.</li>
+      <li>Filtering by <code>holdingId</code> returns the investment transactions linked to it &mdash; the holding row's "See in Transactions" link.</li>
+      <li>No logging/audit &mdash; a plain read (FR-7.1 audits mutations only).</li>
+      <li>See FR-3.12, OQ-61; read-ownership rule, VBD &sect;3.</li>
+    </ul>
+  </div>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      securityLevel: 'loose'
+    });
+  </script>
+</body>
+</html>

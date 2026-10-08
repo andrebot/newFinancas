@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>UC-3: Invite User to Household — New Finance App</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2236;
+    --panel-border: #2f3b56;
+    --text: #eef1f8;
+    --muted: #9aa4bb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px 0; }
+  p.subtitle { margin: 0 0 12px 0; color: var(--muted); font-size: 14px; max-width: 900px; line-height: 1.6; }
+  .diagram-card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 20px;
+    overflow-x: auto;
+    max-width: 100%;
+  }
+  .notes {
+    max-width: 900px;
+    margin: 16px 0 0 0;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  .notes code { color: var(--text); }
+</style>
+</head>
+<body>
+  <h1>UC-3: Invite User to Household</h1>
+  <p class="subtitle">
+    Use case 3 of 21 in the Identity &amp; Household set (<code>docs/requirements/01-core-use-cases.md</code>,
+    CUC-1). Traces to <code>FR-1.5</code> (Owner/Admin invites another user
+    by email). High-level activity view only — no component names or API
+    details yet.
+  </p>
+
+  <div class="diagram-card">
+    <pre class="mermaid">
+flowchart LR
+    subgraph FE["Frontend"]
+        direction TB
+        FE1(["Start"])
+        FE2["Open Household Settings page"]
+        FE3["Select 'Invite Member'"]
+        FE4["Enter invitee email + role"]
+        FE5["Submit"]
+        FE6["Receive result"]
+        FE7["Notify user (invitation sent / error)"]
+        FE8(["End"])
+        FE1 --> FE2 --> FE3 --> FE4 --> FE5
+        FE6 --> FE7 --> FE8
+    end
+
+    subgraph BE["Backend"]
+        direction TB
+        BE1["Receive request"]
+        BE2["Verify actor is Owner/Admin"]
+        BE3["Verify invitee email matches<br/>an existing user"]
+        BE4["Create pending invitation"]
+        BE5["Create an in-app notification<br/>for the invitee (FR-6.5)"]
+        BE6["Record the action (log)"]
+        BE7["Send response"]
+        BE1 --> BE2 --> BE3 --> BE4 --> BE5 --> BE6 --> BE7
+    end
+
+    FE5 -- request --> BE1
+    BE7 -- response --> FE6
+    </pre>
+  </div>
+
+  <div class="notes">
+    <p><strong>Changed in the Oct 2026 review:</strong> the invitee is notified through the in-app notification inbox (FR-6.5, OQ-68) — v1 has no email channel. The notification carries who invited them (FR-1.10).</p>
+    <p><strong>Scope boundary:</strong> this use case ends once a pending
+    invitation exists and its notice has been sent. The invitee's side —
+    accepting or declining — is a separate use case (UC-4/UC-5, FR-1.10),
+    triggered from an invitation link/notice rather than from Household
+    Settings.</p>
+    <p><strong>Existing-user-only constraint (FR-1.19 / OQ-26):</strong>
+    there is no way to invite someone who isn't already a registered user —
+    no invite-triggers-signup flow in this design. An invite to an email
+    with no matching account is rejected at this step.</p>
+  </div>
+
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      securityLevel: 'loose',
+      flowchart: { htmlLabels: true, curve: 'basis' }
+    });
+  </script>
+</body>
+</html>

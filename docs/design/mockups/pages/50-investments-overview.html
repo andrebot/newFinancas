@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Investments — New Finance App</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        bg: '#0C100F', card: '#131917', raised: '#1A211E', line: '#232C28',
+        ink: '#E7ECE9', muted: '#97A39D', faint: '#5F6B65',
+        mint: '#5EE6B8', mintdeep: '#0F3B2E', coral: '#FF6B6B', coraldeep: '#3A1717',
+        sky: '#7CB9FF', sun: '#FFD166', lilac: '#C792EA', peach: '#FF8C69'
+      },
+      fontFamily: { display: ['Manrope', 'sans-serif'], sans: ['Inter', 'sans-serif'] },
+      borderRadius: { xl2: '20px' }
+    }
+  }
+}
+</script>
+<style>
+  .num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+  .bar { position: relative; height: 28px; border-radius: 999px; background: #222B27; overflow: hidden; }
+  .bar > .fill { position: absolute; inset: 0 auto 0 0; border-radius: 999px; }
+  .bar > .lbl { position: absolute; inset: 0; display: flex; align-items: center; padding: 0 14px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+  .bar > .lbl.on { color: #062A1F; }
+  .month { position: relative; }
+  .month .spark { display: flex; align-items: flex-end; gap: 2px; height: 22px; }
+  .month .spark i { display: block; width: 5px; border-radius: 3px; }
+  .day { display: flex; justify-content: space-between; padding: 8px 20px; background: rgba(26,33,30,.6); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: #97A39D; }
+  .day span { text-transform: none; letter-spacing: 0; }
+  .tx { width: 100%; text-align: left; display: flex; align-items: center; gap: 12px; padding: 12px 16px 12px 20px; border-bottom: 1px solid rgba(35,44,40,.7); cursor: pointer; background: transparent; color: inherit; font: inherit; }
+  .tx:hover { background: rgba(255,255,255,.03); }
+  .tx:focus-visible { outline: 2px solid #5EE6B8; outline-offset: -2px; }
+  .tx .ico { width: 36px; height: 36px; border-radius: 999px; display: grid; place-items: center; flex-shrink: 0; }
+  .tx .meta { font-size: 13px; color: #97A39D; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tx .chev { color: #5F6B65; flex-shrink: 0; transition: transform .2s; }
+  .rail-head { display: flex; align-items: center; justify-content: space-between; }
+  .period { margin-left: 8px; padding: 2px 10px; border-radius: 999px; background: #0F3B2E; color: #5EE6B8; font-family: Inter, sans-serif; font-size: 12px; font-weight: 600; vertical-align: middle; }
+  .arrow { width: 32px; height: 32px; border-radius: 999px; display: grid; place-items: center; border: 1px solid #232C28; color: #97A39D; }
+  .arrow:hover { background: rgba(255,255,255,.05); color: #E7ECE9; }
+  .rail-wrap { position: relative; }
+  .rail-wrap::after { content: ""; position: absolute; top: 0; right: 0; bottom: 8px; width: 56px; background: linear-gradient(to right, rgba(12,16,15,0), #0C100F); pointer-events: none; }
+  .rail { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 8px; scrollbar-width: thin; scrollbar-color: #232C28 transparent; }
+  .rail > * { scroll-snap-align: start; flex-shrink: 0; }
+  .bcard { width: 196px; border-radius: 20px; background: #131917; border: 1px solid #232C28; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .blabel { display: flex; align-items: center; gap: 8px; color: #97A39D; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ico-sm { width: 28px; height: 28px; border-radius: 999px; display: grid; place-items: center; flex-shrink: 0; }
+  .bval { font-family: Manrope, sans-serif; font-size: 22px; font-weight: 700; }
+  .cap { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #97A39D; font-weight: 600; }
+  .rcard { width: 272px; border-radius: 20px; background: #131917; border: 1px solid #232C28; padding: 14px 16px; display: flex; align-items: center; gap: 14px; }
+  .ring { --p: 0; --c: #5EE6B8; width: 64px; height: 64px; border-radius: 999px; flex-shrink: 0; display: grid; place-items: center;
+          background: radial-gradient(closest-side, #131917 78%, transparent 79%), conic-gradient(var(--c) calc(var(--p) * 1%), #232C28 0); }
+  .ring span { font-size: 13px; font-weight: 700; }
+  .ghost { width: 32px; height: 32px; border-radius: 999px; display: grid; place-items: center; color: #5F6B65; }
+  .ghost:hover { background: rgba(255,255,255,.05); color: #E7ECE9; }
+  .field label, .flabel { display: block; font-size: 12px; font-weight: 600; color: #97A39D; margin-bottom: 6px; }
+  .field input { width: 100%; height: 46px; border-radius: 14px; background: #0C100F; border: 1px solid #232C28; padding: 0 14px; color: #E7ECE9; font-size: 15px; }
+  .field input:focus { outline: none; border-color: #5EE6B8; box-shadow: 0 0 0 3px rgba(94,230,184,.15); }
+  .opt { height: 38px; padding: 0 14px; border-radius: 12px; border: 1px solid #232C28; font-size: 14px; color: #E7ECE9; display: inline-flex; align-items: center; gap: 6px; }
+  .opt[aria-pressed="true"] { border-color: rgba(94,230,184,.6); background: #0F3B2E; color: #5EE6B8; font-weight: 600; }
+  .tag { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 9px; border-radius: 999px; font-size: 11px; font-weight: 600; background: #1A211E; color: #97A39D; }
+  .kindtab { flex: 1; height: 64px; border-radius: 16px; border: 1px solid #232C28; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 12.5px; font-weight: 600; color: #97A39D; }
+  .kindtab[aria-selected="true"] { border-color: rgba(94,230,184,.6); background: #0F3B2E; color: #5EE6B8; }
+  .switch { width: 40px; height: 24px; border-radius: 999px; background: #232C28; position: relative; flex-shrink: 0; }
+  .switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 999px; background: #97A39D; }
+  .switch[aria-checked="true"] { background: #5EE6B8; } .switch[aria-checked="true"]::after { left: 19px; background: #062A1F; }
+  .drawer-scrim { position: fixed; inset: 64px 0 0 0; background: rgba(0,0,0,.55); }
+  .drawer { position: fixed; top: 64px; right: 0; bottom: 0; width: 520px; background: #131917; border-left: 1px solid #232C28; display: flex; flex-direction: column; }
+  .month-head { position: sticky; top: 0; z-index: 1; display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; background: #131917; border-top: 1px solid #232C28; border-bottom: 1px solid #232C28; font-family: Manrope, sans-serif; font-weight: 700; font-size: 14px; color: #5EE6B8; }
+  .month-head span:last-child { font-family: Inter, sans-serif; font-size: 12px; }
+
+    .seg { display: inline-flex; gap: 4px; padding: 4px; border-radius: 999px; background: #131917; border: 1px solid #232C28; }
+    .seg > button { height: 36px; padding: 0 16px; border-radius: 999px; font-size: 14px; font-weight: 500; color: #97A39D; display: inline-flex; align-items: center; gap: 6px; }
+    .seg > button[aria-selected="true"] { background: #0F3B2E; color: #5EE6B8; font-weight: 600; }
+    .panel { border-radius: 20px; background: #131917; border: 1px solid #232C28; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+    .ticker { min-width: 58px; height: 26px; padding: 0 8px; border-radius: 8px; font-size: 12px; font-weight: 700; display: grid; place-items: center; font-family: Manrope, sans-serif; letter-spacing: .02em; }
+    .donut { width: 120px; height: 120px; border-radius: 999px; flex-shrink: 0; display: grid; place-items: center; }
+    .legend { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+    .sw { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+  </style>
+</head>
+<body>
+<div class="min-h-screen bg-bg text-ink font-sans">
+
+  <!-- App bar -->
+  <header class="h-16 flex items-center gap-3 px-6 border-b border-line bg-card/80">
+    <button class="w-10 h-10 rounded-full grid place-items-center hover:bg-white/5" aria-label="Open navigation menu">
+      <iconify-icon icon="material-symbols:menu" width="22"></iconify-icon>
+    </button>
+    <div class="w-8 h-8 rounded-[10px] bg-mint grid place-items-center text-[#00382B]">
+      <iconify-icon icon="material-symbols:savings-outline" width="18"></iconify-icon>
+    </div>
+    <span class="font-display font-700 font-semibold">New Finance App</span>
+      <div class="ml-auto relative">
+      <button class="w-10 h-10 rounded-full grid place-items-center hover:bg-white/5 relative" aria-label="Notifications, 2 unseen">
+        <iconify-icon icon="material-symbols:notifications-outline" width="22"></iconify-icon>
+        <span class="absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-coral text-[10px] font-bold text-[#2A0A0A] grid place-items-center">2</span>
+      </button>
+    </div>
+  </header>
+
+
+  <main class="max-w-[1400px] mx-auto px-12 pt-8 pb-16 flex flex-col gap-6">
+
+    <div class="flex flex-col gap-5">
+      <div class="flex items-end justify-between gap-6">
+        <div>
+          <h1 class="font-display text-[34px] leading-10 font-extrabold tracking-tight">Investments</h1>
+          <p class="text-muted mt-1">Net worth across every holding, sliced a few ways. Always per currency — USD and BRL are never summed.</p>
+        </div>
+        <div class="flex gap-3">
+          <button class="h-10 px-4 rounded-full border border-dashed border-line text-faint flex items-center gap-2 cursor-not-allowed" disabled title="Coming in v2"><iconify-icon icon="material-symbols:apartment" width="18"></iconify-icon>FII Portfolio Builder<span class="text-[10px] font-bold uppercase tracking-wider bg-white/5 rounded-full px-1.5 py-0.5">v2</span></button>
+          <button class="h-10 px-4 rounded-full border border-dashed border-line text-faint flex items-center gap-2 cursor-not-allowed" disabled title="Coming in v2"><iconify-icon icon="material-symbols:candlestick-chart-outline" width="18"></iconify-icon>Stock Portfolio Builder<span class="text-[10px] font-bold uppercase tracking-wider bg-white/5 rounded-full px-1.5 py-0.5">v2</span></button>
+        </div>
+      </div>
+      <div class="seg" role="tablist" aria-label="Investments sections">
+        <button role="tab" aria-selected="true"><iconify-icon icon="material-symbols:space-dashboard-outline" width="18"></iconify-icon>Overview</button>
+        <button role="tab" aria-selected="false"><iconify-icon icon="material-symbols:table-rows-outline" width="18"></iconify-icon>Holdings by account</button>
+        <button role="tab" aria-selected="false"><iconify-icon icon="material-symbols:percent" width="18"></iconify-icon>Rates</button>
+      </div>
+    </div>
+
+    <!-- Net worth per currency (same component as Dashboard) -->
+    <div class="grid grid-cols-2 gap-6">
+      <section class="panel">
+        <div class="flex items-center justify-between"><span class="cap">Net worth · USD</span><span class="text-xs font-semibold text-mint num inline-flex items-center gap-0.5 bg-mint/10 rounded-full px-2 py-0.5"><iconify-icon icon="material-symbols:arrow-upward" width="13"></iconify-icon>+$2,410.00 vs Aug</span></div>
+        <div class="font-display text-[34px] leading-none font-extrabold num">$19,130.00</div>
+        <svg viewBox="0 0 600 140" preserveAspectRatio="none" class="w-full h-[120px]">
+          <defs><linearGradient id="iUsd" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5EE6B8" stop-opacity=".35"/><stop offset="1" stop-color="#5EE6B8" stop-opacity="0"/></linearGradient></defs>
+          <path d="M0,100 C60,94 80,86 120,83 C180,78 200,72 240,69 C300,64 320,56 360,53 C420,47 440,40 480,36 C540,30 560,20 600,14 L600,140 L0,140 Z" fill="url(#iUsd)"/>
+          <path d="M0,100 C60,94 80,86 120,83 C180,78 200,72 240,69 C300,64 320,56 360,53 C420,47 440,40 480,36 C540,30 560,20 600,14" fill="none" stroke="#5EE6B8" stroke-width="2.5"/>
+        </svg>
+        <div class="flex justify-between text-[11px] uppercase tracking-wider text-faint font-semibold"><span>Apr</span><span>May</span><span>Jun</span><span>Jul</span><span>Aug</span><span class="text-mint">Sep</span></div>
+      </section>
+      <section class="panel">
+        <div class="flex items-center justify-between"><span class="cap">Net worth · BRL</span><span class="text-xs font-semibold text-mint num inline-flex items-center gap-0.5 bg-mint/10 rounded-full px-2 py-0.5"><iconify-icon icon="material-symbols:arrow-upward" width="13"></iconify-icon>+R$31,200.00 vs Aug</span></div>
+        <div class="font-display text-[34px] leading-none font-extrabold num">R$358,600.00</div>
+        <svg viewBox="0 0 600 140" preserveAspectRatio="none" class="w-full h-[120px]">
+          <defs><linearGradient id="iBrl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7CB9FF" stop-opacity=".35"/><stop offset="1" stop-color="#7CB9FF" stop-opacity="0"/></linearGradient></defs>
+          <path d="M0,108 C60,102 80,92 120,90 C180,86 200,80 240,74 C300,66 320,62 360,56 C420,50 440,42 480,40 C540,36 560,26 600,18 L600,140 L0,140 Z" fill="url(#iBrl)"/>
+          <path d="M0,108 C60,102 80,92 120,90 C180,86 200,80 240,74 C300,66 320,62 360,56 C420,50 440,42 480,40 C540,36 560,26 600,18" fill="none" stroke="#7CB9FF" stroke-width="2.5"/>
+        </svg>
+        <div class="flex justify-between text-[11px] uppercase tracking-wider text-faint font-semibold"><span>Apr</span><span>May</span><span>Jun</span><span>Jul</span><span>Aug</span><span class="text-sky">Sep</span></div>
+      </section>
+    </div>
+
+    <!-- Payout: this month (from linked dividend/interest transactions) + over time -->
+    <div class="grid grid-cols-[minmax(0,1fr)_minmax(0,1.7fr)] gap-6 items-start">
+      <section class="panel">
+        <div class="flex items-center justify-between"><h2 class="font-display text-lg font-bold">Payout this month</h2><span class="period">September/2026</span></div>
+        <div class="flex flex-col max-h-[300px] overflow-y-auto pr-1"><div class="flex items-center gap-3 py-2 border-b border-line/70"><span class="ticker bg-lilac/10 text-lilac">XPML11</span><span class="flex-1 text-xs text-muted">Dividend</span><span class="num font-semibold text-mint">+R$890.00</span></div><div class="flex items-center gap-3 py-2 border-b border-line/70"><span class="ticker bg-lilac/10 text-lilac">HGLG11</span><span class="flex-1 text-xs text-muted">Dividend</span><span class="num font-semibold text-mint">+R$335.00</span></div><div class="flex items-center gap-3 py-2 border-b border-line/70"><span class="ticker bg-lilac/10 text-lilac">KNRI11</span><span class="flex-1 text-xs text-muted">Dividend</span><span class="num font-semibold text-mint">+R$210.00</span></div><div class="flex items-center gap-3 py-2 border-b border-line/70"><span class="ticker bg-lilac/10 text-lilac">MXRF11</span><span class="flex-1 text-xs text-muted">Dividend</span><span class="num font-semibold text-mint">+R$162.00</span></div><div class="flex items-center gap-3 py-2 border-b border-line/70"><span class="ticker bg-lilac/10 text-lilac">VISC11</span><span class="flex-1 text-xs text-muted">Dividend</span><span class="num font-semibold text-mint">+R$128.00</span></div><div class="flex items-center gap-3 py-2 border-b border-line/70"><span class="ticker bg-lilac/10 text-lilac">BTLG11</span><span class="flex-1 text-xs text-muted">Dividend</span><span class="num font-semibold text-mint">+R$91.00</span></div><div class="flex items-center gap-3 py-2 border-b border-line/70"><span class="ticker bg-sun/10 text-sun">VALE3</span><span class="flex-1 text-xs text-muted">Dividend</span><span class="num font-semibold text-mint">+R$25.00</span></div><div class="flex items-center gap-3 py-2 border-b border-line/70"><span class="ticker bg-mint/10 text-mint">AAPL</span><span class="flex-1 text-xs text-muted">Dividend</span><span class="num font-semibold text-mint">+$4.00</span></div><div class="flex items-center gap-3 py-2"><span class="ticker bg-mint/10 text-mint">MSFT</span><span class="flex-1 text-xs text-muted">Dividend</span><span class="num font-semibold text-mint">+$2.80</span></div></div>
+        <div class="flex items-center justify-between pt-3 border-t border-line"><span class="text-sm font-semibold">Total</span><span class="num font-bold text-mint">R$1,841.00 · $6.80</span></div>
+      </section>
+      <section class="rounded-xl2 bg-card border border-line p-5 flex flex-col gap-4">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <h2 class="font-display text-lg font-bold">Payout over time</h2>
+            <p class="text-xs text-muted mt-0.5">Dividends and interest received, from your transactions · last 12 months</p>
+          </div>
+          <div class="flex items-center gap-4">
+            <div class="text-right"><div class="cap">September/2026</div><div class="font-display text-[22px] font-extrabold num text-mint">R$1,841.00</div></div>
+            <div class="flex rounded-full bg-raised p-0.5 text-xs font-semibold" role="tablist" aria-label="Payout currency"><button class="px-2.5 py-1 rounded-full text-muted" aria-selected="false">$</button><button class="px-2.5 py-1 rounded-full bg-mint text-[#062A1F]" aria-selected="true">R$</button></div>
+          </div>
+        </div>
+        <div class="relative"><button class="w-full h-11 rounded-[14px] border border-mint/60 shadow-[0_0_0_3px_rgba(94,230,184,.12)] bg-bg px-3 flex items-center gap-2 text-left" aria-haspopup="listbox" aria-expanded="true">
+            <iconify-icon icon="material-symbols:filter-list" width="18" class="text-muted"></iconify-icon>
+            <span class="text-sm font-semibold num">7 of 10 holdings</span>
+            <span class="text-sm text-muted truncate">· XPML11, HGLG11, KNRI11 +4</span>
+            <iconify-icon icon="material-symbols:expand-less" width="20" class="ml-auto text-muted"></iconify-icon>
+          </button><div class="absolute left-0 right-0 top-[50px] z-30 rounded-2xl bg-raised border border-line shadow-[0_24px_60px_-20px_rgba(0,0,0,.85)] p-3 flex flex-col gap-3" role="listbox" aria-multiselectable="true">
+            <div class="flex items-center gap-2 h-10 rounded-xl bg-bg border border-line px-3"><iconify-icon icon="material-symbols:search" width="18" class="text-faint"></iconify-icon><input class="bg-transparent outline-none text-sm flex-1" placeholder="Search ticker or name" aria-label="Search holdings"></div>
+            <div class="flex flex-wrap gap-1.5"><button class="opt !h-7 !text-xs" aria-pressed="false">All</button><button class="opt !h-7 !text-xs" aria-pressed="false">FIIs</button><button class="opt !h-7 !text-xs" aria-pressed="false">Stocks</button><button class="opt !h-7 !text-xs" aria-pressed="false">Fixed income</button><button class="opt !h-7 !text-xs text-muted" aria-pressed="false">Clear</button></div>
+            <div class="grid grid-cols-3 gap-3 max-h-[230px] overflow-y-auto"><div><div class="flex items-center justify-between px-2 pb-1"><span class="cap">FIIs</span><span class="text-[11px] text-faint num">6/6</span></div><label class="flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-white/5 text-sm"><span class="w-[18px] h-[18px] rounded-md grid place-items-center shrink-0 bg-mint text-[#062A1F]"><iconify-icon icon="material-symbols:check" width="14"></iconify-icon></span><span class="w-2.5 h-2.5 rounded-sm shrink-0" style="background:#C792EA"></span><span class="flex-1 truncate ">XPML11</span><span class="num text-xs text-mint">R$890.00</span></label><label class="flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-white/5 text-sm"><span class="w-[18px] h-[18px] rounded-md grid place-items-center shrink-0 bg-mint text-[#062A1F]"><iconify-icon icon="material-symbols:check" width="14"></iconify-icon></span><span class="w-2.5 h-2.5 rounded-sm shrink-0" style="background:#7CB9FF"></span><span class="flex-1 truncate ">KNRI11</span><span class="num text-xs text-mint">R$210.00</span></label><label class="flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-white/5 text-sm"><span class="w-[18px] h-[18px] rounded-md grid place-items-center shrink-0 bg-mint text-[#062A1F]"><iconify-icon icon="material-symbols:check" width="14"></iconify-icon></span><span class="w-2.5 h-2.5 rounded-sm shrink-0" style="background:#5EE6B8"></span><span class="flex-1 truncate ">HGLG11</span><span class="num text-xs text-mint">R$335.00</span></label><label class="flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-white/5 text-sm"><span class="w-[18px] h-[18px] rounded-md grid place-items-center shrink-0 bg-mint text-[#062A1F]"><iconify-icon icon="material-symbols:check" width="14"></iconify-icon></span><span class="w-2.5 h-2.5 rounded-sm shrink-0" style="background:#FFD166"></span><span class="flex-1 truncate ">MXRF11</span><span class="num text-xs text-mint">R$162.00</span></label><label class="flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-white/5 text-sm"><span class="w-[18px] h-[18px] rounded-md grid place-items-center shrink-0 bg-mint text-[#062A1F]"><iconify-icon icon="material-symbols:check" width="14"></iconify-icon></span><span class="w-2.5 h-2.5 rounded-sm shrink-0" style="background:#FF8C69"></span><span class="flex-1 truncate ">VISC11</span><span class="num text-xs text-mint">R$128.00</span></label><label class="flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-white/5 text-sm"><span class="w-[18px] h-[18px] rounded-md grid place-items-center shrink-0 bg-mint text-[#062A1F]"><iconify-icon icon="material-symbols:check" width="14"></iconify-icon></span><span class="w-2.5 h-2.5 rounded-sm shrink-0" style="background:#4A5550"></span><span class="flex-1 truncate ">BTLG11</span><span class="num text-xs text-mint">R$91.00</span></label></div><div><div class="flex items-center justify-between px-2 pb-1"><span class="cap">Stocks</span><span class="text-[11px] text-faint num">1/3</span></div><label class="flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-white/5 text-sm"><span class="w-[18px] h-[18px] rounded-md grid place-items-center shrink-0 bg-mint text-[#062A1F]"><iconify-icon icon="material-symbols:check" width="14"></iconify-icon></span><span class="w-2.5 h-2.5 rounded-sm shrink-0" style="background:#4A5550"></span><span class="flex-1 truncate ">VALE3</span><span class="num text-xs text-mint">R$25.00</span></label><label class="flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-white/5 text-sm"><span class="w-[18px] h-[18px] rounded-md grid place-items-center shrink-0 border-[1.5px] border-faint"></span><span class="w-2.5 h-2.5 rounded-sm shrink-0" style="background:#232C28"></span><span class="flex-1 truncate text-muted">ITSA4</span><span class="num text-xs text-faint">—</span></label><label class="flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-white/5 text-sm"><span class="w-[18px] h-[18px] rounded-md grid place-items-center shrink-0 border-[1.5px] border-faint"></span><span class="w-2.5 h-2.5 rounded-sm shrink-0" style="background:#232C28"></span><span class="flex-1 truncate text-muted">BBAS3</span><span class="num text-xs text-faint">—</span></label></div><div><div class="flex items-center justify-between px-2 pb-1"><span class="cap">Fixed income</span><span class="text-[11px] text-faint num">0/1</span></div><label class="flex items-center gap-3 px-2 py-1.5 rounded-lg hover:bg-white/5 text-sm"><span class="w-[18px] h-[18px] rounded-md grid place-items-center shrink-0 border-[1.5px] border-faint"></span><span class="w-2.5 h-2.5 rounded-sm shrink-0" style="background:#232C28"></span><span class="flex-1 truncate text-muted">Tesouro IPCA+ 2035</span><span class="num text-xs text-faint">—</span></label></div></div>
+            <div class="flex items-center justify-between border-t border-line pt-2.5 text-xs text-faint"><span>The 5 largest selected keep their colour; the rest are grouped as <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-sm" style="background:#4A5550"></span>Others</span>.</span><button class="h-8 px-4 rounded-full bg-mint text-[#062A1F] text-sm font-semibold">Done</button></div>
+          </div></div>
+        <div class="flex flex-col gap-1.5">
+          <svg viewBox="0 0 600 170" preserveAspectRatio="none" class="w-full" style="height:170px" aria-label="Payout per month">
+            <line x1="0" y1="170" x2="600" y2="170" stroke="#232C28"/>
+            <rect x="0.0" y="145.2" width="34" height="24.8" rx="4" fill="#5EE6B8" fill-opacity="0.55"/><rect x="0.0" y="129.6" width="34" height="15.6" rx="4" fill="#7CB9FF" fill-opacity="0.55"/><rect x="0.0" y="117.6" width="34" height="12.0" rx="4" fill="#FFD166" fill-opacity="0.55"/><rect x="0.0" y="108.0" width="34" height="9.6" rx="4" fill="#FF8C69" fill-opacity="0.55"/><rect x="0.0" y="101.6" width="34" height="6.4" rx="4" fill="#4A5550" fill-opacity="0.55"/><rect x="51.5" y="145.0" width="34" height="25.0" rx="4" fill="#5EE6B8" fill-opacity="0.55"/><rect x="51.5" y="129.2" width="34" height="15.8" rx="4" fill="#7CB9FF" fill-opacity="0.55"/><rect x="51.5" y="117.0" width="34" height="12.2" rx="4" fill="#FFD166" fill-opacity="0.55"/><rect x="51.5" y="107.3" width="34" height="9.7" rx="4" fill="#FF8C69" fill-opacity="0.55"/><rect x="51.5" y="100.7" width="34" height="6.6" rx="4" fill="#4A5550" fill-opacity="0.55"/><rect x="102.9" y="144.8" width="34" height="25.2" rx="4" fill="#5EE6B8" fill-opacity="0.55"/><rect x="102.9" y="128.8" width="34" height="16.0" rx="4" fill="#7CB9FF" fill-opacity="0.55"/><rect x="102.9" y="116.7" width="34" height="12.1" rx="4" fill="#FFD166" fill-opacity="0.55"/><rect x="102.9" y="106.9" width="34" height="9.8" rx="4" fill="#FF8C69" fill-opacity="0.55"/><rect x="102.9" y="94.8" width="34" height="12.1" rx="4" fill="#4A5550" fill-opacity="0.55"/><rect x="154.4" y="144.6" width="34" height="25.4" rx="4" fill="#5EE6B8" fill-opacity="0.55"/><rect x="154.4" y="128.5" width="34" height="16.1" rx="4" fill="#7CB9FF" fill-opacity="0.55"/><rect x="154.4" y="116.3" width="34" height="12.2" rx="4" fill="#FFD166" fill-opacity="0.55"/><rect x="154.4" y="106.5" width="34" height="9.8" rx="4" fill="#FF8C69" fill-opacity="0.55"/><rect x="154.4" y="99.8" width="34" height="6.7" rx="4" fill="#4A5550" fill-opacity="0.55"/><rect x="205.8" y="144.4" width="34" height="25.6" rx="4" fill="#5EE6B8" fill-opacity="0.55"/><rect x="205.8" y="128.2" width="34" height="16.2" rx="4" fill="#7CB9FF" fill-opacity="0.55"/><rect x="205.8" y="115.8" width="34" height="12.4" rx="4" fill="#FFD166" fill-opacity="0.55"/><rect x="205.8" y="106.0" width="34" height="9.8" rx="4" fill="#FF8C69" fill-opacity="0.55"/><rect x="205.8" y="99.2" width="34" height="6.8" rx="4" fill="#4A5550" fill-opacity="0.55"/><rect x="257.3" y="144.2" width="34" height="25.8" rx="4" fill="#5EE6B8" fill-opacity="0.55"/><rect x="257.3" y="127.8" width="34" height="16.4" rx="4" fill="#7CB9FF" fill-opacity="0.55"/><rect x="257.3" y="115.5" width="34" height="12.3" rx="4" fill="#FFD166" fill-opacity="0.55"/><rect x="257.3" y="105.6" width="34" height="9.9" rx="4" fill="#FF8C69" fill-opacity="0.55"/><rect x="257.3" y="93.0" width="34" height="12.6" rx="4" fill="#4A5550" fill-opacity="0.55"/><rect x="308.7" y="102.4" width="34" height="67.6" rx="4" fill="#C792EA" fill-opacity="0.55"/><rect x="308.7" y="76.4" width="34" height="26.0" rx="4" fill="#5EE6B8" fill-opacity="0.55"/><rect x="308.7" y="60.0" width="34" height="16.4" rx="4" fill="#7CB9FF" fill-opacity="0.55"/><rect x="308.7" y="47.5" width="34" height="12.5" rx="4" fill="#FFD166" fill-opacity="0.55"/><rect x="308.7" y="37.5" width="34" height="10.0" rx="4" fill="#FF8C69" fill-opacity="0.55"/><rect x="308.7" y="30.5" width="34" height="7.0" rx="4" fill="#4A5550" fill-opacity="0.55"/><rect x="360.2" y="101.2" width="34" height="68.8" rx="4" fill="#C792EA" fill-opacity="0.55"/><rect x="360.2" y="75.1" width="34" height="26.1" rx="4" fill="#5EE6B8" fill-opacity="0.55"/><rect x="360.2" y="58.6" width="34" height="16.5" rx="4" fill="#7CB9FF" fill-opacity="0.55"/><rect x="360.2" y="46.0" width="34" height="12.6" rx="4" fill="#FFD166" fill-opacity="0.55"/><rect x="360.2" y="36.0" width="34" height="10.0" rx="4" fill="#FF8C69" fill-opacity="0.55"/><rect x="360.2" y="29.0" width="34" height="7.0" rx="4" fill="#4A5550" fill-opacity="0.55"/><rect x="411.6" y="100.4" width="34" height="69.6" rx="4" fill="#C792EA" fill-opacity="0.55"/><rect x="411.6" y="74.2" width="34" height="26.2" rx="4" fill="#5EE6B8" fill-opacity="0.55"/><rect x="411.6" y="57.6" width="34" height="16.6" rx="4" fill="#7CB9FF" fill-opacity="0.55"/><rect x="411.6" y="45.0" width="34" height="12.6" rx="4" fill="#FFD166" fill-opacity="0.55"/><rect x="411.6" y="34.9" width="34" height="10.1" rx="4" fill="#FF8C69" fill-opacity="0.55"/><rect x="411.6" y="21.9" width="34" height="13.0" rx="4" fill="#4A5550" fill-opacity="0.55"/><rect x="463.1" y="99.6" width="34" height="70.4" rx="4" fill="#C792EA" fill-opacity="0.55"/><rect x="463.1" y="73.2" width="34" height="26.4" rx="4" fill="#5EE6B8" fill-opacity="0.55"/><rect x="463.1" y="56.6" width="34" height="16.6" rx="4" fill="#7CB9FF" fill-opacity="0.55"/><rect x="463.1" y="43.9" width="34" height="12.7" rx="4" fill="#FFD166" fill-opacity="0.55"/><rect x="463.1" y="33.7" width="34" height="10.2" rx="4" fill="#FF8C69" fill-opacity="0.55"/><rect x="463.1" y="26.6" width="34" height="7.1" rx="4" fill="#4A5550" fill-opacity="0.55"/><rect x="514.5" y="99.2" width="34" height="70.8" rx="4" fill="#C792EA" fill-opacity="0.55"/><rect x="514.5" y="72.6" width="34" height="26.6" rx="4" fill="#5EE6B8" fill-opacity="0.55"/><rect x="514.5" y="55.9" width="34" height="16.7" rx="4" fill="#7CB9FF" fill-opacity="0.55"/><rect x="514.5" y="43.1" width="34" height="12.8" rx="4" fill="#FFD166" fill-opacity="0.55"/><rect x="514.5" y="32.9" width="34" height="10.2" rx="4" fill="#FF8C69" fill-opacity="0.55"/><rect x="514.5" y="25.7" width="34" height="7.2" rx="4" fill="#4A5550" fill-opacity="0.55"/><rect x="566.0" y="98.8" width="34" height="71.2" rx="4" fill="#C792EA" fill-opacity="1"/><rect x="566.0" y="72.0" width="34" height="26.8" rx="4" fill="#5EE6B8" fill-opacity="1"/><rect x="566.0" y="55.2" width="34" height="16.8" rx="4" fill="#7CB9FF" fill-opacity="1"/><rect x="566.0" y="42.2" width="34" height="13.0" rx="4" fill="#FFD166" fill-opacity="1"/><rect x="566.0" y="32.0" width="34" height="10.2" rx="4" fill="#FF8C69" fill-opacity="1"/><rect x="566.0" y="22.7" width="34" height="9.3" rx="4" fill="#4A5550" fill-opacity="1"/>
+          </svg>
+          <div class="flex justify-between text-[10.5px] uppercase tracking-wider text-faint font-semibold px-1"><span class="">Oct</span><span class="">Nov</span><span class="">Dec</span><span class="">Jan</span><span class="">Feb</span><span class="">Mar</span><span class="">Apr</span><span class="">May</span><span class="">Jun</span><span class="">Jul</span><span class="">Aug</span><span class="text-mint">Sep</span></div>
+        </div>
+        <div class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted"><span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm" style="background:#C792EA"></span>XPML11</span><span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm" style="background:#5EE6B8"></span>HGLG11</span><span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm" style="background:#7CB9FF"></span>KNRI11</span><span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm" style="background:#FFD166"></span>MXRF11</span><span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm" style="background:#FF8C69"></span>VISC11</span><span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-sm" style="background:#4A5550"></span>Others (2)</span></div>
+      </section>
+    </div>
+
+    <!-- Allocation -->
+    <div class="grid grid-cols-3 gap-6">
+      <section class="panel">
+        <h2 class="font-display text-lg font-bold">Stocks allocation</h2>
+        <div class="flex items-center gap-5">
+          <div class="donut" style="background: radial-gradient(closest-side, #131917 62%, transparent 63%), conic-gradient(#5EE6B8 0 55%, #7CB9FF 55% 100%);"><div class="text-center"><div class="cap">USD</div><div class="font-bold num text-sm">$8,780</div></div></div>
+          <div class="flex flex-col gap-2 flex-1">
+            <div class="legend"><span class="sw bg-mint"></span>AAPL<span class="ml-auto num text-muted">55% · $4,820.00</span></div>
+            <div class="legend"><span class="sw bg-sky"></span>MSFT<span class="ml-auto num text-muted">45% · $3,960.00</span></div>
+          </div>
+        </div>
+        <div class="flex items-center gap-3 pt-3 border-t border-line"><span class="cap w-10">BRL</span><div class="flex-1 h-2 rounded-full bg-sun"></div><span class="text-[13px] num text-muted">VALE3 100% · R$3,600.00</span></div>
+      </section>
+
+      <section class="panel">
+        <h2 class="font-display text-lg font-bold">FIIs allocation</h2>
+        <div class="flex items-center gap-5">
+          <div class="donut" style="background: radial-gradient(closest-side, #131917 62%, transparent 63%), conic-gradient(#7CB9FF 0 71%, #C792EA 71% 100%);"><div class="text-center"><div class="cap">BRL</div><div class="font-bold num text-sm">R$155k</div></div></div>
+          <div class="flex flex-col gap-2 flex-1">
+            <div class="legend"><span class="sw bg-sky"></span>XPML11<span class="ml-auto num text-muted">71% · R$110,000.00</span></div>
+            <div class="legend"><span class="sw bg-lilac"></span>KNRI11<span class="ml-auto num text-muted">29% · R$45,000.00</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2 class="font-display text-lg font-bold">By type</h2>
+        <div class="flex flex-col gap-2">
+          <div class="flex items-center justify-between text-xs"><span class="cap">USD</span><span class="num text-muted">$19,130.00</span></div>
+          <div class="flex h-3 rounded-full overflow-hidden gap-0.5"><div class="bg-mint" style="width:46%"></div><div class="bg-sun" style="width:26%"></div><div class="bg-sky" style="width:17%"></div><div class="bg-peach" style="width:11%"></div></div>
+          <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-[12.5px]">
+            <div class="legend !text-[12.5px]"><span class="sw bg-mint"></span>Stock<span class="ml-auto num text-muted">$8,780</span></div>
+            <div class="legend !text-[12.5px]"><span class="sw bg-sun"></span>CDB<span class="ml-auto num text-muted">$5,000</span></div>
+            <div class="legend !text-[12.5px]"><span class="sw bg-sky"></span>Treasury<span class="ml-auto num text-muted">$3,200</span></div>
+            <div class="legend !text-[12.5px]"><span class="sw bg-peach"></span>Crypto<span class="ml-auto num text-muted">$2,150</span></div>
+          </div>
+        </div>
+        <div class="flex flex-col gap-2 pt-3 border-t border-line">
+          <div class="flex items-center justify-between text-xs"><span class="cap">BRL</span><span class="num text-muted">R$358,600.00</span></div>
+          <div class="flex h-3 rounded-full overflow-hidden gap-0.5"><div class="bg-sky" style="width:56%"></div><div class="bg-lilac" style="width:43%"></div><div class="bg-mint" style="width:1%"></div></div>
+          <div class="grid grid-cols-2 gap-x-4 gap-y-1">
+            <div class="legend !text-[12.5px]"><span class="sw bg-sky"></span>Treasury<span class="ml-auto num text-muted">R$200k</span></div>
+            <div class="legend !text-[12.5px]"><span class="sw bg-lilac"></span>FII<span class="ml-auto num text-muted">R$155k</span></div>
+            <div class="legend !text-[12.5px]"><span class="sw bg-mint"></span>Stock<span class="ml-auto num text-muted">R$3,600</span></div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Goals, by account, coming due -->
+    <div class="grid grid-cols-3 gap-6">
+      <section class="panel">
+        <div class="flex items-center justify-between"><h2 class="font-display text-lg font-bold">Goals</h2><span class="text-xs text-muted">funded by holdings</span></div>
+        <div class="flex flex-col gap-3">
+          <div class="flex flex-col gap-1.5"><div class="flex justify-between text-sm"><span class="font-medium">Emergency Fund</span><span class="text-muted num">32%</span></div><div class="bar"><div class="fill bg-sky" style="width:32%"></div><div class="lbl num">$3,200.00 / $10,000.00</div><div class="lbl num" style="color:#0A1E33; clip-path: inset(0 68% 0 0)">$3,200.00 / $10,000.00</div></div></div>
+          <div class="flex flex-col gap-1.5"><div class="flex justify-between text-sm"><span class="font-medium">House Down Payment</span><span class="text-muted num">57%</span></div><div class="bar"><div class="fill bg-sky" style="width:57%"></div><div class="lbl num">R$85,000.00 / R$150,000.00</div><div class="lbl num" style="color:#0A1E33; clip-path: inset(0 43% 0 0)">R$85,000.00 / R$150,000.00</div></div></div>
+          <div class="flex justify-between text-sm"><span class="font-medium">New Laptop Fund</span><span class="text-faint italic">Not funded yet</span></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2 class="font-display text-lg font-bold">By account</h2>
+        <div class="flex flex-col">
+          <div class="flex items-center gap-3 py-2.5 border-b border-line/70"><div class="w-9 h-9 rounded-full bg-mint/15 text-mint grid place-items-center"><iconify-icon icon="material-symbols:account-balance-outline" width="18"></iconify-icon></div><div class="flex-1"><div class="text-sm font-medium">Main Checking</div><div class="text-xs text-muted">3 holdings</div></div><span class="num font-semibold">$10,930.00</span></div>
+          <div class="flex items-center gap-3 py-2.5 border-b border-line/70"><div class="w-9 h-9 rounded-full bg-sky/15 text-sky grid place-items-center"><iconify-icon icon="material-symbols:savings-outline" width="18"></iconify-icon></div><div class="flex-1"><div class="text-sm font-medium">Emergency Fund</div><div class="text-xs text-muted">2 holdings</div></div><span class="num font-semibold">$8,200.00</span></div>
+          <div class="flex items-center gap-3 py-2.5"><div class="w-9 h-9 rounded-full bg-sun/15 text-sun grid place-items-center"><iconify-icon icon="material-symbols:trending-up" width="18"></iconify-icon></div><div class="flex-1"><div class="text-sm font-medium">XP Investimentos</div><div class="text-xs text-muted">5 holdings</div></div><span class="num font-semibold">R$358,600.00</span></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="flex items-center justify-between"><h2 class="font-display text-lg font-bold">Coming due</h2><span class="text-xs text-muted">Fixed income</span></div>
+        <div class="flex flex-col">
+          <div class="flex items-center gap-3 py-2 border-b border-line/70"><div class="w-11 shrink-0 rounded-xl bg-sun/10 text-sun flex flex-col items-center py-1"><span class="text-[10px] font-bold uppercase">Dec</span><span class="font-display font-extrabold leading-5">15</span></div><div class="min-w-0 flex-1"><div class="text-sm font-medium truncate">Used Car Savings CD</div><div class="text-xs text-muted">CDB · <span class="text-sun">in 3 months</span></div></div><span class="num text-sm font-semibold">$5,000.00</span></div>
+          <div class="flex items-center gap-3 py-2 border-b border-line/70"><div class="w-11 shrink-0 rounded-xl bg-white/5 text-muted flex flex-col items-center py-1"><span class="text-[10px] font-bold uppercase">Jun</span><span class="font-display font-extrabold leading-5">30</span></div><div class="min-w-0 flex-1"><div class="text-sm font-medium truncate">US Treasury I-Bonds</div><div class="text-xs text-muted">Treasury · 2028</div></div><span class="num text-sm font-semibold">$3,200.00</span></div>
+          <div class="flex items-center gap-3 py-2 border-b border-line/70"><div class="w-11 shrink-0 rounded-xl bg-white/5 text-muted flex flex-col items-center py-1"><span class="text-[10px] font-bold uppercase">Mar</span><span class="font-display font-extrabold leading-5">15</span></div><div class="min-w-0 flex-1"><div class="text-sm font-medium truncate">Tesouro Selic 2029</div><div class="text-xs text-muted">Treasury · 2029</div></div><span class="num text-sm font-semibold">R$140,000.00</span></div>
+          <div class="flex items-center gap-3 py-2"><div class="w-11 shrink-0 rounded-xl bg-white/5 text-muted flex flex-col items-center py-1"><span class="text-[10px] font-bold uppercase">May</span><span class="font-display font-extrabold leading-5">15</span></div><div class="min-w-0 flex-1"><div class="text-sm font-medium truncate">Tesouro IPCA+ 2035</div><div class="text-xs text-muted">Treasury · 2035</div></div><span class="num text-sm font-semibold">R$60,000.00</span></div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+</body>
+</html>
