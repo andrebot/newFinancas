@@ -8,10 +8,12 @@ entry. Open Banking sync is planned for v2.
 
 ## Getting started
 
-Requires Node 24 (`.nvmrc`) and pnpm (`corepack enable pnpm`).
+Requires Node 24 (`.nvmrc`), pnpm (`corepack enable pnpm`) and Docker.
 
 ```sh
 pnpm install        # also installs the git hooks (husky)
+cp .env.example .env
+pnpm db:up          # Postgres 18 on 127.0.0.1:5432 (db:down, db:reset, db:psql)
 pnpm dev            # api on :3000, web on :5173
 pnpm check          # lint + typecheck + unit + integration, 100% coverage gate
 pnpm test:smoke     # Playwright @smoke

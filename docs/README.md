@@ -114,6 +114,9 @@ newFinancas/
 ├── tests/e2e/              Playwright specs (span api + web), tiers by tag: @smoke, @core
 ├── .husky/                 git hooks: pre-commit `pnpm check`, pre-push smoke
 ├── .github/workflows/      CI: check + smoke on PRs, + Core E2E on main (OQ-91)
+├── infra/db/init/          Postgres first-run script: app role + test database (OQ-92)
+├── compose.yaml            local Postgres 18
+├── .env.example            config template — copy to .env (git-ignored)
 ├── eslint.config.js        one flat config for the whole repo
 ├── vitest.config.ts        runs every workspace's vitest.config.ts as a project
 └── playwright.config.ts    starts api + web, then runs tests/e2e

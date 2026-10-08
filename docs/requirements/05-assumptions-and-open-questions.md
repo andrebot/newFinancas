@@ -741,6 +741,33 @@ locally and on GitHub Actions, using the same root scripts in both places.
   and these files sit outside the coverage gate. Decided Oct 2026; any
   logic that grows beyond a one-line helper moves into tested code.
 
+### OQ-92: Local environment (task N4)
+**Confirmed, implementation (Oct 2026):**
+- **PostgreSQL 18** (`postgres:18-alpine`) via Docker Compose
+  (`compose.yaml`), bound to `127.0.0.1` only, with data in a named
+  volume.
+- **Two database roles:**
+  - `financas` is the owner: it runs migrations and owns the schema.
+  - `financas_app` is the role the API connects as. It cannot create
+    objects; the migrations (N5) grant its table privileges, without
+    `UPDATE`/`DELETE` on the audit log (NFR-AUD-1).
+  - Both are created by `infra/db/init/`.
+- **Two databases:** `financas` for development and `financas_test` for
+  E2E runs.
+- **Configuration:**
+  - A single root `.env` (git-ignored; template `.env.example`), loaded
+    by Node's native `--env-file-if-exists`. Real environment variables
+    win.
+  - The API reads only `PORT`, `DATABASE_URL` (app role) and
+    `EMAIL_PROVIDER`. The owner credentials (`DATABASE_MIGRATION_URL`)
+    exist only for the migration tooling.
+- **Zod** validates the config (`apps/api/src/config/loadConfig.ts`): all
+  errors at once, and a failure at startup. It is also the intended
+  validation library for N7 (request validation) and U3.
+- **Console email:** `EMAIL_PROVIDER=console` is the only value in v1
+  (OQ-88). The provider itself is built in `NotificationDeliveryUtility`
+  (U7).
+
 ## Refined (resolved, with a follow-up still open)
 
 *(OQ-4's legal-review follow-up below is closed for v1 by OQ-89.)*
