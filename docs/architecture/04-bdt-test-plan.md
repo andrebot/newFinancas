@@ -203,6 +203,25 @@ gap there as a missing scenario, not an acceptable gap.
 | `LoggingUtility` | Unit | Winston (the external sink) for `logActivity`; `AuditLogAccessor` for `recordAudit` — assert the two entry points stay schema-distinct (rich context vs. locked-down `{actor, timestamp, action, entityType, entityId}`, FR-7.1) |
 | `NotificationDeliveryUtility` | Unit | `NotificationInboxAccessor` (in-app) and the **email provider client** (the external sink, configured — OQ-84). In-app stores `type` + `params` only; email renders the template from the shared i18n catalog in the requested language — assert one test per v1 email type (`password.reset`) × each locale, and that switching the configured provider changes no call site |
 
+### Schema checks — embedded Postgres, unit speed, no running system
+
+Added Oct 2026 (N5, OQ-95). Not a BDT tier: these check that the
+**migrations themselves** produce the constraints and privileges the
+data model requires.
+- **Where:** `apps/api/tests/db/`.
+- **How:** the real migration SQL is applied to **PGlite**, an embedded
+  Postgres 18 running in the test process, and each check runs as the
+  application role.
+- **What they check:**
+  - the 26 tables and `uuidv7` ids;
+  - one Owner per household;
+  - the FR-4.7 claim scopes;
+  - the append-only audit log;
+  - that the app role cannot change the schema.
+- **When:** in `pnpm check` (pre-commit and CI), so they run without
+  Docker in under a second.
+- The real container is still what E2E runs against.
+
 ### Cross-boundary contract checks — CI, unit speed, no running system
 
 Added Oct 2026 for NFR-I18N-3 / OQ-82 / OQ-83. Not a BDT tier — a static

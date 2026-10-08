@@ -723,7 +723,9 @@ locally and on GitHub Actions, using the same root scripts in both places.
   - `pre-commit` runs `pnpm check`: lint, typecheck, unit + integration
     tests, and the **100% coverage gate** (Vitest thresholds on every
     `src/`, composition roots excluded).
-  - `pre-push` runs `pnpm test:smoke`.
+  - ~~`pre-push` runs `pnpm test:smoke`~~ — **removed in N5 (OQ-95):**
+    E2E needs Postgres running, and smoke is already a CI merge gate
+    (branch protection). Run `pnpm test:smoke` locally on demand.
 - **Hosted (`.github/workflows/ci.yml`):** every PR to `main` runs
   `check` then smoke, and both are merge gates. A push to `main` also
   runs Core E2E, post-merge and non-blocking, per the BDT cadence table.
@@ -888,17 +890,19 @@ locally and on GitHub Actions, using the same root scripts in both places.
     personal = owner);
   - a stale `archived_at` reference for Goals now says `completed_at`;
   - the ERD panel is updated.
-- **Real-database check:** Playwright's global setup resets and migrates
-  `financas_test` before every E2E run. The `@smoke` specs then check, as
-  the app role:
-  - the 26 tables and `uuidv7` ids;
-  - one Owner per household;
-  - the FR-4.7 scopes;
-  - an append-only audit log;
-  - that the app role cannot change the schema.
-
-  CI starts Postgres with `docker compose`, and the local pre-push hook
-  needs `pnpm db:up`.
+- **Schema checks run on PGlite** (embedded Postgres 18, in-process,
+  same approach as the `financas` app's integration tests):
+  - `apps/api/tests/db/` applies the real migrations to an in-memory
+    database and checks, as the app role:
+    - the 26 tables and `uuidv7` ids;
+    - one Owner per household;
+    - the FR-4.7 scopes;
+    - an append-only audit log;
+    - that the app role cannot change the schema.
+  - They run in `pnpm check`, so no Docker is needed to commit or push.
+- **E2E keeps the real container:** Playwright's global setup resets
+  and migrates `financas_test` before every run, and CI starts Postgres
+  with `docker compose`.
 - **Node ≥ 24.10** (for `process.loadEnvFile`).
 
 ## Refined (resolved, with a follow-up still open)

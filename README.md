@@ -23,10 +23,12 @@ pnpm test:e2e:core  # Playwright @core (Core E2E)
 pnpm test:e2e       # every Playwright test (Full E2E)
 ```
 
-Git hooks: **pre-commit** runs `pnpm check`, **pre-push** runs
-`pnpm test:smoke` (needs `pnpm db:up`; E2E resets and migrates the
-`financas_test` database). GitHub Actions runs the same on every PR, plus Core
-E2E after a merge to `main` (OQ-91).
+Git hook: **pre-commit** runs `pnpm check`, including the schema checks
+on an embedded Postgres (PGlite), so no database needs to be running.
+E2E (`test:smoke` and the rest) needs `pnpm db:up`; it resets and
+migrates the `financas_test` database before each run.
+GitHub Actions runs `check` and smoke on every PR (both required to
+merge), plus Core E2E after a merge to `main` (OQ-91).
 
 Playwright needs a browser: `pnpm exec playwright install chromium`, or
 point it at a local one (fish: `set -Ux PLAYWRIGHT_CHROMIUM_PATH /usr/bin/chromium`).
