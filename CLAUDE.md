@@ -29,6 +29,8 @@ in `docs/README.md`.
 
 - TypeScript everywhere; purely functional — no classes.
 - Every function documented; every function unit-tested (100% coverage).
+  Exception: tooling config files (`eslint.config.js`, `*.config.ts`) —
+  documented but not unit-tested (OQ-91).
 - Cyclomatic complexity ≤ 7; at most 7 parameters per function.
 - Tests live outside `src/`, never co-located.
 - Test level follows the component's role (BDT): Engines/Flows unit,

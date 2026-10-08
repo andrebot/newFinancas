@@ -733,6 +733,13 @@ locally and on GitHub Actions, using the same root scripts in both places.
   still only a candidate.
 - **Contract checks:** N7 and N8 add theirs to `pnpm check`, so they run
   in both places without touching the hooks or the workflow.
+- **Tooling config files are exempt from the unit-test rule:** root config
+  files (`eslint.config.js`, `vitest.config.ts`, `playwright.config.ts`,
+  each workspace's `vite`/`vitest` config) are configuration, not
+  application code. They must still be documented and linted, but helpers
+  inside them (e.g. `scopeTo` in `eslint.config.js`) are not unit-tested,
+  and these files sit outside the coverage gate. Decided Oct 2026; any
+  logic that grows beyond a one-line helper moves into tested code.
 
 ## Refined (resolved, with a follow-up still open)
 
