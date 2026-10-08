@@ -905,6 +905,33 @@ locally and on GitHub Actions, using the same root scripts in both places.
   with `docker compose`.
 - **Node ≥ 24.10** (for `process.loadEnvFile`).
 
+### OQ-96: How are Resource Accessors tested?
+**Confirmed (Oct 2026): against embedded Postgres (PGlite), not a mocked
+driver.**
+- **The approach:**
+  - Accessors receive their Drizzle database as a parameter.
+  - Tests inject PGlite with the real migrations applied, the same
+    approach as the `financas` app's integration tests.
+  - Each Accessor gets real behaviour tests: round-trips, database
+    errors translated to domain errors, and the application-level
+    invariants the data model places inside Accessors (archive cascades,
+    backdated-balance walks, `seedDefaults` exactly once, the 100%
+    allocation cap, cursor pagination).
+- **Why not the strict "mock the driver" reading:**
+  - Mocks of Drizzle's chained builder mirror the implementation and
+    break on refactors.
+  - They cannot catch SQL that is wrong but plausible, so those bugs
+    would surface only in the deliberately partial E2E suite.
+- **Still with real infrastructure:** concurrency, locking and
+  connection pooling (E2E and load, against the container).
+- **Unchanged:** Managers still mock the Accessors (BDT integration
+  tier).
+- **To settle at task 13 (A1 UserAccessor), the first Accessor:** test
+  isolation. The default is one migrated database per test file with a
+  rolled-back transaction per test; an Accessor that opens its own
+  transaction would need savepoints or a per-file reset instead.
+- Recorded in `04-bdt-test-plan.md`.
+
 ## Refined (resolved, with a follow-up still open)
 
 *(OQ-4's legal-review follow-up below is closed for v1 by OQ-89.)*
