@@ -2,7 +2,9 @@ import js from '@eslint/js';
 import { configs, plugins } from 'eslint-config-airbnb-extended';
 
 const WEB_FILES = ['apps/web/**/*.{ts,tsx}'];
-const NODE_FILES = ['apps/api/**/*.ts', 'packages/**/*.ts', '*.{js,ts}', 'tests/e2e/**/*.ts'];
+const NODE_FILES = [
+  'apps/api/**/*.ts', 'packages/**/*.ts', 'tools/**/*.ts', '*.{js,ts}', 'tests/e2e/**/*.ts',
+];
 const DEV_ONLY_FILES = ['**/tests/**', '**/*.config.{js,ts}'];
 const NO_CLASSES = 'Purely functional codebase — no classes (NFR-MAINT-1).';
 

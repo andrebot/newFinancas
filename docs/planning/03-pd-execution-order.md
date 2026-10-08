@@ -34,7 +34,7 @@ identity screens, the rest as later slices use them.
 - [x] **5.** `N7` API contract tooling
 - [x] **6.** `N8` i18n catalog package
 - [x] **7.** `N5` Schema + migrations baseline
-- [ ] **8.** `N12` Local operations (backup/restore)
+- [x] **8.** `N12` Local operations (backup/restore)
 - [ ] **9.** `N6` Reference data + seeds
 
 ## Slice 1 — Identity & household

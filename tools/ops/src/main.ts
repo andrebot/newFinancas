@@ -1,0 +1,80 @@
+// Composition root for the local operations (OQ-97): wires real I/O into the
+// tested operations and maps the command line to one of them. No logic lives
+// here, so it is excluded from unit coverage; the restore drill exercises it.
+/* eslint-disable no-console */
+import { spawn } from 'node:child_process';
+import { createReadStream, createWriteStream } from 'node:fs';
+import {
+  access, mkdir, readdir, rm,
+} from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { pipeline } from 'node:stream/promises';
+import { parseRestoreArgs } from './args';
+import { resolveBackupConfig } from './config';
+import {
+  runBackup, runRestore, runRestoreDrill, type DockerFiles, type OpsDeps,
+} from './operations';
+
+const REPO_ROOT = path.resolve(import.meta.dirname, '../../..');
+
+const docker: OpsDeps['docker'] = async (args, files: DockerFiles = {}) => {
+  const child = spawn('docker', [...args], { cwd: REPO_ROOT, stdio: ['pipe', 'pipe', 'inherit'] });
+  const exited = new Promise<number | null>((resolve, reject) => {
+    child.on('error', reject);
+    child.on('close', resolve);
+  });
+  const input = files.stdin
+    ? pipeline(createReadStream(files.stdin), child.stdin)
+    : child.stdin.end();
+  const chunks: Buffer[] = [];
+  const output = files.stdout
+    ? pipeline(child.stdout, createWriteStream(files.stdout, { mode: 0o600 }))
+    : child.stdout.forEach((chunk: Buffer) => {
+      chunks.push(chunk);
+    });
+  await Promise.all([input, output]);
+  const code = await exited;
+  if (code !== 0) throw new Error(`docker ${args.join(' ')} exited with ${code}`);
+  return Buffer.concat(chunks).toString('utf8');
+};
+
+const deps: OpsDeps = {
+  docker,
+  listDir: (dir) => readdir(dir).catch(() => []),
+  // Backups hold household financial data: owner-only directory and files.
+  ensureDir: async (dir) => {
+    await mkdir(dir, { recursive: true, mode: 0o700 });
+  },
+  remove: (file) => rm(file),
+  exists: (file) => access(file).then(() => true, () => false),
+  now: () => new Date(),
+  log: (message) => console.log(message),
+};
+
+const config = resolveBackupConfig(process.env, os.homedir());
+const [command, ...rest] = process.argv.slice(2);
+
+const commands: Record<string, () => Promise<unknown>> = {
+  backup: () => runBackup(deps, config),
+  restore: () => runRestore(deps, config, parseRestoreArgs(rest)),
+  'restore-drill': async () => {
+    const result = await runRestoreDrill(deps, config);
+    const { tables, mismatches } = result;
+    console.log(`Drill: ${tables} tables compared, ${mismatches.length} mismatch(es)`);
+    result.mismatches.forEach((line) => console.log(`  ${line}`));
+    if (result.mismatches.length > 0) process.exitCode = 1;
+  },
+};
+
+const run = command ? commands[command] : undefined;
+
+if (!run) {
+  console.error('Usage: ops <backup | restore [file] [--into-live] | restore-drill>');
+  process.exitCode = 2;
+} else {
+  run().catch((error: unknown) => {
+    console.error(error instanceof Error ? error.message : error);
+    process.exitCode = 1;
+  });
+}
