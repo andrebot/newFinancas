@@ -768,6 +768,56 @@ locally and on GitHub Actions, using the same root scripts in both places.
   (OQ-88). The provider itself is built in `NotificationDeliveryUtility`
   (U7).
 
+### OQ-93: API contract tooling (task N7)
+**Confirmed, implementation (Oct 2026):**
+- **Generation:** `@hey-api/openapi-ts` (pinned exactly, since it is
+  pre-1.0) generates TypeScript types and **Zod schemas** from
+  `openapi.yaml` into `packages/api-types/src/generated/`.
+  - `@financas/api-types` exports the types.
+  - `@financas/api-types/zod` exports the schemas, so type-only
+    consumers don't bundle Zod.
+  - The output is committed and never hand-edited.
+- **The spec is the single source:** routes validate with
+  `validate(target, zSchema)` (`apps/api/src/http/validation.ts`),
+  using the generated schemas. Nobody hand-writes a request schema.
+  - Query values arrive as text, so a `query` target is first converted
+    using the schema's own field types (numbers, booleans, one-item
+    arrays). Other strings are left alone.
+- **Contract check (`pnpm check:contract`, part of `pnpm check`):**
+  - lints the spec as OpenAPI 3.1 with Redocly's `minimal` ruleset
+    (telemetry off);
+  - regenerates the code, and fails if the committed output is stale.
+- **Spec corrections made while adding the check:**
+  - Every operation now has an `operationId` (74 added, 8 existed). The
+    generated names come from these, e.g. `zCreateGoalBody`.
+  - The 27 `nullable: true` properties became 3.1 type unions
+    (`type: [X, "null"]`, and `null` added to the one enum). OpenAPI 3.1
+    dropped `nullable`, so those fields were not actually nullable in
+    the contract.
+  - "an Goal" typos in five summaries were fixed.
+  - Field meanings and routes are unchanged, so the version stays 1.1.0.
+- **Error envelope:** everything leaves through one handler
+  (`apps/api/src/http/errorHandler.ts`) as `components/schemas/Error`.
+  Tests parse every error body with the generated `zError` schema.
+  Generic codes:
+
+  | Code | Status | When |
+  |---|---|---|
+  | `validation.failed` | 422 | request validation failed; `details[]` holds `{field, code, params}` |
+  | `request.invalid` | Hono's own status | e.g. 400 for malformed JSON |
+  | `route.not_found` | 404 | unknown route |
+  | `internal.unexpected` | 500 | anything else; reveals nothing and is passed to `onUnexpectedError` |
+
+  - The field-level codes (`field.required`, `field.invalid_type`,
+    `field.invalid_option`, `field.invalid`, `object.unknown_keys`,
+    `string.format`, `number.multiple_of`, and
+    `number|string|array|date|value.min|max`) are listed in
+    `FIELD_DETAIL_CODES`, for N8's catalog-completeness check.
+  - Until U1 sets it on every request, `correlationId` falls back to a
+    new UUID.
+  - Until U2 provides logging, `onUnexpectedError` is console output
+    from the composition root.
+
 ## Refined (resolved, with a follow-up still open)
 
 *(OQ-4's legal-review follow-up below is closed for v1 by OQ-89.)*

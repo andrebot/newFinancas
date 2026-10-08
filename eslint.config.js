@@ -21,6 +21,8 @@ export default [
     ignores: [
       '**/node_modules/', '**/dist/', '**/coverage/', 'playwright-report/', 'test-results/',
       'docs/', '.claude/', '.superdesign/',
+      // Generated from openapi.yaml (N7); regenerate, never hand-edit.
+      'packages/api-types/src/generated/',
     ],
   },
 
@@ -44,6 +46,12 @@ export default [
 
   // Node rules for everything that runs on Node.
   ...scopeTo([plugins.node, ...configs.node.recommended], NODE_FILES),
+  {
+    name: 'project/node-version',
+    files: NODE_FILES,
+    // Matches `engines` / .nvmrc; workspace package.json files don't repeat it.
+    settings: { node: { version: '>=24.0.0' } },
+  },
 
   // Tests and tool configs may import devDependencies.
   {

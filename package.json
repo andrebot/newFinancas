@@ -22,7 +22,9 @@
     "test:smoke": "playwright test --grep @smoke",
     "test:e2e:core": "playwright test --grep @core --pass-with-no-tests",
     "test:e2e": "playwright test",
-    "check": "pnpm lint && pnpm typecheck && pnpm test:coverage"
+    "generate:api": "pnpm --filter @financas/api-types generate",
+    "check:contract": "pnpm --filter @financas/api-types lint:spec && pnpm generate:api && (git diff --quiet -- packages/api-types/src/generated && test -z \"$(git ls-files --others --exclude-standard -- packages/api-types/src/generated)\" || (echo 'Generated API code is stale: commit the regenerated packages/api-types/src/generated' && exit 1))",
+    "check": "pnpm lint && pnpm typecheck && pnpm check:contract && pnpm test:coverage"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

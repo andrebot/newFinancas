@@ -92,7 +92,10 @@ exist for either.
   **`message` is English for developers/logs only — the UI never shows
   it**; the frontend localizes `code` + `params` from the shared i18n
   catalog, and a test fails if any code lacks a translation.
-  `correlationId` matches the server logs (NFR-OBS-1).
+  `correlationId` matches the server logs (NFR-OBS-1). The generic codes
+  (`validation.failed`, `request.invalid`, `route.not_found`,
+  `internal.unexpected`) and the field-level `details[].code` values are
+  listed in OQ-93.
 - **Status code conventions, applied consistently rather than per-file:**
   `403` for "authenticated but not permitted" (authorization failures —
   `AuthorizationUtility` rejections); `404` for "doesn't exist, or isn't
@@ -206,5 +209,7 @@ itself when it was first introduced:
 - Rate limiting, request-size limits, and CORS policy are infrastructure
   decisions, not modeled here — same category as the scheduled-trigger
   infrastructure questions already parked in the VBD backend doc's §7.
-- No `operationId` values are set on any operation — cheap to add later
-  for codegen tooling, omitted here since nothing yet consumes them.
+- ~~No `operationId` values are set~~: done in N7. Every operation has
+  one, and they name the generated code (OQ-93). Also corrected in N7:
+  `nullable: true` (not valid OpenAPI 3.1) became `type: [X, "null"]`
+  type unions.
