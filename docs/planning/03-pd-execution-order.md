@@ -29,7 +29,7 @@ identity screens, the rest as later slices use them.
 
 - [x] **1.** `N1` Project plan
 - [x] **2.** `N2` Repository + monorepo setup
-- [ ] **3.** `N3` Local CI (scripts + hooks)
+- [x] **3.** `N3` Local CI (scripts + hooks)
 - [ ] **4.** `N4` Local environment (Docker Postgres, console email)
 - [ ] **5.** `N7` API contract tooling
 - [ ] **6.** `N8` i18n catalog package

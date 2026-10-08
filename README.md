@@ -11,14 +11,20 @@ entry. Open Banking sync is planned for v2.
 Requires Node 24 (`.nvmrc`) and pnpm (`corepack enable pnpm`).
 
 ```sh
-pnpm install
+pnpm install        # also installs the git hooks (husky)
 pnpm dev            # api on :3000, web on :5173
-pnpm lint
-pnpm typecheck
-pnpm test           # unit + integration (Vitest); test:coverage for the report
-pnpm test:e2e       # Playwright; first run: pnpm exec playwright install chromium
-                    # (or set PLAYWRIGHT_CHROMIUM_PATH=/usr/bin/chromium)
+pnpm check          # lint + typecheck + unit + integration, 100% coverage gate
+pnpm test:smoke     # Playwright @smoke
+pnpm test:e2e:core  # Playwright @core (Core E2E)
+pnpm test:e2e       # every Playwright test (Full E2E)
 ```
+
+Git hooks: **pre-commit** runs `pnpm check`, **pre-push** runs
+`pnpm test:smoke`. GitHub Actions runs the same on every PR, plus Core
+E2E after a merge to `main` (OQ-91).
+
+Playwright needs a browser: `pnpm exec playwright install chromium`, or
+point it at a local one (fish: `set -Ux PLAYWRIGHT_CHROMIUM_PATH /usr/bin/chromium`).
 
 ## Documentation
 

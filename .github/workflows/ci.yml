@@ -1,0 +1,70 @@
+# Hosted twin of the local hooks (BDT cadence, docs/architecture/04-bdt-test-plan.md):
+#   every PR      -> check (lint, typecheck, unit + integration, 100% coverage) + smoke
+#   push to main  -> the same, plus Core E2E (post-merge, never blocks a merge)
+# Full E2E and load stay on demand.
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check
+
+  smoke:
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:smoke
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: smoke-report
+          path: playwright-report/
+
+  core-e2e:
+    if: github.event_name == 'push'
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e:core
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: core-e2e-report
+          path: playwright-report/
