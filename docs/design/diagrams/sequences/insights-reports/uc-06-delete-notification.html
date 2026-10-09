@@ -67,14 +67,13 @@ sequenceDiagram
 
     User->>API: DELETE /notifications/:notificationId
     API->>IM: deleteNotification(actor, notificationId)
-    IM->>NA: findById(notificationId)
-    alt notification does not belong to actor, or doesn't exist
-        NA-->>IM: not found
+    IM->>NA: deleteForUser(actor, notificationId)
+    Note over NA: ownership check and delete in one statement (OQ-105)
+    alt not the actor's, or doesn't exist
+        NA-->>IM: not deleted
         IM-->>API: NotFound
         API-->>User: 404 notification.not_found
-    else belongs to actor
-        NA-->>IM: found
-        IM->>NA: delete(notificationId)
+    else the actor's
         NA-->>IM: deleted
         IM-->>LOG: logActivity(correlationId, actor, "DeleteNotification")
         IM-->>API: deleted

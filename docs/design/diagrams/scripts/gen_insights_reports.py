@@ -157,7 +157,7 @@ sequenceDiagram
 UCS.append(dict(
     filename="uc-05-view-notifications.html",
     title="View Notification Inbox",
-    subtitle='<span class="route">GET /notifications</span> &mdash; FR-6.10/OQ-45. Opening the inbox marks every notification currently shown as seen &mdash; a bulk update, not a per-item action.',
+    subtitle='<span class="route">GET /notifications</span> + <span class="route">POST /notifications/seen</span> &mdash; FR-6.10/OQ-45/OQ-105. Listing changes nothing (the bell can poll it for the unseen count); opening the inbox then marks exactly the notifications shown as seen.',
     mermaid="""
 sequenceDiagram
 """ + P_CORE + """
@@ -166,17 +166,24 @@ sequenceDiagram
     User->>API: GET /notifications
     API->>IM: listNotifications(actor)
     IM->>NA: listByUser(actor)
-    NA-->>IM: [{notificationId, type, message, seenAt}, ...]
-    IM->>NA: markAllSeen(actor)
-    Note over NA: bulk update &mdash; every notification currently shown<br/>gets seenAt = now (FR-6.10)
-    NA-->>IM: marked
+    Note over NA: read-only &mdash; newest first (OQ-105)
+    NA-->>IM: [{id, type, params, seenAt, createdAt}, ...]
     IM-->>API: notifications[]
-    API-->>User: 200 OK [{notificationId, type, message, seenAt}, ...]
+    API-->>User: 200 OK {data: [{id, type, params, seenAt, createdAt}, ...]}
+    Note over User,API: the user opens the inbox
+    User->>API: POST /notifications/seen {notificationIds}
+    API->>IM: markNotificationsSeen(actor, notificationIds)
+    IM->>NA: markSeen(actor, notificationIds, now)
+    Note over NA: only these IDs, only the actor's, only unseen &mdash;<br/>one that arrived after the list stays unseen (FR-6.10)
+    NA-->>IM: count marked
+    IM-->>API: done
+    API-->>User: 204 No Content
 """,
     notes="""
     <ul>
       <li><strong>Oct 2026 review:</strong> each item is <code>{type, params, seen, createdAt}</code> &mdash; never text (OQ-82). The frontend renders it from the shared i18n catalog and resolves IDs (e.g. a deleted inviter shows as &ldquo;Someone&rdquo;). v1 types: <code>invitation.received</code>, <code>holding.matured</code>; actions call their own use cases (accept/decline invitation, archive holding).</li>
-      <li><strong>Standing infrastructure, no active producer yet</strong> &mdash; both of FR-6.5's stated v1 triggers (budget threshold, Open Banking sync failure) are currently inactive (one removed, one deferred), so in practice this inbox is empty today. The mechanism is fully wired and ready regardless (see <code>02-data-model.md</code>'s Insights domain).</li>
+      <li><strong>v1 producers (OQ-68):</strong> Invite User (<code>invitation.received</code>) and the daily job (<code>holding.matured</code>).</li>
+      <li><strong>Why two calls (OQ-105):</strong> a GET that marked everything seen could not feed the bell's unseen badge without clearing it, broke HTTP's safe-read rule (a prefetch or retry would clear it), and would also mark a notification arriving between the list and the mark.</li>
       <li>See FR-6.10, OQ-45.</li>
     </ul>
 """,
@@ -195,14 +202,13 @@ sequenceDiagram
 
     User->>API: DELETE /notifications/:notificationId
     API->>IM: deleteNotification(actor, notificationId)
-    IM->>NA: findById(notificationId)
-    alt notification does not belong to actor, or doesn't exist
-        NA-->>IM: not found
+    IM->>NA: deleteForUser(actor, notificationId)
+    Note over NA: ownership check and delete in one statement (OQ-105)
+    alt not the actor's, or doesn't exist
+        NA-->>IM: not deleted
         IM-->>API: NotFound
         API-->>User: 404 notification.not_found
-    else belongs to actor
-        NA-->>IM: found
-        IM->>NA: delete(notificationId)
+    else the actor's
         NA-->>IM: deleted
         IM-->>LOG: logActivity(correlationId, actor, "DeleteNotification")
         IM-->>API: deleted

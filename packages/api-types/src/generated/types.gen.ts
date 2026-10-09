@@ -2517,6 +2517,24 @@ export type ListNotificationsResponses = {
 
 export type ListNotificationsResponse = ListNotificationsResponses[keyof ListNotificationsResponses];
 
+export type MarkNotificationsSeenData = {
+    body: {
+        notificationIds: Array<string>;
+    };
+    path?: never;
+    query?: never;
+    url: '/notifications/seen';
+};
+
+export type MarkNotificationsSeenResponses = {
+    /**
+     * No Content
+     */
+    204: void;
+};
+
+export type MarkNotificationsSeenResponse = MarkNotificationsSeenResponses[keyof MarkNotificationsSeenResponses];
+
 export type DeleteNotificationData = {
     body?: never;
     path: {

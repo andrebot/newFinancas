@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>App Shell — Notification Routing</h1>
-  <p class="subtitle"><span class="route">GET /notifications</span>, <span class="route">DELETE /notifications/:id</span> + the owning Experience's own endpoint.</p>
+  <p class="subtitle"><span class="route">GET /notifications</span>, <span class="route">POST /notifications/seen</span>, <span class="route">DELETE /notifications/:id</span> + the owning Experience's own endpoint.</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -65,11 +65,13 @@ sequenceDiagram
     participant MP as Manage Profile<br/>Experience
     participant TI as Track Investments<br/>Experience
     participant API as Backend API
+    SHELL->>API: GET /notifications (via Review Insights) — read-only, polled
+    API-->>SHELL: [{id, type, params, seenAt}]
+    SHELL-->>BELL: badge = count of seenAt null
     User->>BELL: open the bell
     BELL->>SHELL: emit inboxOpened
-    SHELL->>API: GET /notifications (via Review Insights)
-    API-->>SHELL: [{type, params}] — marked seen
     SHELL-->>BELL: render each via I18nUtility (type → catalog string, IDs resolved)
+    SHELL->>API: POST /notifications/seen {ids shown} (OQ-105)
     alt invitation.received — Accept
         User->>BELL: Accept
         BELL->>SHELL: emit action {type: invitation.received, accept, params}
