@@ -1224,6 +1224,39 @@ places, nothing tunable buried in a module.**
   - uc-05, uc-06 and the App Shell notification-routing EBD sequence are
     regenerated.
 
+### OQ-106: Sessions — current device, rotation and reuse detection (task A2)
+**Confirmed, implementation (Oct 2026):**
+- **The access token carries its session (`sid` claim)**, alongside the
+  user (`sub`).
+  - Before this, nothing told the API which session was "current", yet
+    logout, "sign out all others" (FR-1.3) and change password all need
+    it.
+  - `AuthenticationUtility.signAccessToken({userId, sessionId})`;
+    `verifyAccessToken` returns both and rejects a token missing either.
+  - Login and MFA recovery now open the session **before** signing the
+    token.
+  - The spec's `Session` gains **`current`** (computed by the Manager),
+    so the list can show "this device". `deviceInfo` may be null.
+- **Refresh rotation with reuse detection** (promised in OQ-100).
+  `sessions` gains `previous_refresh_token_hash` and a sliding
+  `expires_at` in migration `0003`, which ends existing sessions so
+  `expires_at` can be required. `SessionAccessor.rotate(presented, new,
+  expiresAt, now)` returns one of three outcomes:
+  - **rotated:** the presented token was current and unexpired, and is
+    swapped atomically;
+  - **reused:** it matched the token the last rotation replaced, so it
+    was likely stolen and **the session is deleted**;
+  - **invalid:** anything else, unknown or expired.
+- **Ending sessions:**
+  - `deleteForUser(userId, sessionId)` serves logout and revoking a
+    device, with ownership check and delete in one statement (both cases
+    → 404);
+  - `deleteAllForUser`;
+  - `deleteAllExceptCurrent`.
+- `listByUser(userId, now)` lists active sessions only, most recently
+  used first.
+- uc-14, uc-15, uc-16, uc-17 and uc-20 are regenerated.
+
 ## Refined (resolved, with a follow-up still open)
 
 *(OQ-4's legal-review follow-up below is closed for v1 by OQ-89.)*

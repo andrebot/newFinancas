@@ -7,19 +7,30 @@ import { authentication } from '../../config/constants';
 
 const { accessToken, opaqueTokenBytes } = authentication;
 
+/** Who an access token speaks for, and from which session (device). */
+export interface AccessTokenClaims {
+  readonly userId: string;
+  readonly sessionId: string;
+}
+
 /**
- * Signs an access token for a user.
+ * Signs an access token for a user's session. The session ID (`sid`) lets the
+ * API tell the current device apart: logout, "sign out all others" (OQ-106).
  *
  * @param key - HS256 signing key.
- * @param userId - Subject.
+ * @param claims - User (subject) and session.
  * @param now - Issue time.
  * @returns The compact JWT.
  */
-export const signAccessToken = (key: Uint8Array, userId: string, now: Date): Promise<string> => {
+export const signAccessToken = (
+  key: Uint8Array,
+  claims: AccessTokenClaims,
+  now: Date,
+): Promise<string> => {
   const issuedAt = Math.floor(now.getTime() / 1000);
-  return new SignJWT({})
+  return new SignJWT({ sid: claims.sessionId })
     .setProtectedHeader({ alg: accessToken.algorithm })
-    .setSubject(userId)
+    .setSubject(claims.userId)
     .setIssuer(accessToken.issuer)
     .setAudience(accessToken.audience)
     .setIssuedAt(issuedAt)
@@ -33,13 +44,14 @@ export const signAccessToken = (key: Uint8Array, userId: string, now: Date): Pro
  * @param key - HS256 signing key.
  * @param token - The compact JWT from the `Authorization` header.
  * @param now - Current time.
- * @returns The user ID, or `undefined` for an invalid, expired or foreign token.
+ * @returns User and session, or `undefined` for an invalid, expired or foreign
+ *   token, or one missing either claim.
  */
 export const verifyAccessToken = async (
   key: Uint8Array,
   token: string,
   now: Date,
-): Promise<string | undefined> => {
+): Promise<AccessTokenClaims | undefined> => {
   try {
     const { payload } = await jwtVerify(token, key, {
       algorithms: [accessToken.algorithm],
@@ -47,7 +59,10 @@ export const verifyAccessToken = async (
       audience: accessToken.audience,
       currentDate: now,
     });
-    return payload.sub;
+    const { sub: userId, sid: sessionId } = payload;
+    return typeof userId === 'string' && typeof sessionId === 'string'
+      ? { userId, sessionId }
+      : undefined;
   } catch {
     return undefined;
   }

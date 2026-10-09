@@ -2216,9 +2216,10 @@ components:
       type: object
       properties:
         id: { type: string, format: uuid }
-        deviceInfo: { type: string }
+        deviceInfo: { type: [string, "null"] }
         createdAt: { type: string, format: date-time }
         lastUsedAt: { type: string, format: date-time }
+        current: { type: boolean, description: "True for the session making this request (OQ-106) — the device the user is on" }
 
     Household:
       type: object

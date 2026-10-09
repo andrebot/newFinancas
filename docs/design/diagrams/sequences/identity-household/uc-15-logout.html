@@ -67,7 +67,7 @@ sequenceDiagram
 
     User->>API: POST /auth/logout
     API->>IM: logout(actor, currentSessionId)
-    IM->>SA: delete(currentSessionId)
+    IM->>SA: deleteForUser(actor, currentSessionId)
     Note over SA: invalidates this refresh token only (FR-1.9) &mdash;<br/>the access token simply expires shortly after, unrevoked
     SA-->>IM: revoked
     IM-->>LOG: logActivity(correlationId, actor, "Logout")

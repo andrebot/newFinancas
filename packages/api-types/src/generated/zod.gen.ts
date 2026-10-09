@@ -44,9 +44,10 @@ export const zAuthTokens = z.object({
 
 export const zSession = z.object({
     id: z.uuid().optional(),
-    deviceInfo: z.string().optional(),
+    deviceInfo: z.string().nullish(),
     createdAt: z.iso.datetime().optional(),
-    lastUsedAt: z.iso.datetime().optional()
+    lastUsedAt: z.iso.datetime().optional(),
+    current: z.boolean().optional()
 });
 
 export const zHousehold = z.object({

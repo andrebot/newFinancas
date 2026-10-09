@@ -22,6 +22,13 @@
       "when": 1791490735779,
       "tag": "0002_positive_amounts",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791513421862,
+      "tag": "0003_session_rotation",
+      "breakpoints": true
     }
   ]
 }
