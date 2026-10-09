@@ -1,12 +1,12 @@
-import { randomUUID } from 'node:crypto';
 import type { Error as ErrorBody } from '@financas/api-types';
 import type { Context, ErrorHandler, NotFoundHandler } from 'hono';
 import { HTTPException } from 'hono/http-exception';
+import { newCorrelationId, type CorrelationId } from '../utilities/correlationId';
 import { isApiError, type ApiErrorInit } from './apiError';
 
-/** Hono environment shared by the app; `correlationId` is set by CorrelationIdUtility (U1). */
+/** Hono environment shared by the app; `correlationId` is set by `correlationIdMiddleware`. */
 export interface AppEnv {
-  Variables: { correlationId?: string };
+  Variables: { correlationId?: CorrelationId };
 }
 
 const UNEXPECTED: ApiErrorInit = {
@@ -31,13 +31,14 @@ export const toErrorBody = (init: ApiErrorInit, correlationId: string): ErrorBod
 });
 
 /**
- * Reads the request's correlation id; generates one until U1 sets it on every request.
+ * Reads the request's correlation ID (set by `correlationIdMiddleware`), with a
+ * fresh one as a defensive default for responses produced outside that chain.
  *
  * @param c - The request context.
- * @returns The correlation id.
+ * @returns The correlation ID.
  */
-export const correlationIdOf = (c: Context<AppEnv>): string => (
-  c.get('correlationId') ?? randomUUID()
+export const correlationIdOf = (c: Context<AppEnv>): CorrelationId => (
+  c.get('correlationId') ?? newCorrelationId()
 );
 
 /**

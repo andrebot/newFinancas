@@ -92,7 +92,10 @@ exist for either.
   **`message` is English for developers/logs only — the UI never shows
   it**; the frontend localizes `code` + `params` from the shared i18n
   catalog, and a test fails if any code lacks a translation.
-  `correlationId` matches the server logs (NFR-OBS-1). The generic codes
+  `correlationId` matches the server logs (NFR-OBS-1). Every response
+  also carries it in an **`X-Correlation-Id` header**. A client may send
+  its own (a UUID) to tie a user action to the server logs (OQ-99). The
+  generic codes
   (`validation.failed`, `request.invalid`, `route.not_found`,
   `internal.unexpected`) and the field-level `details[].code` values are
   listed in OQ-93.

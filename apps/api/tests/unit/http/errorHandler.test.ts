@@ -8,6 +8,7 @@ import { createApiError } from '../../../src/http/apiError';
 import {
   correlationIdOf, createErrorHandler, handleNotFound, toErrorBody, type AppEnv,
 } from '../../../src/http/errorHandler';
+import { newCorrelationId, type CorrelationId } from '../../../src/utilities/correlationId';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
@@ -15,10 +16,10 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
  * Builds an app whose only route throws `thrown`, wired with the real handlers.
  *
  * @param thrown - What the route throws.
- * @param correlationId - Optional id set on the context, as U1 will do.
+ * @param correlationId - Optional ID set on the context, as `correlationIdMiddleware` does.
  * @returns The app and the unexpected-error spy.
  */
-const appThrowing = (thrown: unknown, correlationId?: string) => {
+const appThrowing = (thrown: unknown, correlationId?: CorrelationId) => {
   const onUnexpected = vi.fn();
   const app = new Hono<AppEnv>();
   app.onError(createErrorHandler(onUnexpected));
@@ -57,12 +58,13 @@ describe('toErrorBody', () => {
 
 describe('correlationIdOf', () => {
   it('uses the id set on the request, or generates a UUID', async () => {
-    const { app } = appThrowing(new Error('x'), 'req-123');
+    const id = newCorrelationId(() => '0199c5a0-0000-7000-8000-000000000001');
+    const { app } = appThrowing(new Error('x'), id);
     const withId = zError.parse(await (await app.request('/boom')).json());
     const withoutIdResponse = await appThrowing(new Error('x')).app.request('/boom');
     const withoutId = zError.parse(await withoutIdResponse.json());
 
-    expect(withId.error.correlationId).toBe('req-123');
+    expect(withId.error.correlationId).toBe(id);
     expect(withoutId.error.correlationId).toMatch(UUID);
     expect(correlationIdOf).toBeTypeOf('function');
   });

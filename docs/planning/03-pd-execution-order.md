@@ -41,7 +41,7 @@ identity screens, the rest as later slices use them.
 
 *Done when:* register, enable MFA, create a household, sign in, manage profile and members — in the browser, against the real API.
 
-- [ ] **10.** `U1` CorrelationIdUtility
+- [x] **10.** `U1` CorrelationIdUtility
 - [ ] **11.** `U4` AuthenticationUtility
 - [ ] **12.** `U6` ServiceBusUtility
 - [ ] **13.** `A1` UserAccessor

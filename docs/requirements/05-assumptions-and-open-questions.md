@@ -815,8 +815,7 @@ locally and on GitHub Actions, using the same root scripts in both places.
     `string.format`, `number.multiple_of`, and
     `number|string|array|date|value.min|max`) are now typed by the i18n
     catalog (OQ-94).
-  - Until U1 sets it on every request, `correlationId` falls back to a
-    new UUID.
+  - `correlationId` is set on every request by U1's middleware (OQ-99).
   - Until U2 provides logging, `onUnexpectedError` is console output
     from the composition root.
 
@@ -1001,6 +1000,28 @@ driver.**
   can't log in. Each later slice extends the seed through its own
   Accessors, rather than hand-writing rows whose consistency those
   Accessors own.
+
+### OQ-99: How does the correlation ID travel? (task U1)
+**Confirmed, implementation (Oct 2026):**
+- **Passed explicitly as a parameter**, from the HTTP layer to Managers,
+  Engines, Accessors, `logActivity` and service-bus messages, exactly as
+  the sequence diagrams show (`logActivity(correlationId, actor, …)`). It
+  is never read from ambient state such as AsyncLocalStorage: that would
+  be a hidden dependency every test must set up, which BDT treats as a
+  smell. `CorrelationId` is a branded type, so only the utility can create
+  one.
+- **CorrelationIdUtility** (`apps/api/src/utilities/correlationId.ts`)
+  provides `newCorrelationId`, `isValidCorrelationId` and
+  `resolveCorrelationId`. It's pure, with the UUID generator injectable,
+  and unit-tested with nothing mocked (BDT).
+- **HTTP:**
+  - `correlationIdMiddleware` runs first on every request.
+  - A client may send `X-Correlation-Id`. It is kept only if it is a
+    well-formed UUID (lower-cased); anything else is replaced, so nothing
+    odd reaches the logs.
+  - The ID is echoed in the `X-Correlation-Id` response header, and the
+    error envelope carries the same value.
+- `apps/api/src/utilities/` is where the VBD Utilities live.
 
 ## Refined (resolved, with a follow-up still open)
 
