@@ -177,7 +177,7 @@ sequenceDiagram
         API-->>User: 409 invitation.not_pending
     else pending and actor matches
         IA-->>IM: status = accepted
-        IM->>HA: insert membership(householdId, actor, role, joinedAt=now)
+        IM->>HA: addMember(householdId, actor, role)
         HA-->>IM: membership created
         IM-->>LOG: logActivity(correlationId, actor, "AcceptInvitation")
         IM-->>LOG: recordAudit(actor, "HouseholdMembership", householdId)
@@ -294,7 +294,7 @@ sequenceDiagram
         API-->>User: 403 auth.forbidden
     else authorized
         AZ-->>IM: allowed
-        IM->>HA: transitionMembership(householdId, userId, "removed")
+        IM->>HA: transitionMembership(householdId, userId, actor)
         alt userId is the Owner
             HA-->>IM: rejected (FR-1.11/OQ-27 — Owner can only leave by their own action)
             IM-->>API: Forbidden
@@ -331,7 +331,7 @@ sequenceDiagram
     User->>API: DELETE /households/:householdId/members/me
     API->>IM: removeMember(actor, householdId, actor)
     Note over IM: actor == target — leaving is always self-service,<br/>the authorization check is skipped entirely (FR-1.11)
-    IM->>HA: transitionMembership(householdId, actor, "removed")
+    IM->>HA: transitionMembership(householdId, actor, actor)
     alt actor is the Owner AND another member remains
         HA-->>IM: membership removed,<br/>longest-tenured Admin (else Member, else Viewer) promoted to Owner
         Note over HA: one atomic write — FR-1.18&#39;s succession rule,<br/>never observably zero or two Owners (OQ-25)
@@ -516,7 +516,7 @@ sequenceDiagram
     User->>API: DELETE /users/me
     API->>IM: deleteUser(actor)
     loop for each household actor belongs to
-        IM->>HA: transitionMembership(householdId, actor, "removed")
+        IM->>HA: transitionMembership(householdId, actor, actor)
         opt actor is the Owner of this household
             Note over HA: same FR-1.18 succession/dissolution logic<br/>as Leave Household (UC-08) — one atomic write
         end

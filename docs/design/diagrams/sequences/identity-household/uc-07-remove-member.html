@@ -75,7 +75,7 @@ sequenceDiagram
         API-->>User: 403 auth.forbidden
     else authorized
         AZ-->>IM: allowed
-        IM->>HA: transitionMembership(householdId, userId, "removed")
+        IM->>HA: transitionMembership(householdId, userId, actor)
         alt userId is the Owner
             HA-->>IM: rejected (FR-1.11/OQ-27 — Owner can only leave by their own action)
             IM-->>API: Forbidden

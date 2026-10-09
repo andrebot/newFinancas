@@ -76,7 +76,7 @@ sequenceDiagram
     User->>API: DELETE /users/me
     API->>IM: deleteUser(actor)
     loop for each household actor belongs to
-        IM->>HA: transitionMembership(householdId, actor, "removed")
+        IM->>HA: transitionMembership(householdId, actor, actor)
         opt actor is the Owner of this household
             Note over HA: same FR-1.18 succession/dissolution logic<br/>as Leave Household (UC-08) — one atomic write
         end

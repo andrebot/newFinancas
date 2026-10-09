@@ -1257,6 +1257,37 @@ places, nothing tunable buried in a module.**
   used first.
 - uc-14, uc-15, uc-16, uc-17 and uc-20 are regenerated.
 
+### OQ-107: Household membership rules in the Accessor (task A3)
+**Confirmed, implementation (Oct 2026):**
+- **HouseholdAccessor enforces the membership rules as part of its
+  writes,** each in one transaction, after locking the household's
+  membership rows with `SELECT … FOR UPDATE`, so a concurrent change
+  can't race the decision. The one-Owner unique index remains the final
+  guard. The rules:
+  - **Creating** a household adds its creator as Owner atomically.
+  - **`updateRole`** sets Admin/Member/Viewer only and never touches the
+    Owner (`is_owner`, FR-1.12). The Owner role moves only by transfer
+    or succession.
+  - **`transitionMembership(householdId, userId, actorId)`** (remove or
+    leave):
+    - a non-Owner is removed by anyone the Manager allowed;
+    - **the Owner can only leave by their own action** (otherwise
+      `owner_protected`, FR-1.11/OQ-27);
+    - when the Owner leaves, the **longest-tenured Admin, else Member,
+      else Viewer** becomes Owner in the same transaction, ties broken by
+      join time;
+    - if nobody remains, **the household is dissolved** (FR-1.18).
+
+    The sequence diagrams passed the literal `"removed"`; they now pass
+    the actor, which the rule needs.
+  - **`transferOwnership`** demotes the Owner to Admin, then promotes the
+    target, in one transaction (FR-1.20/OQ-28). It refuses a non-Owner
+    caller, a non-member target, or the Owner themself.
+- **`listMembers` joins `users`** for names and email. It's read-only;
+  `users` is still written only by UserAccessor.
+- Accept Invitation now calls `addMember` (`already_member` when they're
+  already in). The diagrams are regenerated.
+
 ## Refined (resolved, with a follow-up still open)
 
 *(OQ-4's legal-review follow-up below is closed for v1 by OQ-89.)*
