@@ -75,26 +75,43 @@ describe('SessionAccessor', () => {
       expect(again.status).toBe('rotated');
     }));
 
-    it('ends the session when a replaced token is reused', test(async (sessions, { ana }) => {
+    it('is stale for a replaced token, changing nothing', test(async (sessions, { ana }) => {
       await sessions.insert(ana, hash('a'), null, days(30));
       await sessions.rotate(hash('a'), hash('b'), days(31), days(1));
 
       const replay = await sessions.rotate(hash('a'), hash('x'), days(31), days(1));
-      const afterwards = await sessions.rotate(hash('b'), hash('c'), days(31), days(1));
+      const current = await sessions.rotate(hash('b'), hash('c'), days(32), days(2));
 
-      expect(replay).toEqual({ status: 'reused', userId: ana });
-      expect(afterwards).toEqual({ status: 'invalid' });
-      expect(await sessions.listByUser(ana, NOW)).toEqual([]);
+      expect(replay).toEqual({ status: 'stale' });
+      expect(current.status).toBe('rotated');
     }));
 
-    it('rejects an unknown or expired token', test(async (sessions, { ana }) => {
+    it('is stale for an unknown or expired token', test(async (sessions, { ana }) => {
       await sessions.insert(ana, hash('a'), null, days(30));
 
       const unknown = await sessions.rotate(hash('z'), hash('b'), days(31), NOW);
       const expired = await sessions.rotate(hash('a'), hash('b'), days(60), days(30));
 
-      expect(unknown).toEqual({ status: 'invalid' });
-      expect(expired).toEqual({ status: 'invalid' });
+      expect(unknown).toEqual({ status: 'stale' });
+      expect(expired).toEqual({ status: 'stale' });
+    }));
+  });
+
+  describe('findByReplacedToken', () => {
+    it('finds the session a replayed token belongs to', test(async (sessions, { ana }) => {
+      const session = await sessions.insert(ana, hash('a'), null, days(30));
+      await sessions.rotate(hash('a'), hash('b'), days(31), days(1));
+
+      expect(await sessions.findByReplacedToken(hash('a')))
+        .toEqual({ id: session.id, userId: ana });
+    }));
+
+    it('finds nothing for a current or unknown token', test(async (sessions, { ana }) => {
+      await sessions.insert(ana, hash('a'), null, days(30));
+      await sessions.rotate(hash('a'), hash('b'), days(31), days(1));
+
+      expect(await sessions.findByReplacedToken(hash('b'))).toBeUndefined();
+      expect(await sessions.findByReplacedToken(hash('z'))).toBeUndefined();
     }));
   });
 

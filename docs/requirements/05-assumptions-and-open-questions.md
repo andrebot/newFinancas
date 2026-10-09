@@ -1240,13 +1240,11 @@ places, nothing tunable buried in a module.**
 - **Refresh rotation with reuse detection** (promised in OQ-100).
   `sessions` gains `previous_refresh_token_hash` and a sliding
   `expires_at` in migration `0003`, which ends existing sessions so
-  `expires_at` can be required. `SessionAccessor.rotate(presented, new,
-  expiresAt, now)` returns one of three outcomes:
-  - **rotated:** the presented token was current and unexpired, and is
-    swapped atomically;
-  - **reused:** it matched the token the last rotation replaced, so it
-    was likely stolen and **the session is deleted**;
-  - **invalid:** anything else, unknown or expired.
+  `expires_at` can be required.
+  - *Revised by OQ-108:* `SessionAccessor.rotate` is now a guarded write
+    that returns `rotated` or `stale`.
+  - `findByReplacedToken` reports a replayed token as a fact.
+  - IdentityManager decides to end that session.
 - **Ending sessions:**
   - `deleteForUser(userId, sessionId)` serves logout and revoking a
     device, with ownership check and delete in one statement (both cases
@@ -1298,6 +1296,43 @@ places, nothing tunable buried in a module.**
     ownership lists 409;
   - uc-07, uc-08, uc-09, uc-10 and uc-12 are regenerated with the
     decisions in IdentityManager (a leave retries `stale` up to 3 times).
+
+### OQ-108: Review of the earlier Accessors against OQ-107
+**Confirmed, Oct 2026:** after OQ-107 ("Managers decide, Accessors
+apply"), the four Accessors built before it were reviewed.
+- **SessionAccessor.`rotate` contained a policy:** on a replayed
+  (already-replaced) refresh token, it *decided* to end the session.
+  Treating a replay as theft is a security decision, so it now belongs
+  to IdentityManager.
+  - `rotate` is a **guarded write**: it applies only while the presented
+    token is the session's current, unexpired one, and returns
+    `rotated` or `stale`.
+  - New **`findByReplacedToken(hash)`** reports the session whose last
+    rotation replaced that token.
+  - **IdentityManager (task 22), on `stale`:** call
+    `findByReplacedToken`; if a session is found, it's a replay, so call
+    `deleteForUser` and answer 401 `auth.refresh_invalid`; otherwise
+    answer 401 `auth.refresh_invalid`.
+- **UserAccessor trimmed emails:** `insert` and `findByEmail` cleaned up
+  input. Normalising input is the Manager's job (ValidationUtility); the
+  Accessor now stores and matches what it is given. The case-insensitive
+  match stays, because it mirrors the unique index on `lower(email)`, a
+  fact about the data.
+- **Confirmed as conforming:**
+  - single-use consumption (recovery codes, reset tokens) guarded on
+    "unused" and "not past its stored expiry";
+  - outcomes reported by constraints (`email_taken`,
+    `still_referenced`, `already_member`);
+  - user-scoped guards (`deleteForUser`, `markSeen`);
+  - the active-only session list;
+  - AuditLogAccessor, which is pure data.
+- **Docs repaired:** the OQ-107 rewrite in #17 had accidentally removed
+  this file's "Refined (resolved, with a follow-up still open)" section
+  heading and its note. Both are restored.
+
+## Refined (resolved, with a follow-up still open)
+
+*(OQ-4's legal-review follow-up below is closed for v1 by OQ-89.)*
 
 ### OQ-4: Target market, language, and regulatory framework
 **Confirmed:** Brazil (BRL) is the **primary** market, but the app must also

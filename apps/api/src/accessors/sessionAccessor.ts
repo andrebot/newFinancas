@@ -5,8 +5,8 @@ import type { Database } from '../db/database';
 import { sessions } from '../db/schema';
 
 // SessionAccessor (A2, VBD): one row per signed-in device, backed by its refresh
-// token (OQ-30). Stores only token hashes. Refresh tokens rotate on every use;
-// presenting the one it replaced again ends the session (OQ-100, OQ-106).
+// token (OQ-30). Stores only token hashes and applies data changes; what to do
+// about a replayed refresh token is IdentityManager's decision (OQ-107/OQ-108).
 
 /** A signed-in device, as the sessions list shows it. */
 export interface Session {
@@ -18,12 +18,9 @@ export interface Session {
   readonly expiresAt: Date;
 }
 
-/** What a refresh attempt found. */
+/** A guarded rotation: applied, or the token is not a session's current, unexpired one. */
 export type RotateResult = | { readonly status: 'rotated'; readonly session: Session }
-  /** The replaced token was presented again — likely stolen; the session is gone. */
-  | { readonly status: 'reused'; readonly userId: string }
-  /** Unknown or expired token. */
-  | { readonly status: 'invalid' };
+  | { readonly status: 'stale' };
 
 const columns = {
   id: sessions.id,
@@ -65,15 +62,15 @@ const createSessionAccessor = (db: Database) => ({
   },
 
   /**
-   * Exchanges a refresh token for a new one, atomically. If the presented token
-   * is the one the session last replaced, it was used twice — the session is
-   * ended (OQ-100). Anything else unknown or expired is simply invalid.
+   * Replaces a session's refresh token, atomically. Guarded: applies only while
+   * the presented token is still the session's current one and unexpired;
+   * otherwise nothing changes. The replaced token is remembered (OQ-106).
    *
    * @param presentedHash - Hash of the token the device sent.
    * @param newHash - Hash of the replacement token.
    * @param expiresAt - New expiry (sliding).
    * @param now - Current time.
-   * @returns `rotated` with the session, `reused` (session deleted), or `invalid`.
+   * @returns `rotated` with the session, or `stale`.
    */
   rotate: async (
     presentedHash: string,
@@ -90,12 +87,20 @@ const createSessionAccessor = (db: Database) => ({
       })
       .where(and(eq(sessions.refreshTokenHash, presentedHash), gt(sessions.expiresAt, now)))
       .returning(columns);
-    if (rotated) return { status: 'rotated', session: rotated };
+    return rotated ? { status: 'rotated', session: rotated } : { status: 'stale' };
+  },
 
-    const [reused] = await db.delete(sessions)
-      .where(eq(sessions.previousRefreshTokenHash, presentedHash))
-      .returning({ userId: sessions.userId });
-    return reused ? { status: 'reused', userId: reused.userId } : { status: 'invalid' };
+  /**
+   * Finds the session whose last rotation replaced this token — a fact the
+   * Manager uses to recognise a replayed (likely stolen) refresh token (OQ-100).
+   *
+   * @param tokenHash - Hash of the token presented.
+   * @returns The session's id and owner, or `undefined`.
+   */
+  findByReplacedToken: async (tokenHash: string) => {
+    const [row] = await db.select({ id: sessions.id, userId: sessions.userId }).from(sessions)
+      .where(eq(sessions.previousRefreshTokenHash, tokenHash));
+    return row;
   },
 
   /**
