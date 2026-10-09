@@ -1460,6 +1460,10 @@ export type RevokeInvitationErrors = {
      */
     403: Error;
     /**
+     * Code: `invitation.not_found` — no such invitation in this household (OQ-109).
+     */
+    404: Error;
+    /**
      * Invitation is no longer pending.
      */
     409: Error;

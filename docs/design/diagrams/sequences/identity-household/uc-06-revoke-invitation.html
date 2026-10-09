@@ -75,17 +75,25 @@ sequenceDiagram
         API-->>User: 403 auth.forbidden
     else authorized
         AZ-->>IM: allowed
-        IM->>IA: revoke(invitationId)
-        alt invitation not pending
-            IA-->>IM: rejected
+        IM->>IA: findById(invitationId)
+        IA-->>IM: invitation (or none)
+        alt none, or it belongs to another household
+            Note over IM: the URL&#39;s household must own it &mdash; otherwise an Admin<br/>of one household could revoke another&#39;s invitations (OQ-109)
+            IM-->>API: NotFound
+            API-->>User: 404 invitation.not_found
+        else this household&#39;s invitation
+        IM->>IA: resolve(invitationId, revoked, now)
+        alt no longer pending
+            IA-->>IM: stale
             IM-->>API: Conflict
             API-->>User: 409 invitation.not_pending
-        else pending
-            IA-->>IM: status = revoked
+        else resolved
+            IA-->>IM: resolved
             IM-->>LOG: logActivity(correlationId, actor, "RevokeInvitation")
             IM-->>LOG: recordAudit(actor, "Invitation", invitationId)
             IM-->>API: revoked
             API-->>User: 204 No Content
+        end
         end
     end
     </pre>

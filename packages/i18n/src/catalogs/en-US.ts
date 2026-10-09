@@ -18,6 +18,7 @@ const enUS: Catalog = {
     'household.member_not_found': 'This person is not a member of the household.',
     'holding.not_market_priced': "This holding doesn't use a manual market value.",
     'invitation.invitee_not_registered': 'No registered user has this email.',
+    'invitation.not_found': 'Invitation not found.',
     'invitation.not_pending': 'This invitation is no longer pending.',
     'notification.not_found': 'Notification not found.',
     'password.too_short': 'Password must be at least {min, plural, one {# character} other {# characters}}.',

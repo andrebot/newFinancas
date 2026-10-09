@@ -63,6 +63,7 @@ sequenceDiagram
     participant API as Hono route
     participant IM as IdentityManager
     participant AZ as AuthorizationUtility
+    participant UA as UserAccessor
     participant IA as InvitationAccessor
     participant ND as NotificationDeliveryUtility
     participant LOG as LoggingUtility
@@ -76,12 +77,16 @@ sequenceDiagram
         API-->>User: 403 auth.forbidden
     else authorized
         AZ-->>IM: allowed
-        IM->>IA: insert(householdId, email, role, invitedBy=actor)
+        IM->>UA: findByEmail(email)
         alt no registered user matches email
-            IA-->>IM: rejected (FR-1.19)
+            UA-->>IM: none
+            Note over IM: FR-1.19 is the Manager&#39;s rule (OQ-109)
             IM-->>API: NotFound
             API-->>User: 404 invitation.invitee_not_registered
         else user exists
+            UA-->>IM: invitedUserId
+            IM->>IA: insert({householdId, invitedUserId, invitedByUserId: actor, role})
+            Note over IA: the NOT NULL FK guarantees the invitee exists &mdash;<br/>invitee_missing if they were deleted meanwhile (→ 404)
             IA-->>IM: invitationId (status: pending)
             IM-->>ND: deliver(invitedUserId, type = "invitation.received", params = {invitationId, householdId, inviterUserId, role})
             IM-->>LOG: logActivity(correlationId, actor, "InviteUser")

@@ -30,6 +30,7 @@ const ptBR = {
     'household.member_not_found': 'Esta pessoa não é membro da casa.',
     'holding.not_market_priced': 'Este investimento não usa valor de mercado manual.',
     'invitation.invitee_not_registered': 'Não há usuário cadastrado com este e-mail.',
+    'invitation.not_found': 'Convite não encontrado.',
     'invitation.not_pending': 'Este convite não está mais pendente.',
     'notification.not_found': 'Notificação não encontrada.',
     'password.too_short': 'A senha precisa ter pelo menos {min, plural, one {# caractere} other {# caracteres}}.',
