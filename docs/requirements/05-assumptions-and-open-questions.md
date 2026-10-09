@@ -1110,8 +1110,19 @@ places, nothing tunable buried in a module.**
 - **At-most-once, in memory:** a crash mid-delivery loses the message.
   This is accepted for v1 (VBD §3.0). The visible risk is a household
   left without its default categories if the process dies between
-  creating it and seeding them. If that matters later, the remedy is an
-  outbox table, without changing any Manager.
+  creating it and seeding them. If that matters later, there are two
+  remedies:
+  - **A transactional outbox:** the event is written in the same
+    database transaction as the business data, and a dispatcher delivers
+    it afterwards. That makes delivery at-least-once, so handlers must be
+    idempotent. It's not free: Managers must publish inside the write's
+    transaction, or the Accessor writes the outbox row.
+  - **A cheaper safety net:** a startup check that seeds the defaults for
+    households that have none, which needs `seedDefaults` to be safe to
+    re-run.
+
+  Worth revisiting once money-moving events such as
+  `transaction.import.requested` are live.
 - **Not built:** request/reply. §3.0 allows it, but no use case needs it.
 
 ## Refined (resolved, with a follow-up still open)

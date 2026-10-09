@@ -6,7 +6,7 @@ import type {
 // ServiceBusUtility (U6, VBD §3.0): publish/subscribe between Managers. v1 is an
 // in-process bus; another transport can replace it without touching a Manager.
 // Delivery is fire-and-forget and at-most-once — a crash mid-delivery loses the
-// message (accepted for v1, OQ-102).
+// message (accepted for v1; OQ-102 has the outbox option and what it would cost).
 
 export type {
   BusEvents, BusHandler, BusMessage, Topic,
