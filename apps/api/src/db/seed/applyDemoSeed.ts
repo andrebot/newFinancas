@@ -1,12 +1,9 @@
-import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
+import type { Database } from '../database';
 import {
   accountMonthBalances, accounts, categories, creditCardMonthBalances, creditCards,
   householdMemberships, households, indexRateValues, subcategories, users,
 } from '../schema';
 import type { DemoSeed } from './demoSeed';
-
-/** Any Drizzle Postgres database: node-postgres in the app, PGlite in tests (OQ-96). */
-export type Database = PgDatabase<PgQueryResultHKT>;
 
 /**
  * Inserts the demo seed in foreign-key order, in one transaction. Rows that

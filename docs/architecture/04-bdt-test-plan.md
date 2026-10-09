@@ -96,6 +96,9 @@ mocked DB driver.
 - **What stays with real infrastructure:** concurrency, locking and
   connection pooling (PGlite is a single connection) remain with E2E and
   load testing against the real container.
+- **Isolation (OQ-103):** one migrated PGlite per test file; each test
+  runs as the app role inside a transaction that is always rolled back
+  (`withRollback`).
 
 Every row below is "translation + the one invariant documented in the
 VBD doc's component table". If a test needs anything beyond the injected

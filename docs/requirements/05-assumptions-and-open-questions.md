@@ -925,10 +925,9 @@ driver.**
   connection pooling (E2E and load, against the container).
 - **Unchanged:** Managers still mock the Accessors (BDT integration
   tier).
-- **To settle at task 13 (A1 UserAccessor), the first Accessor:** test
-  isolation. The default is one migrated database per test file with a
-  rolled-back transaction per test; an Accessor that opens its own
-  transaction would need savepoints or a per-file reset instead.
+- **Test isolation, settled at task 13 (OQ-103):** one migrated
+  database per test file, and a rolled-back transaction per test, run as
+  the app role. An Accessor's own transactions become savepoints.
 - Recorded in `04-bdt-test-plan.md`.
 
 ### OQ-97: Local operations — backups and log files (task N12)
@@ -1124,6 +1123,43 @@ places, nothing tunable buried in a module.**
   Worth revisiting once money-moving events such as
   `transaction.import.requested` are live.
 - **Not built:** request/reply. §3.0 allows it, but no use case needs it.
+
+### OQ-103: Resource Accessor conventions (task A1, the first Accessor)
+**Confirmed, implementation (Oct 2026), applied to every Accessor:**
+- **Shape:**
+  - `createXAccessor(db)` in `apps/api/src/accessors/`, a factory of
+    plain functions (no classes).
+  - `db` is any Drizzle database or transaction (`src/db/database.ts`),
+    so a caller's transaction flows through.
+  - It returns **domain objects, not rows**. Credentials come back only
+    from the lookups that need them (e.g. `findByEmail` for login,
+    `findPasswordHash`); `findById` has none.
+- **Expected outcomes are typed results**, which the compiler makes the
+  Manager handle:
+  - e.g. `{ ok: false, reason: 'email_taken' }`, `'still_referenced'`, or
+    `undefined` for "not found".
+  - Postgres codes are read by `pgErrorCode` (`src/db/errors.ts`), which
+    follows Drizzle's wrapped `cause` chain.
+  - Only unexpected failures throw, and tests prove they aren't
+    swallowed.
+- **A statement that can fail in an expected way runs in its own
+  `db.transaction`**, which becomes a savepoint inside a caller's
+  transaction, so the failure can't poison it.
+- **Single-use secrets are consumed atomically:** one `UPDATE … WHERE
+  unused [AND unexpired] RETURNING`, so two simultaneous requests can't
+  both use the same recovery code or reset link.
+- **Tests (settles OQ-96's open point):**
+  - one migrated PGlite per test file;
+  - each test runs **as the application role, inside a transaction that
+    is always rolled back** (`withRollback`).
+- **Gap fixed in uc-18 (password reset):** nothing marked a reset token
+  used, so a link worked until it expired. It now stores only the
+  token's hash and consumes it atomically
+  (`UserAccessor.consumeResetToken`). The new password's length is
+  checked *before* consuming, so a too-short password doesn't burn the
+  link (for task 22).
+- Still pending from OQ-98: the demo users get real credentials with
+  IdentityManager (task 22).
 
 ## Refined (resolved, with a follow-up still open)
 

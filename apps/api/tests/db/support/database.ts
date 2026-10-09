@@ -1,7 +1,9 @@
 import path from 'node:path';
 import { PGlite, type Transaction } from '@electric-sql/pglite';
+import { sql, TransactionRollbackError } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/pglite';
 import { migrate } from 'drizzle-orm/pglite/migrator';
+import type { Database } from '../../../src/db/database';
 
 const MIGRATIONS = path.resolve(import.meta.dirname, '../../../drizzle');
 
@@ -98,3 +100,27 @@ export const insertUser = (
    VALUES ($1, 'x', 'Test', 'User', 'x') RETURNING id`,
   [email],
 );
+
+/**
+ * Runs an Accessor test against the migrated database, as the application role,
+ * inside a transaction that is always rolled back (OQ-103): tests never see each
+ * other's rows, and an Accessor's own transactions become savepoints.
+ *
+ * @param pglite - A migrated database.
+ * @param work - The test, given a Drizzle database to build the Accessor with.
+ * @returns Resolves once the test ran and its writes were undone.
+ */
+export const withRollback = async (
+  pglite: PGlite,
+  work: (db: Database) => Promise<void>,
+): Promise<void> => {
+  try {
+    await drizzle(pglite).transaction(async (tx) => {
+      await tx.execute(sql`SET LOCAL ROLE financas_app`);
+      await work(tx);
+      tx.rollback();
+    });
+  } catch (error) {
+    if (!(error instanceof TransactionRollbackError)) throw error;
+  }
+};

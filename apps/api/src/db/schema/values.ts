@@ -16,3 +16,6 @@ export const TRANSACTION_EFFECTS = [
   'movement', 'transfer', 'bill_payment', 'investment_trade',
 ] as const;
 export const TRANSACTION_SOURCES = ['manual', 'schedule'] as const;
+
+export type Theme = (typeof THEMES)[number];
+export type Language = (typeof LANGUAGES)[number];
