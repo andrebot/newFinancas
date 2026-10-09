@@ -1161,6 +1161,40 @@ places, nothing tunable buried in a module.**
 - Still pending from OQ-98: the demo users get real credentials with
   IdentityManager (task 22).
 
+### OQ-104: Audit-log export, CSV and the app timezone (task A15)
+**Confirmed, implementation (Oct 2026):**
+- **AuditLogAccessor** has `insert` and `listForExport(householdId,
+  startDate, endDate)` only. There is no update or delete, matching the
+  missing database privileges. Entries come back oldest first, and the
+  actor is null for system actions.
+- **The CSV is ReportingEngine's job** (stakeholder correction: "audit
+  logs are a form of reporting"; the VBD doc already lists "export
+  formatting" under ReportingEngine). The flow:
+  1. InsightsManager reads the entries via
+     `AuditLogAccessor.listForExport`.
+  2. It hands them to `ReportingEngine.auditLogCsv(entries)`
+     (`src/engines/reporting/`).
+  3. That writes the columns `timestamp, actor_id, action, entity_type,
+     entity_id`, with `system` for a null actor.
+
+  The engine's RFC 4180 writer (`csv.ts`, with quoting and CRLF) guards
+  against **formula injection**: a text cell starting with `=`, `+`, `-`,
+  `@`, tab or CR gets a leading `'`, so it opens as text in a spreadsheet
+  (OWASP). The v2 transactions export (FR-6.4) will use the same writer.
+  The rest of ReportingEngine is still task E2. The export diagram is
+  regenerated.
+- **App timezone:** `calendar.timeZone = 'America/Sao_Paulo'`
+  (`config/constants.ts`). A date like 2026-10-08 means that day in São
+  Paulo, both ends inclusive, for this export and every later date range
+  or month boundary. Postgres converts with `AT TIME ZONE`, so
+  daylight-saving rules are applied; PGlite agrees, including 2018's
+  daylight-saving start. Stored instants stay UTC.
+- **For U2 (LoggingUtility):** all 42 `recordAudit(actor, entityType,
+  entityId)` calls in the sequence diagrams omit the **action** (required
+  by FR-7.1) and the **household** (the export's filter).
+  `AuditLogAccessor.insert` requires both, so `recordAudit` must pass
+  them.
+
 ## Refined (resolved, with a follow-up still open)
 
 *(OQ-4's legal-review follow-up below is closed for v1 by OQ-89.)*
