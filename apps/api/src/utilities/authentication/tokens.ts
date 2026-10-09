@@ -1,24 +1,37 @@
 import { createHash } from 'node:crypto';
 import { jwtVerify, SignJWT } from 'jose';
 import { authentication } from '../../config/constants';
+import { SYSTEM_ROLES, type SystemRole } from '../../db/schema/values';
 
 // Tokens (OQ-30, OQ-100): a short-lived JWT access token, and opaque random
 // tokens (refresh, password reset) stored only as hashes. Policy: config/constants.
 
 const { accessToken, opaqueTokenBytes } = authentication;
 
-/** Who an access token speaks for, and from which session (device). */
+/** Who an access token speaks for, from which session (device), with which platform role. */
 export interface AccessTokenClaims {
   readonly userId: string;
   readonly sessionId: string;
+  /** Carried in the token so no request reads it from the database (OQ-111). */
+  readonly systemRole: SystemRole;
 }
+
+/**
+ * Tells whether a claim value is a known system role.
+ *
+ * @param value - The `role` claim.
+ * @returns Whether it is USER or ADMIN.
+ */
+const isSystemRole = (value: unknown): value is SystemRole => (
+  (SYSTEM_ROLES as readonly unknown[]).includes(value)
+);
 
 /**
  * Signs an access token for a user's session. The session ID (`sid`) lets the
  * API tell the current device apart: logout, "sign out all others" (OQ-106).
  *
  * @param key - HS256 signing key.
- * @param claims - User (subject) and session.
+ * @param claims - User (subject), session and system role.
  * @param now - Issue time.
  * @returns The compact JWT.
  */
@@ -28,7 +41,7 @@ export const signAccessToken = (
   now: Date,
 ): Promise<string> => {
   const issuedAt = Math.floor(now.getTime() / 1000);
-  return new SignJWT({ sid: claims.sessionId })
+  return new SignJWT({ sid: claims.sessionId, role: claims.systemRole })
     .setProtectedHeader({ alg: accessToken.algorithm })
     .setSubject(claims.userId)
     .setIssuer(accessToken.issuer)
@@ -44,8 +57,8 @@ export const signAccessToken = (
  * @param key - HS256 signing key.
  * @param token - The compact JWT from the `Authorization` header.
  * @param now - Current time.
- * @returns User and session, or `undefined` for an invalid, expired or foreign
- *   token, or one missing either claim.
+ * @returns User, session and system role, or `undefined` for an invalid,
+ *   expired or foreign token, or one missing a claim or with an unknown role.
  */
 export const verifyAccessToken = async (
   key: Uint8Array,
@@ -59,9 +72,9 @@ export const verifyAccessToken = async (
       audience: accessToken.audience,
       currentDate: now,
     });
-    const { sub: userId, sid: sessionId } = payload;
-    return typeof userId === 'string' && typeof sessionId === 'string'
-      ? { userId, sessionId }
+    const { sub: userId, sid: sessionId, role: systemRole } = payload;
+    return typeof userId === 'string' && typeof sessionId === 'string' && isSystemRole(systemRole)
+      ? { userId, sessionId, systemRole }
       : undefined;
   } catch {
     return undefined;

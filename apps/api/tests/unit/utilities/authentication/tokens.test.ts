@@ -8,28 +8,44 @@ import {
 const KEY = new TextEncoder().encode('k'.repeat(32));
 const OTHER_KEY = new TextEncoder().encode('x'.repeat(32));
 const T0 = new Date('2026-10-08T12:00:00Z');
-const CLAIMS = { userId: 'user-1', sessionId: 'session-1' };
+const CLAIMS = { userId: 'user-1', sessionId: 'session-1', systemRole: 'USER' } as const;
 const after = (seconds: number) => new Date(T0.getTime() + seconds * 1000);
 
 describe('access tokens (JWT, HS256)', () => {
-  it('verify within 15 minutes and return the user', async () => {
+  it('verify within 15 minutes and return the user, session and system role', async () => {
     const token = await signAccessToken(KEY, CLAIMS, T0);
 
     expect(authentication.accessToken.ttlSeconds).toBe(900);
     expect(await verifyAccessToken(KEY, token, after(899))).toEqual(CLAIMS);
   });
 
-  it('reject a validly signed token that lacks the session claim', async () => {
-    const noSession = await new SignJWT({})
-      .setProtectedHeader({ alg: 'HS256' })
-      .setSubject('user-1')
-      .setIssuer('financas-api')
-      .setAudience('financas-web')
-      .setIssuedAt(Math.floor(T0.getTime() / 1000))
-      .setExpirationTime(Math.floor(T0.getTime() / 1000) + 60)
-      .sign(KEY);
+  /**
+   * Signs a valid token with hand-picked claims.
+   *
+   * @param claims - The payload besides the subject.
+   * @returns The compact JWT.
+   */
+  const signWith = (claims: Record<string, unknown>) => new SignJWT(claims)
+    .setProtectedHeader({ alg: 'HS256' })
+    .setSubject('user-1')
+    .setIssuer('financas-api')
+    .setAudience('financas-web')
+    .setIssuedAt(Math.floor(T0.getTime() / 1000))
+    .setExpirationTime(Math.floor(T0.getTime() / 1000) + 60)
+    .sign(KEY);
 
-    expect(await verifyAccessToken(KEY, noSession, T0)).toBeUndefined();
+  it.each([
+    ['the session claim', { role: 'USER' }],
+    ['the system role', { sid: 'session-1' }],
+    ['a known system role', { sid: 'session-1', role: 'ROOT' }],
+  ])('reject a validly signed token that lacks %s', async (_missing, claims) => {
+    expect(await verifyAccessToken(KEY, await signWith(claims), T0)).toBeUndefined();
+  });
+
+  it('carry an ADMIN role', async () => {
+    const admin = { ...CLAIMS, systemRole: 'ADMIN' } as const;
+
+    expect(await verifyAccessToken(KEY, await signAccessToken(KEY, admin, T0), T0)).toEqual(admin);
   });
 
   it('expire after 15 minutes', async () => {

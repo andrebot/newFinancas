@@ -2,6 +2,9 @@
 // (transaction kinds, asset types, card networks, index codes, notification
 // types, …) is plain text validated in code instead (02-data-model.md).
 
+/** Platform-wide role (OQ-111): ADMIN includes USER; registration always makes a USER. */
+export const SYSTEM_ROLES = ['USER', 'ADMIN'] as const;
+/** Role within one household (FR-1.6). */
 export const ROLES = ['Owner', 'Admin', 'Member', 'Viewer'] as const;
 export const INVITABLE_ROLES = ['Admin', 'Member', 'Viewer'] as const;
 export const INVITATION_STATUSES = ['pending', 'accepted', 'declined', 'revoked'] as const;
@@ -19,3 +22,4 @@ export const TRANSACTION_SOURCES = ['manual', 'schedule'] as const;
 
 export type Theme = (typeof THEMES)[number];
 export type Language = (typeof LANGUAGES)[number];
+export type SystemRole = (typeof SYSTEM_ROLES)[number];

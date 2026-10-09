@@ -4,7 +4,7 @@ import {
 import type { Database } from '../db/database';
 import { PG_FOREIGN_KEY_VIOLATION, PG_UNIQUE_VIOLATION, pgErrorCode } from '../db/errors';
 import { mfaRecoveryCodes, passwordResetTokens, users } from '../db/schema';
-import type { Language, Theme } from '../db/schema/values';
+import type { Language, SystemRole, Theme } from '../db/schema/values';
 
 // UserAccessor (A1, VBD): users and their credentials — password hash, the
 // encrypted MFA secret, recovery codes and password-reset tokens. Stores only
@@ -19,6 +19,8 @@ export interface User {
   readonly lastName: string;
   readonly theme: Theme;
   readonly language: Language;
+  /** Platform role (OQ-111); set only by the database default for now. */
+  readonly systemRole: SystemRole;
   readonly createdAt: Date;
 }
 
@@ -61,10 +63,13 @@ const userColumns = {
   lastName: users.lastName,
   theme: users.theme,
   language: users.language,
+  systemRole: users.systemRole,
   createdAt: users.createdAt,
 };
 
-type UserRow = Omit<User, 'theme' | 'language'> & { theme: string; language: string };
+type UserRow = Omit<User, 'theme' | 'language' | 'systemRole'> & {
+  theme: string; language: string; systemRole: string;
+};
 
 /**
  * Narrows a row's text columns to their value sets (the database CHECKs guarantee them).
@@ -73,7 +78,10 @@ type UserRow = Omit<User, 'theme' | 'language'> & { theme: string; language: str
  * @returns The domain user.
  */
 const toUser = (row: UserRow): User => ({
-  ...row, theme: row.theme as Theme, language: row.language as Language,
+  ...row,
+  theme: row.theme as Theme,
+  language: row.language as Language,
+  systemRole: row.systemRole as SystemRole,
 });
 
 /**

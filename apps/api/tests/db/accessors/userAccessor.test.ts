@@ -54,13 +54,17 @@ const registerAna = async (users: Users) => {
 
 describe('UserAccessor', () => {
   describe('insert', () => {
-    it('stores the user with defaults and returns it without credentials', test(async (users) => {
+    it('stores the user with defaults (a USER) and no credentials', test(async (users) => {
       const result = await users.insert(ANA);
 
       expect(result).toMatchObject({
         ok: true,
         user: {
-          email: 'Ana@Example.com', firstName: 'Ana', theme: 'dark', language: 'pt-BR',
+          email: 'Ana@Example.com',
+          firstName: 'Ana',
+          theme: 'dark',
+          language: 'pt-BR',
+          systemRole: 'USER',
         },
       });
       expect(result.ok && Object.keys(result.user)).not.toContain('passwordHash');

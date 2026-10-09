@@ -28,8 +28,11 @@ and carry the document's current default assumption.
 - **FR-1.7** Role determines permitted actions:
   - *Owner* — full control, including deleting the household.
   - *Admin* — manage members/roles and all shared data.
-  - *Member* — record transactions and manage shared data they created.
+  - *Member* — record transactions and manage (edit and delete) shared
+    data they created (OQ-111).
   - *Viewer* — read-only access to shared data.
+
+  Every role manages its own personal data (OQ-111).
 - **FR-1.8** A user may belong to more than one household. The user
   **switches the active household** from the main navigation menu, which
   also surfaces their pending invitations (see OQ-60).
@@ -101,6 +104,10 @@ and carry the document's current default assumption.
   is **mandatory** (it cannot be skipped); reviewing the seeded Categories
   (FR-10.1) and creating a first Budget are optional. Main navigation is
   unavailable until the mandatory step is done (see OQ-63).
+- **FR-1.23** Besides household roles, every user has a **system role**:
+  **USER** or **ADMIN**. Registering through the website always makes a
+  USER; ADMIN includes USER and will reach future system-administration
+  pages. How an ADMIN is created is decided later (OQ-111).
 
 ## FR-2: Financial Accounts (CUC-3)
 

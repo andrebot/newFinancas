@@ -6,7 +6,7 @@ import {
   CASCADE, createdAt, id, instant, isOneOf,
 } from './columns';
 import {
-  INVITABLE_ROLES, INVITATION_STATUSES, LANGUAGES, ROLES, THEMES,
+  INVITABLE_ROLES, INVITATION_STATUSES, LANGUAGES, ROLES, SYSTEM_ROLES, THEMES,
 } from './values';
 
 // Identity & Household (02-data-model.md) — IdentityManager's Accessors.
@@ -20,11 +20,14 @@ export const users = pgTable('users', {
   mfaSecret: text('mfa_secret').notNull(),
   theme: text('theme').notNull().default('dark'),
   language: text('language').notNull().default('pt-BR'),
+  // Platform role, not a household role (OQ-111).
+  systemRole: text('system_role').notNull().default('USER'),
   createdAt: createdAt(),
 }, (t) => [
   uniqueIndex('users_email_key').on(sql`lower(${t.email})`),
   check('users_theme_check', isOneOf(t.theme, THEMES)),
   check('users_language_check', isOneOf(t.language, LANGUAGES)),
+  check('users_system_role_check', isOneOf(t.systemRole, SYSTEM_ROLES)),
 ]);
 
 export const passwordResetTokens = pgTable('password_reset_tokens', {
