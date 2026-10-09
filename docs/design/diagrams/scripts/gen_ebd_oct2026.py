@@ -661,14 +661,16 @@ API-->>EXP: series
 EXP-->>FLOW: state
 FLOW-->>PC: re-render
 """, ["Widgets are v3, reports v2."]),
-    ("app-shell-notification-routing", "App Shell — Notification Routing", f"{R('GET /notifications')}, {R('DELETE /notifications/:id')} + the owning Experience's own endpoint.",
+    ("app-shell-notification-routing", "App Shell — Notification Routing", f"{R('GET /notifications')}, {R('POST /notifications/seen')}, {R('DELETE /notifications/:id')} + the owning Experience's own endpoint.",
      [("BELL", "Notification Inbox<br/>(Review Insights)"), ("SHELL", "App Shell"), ("MP", "Manage Profile<br/>Experience"), ("TI", "Track Investments<br/>Experience"), API],
      """
+SHELL->>API: GET /notifications (via Review Insights) — read-only, polled
+API-->>SHELL: [{id, type, params, seenAt}]
+SHELL-->>BELL: badge = count of seenAt null
 User->>BELL: open the bell
 BELL->>SHELL: emit inboxOpened
-SHELL->>API: GET /notifications (via Review Insights)
-API-->>SHELL: [{type, params}] — marked seen
 SHELL-->>BELL: render each via I18nUtility (type → catalog string, IDs resolved)
+SHELL->>API: POST /notifications/seen {ids shown} (OQ-105)
 alt invitation.received — Accept
     User->>BELL: Accept
     BELL->>SHELL: emit action {type: invitation.received, accept, params}

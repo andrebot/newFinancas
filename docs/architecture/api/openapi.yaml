@@ -1609,12 +1609,12 @@ paths:
       operationId: listNotifications
       summary: List the current user's notification inbox
       description: >
-        FR-6.10/OQ-45. Opening the inbox marks every notification
-        currently shown as `seenAt`, a bulk update. Standing
-        infrastructure — both of FR-6.5's stated v1 triggers (budget
-        threshold, Open Banking sync failure) are currently inactive
-        (one removed per OQ-52, one deferred), so this list is typically
-        empty today; the mechanism is fully wired regardless.
+        FR-6.10/OQ-45/OQ-105. Newest first. Read-only — listing never
+        changes `seenAt`, so the app can poll it for the bell's unseen
+        count (items with `seenAt: null`); opening the inbox then calls
+        POST /notifications/seen with the IDs shown. v1 producers
+        (OQ-68): Invite User (`invitation.received`) and the daily job
+        (`holding.matured`).
       responses:
         "200":
           description: OK
@@ -1626,6 +1626,32 @@ paths:
                   data:
                     type: array
                     items: { $ref: "#/components/schemas/Notification" }
+
+  /notifications/seen:
+    post:
+      tags: [Insights]
+      operationId: markNotificationsSeen
+      summary: Mark the notifications shown in the inbox as seen
+      description: >
+        FR-6.10/OQ-105. Marks exactly the given notifications — the ones
+        the inbox showed — so one that arrived after the list stays
+        unseen. IDs that are not the caller's, unknown or already seen
+        are ignored (no error, nothing revealed). Idempotent.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [notificationIds]
+              properties:
+                notificationIds:
+                  type: array
+                  minItems: 1
+                  maxItems: 200
+                  items: { type: string, format: uuid }
+      responses:
+        "204": { description: No Content }
 
   /notifications/{notificationId}:
     parameters:

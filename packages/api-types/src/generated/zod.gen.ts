@@ -1472,6 +1472,15 @@ export const zListNotificationsResponse = z.object({
     data: z.array(zNotification).optional()
 });
 
+export const zMarkNotificationsSeenBody = z.object({
+    notificationIds: z.array(z.uuid()).min(1).max(200)
+});
+
+/**
+ * No Content
+ */
+export const zMarkNotificationsSeenResponse = z.void();
+
 export const zDeleteNotificationPath = z.object({
     notificationId: z.uuid()
 });

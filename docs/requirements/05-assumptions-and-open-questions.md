@@ -1195,6 +1195,35 @@ places, nothing tunable buried in a module.**
   `AuditLogAccessor.insert` requires both, so `recordAudit` must pass
   them.
 
+### OQ-105: Notification inbox — reading vs marking seen (task A16)
+**Confirmed, implementation (Oct 2026):**
+- **`GET /notifications` is read-only.** Previously it also marked
+  everything it returned as seen, which caused three problems:
+  - the bell's unseen badge had no source: reading the count cleared it;
+  - it broke HTTP's safe-read rule, so a browser prefetch or retry would
+    silently clear the badge;
+  - "mark all seen" after listing also marked a notification that
+    arrived in between, which the user never saw (FR-6.10 says "every
+    notification **currently shown**").
+- **New `POST /notifications/seen {notificationIds}`** (1–200 IDs) marks
+  exactly the notifications shown. IDs that aren't the caller's, unknown
+  or already seen are ignored silently, and the call is idempotent.
+- **NotificationInboxAccessor:**
+  - `insert(userId, type, params)`: params are typed per notification
+    type, from the API contract;
+  - `listByUser`: newest first, and lists types this build doesn't know,
+    so the app shows its fallback;
+  - `markSeen(userId, ids, now)`;
+  - `deleteForUser(userId, id)`: ownership check and hard delete in one
+    statement, false for someone else's or a missing notification
+    (both → 404).
+- **Docs corrected:**
+  - uc-05 returned a `message` text field (pre-OQ-82);
+  - the `GET /notifications` description still listed the removed and
+    deferred triggers instead of v1's (OQ-68);
+  - uc-05, uc-06 and the App Shell notification-routing EBD sequence are
+    regenerated.
+
 ## Refined (resolved, with a follow-up still open)
 
 *(OQ-4's legal-review follow-up below is closed for v1 by OQ-89.)*
