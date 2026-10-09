@@ -5,7 +5,7 @@ import { redact } from './redact';
 /** Fields the logger and its callers set; never redacted, never shown as details. */
 export const RESERVED_FIELDS = new Set([
   'level', 'message', 'timestamp', 'label', 'correlationId', 'actor', 'stack',
-  'auditId', 'auditAt', 'householdId', 'entityType', 'entityId',
+  'auditId', 'auditAt', 'householdId', 'entityType', 'entityId', 'consoleOnly',
 ]);
 
 /** A Winston info object, as far as these formats are concerned. */
@@ -24,6 +24,16 @@ export const stampAudit = (event: LogEvent, newId: () => string): LogEvent => (
     ? { ...event, auditId: newId(), auditAt: event.timestamp }
     : event
 );
+
+/**
+ * Tells whether an event must stay out of the log files: it carries a live
+ * secret the developer needs to see once, e.g. the console email provider's
+ * password-reset link (OQ-112). Set `consoleOnly: true` on the event.
+ *
+ * @param event - The event.
+ * @returns Whether only the console may show it.
+ */
+export const isConsoleOnly = (event: LogEvent): boolean => event.consoleOnly === true;
 
 /**
  * Redacts credential-like values anywhere in the event (no reserved field name

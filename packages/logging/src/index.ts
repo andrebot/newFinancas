@@ -3,7 +3,7 @@
 export { actorLabel, userIdFromActor, type Actor } from './events';
 export { formatConsoleLine, type ConsoleEvent } from './consoleFormat';
 export { readLoggingEnv, resolveLogDir, type LoggingEnv } from './env';
-export { RESERVED_FIELDS, type LogEvent } from './formats';
+export { isConsoleOnly, RESERVED_FIELDS, type LogEvent } from './formats';
 export { LEVELS, type LogLevel } from './levels';
 export {
   buildTransports, captureLogs, createLogger, logger, type LogContext, type Logger,
