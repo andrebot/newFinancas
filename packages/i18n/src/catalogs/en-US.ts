@@ -17,6 +17,8 @@ const enUS: Catalog = {
     'household.changed': 'The members of this household changed while you were editing. Please try again.',
     'household.member_not_found': 'This person is not a member of the household.',
     'holding.not_market_priced': "This holding doesn't use a manual market value.",
+    'invitation.already_member': 'User is already a member.',
+    'invitation.already_pending': 'User has a pending invitation.',
     'invitation.invitee_not_registered': 'No registered user has this email.',
     'invitation.not_found': 'Invitation not found.',
     'invitation.not_pending': 'This invitation is no longer pending.',

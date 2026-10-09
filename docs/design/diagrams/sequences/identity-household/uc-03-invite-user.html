@@ -64,6 +64,7 @@ sequenceDiagram
     participant IM as IdentityManager
     participant AZ as AuthorizationUtility
     participant UA as UserAccessor
+    participant HA as HouseholdAccessor
     participant IA as InvitationAccessor
     participant ND as NotificationDeliveryUtility
     participant LOG as LoggingUtility
@@ -85,6 +86,17 @@ sequenceDiagram
             API-->>User: 404 invitation.invitee_not_registered
         else user exists
             UA-->>IM: invitedUserId
+            IM->>HA: findMembership(householdId, invitedUserId)
+            HA-->>IM: role (or none)
+            IM->>IA: findPending(householdId, invitedUserId)
+            IA-->>IM: pending invitation (or none)
+            alt already a member
+                IM-->>API: Conflict
+                API-->>User: 409 invitation.already_member
+            else already has a pending invitation
+                IM-->>API: Conflict
+                API-->>User: 409 invitation.already_pending
+            else neither
             IM->>IA: insert({householdId, invitedUserId, invitedByUserId: actor, role})
             Note over IA: the NOT NULL FK guarantees the invitee exists &mdash;<br/>invitee_missing if they were deleted meanwhile (→ 404)
             IA-->>IM: invitationId (status: pending)
@@ -93,6 +105,7 @@ sequenceDiagram
             IM-->>LOG: recordAudit(actor, "Invitation", invitationId)
             IM-->>API: invitationId
             API-->>User: 201 Created {invitationId, status: "pending"}
+            end
         end
     end
     </pre>

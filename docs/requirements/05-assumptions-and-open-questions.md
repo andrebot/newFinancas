@@ -1358,10 +1358,16 @@ move to IdentityManager (task 22):
     `stale` → 409 `invitation.not_pending`.
 - **Accept** resolves the invitation, then calls
   `HouseholdAccessor.addMember`, where `already_member` counts as done.
-- **To decide in task 22:** inviting someone who is already a member or
-  already has a pending invitation. `findMembership` and `findPending`
-  give the Manager what it needs; the error codes are still to be
-  chosen.
+- **Inviting someone who is already a member, or already has a pending
+  invitation, is rejected** (stakeholder decision, Oct 2026). Both answer
+  409:
+  - `invitation.already_member`: "User is already a member" / "Usuário
+    já é membro desta casa";
+  - `invitation.already_pending`: "User has a pending invitation" /
+    "Usuário já tem um convite pendente".
+
+  IdentityManager checks with `HouseholdAccessor.findMembership` and
+  `InvitationAccessor.findPending` before inserting.
 - uc-03, uc-04, uc-05 and uc-06 are regenerated.
 
 ## Refined (resolved, with a follow-up still open)

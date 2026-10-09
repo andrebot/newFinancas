@@ -1431,6 +1431,10 @@ export type CreateInvitationErrors = {
      * No registered user matches the given email (FR-1.19).
      */
     404: Error;
+    /**
+     * Codes: `invitation.already_member` — the user is already a member of this household; `invitation.already_pending` — the user already has a pending invitation to it (OQ-109).
+     */
+    409: Error;
 };
 
 export type CreateInvitationError = CreateInvitationErrors[keyof CreateInvitationErrors];

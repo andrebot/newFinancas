@@ -29,6 +29,8 @@ const ptBR = {
     'household.changed': 'Os membros desta casa mudaram enquanto você editava. Tente novamente.',
     'household.member_not_found': 'Esta pessoa não é membro da casa.',
     'holding.not_market_priced': 'Este investimento não usa valor de mercado manual.',
+    'invitation.already_member': 'Usuário já é membro desta casa.',
+    'invitation.already_pending': 'Usuário já tem um convite pendente.',
     'invitation.invitee_not_registered': 'Não há usuário cadastrado com este e-mail.',
     'invitation.not_found': 'Convite não encontrado.',
     'invitation.not_pending': 'Este convite não está mais pendente.',
