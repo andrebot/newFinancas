@@ -11,6 +11,7 @@ import {
 
 const PERMISSION_DENIED = '42501';
 const UNIQUE_VIOLATION = '23505';
+const CHECK_VIOLATION = '23514';
 
 let database: PGlite;
 
@@ -111,6 +112,25 @@ describe('migrated schema', () => {
         .toBe(PERMISSION_DENIED);
       expect(await errorCodeOf(connection, 'DELETE FROM audit_log_entries'))
         .toBe(PERMISSION_DENIED);
+    });
+  });
+
+  it('stores transaction amounts as positive numbers only (OQ-98)', async () => {
+    await asAppRole(database, async (connection) => {
+      const household = await insertHousehold(connection);
+      const account = await insertId(
+        connection,
+        `INSERT INTO accounts (household_id, name, type, currency, visibility)
+         VALUES ($1, 'A', 'checking', 'BRL', 'shared') RETURNING id`,
+        [household],
+      );
+      const insert = `INSERT INTO account_transactions
+                        (account_id, kind, effect, date, amount, currency)
+                      VALUES ($1, 'pix_payment', 'movement', '2026-10-08', $2, 'BRL')`;
+
+      expect(await errorCodeOf(connection, insert, [account, 8540])).toBeUndefined();
+      expect(await errorCodeOf(connection, insert, [account, -8540])).toBe(CHECK_VIOLATION);
+      expect(await errorCodeOf(connection, insert, [account, 0])).toBe(CHECK_VIOLATION);
     });
   });
 

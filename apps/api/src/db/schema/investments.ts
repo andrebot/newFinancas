@@ -50,6 +50,7 @@ export const investmentScheduleEntries = pgTable('investment_schedule_entries', 
   createdAt: createdAt(),
 }, (t) => [
   uniqueIndex('investment_schedule_entries_event_key').on(t.holdingId, t.date, t.kind),
+  check('investment_schedule_entries_amount_check', sql`${t.amount} > 0`),
 ]);
 
 export const indexRateValues = pgTable('index_rate_values', {

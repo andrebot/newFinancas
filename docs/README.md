@@ -111,6 +111,7 @@ newFinancas/
 │   └── web/                Vite + React frontend — src/, tests/unit/
 ├── packages/
 │   ├── i18n/               shared ICU catalog (pt-BR, en-US)
+│   ├── reference/          shared reference data: kinds, asset types, palette, default categories (OQ-98)
 │   └── api-types/          types generated from openapi.yaml (task N7)
 ├── tools/ops/              local operations: db:backup / db:restore / db:restore-drill (OQ-97)
 ├── tests/e2e/              Playwright specs (span api + web), tiers by tag: @smoke, @core

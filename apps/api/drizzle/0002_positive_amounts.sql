@@ -1,0 +1,3 @@
+ALTER TABLE "investment_schedule_entries" ADD CONSTRAINT "investment_schedule_entries_amount_check" CHECK ("investment_schedule_entries"."amount" > 0);--> statement-breakpoint
+ALTER TABLE "account_transactions" ADD CONSTRAINT "account_transactions_amount_check" CHECK ("account_transactions"."amount" > 0);--> statement-breakpoint
+ALTER TABLE "card_transactions" ADD CONSTRAINT "card_transactions_amount_check" CHECK ("card_transactions"."amount" > 0);

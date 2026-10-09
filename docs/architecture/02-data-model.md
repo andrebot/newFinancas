@@ -47,6 +47,10 @@ Stack: PostgreSQL + Drizzle ORM (per the project's stack table in
     `budget_periods.budget_id` and `account_transactions.credit_card_id`.
     The second means paying a card from another account keeps that
     account's history if the card's personal account is deleted.
+- **Amounts are positive** in `account_transactions`,
+  `card_transactions` and `investment_schedule_entries`
+  (`CHECK (amount > 0)`). Direction comes from the kind, in
+  `@financas/reference` (OQ-98).
 
 **Cross-cutting design point, applies across every domain below:**
 FR-1.17's GDPR/LGPD hard-delete distinguishes **personal** data (deleted
