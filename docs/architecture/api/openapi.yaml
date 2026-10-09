@@ -604,6 +604,11 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
+        "409":
+          description: "Codes: `invitation.already_member` — the user is already a member of this household; `invitation.already_pending` — the user already has a pending invitation to it (OQ-109)."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
 
   /households/{householdId}/invitations/{invitationId}:
     parameters:
@@ -617,6 +622,11 @@ paths:
       responses:
         "204": { description: No Content }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "404":
+          description: "Code: `invitation.not_found` — no such invitation in this household (OQ-109)."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
         "409":
           description: Invitation is no longer pending.
           content:

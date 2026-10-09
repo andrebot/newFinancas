@@ -1330,6 +1330,46 @@ apply"), the four Accessors built before it were reviewed.
   this file's "Refined (resolved, with a follow-up still open)" section
   heading and its note. Both are restored.
 
+### OQ-109: Invitations — Manager decides, Accessor applies (task A4)
+**Confirmed, implementation (Oct 2026):** InvitationAccessor follows
+OQ-107 from the start. Three decisions the diagrams put in the Accessor
+move to IdentityManager (task 22):
+- **FR-1.19 (invitee must be a registered user):** the Manager resolves
+  the email with `UserAccessor.findByEmail` and answers 404
+  `invitation.invitee_not_registered` if there's none. The Accessor
+  inserts by `invitedUserId`. The NOT NULL foreign key stays as the
+  structural guarantee, reported as `invitee_missing` if the user was
+  deleted in between.
+- **Who may accept or decline:** the Manager reads the invitation and
+  checks the actor is the invitee (403).
+- **Revoke must match the household in the URL.** The diagram revoked by
+  invitation ID alone, so an Admin of one household could revoke another
+  household's invitation through their own household's route. The
+  Manager now answers 404 **`invitation.not_found`**, a new code in both
+  catalogs, documented in the spec.
+- **The Accessor:**
+  - `insert`, `findById`, `findPending`;
+  - `listPendingForUser`: household and inviter names via read-only
+    joins; a deleted inviter gives null names, so the app shows
+    "Someone";
+  - `listForHousehold`;
+  - the guarded **`resolve(id, accepted | declined | revoked, now)`**,
+    which applies only while pending, so two resolutions can't both win.
+    `stale` → 409 `invitation.not_pending`.
+- **Accept** resolves the invitation, then calls
+  `HouseholdAccessor.addMember`, where `already_member` counts as done.
+- **Inviting someone who is already a member, or already has a pending
+  invitation, is rejected** (stakeholder decision, Oct 2026). Both answer
+  409:
+  - `invitation.already_member`: "User is already a member" / "Usuário
+    já é membro desta casa";
+  - `invitation.already_pending`: "User has a pending invitation" /
+    "Usuário já tem um convite pendente".
+
+  IdentityManager checks with `HouseholdAccessor.findMembership` and
+  `InvitationAccessor.findPending` before inserting.
+- uc-03, uc-04, uc-05 and uc-06 are regenerated.
+
 ## Refined (resolved, with a follow-up still open)
 
 *(OQ-4's legal-review follow-up below is closed for v1 by OQ-89.)*

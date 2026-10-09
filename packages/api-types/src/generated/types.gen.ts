@@ -1431,6 +1431,10 @@ export type CreateInvitationErrors = {
      * No registered user matches the given email (FR-1.19).
      */
     404: Error;
+    /**
+     * Codes: `invitation.already_member` — the user is already a member of this household; `invitation.already_pending` — the user already has a pending invitation to it (OQ-109).
+     */
+    409: Error;
 };
 
 export type CreateInvitationError = CreateInvitationErrors[keyof CreateInvitationErrors];
@@ -1459,6 +1463,10 @@ export type RevokeInvitationErrors = {
      * Authenticated, but not permitted to perform this action. Codes: `auth.forbidden`.
      */
     403: Error;
+    /**
+     * Code: `invitation.not_found` — no such invitation in this household (OQ-109).
+     */
+    404: Error;
     /**
      * Invitation is no longer pending.
      */

@@ -68,23 +68,28 @@ sequenceDiagram
 
     User->>API: POST /invitations/:invitationId/accept
     API->>IM: acceptInvitation(actor, invitationId)
-    IM->>IA: accept(invitationId, actor)
-    alt actor is not the invited user
-        IA-->>IM: rejected
+    IM->>IA: findById(invitationId)
+    IA-->>IM: invitation (or none)
+    alt none, or actor is not the invited user
+        Note over IM: the Manager&#39;s check (OQ-109)
         IM-->>API: Forbidden
         API-->>User: 403 auth.forbidden
-    else invitation not pending (already resolved/revoked)
-        IA-->>IM: rejected
-        IM-->>API: Conflict
-        API-->>User: 409 invitation.not_pending
-    else pending and actor matches
-        IA-->>IM: status = accepted
-        IM->>HA: addMember(householdId, actor, role)
-        HA-->>IM: membership created
-        IM-->>LOG: logActivity(correlationId, actor, "AcceptInvitation")
-        IM-->>LOG: recordAudit(actor, "HouseholdMembership", householdId)
-        IM-->>API: {householdId, role}
-        API-->>User: 200 OK {householdId, role}
+    else invited user
+        IM->>IA: resolve(invitationId, accepted, now)
+        Note over IA: guarded &mdash; applies only while still pending
+        alt no longer pending (resolved or revoked meanwhile)
+            IA-->>IM: stale
+            IM-->>API: Conflict
+            API-->>User: 409 invitation.not_pending
+        else resolved
+            IA-->>IM: resolved
+            IM->>HA: addMember(householdId, actor, role)
+            HA-->>IM: added (already_member counts as done)
+            IM-->>LOG: logActivity(correlationId, actor, "AcceptInvitation")
+            IM-->>LOG: recordAudit(actor, "HouseholdMembership", householdId)
+            IM-->>API: {householdId, role}
+            API-->>User: 200 OK {householdId, role}
+        end
     end
     </pre>
   </div>

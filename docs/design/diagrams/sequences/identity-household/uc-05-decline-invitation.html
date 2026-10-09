@@ -67,20 +67,23 @@ sequenceDiagram
 
     User->>API: POST /invitations/:invitationId/decline
     API->>IM: declineInvitation(actor, invitationId)
-    IM->>IA: decline(invitationId, actor)
-    alt actor is not the invited user
-        IA-->>IM: rejected
+    IM->>IA: findById(invitationId)
+    IA-->>IM: invitation (or none)
+    alt none, or actor is not the invited user
         IM-->>API: Forbidden
         API-->>User: 403 auth.forbidden
-    else invitation not pending
-        IA-->>IM: rejected
-        IM-->>API: Conflict
-        API-->>User: 409 invitation.not_pending
-    else pending and actor matches
-        IA-->>IM: status = declined
-        IM-->>LOG: logActivity(correlationId, actor, "DeclineInvitation")
-        IM-->>API: declined
-        API-->>User: 200 OK {status: "declined"}
+    else invited user
+        IM->>IA: resolve(invitationId, declined, now)
+        alt no longer pending
+            IA-->>IM: stale
+            IM-->>API: Conflict
+            API-->>User: 409 invitation.not_pending
+        else resolved
+            IA-->>IM: resolved
+            IM-->>LOG: logActivity(correlationId, actor, "DeclineInvitation")
+            IM-->>API: declined
+            API-->>User: 200 OK {status: "declined"}
+        end
     end
     </pre>
   </div>
