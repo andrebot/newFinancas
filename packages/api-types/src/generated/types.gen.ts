@@ -901,6 +901,33 @@ export type LogoutResponses = {
 
 export type LogoutResponse = LogoutResponses[keyof LogoutResponses];
 
+export type RefreshTokensData = {
+    body: {
+        refreshToken: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/auth/refresh';
+};
+
+export type RefreshTokensErrors = {
+    /**
+     * Code: `auth.refresh_invalid`.
+     */
+    401: Error;
+};
+
+export type RefreshTokensError = RefreshTokensErrors[keyof RefreshTokensErrors];
+
+export type RefreshTokensResponses = {
+    /**
+     * OK
+     */
+    200: AuthTokens;
+};
+
+export type RefreshTokensResponse = RefreshTokensResponses[keyof RefreshTokensResponses];
+
 export type ChangePasswordData = {
     body: {
         currentPassword: string;

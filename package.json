@@ -9,6 +9,7 @@
   "scripts": {
     "prepare": "husky",
     "dev": "pnpm --parallel --filter \"./apps/*\" dev",
+    "env:secrets": "pnpm --filter @financas/ops ops env-secrets",
     "db:up": "docker compose up --detach --wait db",
     "db:down": "docker compose down",
     "db:reset": "docker compose down --volumes && docker compose up --detach --wait db",

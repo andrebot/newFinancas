@@ -13,6 +13,7 @@ Requires Node 24.10+ (`.nvmrc`), pnpm (`corepack enable pnpm`) and Docker.
 ```sh
 pnpm install        # also installs the git hooks (husky)
 cp .env.example .env
+pnpm env:secrets     # replace the public dev-only auth secrets with random ones
 pnpm db:up          # Postgres 18 on 127.0.0.1:5432 (db:down, db:reset, db:psql)
 pnpm db:migrate      # apply migrations (pnpm --filter @financas/api db:generate after schema changes)
 pnpm db:seed:demo    # optional: a demo household for development (idempotent)

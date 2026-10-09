@@ -473,10 +473,10 @@ sequenceDiagram
             UA-->>IM: not found
             IM->>AN: hashPassword(password)
             AN-->>IM: passwordHash
-            IM->>AN: enrollMfa()
-            Note over AN: generates TOTP secret + a set of<br/>single-use recovery codes (FR-1.15)
-            AN-->>IM: {totpSecret, recoveryCodes[]}
-            IM->>UA: insert(user, passwordHash, totpSecret, recoveryCodes)
+            IM->>AN: enrollMfa(email)
+            Note over AN: TOTP secret (encrypted at rest, NFR-SEC-3) + 10<br/>single-use recovery codes, stored only as hashes (FR-1.15, OQ-100)
+            AN-->>IM: {totpSecret, encryptedSecret, recoveryCodes[], recoveryCodeHashes[]}
+            IM->>UA: insert(user, passwordHash, encryptedSecret, recoveryCodeHashes)
             UA-->>IM: userId
             IM-->>LOG: logActivity(correlationId, userId, "CreateUser")
             IM-->>LOG: recordAudit(userId, "User", userId)
@@ -629,9 +629,12 @@ sequenceDiagram
             else MFA valid
                 AN-->>IM: valid
                 IM->>AN: signAccessToken(userId)
-                AN-->>IM: accessToken (short-lived JWT)
-                IM->>SA: insert(refreshTokenHash, deviceInfo)
-                SA-->>IM: refreshToken
+                AN-->>IM: accessToken (15-minute JWT)
+                IM->>AN: issueOpaqueToken()
+                AN-->>IM: {refreshToken, refreshTokenHash}
+                IM->>SA: insert(userId, refreshTokenHash, deviceInfo)
+                Note over SA: stores only the hash (OQ-100)
+                SA-->>IM: sessionId
                 IM-->>LOG: logActivity(correlationId, userId, "Login")
                 IM-->>LOG: recordAudit(userId, "Session", sessionId)
                 IM-->>API: {accessToken, refreshToken}
@@ -883,18 +886,22 @@ sequenceDiagram
         API-->>User: 401 auth.invalid_credentials
     else user + password valid
         UA-->>IM: userId
-        IM->>AN: verifyRecoveryCode(userId, recoveryCode)
+        IM->>AN: hashRecoveryCode(recoveryCode)
+        AN-->>IM: codeHash
+        IM->>UA: consumeRecoveryCode(userId, codeHash)
+        Note over UA: atomic UPDATE &hellip; SET used_at WHERE code_hash = ?<br/>AND used_at IS NULL &mdash; single-use, can never be replayed (FR-1.16)
         alt code invalid, unknown, or already used
-            AN-->>IM: rejected
+            UA-->>IM: not consumed
             IM-->>API: Unauthorized
             API-->>User: 401 auth.recovery_code_invalid
         else code valid and unused
-            AN-->>IM: accepted
-            Note over AN: marks this recovery code's used_at (FR-1.16)<br/>&mdash; single-use, can never be replayed
+            UA-->>IM: consumed
             IM->>AN: signAccessToken(userId)
             AN-->>IM: accessToken
-            IM->>SA: insert(refreshTokenHash, deviceInfo)
-            SA-->>IM: refreshToken
+            IM->>AN: issueOpaqueToken()
+            AN-->>IM: {refreshToken, refreshTokenHash}
+            IM->>SA: insert(userId, refreshTokenHash, deviceInfo)
+            SA-->>IM: sessionId
             IM-->>LOG: logActivity(correlationId, userId, "MfaRecovery")
             IM-->>LOG: recordAudit(userId, "Session", sessionId)
             IM-->>API: {accessToken, refreshToken}

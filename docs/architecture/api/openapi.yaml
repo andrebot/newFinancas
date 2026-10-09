@@ -132,6 +132,40 @@ paths:
       responses:
         "204": { description: No Content }
 
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      operationId: refreshTokens
+      summary: Exchange a refresh token for new tokens (rotation)
+      description: >
+        OQ-30/OQ-100. Returns a new access token (15 minutes) and a new
+        refresh token (30 days); the presented refresh token is consumed,
+        so each one works once. An unknown, expired, revoked or
+        already-used refresh token is rejected — and its session is ended
+        (a replayed token suggests theft). No access token needed: this is
+        how a client gets one back after it expires.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthTokens" }
+        "401":
+          description: "Code: `auth.refresh_invalid`."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
   /auth/change-password:
     post:
       tags: [Auth]

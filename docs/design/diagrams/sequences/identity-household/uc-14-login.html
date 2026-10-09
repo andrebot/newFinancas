@@ -91,9 +91,12 @@ sequenceDiagram
             else MFA valid
                 AN-->>IM: valid
                 IM->>AN: signAccessToken(userId)
-                AN-->>IM: accessToken (short-lived JWT)
-                IM->>SA: insert(refreshTokenHash, deviceInfo)
-                SA-->>IM: refreshToken
+                AN-->>IM: accessToken (15-minute JWT)
+                IM->>AN: issueOpaqueToken()
+                AN-->>IM: {refreshToken, refreshTokenHash}
+                IM->>SA: insert(userId, refreshTokenHash, deviceInfo)
+                Note over SA: stores only the hash (OQ-100)
+                SA-->>IM: sessionId
                 IM-->>LOG: logActivity(correlationId, userId, "Login")
                 IM-->>LOG: recordAudit(userId, "Session", sessionId)
                 IM-->>API: {accessToken, refreshToken}

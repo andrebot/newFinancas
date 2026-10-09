@@ -22,6 +22,7 @@ const ptBR = {
     'internal.unexpected': 'Algo deu errado. Tente novamente.',
     'auth.forbidden': 'Você não tem permissão para fazer isso.',
     'auth.invalid_credentials': 'E-mail ou senha inválidos.',
+    'auth.refresh_invalid': 'Sua sessão expirou. Entre novamente.',
     'auth.mfa_invalid': 'Código de verificação inválido.',
     'budget.target_already_claimed': 'Esta categoria já pertence a outro orçamento.',
     'goal.allocation_exceeds_100': 'Este investimento já tem {current, number}% alocado; adicionar {requested, number}% passaria de 100%.',

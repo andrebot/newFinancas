@@ -10,6 +10,11 @@ const envSchema = z.object({
     .default(3000),
   DATABASE_URL: postgresUrl,
   EMAIL_PROVIDER: z.enum(['console']).default('console'),
+  JWT_SECRET: z.string().min(32),
+  MFA_ENCRYPTION_KEY: z.base64().refine(
+    (value) => Buffer.from(value, 'base64').length === 32,
+    'must be 32 bytes, base64-encoded',
+  ),
 });
 
 /** Typed runtime configuration of the API. */
@@ -17,6 +22,8 @@ export interface Config {
   readonly port: number;
   readonly databaseUrl: string;
   readonly emailProvider: 'console';
+  readonly jwtSecret: string;
+  readonly mfaEncryptionKey: string;
 }
 
 /**
@@ -41,6 +48,8 @@ const loadConfig = (env: Record<string, string | undefined>): Config => {
     port: result.data.PORT,
     databaseUrl: result.data.DATABASE_URL,
     emailProvider: result.data.EMAIL_PROVIDER,
+    jwtSecret: result.data.JWT_SECRET,
+    mfaEncryptionKey: result.data.MFA_ENCRYPTION_KEY,
   };
 };
 

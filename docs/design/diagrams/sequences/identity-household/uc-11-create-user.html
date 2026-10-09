@@ -89,10 +89,10 @@ sequenceDiagram
             UA-->>IM: not found
             IM->>AN: hashPassword(password)
             AN-->>IM: passwordHash
-            IM->>AN: enrollMfa()
-            Note over AN: generates TOTP secret + a set of<br/>single-use recovery codes (FR-1.15)
-            AN-->>IM: {totpSecret, recoveryCodes[]}
-            IM->>UA: insert(user, passwordHash, totpSecret, recoveryCodes)
+            IM->>AN: enrollMfa(email)
+            Note over AN: TOTP secret (encrypted at rest, NFR-SEC-3) + 10<br/>single-use recovery codes, stored only as hashes (FR-1.15, OQ-100)
+            AN-->>IM: {totpSecret, encryptedSecret, recoveryCodes[], recoveryCodeHashes[]}
+            IM->>UA: insert(user, passwordHash, encryptedSecret, recoveryCodeHashes)
             UA-->>IM: userId
             IM-->>LOG: logActivity(correlationId, userId, "CreateUser")
             IM-->>LOG: recordAudit(userId, "User", userId)

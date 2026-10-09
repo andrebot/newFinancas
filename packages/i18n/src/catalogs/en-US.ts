@@ -10,6 +10,7 @@ const enUS: Catalog = {
     'internal.unexpected': 'Something went wrong. Please try again.',
     'auth.forbidden': "You don't have permission to do that.",
     'auth.invalid_credentials': 'Invalid email or password.',
+    'auth.refresh_invalid': 'Your session has expired. Please sign in again.',
     'auth.mfa_invalid': 'Invalid verification code.',
     'budget.target_already_claimed': 'This category already belongs to another budget.',
     'goal.allocation_exceeds_100': 'This holding already has {current, number}% allocated; adding {requested, number}% would exceed 100%.',

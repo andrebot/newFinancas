@@ -5,13 +5,15 @@
 import { spawn } from 'node:child_process';
 import { createReadStream, createWriteStream } from 'node:fs';
 import {
-  access, mkdir, readdir, rm,
+  access, chmod, mkdir, readdir, readFile, rm, writeFile,
 } from 'node:fs/promises';
+import { randomBytes } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { parseRestoreArgs } from './args';
 import { resolveBackupConfig } from './config';
+import { fillSecrets } from './envSecrets';
 import {
   runBackup, runRestore, runRestoreDrill, type DockerFiles, type OpsDeps,
 } from './operations';
@@ -58,6 +60,18 @@ const [command, ...rest] = process.argv.slice(2);
 const commands: Record<string, () => Promise<unknown>> = {
   backup: () => runBackup(deps, config),
   restore: () => runRestore(deps, config, parseRestoreArgs(rest)),
+  'env-secrets': async () => {
+    const envFile = path.join(REPO_ROOT, '.env');
+    const generate = (key: string) => (key === 'MFA_ENCRYPTION_KEY'
+      ? randomBytes(32).toString('base64')
+      : randomBytes(48).toString('base64url'));
+    const result = fillSecrets(await readFile(envFile, 'utf8'), generate);
+    await writeFile(envFile, result.text);
+    // It now holds secrets: owner-only, even if the file already existed.
+    await chmod(envFile, 0o600);
+    const list = (keys: string[]) => keys.join(', ') || 'none';
+    console.log(`Generated: ${list(result.filled)}; kept: ${list(result.kept)}`);
+  },
   'restore-drill': async () => {
     const result = await runRestoreDrill(deps, config);
     const { tables, mismatches } = result;
@@ -70,7 +84,7 @@ const commands: Record<string, () => Promise<unknown>> = {
 const run = command ? commands[command] : undefined;
 
 if (!run) {
-  console.error('Usage: ops <backup | restore [file] [--into-live] | restore-drill>');
+  console.error('Usage: ops <backup | restore [file] [--into-live] | restore-drill | env-secrets>');
   process.exitCode = 2;
 } else {
   run().catch((error: unknown) => {
