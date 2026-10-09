@@ -50,7 +50,7 @@ identity screens, the rest as later slices use them.
 - [x] **16.** `A2` SessionAccessor
 - [x] **17.** `A3` HouseholdAccessor
 - [x] **18.** `A4` InvitationAccessor
-- [ ] **19.** `U2` LoggingUtility
+- [x] **19.** `U2` LoggingUtility
 - [ ] **20.** `U5` AuthorizationUtility
 - [ ] **21.** `U7` NotificationDeliveryUtility
 - [ ] **22.** `M1` IdentityManager

@@ -219,7 +219,7 @@ gap there as a missing scenario, not an acceptable gap.
 | `ValidationUtility` | Unit | Nothing (pure) |
 | `CorrelationIdUtility` | Unit | Nothing (pure) |
 | `ServiceBusUtility` | Unit | The in-process event emitter it wraps — assert publish/subscribe semantics only, not any Manager's handler logic |
-| `LoggingUtility` | Unit | Winston (the external sink) for `logActivity`; `AuditLogAccessor` for `recordAudit` — assert the two entry points stay schema-distinct (rich context vs. locked-down `{actor, timestamp, action, entityType, entityId}`, FR-7.1) |
+| `LoggingUtility` | Unit | Nothing for the shared logger (silent under Vitest; tests read events through `captureLogs`); `AuditLogAccessor` behind the audit sink — assert the two kinds stay schema-distinct (an audit record carries only `{id, time, actor, household, action, entityType, entityId}`, never details — FR-7.1), details are redacted, the sink retries then reports, audit storage ignores `LOG_LEVEL`, and reconciliation restores only missing entries (OQ-110) |
 | `NotificationDeliveryUtility` | Unit | `NotificationInboxAccessor` (in-app) and the **email provider client** (the external sink, configured — OQ-84). In-app stores `type` + `params` only; email renders the template from the shared i18n catalog in the requested language — assert one test per v1 email type (`password.reset`) × each locale, and that switching the configured provider changes no call site |
 
 ### Schema checks — embedded Postgres, unit speed, no running system

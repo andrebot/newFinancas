@@ -41,7 +41,9 @@ describe('loadEnv', () => {
     });
 
     expect(Object.keys(config).sort())
-      .toEqual(['databaseUrl', 'emailProvider', 'jwtSecret', 'mfaEncryptionKey', 'port']);
+      .toEqual([
+        'databaseUrl', 'emailProvider', 'jwtSecret', 'mfaEncryptionKey', 'port',
+      ]);
   });
 
   it('rejects a missing DATABASE_URL', () => {

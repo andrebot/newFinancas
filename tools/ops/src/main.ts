@@ -1,7 +1,6 @@
 // Composition root for the local operations (OQ-97): wires real I/O into the
 // tested operations and maps the command line to one of them. No logic lives
 // here, so it is excluded from unit coverage; the restore drill exercises it.
-/* eslint-disable no-console */
 import { spawn } from 'node:child_process';
 import { createReadStream, createWriteStream } from 'node:fs';
 import {
@@ -11,6 +10,7 @@ import { randomBytes } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import { pipeline } from 'node:stream/promises';
+import { createLogger, logger as rootLogger } from '@financas/logging';
 import { parseRestoreArgs } from './args';
 import { resolveBackupConfig } from './config';
 import { fillSecrets } from './envSecrets';
@@ -19,6 +19,9 @@ import {
 } from './operations';
 
 const REPO_ROOT = path.resolve(import.meta.dirname, '../../..');
+
+// Every message goes through the shared logger (OQ-110): console + ops-*.log.
+const logger = createLogger({ label: 'ops', actor: 'system' });
 
 const docker: OpsDeps['docker'] = async (args, files: DockerFiles = {}) => {
   const child = spawn('docker', [...args], { cwd: REPO_ROOT, stdio: ['pipe', 'pipe', 'inherit'] });
@@ -51,7 +54,7 @@ const deps: OpsDeps = {
   remove: (file) => rm(file),
   exists: (file) => access(file).then(() => true, () => false),
   now: () => new Date(),
-  log: (message) => console.log(message),
+  log: (message) => logger.info(message),
 };
 
 const config = resolveBackupConfig(process.env, os.homedir());
@@ -70,13 +73,13 @@ const commands: Record<string, () => Promise<unknown>> = {
     // It now holds secrets: owner-only, even if the file already existed.
     await chmod(envFile, 0o600);
     const list = (keys: string[]) => keys.join(', ') || 'none';
-    console.log(`Generated: ${list(result.filled)}; kept: ${list(result.kept)}`);
+    logger.info(`Generated: ${list(result.filled)}; kept: ${list(result.kept)}`);
   },
   'restore-drill': async () => {
     const result = await runRestoreDrill(deps, config);
     const { tables, mismatches } = result;
-    console.log(`Drill: ${tables} tables compared, ${mismatches.length} mismatch(es)`);
-    result.mismatches.forEach((line) => console.log(`  ${line}`));
+    logger.info(`Drill: ${tables} tables compared, ${mismatches.length} mismatch(es)`);
+    result.mismatches.forEach((line) => logger.warn(`  ${line}`));
     if (result.mismatches.length > 0) process.exitCode = 1;
   },
 };
@@ -84,11 +87,15 @@ const commands: Record<string, () => Promise<unknown>> = {
 const run = command ? commands[command] : undefined;
 
 if (!run) {
-  console.error('Usage: ops <backup | restore [file] [--into-live] | restore-drill | env-secrets>');
+  logger.error('Usage: ops <backup | restore [file] [--into-live] | restore-drill | env-secrets>');
   process.exitCode = 2;
+  rootLogger.end();
 } else {
-  run().catch((error: unknown) => {
-    console.error(error instanceof Error ? error.message : error);
-    process.exitCode = 1;
-  });
+  run()
+    .catch((error: unknown) => {
+      logger.error(error instanceof Error ? error.message : String(error));
+      process.exitCode = 1;
+    })
+    // Close the log file so the process can exit.
+    .finally(() => rootLogger.end());
 }
