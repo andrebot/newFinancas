@@ -26,7 +26,9 @@ reconcileAudit({
 })
   .then((restored) => log.info('Audit reconciled', { restored, logDir }))
   .catch((error: unknown) => {
-    log.error('Audit reconciliation failed', { error: String(error) });
+    // Drizzle wraps the database error; its cause holds the actual reason.
+    const cause = error instanceof Error && error.cause ? String(error.cause) : undefined;
+    log.error('Audit reconciliation failed', { error: String(error), cause });
     process.exitCode = 1;
   })
   .finally(async () => {
