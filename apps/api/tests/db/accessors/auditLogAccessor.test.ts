@@ -53,35 +53,51 @@ const entryAt = async (db: Database, at: string, householdId: string, action: st
 };
 
 describe('AuditLogAccessor', () => {
-  it('appends an entry, stamped by the database', test(async (audit) => {
-    const entry = await audit.insert({
-      actorId: ANA,
-      householdId: HOME,
-      action: 'CreateBudget',
-      entityType: 'Budget',
-      entityId: ENTITY,
-    });
+  const entry = (n: number, overrides = {}) => ({
+    id: `0199c5a0-0000-7000-8000-0000000000${String(n).padStart(2, '0')}`,
+    actorId: ANA,
+    householdId: HOME,
+    action: 'CreateBudget',
+    entityType: 'Budget',
+    entityId: ENTITY,
+    createdAt: new Date('2026-10-08T15:00:00Z'),
+    ...overrides,
+  });
 
-    expect(entry).toMatchObject({ actorId: ANA, householdId: HOME, action: 'CreateBudget' });
-    expect(entry.createdAt).toBeInstanceOf(Date);
+  it('stores an entry with the caller\'s id and time', test(async (audit) => {
+    expect(await audit.insert(entry(1))).toBe(true);
+
+    const [stored] = await audit.listForExport(HOME, '2026-10-08', '2026-10-08');
+    expect(stored).toEqual(entry(1));
+  }));
+
+  it('skips an id it already has, keeping the first (OQ-110)', test(async (audit) => {
+    await audit.insert(entry(1));
+
+    expect(await audit.insert(entry(1, { action: 'Changed' }))).toBe(false);
+    expect((await audit.listForExport(HOME, '2026-10-08', '2026-10-08')).map((e) => e.action))
+      .toEqual(['CreateBudget']);
   }));
 
   it('records system actions without an actor', test(async (audit) => {
-    const entry = await audit.insert({
-      actorId: null,
-      householdId: HOME,
-      action: 'NotifyMaturedHolding',
-      entityType: 'Holding',
-      entityId: ENTITY,
-    });
+    await audit.insert(entry(1, { actorId: null, action: 'NotifyMaturedHolding' }));
 
-    expect(entry.actorId).toBeNull();
+    const [stored] = await audit.listForExport(HOME, '2026-10-08', '2026-10-08');
+    expect(stored?.actorId).toBeNull();
+  }));
+
+  it('inserts many, counting only the missing ones', test(async (audit) => {
+    await audit.insert(entry(1));
+
+    expect(await audit.insertMany([entry(1), entry(2), entry(3)])).toBe(2);
+    expect(await audit.insertMany([])).toBe(0);
+    expect(await audit.listForExport(HOME, '2026-10-08', '2026-10-08')).toHaveLength(3);
   }));
 
   it('exposes no way to change or remove entries', () => {
     const operations = Object.keys(createAuditLogAccessor({} as Database)).sort();
 
-    expect(operations).toEqual(['insert', 'listForExport']);
+    expect(operations).toEqual(['insert', 'insertMany', 'listForExport']);
   });
 
   describe('listForExport (FR-7.2)', () => {

@@ -111,6 +111,7 @@ newFinancas/
 │   └── web/                Vite + React frontend — src/, tests/unit/
 ├── packages/
 │   ├── i18n/               shared ICU catalog (pt-BR, en-US)
+│   ├── logging/            shared logger: console line, daily JSON file, redaction (OQ-110)
 │   ├── reference/          shared reference data: kinds, asset types, palette, default categories (OQ-98)
 │   └── api-types/          types generated from openapi.yaml (task N7)
 ├── tools/ops/              local operations: db:backup / db:restore / db:restore-drill (OQ-97)

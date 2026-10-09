@@ -20,8 +20,11 @@ export interface AuditEntry {
   readonly createdAt: Date;
 }
 
-/** What LoggingUtility.recordAudit records (time is set by the database). */
-export type NewAuditEntry = Omit<AuditEntry, 'id' | 'createdAt'>;
+/**
+ * What LoggingUtility's audit sink records. It supplies the ID and the time of
+ * the action itself, so a retried or reconciled entry is the same entry (OQ-110).
+ */
+export type NewAuditEntry = AuditEntry;
 
 /** A calendar date, `YYYY-MM-DD`. */
 export type IsoDate = string;
@@ -46,14 +49,30 @@ const startOfDay = (date: IsoDate, plusDays = 0) => (
  */
 const createAuditLogAccessor = (db: Database) => ({
   /**
-   * Appends an entry. Called only through LoggingUtility.recordAudit.
+   * Appends an entry — called only by LoggingUtility's audit sink. Idempotent: an
+   * entry whose ID is already stored is skipped, so retries and reconciliation
+   * never duplicate (OQ-110).
    *
-   * @param entry - Actor, household, action, entity type and ID.
-   * @returns The stored entry.
+   * @param entry - ID, time, actor, household, action, entity type and ID.
+   * @returns `true` when stored now; `false` when it was already there.
    */
-  insert: async (entry: NewAuditEntry): Promise<AuditEntry> => {
-    const [row] = await db.insert(auditLogEntries).values(entry).returning();
-    return row!;
+  insert: async (entry: NewAuditEntry): Promise<boolean> => (
+    await db.insert(auditLogEntries).values(entry).onConflictDoNothing()
+      .returning({ id: auditLogEntries.id })
+  ).length > 0,
+
+  /**
+   * Appends many entries at once, skipping IDs already stored (reconciliation).
+   *
+   * @param entries - Entries recovered from the log files.
+   * @returns How many were missing and are now stored.
+   */
+  insertMany: async (entries: readonly NewAuditEntry[]): Promise<number> => {
+    if (entries.length === 0) return 0;
+    return (
+      await db.insert(auditLogEntries).values([...entries]).onConflictDoNothing()
+        .returning({ id: auditLogEntries.id })
+    ).length;
   },
 
   /**

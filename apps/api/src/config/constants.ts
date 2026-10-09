@@ -57,3 +57,11 @@ export const calendar = {
    */
   timeZone: 'America/Sao_Paulo',
 } as const;
+
+/** Logging (U2, OQ-110). Shared file settings live in @financas/logging. */
+export const logging = {
+  /** File name prefix of the API's daily logs: `api-2026-10-09.log`. */
+  filePrefix: 'api',
+  /** Waits between attempts to store an audit entry, in milliseconds. */
+  auditRetryDelaysMs: [1_000, 5_000, 30_000],
+} as const;

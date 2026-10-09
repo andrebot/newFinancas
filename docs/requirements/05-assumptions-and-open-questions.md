@@ -1370,6 +1370,53 @@ move to IdentityManager (task 22):
   `InvitationAccessor.findPending` before inserting.
 - uc-03, uc-04, uc-05 and uc-06 are regenerated.
 
+### OQ-110: Logging — one event, several destinations, reliable audit (task U2)
+**Confirmed, designed with the stakeholder (Oct 2026):**
+- **One Winston logger, one event, several transports.** The same event
+  goes everywhere:
+  - **the console:** human-readable, in local wall-clock time, e.g.
+    `14:03:12 AUDIT [7f3a9c21] user:… CreateBudget  Budget … (household …)`;
+  - **a daily JSON-lines file:** 14 days, under
+    `~/.local/state/financas/logs` (`LOG_DIR`), named
+    `<process>-YYYY-MM-DD.log`;
+  - **for audit events, the audit sink:** the existing `audit_log_entries`
+    table, through AuditLogAccessor.
+- **`packages/logging`** (`@financas/logging`) holds the shared parts:
+  logger factory, console line, redaction, actor labels. The API and the
+  ops CLI both use it. The API's **LoggingUtility**
+  (`apps/api/src/utilities/logging`) adds `logActivity`, `logError`,
+  `logRequest` and `recordAudit`, plus the audit sink and reconciliation.
+- **No `console` anywhere.** Every process logs through the shared
+  logger: the API, the demo seed, audit reconciliation and the ops CLI.
+- **Every method is fire-and-forget:** Managers never wait. The
+  correlation ID and actor (`user:<id>`, `system`, `unauthenticated`,
+  NFR-OBS-2) are on every event. `details` are redacted (passwords,
+  tokens, secrets, auth headers, cookies, MFA/recovery codes). Every
+  request is logged (NFR-OBS-1), and unexpected 500s go to `logError`
+  with their stack (NFR-OBS-3).
+- **Audit reliability is the logging system's job:**
+  - `recordAudit` gives each entry its own ID and the time of the
+    action, and logs it, so it's in the daily file immediately.
+  - The sink stores the locked FR-7.1 fields in the background, retrying
+    at 1 s, 5 s and 30 s. If it gives up, it logs `audit.store_failed`.
+  - **Reconciliation** (`reconcileAudit`) restores any audit line from
+    the daily files that is missing in the database. It runs at **every
+    API start**, and with `pnpm audit:reconcile`. It's idempotent: the
+    insert skips known IDs, and restored entries keep their original
+    time. The recovery window is the 14-day retention.
+  - **The sink has its own level, so audit storage never depends on
+    `LOG_LEVEL`.** A test caught that a quieter level would otherwise
+    have silently dropped audit entries.
+- **Closes OQ-104's open point:** `recordAudit` takes `actor`,
+  `householdId`, `action`, `entityType`, `entityId` and the correlation
+  ID. The sequence diagrams still abbreviate it as `recordAudit(actor,
+  type, id)`; the real call always carries the action and household.
+- **AuditLogAccessor** `insert` and `insertMany` take the caller's ID and
+  time, and skip an ID already stored.
+- Configuration: `LOG_LEVEL` and `LOG_DIR` in `env.ts`; retry delays and
+  the file prefix in `constants.ts`; retention and date pattern in
+  `@financas/logging`.
+
 ## Refined (resolved, with a follow-up still open)
 
 *(OQ-4's legal-review follow-up below is closed for v1 by OQ-89.)*

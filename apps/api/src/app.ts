@@ -1,11 +1,12 @@
 import { Hono } from 'hono';
 import correlationIdMiddleware from './http/correlation';
+import createRequestLogger from './http/requestLog';
 import { createErrorHandler, handleNotFound, type AppEnv } from './http/errorHandler';
+import type { LoggingUtility } from './utilities/logging';
 
 /** What the app needs from its composition root. */
 export interface AppDependencies {
-  /** Receives unexpected (500) errors; LoggingUtility (U2) will provide it. */
-  readonly onUnexpectedError: (err: Error) => void;
+  readonly logging: Pick<LoggingUtility, 'logError' | 'logRequest'>;
 }
 
 /**
@@ -21,9 +22,12 @@ export interface AppDependencies {
  */
 const createApp = (deps: AppDependencies): Hono<AppEnv> => {
   const app = new Hono<AppEnv>();
-  app.onError(createErrorHandler(deps.onUnexpectedError));
+  app.onError(createErrorHandler((error, correlationId) => deps.logging.logError({
+    correlationId, actor: 'unauthenticated', action: 'http.unexpected_error', error,
+  })));
   app.notFound(handleNotFound);
   app.use(correlationIdMiddleware);
+  app.use(createRequestLogger(deps.logging.logRequest));
   app.get('/health', (c) => c.json({ status: 'ok' }));
   return app;
 };

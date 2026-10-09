@@ -129,8 +129,9 @@ exists to reconstruct what happened and diagnose bugs.
 - **NFR-OBS-5** Log destinations are configured via Winston's native
   **Transport** mechanism, not a custom-built abstraction — Winston already
   supports multiple simultaneous transports. v1 ships with a
-  stdout/console transport **plus a daily-rotated JSON-lines file
-  transport** (`LOG_DIR`, 14 days — OQ-97, since the app runs locally); adding a hosted log/observability service or a
+  human-readable console transport **plus a daily-rotated JSON-lines file
+  transport** (`LOG_DIR`, 14 days — OQ-97) **and an audit transport**
+  storing audit events in the database (OQ-110); adding a hosted log/observability service or a
   self-hosted stack later is a configuration change (a new transport), not
   an application-architecture change (see OQ-10).
 

@@ -111,7 +111,7 @@ describe('createErrorHandler', () => {
     expect(response.status).toBe(500);
     expect(body.error).toMatchObject({ code: 'internal.unexpected', message: 'Unexpected error' });
     expect(JSON.stringify(body)).not.toContain('hunter2');
-    expect(onUnexpected).toHaveBeenCalledWith(secret);
+    expect(onUnexpected).toHaveBeenCalledWith(secret, body.error.correlationId);
   });
 });
 

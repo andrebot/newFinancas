@@ -62,15 +62,17 @@ const describeError = (err: Error): { init: ApiErrorInit; unexpected: boolean } 
 /**
  * Creates the app-wide error handler: every thrown error leaves as the error envelope.
  *
- * @param onUnexpected - Called with errors that are not API/HTTP errors (for logging).
+ * @param onUnexpected - Called with errors that are not API/HTTP errors and the
+ *   request's correlation ID (LoggingUtility.logError).
  * @returns The Hono `onError` handler.
  */
 export const createErrorHandler = (
-  onUnexpected: (err: Error) => void,
+  onUnexpected: (err: Error, correlationId: string) => void,
 ): ErrorHandler<AppEnv> => (err, c) => {
   const { init, unexpected } = describeError(err);
-  if (unexpected) onUnexpected(err);
-  return c.json(toErrorBody(init, correlationIdOf(c)), init.status);
+  const correlationId = correlationIdOf(c);
+  if (unexpected) onUnexpected(err, correlationId);
+  return c.json(toErrorBody(init, correlationId), init.status);
 };
 
 /**
