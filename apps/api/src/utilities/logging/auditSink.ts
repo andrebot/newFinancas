@@ -1,25 +1,28 @@
 import { Writable } from 'node:stream';
+import { userIdFromActor } from '@financas/logging';
 import winston from 'winston';
 import type { NewAuditEntry } from '../../accessors/auditLogAccessor';
 
-// The audit sink (OQ-110): a Winston transport that takes only events marked
-// `audit` and stores them in audit_log_entries through AuditLogAccessor — the
+// The audit sink (OQ-110): a Winston transport that takes only `audit`-level
+// events and stores them in audit_log_entries through AuditLogAccessor — the
 // locked FR-7.1 fields only, never details. Storing is retried in the background;
 // what still fails is restored later from the log files (reconcile.ts).
 
-/** An audit event as logged by `recordAudit` (and as it appears in the JSON file). */
+/** An audit event as logged by `log.audit(...)` (and as it appears in the JSON file). */
 export interface AuditLogEvent {
-  readonly audit?: boolean | undefined;
+  readonly level?: string | undefined;
+  /** The action, e.g. `CreateBudget`. */
+  readonly message?: unknown;
   readonly auditId?: string | undefined;
   readonly auditAt?: string | undefined;
-  readonly actorId?: string | null | undefined;
+  /** `user:<id>`, `system` or `unauthenticated`. */
+  readonly actor?: string | undefined;
   readonly householdId?: string | null | undefined;
-  readonly action?: string | undefined;
   readonly entityType?: string | undefined;
   readonly entityId?: string | undefined;
 }
 
-const REQUIRED_FIELDS = ['auditId', 'auditAt', 'action', 'entityType', 'entityId'] as const;
+const REQUIRED_FIELDS = ['auditId', 'auditAt', 'message', 'entityType', 'entityId'] as const;
 
 type CompleteAuditEvent = AuditLogEvent & Record<(typeof REQUIRED_FIELDS)[number], string>;
 
@@ -30,7 +33,8 @@ type CompleteAuditEvent = AuditLogEvent & Record<(typeof REQUIRED_FIELDS)[number
  * @returns `true` for a complete audit event.
  */
 const isCompleteAuditEvent = (event: AuditLogEvent): event is CompleteAuditEvent => (
-  event.audit === true && REQUIRED_FIELDS.every((field) => Boolean(event[field]))
+  event.level === 'audit'
+  && REQUIRED_FIELDS.every((field) => typeof event[field] === 'string' && event[field] !== '')
 );
 
 /**
@@ -45,9 +49,9 @@ export const toAuditRecord = (event: AuditLogEvent): NewAuditEntry | undefined =
   return {
     id: event.auditId,
     createdAt: new Date(event.auditAt),
-    actorId: event.actorId ?? null,
+    actorId: userIdFromActor(event.actor),
     householdId: event.householdId ?? null,
-    action: event.action,
+    action: event.message,
     entityType: event.entityType,
     entityId: event.entityId,
   };

@@ -34,7 +34,7 @@ in `docs/README.md`.
 - Cyclomatic complexity ≤ 7; at most 7 parameters per function.
 - Tests live outside `src/`, never co-located.
 - Never use `console`: every process logs through the shared logger
-  (`@financas/logging`; the API's LoggingUtility) — OQ-110.
+  (`import { createLogger } from '@financas/logging'`) — OQ-110.
 - Configuration (OQ-101): env vars and secrets in `config/env.ts`; fixed,
   tunable settings in `config/constants.ts`, grouped by area — never as
   loose constants inside a module. Algorithm-intrinsic facts stay put.

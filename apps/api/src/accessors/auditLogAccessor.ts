@@ -21,7 +21,7 @@ export interface AuditEntry {
 }
 
 /**
- * What LoggingUtility's audit sink records. It supplies the ID and the time of
+ * What the audit sink records. It supplies the ID and the time of
  * the action itself, so a retried or reconciled entry is the same entry (OQ-110).
  */
 export type NewAuditEntry = AuditEntry;
@@ -49,7 +49,7 @@ const startOfDay = (date: IsoDate, plusDays = 0) => (
  */
 const createAuditLogAccessor = (db: Database) => ({
   /**
-   * Appends an entry — called only by LoggingUtility's audit sink. Idempotent: an
+   * Appends an entry — called only by the audit sink. Idempotent: an
    * entry whose ID is already stored is skipped, so retries and reconciliation
    * never duplicate (OQ-110).
    *

@@ -7,12 +7,12 @@ import {
 } from '../../../../src/utilities/logging/auditSink';
 
 const EVENT = {
-  audit: true,
+  level: 'audit',
+  message: 'CreateBudget',
   auditId: '0199c5a0-0000-7000-8000-0000000000a1',
   auditAt: '2026-10-09T14:03:12.000Z',
-  actorId: 'u1',
+  actor: 'user:u1',
   householdId: 'h1',
-  action: 'CreateBudget',
   entityType: 'Budget',
   entityId: 'b1',
 };
@@ -33,13 +33,13 @@ describe('toAuditRecord (FR-7.1)', () => {
     expect(toAuditRecord(noisy as never)).toEqual(RECORD);
   });
 
-  it('maps a missing actor or household to null', () => {
-    expect(toAuditRecord({ ...EVENT, actorId: undefined, householdId: undefined }))
+  it('maps a system actor or missing household to null', () => {
+    expect(toAuditRecord({ ...EVENT, actor: 'system', householdId: undefined }))
       .toMatchObject({ actorId: null, householdId: null });
   });
 
   it.each([
-    ['a non-audit event', { ...EVENT, audit: false }],
+    ['a non-audit event', { ...EVENT, level: 'info' }],
     ['an event without an id', { ...EVENT, auditId: undefined }],
     ['an event without an entity', { ...EVENT, entityId: '' }],
   ])('ignores %s', (_case, event) => {
@@ -84,6 +84,9 @@ describe('createAuditSink', () => {
    * @returns The logger.
    */
   const loggerWith = (insert: () => Promise<unknown>, onGiveUp = vi.fn()) => winston.createLogger({
+    levels: {
+      error: 0, warn: 1, audit: 2, info: 3,
+    },
     transports: [createAuditSink({
       insert, delaysMs: [], sleep: async () => {}, onGiveUp,
     })],
@@ -92,7 +95,7 @@ describe('createAuditSink', () => {
   it('stores audit events and ignores the others', async () => {
     const insert = vi.fn().mockResolvedValue(true);
 
-    loggerWith(insert).log({ level: 'info', message: 'x', ...EVENT });
+    loggerWith(insert).log(EVENT);
     loggerWith(insert).log({ level: 'info', message: 'plain event' });
     await vi.waitFor(() => expect(insert).toHaveBeenCalledTimes(1));
 
@@ -104,7 +107,7 @@ describe('createAuditSink', () => {
 
     const failing = () => Promise.reject(new Error('down'));
 
-    loggerWith(failing, onGiveUp).log({ level: 'info', message: 'x', ...EVENT });
+    loggerWith(failing, onGiveUp).log(EVENT);
 
     await vi.waitFor(() => expect(onGiveUp).toHaveBeenCalledWith(RECORD));
   });

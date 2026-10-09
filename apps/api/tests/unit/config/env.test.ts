@@ -19,8 +19,6 @@ describe('loadEnv', () => {
       emailProvider: 'console',
       jwtSecret: JWT_SECRET,
       mfaEncryptionKey: MFA_ENCRYPTION_KEY,
-      logLevel: 'info',
-      logDir: undefined,
     });
   });
 
@@ -44,8 +42,7 @@ describe('loadEnv', () => {
 
     expect(Object.keys(config).sort())
       .toEqual([
-        'databaseUrl', 'emailProvider', 'jwtSecret', 'logDir', 'logLevel',
-        'mfaEncryptionKey', 'port',
+        'databaseUrl', 'emailProvider', 'jwtSecret', 'mfaEncryptionKey', 'port',
       ]);
   });
 
@@ -75,14 +72,6 @@ describe('loadEnv', () => {
     ['a non-base64 key', { MFA_ENCRYPTION_KEY: 'not base64!' }, /MFA_ENCRYPTION_KEY/],
   ])('rejects %s', (_case, override, message) => {
     expect(() => loadEnv({ DATABASE_URL, ...SECRETS, ...override })).toThrow(message);
-  });
-
-  it('reads LOG_LEVEL and LOG_DIR, and rejects an unknown level', () => {
-    expect(loadEnv({
-      DATABASE_URL, ...SECRETS, LOG_LEVEL: 'debug', LOG_DIR: '/var/log/f',
-    }))
-      .toMatchObject({ logLevel: 'debug', logDir: '/var/log/f' });
-    expect(() => loadEnv({ DATABASE_URL, ...SECRETS, LOG_LEVEL: 'loud' })).toThrow(/LOG_LEVEL/);
   });
 
   it('reports every invalid variable at once', () => {

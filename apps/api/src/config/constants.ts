@@ -58,10 +58,13 @@ export const calendar = {
   timeZone: 'America/Sao_Paulo',
 } as const;
 
-/** Logging (U2, OQ-110). Shared file settings live in @financas/logging. */
+/** Logging (U2, OQ-110). The logger is @financas/logging, configured from the environment. */
 export const logging = {
-  /** File name prefix of the API's daily logs: `api-2026-10-09.log`. */
-  filePrefix: 'api',
+  /**
+   * The API's daily log files are `api-YYYY-MM-DD.log` (LOG_FILE_PREFIX=api in the
+   * package's start scripts); audit reconciliation reads those.
+   */
+  apiFilePrefix: 'api',
   /** Waits between attempts to store an audit entry, in milliseconds. */
   auditRetryDelaysMs: [1_000, 5_000, 30_000],
 } as const;

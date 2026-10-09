@@ -3,45 +3,45 @@
 // and exercised by the E2E smoke test instead.
 import { readdir, readFile } from 'node:fs/promises';
 import os from 'node:os';
-import { resolveLogDir } from '@financas/logging';
+import { createLogger, logger, resolveLogDir } from '@financas/logging';
 import { serve } from '@hono/node-server';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
 import createAuditLogAccessor from './accessors/auditLogAccessor';
 import createApp from './app';
-import { logging as loggingSettings } from './config/constants';
+import { logging } from './config/constants';
 import loadEnv from './config/env';
 import { newCorrelationId } from './utilities/correlationId';
-import {
-  createApiLogger, createLoggingUtility, newAuditId,
-} from './utilities/logging';
+import { createAuditSink } from './utilities/logging/auditSink';
 import { logFileLister, reconcileAudit } from './utilities/logging/reconcile';
 
 const env = loadEnv(process.env);
-const db = drizzle(new pg.Pool({ connectionString: env.databaseUrl }));
-const auditLog = createAuditLogAccessor(db);
-const logDir = resolveLogDir(process.env, os.homedir());
-const logger = createApiLogger({ level: env.logLevel, logDir, auditInsert: auditLog.insert });
-const logging = createLoggingUtility({ logger, now: () => new Date(), newId: newAuditId });
+const pool = new pg.Pool({ connectionString: env.databaseUrl });
+const auditLog = createAuditLogAccessor(drizzle(pool));
+const log = createLogger({ label: 'api', correlationId: newCorrelationId(), actor: 'system' });
 
-serve({ fetch: createApp({ logging }).fetch, port: env.port });
-logging.logActivity({
-  correlationId: newCorrelationId(),
-  actor: 'system',
-  action: 'api.started',
-  details: { port: env.port, logDir },
-});
+// Audit events (log.audit) are also stored in audit_log_entries (OQ-110).
+logger.add(createAuditSink({
+  insert: auditLog.insert,
+  delaysMs: logging.auditRetryDelaysMs,
+  sleep: (ms) => new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  }),
+  onGiveUp: (record) => log.error(
+    `Audit entry not stored, kept for reconciliation: ${record.action}`,
+    { auditId: record.id },
+  ),
+}));
+
+serve({ fetch: createApp().fetch, port: env.port });
+log.info('API started', { port: env.port });
 
 // Restore audit entries the sink could not store last time (OQ-110).
-const reconcileId = newCorrelationId();
+const logDir = resolveLogDir(process.env, os.homedir());
 reconcileAudit({
-  listLogFiles: logFileLister(logDir, loggingSettings.filePrefix, readdir),
+  listLogFiles: logFileLister(logDir, logging.apiFilePrefix, readdir),
   readFile: (file) => readFile(file, 'utf8'),
   insertMany: auditLog.insertMany,
 })
-  .then((restored) => logging.logActivity({
-    correlationId: reconcileId, actor: 'system', action: 'audit.reconciled', details: { restored },
-  }))
-  .catch((error: unknown) => logging.logError({
-    correlationId: reconcileId, actor: 'system', action: 'audit.reconcile', error,
-  }));
+  .then((restored) => log.info('Audit reconciled', { restored }))
+  .catch((error: unknown) => log.error('Audit reconciliation failed', { error: String(error) }));

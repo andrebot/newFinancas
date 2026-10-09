@@ -6,14 +6,12 @@ import {
 } from '../../../../src/utilities/logging/reconcile';
 
 const audit = (n: number) => JSON.stringify({
-  level: 'info',
+  level: 'audit',
   message: 'CreateBudget',
-  audit: true,
   auditId: `0199c5a0-0000-7000-8000-00000000000${n}`,
   auditAt: '2026-10-09T14:00:00.000Z',
-  actorId: 'u1',
+  actor: 'user:u1',
   householdId: 'h1',
-  action: 'CreateBudget',
   entityType: 'Budget',
   entityId: 'b1',
 });

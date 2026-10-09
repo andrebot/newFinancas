@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "ops": "tsx --env-file-if-exists=../../.env src/main.ts",
+    "ops": "LOG_FILE_PREFIX=ops tsx --env-file-if-exists=../../.env src/main.ts",
     "typecheck": "tsc --project tsconfig.json"
   },
   "devDependencies": {

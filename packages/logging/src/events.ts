@@ -1,11 +1,10 @@
-// What a log event is made of (U2, NFR-OBS-1/2). Shared by the console format,
-// the file, the audit sink and reconciliation.
+// Who caused an event (U2, NFR-OBS-2): every event carries an actor label.
 
-/** Who caused an event: a user, or an explicit marker when there is none (NFR-OBS-2). */
+/** Who caused an event: a user, or an explicit marker when there is none. */
 export type Actor = { readonly userId: string } | 'system' | 'unauthenticated';
 
 /**
- * Renders an actor for log lines.
+ * Renders an actor as the `actor` context of a child logger.
  *
  * @param actor - The actor.
  * @returns `user:<id>`, `system` or `unauthenticated`.
@@ -15,11 +14,11 @@ export const actorLabel = (actor: Actor): string => (
 );
 
 /**
- * The actor's user ID for the audit record.
+ * Reads the user ID back out of an actor label (for the audit record).
  *
- * @param actor - The actor.
- * @returns The user ID, or `null` for system/unauthenticated actions.
+ * @param label - An actor label, if any.
+ * @returns The user ID, or `null` for system/unauthenticated/unknown actors.
  */
-export const actorUserId = (actor: Actor): string | null => (
-  typeof actor === 'string' ? null : actor.userId
+export const userIdFromActor = (label: unknown): string | null => (
+  typeof label === 'string' && label.startsWith('user:') ? label.slice('user:'.length) : null
 );

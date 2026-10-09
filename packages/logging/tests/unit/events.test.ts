@@ -1,13 +1,22 @@
 import { describe, expect, it } from 'vitest';
-import { actorLabel, actorUserId } from '../../src/events';
+import { actorLabel, userIdFromActor } from '../../src/events';
 
 describe('actors (NFR-OBS-2)', () => {
   it.each([
-    [{ userId: 'u1' }, 'user:u1', 'u1'],
-    ['system', 'system', null],
-    ['unauthenticated', 'unauthenticated', null],
-  ] as const)('%j → label %s, audit actor %s', (actor, label, userId) => {
+    [{ userId: 'u1' }, 'user:u1'],
+    ['system', 'system'],
+    ['unauthenticated', 'unauthenticated'],
+  ] as const)('labels %j as %s', (actor, label) => {
     expect(actorLabel(actor)).toBe(label);
-    expect(actorUserId(actor)).toBe(userId);
+  });
+
+  it.each([
+    ['user:u1', 'u1'],
+    ['system', null],
+    ['unauthenticated', null],
+    [undefined, null],
+    [42, null],
+  ])('reads the user id of %j as %j', (label, userId) => {
+    expect(userIdFromActor(label)).toBe(userId);
   });
 });

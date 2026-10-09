@@ -1,5 +1,5 @@
 // Logging settings shared by every process (OQ-97, OQ-110). Fixed values, not
-// environment variables — those (LOG_LEVEL, LOG_DIR) are read by each process.
+// environment variables — those (LOG_LEVEL, LOG_DIR, LOG_FILE_PREFIX) are read in env.ts.
 
 const loggingSettings = {
   /** Daily log files are kept this long — also how far back audit recovery reaches. */

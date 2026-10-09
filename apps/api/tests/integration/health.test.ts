@@ -1,9 +1,8 @@
 import { zError } from '@financas/api-types/zod';
+import { captureLogs } from '@financas/logging';
 import { createAdaptorServer } from '@hono/node-server';
 import request from 'supertest';
-import {
-  describe, expect, it, vi,
-} from 'vitest';
+import { describe, expect, it } from 'vitest';
 import createApp from '../../src/app';
 
 /**
@@ -11,8 +10,7 @@ import createApp from '../../src/app';
  *
  * @returns The Node HTTP server.
  */
-const logging = { logError: vi.fn(), logRequest: vi.fn() };
-const server = () => createAdaptorServer({ fetch: createApp({ logging }).fetch });
+const server = () => createAdaptorServer({ fetch: createApp().fetch });
 
 describe('GET /health', () => {
   it('responds 200 with status ok', async () => {
@@ -26,12 +24,15 @@ describe('GET /health', () => {
 
 describe('request logging (NFR-OBS-1)', () => {
   it('logs every request with its correlation id', async () => {
+    const logs = captureLogs();
     const response = await request(server()).get('/health');
+    logs.stop();
 
-    expect(logging.logRequest).toHaveBeenCalledWith(expect.objectContaining({
+    expect(logs.events).toContainEqual(expect.objectContaining({
+      level: 'info',
+      label: 'http',
+      message: 'GET /health',
       correlationId: response.headers['x-correlation-id'],
-      method: 'GET',
-      path: '/health',
       status: 200,
     }));
   });
@@ -50,21 +51,22 @@ describe('unknown routes', () => {
 });
 
 describe('unexpected errors', () => {
-  it('are reported to logError with the request\'s correlation id', async () => {
-    const app = createApp({ logging });
-    const failure = new Error('database unreachable');
+  it('are logged with their stack and the request\'s correlation id', async () => {
+    const app = createApp();
     app.get('/boom', () => {
-      throw failure;
+      throw new Error('database unreachable');
     });
+    const logs = captureLogs();
 
     const response = await request(createAdaptorServer({ fetch: app.fetch })).get('/boom');
+    logs.stop();
 
     expect(response.status).toBe(500);
-    expect(logging.logError).toHaveBeenCalledWith({
+    expect(logs.events).toContainEqual(expect.objectContaining({
+      level: 'error',
+      message: 'Unexpected error: database unreachable',
       correlationId: response.headers['x-correlation-id'],
-      actor: 'unauthenticated',
-      action: 'http.unexpected_error',
-      error: failure,
-    });
+      stack: expect.stringContaining('database unreachable'),
+    }));
   });
 });

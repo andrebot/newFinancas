@@ -10,7 +10,7 @@ import { randomBytes } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import { pipeline } from 'node:stream/promises';
-import { createLogger, resolveLogDir, type LogLevel } from '@financas/logging';
+import { createLogger, logger as rootLogger } from '@financas/logging';
 import { parseRestoreArgs } from './args';
 import { resolveBackupConfig } from './config';
 import { fillSecrets } from './envSecrets';
@@ -21,11 +21,7 @@ import {
 const REPO_ROOT = path.resolve(import.meta.dirname, '../../..');
 
 // Every message goes through the shared logger (OQ-110): console + ops-*.log.
-const logger = createLogger({
-  level: (process.env.LOG_LEVEL ?? 'info') as LogLevel,
-  logDir: resolveLogDir(process.env, os.homedir()),
-  filePrefix: 'ops',
-}).child({ actor: 'system' });
+const logger = createLogger({ label: 'ops', actor: 'system' });
 
 const docker: OpsDeps['docker'] = async (args, files: DockerFiles = {}) => {
   const child = spawn('docker', [...args], { cwd: REPO_ROOT, stdio: ['pipe', 'pipe', 'inherit'] });
@@ -93,7 +89,7 @@ const run = command ? commands[command] : undefined;
 if (!run) {
   logger.error('Usage: ops <backup | restore [file] [--into-live] | restore-drill | env-secrets>');
   process.exitCode = 2;
-  logger.end();
+  rootLogger.end();
 } else {
   run()
     .catch((error: unknown) => {
@@ -101,5 +97,5 @@ if (!run) {
       process.exitCode = 1;
     })
     // Close the log file so the process can exit.
-    .finally(() => logger.end());
+    .finally(() => rootLogger.end());
 }

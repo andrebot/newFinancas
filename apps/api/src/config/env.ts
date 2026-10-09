@@ -16,9 +16,6 @@ const envSchema = z.object({
     .default(3000),
   DATABASE_URL: postgresUrl,
   EMAIL_PROVIDER: z.enum(['console']).default('console'),
-  LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
-  /** Where the daily log files go; default resolved by LoggingUtility (XDG state dir). */
-  LOG_DIR: z.string().min(1).optional(),
   JWT_SECRET: z.string().min(authentication.accessToken.minSecretLength),
   MFA_ENCRYPTION_KEY: z.base64().refine(
     (value) => Buffer.from(value, 'base64').length === KEY_BYTES,
@@ -31,8 +28,6 @@ export interface Env {
   readonly port: number;
   readonly databaseUrl: string;
   readonly emailProvider: 'console';
-  readonly logLevel: 'error' | 'warn' | 'info' | 'debug';
-  readonly logDir: string | undefined;
   readonly jwtSecret: string;
   readonly mfaEncryptionKey: string;
 }
@@ -59,8 +54,6 @@ const loadEnv = (env: Record<string, string | undefined>): Env => {
     port: result.data.PORT,
     databaseUrl: result.data.DATABASE_URL,
     emailProvider: result.data.EMAIL_PROVIDER,
-    logLevel: result.data.LOG_LEVEL,
-    logDir: result.data.LOG_DIR,
     jwtSecret: result.data.JWT_SECRET,
     mfaEncryptionKey: result.data.MFA_ENCRYPTION_KEY,
   };
