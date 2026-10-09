@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { encodeCell, toCsv, type CsvColumn } from '../../../src/utilities/csv';
+import { encodeCell, toCsv, type CsvColumn } from '../../../../src/engines/reporting/csv';
 
 describe('encodeCell', () => {
   it.each([

@@ -1167,13 +1167,22 @@ places, nothing tunable buried in a module.**
   startDate, endDate)` only. There is no update or delete, matching the
   missing database privileges. Entries come back oldest first, and the
   actor is null for system actions.
-- **The CSV is not the Accessor's job.** A new pure **CsvUtility**
-  (`toCsv(columns, rows)`) produces RFC 4180 text (quoting, CRLF). It
-  also guards against **formula injection**: a text cell starting with
-  `=`, `+`, `-`, `@`, tab or CR gets a leading `'`, so it opens as text
-  in a spreadsheet (OWASP). The transactions export (FR-6.4, v2) will
-  reuse it. The VBD doc's `exportCsv` is split accordingly, and the
-  export diagram is regenerated.
+- **The CSV is ReportingEngine's job** (stakeholder correction: "audit
+  logs are a form of reporting"; the VBD doc already lists "export
+  formatting" under ReportingEngine). The flow:
+  1. InsightsManager reads the entries via
+     `AuditLogAccessor.listForExport`.
+  2. It hands them to `ReportingEngine.auditLogCsv(entries)`
+     (`src/engines/reporting/`).
+  3. That writes the columns `timestamp, actor_id, action, entity_type,
+     entity_id`, with `system` for a null actor.
+
+  The engine's RFC 4180 writer (`csv.ts`, with quoting and CRLF) guards
+  against **formula injection**: a text cell starting with `=`, `+`, `-`,
+  `@`, tab or CR gets a leading `'`, so it opens as text in a spreadsheet
+  (OWASP). The v2 transactions export (FR-6.4) will use the same writer.
+  The rest of ReportingEngine is still task E2. The export diagram is
+  regenerated.
 - **App timezone:** `calendar.timeZone = 'America/Sao_Paulo'`
   (`config/constants.ts`). A date like 2026-10-08 means that day in São
   Paulo, both ends inclusive, for this export and every later date range

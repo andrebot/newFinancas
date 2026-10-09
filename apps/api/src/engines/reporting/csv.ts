@@ -1,5 +1,6 @@
-// CSV utility: RFC 4180 text from rows, for the audit-log export (FR-7.2) and
-// the transactions export later (FR-6.4). Pure; no knowledge of any domain.
+// ReportingEngine — CSV output (VBD: "export formatting"; OQ-104). RFC 4180 text
+// from rows, safe against spreadsheet formula injection. Every CSV report of the
+// engine (audit log now, transactions in v2 — FR-6.4) is written through it.
 
 /** One CSV column: its header and how to read it from a row. */
 export interface CsvColumn<Row> {
