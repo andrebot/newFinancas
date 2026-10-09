@@ -1085,6 +1085,35 @@ places, nothing tunable buried in a module.**
   Crockford alphabet and the UUID pattern.
 - Test files may use plain literals.
 
+### OQ-102: Service bus semantics (task U6)
+**Confirmed, implementation (Oct 2026):**
+- **Typed events:** `apps/api/src/utilities/serviceBus/events.ts` maps
+  each topic to its payload. That map is the only coupling between
+  Managers; publishing an unknown topic or the wrong payload doesn't
+  compile. Topics today:
+  - `household.created`;
+  - `holding.matured`;
+  - `transaction.import.requested`, whose payload is a draft finalised
+    with the scheduler in N9.
+- **Messages** carry the publishing request's **correlation ID**
+  (OQ-99) and a publish time, and are **frozen**, so one subscriber
+  can't change what the next one sees.
+- **Delivery:**
+  - **Fire-and-forget:** `publish` returns before any handler runs.
+  - Handlers run in subscription order, against the subscribers present
+    at publish time. The same handler registers only once.
+  - A failing handler is reported to an injected `onHandlerError`
+    (LoggingUtility, U2) and never reaches the publisher or the other
+    subscribers.
+  - `drain()` waits for everything in flight, including events published
+    by handlers. Integration tests and graceful shutdown use it.
+- **At-most-once, in memory:** a crash mid-delivery loses the message.
+  This is accepted for v1 (VBD §3.0). The visible risk is a household
+  left without its default categories if the process dies between
+  creating it and seeding them. If that matters later, the remedy is an
+  outbox table, without changing any Manager.
+- **Not built:** request/reply. §3.0 allows it, but no use case needs it.
+
 ## Refined (resolved, with a follow-up still open)
 
 *(OQ-4's legal-review follow-up below is closed for v1 by OQ-89.)*
