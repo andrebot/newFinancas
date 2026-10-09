@@ -93,7 +93,7 @@ const createUserAccessor = (db: Database) => ({
     try {
       const created = await db.transaction(async (tx) => {
         const [row] = await tx.insert(users).values({
-          email: user.email.trim(),
+          email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
           passwordHash: user.passwordHash,
@@ -116,16 +116,17 @@ const createUserAccessor = (db: Database) => ({
   },
 
   /**
-   * Finds a user by email, ignoring case, with credentials (login, registration
-   * check, reset, MFA recovery).
+   * Finds a user by email, ignoring case — matching the unique index on
+   * lower(email) — with credentials (login, registration check, reset, MFA
+   * recovery). Cleaning up the input (trimming) is the caller's job (OQ-108).
    *
-   * @param email - As typed.
+   * @param email - The email, already normalised by the caller.
    * @returns The user with credentials, or `undefined`.
    */
   findByEmail: async (email: string): Promise<UserWithCredentials | undefined> => {
     const [row] = await db.select({
       ...userColumns, passwordHash: users.passwordHash, encryptedMfaSecret: users.mfaSecret,
-    }).from(users).where(sql`lower(${users.email}) = lower(${email.trim()})`);
+    }).from(users).where(sql`lower(${users.email}) = lower(${email})`);
     return row && {
       ...toUser(row), passwordHash: row.passwordHash, encryptedMfaSecret: row.encryptedMfaSecret,
     };

@@ -75,7 +75,7 @@ describe('UserAccessor', () => {
     it('reports a duplicate email, ignoring case, and writes nothing', test(async (users) => {
       await users.insert(ANA);
 
-      expect(await users.insert({ ...ANA, email: ' ana@EXAMPLE.com ' }))
+      expect(await users.insert({ ...ANA, email: 'ana@EXAMPLE.com' }))
         .toEqual({ ok: false, reason: 'email_taken' });
     }));
 
@@ -92,10 +92,10 @@ describe('UserAccessor', () => {
   });
 
   describe('lookups', () => {
-    it('finds by email ignoring case and spaces, with credentials', test(async (users) => {
+    it('finds by email ignoring case, with credentials', test(async (users) => {
       const id = await registerAna(users);
 
-      expect(await users.findByEmail('  ANA@example.COM ')).toMatchObject({
+      expect(await users.findByEmail('ANA@example.COM')).toMatchObject({
         id, passwordHash: '$argon2id$hash', encryptedMfaSecret: 'v1.iv.tag.ciphertext',
       });
       expect(await users.findByEmail('nobody@example.com')).toBeUndefined();
