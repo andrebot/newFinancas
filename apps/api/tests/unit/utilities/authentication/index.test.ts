@@ -38,7 +38,9 @@ describe('createAuthenticationUtility', () => {
   });
 
   it('signs and verifies access tokens with the configured key and clock', async () => {
-    expect(await auth.verifyAccessToken(await auth.signAccessToken('user-1'))).toBe('user-1');
+    const claims = { userId: 'user-1', sessionId: 'session-1' };
+
+    expect(await auth.verifyAccessToken(await auth.signAccessToken(claims))).toEqual(claims);
   });
 
   it('issues opaque tokens', () => {
@@ -55,7 +57,9 @@ describe('createAuthenticationUtility', () => {
   it('works with the real clock and randomness by default', async () => {
     const real = createAuthenticationUtility(CONFIG);
 
-    expect(await real.verifyAccessToken(await real.signAccessToken('user-2'))).toBe('user-2');
+    const claims = { userId: 'user-2', sessionId: 'session-2' };
+
+    expect(await real.verifyAccessToken(await real.signAccessToken(claims))).toEqual(claims);
     expect(real.issueOpaqueToken().token).not.toBe(real.issueOpaqueToken().token);
   });
 });

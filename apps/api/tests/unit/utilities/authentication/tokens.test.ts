@@ -1,3 +1,4 @@
+import { SignJWT } from 'jose';
 import { describe, expect, it } from 'vitest';
 import { authentication } from '../../../../src/config/constants';
 import {
@@ -7,24 +8,38 @@ import {
 const KEY = new TextEncoder().encode('k'.repeat(32));
 const OTHER_KEY = new TextEncoder().encode('x'.repeat(32));
 const T0 = new Date('2026-10-08T12:00:00Z');
+const CLAIMS = { userId: 'user-1', sessionId: 'session-1' };
 const after = (seconds: number) => new Date(T0.getTime() + seconds * 1000);
 
 describe('access tokens (JWT, HS256)', () => {
   it('verify within 15 minutes and return the user', async () => {
-    const token = await signAccessToken(KEY, 'user-1', T0);
+    const token = await signAccessToken(KEY, CLAIMS, T0);
 
     expect(authentication.accessToken.ttlSeconds).toBe(900);
-    expect(await verifyAccessToken(KEY, token, after(899))).toBe('user-1');
+    expect(await verifyAccessToken(KEY, token, after(899))).toEqual(CLAIMS);
+  });
+
+  it('reject a validly signed token that lacks the session claim', async () => {
+    const noSession = await new SignJWT({})
+      .setProtectedHeader({ alg: 'HS256' })
+      .setSubject('user-1')
+      .setIssuer('financas-api')
+      .setAudience('financas-web')
+      .setIssuedAt(Math.floor(T0.getTime() / 1000))
+      .setExpirationTime(Math.floor(T0.getTime() / 1000) + 60)
+      .sign(KEY);
+
+    expect(await verifyAccessToken(KEY, noSession, T0)).toBeUndefined();
   });
 
   it('expire after 15 minutes', async () => {
-    const token = await signAccessToken(KEY, 'user-1', T0);
+    const token = await signAccessToken(KEY, CLAIMS, T0);
 
     expect(await verifyAccessToken(KEY, token, after(901))).toBeUndefined();
   });
 
   it('are rejected with another key, when tampered with, or unsigned', async () => {
-    const token = await signAccessToken(KEY, 'user-1', T0);
+    const token = await signAccessToken(KEY, CLAIMS, T0);
     const [header, , signature] = token.split('.');
     const forgedPayload = Buffer.from(JSON.stringify({ sub: 'admin', exp: 9_999_999_999 }))
       .toString('base64url');

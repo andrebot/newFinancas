@@ -47,9 +47,13 @@ export const sessions = pgTable('sessions', {
   id: id(),
   userId: uuid('user_id').notNull().references(() => users.id, CASCADE),
   refreshTokenHash: text('refresh_token_hash').notNull().unique(),
+  // The token this one replaced: presenting it again means it was stolen (OQ-106).
+  previousRefreshTokenHash: text('previous_refresh_token_hash').unique(),
   deviceInfo: text('device_info'),
   createdAt: createdAt(),
   lastUsedAt: instant('last_used_at').notNull().defaultNow(),
+  // Sliding: each rotation issues a new refresh token valid for the full TTL.
+  expiresAt: instant('expires_at').notNull(),
 });
 
 export const households = pgTable('households', {

@@ -66,10 +66,12 @@ sequenceDiagram
 
     User->>API: GET /users/me/sessions
     API->>IM: listSessions(actor)
-    IM->>SA: listByUser(actor)
-    SA-->>IM: [{sessionId, deviceInfo, createdAt, lastUsedAt}, ...]
+    IM->>SA: listByUser(actor, now)
+    Note over SA: active only, most recently used first
+    SA-->>IM: [{id, deviceInfo, createdAt, lastUsedAt}, ...]
+    Note over IM: current = (id == the access token's sid) (OQ-106)
     IM-->>API: sessions[]
-    API-->>User: 200 OK [{sessionId, deviceInfo, lastUsedAt}, ...]
+    API-->>User: 200 OK [{id, deviceInfo, createdAt, lastUsedAt, current}, ...]
     </pre>
   </div>
   <div class="notes">

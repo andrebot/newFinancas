@@ -80,9 +80,13 @@ export type User = {
 
 export type Session = {
     id?: string;
-    deviceInfo?: string;
+    deviceInfo?: string | null;
     createdAt?: string;
     lastUsedAt?: string;
+    /**
+     * True for the session making this request (OQ-106) — the device the user is on
+     */
+    current?: boolean;
 };
 
 export type Household = {

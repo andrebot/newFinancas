@@ -114,9 +114,11 @@ erDiagram
         uuid id PK
         uuid user_id FK
         string refresh_token_hash
+        string previous_refresh_token_hash "nullable, reuse detection (OQ-106)"
         string device_info
         timestamp created_at
         timestamp last_used_at
+        timestamp expires_at "sliding, 30 days"
     }
     households {
         uuid id PK

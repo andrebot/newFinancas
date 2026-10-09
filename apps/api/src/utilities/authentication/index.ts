@@ -7,8 +7,10 @@ import {
   IV_BYTES, openSecret, parseEncryptionKey, sealSecret,
 } from './secretBox';
 import {
-  hashOpaqueToken, issueOpaqueToken, signAccessToken, verifyAccessToken,
+  hashOpaqueToken, issueOpaqueToken, signAccessToken, verifyAccessToken, type AccessTokenClaims,
 } from './tokens';
+
+export type { AccessTokenClaims } from './tokens';
 
 // AuthenticationUtility (U4, VBD): pure identity-proof primitives — passwords,
 // MFA, tokens. Touches no storage; Managers persist what it returns (OQ-100).
@@ -82,17 +84,17 @@ export const createAuthenticationUtility = (
     hashRecoveryCode,
     verifyRecoveryCode,
     /**
-     * Signs a 15-minute access token.
+     * Signs a 15-minute access token for a user's session.
      *
-     * @param userId - The authenticated user.
+     * @param claims - The authenticated user and their session.
      * @returns The JWT.
      */
-    signAccessToken: (userId: string) => signAccessToken(signingKey, userId, deps.now()),
+    signAccessToken: (claims: AccessTokenClaims) => signAccessToken(signingKey, claims, deps.now()),
     /**
      * Verifies an access token.
      *
      * @param token - The JWT.
-     * @returns The user ID, or `undefined` when not valid.
+     * @returns User and session, or `undefined` when not valid.
      */
     verifyAccessToken: (token: string) => verifyAccessToken(signingKey, token, deps.now()),
     /**

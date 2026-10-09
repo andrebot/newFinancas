@@ -628,13 +628,14 @@ sequenceDiagram
                 API-->>User: 401 auth.mfa_invalid
             else MFA valid
                 AN-->>IM: valid
-                IM->>AN: signAccessToken(userId)
-                AN-->>IM: accessToken (15-minute JWT)
                 IM->>AN: issueOpaqueToken()
                 AN-->>IM: {refreshToken, refreshTokenHash}
-                IM->>SA: insert(userId, refreshTokenHash, deviceInfo)
-                Note over SA: stores only the hash (OQ-100)
+                IM->>SA: insert(userId, refreshTokenHash, deviceInfo, expiresAt)
+                Note over SA: stores only the hash (OQ-100), 30-day sliding expiry
                 SA-->>IM: sessionId
+                IM->>AN: signAccessToken({userId, sessionId})
+                Note over AN: the session ID (sid) tells the current device apart (OQ-106)
+                AN-->>IM: accessToken (15-minute JWT)
                 IM-->>LOG: logActivity(correlationId, userId, "Login")
                 IM-->>LOG: recordAudit(userId, "Session", sessionId)
                 IM-->>API: {accessToken, refreshToken}
@@ -665,7 +666,7 @@ sequenceDiagram
 
     User->>API: POST /auth/logout
     API->>IM: logout(actor, currentSessionId)
-    IM->>SA: delete(currentSessionId)
+    IM->>SA: deleteForUser(actor, currentSessionId)
     Note over SA: invalidates this refresh token only (FR-1.9) &mdash;<br/>the access token simply expires shortly after, unrevoked
     SA-->>IM: revoked
     IM-->>LOG: logActivity(correlationId, actor, "Logout")
@@ -694,10 +695,12 @@ sequenceDiagram
 
     User->>API: GET /users/me/sessions
     API->>IM: listSessions(actor)
-    IM->>SA: listByUser(actor)
-    SA-->>IM: [{sessionId, deviceInfo, createdAt, lastUsedAt}, ...]
+    IM->>SA: listByUser(actor, now)
+    Note over SA: active only, most recently used first
+    SA-->>IM: [{id, deviceInfo, createdAt, lastUsedAt}, ...]
+    Note over IM: current = (id == the access token's sid) (OQ-106)
     IM-->>API: sessions[]
-    API-->>User: 200 OK [{sessionId, deviceInfo, lastUsedAt}, ...]
+    API-->>User: 200 OK [{id, deviceInfo, createdAt, lastUsedAt, current}, ...]
 """,
     notes="""
     <ul>
@@ -720,14 +723,13 @@ sequenceDiagram
 
     User->>API: DELETE /users/me/sessions/:sessionId
     API->>IM: revokeSession(actor, sessionId)
-    IM->>SA: findById(sessionId)
-    alt session does not belong to actor, or doesn't exist
-        SA-->>IM: not found
+    IM->>SA: deleteForUser(actor, sessionId)
+    Note over SA: ownership check and delete in one statement (OQ-106)
+    alt not the actor's, or doesn't exist
+        SA-->>IM: not deleted
         IM-->>API: NotFound
         API-->>User: 404 session.not_found
-    else belongs to actor
-        SA-->>IM: found
-        IM->>SA: delete(sessionId)
+    else the actor's
         SA-->>IM: revoked
         IM-->>LOG: logActivity(correlationId, actor, "RevokeSession")
         IM-->>API: revoked
@@ -905,12 +907,12 @@ sequenceDiagram
             API-->>User: 401 auth.recovery_code_invalid
         else code valid and unused
             UA-->>IM: consumed
-            IM->>AN: signAccessToken(userId)
-            AN-->>IM: accessToken
             IM->>AN: issueOpaqueToken()
             AN-->>IM: {refreshToken, refreshTokenHash}
-            IM->>SA: insert(userId, refreshTokenHash, deviceInfo)
+            IM->>SA: insert(userId, refreshTokenHash, deviceInfo, expiresAt)
             SA-->>IM: sessionId
+            IM->>AN: signAccessToken({userId, sessionId})
+            AN-->>IM: accessToken
             IM-->>LOG: logActivity(correlationId, userId, "MfaRecovery")
             IM-->>LOG: recordAudit(userId, "Session", sessionId)
             IM-->>API: {accessToken, refreshToken}

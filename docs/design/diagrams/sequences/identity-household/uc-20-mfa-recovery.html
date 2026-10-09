@@ -86,12 +86,12 @@ sequenceDiagram
             API-->>User: 401 auth.recovery_code_invalid
         else code valid and unused
             UA-->>IM: consumed
-            IM->>AN: signAccessToken(userId)
-            AN-->>IM: accessToken
             IM->>AN: issueOpaqueToken()
             AN-->>IM: {refreshToken, refreshTokenHash}
-            IM->>SA: insert(userId, refreshTokenHash, deviceInfo)
+            IM->>SA: insert(userId, refreshTokenHash, deviceInfo, expiresAt)
             SA-->>IM: sessionId
+            IM->>AN: signAccessToken({userId, sessionId})
+            AN-->>IM: accessToken
             IM-->>LOG: logActivity(correlationId, userId, "MfaRecovery")
             IM-->>LOG: recordAudit(userId, "Session", sessionId)
             IM-->>API: {accessToken, refreshToken}

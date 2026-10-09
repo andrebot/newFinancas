@@ -90,13 +90,14 @@ sequenceDiagram
                 API-->>User: 401 auth.mfa_invalid
             else MFA valid
                 AN-->>IM: valid
-                IM->>AN: signAccessToken(userId)
-                AN-->>IM: accessToken (15-minute JWT)
                 IM->>AN: issueOpaqueToken()
                 AN-->>IM: {refreshToken, refreshTokenHash}
-                IM->>SA: insert(userId, refreshTokenHash, deviceInfo)
-                Note over SA: stores only the hash (OQ-100)
+                IM->>SA: insert(userId, refreshTokenHash, deviceInfo, expiresAt)
+                Note over SA: stores only the hash (OQ-100), 30-day sliding expiry
                 SA-->>IM: sessionId
+                IM->>AN: signAccessToken({userId, sessionId})
+                Note over AN: the session ID (sid) tells the current device apart (OQ-106)
+                AN-->>IM: accessToken (15-minute JWT)
                 IM-->>LOG: logActivity(correlationId, userId, "Login")
                 IM-->>LOG: recordAudit(userId, "Session", sessionId)
                 IM-->>API: {accessToken, refreshToken}

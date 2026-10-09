@@ -147,7 +147,10 @@ Backs `IdentityManager`'s Accessors: `UserAccessor`, `SessionAccessor`,
   than a blob column, since codes are consumed individually and
   single-use (FR-1.15/1.16).
 - **`sessions`** — `id` (PK), `user_id` (FK → `users`),
-  `refresh_token_hash`, `device_info`, `created_at`, `last_used_at`.
+  `refresh_token_hash`, **`previous_refresh_token_hash`** (nullable,
+  unique — the token the last rotation replaced; presenting it again ends
+  the session) and **`expires_at`** (sliding 30 days), both added in A2
+  (OQ-106), `device_info`, `created_at`, `last_used_at`.
   Revoke/logout is a row delete, not a soft-delete flag — nothing in
   FR-1.3/1.9 needs a revoked session to remain visible.
 - **`households`** — `id` (PK), `name`, `created_at`.
