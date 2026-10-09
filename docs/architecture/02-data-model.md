@@ -135,7 +135,8 @@ Backs `IdentityManager`'s Accessors: `UserAccessor`, `SessionAccessor`,
   pass — see `05-assumptions-and-open-questions.md`), `mfa_secret`,
   **`theme`** (`dark` | `light` | `system`, default `dark`) and
   **`language`** (`pt-BR` | `en-US`) — FR-1.21, columns not JSON (two
-  known, always-set fields, Oct 2026), `created_at`.
+  known, always-set fields, Oct 2026), **`system_role`** (`USER` |
+  `ADMIN`, default `USER` — FR-1.23, OQ-111), `created_at`.
 - **`password_reset_tokens`** *(new, Oct 2026 — gap found in the data
   model review: Reset Password's sequence looks tokens up but nothing
   stored them)* — `id` (PK), `user_id` (FK → `users`, `ON DELETE

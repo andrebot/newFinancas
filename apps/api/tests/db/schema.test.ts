@@ -134,6 +134,21 @@ describe('migrated schema', () => {
     });
   });
 
+  it('makes every user a USER unless set, and knows only USER and ADMIN (OQ-111)', async () => {
+    await asAppRole(database, async (connection) => {
+      const user = await insertUser(connection, 'role@example.com');
+      const { rows } = await connection.query<{ system_role: string }>(
+        'SELECT system_role FROM users WHERE id = $1',
+        [user],
+      );
+      const setRole = 'UPDATE users SET system_role = $2 WHERE id = $1';
+
+      expect(rows[0]!.system_role).toBe('USER');
+      expect(await errorCodeOf(connection, setRole, [user, 'ADMIN'])).toBeUndefined();
+      expect(await errorCodeOf(connection, setRole, [user, 'Admin'])).toBe(CHECK_VIOLATION);
+    });
+  });
+
   it('does not let the application role change the schema', async () => {
     await asAppRole(database, async (connection) => {
       expect(await errorCodeOf(connection, 'CREATE TABLE probe (x int)')).toBe(PERMISSION_DENIED);

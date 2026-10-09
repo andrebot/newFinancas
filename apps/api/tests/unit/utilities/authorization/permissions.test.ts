@@ -5,11 +5,12 @@ import { decide } from '../../../../src/utilities/authorization';
 const ME = 'u-me';
 const OTHER = 'u-other';
 
-describe('decide — household actions (FR-1.7, FR-1.20, FR-7.2)', () => {
+describe('decide — household actions (FR-1.7, FR-1.11/12, FR-1.20, FR-7.2)', () => {
   it.each([
     ['household.view', ['Owner', 'Admin', 'Member', 'Viewer'], []],
     ['household.delete', ['Owner'], ['Admin', 'Member', 'Viewer']],
     ['household.transferOwnership', ['Owner'], ['Admin', 'Member', 'Viewer']],
+    ['members.manage', ['Owner', 'Admin'], ['Member', 'Viewer']],
     ['audit.export', ['Owner', 'Admin'], ['Member', 'Viewer']],
   ] as const)('%s: allowed for %j, forbidden for %j', (action, allowed, denied) => {
     allowed.forEach((role) => expect(decide(role, ME, { action })).toBe('allowed'));
@@ -17,26 +18,11 @@ describe('decide — household actions (FR-1.7, FR-1.20, FR-7.2)', () => {
   });
 });
 
-describe('decide — members.manage (FR-1.11, FR-1.12)', () => {
-  it.each([
-    ['Owner', 'Admin', 'allowed'],
-    ['Owner', 'Viewer', 'allowed'],
-    ['Admin', 'Admin', 'allowed'],
-    ['Admin', 'Member', 'allowed'],
-    ['Admin', 'Owner', 'forbidden'],
-    ['Owner', 'Owner', 'forbidden'],
-    ['Member', 'Viewer', 'forbidden'],
-    ['Viewer', 'Viewer', 'forbidden'],
-  ] as const)('%s acting on a %s: %s', (role, memberRole, decision) => {
-    expect(decide(role, ME, { action: 'members.manage', memberRole })).toBe(decision);
-  });
-});
-
 describe('decide — personal data (FR-2.3, OQ-111)', () => {
   const ROLES: readonly Role[] = ['Owner', 'Admin', 'Member', 'Viewer'];
 
   it.each([
-    'data.view', 'data.create', 'data.edit',
+    'data.view', 'data.create', 'data.edit', 'data.delete',
   ] as const)('%s on your own: every role', (action) => {
     ROLES.forEach((role) => {
       expect(decide(role, ME, { action, visibility: 'personal', ownerUserId: ME })).toBe('allowed');
@@ -44,7 +30,7 @@ describe('decide — personal data (FR-2.3, OQ-111)', () => {
   });
 
   it.each([
-    'data.view', 'data.edit',
+    'data.view', 'data.edit', 'data.delete',
   ] as const)('%s on another\'s: hidden, even from Owner', (action) => {
     ROLES.forEach((role) => {
       expect(decide(role, ME, { action, visibility: 'personal', ownerUserId: OTHER }))
@@ -64,6 +50,10 @@ describe('decide — shared data (FR-1.7)', () => {
     ['data.edit', 'Member', OTHER, 'forbidden'],
     ['data.edit', 'Member', null, 'forbidden'],
     ['data.edit', 'Viewer', ME, 'forbidden'],
+    ['data.delete', 'Admin', OTHER, 'allowed'],
+    ['data.delete', 'Member', ME, 'allowed'],
+    ['data.delete', 'Member', OTHER, 'forbidden'],
+    ['data.delete', 'Viewer', ME, 'forbidden'],
   ] as const)('%s by a %s on data created by %s: %s', (action, role, ownerUserId, decision) => {
     expect(decide(role, ME, { action, visibility: 'shared', ownerUserId })).toBe(decision);
   });

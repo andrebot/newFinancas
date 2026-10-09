@@ -1,14 +1,16 @@
 import type { Role } from '../../accessors/householdAccessor';
 import { type AccessRequest, decide } from './permissions';
 
-// AuthorizationUtility (U5, VBD): the yes/no gate every Manager calls before
-// acting. It reads only the actor's role (HouseholdAccessor); the Manager
-// passes the facts about the target it has already loaded (OQ-111).
+// AuthorizationUtility (U5, VBD): the yes/no gates. `hasSystemRole` checks the
+// platform role on every API request; `authorize` checks the household role
+// before a Manager acts — it reads only that role (HouseholdAccessor), the
+// Manager passing the facts about the target it already loaded (OQ-111).
 
 export type {
   AccessRequest, Action, DataAction, Decision, HouseholdAction, Visibility,
 } from './permissions';
 export { decide, PERMISSIONS } from './permissions';
+export { default as hasSystemRole } from './systemRoles';
 
 /** What the utility needs from HouseholdAccessor. */
 export interface AuthorizationDeps {

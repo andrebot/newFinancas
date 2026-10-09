@@ -1428,37 +1428,56 @@ to the financas app's style):**
   The API's retry delays and its file prefix (for reconciliation) are in
   its `constants.ts`; retention and date pattern in `@financas/logging`.
 
-### OQ-111: Authorization — the permission table and who supplies the facts (task U5)
+### OQ-111: Authorization — system roles, household roles, and where each rule lives (task U5)
 **Confirmed with the stakeholder (Oct 2026):**
+- **Two levels of roles.** A **system role** (`USER` | `ADMIN`, FR-1.23)
+  is platform-wide; a **household role** (Owner, Admin, Member, Viewer)
+  holds within one household. Capitals keep the system `ADMIN` from being
+  confused with a household `Admin`.
+  - Registering through the website always makes a `USER`
+    (`users.system_role`, default `USER`). How an `ADMIN` is created is
+    decided when the sys-admin pages are designed.
+  - `ADMIN` includes `USER`: an admin also uses the app normally.
+  - **Every user API requires `USER`**; sys-admin APIs will require
+    `ADMIN`. The role travels in the 15-minute access token (`role`
+    claim), so no request reads it from the database; a role change takes
+    effect at the next refresh, or at once if it also ends the user's
+    sessions.
 - **A Viewer manages their own personal data.** FR-1.7's "read-only"
-  covers shared data only. Personal accounts, budgets, goals and their
-  transactions belong to their owner whatever their role; nobody else sees
-  them, so this can't harm the household.
-- **An Admin may manage other Admins** (remove, change role, promote to
-  Admin). Only the Owner is protected: nobody manages the Owner's
-  membership — the Owner role moves only by transfer (FR-1.20) or
-  succession (FR-1.18).
+  covers shared data only; personal data is invisible to everyone else.
+- **A Member edits and deletes anything shared they created** — accounts,
+  budgets, goals, transactions — even an account holding others'
+  transactions, so a mistake never needs an Owner/Admin to fix.
+- **An Admin may manage other Admins.** Only the Owner is protected.
+- **Policy vs. business rules.** AuthorizationUtility holds the
+  *policy* — which role may take which kind of action — because all four
+  Managers apply the same table and a new role must change it in one
+  place. Rules about the household's state stay in **IdentityManager**:
+  nobody but the Owner ends the Owner's membership (FR-1.11), succession
+  (FR-1.18), transfer (FR-1.20), duplicate invitations, and leaving being
+  self-service.
 
 **Design (U5):**
-- `decide(role, actorId, request)` is pure; the role → action table
-  (`PERMISSIONS`) is in code, as VBD §2.3 decided. Actions:
-  `household.view`, `household.delete` and `household.transferOwnership`
-  (Owner), `audit.export` (Owner, Admin), `members.manage` (Owner, Admin;
-  never on an Owner), `data.view` (everyone), `data.create` (Owner, Admin,
-  Member), `data.edit` (Owner, Admin, and a Member on shared data they
-  created — `owner_user_id` is the creator of shared data).
-- `authorize(actorId, householdId, request)` reads only the actor's role
-  (`HouseholdAccessor.findMembership`). **The Manager passes the target's
-  facts it has already loaded** (visibility and owner, or the member's
-  role), so the Utility never calls AccountAccessor and the like. The VBD
-  diagrams' `canWrite(actor, accountId)` / `canManageMembers(...)` are
-  shorthand for this call.
-- Outcomes: `allowed` (with the role), `forbidden` → **403**,
+- `hasSystemRole(systemRole, required)`: pure; the request middleware
+  (built with the first user routes) calls it on every authenticated
+  request.
+- `decide(role, actorId, request)`: pure, over the in-code `PERMISSIONS`
+  table (VBD §2.3). `household.view` (everyone); `household.delete`,
+  `household.transferOwnership` (Owner); `members.manage`, `audit.export`
+  (Owner, Admin); `data.view` (everyone); `data.create` (Owner, Admin,
+  Member); `data.edit`, `data.delete` (Owner, Admin, and a Member on
+  shared data they created — `owner_user_id` records the creator of
+  shared data). Personal data: its owner, whatever the role.
+- `authorize(actorId, householdId, request)` reads only the actor's
+  household role (`HouseholdAccessor.findMembership`). **The Manager
+  passes the target's facts it has already loaded** (visibility, owner),
+  so the Utility never calls AccountAccessor and the like; the VBD
+  diagrams' `canWrite(actor, accountId)` is shorthand for this call.
+- Outcomes: `allowed` (with the role); `forbidden` → **403**;
   `not_member` and `not_visible` (someone else's personal data) → **404**,
-  so neither the household nor the data is revealed (api-design status
-  codes).
-- Leaving a household stays self-service: the Manager skips the check when
-  the actor removes themself.
+  so neither the household nor the data is revealed.
+- Not yet in the API contract: exposing the system role to the web app
+  waits for the sys-admin pages.
 
 ## Refined (resolved, with a follow-up still open)
 
