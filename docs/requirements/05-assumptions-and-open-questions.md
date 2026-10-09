@@ -1023,6 +1023,68 @@ driver.**
     error envelope carries the same value.
 - `apps/api/src/utilities/` is where the VBD Utilities live.
 
+### OQ-100: Authentication primitives (task U4)
+**Confirmed, implementation (Oct 2026):**
+- **Passwords:** Argon2id (`@node-rs/argon2`) with OWASP parameters
+  (19 MiB memory, 2 iterations, 1 lane). The parameters are stored in
+  each hash, so they can be raised later.
+- **MFA:**
+  - TOTP per RFC 6238 (`otpauth`): SHA-1, 6 digits, 30-second steps,
+    ±1 step of drift.
+  - **The secret is encrypted at rest** with AES-256-GCM, keyed by
+    `MFA_ENCRYPTION_KEY` (NFR-SEC-3). Rotating that key makes stored
+    secrets unreadable.
+  - **Recovery codes:** 10 per user, 16 Crockford base32 characters each
+    (80 bits, e.g. `7KQM-2XWR-9PTD-4HNC`). They're stored as SHA-256
+    hashes and looked up by hash, and typed variations are accepted
+    (case, dashes, O→0, I/L→1).
+- **Tokens:**
+  - The access token is a JWT (HS256, `JWT_SECRET`) valid for **15
+    minutes**.
+  - The refresh token is an opaque 256-bit random value, valid for **30
+    days** and **rotated on every use**: a reused one is rejected and
+    ends its session.
+  - Password-reset tokens are opaque in the same way.
+  - Opaque tokens are stored only as SHA-256 hashes.
+- **New endpoint `POST /auth/refresh`** (spec, error code
+  `auth.refresh_invalid`), implemented with IdentityManager (task 22).
+  Before it, the refresh token had no use.
+- **The Utility is pure** (BDT) and touches no storage. Two sequence
+  diagrams were corrected:
+  - uc-14: the Utility issues the refresh token, and SessionAccessor
+    stores its hash;
+  - uc-20: the code is hashed by the Utility and consumed atomically by
+    UserAccessor.
+- **Secrets:**
+  - `.env.example` (public repo) carries clearly marked dev-only
+    placeholders, which CI uses.
+  - `pnpm env:secrets` replaces them in the local `.env` with random
+    values and never overwrites a real one.
+- **Follow-ups for task 22 (IdentityManager):**
+  - Write the refresh use case and its sequence diagram.
+  - **The login `401` must not reveal which factor failed.** The spec
+    says invalid email, password or MFA code are answered identically,
+    but uc-14 returns a distinct `auth.mfa_invalid` once the password is
+    right, which would confirm a correct password to an attacker.
+    Reconcile there.
+
+### OQ-101: How is configuration organised?
+**Confirmed, stakeholder feedback during U4 (Oct 2026): two kinds, two
+places, nothing tunable buried in a module.**
+- **Environment variables** (`apps/api/src/config/env.ts`, `loadEnv`) hold
+  what differs per environment or is secret: `PORT`, `DATABASE_URL`,
+  `EMAIL_PROVIDER`, `JWT_SECRET`, `MFA_ENCRYPTION_KEY`. They're read from
+  `.env` and validated at startup.
+- **Constants** (`apps/api/src/config/constants.ts`) hold fixed
+  application settings, the same in every environment and changed only in
+  code. They're grouped by area (`authentication`, `http`, …) and
+  documented: token lifetimes, issuer and audience, Argon2 and TOTP
+  parameters, recovery-code count, the correlation-ID header, and so on.
+- **Stays in the module:** facts intrinsic to an algorithm, not tunable
+  policy, such as AES-GCM's 12-byte IV, the 32-byte AES-256 key, the
+  Crockford alphabet and the UUID pattern.
+- Test files may use plain literals.
+
 ## Refined (resolved, with a follow-up still open)
 
 *(OQ-4's legal-review follow-up below is closed for v1 by OQ-89.)*

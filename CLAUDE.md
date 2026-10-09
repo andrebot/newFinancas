@@ -33,6 +33,9 @@ in `docs/README.md`.
   documented but not unit-tested (OQ-91).
 - Cyclomatic complexity ≤ 7; at most 7 parameters per function.
 - Tests live outside `src/`, never co-located.
+- Configuration (OQ-101): env vars and secrets in `config/env.ts`; fixed,
+  tunable settings in `config/constants.ts`, grouped by area — never as
+  loose constants inside a module. Algorithm-intrinsic facts stay put.
 - Test level follows the component's role (BDT): Engines/Flows unit,
   Accessors/Interactions translation-only unit, Managers/Experiences
   integration with the tier below mocked. Mocking more than the one

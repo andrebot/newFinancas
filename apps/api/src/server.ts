@@ -3,9 +3,9 @@
 // exercised by the E2E smoke test instead.
 import { serve } from '@hono/node-server';
 import createApp from './app';
-import loadConfig from './config/loadConfig';
+import loadEnv from './config/env';
 
-const config = loadConfig(process.env);
+const config = loadEnv(process.env);
 
 // Until LoggingUtility (U2) exists, unexpected errors go to stderr.
 // eslint-disable-next-line no-console

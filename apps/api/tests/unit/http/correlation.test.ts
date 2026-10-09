@@ -1,11 +1,13 @@
 import { zError } from '@financas/api-types/zod';
 import { Hono } from 'hono';
 import { describe, expect, it } from 'vitest';
-import { CORRELATION_HEADER, correlationIdMiddleware } from '../../../src/http/correlation';
+import { http } from '../../../src/config/constants';
+import correlationIdMiddleware from '../../../src/http/correlation';
 import {
   correlationIdOf, createErrorHandler, handleNotFound, type AppEnv,
 } from '../../../src/http/errorHandler';
 
+const CORRELATION_HEADER = http.correlationIdHeader;
 const CLIENT_ID = '0199c5a0-1b2c-7d3e-8f40-123456789abc';
 const withClientId = { headers: { [CORRELATION_HEADER]: CLIENT_ID } };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;

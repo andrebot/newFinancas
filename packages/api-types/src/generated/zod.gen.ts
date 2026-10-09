@@ -785,6 +785,15 @@ export const zLoginResponse = zAuthTokens;
  */
 export const zLogoutResponse = z.void();
 
+export const zRefreshTokensBody = z.object({
+    refreshToken: z.string()
+});
+
+/**
+ * OK
+ */
+export const zRefreshTokensResponse = zAuthTokens;
+
 export const zChangePasswordBody = z.object({
     currentPassword: z.string(),
     newPassword: z.string().min(12)

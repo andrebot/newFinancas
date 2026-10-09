@@ -76,18 +76,22 @@ sequenceDiagram
         API-->>User: 401 auth.invalid_credentials
     else user + password valid
         UA-->>IM: userId
-        IM->>AN: verifyRecoveryCode(userId, recoveryCode)
+        IM->>AN: hashRecoveryCode(recoveryCode)
+        AN-->>IM: codeHash
+        IM->>UA: consumeRecoveryCode(userId, codeHash)
+        Note over UA: atomic UPDATE &hellip; SET used_at WHERE code_hash = ?<br/>AND used_at IS NULL &mdash; single-use, can never be replayed (FR-1.16)
         alt code invalid, unknown, or already used
-            AN-->>IM: rejected
+            UA-->>IM: not consumed
             IM-->>API: Unauthorized
             API-->>User: 401 auth.recovery_code_invalid
         else code valid and unused
-            AN-->>IM: accepted
-            Note over AN: marks this recovery code's used_at (FR-1.16)<br/>&mdash; single-use, can never be replayed
+            UA-->>IM: consumed
             IM->>AN: signAccessToken(userId)
             AN-->>IM: accessToken
-            IM->>SA: insert(refreshTokenHash, deviceInfo)
-            SA-->>IM: refreshToken
+            IM->>AN: issueOpaqueToken()
+            AN-->>IM: {refreshToken, refreshTokenHash}
+            IM->>SA: insert(userId, refreshTokenHash, deviceInfo)
+            SA-->>IM: sessionId
             IM-->>LOG: logActivity(correlationId, userId, "MfaRecovery")
             IM-->>LOG: recordAudit(userId, "Session", sessionId)
             IM-->>API: {accessToken, refreshToken}
