@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { authentication } from '../../../../src/config/constants';
 import {
   currentTotp, enrollMfa, hashRecoveryCode, newRecoveryCode, normalizeRecoveryCode,
-  RECOVERY_CODE_COUNT, toCrockford, verifyRecoveryCode, verifyTotp,
+  toCrockford, verifyRecoveryCode, verifyTotp,
 } from '../../../../src/utilities/authentication/mfa';
 
 // RFC 6238, Appendix B: SHA-1 secret "12345678901234567890" at T = 59 s → 94287082 (8 digits).
@@ -74,8 +75,8 @@ describe('enrollMfa', () => {
     expect(enrolment.secret).toMatch(/^[A-Z2-7]{32}$/);
     expect(enrolment.otpauthUri).toMatch(/^otpauth:\/\/totp\/Finance%20APP:ana%40example\.com\?/);
     expect(enrolment.otpauthUri).toContain(`secret=${enrolment.secret}`);
-    expect(enrolment.recoveryCodes).toHaveLength(RECOVERY_CODE_COUNT);
-    expect(new Set(enrolment.recoveryCodes).size).toBe(RECOVERY_CODE_COUNT);
+    expect(enrolment.recoveryCodes).toHaveLength(authentication.recoveryCodes.count);
+    expect(new Set(enrolment.recoveryCodes).size).toBe(authentication.recoveryCodes.count);
     expect(enrolment.recoveryCodeHashes).toEqual(enrolment.recoveryCodes.map(hashRecoveryCode));
   });
 

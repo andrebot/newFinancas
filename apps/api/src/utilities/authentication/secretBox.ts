@@ -5,8 +5,10 @@ import { createCipheriv, createDecipheriv } from 'node:crypto';
 
 const ALGORITHM = 'aes-256-gcm';
 const VERSION = 'v1';
-const KEY_BYTES = 32;
-const IV_BYTES = 12;
+/** AES-256 key length — part of the algorithm, not a setting. */
+export const KEY_BYTES = 32;
+/** AES-GCM nonce length — part of the algorithm, not a setting. */
+export const IV_BYTES = 12;
 
 /**
  * Decodes and checks an encryption key from configuration.

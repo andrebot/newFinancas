@@ -1,17 +1,11 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { Secret, TOTP } from 'otpauth';
+import { authentication } from '../../config/constants';
 
 // MFA primitives (NFR-SEC-1, FR-1.14–1.16, OQ-100). TOTP is the first method,
 // not the only one — this module is where another would be added.
 
-/** Standard authenticator-app settings (RFC 6238). */
-export const TOTP_SETTINGS = {
-  algorithm: 'SHA1', digits: 6, period: 30, window: 1,
-} as const;
-
-const ISSUER = 'Finance APP';
-export const RECOVERY_CODE_COUNT = 10;
-const RECOVERY_CODE_BYTES = 10; // 80 bits → 16 Crockford base32 characters
+const { totp, recoveryCodes: recoveryCodePolicy } = authentication;
 const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 
 /**
@@ -22,11 +16,11 @@ const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
  * @returns The TOTP generator/validator.
  */
 const totpFor = (secretBase32: string, label = '') => new TOTP({
-  issuer: ISSUER,
+  issuer: totp.issuer,
   label,
-  algorithm: TOTP_SETTINGS.algorithm,
-  digits: TOTP_SETTINGS.digits,
-  period: TOTP_SETTINGS.period,
+  algorithm: totp.algorithm,
+  digits: totp.digits,
+  period: totp.periodSeconds,
   secret: Secret.fromBase32(secretBase32),
 });
 
@@ -51,7 +45,7 @@ export const toCrockford = (bytes: Buffer): string => {
  * @returns The code.
  */
 export const newRecoveryCode = (randomBytes: (size: number) => Buffer): string => (
-  toCrockford(randomBytes(RECOVERY_CODE_BYTES)).replace(/(.{4})(?=.)/g, '$1-')
+  toCrockford(randomBytes(recoveryCodePolicy.bytes)).replace(/(.{4})(?=.)/g, '$1-')
 );
 
 /**
@@ -110,9 +104,10 @@ export const enrollMfa = (
   accountLabel: string,
   randomBytes: (size: number) => Buffer,
 ): MfaEnrolment => {
-  const secret = new Secret({ buffer: new Uint8Array(randomBytes(20)).buffer }).base32;
+  const secretBytes = new Uint8Array(randomBytes(totp.secretBytes));
+  const secret = new Secret({ buffer: secretBytes.buffer }).base32;
   const recoveryCodes = Array.from(
-    { length: RECOVERY_CODE_COUNT },
+    { length: recoveryCodePolicy.count },
     () => newRecoveryCode(randomBytes),
   );
   return {
@@ -132,9 +127,9 @@ export const enrollMfa = (
  * @returns `true` when the code is valid now.
  */
 export const verifyTotp = (secretBase32: string, code: string, now: Date): boolean => (
-  /^\d{6}$/.test(code)
+  new RegExp(`^\\d{${totp.digits}}$`).test(code)
   && totpFor(secretBase32).validate({
-    token: code, timestamp: now.getTime(), window: TOTP_SETTINGS.window,
+    token: code, timestamp: now.getTime(), window: totp.driftSteps,
   }) !== null
 );
 

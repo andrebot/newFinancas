@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { authentication } from '../../../../src/config/constants';
 import {
-  ACCESS_TOKEN_TTL_SECONDS, hashOpaqueToken, issueOpaqueToken, signAccessToken, verifyAccessToken,
+  hashOpaqueToken, issueOpaqueToken, signAccessToken, verifyAccessToken,
 } from '../../../../src/utilities/authentication/tokens';
 
 const KEY = new TextEncoder().encode('k'.repeat(32));
@@ -12,7 +13,7 @@ describe('access tokens (JWT, HS256)', () => {
   it('verify within 15 minutes and return the user', async () => {
     const token = await signAccessToken(KEY, 'user-1', T0);
 
-    expect(ACCESS_TOKEN_TTL_SECONDS).toBe(900);
+    expect(authentication.accessToken.ttlSeconds).toBe(900);
     expect(await verifyAccessToken(KEY, token, after(899))).toBe('user-1');
   });
 

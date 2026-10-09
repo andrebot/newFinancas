@@ -1,18 +1,17 @@
 import { hash, verify, type Options } from '@node-rs/argon2';
+import { authentication } from '../../config/constants';
 
-// Password hashing (NFR-SEC-4, OQ-100): Argon2id with OWASP's recommended
-// parameters. They are stored inside each hash, so raising them later still
-// verifies older hashes.
+// Password hashing (NFR-SEC-4, OQ-100): Argon2id, parameters in config/constants.
+// They are stored inside each hash, so raising them later still verifies older hashes.
 
 // `Algorithm` is a const enum, which isolated modules can't import as a value;
 // 2 is Algorithm.Argon2id.
 const ARGON2ID = 2 as NonNullable<Options['algorithm']>;
 
+const { memoryCostKib, timeCost, parallelism } = authentication.passwordHashing;
+
 export const ARGON2_OPTIONS: Options = {
-  algorithm: ARGON2ID,
-  memoryCost: 19_456, // KiB (19 MiB)
-  timeCost: 2,
-  parallelism: 1,
+  algorithm: ARGON2ID, memoryCost: memoryCostKib, timeCost, parallelism,
 };
 
 /**

@@ -4,11 +4,11 @@
 /* eslint-disable no-console */
 import { drizzle } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
-import loadConfig from '../../config/loadConfig';
+import loadEnv from '../../config/env';
 import applyDemoSeed from './applyDemoSeed';
 import { buildDemoSeed } from './demoSeed';
 
-const pool = new pg.Pool({ connectionString: loadConfig(process.env).databaseUrl });
+const pool = new pg.Pool({ connectionString: loadEnv(process.env).databaseUrl });
 
 applyDemoSeed(drizzle(pool), buildDemoSeed(new Date()))
   .then(() => console.log('Demo household seeded (ana@ / ben@demo.financas.local)'))

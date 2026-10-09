@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  createAuthenticationUtility, REFRESH_TOKEN_TTL_DAYS,
-} from '../../../../src/utilities/authentication';
+import { createAuthenticationUtility } from '../../../../src/utilities/authentication';
 
 const CONFIG = {
   jwtSecret: 'j'.repeat(32),
@@ -43,11 +41,10 @@ describe('createAuthenticationUtility', () => {
     expect(await auth.verifyAccessToken(await auth.signAccessToken('user-1'))).toBe('user-1');
   });
 
-  it('issues opaque tokens and exposes the token policy', () => {
+  it('issues opaque tokens', () => {
     const { token, tokenHash } = auth.issueOpaqueToken();
 
     expect(auth.hashOpaqueToken(token)).toBe(tokenHash);
-    expect(REFRESH_TOKEN_TTL_DAYS).toBe(30);
   });
 
   it('refuses an encryption key that is not 32 bytes', () => {

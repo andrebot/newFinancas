@@ -1,9 +1,9 @@
 import type { MiddlewareHandler } from 'hono';
+import { http } from '../config/constants';
 import { resolveCorrelationId } from '../utilities/correlationId';
 import type { AppEnv } from './errorHandler';
 
-/** Request and response header carrying the correlation ID. */
-export const CORRELATION_HEADER = 'X-Correlation-Id';
+const { correlationIdHeader } = http;
 
 /**
  * First middleware on every request: resolves the correlation ID (the client's,
@@ -14,9 +14,11 @@ export const CORRELATION_HEADER = 'X-Correlation-Id';
  * @param next - The rest of the chain.
  * @returns Resolves once the request is handled.
  */
-export const correlationIdMiddleware: MiddlewareHandler<AppEnv> = async (c, next) => {
-  const correlationId = resolveCorrelationId(c.req.header(CORRELATION_HEADER));
+const correlationIdMiddleware: MiddlewareHandler<AppEnv> = async (c, next) => {
+  const correlationId = resolveCorrelationId(c.req.header(correlationIdHeader));
   c.set('correlationId', correlationId);
-  c.header(CORRELATION_HEADER, correlationId);
+  c.header(correlationIdHeader, correlationId);
   await next();
 };
+
+export default correlationIdMiddleware;

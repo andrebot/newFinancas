@@ -1068,6 +1068,23 @@ driver.**
     right, which would confirm a correct password to an attacker.
     Reconcile there.
 
+### OQ-101: How is configuration organised?
+**Confirmed, stakeholder feedback during U4 (Oct 2026): two kinds, two
+places, nothing tunable buried in a module.**
+- **Environment variables** (`apps/api/src/config/env.ts`, `loadEnv`) hold
+  what differs per environment or is secret: `PORT`, `DATABASE_URL`,
+  `EMAIL_PROVIDER`, `JWT_SECRET`, `MFA_ENCRYPTION_KEY`. They're read from
+  `.env` and validated at startup.
+- **Constants** (`apps/api/src/config/constants.ts`) hold fixed
+  application settings, the same in every environment and changed only in
+  code. They're grouped by area (`authentication`, `http`, …) and
+  documented: token lifetimes, issuer and audience, Argon2 and TOTP
+  parameters, recovery-code count, the correlation-ID header, and so on.
+- **Stays in the module:** facts intrinsic to an algorithm, not tunable
+  policy, such as AES-GCM's 12-byte IV, the 32-byte AES-256 key, the
+  Crockford alphabet and the UUID pattern.
+- Test files may use plain literals.
+
 ## Refined (resolved, with a follow-up still open)
 
 *(OQ-4's legal-review follow-up below is closed for v1 by OQ-89.)*

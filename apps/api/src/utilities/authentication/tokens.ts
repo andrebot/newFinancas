@@ -1,14 +1,11 @@
 import { createHash } from 'node:crypto';
 import { jwtVerify, SignJWT } from 'jose';
+import { authentication } from '../../config/constants';
 
 // Tokens (OQ-30, OQ-100): a short-lived JWT access token, and opaque random
-// tokens (refresh, password reset) stored only as hashes.
+// tokens (refresh, password reset) stored only as hashes. Policy: config/constants.
 
-export const ACCESS_TOKEN_TTL_SECONDS = 15 * 60;
-export const REFRESH_TOKEN_TTL_DAYS = 30;
-const ISSUER = 'financas-api';
-const AUDIENCE = 'financas-web';
-const OPAQUE_TOKEN_BYTES = 32;
+const { accessToken, opaqueTokenBytes } = authentication;
 
 /**
  * Signs an access token for a user.
@@ -21,12 +18,12 @@ const OPAQUE_TOKEN_BYTES = 32;
 export const signAccessToken = (key: Uint8Array, userId: string, now: Date): Promise<string> => {
   const issuedAt = Math.floor(now.getTime() / 1000);
   return new SignJWT({})
-    .setProtectedHeader({ alg: 'HS256' })
+    .setProtectedHeader({ alg: accessToken.algorithm })
     .setSubject(userId)
-    .setIssuer(ISSUER)
-    .setAudience(AUDIENCE)
+    .setIssuer(accessToken.issuer)
+    .setAudience(accessToken.audience)
     .setIssuedAt(issuedAt)
-    .setExpirationTime(issuedAt + ACCESS_TOKEN_TTL_SECONDS)
+    .setExpirationTime(issuedAt + accessToken.ttlSeconds)
     .sign(key);
 };
 
@@ -45,7 +42,10 @@ export const verifyAccessToken = async (
 ): Promise<string | undefined> => {
   try {
     const { payload } = await jwtVerify(token, key, {
-      algorithms: ['HS256'], issuer: ISSUER, audience: AUDIENCE, currentDate: now,
+      algorithms: [accessToken.algorithm],
+      issuer: accessToken.issuer,
+      audience: accessToken.audience,
+      currentDate: now,
     });
     return payload.sub;
   } catch {
@@ -73,6 +73,6 @@ export const hashOpaqueToken = (token: string): string => (
 export const issueOpaqueToken = (
   randomBytes: (size: number) => Buffer,
 ): { token: string; tokenHash: string } => {
-  const token = randomBytes(OPAQUE_TOKEN_BYTES).toString('base64url');
+  const token = randomBytes(opaqueTokenBytes).toString('base64url');
   return { token, tokenHash: hashOpaqueToken(token) };
 };

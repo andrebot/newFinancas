@@ -3,16 +3,15 @@ import {
   currentTotp, enrollMfa, hashRecoveryCode, verifyRecoveryCode, verifyTotp,
 } from './mfa';
 import { hashPassword, verifyPassword } from './passwords';
-import { openSecret, parseEncryptionKey, sealSecret } from './secretBox';
+import {
+  IV_BYTES, openSecret, parseEncryptionKey, sealSecret,
+} from './secretBox';
 import {
   hashOpaqueToken, issueOpaqueToken, signAccessToken, verifyAccessToken,
 } from './tokens';
 
 // AuthenticationUtility (U4, VBD): pure identity-proof primitives — passwords,
 // MFA, tokens. Touches no storage; Managers persist what it returns (OQ-100).
-
-export { ACCESS_TOKEN_TTL_SECONDS, REFRESH_TOKEN_TTL_DAYS } from './tokens';
-export { RECOVERY_CODE_COUNT } from './mfa';
 
 /** Secrets from configuration. */
 export interface AuthenticationConfig {
@@ -29,7 +28,6 @@ export interface AuthenticationDeps {
 }
 
 const DEFAULT_DEPS: AuthenticationDeps = { now: () => new Date(), randomBytes: cryptoRandomBytes };
-const IV_BYTES = 12;
 
 /**
  * Builds the authentication utility bound to its secrets.

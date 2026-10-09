@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { correlationIdMiddleware } from './http/correlation';
+import correlationIdMiddleware from './http/correlation';
 import { createErrorHandler, handleNotFound, type AppEnv } from './http/errorHandler';
 
 /** What the app needs from its composition root. */
