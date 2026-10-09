@@ -1161,6 +1161,31 @@ places, nothing tunable buried in a module.**
 - Still pending from OQ-98: the demo users get real credentials with
   IdentityManager (task 22).
 
+### OQ-104: Audit-log export, CSV and the app timezone (task A15)
+**Confirmed, implementation (Oct 2026):**
+- **AuditLogAccessor** has `insert` and `listForExport(householdId,
+  startDate, endDate)` only. There is no update or delete, matching the
+  missing database privileges. Entries come back oldest first, and the
+  actor is null for system actions.
+- **The CSV is not the Accessor's job.** A new pure **CsvUtility**
+  (`toCsv(columns, rows)`) produces RFC 4180 text (quoting, CRLF). It
+  also guards against **formula injection**: a text cell starting with
+  `=`, `+`, `-`, `@`, tab or CR gets a leading `'`, so it opens as text
+  in a spreadsheet (OWASP). The transactions export (FR-6.4, v2) will
+  reuse it. The VBD doc's `exportCsv` is split accordingly, and the
+  export diagram is regenerated.
+- **App timezone:** `calendar.timeZone = 'America/Sao_Paulo'`
+  (`config/constants.ts`). A date like 2026-10-08 means that day in São
+  Paulo, both ends inclusive, for this export and every later date range
+  or month boundary. Postgres converts with `AT TIME ZONE`, so
+  daylight-saving rules are applied; PGlite agrees, including 2018's
+  daylight-saving start. Stored instants stay UTC.
+- **For U2 (LoggingUtility):** all 42 `recordAudit(actor, entityType,
+  entityId)` calls in the sequence diagrams omit the **action** (required
+  by FR-7.1) and the **household** (the export's filter).
+  `AuditLogAccessor.insert` requires both, so `recordAudit` must pass
+  them.
+
 ## Refined (resolved, with a follow-up still open)
 
 *(OQ-4's legal-review follow-up below is closed for v1 by OQ-89.)*

@@ -64,6 +64,7 @@ sequenceDiagram
     participant IM as InsightsManager
     participant AZ as AuthorizationUtility
     participant AA as AuditLogAccessor
+    participant CSV as CsvUtility
 
     User->>API: GET /households/:householdId/audit-log/export?startDate=...&endDate=...
     API->>IM: exportAuditLog(actor, householdId, dateRange)
@@ -74,9 +75,12 @@ sequenceDiagram
         API-->>User: 403 auth.forbidden
     else authorized
         AZ-->>IM: allowed
-        IM->>AA: exportCsv(householdId, dateRange)
-        Note over AA: audit_log_entries has zero foreign keys, by design (OQ-25/<br/>NFR-AUD-1) &mdash; actor_id/household_id/entity_id are plain<br/>stored values, permanently orphan-tolerant, never joined
-        AA-->>IM: csv content
+        IM->>AA: listForExport(householdId, startDate, endDate)
+        Note over AA: inclusive app-timezone days (OQ-104) &mdash; zero foreign keys by<br/>design (OQ-25/NFR-AUD-1) &mdash; IDs are plain stored values,<br/>permanently orphan-tolerant, never joined
+        AA-->>IM: entries (oldest first)
+        IM->>CSV: toCsv(auditColumns, entries)
+        Note over CSV: RFC 4180, formula-injection safe (OQ-104)
+        CSV-->>IM: csv content
         IM-->>API: csv content
         API-->>User: 200 OK (Content-Type: text/csv, Content-Disposition: attachment)
     end

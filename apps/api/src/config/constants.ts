@@ -48,3 +48,12 @@ export const http = {
   /** Request/response header carrying the correlation ID (OQ-99). */
   correlationIdHeader: 'X-Correlation-Id',
 } as const;
+
+/** Calendar settings (OQ-104). */
+export const calendar = {
+  /**
+   * Timezone in which a date ("2026-10-08") starts and ends — for every date range
+   * and month boundary. Stored instants stay UTC.
+   */
+  timeZone: 'America/Sao_Paulo',
+} as const;

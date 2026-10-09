@@ -45,7 +45,7 @@ identity screens, the rest as later slices use them.
 - [x] **11.** `U4` AuthenticationUtility
 - [x] **12.** `U6` ServiceBusUtility
 - [x] **13.** `A1` UserAccessor
-- [ ] **14.** `A15` AuditLogAccessor
+- [x] **14.** `A15` AuditLogAccessor
 - [ ] **15.** `A16` NotificationInboxAccessor
 - [ ] **16.** `A2` SessionAccessor
 - [ ] **17.** `A3` HouseholdAccessor
