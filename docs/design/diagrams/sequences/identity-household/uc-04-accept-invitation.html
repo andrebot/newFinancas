@@ -79,7 +79,7 @@ sequenceDiagram
         API-->>User: 409 invitation.not_pending
     else pending and actor matches
         IA-->>IM: status = accepted
-        IM->>HA: insert membership(householdId, actor, role, joinedAt=now)
+        IM->>HA: addMember(householdId, actor, role)
         HA-->>IM: membership created
         IM-->>LOG: logActivity(correlationId, actor, "AcceptInvitation")
         IM-->>LOG: recordAudit(actor, "HouseholdMembership", householdId)

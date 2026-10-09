@@ -26,6 +26,8 @@ const ptBR = {
     'auth.mfa_invalid': 'Código de verificação inválido.',
     'budget.target_already_claimed': 'Esta categoria já pertence a outro orçamento.',
     'goal.allocation_exceeds_100': 'Este investimento já tem {current, number}% alocado; adicionar {requested, number}% passaria de 100%.',
+    'household.changed': 'Os membros desta casa mudaram enquanto você editava. Tente novamente.',
+    'household.member_not_found': 'Esta pessoa não é membro da casa.',
     'holding.not_market_priced': 'Este investimento não usa valor de mercado manual.',
     'invitation.invitee_not_registered': 'Não há usuário cadastrado com este e-mail.',
     'invitation.not_pending': 'Este convite não está mais pendente.',

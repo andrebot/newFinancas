@@ -14,6 +14,8 @@ const enUS: Catalog = {
     'auth.mfa_invalid': 'Invalid verification code.',
     'budget.target_already_claimed': 'This category already belongs to another budget.',
     'goal.allocation_exceeds_100': 'This holding already has {current, number}% allocated; adding {requested, number}% would exceed 100%.',
+    'household.changed': 'The members of this household changed while you were editing. Please try again.',
+    'household.member_not_found': 'This person is not a member of the household.',
     'holding.not_market_priced': "This holding doesn't use a manual market value.",
     'invitation.invitee_not_registered': 'No registered user has this email.',
     'invitation.not_pending': 'This invitation is no longer pending.',

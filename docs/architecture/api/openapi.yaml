@@ -495,6 +495,8 @@ paths:
       responses:
         "204": { description: No Content }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /households/{householdId}/members/{userId}/role:
     parameters:
@@ -520,6 +522,8 @@ paths:
       responses:
         "200": { description: OK }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
         "422": { $ref: "#/components/responses/ValidationError" }
 
   /households/{householdId}/transfer-ownership:
@@ -549,6 +553,7 @@ paths:
         "200": { description: OK }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /households/{householdId}/invitations:
     parameters:
@@ -2100,7 +2105,7 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
     Conflict:
-      description: "The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`."
+      description: "The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `household.changed` (membership changed by a concurrent request — retry, OQ-107)."
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
