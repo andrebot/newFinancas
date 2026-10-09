@@ -1428,6 +1428,38 @@ to the financas app's style):**
   The API's retry delays and its file prefix (for reconciliation) are in
   its `constants.ts`; retention and date pattern in `@financas/logging`.
 
+### OQ-111: Authorization — the permission table and who supplies the facts (task U5)
+**Confirmed with the stakeholder (Oct 2026):**
+- **A Viewer manages their own personal data.** FR-1.7's "read-only"
+  covers shared data only. Personal accounts, budgets, goals and their
+  transactions belong to their owner whatever their role; nobody else sees
+  them, so this can't harm the household.
+- **An Admin may manage other Admins** (remove, change role, promote to
+  Admin). Only the Owner is protected: nobody manages the Owner's
+  membership — the Owner role moves only by transfer (FR-1.20) or
+  succession (FR-1.18).
+
+**Design (U5):**
+- `decide(role, actorId, request)` is pure; the role → action table
+  (`PERMISSIONS`) is in code, as VBD §2.3 decided. Actions:
+  `household.view`, `household.delete` and `household.transferOwnership`
+  (Owner), `audit.export` (Owner, Admin), `members.manage` (Owner, Admin;
+  never on an Owner), `data.view` (everyone), `data.create` (Owner, Admin,
+  Member), `data.edit` (Owner, Admin, and a Member on shared data they
+  created — `owner_user_id` is the creator of shared data).
+- `authorize(actorId, householdId, request)` reads only the actor's role
+  (`HouseholdAccessor.findMembership`). **The Manager passes the target's
+  facts it has already loaded** (visibility and owner, or the member's
+  role), so the Utility never calls AccountAccessor and the like. The VBD
+  diagrams' `canWrite(actor, accountId)` / `canManageMembers(...)` are
+  shorthand for this call.
+- Outcomes: `allowed` (with the role), `forbidden` → **403**,
+  `not_member` and `not_visible` (someone else's personal data) → **404**,
+  so neither the household nor the data is revealed (api-design status
+  codes).
+- Leaving a household stays self-service: the Manager skips the check when
+  the actor removes themself.
+
 ## Refined (resolved, with a follow-up still open)
 
 *(OQ-4's legal-review follow-up below is closed for v1 by OQ-89.)*
