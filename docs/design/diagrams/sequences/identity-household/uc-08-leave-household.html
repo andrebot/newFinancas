@@ -68,14 +68,27 @@ sequenceDiagram
     User->>API: DELETE /households/:householdId/members/me
     API->>IM: removeMember(actor, householdId, actor)
     Note over IM: actor == target — leaving is always self-service,<br/>the authorization check is skipped entirely (FR-1.11)
-    IM->>HA: transitionMembership(householdId, actor, actor)
-    alt actor is the Owner AND another member remains
-        HA-->>IM: membership removed,<br/>longest-tenured Admin (else Member, else Viewer) promoted to Owner
-        Note over HA: one atomic write — FR-1.18&#39;s succession rule,<br/>never observably zero or two Owners (OQ-25)
-    else actor is the Owner AND no other member remains
-        HA-->>IM: membership removed, household itself deleted (FR-1.18)
-    else actor is not the Owner
-        HA-->>IM: membership removed
+    IM->>HA: findMembership(householdId, actor)
+    HA-->>IM: role
+    alt actor is not the Owner
+        IM->>HA: removeMember(householdId, actor)
+        HA-->>IM: removed
+    else actor is the Owner
+        Note over IM: FR-1.18 succession is the Manager&#39;s decision (OQ-107)
+        IM->>HA: findSuccessor(householdId, actor)
+        Note over HA: longest-tenured Admin, else Member, else Viewer
+        alt nobody else remains
+            HA-->>IM: none
+            IM->>HA: delete(householdId)
+            HA-->>IM: household dissolved
+        else successor found
+            HA-->>IM: successorId
+            IM->>HA: swapOwner(householdId, actor, successorId)
+            Note over HA: guarded, one transaction — never zero or two Owners (OQ-28)
+            HA-->>IM: swapped (stale → re-read and retry, at most 3 times)
+            IM->>HA: removeMember(householdId, actor)
+            HA-->>IM: removed
+        end
     end
     IM-->>LOG: logActivity(correlationId, actor, "LeaveHousehold")
     IM-->>LOG: recordAudit(actor, "HouseholdMembership", householdId)

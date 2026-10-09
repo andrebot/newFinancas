@@ -79,13 +79,19 @@ sequenceDiagram
         API-->>User: 404 household.member_not_found
     else valid target member
         AZ-->>IM: allowed
-        IM->>HA: transferOwnership(householdId, actor, targetUserId)
-        Note over HA: atomic dual-role swap — targetUserId becomes Owner,<br/>actor demoted to Admin, one write not two (OQ-28)
-        HA-->>IM: transferred
+        IM->>HA: swapOwner(householdId, actor, targetUserId)
+        Note over HA: atomic dual-role swap, guarded: applies only while actor is still<br/>Owner and target still a member (OQ-28, OQ-107)
+        alt a concurrent change
+            HA-->>IM: stale
+            IM-->>API: Conflict
+            API-->>User: 409 household.changed
+        else applied
+        HA-->>IM: swapped
         IM-->>LOG: logActivity(correlationId, actor, "TransferOwnership")
         IM-->>LOG: recordAudit(actor, "HouseholdMembership", householdId)
         IM-->>API: transferred
         API-->>User: 200 OK {newOwnerId: targetUserId}
+        end
     end
     </pre>
   </div>

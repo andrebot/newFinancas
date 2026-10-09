@@ -75,13 +75,19 @@ sequenceDiagram
         API-->>User: 403 auth.forbidden
     else authorized
         AZ-->>IM: allowed
-        IM->>HA: transitionMembership(householdId, userId, actor)
+        IM->>HA: findMembership(householdId, userId)
+        HA-->>IM: role (or none)
         alt userId is the Owner
-            HA-->>IM: rejected (FR-1.11/OQ-27 — Owner can only leave by their own action)
+            Note over IM: business rule, Manager's (OQ-107) — the Owner<br/>can only leave by their own action (FR-1.11/OQ-27)
             IM-->>API: Forbidden
             API-->>User: 403 auth.forbidden
-        else userId is not the Owner
-            HA-->>IM: membership removed
+        else userId is not a member
+            IM-->>API: NotFound
+            API-->>User: 404 household.member_not_found
+        else userId is a non-Owner member
+            IM->>HA: removeMember(householdId, userId)
+            Note over HA: guarded — applies only while userId is a non-Owner member,<br/>a concurrent change returns stale (Manager answers 409 household.changed)
+            HA-->>IM: removed
             IM-->>LOG: logActivity(correlationId, actor, "RemoveMember")
             IM-->>LOG: recordAudit(actor, "HouseholdMembership", householdId)
             IM-->>API: removed
@@ -92,7 +98,7 @@ sequenceDiagram
   </div>
   <div class="notes">
     <ul>
-      <li><strong>The Owner-immunity check lives inside <code>HouseholdAccessor.transitionMembership</code>&#39;s validated write</strong>, not as a pre-check in <code>IdentityManager</code> — same seam as every other invariant enforced at the point of persistence in this project.</li>
+      <li><strong>Revised (OQ-107):</strong> the Owner-immunity check is a business rule, so it lives in <code>IdentityManager</code>. <code>HouseholdAccessor.removeMember</code> only applies the change, guarded so it never removes the Owner even if a concurrent request made them one.</li>
       <li>Shares its Accessor call with Leave Household (UC-08) — same method, different actor/target relationship (VBD doc &sect;3.1a).</li>
       <li>See FR-1.11, OQ-27.</li>
     </ul>

@@ -102,66 +102,9 @@ describe('HouseholdAccessor', () => {
     }));
   });
 
-  describe('addMember / updateRole', () => {
-    it('adds a member once', test(async ({ households, user }) => {
-      const home = await households.insert('Casa', await user('ana'));
-      const bia = await user('bia');
-
-      expect(await households.addMember(home.id, bia, 'Member')).toBe('added');
-      expect(await households.addMember(home.id, bia, 'Admin')).toBe('already_member');
-      expect(await households.findMembership(home.id, bia)).toMatchObject({ role: 'Member' });
-    }));
-
-    it('changes a role but never the Owner\'s (FR-1.12)', test(async ({
+  describe('findSuccessor (FR-1.18 ordering)', () => {
+    it('prefers Admin over Member, the longest-tenured first', test(async ({
       households, user, join,
-    }) => {
-      const ana = await user('ana');
-      const home = await households.insert('Casa', ana);
-      const bia = await user('bia');
-      await join(home.id, bia, 'Member', 1);
-
-      expect(await households.updateRole(home.id, bia, 'Admin')).toBe('updated');
-      expect(await households.updateRole(home.id, ana, 'Viewer')).toBe('is_owner');
-      expect(await households.updateRole(home.id, await user('out'), 'Viewer')).toBe('not_member');
-      expect(await households.findMembership(home.id, ana)).toMatchObject({ role: 'Owner' });
-    }));
-
-    it('throws on an unexpected failure', test(async ({ households, user }) => {
-      const ana = await user('ana');
-
-      await expect(households.addMember('not-a-uuid', ana, 'Member')).rejects.toThrow();
-    }));
-  });
-
-  describe('transitionMembership (FR-1.11, FR-1.18)', () => {
-    it('removes a non-Owner member, whoever does it', test(async ({ households, user, join }) => {
-      const ana = await user('ana');
-      const home = await households.insert('Casa', ana);
-      const bia = await user('bia');
-      await join(home.id, bia, 'Member', 1);
-
-      const result = await households.transitionMembership(home.id, bia, ana);
-
-      expect(result).toEqual({ status: 'removed' });
-      expect(await households.findMembership(home.id, bia)).toBeUndefined();
-    }));
-
-    it('refuses to let anyone else remove the Owner (OQ-27)', test(async ({
-      households, user, join, roles,
-    }) => {
-      const ana = await user('ana');
-      const home = await households.insert('Casa', ana);
-      const admin = await user('adi');
-      await join(home.id, admin, 'Admin', 1);
-
-      const result = await households.transitionMembership(home.id, ana, admin);
-
-      expect(result).toEqual({ status: 'owner_protected' });
-      expect((await roles(home.id))[ana]).toBe('Owner');
-    }));
-
-    it('promotes Admin over Member, the longest-tenured first', test(async ({
-      households, user, join, roles,
     }) => {
       const ana = await user('ana');
       const home = await households.insert('Casa', ana);
@@ -172,47 +115,73 @@ describe('HouseholdAccessor', () => {
       await join(home.id, newAdmin, 'Admin', 2);
       await join(home.id, oldAdmin, 'Admin', 30);
 
-      const result = await households.transitionMembership(home.id, ana, ana);
-
-      expect(result).toEqual({ status: 'removed', promotedUserId: oldAdmin });
-      expect(await roles(home.id))
-        .toEqual({ [oldMember]: 'Member', [newAdmin]: 'Admin', [oldAdmin]: 'Owner' });
+      expect(await households.findSuccessor(home.id, ana))
+        .toEqual({ userId: oldAdmin, role: 'Admin' });
     }));
 
-    it('falls back to Member, then Viewer', test(async ({ households, user, join }) => {
+    it('falls back to a Viewer, and finds nobody when the Owner is alone', test(async ({
+      households, user, join,
+    }) => {
       const ana = await user('ana');
       const home = await households.insert('Casa', ana);
+
+      expect(await households.findSuccessor(home.id, ana)).toBeUndefined();
+
       const viewer = await user('vic');
-      await join(home.id, viewer, 'Viewer', 90);
+      await join(home.id, viewer, 'Viewer', 1);
 
-      const result = await households.transitionMembership(home.id, ana, ana);
-
-      expect(result).toEqual({ status: 'removed', promotedUserId: viewer });
-    }));
-
-    it('dissolves the household when the Owner was last', test(async ({ households, user }) => {
-      const ana = await user('ana');
-      const home = await households.insert('Casa', ana);
-
-      const result = await households.transitionMembership(home.id, ana, ana);
-
-      expect(result).toEqual({ status: 'household_deleted' });
-      expect(await households.listForUser(ana)).toEqual([]);
-    }));
-
-    it('reports a non-member', test(async ({ households, user }) => {
-      const ana = await user('ana');
-      const home = await households.insert('Casa', ana);
-
-      const outsider = await user('out');
-
-      expect(await households.transitionMembership(home.id, outsider, ana))
-        .toEqual({ status: 'not_member' });
+      expect(await households.findSuccessor(home.id, ana))
+        .toEqual({ userId: viewer, role: 'Viewer' });
     }));
   });
 
-  describe('transferOwnership (FR-1.20, OQ-28)', () => {
-    it('swaps atomically: target becomes Owner, old Owner Admin, exactly one Owner', test(async ({
+  describe('addMember', () => {
+    it('adds a member once', test(async ({ households, user }) => {
+      const home = await households.insert('Casa', await user('ana'));
+      const bia = await user('bia');
+
+      expect(await households.addMember(home.id, bia, 'Member')).toBe('added');
+      expect(await households.addMember(home.id, bia, 'Admin')).toBe('already_member');
+      expect(await households.findMembership(home.id, bia)).toMatchObject({ role: 'Member' });
+    }));
+
+    it('throws on an unexpected failure', test(async ({ households, user }) => {
+      const ana = await user('ana');
+
+      await expect(households.addMember('not-a-uuid', ana, 'Member')).rejects.toThrow();
+    }));
+  });
+
+  describe('guarded writes (OQ-107)', () => {
+    it('updateRole applies to a non-Owner member, else is stale', test(async ({
+      households, user, join, roles,
+    }) => {
+      const ana = await user('ana');
+      const home = await households.insert('Casa', ana);
+      const bia = await user('bia');
+      await join(home.id, bia, 'Member', 1);
+
+      expect(await households.updateRole(home.id, bia, 'Admin')).toBe('updated');
+      expect(await households.updateRole(home.id, ana, 'Viewer')).toBe('stale');
+      expect(await households.updateRole(home.id, await user('out'), 'Viewer')).toBe('stale');
+      expect(await roles(home.id)).toEqual({ [ana]: 'Owner', [bia]: 'Admin' });
+    }));
+
+    it('removeMember removes a non-Owner, never the Owner', test(async ({
+      households, user, join, roles,
+    }) => {
+      const ana = await user('ana');
+      const home = await households.insert('Casa', ana);
+      const bia = await user('bia');
+      await join(home.id, bia, 'Member', 1);
+
+      expect(await households.removeMember(home.id, ana)).toBe('stale');
+      expect(await households.removeMember(home.id, bia)).toBe('removed');
+      expect(await households.removeMember(home.id, bia)).toBe('stale');
+      expect(await roles(home.id)).toEqual({ [ana]: 'Owner' });
+    }));
+
+    it('swapOwner swaps atomically: exactly one Owner, the old one Admin', test(async ({
       households, user, join, roles,
     }) => {
       const ana = await user('ana');
@@ -220,24 +189,40 @@ describe('HouseholdAccessor', () => {
       const bia = await user('bia');
       await join(home.id, bia, 'Viewer', 1);
 
-      expect(await households.transferOwnership(home.id, ana, bia)).toBe('transferred');
+      expect(await households.swapOwner(home.id, ana, bia)).toBe('swapped');
       expect(await roles(home.id)).toEqual({ [ana]: 'Admin', [bia]: 'Owner' });
     }));
 
-    it('refuses a non-Owner, a non-member target, and the Owner themself', test(async ({
+    it('swapOwner is stale and changes nothing when `from` is no longer Owner', test(async ({
       households, user, join, roles,
     }) => {
       const ana = await user('ana');
       const home = await households.insert('Casa', ana);
-      const admin = await user('adi');
-      await join(home.id, admin, 'Admin', 1);
+      const bia = await user('bia');
+      const cai = await user('cai');
+      await join(home.id, bia, 'Admin', 1);
+      await join(home.id, cai, 'Member', 1);
 
-      expect(await households.transferOwnership(home.id, admin, admin)).toBe('not_owner');
+      expect(await households.swapOwner(home.id, bia, cai)).toBe('stale');
+      expect(await roles(home.id)).toEqual({ [ana]: 'Owner', [bia]: 'Admin', [cai]: 'Member' });
+    }));
+
+    it('swapOwner rolls back the demotion when `to` is gone or is `from`', test(async ({
+      households, user, roles,
+    }) => {
+      const ana = await user('ana');
+      const home = await households.insert('Casa', ana);
       const outsider = await user('out');
 
-      expect(await households.transferOwnership(home.id, ana, outsider)).toBe('target_not_member');
-      expect(await households.transferOwnership(home.id, ana, ana)).toBe('target_not_member');
-      expect((await roles(home.id))[ana]).toBe('Owner');
+      expect(await households.swapOwner(home.id, ana, outsider)).toBe('stale');
+      expect(await households.swapOwner(home.id, ana, ana)).toBe('stale');
+      expect(await roles(home.id)).toEqual({ [ana]: 'Owner' });
+    }));
+
+    it('swapOwner throws on an unexpected failure', test(async ({ households, user }) => {
+      const ana = await user('ana');
+
+      await expect(households.swapOwner('not-a-uuid', ana, ana)).rejects.toThrow();
     }));
   });
 

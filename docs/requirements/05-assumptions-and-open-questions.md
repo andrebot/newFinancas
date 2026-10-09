@@ -1257,40 +1257,47 @@ places, nothing tunable buried in a module.**
   used first.
 - uc-14, uc-15, uc-16, uc-17 and uc-20 are regenerated.
 
-### OQ-107: Household membership rules in the Accessor (task A3)
-**Confirmed, implementation (Oct 2026):**
-- **HouseholdAccessor enforces the membership rules as part of its
-  writes,** each in one transaction, after locking the household's
-  membership rows with `SELECT … FOR UPDATE`, so a concurrent change
-  can't race the decision. The one-Owner unique index remains the final
-  guard. The rules:
-  - **Creating** a household adds its creator as Owner atomically.
-  - **`updateRole`** sets Admin/Member/Viewer only and never touches the
-    Owner (`is_owner`, FR-1.12). The Owner role moves only by transfer
-    or succession.
-  - **`transitionMembership(householdId, userId, actorId)`** (remove or
-    leave):
-    - a non-Owner is removed by anyone the Manager allowed;
-    - **the Owner can only leave by their own action** (otherwise
-      `owner_protected`, FR-1.11/OQ-27);
-    - when the Owner leaves, the **longest-tenured Admin, else Member,
-      else Viewer** becomes Owner in the same transaction, ties broken by
-      join time;
-    - if nobody remains, **the household is dissolved** (FR-1.18).
+### OQ-107: Managers decide, Accessors apply — guarded writes (task A3)
+**Confirmed, stakeholder review of A3 (Oct 2026); applies to every Accessor:**
+- **Business logic belongs to the Manager; the Accessor only applies
+  data changes.** For households, the Manager decides:
+  - who may remove whom (the Owner leaves only by their own action,
+    FR-1.11/OQ-27);
+  - that the Owner's role never changes through "change role" (FR-1.12);
+  - who may transfer and to whom (FR-1.20);
+  - **succession**: IdentityManager asks `findSuccessor` and, if nobody
+    remains, calls `delete` to dissolve the household (FR-1.18).
 
-    The sequence diagrams passed the literal `"removed"`; they now pass
-    the actor, which the rule needs.
-  - **`transferOwnership`** demotes the Owner to Admin, then promotes the
-    target, in one transaction (FR-1.20/OQ-28). It refuses a non-Owner
-    caller, a non-member target, or the Owner themself.
-- **`listMembers` joins `users`** for names and email. It's read-only;
-  `users` is still written only by UserAccessor.
-- Accept Invitation now calls `addMember` (`already_member` when they're
-  already in). The diagrams are regenerated.
-
-## Refined (resolved, with a follow-up still open)
-
-*(OQ-4's legal-review follow-up below is closed for v1 by OQ-89.)*
+  An earlier version of HouseholdAccessor decided these inside its own
+  transactions; it was restructured before merging.
+- **Guarded writes keep it safe without moving decisions back.** A
+  write that depends on facts the Manager read re-states them in its own
+  `WHERE` clause, and returns **`'stale'`** when they no longer hold, so
+  nothing is applied over a concurrent change. The Manager then retries
+  (re-read and decide again) or answers **409 `household.changed`**.
+  - It checks facts, never policy: "`from` is still the Owner", "`to`
+    is still a member", "this member is not the Owner".
+  - Guards that protect an invariant (never zero or two Owners) stay
+    even though the Manager also checks.
+  - `swapOwner` demotes and promotes in one transaction, rolling back if
+    either guard fails.
+- **Why not a Manager-owned transaction:** with guarded writes, Managers
+  never touch the database or transactions. In their BDT integration
+  tests, "a concurrent change happened" is just a `'stale'` returned by
+  the mocked Accessor.
+- **HouseholdAccessor operations:** `insert` (household + Owner),
+  `findMembership`, `listForUser`, `listMembers` (a read-only join on
+  users for names), `findSuccessor` (longest-tenured Admin → Member →
+  Viewer), `addMember` (`already_member`), the guarded writes
+  `updateRole` / `removeMember` (never the Owner) / `swapOwner`, and
+  `delete`.
+- **Contract:**
+  - new error codes `household.changed` (409) and
+    `household.member_not_found` (404), in both catalogs;
+  - remove member and change role now list 404 and 409, and transfer
+    ownership lists 409;
+  - uc-07, uc-08, uc-09, uc-10 and uc-12 are regenerated with the
+    decisions in IdentityManager (a leave retries `stale` up to 3 times).
 
 ### OQ-4: Target market, language, and regulatory framework
 **Confirmed:** Brazil (BRL) is the **primary** market, but the app must also

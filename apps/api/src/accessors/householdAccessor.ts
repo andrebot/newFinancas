@@ -1,18 +1,20 @@
 import {
-  and, asc, eq, sql,
+  and, asc, eq, ne, sql, TransactionRollbackError,
 } from 'drizzle-orm';
 import type { Database } from '../db/database';
 import { PG_UNIQUE_VIOLATION, pgErrorCode } from '../db/errors';
 import { householdMemberships, households, users } from '../db/schema';
 import type { ROLES } from '../db/schema/values';
 
-// HouseholdAccessor (A3, VBD): households and memberships. Enforces the
-// membership rules as part of its writes (OQ-107): exactly one Owner (FR-1.18,
-// OQ-28 — also a unique index), the Owner leaves only by their own action
-// (FR-1.11), succession on the Owner's departure, atomic ownership transfer.
+// HouseholdAccessor (A3, VBD): households and memberships. It only applies data
+// changes; every business decision — who may remove whom, who succeeds the
+// Owner, when a household is dissolved — is IdentityManager's (OQ-107).
+// Writes that depend on facts the Manager read are *guarded*: they re-state
+// those facts in their WHERE clause and return 'stale' when they no longer
+// hold, so a concurrent change can't be applied over (OQ-107).
 
 export type Role = (typeof ROLES)[number];
-/** Roles a member can be given; Owner moves only by transfer or succession. */
+/** Roles `updateRole` can set; Owner moves only through `swapOwner`. */
 export type AssignableRole = Exclude<Role, 'Owner'>;
 
 export interface Household {
@@ -36,17 +38,12 @@ export interface Member {
   readonly joinedAt: Date;
 }
 
-export type AddMemberResult = 'added' | 'already_member';
-export type UpdateRoleResult = 'updated' | 'not_member' | 'is_owner';
-export type TransferResult = 'transferred' | 'not_owner' | 'target_not_member';
+/** A guarded write either applied, or found its preconditions no longer true. */
+export type Guarded<Applied extends string> = Applied | 'stale';
 
-/** What removing or leaving did (FR-1.11, FR-1.18). */
-export type TransitionResult = | { readonly status: 'removed' }
-  | { readonly status: 'removed'; readonly promotedUserId: string }
-  | { readonly status: 'household_deleted' }
-  | { readonly status: 'not_member' }
-  /** Someone other than the Owner tried to remove the Owner. */
-  | { readonly status: 'owner_protected' };
+/** Succession order (FR-1.18): Admin, then Member, then Viewer. */
+const SUCCESSION_RANK = sql`CASE ${householdMemberships.role}
+  WHEN 'Admin' THEN 1 WHEN 'Member' THEN 2 ELSE 3 END`;
 
 /**
  * The condition selecting one user's membership of one household.
@@ -59,51 +56,6 @@ const memberIs = (householdId: string, userId: string) => and(
   eq(householdMemberships.householdId, householdId),
   eq(householdMemberships.userId, userId),
 );
-
-/** Succession order (FR-1.18): Admin, then Member, then Viewer. */
-const SUCCESSION_RANK = sql`CASE ${householdMemberships.role}
-  WHEN 'Admin' THEN 1 WHEN 'Member' THEN 2 ELSE 3 END`;
-
-/**
- * Locks a household's memberships for the rest of the transaction and returns
- * them in succession order, so concurrent changes can't race a decision.
- *
- * @param tx - An open transaction.
- * @param householdId - The household.
- * @returns Its memberships: successors first, longest-tenured first.
- */
-const lockMembers = (tx: Database, householdId: string) => tx.select({
-  userId: householdMemberships.userId,
-  role: householdMemberships.role,
-}).from(householdMemberships)
-  .where(eq(householdMemberships.householdId, householdId))
-  .orderBy(SUCCESSION_RANK, asc(householdMemberships.joinedAt), asc(householdMemberships.id))
-  .for('update');
-
-/**
- * Removes the Owner, promoting the next member or dissolving the household (FR-1.18).
- *
- * @param tx - An open transaction holding the membership lock.
- * @param householdId - The household.
- * @param ownerId - The departing Owner.
- * @param successorId - The first in succession order other than the Owner, if any.
- * @returns What happened.
- */
-const removeOwner = async (
-  tx: Database,
-  householdId: string,
-  ownerId: string,
-  successorId: string | undefined,
-): Promise<TransitionResult> => {
-  if (successorId === undefined) {
-    await tx.delete(households).where(eq(households.id, householdId));
-    return { status: 'household_deleted' };
-  }
-  await tx.delete(householdMemberships).where(memberIs(householdId, ownerId));
-  await tx.update(householdMemberships).set({ role: 'Owner' })
-    .where(memberIs(householdId, successorId));
-  return { status: 'removed', promotedUserId: successorId };
-};
 
 /**
  * Builds the HouseholdAccessor over a database (or a transaction).
@@ -128,7 +80,7 @@ const createHouseholdAccessor = (db: Database) => ({
   }),
 
   /**
-   * Reads a user's role in a household (AuthorizationUtility's input).
+   * Reads a user's role in a household.
    *
    * @param householdId - The household.
    * @param userId - The user.
@@ -164,7 +116,7 @@ const createHouseholdAccessor = (db: Database) => ({
    * Lists a household's members with their names (a read-only join on users).
    *
    * @param householdId - The household.
-   * @returns Members, Owner first, then by succession order.
+   * @returns Members, Owner first, then in succession order.
    */
   listMembers: async (householdId: string): Promise<Member[]> => (
     await db.select({
@@ -185,6 +137,27 @@ const createHouseholdAccessor = (db: Database) => ({
   ) as Member[],
 
   /**
+   * Finds who is next in line for Owner: the longest-tenured Admin, else Member,
+   * else Viewer (FR-1.18's ordering). Deciding to promote them is the Manager's.
+   *
+   * @param householdId - The household.
+   * @param excludingUserId - The departing Owner.
+   * @returns The successor, or `undefined` when nobody else is a member.
+   */
+  findSuccessor: async (householdId: string, excludingUserId: string) => {
+    const [row] = await db
+      .select({ userId: householdMemberships.userId, role: householdMemberships.role })
+      .from(householdMemberships)
+      .where(and(
+        eq(householdMemberships.householdId, householdId),
+        ne(householdMemberships.userId, excludingUserId),
+      ))
+      .orderBy(SUCCESSION_RANK, asc(householdMemberships.joinedAt), asc(householdMemberships.id))
+      .limit(1);
+    return row && { userId: row.userId, role: row.role as Role };
+  },
+
+  /**
    * Adds a member (accepting an invitation).
    *
    * @param householdId - The household.
@@ -196,7 +169,7 @@ const createHouseholdAccessor = (db: Database) => ({
     householdId: string,
     userId: string,
     role: AssignableRole,
-  ): Promise<AddMemberResult> => {
+  ): Promise<'added' | 'already_member'> => {
     try {
       await db.transaction((tx) => tx.insert(householdMemberships)
         .values({ householdId, userId, role }));
@@ -208,83 +181,75 @@ const createHouseholdAccessor = (db: Database) => ({
   },
 
   /**
-   * Changes a member's role among Admin, Member and Viewer; never the Owner's (FR-1.12).
+   * Sets a member's role to Admin, Member or Viewer. Guarded: applies only while
+   * the user is a member who is not the Owner — demoting the Owner here would
+   * leave the household without one.
    *
    * @param householdId - The household.
    * @param userId - The member.
    * @param role - The new role.
-   * @returns `updated`, `not_member`, or `is_owner` (nothing changed).
+   * @returns `updated`, or `stale` (not a member, or the Owner).
    */
-  updateRole: (
+  updateRole: async (
     householdId: string,
     userId: string,
     role: AssignableRole,
-  ): Promise<UpdateRoleResult> => (
-    db.transaction(async (tx) => {
-      const current = (await lockMembers(tx, householdId)).find((m) => m.userId === userId);
-      if (!current) return 'not_member';
-      if (current.role === 'Owner') return 'is_owner';
-      await tx.update(householdMemberships).set({ role }).where(memberIs(householdId, userId));
-      return 'updated';
-    })
-  ),
+  ): Promise<Guarded<'updated'>> => {
+    const updated = await db.update(householdMemberships).set({ role })
+      .where(and(memberIs(householdId, userId), ne(householdMemberships.role, 'Owner')))
+      .returning({ id: householdMemberships.id });
+    return updated.length > 0 ? 'updated' : 'stale';
+  },
 
   /**
-   * Removes a member or lets them leave (FR-1.11). The Owner can only leave by
-   * their own action; when they do, the longest-tenured Admin (else Member, else
-   * Viewer) becomes Owner in the same transaction, or the household is deleted
-   * if nobody remains (FR-1.18).
+   * Ends a membership. Guarded: never removes the Owner — the Manager first moves
+   * ownership with `swapOwner` (or dissolves the household with `delete`).
    *
    * @param householdId - The household.
-   * @param userId - Who leaves or is removed.
-   * @param actorId - Who is doing it (equal to `userId` when leaving).
-   * @returns What happened.
+   * @param userId - The member leaving or removed.
+   * @returns `removed`, or `stale` (not a member, or the Owner).
    */
-  transitionMembership: (
-    householdId: string,
-    userId: string,
-    actorId: string,
-  ): Promise<TransitionResult> => (
-    db.transaction(async (tx) => {
-      const members = await lockMembers(tx, householdId);
-      const target = members.find((m) => m.userId === userId);
-      if (!target) return { status: 'not_member' };
-      if (target.role !== 'Owner') {
-        await tx.delete(householdMemberships).where(memberIs(householdId, userId));
-        return { status: 'removed' };
-      }
-      if (actorId !== userId) return { status: 'owner_protected' };
-      return removeOwner(tx, householdId, userId, members.find((m) => m.userId !== userId)?.userId);
-    })
-  ),
+  removeMember: async (householdId: string, userId: string): Promise<Guarded<'removed'>> => {
+    const removed = await db.delete(householdMemberships)
+      .where(and(memberIs(householdId, userId), ne(householdMemberships.role, 'Owner')))
+      .returning({ id: householdMemberships.id });
+    return removed.length > 0 ? 'removed' : 'stale';
+  },
 
   /**
-   * Hands ownership to another member atomically: the Owner becomes Admin, the
-   * target becomes Owner, in one transaction — never zero or two Owners (FR-1.20, OQ-28).
+   * Moves the Owner role from one member to another in one transaction: `from`
+   * becomes Admin, `to` becomes Owner — never zero or two Owners (OQ-28).
+   * Guarded: applies only while `from` is still the Owner and `to` is still a
+   * member; otherwise nothing changes.
    *
    * @param householdId - The household.
-   * @param ownerId - The current Owner.
-   * @param targetUserId - The member who becomes Owner.
-   * @returns `transferred`, `not_owner`, or `target_not_member`.
+   * @param fromUserId - The current Owner.
+   * @param toUserId - The member who becomes Owner.
+   * @returns `swapped`, or `stale`.
    */
-  transferOwnership: (
+  swapOwner: async (
     householdId: string,
-    ownerId: string,
-    targetUserId: string,
-  ): Promise<TransferResult> => (
-    db.transaction(async (tx) => {
-      const members = await lockMembers(tx, householdId);
-      if (members.find((m) => m.userId === ownerId)?.role !== 'Owner') return 'not_owner';
-      if (targetUserId === ownerId || !members.some((m) => m.userId === targetUserId)) {
-        return 'target_not_member';
-      }
-      const setRole = (userId: string, role: Role) => tx.update(householdMemberships).set({ role })
-        .where(memberIs(householdId, userId));
-      await setRole(ownerId, 'Admin');
-      await setRole(targetUserId, 'Owner');
-      return 'transferred';
-    })
-  ),
+    fromUserId: string,
+    toUserId: string,
+  ): Promise<Guarded<'swapped'>> => {
+    try {
+      await db.transaction(async (tx) => {
+        const demoted = await tx.update(householdMemberships).set({ role: 'Admin' })
+          .where(and(memberIs(householdId, fromUserId), eq(householdMemberships.role, 'Owner')))
+          .returning({ id: householdMemberships.id });
+        if (demoted.length === 0) tx.rollback();
+        const promoted = await tx.update(householdMemberships)
+          .set({ role: 'Owner' })
+          .where(and(memberIs(householdId, toUserId), ne(householdMemberships.userId, fromUserId)))
+          .returning({ id: householdMemberships.id });
+        if (promoted.length === 0) tx.rollback();
+      });
+      return 'swapped';
+    } catch (error) {
+      if (error instanceof TransactionRollbackError) return 'stale';
+      throw error;
+    }
+  },
 
   /**
    * Dissolves a household: everything household-scoped goes with it (FK cascade).

@@ -294,13 +294,19 @@ sequenceDiagram
         API-->>User: 403 auth.forbidden
     else authorized
         AZ-->>IM: allowed
-        IM->>HA: transitionMembership(householdId, userId, actor)
+        IM->>HA: findMembership(householdId, userId)
+        HA-->>IM: role (or none)
         alt userId is the Owner
-            HA-->>IM: rejected (FR-1.11/OQ-27 — Owner can only leave by their own action)
+            Note over IM: business rule, Manager's (OQ-107) — the Owner<br/>can only leave by their own action (FR-1.11/OQ-27)
             IM-->>API: Forbidden
             API-->>User: 403 auth.forbidden
-        else userId is not the Owner
-            HA-->>IM: membership removed
+        else userId is not a member
+            IM-->>API: NotFound
+            API-->>User: 404 household.member_not_found
+        else userId is a non-Owner member
+            IM->>HA: removeMember(householdId, userId)
+            Note over HA: guarded — applies only while userId is a non-Owner member,<br/>a concurrent change returns stale (Manager answers 409 household.changed)
+            HA-->>IM: removed
             IM-->>LOG: logActivity(correlationId, actor, "RemoveMember")
             IM-->>LOG: recordAudit(actor, "HouseholdMembership", householdId)
             IM-->>API: removed
@@ -310,7 +316,7 @@ sequenceDiagram
 """,
     notes="""
     <ul>
-      <li><strong>The Owner-immunity check lives inside <code>HouseholdAccessor.transitionMembership</code>&#39;s validated write</strong>, not as a pre-check in <code>IdentityManager</code> — same seam as every other invariant enforced at the point of persistence in this project.</li>
+      <li><strong>Revised (OQ-107):</strong> the Owner-immunity check is a business rule, so it lives in <code>IdentityManager</code>. <code>HouseholdAccessor.removeMember</code> only applies the change, guarded so it never removes the Owner even if a concurrent request made them one.</li>
       <li>Shares its Accessor call with Leave Household (UC-08) — same method, different actor/target relationship (VBD doc &sect;3.1a).</li>
       <li>See FR-1.11, OQ-27.</li>
     </ul>
@@ -331,14 +337,27 @@ sequenceDiagram
     User->>API: DELETE /households/:householdId/members/me
     API->>IM: removeMember(actor, householdId, actor)
     Note over IM: actor == target — leaving is always self-service,<br/>the authorization check is skipped entirely (FR-1.11)
-    IM->>HA: transitionMembership(householdId, actor, actor)
-    alt actor is the Owner AND another member remains
-        HA-->>IM: membership removed,<br/>longest-tenured Admin (else Member, else Viewer) promoted to Owner
-        Note over HA: one atomic write — FR-1.18&#39;s succession rule,<br/>never observably zero or two Owners (OQ-25)
-    else actor is the Owner AND no other member remains
-        HA-->>IM: membership removed, household itself deleted (FR-1.18)
-    else actor is not the Owner
-        HA-->>IM: membership removed
+    IM->>HA: findMembership(householdId, actor)
+    HA-->>IM: role
+    alt actor is not the Owner
+        IM->>HA: removeMember(householdId, actor)
+        HA-->>IM: removed
+    else actor is the Owner
+        Note over IM: FR-1.18 succession is the Manager&#39;s decision (OQ-107)
+        IM->>HA: findSuccessor(householdId, actor)
+        Note over HA: longest-tenured Admin, else Member, else Viewer
+        alt nobody else remains
+            HA-->>IM: none
+            IM->>HA: delete(householdId)
+            HA-->>IM: household dissolved
+        else successor found
+            HA-->>IM: successorId
+            IM->>HA: swapOwner(householdId, actor, successorId)
+            Note over HA: guarded, one transaction — never zero or two Owners (OQ-28)
+            HA-->>IM: swapped (stale → re-read and retry, at most 3 times)
+            IM->>HA: removeMember(householdId, actor)
+            HA-->>IM: removed
+        end
     end
     IM-->>LOG: logActivity(correlationId, actor, "LeaveHousehold")
     IM-->>LOG: recordAudit(actor, "HouseholdMembership", householdId)
@@ -379,8 +398,17 @@ sequenceDiagram
         API-->>User: 422 validation.failed {details}
     else role is Admin/Member/Viewer
         AZ-->>IM: allowed
-        IM->>HA: updateRole(householdId, userId, role)
-        HA-->>IM: role updated
+        IM->>HA: findMembership(householdId, userId)
+        HA-->>IM: role (or none)
+        alt userId is the Owner or not a member
+            Note over IM: the Owner role never changes here (FR-1.12, OQ-107)
+            IM-->>API: Forbidden / NotFound
+            API-->>User: 403 auth.forbidden / 404 household.member_not_found
+        else non-Owner member
+            IM->>HA: updateRole(householdId, userId, role)
+            Note over HA: guarded — stale if they became Owner or left meanwhile (409)
+            HA-->>IM: role updated
+        end
         IM-->>LOG: logActivity(correlationId, actor, "ChangeMemberRole")
         IM-->>LOG: recordAudit(actor, "HouseholdMembership", householdId)
         IM-->>API: updated
@@ -420,13 +448,19 @@ sequenceDiagram
         API-->>User: 404 household.member_not_found
     else valid target member
         AZ-->>IM: allowed
-        IM->>HA: transferOwnership(householdId, actor, targetUserId)
-        Note over HA: atomic dual-role swap — targetUserId becomes Owner,<br/>actor demoted to Admin, one write not two (OQ-28)
-        HA-->>IM: transferred
+        IM->>HA: swapOwner(householdId, actor, targetUserId)
+        Note over HA: atomic dual-role swap, guarded: applies only while actor is still<br/>Owner and target still a member (OQ-28, OQ-107)
+        alt a concurrent change
+            HA-->>IM: stale
+            IM-->>API: Conflict
+            API-->>User: 409 household.changed
+        else applied
+        HA-->>IM: swapped
         IM-->>LOG: logActivity(correlationId, actor, "TransferOwnership")
         IM-->>LOG: recordAudit(actor, "HouseholdMembership", householdId)
         IM-->>API: transferred
         API-->>User: 200 OK {newOwnerId: targetUserId}
+        end
     end
 """,
     notes="""
@@ -516,10 +550,9 @@ sequenceDiagram
     User->>API: DELETE /users/me
     API->>IM: deleteUser(actor)
     loop for each household actor belongs to
-        IM->>HA: transitionMembership(householdId, actor, actor)
-        opt actor is the Owner of this household
-            Note over HA: same FR-1.18 succession/dissolution logic<br/>as Leave Household (UC-08) — one atomic write
-        end
+        Note over IM: same as Leave Household (UC-08) — the Manager decides:<br/>non-Owner → removeMember, Owner → findSuccessor then<br/>swapOwner + removeMember, or delete(householdId) if alone (OQ-107)
+        IM->>HA: findMembership / findSuccessor / swapOwner / removeMember / delete
+        HA-->>IM: applied
     end
     Note over IM: for every resource actor owns or contributed to,<br/>branch on personal vs. shared (FR-1.17)
     IM->>AA: cascade-delete personal Accounts, null owner_user_id on shared Accounts

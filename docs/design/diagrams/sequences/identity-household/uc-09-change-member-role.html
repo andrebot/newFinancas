@@ -79,8 +79,17 @@ sequenceDiagram
         API-->>User: 422 validation.failed {details}
     else role is Admin/Member/Viewer
         AZ-->>IM: allowed
-        IM->>HA: updateRole(householdId, userId, role)
-        HA-->>IM: role updated
+        IM->>HA: findMembership(householdId, userId)
+        HA-->>IM: role (or none)
+        alt userId is the Owner or not a member
+            Note over IM: the Owner role never changes here (FR-1.12, OQ-107)
+            IM-->>API: Forbidden / NotFound
+            API-->>User: 403 auth.forbidden / 404 household.member_not_found
+        else non-Owner member
+            IM->>HA: updateRole(householdId, userId, role)
+            Note over HA: guarded — stale if they became Owner or left meanwhile (409)
+            HA-->>IM: role updated
+        end
         IM-->>LOG: logActivity(correlationId, actor, "ChangeMemberRole")
         IM-->>LOG: recordAudit(actor, "HouseholdMembership", householdId)
         IM-->>API: updated

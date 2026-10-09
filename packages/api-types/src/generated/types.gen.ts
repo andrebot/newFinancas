@@ -832,7 +832,7 @@ export type RegisterUserData = {
 
 export type RegisterUserErrors = {
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`.
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
      */
     409: Error;
     /**
@@ -1294,6 +1294,14 @@ export type RemoveMemberErrors = {
      * Authenticated, but not permitted to perform this action. Codes: `auth.forbidden`.
      */
     403: Error;
+    /**
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `session.not_found`, `notification.not_found`, `invitation.invitee_not_registered`.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
+     */
+    409: Error;
 };
 
 export type RemoveMemberError = RemoveMemberErrors[keyof RemoveMemberErrors];
@@ -1324,6 +1332,14 @@ export type ChangeMemberRoleErrors = {
      * Authenticated, but not permitted to perform this action. Codes: `auth.forbidden`.
      */
     403: Error;
+    /**
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `session.not_found`, `notification.not_found`, `invitation.invitee_not_registered`.
+     */
+    404: Error;
+    /**
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
+     */
+    409: Error;
     /**
      * Request body failed validation. Codes: `validation.failed` with `details[]`, or specific codes such as `password.too_short`, `transaction.investment_not_allowed_on_account`.
      */
@@ -1359,6 +1375,10 @@ export type TransferOwnershipErrors = {
      * Resource does not exist, or does not belong to the caller. Codes: e.g. `session.not_found`, `notification.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
+    /**
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
+     */
+    409: Error;
 };
 
 export type TransferOwnershipError = TransferOwnershipErrors[keyof TransferOwnershipErrors];
@@ -2136,7 +2156,7 @@ export type RecordMarketValueErrors = {
      */
     403: Error;
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`.
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
      */
     409: Error;
     /**
@@ -2622,7 +2642,7 @@ export type DeleteMarketValueErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`.
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
      */
     409: Error;
 };
@@ -2661,7 +2681,7 @@ export type EditMarketValueErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`.
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
      */
     409: Error;
     /**
@@ -2718,7 +2738,7 @@ export type RecordIndexRateErrors = {
      */
     403: Error;
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`.
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
      */
     409: Error;
     /**
