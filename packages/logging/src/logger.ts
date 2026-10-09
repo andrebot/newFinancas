@@ -5,7 +5,9 @@ import winston from 'winston';
 import DailyRotateFile from 'winston-daily-rotate-file';
 import { formatConsoleLine } from './consoleFormat';
 import { readLoggingEnv, type LoggingEnv } from './env';
-import { redactEvent, stampAudit, type LogEvent } from './formats';
+import {
+  isConsoleOnly, redactEvent, stampAudit, type LogEvent,
+} from './formats';
 import { LEVELS } from './levels';
 import loggingSettings from './settings';
 
@@ -28,7 +30,7 @@ export interface LogContext {
 
 /**
  * Builds the transports for a process: the human-readable console and the
- * daily JSON file; none in test mode.
+ * daily JSON file, which skips console-only events; none in test mode.
  *
  * @param env - The logging environment.
  * @returns The transports.
@@ -42,7 +44,10 @@ export const buildTransports = (env: LoggingEnv): winston.transport[] => (env.te
     filename: `${env.filePrefix}-%DATE%.log`,
     datePattern: loggingSettings.datePattern,
     maxFiles: `${loggingSettings.retentionDays}d`,
-    format: winston.format.json(),
+    format: winston.format.combine(
+      winston.format((info) => (isConsoleOnly(info) ? false : info))(),
+      winston.format.json(),
+    ),
   }),
 ]);
 

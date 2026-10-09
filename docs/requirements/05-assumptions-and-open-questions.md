@@ -768,7 +768,7 @@ locally and on GitHub Actions, using the same root scripts in both places.
   validation library for N7 (request validation) and U3.
 - **Console email:** `EMAIL_PROVIDER=console` is the only value in v1
   (OQ-88). The provider itself is built in `NotificationDeliveryUtility`
-  (U7).
+  (U7, OQ-112).
 
 ### OQ-93: API contract tooling (task N7)
 **Confirmed, implementation (Oct 2026):**
@@ -1479,7 +1479,33 @@ to the financas app's style):**
 - Not yet in the API contract: exposing the system role to the web app
   waits for the sys-admin pages.
 
-## Refined (resolved, with a follow-up still open)
+### OQ-112: Notification delivery, and keeping the reset link out of log files (task U7)
+**Confirmed with the stakeholder (Oct 2026):** the console email provider
+shows the email **in the terminal only**. A reset email's body holds a
+live reset link, so it must never be written to the daily log files.
+`@financas/logging` gained a general rule for this: an event logged with
+`consoleOnly: true` reaches the console (and tests' `captureLogs`) but the
+file transport drops it.
+
+**Design (U7):**
+- `deliver(delivery)` with two channels (OQ-84):
+  - `in_app`: `{ userId, type, params }` → `NotificationInboxAccessor.insert`,
+    type + raw params only (OQ-82);
+  - `email`: `{ to, language, type, params }` → subject and body rendered
+    from the shared `@financas/i18n` catalog (ICU, `intl-messageformat`) in
+    the recipient's language, then handed to the configured provider.
+    v1 email types: `password.reset { resetLink, expiresInMinutes }`; the
+    link is built by IdentityManager. A catalog email type without typed
+    params fails to compile, and a missing argument fails rather than send
+    a broken email.
+- Providers are `{ send({ to, subject, body }) }`, chosen by
+  `EMAIL_PROVIDER` (`EMAIL_PROVIDERS` registry). v1 has `console` only
+  (OQ-88); a real provider is a new entry, with no caller changing.
+- `deliver` rejects when the channel fails; the Manager decides: no
+  `markMaturedNotified` for a holding, and Reset Password still answers
+  202 after logging the error.
+
+
 
 *(OQ-4's legal-review follow-up below is closed for v1 by OQ-89.)*
 
