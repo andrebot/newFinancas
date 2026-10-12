@@ -45,6 +45,8 @@ const createSessionAccessor = (db: Database) => ({
    * @param refreshTokenHash - Hash of the refresh token given to the device.
    * @param deviceInfo - Shown in the sessions list (e.g. browser and OS).
    * @param expiresAt - When the refresh token stops working.
+   * @param now - Sign-in time: the session's creation and last use. The caller's
+   *   clock, like every other session operation — never the database's.
    * @returns The session; its ID goes into the access token (`sid`).
    */
   insert: async (
@@ -52,10 +54,11 @@ const createSessionAccessor = (db: Database) => ({
     refreshTokenHash: string,
     deviceInfo: string | null,
     expiresAt: Date,
+    now: Date,
   ): Promise<Session> => {
     const [row] = await db.insert(sessions)
       .values({
-        userId, refreshTokenHash, deviceInfo, expiresAt,
+        userId, refreshTokenHash, deviceInfo, expiresAt, createdAt: now, lastUsedAt: now,
       })
       .returning(columns);
     return row!;

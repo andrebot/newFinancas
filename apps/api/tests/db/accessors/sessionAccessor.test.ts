@@ -54,7 +54,7 @@ const test = (work: (sessions: Sessions, ids: Ids) => Promise<void>) => (
 
 describe('SessionAccessor', () => {
   it('opens a session storing only the token hash', test(async (sessions, { ana }) => {
-    const session = await sessions.insert(ana, hash('a'), 'Firefox on Linux', days(30));
+    const session = await sessions.insert(ana, hash('a'), 'Firefox on Linux', days(30), NOW);
 
     expect(session)
       .toMatchObject({ userId: ana, deviceInfo: 'Firefox on Linux', expiresAt: days(30) });
@@ -63,7 +63,7 @@ describe('SessionAccessor', () => {
 
   describe('rotate (OQ-100, OQ-106)', () => {
     it('swaps in the new token and slides the expiry', test(async (sessions, { ana }) => {
-      const session = await sessions.insert(ana, hash('a'), null, days(30));
+      const session = await sessions.insert(ana, hash('a'), null, days(30), NOW);
 
       const result = await sessions.rotate(hash('a'), hash('b'), days(31), days(1));
 
@@ -76,7 +76,7 @@ describe('SessionAccessor', () => {
     }));
 
     it('is stale for a replaced token, changing nothing', test(async (sessions, { ana }) => {
-      await sessions.insert(ana, hash('a'), null, days(30));
+      await sessions.insert(ana, hash('a'), null, days(30), NOW);
       await sessions.rotate(hash('a'), hash('b'), days(31), days(1));
 
       const replay = await sessions.rotate(hash('a'), hash('x'), days(31), days(1));
@@ -87,7 +87,7 @@ describe('SessionAccessor', () => {
     }));
 
     it('is stale for an unknown or expired token', test(async (sessions, { ana }) => {
-      await sessions.insert(ana, hash('a'), null, days(30));
+      await sessions.insert(ana, hash('a'), null, days(30), NOW);
 
       const unknown = await sessions.rotate(hash('z'), hash('b'), days(31), NOW);
       const expired = await sessions.rotate(hash('a'), hash('b'), days(60), days(30));
@@ -99,7 +99,7 @@ describe('SessionAccessor', () => {
 
   describe('findByReplacedToken', () => {
     it('finds the session a replayed token belongs to', test(async (sessions, { ana }) => {
-      const session = await sessions.insert(ana, hash('a'), null, days(30));
+      const session = await sessions.insert(ana, hash('a'), null, days(30), NOW);
       await sessions.rotate(hash('a'), hash('b'), days(31), days(1));
 
       expect(await sessions.findByReplacedToken(hash('a')))
@@ -107,7 +107,7 @@ describe('SessionAccessor', () => {
     }));
 
     it('finds nothing for a current or unknown token', test(async (sessions, { ana }) => {
-      await sessions.insert(ana, hash('a'), null, days(30));
+      await sessions.insert(ana, hash('a'), null, days(30), NOW);
       await sessions.rotate(hash('a'), hash('b'), days(31), days(1));
 
       expect(await sessions.findByReplacedToken(hash('b'))).toBeUndefined();
@@ -116,10 +116,10 @@ describe('SessionAccessor', () => {
   });
 
   it('lists active sessions, most recent first', test(async (sessions, { ana, bia }) => {
-    const older = await sessions.insert(ana, hash('a'), 'Laptop', days(30));
-    const recent = await sessions.insert(ana, hash('b'), 'Phone', days(30));
-    await sessions.insert(ana, hash('c'), 'Old tablet', days(1));
-    await sessions.insert(bia, hash('d'), 'Bia', days(30));
+    const older = await sessions.insert(ana, hash('a'), 'Laptop', days(30), NOW);
+    const recent = await sessions.insert(ana, hash('b'), 'Phone', days(30), NOW);
+    await sessions.insert(ana, hash('c'), 'Old tablet', days(1), NOW);
+    await sessions.insert(bia, hash('d'), 'Bia', days(30), NOW);
     await sessions.rotate(hash('b'), hash('e'), days(30), days(2));
 
     const listed = await sessions.listByUser(ana, days(3));
@@ -129,8 +129,8 @@ describe('SessionAccessor', () => {
 
   describe('ending sessions', () => {
     it('ends one of the user\'s own sessions only', test(async (sessions, { ana, bia }) => {
-      const anas = await sessions.insert(ana, hash('a'), null, days(30));
-      const bias = await sessions.insert(bia, hash('b'), null, days(30));
+      const anas = await sessions.insert(ana, hash('a'), null, days(30), NOW);
+      const bias = await sessions.insert(bia, hash('b'), null, days(30), NOW);
 
       expect(await sessions.deleteForUser(ana, bias.id)).toBe(false);
       expect(await sessions.deleteForUser(ana, anas.id)).toBe(true);
@@ -139,10 +139,10 @@ describe('SessionAccessor', () => {
     }));
 
     it('ends every session except the current one', test(async (sessions, { ana, bia }) => {
-      const current = await sessions.insert(ana, hash('a'), null, days(30));
-      await sessions.insert(ana, hash('b'), null, days(30));
-      await sessions.insert(ana, hash('c'), null, days(30));
-      await sessions.insert(bia, hash('d'), null, days(30));
+      const current = await sessions.insert(ana, hash('a'), null, days(30), NOW);
+      await sessions.insert(ana, hash('b'), null, days(30), NOW);
+      await sessions.insert(ana, hash('c'), null, days(30), NOW);
+      await sessions.insert(bia, hash('d'), null, days(30), NOW);
 
       expect(await sessions.deleteAllExceptCurrent(ana, current.id)).toBe(2);
       expect((await sessions.listByUser(ana, NOW)).map((s) => s.id)).toEqual([current.id]);
@@ -150,9 +150,9 @@ describe('SessionAccessor', () => {
     }));
 
     it('ends every session of a user', test(async (sessions, { ana, bia }) => {
-      await sessions.insert(ana, hash('a'), null, days(30));
-      await sessions.insert(ana, hash('b'), null, days(30));
-      await sessions.insert(bia, hash('c'), null, days(30));
+      await sessions.insert(ana, hash('a'), null, days(30), NOW);
+      await sessions.insert(ana, hash('b'), null, days(30), NOW);
+      await sessions.insert(bia, hash('c'), null, days(30), NOW);
 
       expect(await sessions.deleteAllForUser(ana)).toBe(2);
       expect(await sessions.listByUser(ana, NOW)).toEqual([]);
