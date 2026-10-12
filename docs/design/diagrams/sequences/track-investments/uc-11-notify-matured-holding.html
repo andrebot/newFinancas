@@ -63,7 +63,7 @@ sequenceDiagram
     participant IHA as InvestmentHoldingAccessor
     participant SB as ServiceBusUtility
     participant AM as AccountManager
-    participant ND as NotificationDeliveryUtility
+    participant NE as NotificationEngine
     participant NIA as NotificationInboxAccessor
     participant LOG as LoggingUtility
 
@@ -74,10 +74,17 @@ sequenceDiagram
         CRON->>SB: publish("holding.matured", {holdingId, ownerUserIds})
         SB-->>AM: subscribe("holding.matured")
         loop for each owner
-            AM->>ND: deliver(userId, type = "holding.matured", params = {holdingId, holdingName, dueDate})
-            ND->>NIA: insert(userId, type, params, unseen)
+            AM->>NE: notify("holding.matured", recipient = {userId}, params = {holdingId, holdingName, dueDate})
+            Note over NE: routing table: holding.matured &rarr; in-app
+            NE->>NIA: insert(userId, "holding.matured", params)
+            NIA-->>NE: stored
+            NE-->>AM: delivered
         end
-        AM->>IHA: markMaturedNotified(holdingId)
+        alt every owner notified
+            AM->>IHA: markMaturedNotified(holdingId)
+        else a delivery failed
+            Note over AM: not marked &mdash; tomorrow&#39;s run tries again
+        end
         AM-->>LOG: logActivity(correlationId, systemActor, "NotifyMaturedHolding")
     end
     </pre>
@@ -85,6 +92,7 @@ sequenceDiagram
   <div class="notes">
     <ul>
       <li><strong>Type + params, never text (OQ-82):</strong> the frontend renders &ldquo;CDB Banco Inter 2026 reached its due date&hellip; archive it?&rdquo; in the user's language. <code>holdingName</code> is a deliberate snapshot (historical label).</li>
+      <li><strong>Synchronous on purpose:</strong> unlike invitations, the Manager waits for <code>NotificationEngine</code>, because marking the Holding notified depends on it (BDT plan).</li>
       <li>Normally a redemption (UC-4) zeroes and auto-archives the Holding first; this catches the rest.</li>
       <li>See FR-5.8, FR-6.5, OQ-68, OQ-72, OQ-82; Manager review M6.</li>
     </ul>

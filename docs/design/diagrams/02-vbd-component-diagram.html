@@ -123,6 +123,11 @@
     <code>InsightsManager</code>; <code>NotificationDeliveryUtility</code>
     wired again (invitations, matured holdings). Still 4 Managers,
     2 Engines, 7 Utilities, 18 active Accessors.
+    <strong>Oct 2026 (OQ-113):</strong> <code>NotificationDeliveryUtility</code> reclassified as
+    <code>NotificationEngine</code> — it holds domain knowledge (which channel each
+    notification type uses, rendering email from the catalog), and only Managers may
+    cause a notification; sending email becomes <code>EmailAccessor</code>.
+    4 Managers, 3 Engines, 6 Utilities, 17 active Accessors (16 + EmailAccessor; the VBD doc corrected the earlier 18).
   </p>
   <div class="diagram-card">
     <pre class="mermaid">
@@ -167,14 +172,18 @@ graph TB
         E_Report[ReportingEngine]
         A_Dash[(DashboardAccessor - parked, v3)]
         A_Audit[(AuditLogAccessor)]
+    end
+
+    subgraph Notifications["Notifications"]
+        E_Notify[NotificationEngine]
         A_Inbox[(NotificationInboxAccessor)]
+        A_Email[(EmailAccessor)]
     end
 
     subgraph Utilities["Cross-Cutting Utilities"]
         U_Authz[AuthorizationUtility]
         U_Authn[AuthenticationUtility]
         U_Log[LoggingUtility]
-        U_Notify[NotificationDeliveryUtility]
         U_Valid[ValidationUtility]
         U_Corr[CorrelationIdUtility]
         U_Bus{{ServiceBusUtility}}
@@ -197,8 +206,10 @@ graph TB
     M_Acct --> A_Obj
     M_Acct --> A_Snap
     M_Acct --> A_Rate
-    M_Acct --> U_Notify
-    M_Id --> U_Notify
+    M_Acct --> E_Notify
+    M_Id --> E_Notify
+    E_Notify --> A_Inbox
+    E_Notify --> A_Email
     M_Acct -.-> A_Port
     M_Acct -.-> A_OBConn
     M_Acct -.-> A_OFB
@@ -242,6 +253,7 @@ graph TB
     AccountConfig -.-> Utilities
     Transactions -.-> Utilities
     Insights -.-> Utilities
+    Notifications -.-> Utilities
     U_Log --> A_Audit
 </pre>
   </div>

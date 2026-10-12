@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { redactEvent, stampAudit } from '../../src/formats';
+import { isConsoleOnly, redactEvent, stampAudit } from '../../src/formats';
 
 describe('stampAudit', () => {
   it('gives an audit event its own id and the time of the action', () => {
@@ -25,5 +25,13 @@ describe('redactEvent', () => {
     expect(redactEvent({ ...event, password: 'p', nested: { token: 't', ok: 1 } })).toEqual({
       ...event, password: '[redacted]', nested: { token: '[redacted]', ok: 1 },
     });
+  });
+});
+
+describe('isConsoleOnly', () => {
+  it('is true only when the event says so', () => {
+    expect(isConsoleOnly({ level: 'info', message: 'x', consoleOnly: true })).toBe(true);
+    expect(isConsoleOnly({ level: 'info', message: 'x', consoleOnly: 'yes' })).toBe(false);
+    expect(isConsoleOnly({ level: 'info', message: 'x' })).toBe(false);
   });
 });

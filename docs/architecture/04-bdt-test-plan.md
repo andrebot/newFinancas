@@ -79,6 +79,7 @@ needs its own assertion, backed by a CI coverage gate on these files.
 |---|---|---|
 | `ReportingEngine` | `AccountAccessor`, `CreditCardAccessor`, `ValuationSnapshotAccessor`, `InvestmentHoldingAccessor`, `AccountTransactionAccessor`, `CardTransactionAccessor`, `BudgetAccessor`, `GoalAccessor` | **Round 9 shapes:** month overview (in/out/net per currency — own-account transfers and bill payments excluded via `effect`; 12-month strip; month-end balances; budgets over-budget first), payout series (only dividend/interest transactions *linked to a Holding*; a month with no payout is zero, not missing; multiple currencies never summed), net worth **change vs previous month** (incl. first month with no previous = null), goal progress per currency (whole-percent allocation: `value × pct / 100`, half-up to the cent — assert the rounding on an odd-cent case). Plus the v1-retained shapes (net worth, budget status, balance-by-month) × at least: normal data, empty data (new household), and — specifically for Objective progress/net worth — the OQ-51 branch (market-priced Holding reads `ValuationSnapshotAccessor`; fixed-term Holding reads `InvestmentHoldingAccessor.cost_basis` instead, zero snapshot rows). Income-vs-expense must assert transfers are excluded via the persisted `effect` column (FR-3.6), not recomputed from `kind`. |
 | `InvestmentProductEngine` | `InvestmentHoldingAccessor` (write side, `schedule`), `IndexRateAccessor` (read side, `project` — Round 9) | **`schedule`:** one scenario per FR-11.1 type (OQ-79: CDB, LC, LF, LCI, LCA, CRA, CRI, Debenture incentivised/not, Tesouro Direto; CD, Treasury) — the coded tax rules must differ where the law differs: regressive IR by holding period (assert each bracket boundary), exemption for LCI/LCA/CRA/CRI/incentivised debentures, US = taxes not estimated. **`project`:** fixed-rate (no index read), index-linked with a latest value, index-linked with **no value yet** (defined fallback, not a crash), US instrument (`estimated: false`); rates are integers × 10,000 — assert no float drift on a long term. Plus: an instrument type *not* in FR-11.1's list never reaches this Engine at all (asserted at the `TransactionManager` integration level, not here — there's nothing to unit-test for a call that never happens). |
+| `NotificationEngine` *(OQ-113)* | `NotificationInboxAccessor` (in-app), `EmailAccessor` (email) | **Routing:** each v1 type reaches exactly its channels (`invitation.received`, `holding.matured` → inbox only; `password.reset` → email only). **In-app** stores `type` + `params`, never text. **Email:** one test per v1 email type × each locale, asserting the rendered subject/body handed to `EmailAccessor` (plural forms included), and that a missing template argument fails instead of sending. A channel failure rejects `notify` |
 
 ### Resource Accessors — unit, against embedded Postgres (PGlite); assert the validated-write invariant
 
@@ -127,6 +128,7 @@ the rest).
 | `GoalAccessor` *(renamed from `ObjectiveAccessor`)* | `allocate` / `replaceAllocations` with **whole-percent integers** (OQ-87): exactly 100 (success), 101 (rejected, FR-8.3 — cross-row `SUM`, so set up at least two prior rows), 0 or > 100 per row rejected; complete/reopen (the one reversible pair) vs. delete (hard, allocations cascade away, Holdings untouched) |
 | `AuditLogAccessor` | Insert (via `recordAudit` only — never directly); `exportCsv` over a date range. The no-`UPDATE`/`DELETE` privilege is verified by the schema checks (`apps/api/tests/db/`, OQ-95), not by this Accessor's tests. |
 | `NotificationInboxAccessor` | Insert stores `type` + `params` JSON (no text column exists — OQ-82); `listByUser`; `markAllSeen` (bulk); delete (hard) |
+| `EmailAccessor` *(OQ-113)* | `send({to, subject, body})` reaches the configured provider unchanged; the `console` provider shows the email in the terminal only (`consoleOnly`, OQ-112); `EMAIL_PROVIDER` picks the provider, so switching it changes no caller |
 
 ### Managers — integration, mock the Engines/Accessors they call directly
 
@@ -149,14 +151,15 @@ gap there as a missing scenario, not an acceptable gap.
 
 **`IdentityManager`** — mocks `UserAccessor`, `SessionAccessor`,
 `HouseholdAccessor`, `InvitationAccessor`, `AuthenticationUtility`,
-`AuthorizationUtility`, `ServiceBusUtility`, `LoggingUtility`.
+`AuthorizationUtility`, `ServiceBusUtility`, `LoggingUtility`,
+`NotificationEngine`.
 - Register: email available/taken, **password < 12 → `password.too_short`**, first/last name required (`uc-11-create-user.html`)
 - Login: user found/not-found, password valid/invalid, MFA valid/invalid (`uc-14-login.html`) — all three failure branches must assert the *same* 401, not leak which one failed
 - MFA recovery: code valid/invalid/already-used (`uc-20-mfa-recovery.html`)
-- Password reset request/confirm: user exists/doesn't (still 202 either way), token valid/expired, new password < 12; **request calls `NotificationDeliveryUtility.deliver(channel=email, type="password.reset", params, language)`** — assert the type, params and language, never a rendered body (OQ-84) (`uc-18-reset-password.html`)
+- Password reset request/confirm: user exists/doesn't (still 202 either way), token valid/expired, new password < 12; **request calls `NotificationEngine.notify("password.reset", {email, language}, {resetLink, expiresInMinutes})`** — assert the type, recipient and params, never a channel or a rendered body (OQ-113) (`uc-18-reset-password.html`)
 - Remove Member / Leave Household: not-authorized, target-is-Owner-removed-by-other (rejected), self-leave-as-non-Owner, self-leave-as-Owner-with-successor, self-leave-as-Owner-with-no-successor (`uc-07`/`uc-08`)
 - Transfer Ownership: not-authorized, target-not-a-member, success (`uc-10-transfer-ownership.html`)
-- Invite User: invitee not registered (404 `invitation.invitee_not_registered`), success → **`NotificationDeliveryUtility.deliver(type="invitation.received", params={invitationId, householdId, inviterUserId, role})`** — IDs only, no names (OQ-82) (`uc-03`)
+- Invite User: invitee not registered (404 `invitation.invitee_not_registered`), success → **`NotificationEngine.notify("invitation.received", {userId}, {invitationId, householdId, inviterUserId, role})`** — IDs only, no names (OQ-82), no channel (OQ-113) (`uc-03`)
 - Revoke session(s): one (not-yours → 404) and **all others** (`deleteAllExceptCurrent` with the current session id) (`uc-17`)
 - Edit User: preferences valid/invalid (`uc-13`); List My Households: memberships + pending invitations with inviter (`uc-21`)
 - **Delete User — the richest integration test in this Manager, deliberately given its own scenario list**, one assertion per Accessor in the cascade actually being called with the right arguments, in an order that doesn't violate FK dependencies: `HouseholdAccessor.transitionMembership` per household (with the Owner-successor sub-branch), `AccountAccessor` (personal cascade-delete vs. shared null), `InvestmentHoldingAccessor` (cascade with personal Accounts), `AccountTransactionAccessor`/`CardTransactionAccessor` (anonymize shared), `BudgetAccessor`/`GoalAccessor` (cascade vs. null), `UserAccessor.delete`, `SessionAccessor.deleteAllForUser` (`uc-12-delete-user.html`). No rejection-path scenario exists for this one — that absence is itself worth a test (assert it succeeds unconditionally).
@@ -167,7 +170,7 @@ gap there as a missing scenario, not an acceptable gap.
 `CategoryAccessor`, `BudgetAccessor`, `InvestmentHoldingAccessor`,
 `ValuationSnapshotAccessor`, `GoalAccessor`, `IndexRateAccessor`,
 `ValidationUtility`, `AuthorizationUtility`, `ServiceBusUtility`,
-`NotificationDeliveryUtility`.
+`NotificationEngine`.
 - Subscribes `household.created` → `CategoryAccessor.seedDefaults`: this is where the Manager↔Manager effect actually gets verified from the *receiving* side — assert the subscription handler calls `seedDefaults` with the published `householdId`
 - Create/Edit Account: validation fail, type/currency-change-attempted (rejected, OQ-32), card-attach-on-wrong-account-type (rejected, FR-2.7), success (`uc-01`/`uc-02` financial-accounts)
 - Archive Account: success, Open-Banking-linked branch (currently unreachable — assert it's *not* called rather than mocking a parked Accessor)
@@ -177,7 +180,7 @@ gap there as a missing scenario, not an acceptable gap.
 - Archive Matured Holding: not-authorized, success with `by=user` (`uc-03`)
 - Market value record/edit/delete: fixed-term Holding → 409 `holding.not_market_priced`; edit/delete of an automatic snapshot → 409 `snapshot.automatic_not_editable`; success (`uc-05..07`)
 - Index rate record/edit/delete: invalid value → 422 `index_rate.invalid`, duplicate day → conflict, success (`uc-08..10`)
-- Subscribes `holding.matured` → per owner `NotificationDeliveryUtility.deliver(type="holding.matured", params)` then `markMaturedNotified` — assert both, and that a delivery failure does **not** mark it notified (`uc-11`)
+- Subscribes `holding.matured` → per owner `NotificationEngine.notify("holding.matured", {userId}, params)` then `markMaturedNotified` — assert both, and that a delivery failure does **not** mark it notified (`uc-11`)
 - Create Account: the 4 types only (OQ-76); Create/Edit Category with icon + colour token
 - Goal CRUD / complete / reopen / delete (`goals/uc-01..05`)
 
@@ -220,7 +223,6 @@ gap there as a missing scenario, not an acceptable gap.
 | `CorrelationIdUtility` | Unit | Nothing (pure) |
 | `ServiceBusUtility` | Unit | The in-process event emitter it wraps — assert publish/subscribe semantics only, not any Manager's handler logic |
 | `LoggingUtility` | Unit | Nothing for the shared logger (silent under Vitest; tests read events through `captureLogs`); `AuditLogAccessor` behind the audit sink — assert the two kinds stay schema-distinct (an audit record carries only `{id, time, actor, household, action, entityType, entityId}`, never details — FR-7.1), details are redacted, the sink retries then reports, audit storage ignores `LOG_LEVEL`, and reconciliation restores only missing entries (OQ-110) |
-| `NotificationDeliveryUtility` | Unit | `NotificationInboxAccessor` (in-app) and the **email provider client** (the external sink, configured — OQ-84). In-app stores `type` + `params` only; email renders the template from the shared i18n catalog in the requested language — assert one test per v1 email type (`password.reset`) × each locale, and that switching the configured provider changes no call site |
 
 ### Schema checks — embedded Postgres, unit speed, no running system
 
@@ -511,8 +513,9 @@ what to check if a test starts feeling expensive to write:
   Experience (e.g. Record Transaction → refresh Month Overview).
 - An App Shell test needing to know a notification's business logic →
   routing has absorbed an Experience's work; the shell only routes.
-- A `NotificationDeliveryUtility` test needing per-type branching logic
-  beyond template lookup → the OQ-84 trigger: it has become an Engine.
+- A `NotificationEngine` test needing to mock a Manager, or an
+  `EmailAccessor` test asserting rendered wording → composition has leaked
+  out of the Engine (OQ-113: the Engine renders, the Accessor only sends).
 - An `InvestmentProductEngine` test needing more than one Accessor
   mocked for a single method → `schedule` and `project` must each touch
   one Accessor only.

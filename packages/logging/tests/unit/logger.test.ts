@@ -72,4 +72,19 @@ describe('buildTransports', () => {
     transports.forEach((transport) => transport.close?.());
     await rm(logDir, { recursive: true, force: true });
   });
+
+  it('keeps console-only events (live secrets) out of the file, not the console', async () => {
+    const logDir = await mkdtemp(path.join(os.tmpdir(), 'financas-logging-'));
+    const [consoleTransport, file] = buildTransports({
+      level: 'info', logDir, filePrefix: 'api', testMode: false,
+    }) as [winston.transport, winston.transport];
+    const secret = { level: 'info', message: 'Email', consoleOnly: true };
+    const line = consoleTransport.format!.transform({ ...secret }) as Record<symbol, unknown>;
+
+    expect(file.format!.transform({ ...secret })).toBe(false);
+    expect(file.format!.transform({ level: 'info', message: 'kept' })).toBeTruthy();
+    expect(line[Symbol.for('message')]).toBe(' INFO  [--------] - Email');
+    [consoleTransport, file].forEach((transport) => transport.close?.());
+    await rm(logDir, { recursive: true, force: true });
+  });
 });
