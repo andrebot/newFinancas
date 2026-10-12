@@ -17,7 +17,7 @@ October 2026 UI design:
 | Requirements | ✅ reviewed — OQ-55 – OQ-87 decided | `docs/requirements/`, review: `06-review-2026-10.md` |
 | Use cases | ✅ 59 v1 use cases, 9 domains | `docs/design/diagrams/use-cases/`, review: `docs/architecture/05-use-case-review-2026-10.md` |
 | Call chains | ✅ 59 | `docs/design/diagrams/call-chains/`, review: `06-call-chain-review-2026-10.md` |
-| Backend (VBD) | ✅ Round 9 — 4 Managers, 2 Engines, 16 active Accessors (+ 6 parked), 7 Utilities | `docs/architecture/backend/01-vbd-decomposition.md`, reviews `07-` (Managers), `08-` (sequences) |
+| Backend (VBD) | ✅ Round 9 + OQ-113 — 4 Managers, 3 Engines, 17 active Accessors (+ 6 parked), 6 Utilities | `docs/architecture/backend/01-vbd-decomposition.md`, reviews `07-` (Managers), `08-` (sequences) |
 | Backend sequences | ✅ 59 | `docs/design/diagrams/sequences/` |
 | Data model | ✅ 27 tables documented, 26 created by v1 migrations | `docs/architecture/02-data-model.md`, `docs/design/diagrams/04-database-erd.html`, review `09-` |
 | API | ✅ OpenAPI v1.1.0 — 59 paths, 82 operations, validated | `docs/architecture/api/openapi.yaml` (+ `index.html`), `03-api-design.md`, review `10-` |

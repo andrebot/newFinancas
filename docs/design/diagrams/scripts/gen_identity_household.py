@@ -118,7 +118,8 @@ sequenceDiagram
     participant UA as UserAccessor
     participant HA as HouseholdAccessor
     participant IA as InvitationAccessor
-    participant ND as NotificationDeliveryUtility
+    participant NE as NotificationEngine
+    participant NIA as NotificationInboxAccessor
     participant LOG as LoggingUtility
 
     User->>API: POST /households/:householdId/invitations {email, role}
@@ -152,7 +153,10 @@ sequenceDiagram
             IM->>IA: insert({householdId, invitedUserId, invitedByUserId: actor, role})
             Note over IA: the NOT NULL FK guarantees the invitee exists &mdash;<br/>invitee_missing if they were deleted meanwhile (→ 404)
             IA-->>IM: invitationId (status: pending)
-            IM-->>ND: deliver(invitedUserId, type = "invitation.received", params = {invitationId, householdId, inviterUserId, role})
+            IM-->>NE: notify("invitation.received", recipient = {userId: invitedUserId}, params = {invitationId, householdId, inviterUserId, role})
+            Note over NE: routing table: invitation.received &rarr; in-app
+            NE->>NIA: insert(invitedUserId, "invitation.received", params)
+            NIA-->>NE: stored
             IM-->>LOG: logActivity(correlationId, actor, "InviteUser")
             IM-->>LOG: recordAudit(actor, "Invitation", invitationId)
             IM-->>API: invitationId
@@ -164,7 +168,7 @@ sequenceDiagram
     notes="""
     <ul>
       <li><strong>FR-1.19&#39;s "existing user only" rule lives in <code>InvitationAccessor.insert</code>&#39;s validated write</strong> — a real DB constraint per the data model doc (<code>invited_user_id NOT NULL</code>), not application-level filtering before the insert.</li>
-      <li>The notification delivery is fire-and-forget — the 201 response doesn&#39;t wait on the email/in-app delivery succeeding.</li>
+      <li>The notification is fire-and-forget — the 201 response doesn&#39;t wait on it. <strong><code>NotificationEngine</code> chooses the channel</strong> (in-app for <code>invitation.received</code>, OQ-68); the Manager only says what happened and to whom (OQ-113).</li>
       <li>See FR-1.5, FR-1.19, OQ-26.</li>
     </ul>
 """,
@@ -830,7 +834,8 @@ UCS.append(dict(
 sequenceDiagram
 """ + P_CORE + """
     participant UA as UserAccessor
-    participant ND as NotificationDeliveryUtility
+    participant NE as NotificationEngine
+    participant EA as EmailAccessor
     participant AN as AuthenticationUtility
     participant SA as SessionAccessor
     participant LOG as LoggingUtility
@@ -846,8 +851,11 @@ sequenceDiagram
         IM->>UA: storeResetToken(userId, tokenHash, expiresAt)
         Note over UA: only the hash is stored (OQ-100)
         UA-->>IM: stored
-        IM-->>ND: deliver(channel = email, to = email, type = "password.reset", params = {resetLink, expiresAt}, language = user.preferences.language)
-        Note over ND: email channel inside the Utility (OQ-84) &mdash; template from the<br/>shared i18n catalog, provider set by configuration
+        IM-->>NE: notify("password.reset", recipient = {email, language}, params = {resetLink, expiresInMinutes})
+        Note over NE: routing table: password.reset &rarr; email &mdash; renders subject + body<br/>from the shared i18n catalog in the recipient&#39;s language
+        NE->>EA: send({to, subject, body})
+        Note over EA: only sends &mdash; provider = configuration (EMAIL_PROVIDER),<br/>v1 console, terminal only (OQ-112)
+        EA-->>NE: sent
     end
     Note over IM: 202 returned either way &mdash; existence of the<br/>email is never revealed either way
     IM-->>API: accepted
@@ -889,6 +897,7 @@ sequenceDiagram
     <ul>
       <li><strong>One use case, two HTTP requests</strong> &mdash; shown as a single diagram since FR-1.13 describes them as one continuous flow, separated by however long the user takes to check their email.</li>
       <li>Step 1 always returns 202 regardless of whether the email matched anything &mdash; the branch is entirely internal (<code>opt</code>, not <code>alt</code>), so no observable response difference leaks account existence.</li>
+      <li><strong>Email is a channel the Engine chooses</strong>, not one the Manager asks for (OQ-113): the Manager supplies a recipient with an email and language because <code>password.reset</code> is routed to email — the type system rejects a recipient without them.</li>
       <li>Contrast with Change Password (UC-19): a forgotten-password reset can&#39;t spare "the current session" (the user isn&#39;t logged in at all), so every session goes.</li>
       <li>See FR-1.13.</li>
     </ul>

@@ -143,7 +143,7 @@ count stays at 50.
 | U4 | `AuthenticationUtility` (hashing, TOTP, recovery codes, tokens) |
 | U5 | `AuthorizationUtility` (role permission table) |
 | U6 | `ServiceBusUtility` (in-process pub/sub) |
-| U7 | `NotificationDeliveryUtility` (in-app + email channel, provider by configuration) |
+| U7 | `NotificationEngine` + `EmailAccessor` (was `NotificationDeliveryUtility`, OQ-113: routing by type, email rendering; the Accessor sends through the configured provider) |
 
 ### Resource Accessors (16 built in v1)
 

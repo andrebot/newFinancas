@@ -1,9 +1,9 @@
 import { catalogs, type EmailType, type Locale } from '@financas/i18n';
 import { IntlMessageFormat, type PrimitiveType } from 'intl-messageformat';
 
-// Email rendering (U7, OQ-84): an email is requested as type + parameters +
-// language; its subject and body come from the shared i18n catalog, so the web
-// app and the emails say the same things in the same words.
+// Email rendering (U7, OQ-113): NotificationEngine composes the email — type +
+// parameters + language — from the shared i18n catalog, so the web app and the
+// emails say the same things in the same words. EmailAccessor only sends it.
 
 /**
  * The parameters each email type's template uses — its ICU arguments. The

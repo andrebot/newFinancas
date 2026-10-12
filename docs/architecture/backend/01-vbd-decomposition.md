@@ -205,7 +205,7 @@ rates, matured holdings).
 
 ### 2.2 Engines (heavy computation/transformation — "how")
 
-**Two, up from one as of Round 7.** The framework's own line between
+**Three as of Oct 2026** — `NotificationEngine` reclassified from a Utility (OQ-113, see its row). **Two, up from one as of Round 7.** The framework's own line between
 Manager and Engine is sharper than "which feature is this for": a Manager
 is allowed "high-level business logic" (deciding *what* should happen —
 an enumerable, mostly linear set of workflow rules); an Engine is for
@@ -219,6 +219,7 @@ clears the bar.
 |---|---|---|---|
 | `ReportingEngine` | Transforms raw ledger/holding data into every read-side output shape: net worth (current + by-month, per currency), Goal progress (current + by-month — returns each Holding's contribution in its own native currency, per OQ-49; cross-currency blending is now a frontend concern, not this Engine's), Budget status (actual vs. target), spend-by-category/subcategory, income-vs-expense (excluding transfers via the persisted `effect` column, FR-3.6), account-balance-by-month, and export formatting (CSV — v2, OQ-71 — PDF later; **the audit-log CSV, FR-7.2, is implemented early with A15 — OQ-104**: `auditLogCsv(entries)` over a shared RFC 4180 writer, formula-injection safe). **Round 9:** payout this month + 12-month payout series per Holding (dividend/interest Account Transactions linked to the Holding — the only payout source, FR-5.9), month overview (inflow/outflow/net per currency + 12-month strip, excluding own-account transfers and bill payments via `effect`, FR-6.11), net-worth change vs previous month (FR-5.3). **Round 8/OQ-51:** a Holding's contribution to net worth/Goal progress branches on `assetType` — market-priced Holdings (stock/FII/fund/other) read `ValuationSnapshotAccessor`'s latest snapshot as before; a fixed-term instrument (FR-11.1) has none to read, so its contribution is simply `InvestmentHoldingAccessor`'s `cost_basis` column instead | `AccountAccessor`, `ValuationSnapshotAccessor`, `InvestmentHoldingAccessor` *(new, Round 8 — reads `cost_basis` for fixed-term Holdings, OQ-51)*, `AccountTransactionAccessor`, `CardTransactionAccessor`, `BudgetAccessor`, `GoalAccessor` | The same underlying data gets reshaped into genuinely different output forms for different consumers — that repeated *transformation* is what makes this real computation, not a validated write |
 | `InvestmentProductEngine` *(new, Round 7; extended Round 9)* | **Round 9:** v1 list is now Brazil — CDB, LC, LF, LCI, LCA, CRA, CRI, Debenture (`incentivised` flag), Tesouro Direto; US — CD, Treasury (OQ-79); **tax rules are coded per type inside this Engine** (regressive IR / exempt; US = "not estimated"); new **`project(holding)`** returns expected payout + expected taxes, using the latest index value from `IndexRateAccessor` for index-linked rates — called by `InsightsManager` (View Investments), the Engine's second caller. Original scope: given an instrument type plus purchase terms, computes the interest-payment schedule (where applicable) and tax owed at each cash event (FR-11.2). Called by **`TransactionManager`**, inline within the investment-buy Record Transaction pipeline (§3.1) — the purchase terms it needs (`date`, `amount`, `dueDate`, `rate`) come from that transaction itself; `dueDate` and `rate` are user-supplied, never derived from `assetType`, since a CDB/LCI/LCA's specific term and rate are negotiated per contract. The resulting schedule is persisted via `InvestmentHoldingAccessor.applySchedule(...)`. **Not** called by `AccountManager`'s Edit Holding flow (valuation updates, Goal allocations) — that only ever validated-writes what the user submits directly. There's no Add Holding flow anymore (OQ-53), so nothing outside `TransactionManager`'s own pipeline ever needs this Engine. The later scheduled trigger that posts a due cash event reads the already-computed schedule off the Accessor and does **not** call this Engine again either — same shape as Open Banking sync reading pre-normalized data (§3.2) | `InvestmentHoldingAccessor` (write, via `TransactionManager`'s call), `IndexRateAccessor` (read, Round 9 — for `project`) | Genuinely instrument- and region-specific computation — a Brazilian CDB's tax rule shares nothing with a US Treasury bond's — this is exactly the "workflow decision + validated write" test *failing* to explain it away, unlike everything Round 6 removed |
+| `NotificationEngine` *(new, Oct 2026 — was `NotificationDeliveryUtility`, OQ-113)* | Turns "this happened, tell this person" into a delivered notification. The Manager says only the **type, recipient and parameters** — never text (OQ-82) and never the channel: a **routing table** maps each type to its channels (v1: `invitation.received` and `holding.matured` → in-app, `password.reset` → email), and the recipient a type needs follows from its channels (`{userId}` for in-app, `{email, language}` for email — enforced by the types). In-app stores type + params; email is **rendered here** from the shared `@financas/i18n` catalog in the recipient's language and handed to `EmailAccessor`. Called by `IdentityManager` (invitations, password reset) and `AccountManager` (matured holdings); rejects when a channel fails, so the Manager decides what follows | `NotificationInboxAccessor` (write), `EmailAccessor` (send) | Domain knowledge — which channel each notification type uses, and composing the email — is what made it fail the Utility test (usable unchanged in another system?); and as an Engine only Managers can cause a notification. Per-user channel preferences, digests or quiet hours would be added here, not in any Manager |
 
 **Removed across all rounds, and why — the two shapes that were never
 real Engines, no matter which entity or feature they were attached to:**
@@ -250,7 +251,7 @@ real Engines, no matter which entity or feature they were attached to:**
 
 **16 active + 6 parked, as of Round 9** (corrected during project design — earlier text said 18 + 5, but the table below has 22 rows: the 16 built in v1, plus `PortfolioAccessor`, `DashboardAccessor` and the four external providers parked. Round 9
 removes `RecurringTransactionScheduleAccessor` with FR-3.5, adds
-`IndexRateAccessor`, and parks `DashboardAccessor` until v3). Still deliberately
+`IndexRateAccessor`, and parks `DashboardAccessor` until v3). **Oct 2026:** 17 active — `EmailAccessor` added (OQ-113). Still deliberately
 **not** consolidated — this is the one tier where "many, one per
 resource" is correct, not a smell. Several carry an explicit **validated
 write** responsibility: the Manager decides *that* something should
@@ -279,6 +280,7 @@ database constraint).
 | `DashboardAccessor` *(parked, v3 — OQ-67)* | Per-user Dashboard/Widget configuration — the v1 Dashboard is fixed and stores nothing | — |
 | `AuditLogAccessor` | Audit Log entries — `{actor ID, timestamp, action, entity type, entity ID}` only, no before/after values or other PII (FR-7.1, revised for GDPR/LGPD compatibility, OQ-25) | Append-only (NFR-AUD-1); exported as CSV over a date range (FR-7.2/OQ-46), no in-app browsable table **Implemented (A15, OQ-104):** `insert` + `listForExport(householdId, startDate, endDate)` (inclusive app-timezone days); the CSV itself is built by `ReportingEngine` (`auditLogCsv`), which receives the entries from `InsightsManager` |
 | `NotificationInboxAccessor` | In-app notification inbox (v1's only channel) | Seen/unseen state, set on read (FR-6.10/OQ-45); deletion is a hard delete, no archive **Implemented (A16, OQ-105):** `insert` (type + typed params), `listByUser` (read-only), `markSeen(userId, ids)` (only those shown), `deleteForUser` (ownership + delete in one statement) |
+| `EmailAccessor` *(new, Oct 2026 — OQ-113)* | The email provider (external system) | **Only sends** `{to, subject, body}` — rendering is `NotificationEngine`'s. The provider is this Accessor's configuration (`EMAIL_PROVIDER`; v1 `console`, shown in the terminal only so a reset link never reaches the log files — OQ-88, OQ-112); a real provider is a new entry, no caller changes |
 | ~~`CurrencyReferenceRateAccessor`~~ | **Removed, Round 7.** Currency Reference Rates turned out to be frontend-only, on-the-fly, never persisted (OQ-49) — no backend Accessor ever needed to exist for this | — |
 | `OpenBankingConnectionAccessor` *(parked)* | Account↔provider link + encrypted tokens — CUC-3/CUC-4 Open Banking trio deferred | — |
 | `OpenFinanceBrasilAccessor` *(parked)* | External: Open Finance Brasil API (BRL accounts) | `fetchTransactionsSince(connection, since)` returns **already-canonical-shaped** transactions — normalization is this Accessor's own job, not a separate Engine's |
@@ -309,7 +311,7 @@ inline.
 
 ### 2.4 Utilities (cross-cutting, domain-agnostic)
 
-**Seven, down from nine, as of Round 7.** Two consolidations, both driven
+**Six as of Oct 2026** — `NotificationDeliveryUtility` became `NotificationEngine` + `EmailAccessor` (OQ-113). **Seven, down from nine, as of Round 7.** Two consolidations, both driven
 by "same underlying mechanism, different volatility only in
 configuration" — the same principle behind Transaction Kind and Widget
 Type being data, not separate code paths, now applied one tier up.
@@ -320,7 +322,7 @@ Type being data, not separate code paths, now applied one tier up.
 | `AuthenticationUtility` *(merged, Round 7 — was `PasswordHashUtility` + `TOTPUtility`)* | Pure identity-proof primitives: password hash/verify (Argon2/bcrypt, NFR-SEC-4), MFA code generation/verification and recovery-code issuance (TOTP is the first supported method, not the only one — NFR-SEC-1's "at minimum" is the evidenced volatility this Utility exists to isolate). **Implemented (U4, OQ-100):** Argon2id; TOTP secrets encrypted at rest (AES-256-GCM); recovery codes and opaque tokens (refresh, password reset) issued here and stored only as hashes; 15-minute JWT access tokens. **Touches no storage**: callers persist what it returns (uc-14/uc-20 corrected accordingly) |
 | `AuthorizationUtility` *(renamed, Round 7 — was `AccessControlUtility`)* | Role → permitted-action check; personal-vs-shared visibility (FR-1.7, 2.3, 4.2, 8.1). Called by all four Managers before proceeding — a yes/no gate, not a computation. Reads `HouseholdAccessor` and an in-code role/permission reference table (not `RolePermissionAccessor` — see §2.3's "considered and rejected" note). Volatile because *this app's* role model evolves — a different driver than `AuthenticationUtility`'s crypto-standard volatility, which is why these two stayed split rather than merging into one "security" Utility. **Implemented (U5, OQ-111):** `hasSystemRole` (system role USER/ADMIN, from the access token, checked on every API request); pure `decide` over an in-code household `PERMISSIONS` table; `authorize(actorId, householdId, request)` reads only the household role, the Manager passing the target's facts (visibility/owner). Outcomes `allowed` / `forbidden` (403) / `not_member`, `not_visible` (404). Household-state rules (Owner protection, succession, transfer) stay in IdentityManager |
 | `ServiceBusUtility` | Publish/subscribe messaging — the only channel Managers use to talk to each other (§3.0). In-process event emitter for v1; swappable later without any Manager's code changing. **Implemented (U6, OQ-102):** typed topic → payload map, messages carry the correlation ID, fire-and-forget delivery with failures isolated from the publisher, at-most-once (in memory) |
-| `NotificationDeliveryUtility` | Delivers a notification — **type + parameters, never text (OQ-82)** — via a channel — **channels live inside this Utility** (OQ-84): in-app writes through `NotificationInboxAccessor`; **email is v1 for transactional auth email only** (password reset, FR-1.13), templated from the shared i18n catalog in the user's language; the email/push **provider is configuration** of this Utility (like `LoggingUtility`'s transports), not a separate Accessor — FR-6.5/OQ-5 — called directly by whichever Manager's workflow determined a notification is warranted (Round 9: `IdentityManager` for invitations, `AccountManager` for matured holdings). The frontend localizes (NFR-I18N-3). **Becomes a `NotificationEngine`** if per-user channel preferences, digests, quiet hours/throttling, or server-side text composition appear. **Implemented (U7, OQ-112):** `deliver({channel: 'in_app' | 'email', …})`; email rendered with ICU from the shared catalog; providers by `EMAIL_PROVIDER` (v1: `console`, terminal only so a reset link never reaches the log files) |
+| ~~`NotificationDeliveryUtility`~~ | **Reclassified (Oct 2026, OQ-113):** now `NotificationEngine` (§2.2) plus `EmailAccessor` (§2.3). It held domain knowledge (notification types, which channel each uses, email composition) — not cross-cutting — and as a Utility any component could have sent a notification |
 | `ValidationUtility` | Generic, domain-agnostic checks (currency-code format, positive-number, date-range sanity) |
 | `CorrelationIdUtility` | Generates/propagates the request correlation ID used throughout NFR-OBS-1, including across `ServiceBusUtility` messages |
 
@@ -335,7 +337,7 @@ Type being data, not separate code paths, now applied one tier up.
 | Manager → Resource Accessor | Yes, including validated writes | This is now the primary way a Manager's workflow decision gets executed (§2.3) |
 | Manager → Utility | Yes | Utilities are open to everyone, including `AuthorizationUtility` and `ServiceBusUtility` |
 | Engine → Resource Accessor | Yes | How `ReportingEngine` reads its data, and how `InvestmentProductEngine`'s caller persists its output via `InvestmentHoldingAccessor.applySchedule(...)` |
-| Engine → Engine | **Never** | Two Engines now (§2.2) — rule is no longer moot, still holds |
+| Engine → Engine | **Never** | Three Engines now (§2.2) — `NotificationEngine` never calls `ReportingEngine` or `InvestmentProductEngine` |
 | Resource Accessor → anything | **Never upward** | Accessors are leaves |
 | Utility → Resource Accessor | Yes, only for the Utility's own concern | e.g. `LoggingUtility` → `AuditLogAccessor`, `AuthorizationUtility` → `HouseholdAccessor` |
 | Utility → Engine | **Never** | Would smuggle domain logic into a Utility |
@@ -560,8 +562,9 @@ TransactionManager
     redemption that zeroes the Holding auto-archives it, OQ-72)
 
 AccountManager
- └─ subscribes "holding.matured" → NotificationDeliveryUtility.deliver(in-app,
-    "past due — archive?") → InvestmentHoldingAccessor.markMaturedNotified(holdingId)
+ └─ subscribes "holding.matured" → NotificationEngine.notify("holding.matured",
+    {userId}, params) per owner (routed in-app) → only if all succeeded:
+    InvestmentHoldingAccessor.markMaturedNotified(holdingId)
 ```
 
 However a Transaction enters the system — typed by a user, imported from
@@ -585,8 +588,8 @@ mutations) while the other three do:
 
 | Manager | Calls (Engines) | Calls (Accessors, direct incl. validated writes) | Calls (Utilities) |
 |---|---|---|---|
-| `IdentityManager` | — | `UserAccessor` (incl. preferences, FR-1.21), `SessionAccessor` (incl. `deleteAllExceptCurrent`), `HouseholdAccessor` (incl. `listForUser`), `InvitationAccessor` (incl. `listPendingForUser` with inviter) | `AuthorizationUtility`, `AuthenticationUtility`, `LoggingUtility` (`logActivity` + `recordAudit`), `ServiceBusUtility` (publishes `household.created`, §3.1b), `NotificationDeliveryUtility` (invitation received, FR-6.5) |
-| `AccountManager` | — | `AccountAccessor`, `CreditCardAccessor`, `OpenBankingConnectionAccessor` (parked), region provider Accessor (parked), `CategoryAccessor` (incl. `seedDefaults` on `household.created`, §3.1b), `BudgetAccessor` (`assignTarget`), `GoalAccessor` (goal lifecycle + `replaceAllocations` from Edit Holding), `InvestmentHoldingAccessor` (verify market-priced, `archive(by=user)`, `markMaturedNotified`), `ValuationSnapshotAccessor` (manual: insert/update/delete — Round 9), `IndexRateAccessor` *(new, Round 9)*, `PortfolioAccessor` (parked) | `AuthorizationUtility`, `ValidationUtility`, `LoggingUtility` (`logActivity` + `recordAudit`), `NotificationDeliveryUtility` (matured holding); subscribes to `household.created` and `holding.matured` via `ServiceBusUtility` |
+| `IdentityManager` | `NotificationEngine` (invitation received, password-reset email — OQ-113) | `UserAccessor` (incl. preferences, FR-1.21), `SessionAccessor` (incl. `deleteAllExceptCurrent`), `HouseholdAccessor` (incl. `listForUser`), `InvitationAccessor` (incl. `listPendingForUser` with inviter) | `AuthorizationUtility`, `AuthenticationUtility`, `LoggingUtility` (`logActivity` + `recordAudit`), `ServiceBusUtility` (publishes `household.created`, §3.1b) |
+| `AccountManager` | `NotificationEngine` (matured holding — OQ-113) | `AccountAccessor`, `CreditCardAccessor`, `OpenBankingConnectionAccessor` (parked), region provider Accessor (parked), `CategoryAccessor` (incl. `seedDefaults` on `household.created`, §3.1b), `BudgetAccessor` (`assignTarget`), `GoalAccessor` (goal lifecycle + `replaceAllocations` from Edit Holding), `InvestmentHoldingAccessor` (verify market-priced, `archive(by=user)`, `markMaturedNotified`), `ValuationSnapshotAccessor` (manual: insert/update/delete — Round 9), `IndexRateAccessor` *(new, Round 9)*, `PortfolioAccessor` (parked) | `AuthorizationUtility`, `ValidationUtility`, `LoggingUtility` (`logActivity` + `recordAudit`); subscribes to `household.created` and `holding.matured` via `ServiceBusUtility` |
 | `TransactionManager` | `InvestmentProductEngine` (`schedule` — investment-buy against a defined FR-11 instrument type, inline within §3.1) | `AccountTransactionAccessor`, `CardTransactionAccessor` (incl. `list(filter, cursor)` for Browse & Filter — Round 9), `AccountAccessor`, `CreditCardAccessor`, `InvestmentHoldingAccessor` (`applyTrade` incl. auto-archive, `applySchedule`, `unarchiveIfSystemArchived`), `ValuationSnapshotAccessor` (automatic snapshots), `BudgetAccessor` (`accrueIfClaimed`), `GoalAccessor` (`allocate` — bundled with a buy, OQ-54) | `AuthorizationUtility`, `ValidationUtility`, `LoggingUtility` (`logActivity` + `recordAudit`); subscribes to `transaction.import.requested` — **no `NotificationDeliveryUtility` call** (OQ-52) |
 | `InsightsManager` | `ReportingEngine` (sole caller), `InvestmentProductEngine` (`project` — View Investments, Round 9) | `AuditLogAccessor` (export only, OQ-46), `NotificationInboxAccessor` (list, seen/unseen, delete), `DashboardAccessor` (parked, v3) — **Round 9: `SessionAccessor` removed** (View Sessions is `IdentityManager`'s, per the read-ownership rule — Manager review M2) | `AuthorizationUtility`, `LoggingUtility` (`logActivity` **only** — reads never trigger `recordAudit`) |
 
@@ -643,14 +646,18 @@ graph TB
         E_Report[ReportingEngine]
         A_Dash[(DashboardAccessor - parked, v3)]
         A_Audit[(AuditLogAccessor)]
+    end
+
+    subgraph Notifications["Notifications"]
+        E_Notify[NotificationEngine]
         A_Inbox[(NotificationInboxAccessor)]
+        A_Email[(EmailAccessor)]
     end
 
     subgraph Utilities["Cross-Cutting Utilities"]
         U_Authz[AuthorizationUtility]
         U_Authn[AuthenticationUtility]
         U_Log[LoggingUtility]
-        U_Notify[NotificationDeliveryUtility]
         U_Valid[ValidationUtility]
         U_Corr[CorrelationIdUtility]
         U_Bus{{ServiceBusUtility}}
@@ -673,8 +680,10 @@ graph TB
     M_Acct --> A_Obj
     M_Acct --> A_Snap
     M_Acct --> A_Rate
-    M_Acct --> U_Notify
-    M_Id --> U_Notify
+    M_Acct --> E_Notify
+    M_Id --> E_Notify
+    E_Notify --> A_Inbox
+    E_Notify --> A_Email
     M_Acct -.-> A_Port
     M_Acct -.-> A_OBConn
     M_Acct -.-> A_OFB
@@ -718,8 +727,11 @@ graph TB
     AccountConfig -.-> Utilities
     Transactions -.-> Utilities
     Insights -.-> Utilities
+    Notifications -.-> Utilities
     U_Log --> A_Audit
 ```
+
+*(**Oct 2026 (OQ-113):** `NotificationDeliveryUtility` became `NotificationEngine` (called by `IdentityManager` and `AccountManager`) writing through `NotificationInboxAccessor` and sending through the new `EmailAccessor`. 4 Managers, 3 Engines, 6 Utilities.)*
 
 *(**Round 9:** one daily trigger `CRON_INV` replaces `CRON_CASH` and the
 removed `CRON_RECUR`; `IndexRateAccessor` added, read by

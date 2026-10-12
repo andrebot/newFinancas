@@ -18,8 +18,9 @@ activity; everything on one level can be done in any order.
   write; Managers need their Accessors, Engines, Utilities and the API
   contract tooling (they own their routes). `LoggingUtility` needs
   `AuditLogAccessor` (recordAudit); `AuthorizationUtility` needs
-  `HouseholdAccessor` (role lookup); `NotificationDeliveryUtility` needs
-  the inbox Accessor and the i18n catalog (email templates).
+  `HouseholdAccessor` (role lookup); `NotificationEngine` (was
+  `NotificationDeliveryUtility`, OQ-113) needs the inbox Accessor, the new
+  `EmailAccessor` and the i18n catalog (email templates).
 - **UI kit** — each component needs the foundations and the kit pieces it
   is built from (e.g. history editor ← money / rate / date inputs, inline
   confirm, line chart). Money, rate and date inputs need

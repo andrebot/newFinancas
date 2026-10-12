@@ -1,10 +1,10 @@
 import { SUPPORTED_LOCALES } from '@financas/i18n';
 import { describe, expect, it } from 'vitest';
-import { type EmailParams, renderEmail } from '../../../../src/utilities/notificationDelivery';
+import { type EmailParams, renderEmail } from '../../../../src/engines/notification/emails';
 
 const LINK = 'http://localhost:5173/reset-password?token=abc';
 
-describe('renderEmail (OQ-84)', () => {
+describe('renderEmail (OQ-113)', () => {
   it.each(SUPPORTED_LOCALES)('renders password.reset in %s, every argument filled', (locale) => {
     const params = { resetLink: LINK, expiresInMinutes: 30 };
     const { subject, body } = renderEmail('password.reset', params, locale);

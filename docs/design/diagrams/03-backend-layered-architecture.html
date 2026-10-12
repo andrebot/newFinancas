@@ -201,8 +201,7 @@
         <div class="tier-row">
           <div class="tier-label">Engines</div>
           <div class="tier-grid">
-            <div class="box empty-slot">—</div>
-            <div class="box empty-slot">—</div>
+            <div class="box engine" style="grid-column: span 2">NotificationEngine</div>
             <div class="box engine">InvestmentProductEngine</div>
             <div class="box engine">ReportingEngine</div>
           </div>
@@ -217,6 +216,7 @@
             <div class="box accessor">SessionAccessor</div>
             <div class="box accessor">HouseholdAccessor</div>
             <div class="box accessor">InvitationAccessor</div>
+            <div class="box accessor">EmailAccessor</div>
           </div>
           <div class="accessor-column">
             <div class="box accessor">AccountAccessor</div>
@@ -252,7 +252,6 @@
       <div class="box utility">AuthenticationUtility</div>
       <div class="box utility">LoggingUtility</div>
       <div class="box utility">ServiceBusUtility</div>
-      <div class="box utility">NotificationDeliveryUtility</div>
       <div class="box utility">ValidationUtility</div>
       <div class="box utility">CorrelationIdUtility</div>
       <div class="utility-note">
@@ -283,6 +282,14 @@
     shape of <code>AccountManager</code>'s scope (Financial Accounts,
     Credit Cards, Categories, Budgets, Investment Holdings, Goals, Index Rates,
     Portfolio, Open Banking config), not a layout artifact.</p>
+    <p><strong>Notification placements (OQ-113):</strong>
+    these three don't follow the one-owner-per-column rule, so don't read
+    ownership into their position. <code>NotificationEngine</code> spans
+    Identity and Account because both of those Managers call it — it is not a
+    fifth Manager's Engine. <code>EmailAccessor</code> is called only by the
+    Engine and sits under its left half. <code>NotificationInboxAccessor</code>
+    stays under Insights: the Engine writes it, <code>InsightsManager</code>
+    reads it for the inbox screens.</p>
     <p><strong>No wiring shown deliberately.</strong> This page answers
     "what exists, and in which tier" — the call-chain-by-use-case pass
     (next) answers "who actually calls whom, for this specific flow,"

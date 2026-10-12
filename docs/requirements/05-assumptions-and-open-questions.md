@@ -619,7 +619,8 @@ guided setup, with the first account mandatory (FR-1.22).
 - The catalog lives in a **shared package** (`packages/i18n`) from day
   one, so a future email/push channel can render server-side from the
   same source.
-- `NotificationDeliveryUtility` stays a Utility (routes type + params to
+- *(Superseded by OQ-113: it is now `NotificationEngine` + `EmailAccessor`.)*
+  `NotificationDeliveryUtility` stays a Utility (routes type + params to
   channels; in-app only in v1). It becomes a **`NotificationEngine`** if
   any of these appear: per-user channel preferences, digests/batching,
   quiet hours/throttling, or per-user server-side text composition.
@@ -639,6 +640,10 @@ shared catalog and the same completeness test covers them. Applied in
 the API review.
 
 ### OQ-84: How is the password-reset email sent?
+*(Corrected by OQ-113: email still carries `password.reset` + params + language
+and is rendered from the catalog, but by `NotificationEngine`, and sent through
+`EmailAccessor` — the provider is that Accessor's configuration. The "Winston
+transports" analogy below only held while this was a Utility.)*
 **Confirmed, sequence review (Oct 2026): through `NotificationDeliveryUtility`'s
 email channel — no separate accessor.** Sending an email is static; what
 changes is the provider it goes through, which is the Utility's
@@ -681,7 +686,7 @@ points were considered and rejected — splits are things like 60/40 or
 ### OQ-88: Where does v1 run, and how is email sent?
 **Confirmed, project design (Oct 2026): v1 runs purely locally** — no
 staging or production hosting, no deployment pipeline. **Email has no
-provider yet:** `NotificationDeliveryUtility`'s email channel uses a
+provider yet:** the email channel (`EmailAccessor` since OQ-113) uses a
 **console provider** that prints the rendered message (type, recipient,
 language, body) to the log. Because the provider is configuration
 (OQ-84), hooking up a real one later changes no call site. The
@@ -767,8 +772,8 @@ locally and on GitHub Actions, using the same root scripts in both places.
   errors at once, and a failure at startup. It is also the intended
   validation library for N7 (request validation) and U3.
 - **Console email:** `EMAIL_PROVIDER=console` is the only value in v1
-  (OQ-88). The provider itself is built in `NotificationDeliveryUtility`
-  (U7, OQ-112).
+  (OQ-88). The provider itself is built in `EmailAccessor`
+  (U7, OQ-112, OQ-113).
 
 ### OQ-93: API contract tooling (task N7)
 **Confirmed, implementation (Oct 2026):**
@@ -1487,25 +1492,55 @@ live reset link, so it must never be written to the daily log files.
 `consoleOnly: true` reaches the console (and tests' `captureLogs`) but the
 file transport drops it.
 
-**Design (U7):**
-- `deliver(delivery)` with two channels (OQ-84):
-  - `in_app`: `{ userId, type, params }` → `NotificationInboxAccessor.insert`,
-    type + raw params only (OQ-82);
-  - `email`: `{ to, language, type, params }` → subject and body rendered
-    from the shared `@financas/i18n` catalog (ICU, `intl-messageformat`) in
-    the recipient's language, then handed to the configured provider.
-    v1 email types: `password.reset { resetLink, expiresInMinutes }`; the
-    link is built by IdentityManager. A catalog email type without typed
-    params fails to compile, and a missing argument fails rather than send
-    a broken email.
-- Providers are `{ send({ to, subject, body }) }`, chosen by
-  `EMAIL_PROVIDER` (`EMAIL_PROVIDERS` registry). v1 has `console` only
-  (OQ-88); a real provider is a new entry, with no caller changing.
-- `deliver` rejects when the channel fails; the Manager decides: no
-  `markMaturedNotified` for a holding, and Reset Password still answers
-  202 after logging the error.
+**Design (U7):** superseded by OQ-113 — the console provider now lives in
+`EmailAccessor`, and rendering, routing and failure semantics in
+`NotificationEngine`. The `consoleOnly` rule above stands.
 
+### OQ-113: Notifications are an Engine, not a Utility (task U7)
+**Confirmed with the stakeholder (Oct 2026), after debating the PR for
+OQ-112:** `NotificationDeliveryUtility` was misclassified.
+- **Why not a Utility:** a Utility must be usable unchanged in another
+  system (logging, the service bus, authentication are). This one knows the
+  app's notification types, their parameters, which channel each uses, and
+  how to word an email — domain knowledge. And anyone may call a Utility,
+  including Engines; a notification is a business side effect that only a
+  Manager, running a use case, should cause. OQ-82 had even named the
+  trigger ("server-side text composition"), and OQ-84's email rendering had
+  already crossed it.
+- **`NotificationEngine`** (called by `IdentityManager` and
+  `AccountManager`): `notify(type, recipient, params)`. **The Engine, not
+  the Manager, chooses the channel** from a routing table (v1:
+  `invitation.received`, `holding.matured` → in-app; `password.reset` →
+  email). The recipient's shape follows from the type's channels —
+  `{userId}` for in-app, `{email, language}` for email — and is enforced by
+  the types, so a Manager can't omit what a channel needs. Rendering email
+  from the shared catalog stays **in the Engine**. It rejects when a
+  channel fails; the Manager decides what follows (no `markMaturedNotified`;
+  Reset Password still answers 202 after logging).
+- **`EmailAccessor`** only sends `{to, subject, body}` through the provider
+  `EMAIL_PROVIDER` names (v1 `console`, terminal only — OQ-112). In-app
+  goes through the existing `NotificationInboxAccessor`, which now has two
+  callers: the Engine writes, `InsightsManager` reads.
+- **Not a fifth Manager:** the Manager whose use case caused the
+  notification calls the Engine directly; there is no notification
+  Manager and no extra service-bus hop. Reading the inbox is a separate
+  flow (`InsightsManager`).
+- **Future changes land in one place:** emailing invitations too, per-user
+  channel preferences, digests or quiet hours are Engine changes; a new
+  channel is a new Accessor plus routing entries; a provider swap is inside
+  `EmailAccessor`.
+- **Diagrams:** `gen_notification_engine_oct2026.py` (layout of every call
+  chain, the Invite User, Reset Password and Notify Matured Holding chains,
+  the static views) plus the three sequences in their area generators.
+  The layered view spans the Engine across Identity and Account (its two
+  callers) and explains the three placements in its notes. Counts: 4
+  Managers, 3 Engines, 6 Utilities, 17 active Accessors.
+- **Drift found while redrawing:** the Invite User call chain said
+  "email" and skipped the duplicate checks (fixed); every sequence still
+  shows the pre-OQ-110 `logActivity`/`recordAudit` calls (left for a
+  separate pass).
 
+## Refined (resolved, with a follow-up still open)
 
 *(OQ-4's legal-review follow-up below is closed for v1 by OQ-89.)*
 

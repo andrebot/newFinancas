@@ -244,7 +244,7 @@ FLOW->>EXP: request requestReset(email)
 EXP->>API: POST /auth/password-reset/request
 API-->>EXP: 202 (same answer whether or not the email exists)
 EXP-->>FLOW: state: emailSent
-Note over User,RR: user opens the emailed link (sent by NotificationDeliveryUtility, OQ-84)
+Note over User,RR: user opens the emailed link (sent by NotificationEngine via EmailAccessor, OQ-113)
 User->>NP: new password + confirm (strength meter)
 NP->>FLOW: emit passwordChosen
 FLOW->>EXP: request confirmReset(token, password)
