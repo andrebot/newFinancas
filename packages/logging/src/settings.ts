@@ -8,6 +8,8 @@ const loggingSettings = {
   datePattern: 'YYYY-MM-DD',
   /** Default directory under the XDG state home (`~/.local/state`). */
   directoryName: 'financas/logs',
+  /** The browser logger's threshold (OQ-123): `debug` events stay out of the console. */
+  browserLevel: 'info',
 } as const;
 
 export default loggingSettings;

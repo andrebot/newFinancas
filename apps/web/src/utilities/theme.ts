@@ -1,6 +1,7 @@
 import type { UserPreferences } from '@financas/api-types';
 import { isPaletteToken } from '@financas/reference';
 import { theme } from '../config/constants';
+import { safeStorage, type PreferenceStorage } from './safeStorage';
 
 // ThemeUtility (FU4, EBD): which theme the page shows and what colour a
 // category's stored palette token paints. The colours themselves are tokens in
@@ -22,17 +23,12 @@ export type ColorSchemeQuery = Pick<
   'matches' | 'addEventListener' | 'removeEventListener'
 >;
 
-/** Remembers the last applied preference; never throws (storage may be blocked). */
-export interface ThemeStorage {
-  readonly read: () => string | null;
-  readonly write: (value: string) => void;
-}
-
 /** What ThemeUtility touches: the <html> element, the device query and storage. */
 export interface ThemeEnvironment {
   readonly root: HTMLElement;
   readonly prefersLight: ColorSchemeQuery;
-  readonly storage: ThemeStorage;
+  /** Remembers the last applied preference. */
+  readonly storage: PreferenceStorage;
 }
 
 /** Applies preferences to one page; a new preference replaces the previous one. */
@@ -131,31 +127,6 @@ export const createThemeController = (environment: ThemeEnvironment): ThemeContr
 };
 
 /**
- * Wraps `localStorage` so a blocked one (private mode, disabled site data)
- * only means the next load starts in the default theme.
- *
- * @param getStorage - Returns the storage; reaching it may itself throw.
- * @param key - The entry holding the preference.
- * @returns The never-throwing storage.
- */
-export const safeThemeStorage = (getStorage: () => Storage, key: string): ThemeStorage => ({
-  read: () => {
-    try {
-      return getStorage().getItem(key);
-    } catch {
-      return null;
-    }
-  },
-  write: (value) => {
-    try {
-      getStorage().setItem(key, value);
-    } catch {
-      // Nothing to do: the theme is applied, only the reload forgets it.
-    }
-  },
-});
-
-/**
  * The real page's environment.
  *
  * @param page - The browser window.
@@ -164,5 +135,5 @@ export const safeThemeStorage = (getStorage: () => Storage, key: string): ThemeS
 export const browserThemeEnvironment = (page: Window): ThemeEnvironment => ({
   root: page.document.documentElement,
   prefersLight: page.matchMedia('(prefers-color-scheme: light)'),
-  storage: safeThemeStorage(() => page.localStorage, theme.storageKey),
+  storage: safeStorage(() => page.localStorage, theme.storageKey),
 });

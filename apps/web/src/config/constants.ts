@@ -32,3 +32,9 @@ export const theme = {
   /** Shown for a category colour this build doesn't know (a newer palette). */
   fallbackCategoryColor: 'slate',
 } as const;
+
+/** The interface language (FU5 I18nUtility, FR-1.21, NFR-I18N-1). */
+export const i18n = {
+  /** Where the last applied locale is remembered, so a reload starts in it. */
+  storageKey: 'financas.locale',
+} as const;

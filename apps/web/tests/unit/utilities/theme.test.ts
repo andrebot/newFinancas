@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { PALETTE_TOKENS } from '@financas/reference';
 import {
-  afterEach, beforeEach, describe, expect, it, vi,
+  afterEach, describe, expect, it, vi,
 } from 'vitest';
 import { theme } from '../../../src/config/constants';
 import {
@@ -11,11 +11,10 @@ import {
   createThemeController,
   isThemePreference,
   resolveTheme,
-  safeThemeStorage,
   type ColorSchemeQuery,
   type ThemeEnvironment,
-  type ThemeStorage,
 } from '../../../src/utilities/theme';
+import type { PreferenceStorage } from '../../../src/utilities/safeStorage';
 
 // ThemeUtility (BDT: Utility → unit). Mocked: only what it touches outside —
 // the device's colour-scheme query and storage. <html> is jsdom's own.
@@ -77,7 +76,7 @@ const memoryStorage = (saved: string | null = null) => {
  * @param storage - The storage.
  * @returns The environment.
  */
-const environmentOf = (device: FakeDevice, storage: ThemeStorage): ThemeEnvironment => ({
+const environmentOf = (device: FakeDevice, storage: PreferenceStorage): ThemeEnvironment => ({
   root: document.documentElement,
   prefersLight: device,
   storage,
@@ -180,39 +179,6 @@ describe('createThemeController', () => {
 
     controller.restore();
     expect(shown()).toBe(theme.defaultPreference);
-  });
-});
-
-describe('safeThemeStorage', () => {
-  beforeEach(() => localStorage.clear());
-  afterEach(() => vi.restoreAllMocks());
-
-  it('reads and writes the given key', () => {
-    const storage = safeThemeStorage(() => localStorage, 'test.theme');
-
-    expect(storage.read()).toBeNull();
-    storage.write('light');
-    expect(storage.read()).toBe('light');
-    expect(localStorage.getItem('test.theme')).toBe('light');
-  });
-
-  it('reads nothing and writes nothing when storage cannot be reached', () => {
-    const unreachable = (): Storage => {
-      throw new Error('SecurityError');
-    };
-    const storage = safeThemeStorage(unreachable, 'test.theme');
-
-    expect(storage.read()).toBeNull();
-    expect(() => storage.write('light')).not.toThrow();
-  });
-
-  it('swallows a failing write (quota, private mode)', () => {
-    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-      throw new Error('QuotaExceeded');
-    });
-    const storage = safeThemeStorage(() => localStorage, 'test.theme');
-
-    expect(() => storage.write('light')).not.toThrow();
   });
 });
 

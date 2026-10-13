@@ -37,7 +37,8 @@ in `docs/README.md`.
   intentionally unused parameter.
 - Tests live outside `src/`, never co-located.
 - Never use `console`: every process logs through the shared logger
-  (`import { createLogger } from '@financas/logging'`) — OQ-110.
+  (`import { createLogger } from '@financas/logging'`) — OQ-110; the web
+  app uses `@financas/logging/browser` — OQ-123.
 - Configuration (OQ-101): env vars and secrets in `config/env.ts`; fixed,
   tunable settings in `config/constants.ts`, grouped by area — never as
   loose constants inside a module. Algorithm-intrinsic facts stay put.
