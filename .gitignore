@@ -10,3 +10,6 @@ playwright-report/
 test-results/
 *.tsbuildinfo
 .env
+
+# Codegen failure logs (@hey-api/openapi-ts)
+openapi-ts-error-*.log

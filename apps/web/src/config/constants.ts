@@ -38,3 +38,13 @@ export const i18n = {
   /** Where the last applied locale is remembered, so a reload starts in it. */
   storageKey: 'financas.locale',
 } as const;
+
+/** The backend API client (FU7, OQ-124). */
+export const api = {
+  /** Same origin everywhere; in development Vite proxies it to the API. */
+  baseUrl: '/api/v1',
+  /** Where the refresh token is kept, so a reload or a new tab stays signed in. */
+  refreshTokenStorageKey: 'financas.refreshToken',
+  /** The cross-tab lock every refresh takes, so two tabs never rotate the same token. */
+  refreshLockName: 'financas.auth.refresh',
+} as const;

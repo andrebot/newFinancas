@@ -2,7 +2,9 @@ import {
   isPluralElement, isSelectElement, isTagElement, parse, TYPE, type MessageFormatElement,
 } from '@formatjs/icu-messageformat-parser';
 import { describe, expect, it } from 'vitest';
-import { catalogs, SUPPORTED_LOCALES, type Catalog } from '../../src';
+import {
+  catalogs, SUPPORTED_LOCALES, type Catalog, type ClientErrorCode,
+} from '../../src';
 
 const NAMED_TYPES = new Set([
   TYPE.argument, TYPE.number, TYPE.date, TYPE.time, TYPE.select, TYPE.plural,
@@ -84,6 +86,12 @@ describe('catalog contents', () => {
   it('has fallbacks for unknown error codes and notification types', () => {
     expect(primary.errors.fallback).toBeTruthy();
     expect(primary.notifications.fallback).toBeTruthy();
+  });
+
+  it("has the web client's own error codes", () => {
+    const clientCodes: ClientErrorCode[] = ['network.unavailable'];
+
+    clientCodes.forEach((code) => expect(primary.errors[code]).toBeTruthy());
   });
 });
 

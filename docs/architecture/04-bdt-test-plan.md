@@ -320,6 +320,9 @@ the text comes from `I18nUtility` keys, not literals.
 
 ### Experiences — integration, mock the Flows they compose and the API client
 
+The API client is RTK Query (OQ-124): an Experience test runs a real store
+and mocks only `fetch` in the `ApiEnvironment` beneath the base query.
+
 **Complete vertical-slice coverage** — every response state of every API
 call each Experience makes (2xx, each documented 4xx code, network
 failure). Highest-risk slices:

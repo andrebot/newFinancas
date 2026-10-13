@@ -87,7 +87,7 @@ Each step is presented for review and confirmation before moving on.
 | Layer | Choice |
 |---|---|
 | Frontend framework | React + Tailwind CSS + own component kit (headless primitives: Radix UI / Headless UI) |
-| Frontend state | Redux Toolkit (RTK) |
+| Frontend state | Redux Toolkit (RTK); RTK Query for API calls (OQ-124) |
 | Frontend bundler | Vite |
 | Backend runtime/framework | Node.js + Hono |
 | Database | PostgreSQL |

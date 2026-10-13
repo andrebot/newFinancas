@@ -1861,6 +1861,73 @@ OQ-118). Delete User's cascade is `M1D` (task 135, slice 5).
   Its console sink is the one place in the web app that touches `console`.
   It is silent under Vitest, and tests read events with `captureLogs()`.
 
+### OQ-124: The API client (task FU7)
+**Confirmed with the stakeholder (Oct 2026):**
+- **RTK Query, not a generated SDK.** Experiences call the API through one
+  `createApi` (`apps/web/src/api/backendApi.ts`). Cache tags make
+  cross-view refreshes declarative: Record Transaction → Browse + Month
+  Overview, categories → Budget Management. Switch Household resets the
+  whole cache. The project already uses RTK, so the only new runtime
+  dependency is `react-redux`.
+- **Endpoints are hand-written, per Experience.** FU7 ships with no
+  endpoints. Each Experience injects its own, typed by
+  `@financas/api-types` (one type source, front and back):
+  `backendApi.enhanceEndpoints({ addTagTypes }).injectEndpoints(…)` in
+  `experiences/<name>/api.ts`. `@rtk-query/codegen-openapi` was rejected
+  because it would bring a second generated type set and create every
+  endpoint up front.
+- **Only Experiences call the backend — enforced.** ESLint
+  (`project/ebd-backend-calls`) stops `**/flows/**`, `**/interactions/**`,
+  `kit/**` and `utilities/**` from importing `**/api`, `**/api/**` or
+  RTK Query. This fixes the frontend folder names those globs rely on.
+- **The base query** (`api/baseQuery.ts`) wraps `fetchBaseQuery`:
+  - **Correlation ID per call** (`crypto.randomUUID`, `X-Correlation-Id`,
+    OQ-99). A replayed call keeps the same ID.
+  - **Bearer token** from the token store, read on every send.
+  - **Refresh only on 401 `auth.unauthenticated`** (a missing or expired
+    access token). A wrong password (`auth.invalid_credentials`), a bad
+    MFA code or a rejected refresh never triggers a refresh, so there is
+    no loop. After one refresh, the call is replayed once.
+  - **Session end.** A refresh the API rejects, or no refresh token at
+    all, clears the tokens and dispatches `api/sessionEnded`; the App Shell
+    takes the user to Sign In (S1). A refresh that gets no answer keeps the
+    tokens. Either way, the call returns its 401.
+  - **Errors come back as `ApiError`** `{ status, code, params, details,
+    correlationId }`. The envelope's `message` is dropped here, so the UI
+    cannot render it (the "lint rule on the API client" of the BDT plan).
+    Two cases get a code of the client's own:
+    - a call that never reached the API → `network.unavailable`, a new
+      catalog key that `ClientErrorCode` keeps out of the API's `ErrorCode`;
+    - an answer that isn't the envelope (a proxy's HTML) →
+      `internal.unexpected`.
+  - **Logging** (codes and IDs only, never bodies or tokens): a call that
+    got no answer is a warning; a 5xx or a non-envelope answer is an error.
+    Expected 4xx outcomes aren't logged; they're the Experience's to show.
+- **Tokens.** The access token lives in memory only (the contract never
+  persists it). The refresh token lives in `localStorage`
+  (`api.refreshTokenStorageKey`), so a reload or a new tab stays signed in
+  for its 30 days. Trade-off: XSS on the origin can read it. An httpOnly
+  cookie would have reopened M1 and needed CSRF protection.
+- **Rotation-safe refresh.** The backend ends a session when a refresh
+  token is used twice (OQ-100). To prevent that:
+  - concurrent 401s in a tab share one refresh;
+  - every tab takes the same Web Lock (`api.refreshLockName`);
+  - the token is read from storage only once the lock is held, so a tab
+    never presents a token another tab has already rotated.
+- **Wiring is injected.** The base query reads its `ApiEnvironment`
+  (base URL, `fetch`, tokens, refresher, correlation IDs) from the store's
+  thunk extra argument `{ api }`, built by `browserApiEnvironment(window)`.
+  S1 creates the store; `tests/unit/api/backendApi.test.ts` shows the
+  wiring.
+- **Experience tests (refines the BDT plan).** Experiences run on a real
+  store, with the one boundary mocked: `fetch` in the `ApiEnvironment`.
+- **Same origin.** The base URL is `/api/v1` on the page's origin; the
+  Vite dev server proxies `/api` to the API's port 3000. No CORS and no
+  env var.
+- **Follow-up (S1/X1):** signing out in one tab clears the shared refresh
+  token, but other tabs notice only when their access token next fails
+  (≤ 15 minutes). Listening to the `storage` event would end them at once.
+
 ## Refined (resolved, with a follow-up still open)
 
 *(OQ-4's legal-review follow-up below is closed for v1 by OQ-89.)*
