@@ -8,6 +8,7 @@ export {
 } from './locales';
 export type {
   Catalog, EmailType, ErrorCode, FieldCode, NotificationType,
+  PasswordStrengthHint, PasswordStrengthLevel,
 } from './catalog';
 
 /** The shared ICU message catalog, one complete `Catalog` per supported locale. */
