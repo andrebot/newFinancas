@@ -165,6 +165,102 @@ describe('identity routes — passwords and recovery (OQ-115)', () => {
   });
 });
 
+describe('identity routes — profile and lists (OQ-116)', () => {
+  const USER = {
+    id: USER_ID,
+    email: 'ana@example.com',
+    firstName: 'Ana',
+    lastName: 'Lima',
+    theme: 'dark' as const,
+    language: 'pt-BR' as const,
+    systemRole: 'USER' as const,
+    createdAt: NOW,
+  };
+  const USER_JSON = {
+    id: USER_ID,
+    email: 'ana@example.com',
+    firstName: 'Ana',
+    lastName: 'Lima',
+    createdAt: NOW.toISOString(),
+    preferences: { theme: 'dark', language: 'pt-BR' },
+  };
+
+  it('GET /users/me shows the profile without the system role', async () => {
+    const { app, identity } = setup();
+    identity.getProfile.mockResolvedValueOnce(USER);
+
+    const response = await send(app, 'GET', '/users/me', SIGNED_IN);
+
+    expect(await response.json()).toEqual(USER_JSON);
+  });
+
+  it('PATCH /users/me trims names, refuses blank ones, never fills in a preference', async () => {
+    const { app, identity } = setup();
+    identity.editProfile.mockResolvedValueOnce(USER);
+
+    const edited = await send(app, 'PATCH', '/users/me', {
+      ...SIGNED_IN, body: { firstName: ' Ana ', preferences: { language: 'en-US' } },
+    });
+    const blank = await send(app, 'PATCH', '/users/me', {
+      ...SIGNED_IN, body: { lastName: '   ' },
+    });
+
+    expect(await edited.json()).toEqual(USER_JSON);
+    expect(identity.editProfile).toHaveBeenCalledWith(
+      expect.objectContaining({ actor: ACTOR }),
+      { firstName: 'Ana', preferences: { language: 'en-US' } },
+    );
+    expect(blank.status).toBe(422);
+    expect(identity.editProfile).toHaveBeenCalledTimes(1);
+  });
+
+  it('POST /auth/register refuses a blank name', async () => {
+    const { app, identity } = setup();
+
+    const response = await send(app, 'POST', '/auth/register', {
+      body: { ...REGISTRATION, firstName: ' ' },
+    });
+
+    expect(response.status).toBe(422);
+    expect(identity.register).not.toHaveBeenCalled();
+  });
+
+  it('GET /households lists my households with my role', async () => {
+    const { app, identity } = setup();
+    identity.listMyHouseholds.mockResolvedValueOnce([{
+      id: 'h1', name: 'Casa', createdAt: NOW, role: 'Owner',
+    }]);
+
+    const response = await send(app, 'GET', '/households', SIGNED_IN);
+
+    expect(await response.json()).toEqual({
+      data: [{
+        id: 'h1', name: 'Casa', createdAt: NOW.toISOString(), role: 'Owner',
+      }],
+    });
+  });
+
+  it('GET /users/me/invitations lists them with the names to show', async () => {
+    const { app, identity } = setup();
+    const invitation = {
+      id: 'i1',
+      householdId: 'h1',
+      householdName: 'Casa',
+      role: 'Member' as const,
+      invitedByUserId: 'u2',
+      inviterFirstName: 'Ben',
+      inviterLastName: 'Demo',
+      createdAt: NOW,
+    };
+    identity.listMyInvitations.mockResolvedValueOnce([invitation]);
+
+    const response = await send(app, 'GET', '/users/me/invitations', SIGNED_IN);
+
+    expect(await response.json())
+      .toEqual({ data: [{ ...invitation, createdAt: NOW.toISOString() }] });
+  });
+});
+
 describe('identity routes — signed in', () => {
   const NO_GOOD_TOKEN: SendOptions[] = [{}, { token: 'stolen-token' }];
 

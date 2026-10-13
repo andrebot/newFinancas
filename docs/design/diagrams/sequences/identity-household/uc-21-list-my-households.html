@@ -68,13 +68,13 @@ sequenceDiagram
     User->>API: GET /households
     API->>IM: listMyHouseholds(actor)
     IM->>HA: listForUser(actor)
-    HA-->>IM: [{householdId, name, role, memberCount}, ...]
+    HA-->>IM: [{id, name, createdAt, role}, ...]
     IM-->>API: households
     API-->>User: 200 OK
     User->>API: GET /users/me/invitations
     API->>IM: listMyInvitations(actor)
     IM->>IA: listPendingForUser(actor)
-    IA-->>IM: [{invitationId, householdId, householdName, inviterUserId, role, sentAt}, ...]
+    IA-->>IM: [{id, householdId, householdName, role, invitedByUserId, inviterFirstName, inviterLastName, createdAt}, ...]
     IM-->>API: invitations
     API-->>User: 200 OK
     </pre>
@@ -82,7 +82,7 @@ sequenceDiagram
   <div class="notes">
     <ul>
       <li><strong>Switching is client-side:</strong> the frontend keeps the active household and sends it with each request; <code>AuthorizationUtility</code> checks membership on every call (NFR-SEC-6).</li>
-      <li>Plain reads of Identity&#39;s own entities &rarr; <code>IdentityManager</code> (read-ownership rule). <code>inviterUserId</code> is resolved for display by the frontend (OQ-82 pattern).</li>
+      <li>Plain reads of Identity&#39;s own entities &rarr; <code>IdentityManager</code> (read-ownership rule). <strong>The names come with the invitation</strong> (OQ-116): the invitee isn&#39;t a member yet, so the frontend couldn&#39;t look up the household or the inviter &mdash; the inviter&#39;s names are null when that account was deleted (shown as &ldquo;Someone&rdquo;, OQ-82). Each household comes with the caller&#39;s role.</li>
       <li>See FR-1.8, FR-1.10, OQ-60, OQ-62.</li>
     </ul>
   </div>

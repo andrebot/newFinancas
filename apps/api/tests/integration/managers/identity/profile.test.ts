@@ -1,0 +1,60 @@
+import { captureLogs } from '@financas/logging';
+import { describe, expect, it } from 'vitest';
+import { createIdentityManager } from '../../../../src/managers/identity';
+import {
+  ANA, fakeDeps, HOUSEHOLD, RECEIVED, SESSION,
+} from './fakes';
+
+const ACTOR = { userId: ANA.id, sessionId: SESSION.id, systemRole: 'USER' as const };
+const CONTEXT = { correlationId: 'c1', actor: ACTOR };
+const GONE = { apiError: { status: 401, code: 'auth.unauthenticated' } };
+
+describe('IdentityManager — View / Edit User (uc-13, FR-1.21)', () => {
+  it('returns the caller\'s account, 401 when it is gone', async () => {
+    const { deps, users } = fakeDeps();
+    const identity = createIdentityManager(deps);
+
+    await expect(identity.getProfile(CONTEXT)).resolves.toBe(ANA);
+    expect(users.findById).toHaveBeenCalledWith(ANA.id);
+
+    users.findById.mockResolvedValueOnce(undefined);
+    await expect(identity.getProfile(CONTEXT)).rejects.toMatchObject(GONE);
+  });
+
+  it('changes only what was sent — names trimmed, preferences flattened — and audits', async () => {
+    const { deps, users } = fakeDeps();
+    const logs = captureLogs();
+
+    await createIdentityManager(deps)
+      .editProfile(CONTEXT, { firstName: ' Ana Paula ', preferences: { theme: 'light' } });
+    logs.stop();
+
+    expect(users.update).toHaveBeenCalledWith(ANA.id, { firstName: 'Ana Paula', theme: 'light' });
+    expect(logs.events).toContainEqual(expect.objectContaining({
+      level: 'audit', message: 'EditUser', entityId: ANA.id,
+    }));
+  });
+
+  it('treats an empty edit as a read, and answers 401 when the account is gone', async () => {
+    const { deps, users } = fakeDeps();
+    const identity = createIdentityManager(deps);
+
+    await expect(identity.editProfile(CONTEXT, { preferences: {} })).resolves.toBe(ANA);
+    expect(users.update).not.toHaveBeenCalled();
+
+    users.update.mockResolvedValueOnce(undefined);
+    await expect(identity.editProfile(CONTEXT, { lastName: 'Lima' })).rejects.toMatchObject(GONE);
+  });
+});
+
+describe('IdentityManager — List My Households (uc-21, FR-1.8)', () => {
+  it('lists the caller\'s households with their role, and invitations with names', async () => {
+    const { deps, households, invitations } = fakeDeps();
+    const identity = createIdentityManager(deps);
+
+    await expect(identity.listMyHouseholds(CONTEXT)).resolves.toEqual([HOUSEHOLD]);
+    await expect(identity.listMyInvitations(CONTEXT)).resolves.toEqual([RECEIVED]);
+    expect(households.listForUser).toHaveBeenCalledWith(ANA.id);
+    expect(invitations.listPendingForUser).toHaveBeenCalledWith(ANA.id);
+  });
+});

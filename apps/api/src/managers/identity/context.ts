@@ -1,4 +1,6 @@
 import { actorLabel, createLogger, type Logger } from '@financas/logging';
+import type { HouseholdAccessor } from '../../accessors/householdAccessor';
+import type { InvitationAccessor } from '../../accessors/invitationAccessor';
 import type { SessionAccessor } from '../../accessors/sessionAccessor';
 import type { UserAccessor } from '../../accessors/userAccessor';
 import { authentication } from '../../config/constants';
@@ -13,6 +15,8 @@ import type { AccessTokenClaims, AuthenticationUtility } from '../../utilities/a
 export interface IdentityDeps {
   readonly users: UserAccessor;
   readonly sessions: SessionAccessor;
+  readonly households: HouseholdAccessor;
+  readonly invitations: InvitationAccessor;
   readonly authentication: AuthenticationUtility;
   readonly notifications: NotificationEngine;
   /** Where the web app runs; email links point here (WEB_APP_URL). */

@@ -64,8 +64,8 @@ paths:
               properties:
                 email: { type: string, format: email }
                 password: { type: string, minLength: 12 }
-                firstName: { type: string }
-                lastName: { type: string }
+                firstName: { type: string, minLength: 1, description: "Trimmed — must not be blank" }
+                lastName: { type: string, minLength: 1, description: "Trimmed — must not be blank" }
       responses:
         "201":
           description: Created. Recovery codes are returned exactly once and never again.
@@ -311,8 +311,8 @@ paths:
             schema:
               type: object
               properties:
-                firstName: { type: string }
-                lastName: { type: string }
+                firstName: { type: string, minLength: 1, description: "Trimmed — must not be blank" }
+                lastName: { type: string, minLength: 1, description: "Trimmed — must not be blank" }
                 preferences:
                   $ref: '#/components/schemas/UserPreferences'
       responses:
@@ -386,7 +386,10 @@ paths:
       tags: [Households]
       operationId: listMyInvitations
       summary: List pending invitations addressed to the current user
-      description: FR-1.5/FR-1.10. Only ever shows this user's own pending invitations.
+      description: >
+        FR-1.5/FR-1.10. Only ever shows this user's own pending invitations, with
+        the household's and inviter's names — the invitee isn't a member yet,
+        so it can't look them up (OQ-116).
       responses:
         "200":
           description: OK
@@ -397,7 +400,7 @@ paths:
                 properties:
                   data:
                     type: array
-                    items: { $ref: "#/components/schemas/Invitation" }
+                    items: { $ref: "#/components/schemas/ReceivedInvitation" }
 
   # =========================================================== HOUSEHOLDS
   /households:
@@ -405,7 +408,7 @@ paths:
       tags: [Households]
       operationId: listHouseholds
       summary: List households the current user belongs to
-      description: FR-1.8 — a user may belong to more than one household.
+      description: FR-1.8 — a user may belong to more than one household; each comes with the user's role in it (OQ-116).
       responses:
         "200":
           description: OK
@@ -416,7 +419,7 @@ paths:
                 properties:
                   data:
                     type: array
-                    items: { $ref: "#/components/schemas/Household" }
+                    items: { $ref: "#/components/schemas/MyHousehold" }
     post:
       tags: [Households]
       operationId: createHousehold
@@ -2269,6 +2272,30 @@ components:
         name: { type: string }
         createdAt: { type: string, format: date-time }
 
+    MyHousehold:
+      description: A household the current user belongs to, with their role in it (OQ-116).
+      allOf:
+        - $ref: '#/components/schemas/Household'
+        - type: object
+          properties:
+            role: { type: string, enum: [Owner, Admin, Member, Viewer] }
+
+    ReceivedInvitation:
+      type: object
+      description: >
+        A pending invitation addressed to the current user, with the names
+        they can't look up yet (OQ-116). The inviter's names are null when
+        that account was deleted — shown as "Someone" (OQ-82).
+      properties:
+        id: { type: string, format: uuid }
+        householdId: { type: string, format: uuid }
+        householdName: { type: string }
+        role: { type: string, enum: [Admin, Member, Viewer] }
+        invitedByUserId: { type: [string, "null"], format: uuid }
+        inviterFirstName: { type: [string, "null"] }
+        inviterLastName: { type: [string, "null"] }
+        createdAt: { type: string, format: date-time }
+
     HouseholdMembership:
       type: object
       properties:
@@ -2763,7 +2790,10 @@ components:
           description: null when there are no more items
     UserPreferences:
       type: object
-      description: FR-1.21 — per user, not per household
+      description: >
+        FR-1.21 — per user, not per household. A new account starts with the
+        dark theme. No schema default here: on PATCH /users/me a default would
+        overwrite the theme whenever only the language is sent (OQ-116).
       properties:
         theme:
           type: string
@@ -2771,7 +2801,6 @@ components:
             - dark
             - light
             - system
-          default: dark
         language:
           type: string
           enum:

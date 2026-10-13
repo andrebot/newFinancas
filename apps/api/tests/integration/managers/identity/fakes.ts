@@ -29,6 +29,21 @@ export const SESSION = {
   expiresAt: minutes(30 * 24 * 60),
 };
 
+export const HOUSEHOLD = {
+  id: '0199c5a0-0000-7000-8000-0000000000bb', name: 'Casa', createdAt: NOW, role: 'Owner' as const,
+};
+
+export const RECEIVED = {
+  id: '0199c5a0-0000-7000-8000-0000000000dd',
+  householdId: HOUSEHOLD.id,
+  householdName: 'Casa',
+  role: 'Member' as const,
+  invitedByUserId: null,
+  inviterFirstName: null,
+  inviterLastName: null,
+  createdAt: NOW,
+};
+
 /**
  * Builds mocked dependencies with sensible defaults: no lock, Ana exists, every
  * factor is valid, tokens are predictable.
@@ -49,7 +64,10 @@ export const fakeDeps = () => {
     updatePasswordHash: vi.fn(async () => true),
     storeResetToken: vi.fn(async () => undefined),
     consumeResetToken: vi.fn(async (): Promise<string | undefined> => ANA.id),
+    update: vi.fn(async (): Promise<typeof ANA | undefined> => ANA),
   };
+  const households = { listForUser: vi.fn(async () => [HOUSEHOLD]) };
+  const invitations = { listPendingForUser: vi.fn(async () => [RECEIVED]) };
   const sessions = {
     insert: vi.fn(async () => SESSION),
     rotate: vi.fn(async () => ({ status: 'rotated' as const, session: SESSION })),
@@ -81,12 +99,14 @@ export const fakeDeps = () => {
   const deps = {
     users,
     sessions,
+    households,
+    invitations,
     authentication,
     notifications,
     webAppUrl: 'http://web.test',
     now: () => NOW,
   } as unknown as IdentityDeps;
   return {
-    deps, users, sessions, authentication, notifications,
+    deps, users, sessions, households, invitations, authentication, notifications,
   };
 };

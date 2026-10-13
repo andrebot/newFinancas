@@ -514,46 +514,42 @@ sequenceDiagram
 UCS.append(dict(
     filename="uc-11-create-user.html",
     title="Create User (Registration)",
-    subtitle='<span class="route">POST /users</span> &mdash; FR-1.1/FR-1.15. Every account enrolls TOTP-based MFA and receives recovery codes at registration, before it can be used to log in.',
+    subtitle='<span class="route">POST /auth/register</span> &mdash; FR-1.1/FR-1.15. Every account enrolls TOTP-based MFA and receives recovery codes at registration, before it can be used to log in.',
     mermaid="""
 sequenceDiagram
 """ + P_CORE + """
-    participant VU as ValidationUtility
     participant UA as UserAccessor
     participant AN as AuthenticationUtility
     participant LOG as LoggingUtility
 
-    User->>API: POST /users {email, password, firstName, lastName}
-    API->>IM: register(input)
-    IM->>VU: check(email, password, firstName, lastName)
-    alt password shorter than 12 characters (NFR-SEC-4, OQ-64)
-        VU-->>IM: rejected
-        IM-->>API: ValidationError
-        API-->>User: 422 password.too_short {min: 12}
-    else other validation fails (missing fields, malformed email)
-        VU-->>IM: rejected
-        IM-->>API: ValidationError
+    User->>API: POST /auth/register {email, password, firstName, lastName}
+    Note over API: validated against the contract (OQ-93): a well-formed email,<br/>names trimmed and non-blank (OQ-116)
+    alt request invalid
         API-->>User: 422 validation.failed {details}
     else valid
-        VU-->>IM: ok
-        IM->>UA: findByEmail(email)
-        alt email already registered
-            UA-->>IM: found
-            IM-->>API: Conflict
-            API-->>User: 409 user.email_taken
-        else email available
-            UA-->>IM: not found
-            IM->>AN: hashPassword(password)
-            AN-->>IM: passwordHash
+        API->>IM: register(input)
+        alt password shorter than 12 characters
+            Note over IM: the Manager&#39;s rule, before any work (BDT plan)
+            IM-->>API: ValidationError
+            API-->>User: 422 password.too_short {min: 12}
+        else long enough
             IM->>AN: enrollMfa(email)
             Note over AN: TOTP secret (encrypted at rest, NFR-SEC-3) + 10<br/>single-use recovery codes, stored only as hashes (FR-1.15, OQ-100)
-            AN-->>IM: {totpSecret, encryptedSecret, recoveryCodes[], recoveryCodeHashes[]}
-            IM->>UA: insert(user, passwordHash, encryptedSecret, recoveryCodeHashes)
-            UA-->>IM: userId
-            IM-->>LOG: logActivity(correlationId, userId, "CreateUser")
-            IM-->>LOG: recordAudit(userId, "User", userId)
-            IM-->>API: {userId, totpSecret, recoveryCodes[]}
-            API-->>User: 201 Created {userId, totpSecret (QR-encodable), recoveryCodes[]}
+            AN-->>IM: {secret, encryptedSecret, recoveryCodes[], recoveryCodeHashes[]}
+            IM->>AN: hashPassword(password)
+            AN-->>IM: passwordHash
+            IM->>UA: insert({email, names, passwordHash, encryptedMfaSecret, recoveryCodeHashes})
+            Note over UA: one transaction, the unique index on lower(email)<br/>decides a duplicate &mdash; no separate lookup to race (OQ-103)
+            alt email already registered
+                UA-->>IM: {ok: false, reason: email_taken}
+                IM-->>API: Conflict
+                API-->>User: 409 user.email_taken
+            else created
+                UA-->>IM: {ok: true, user}
+                IM-->>LOG: log.audit("CreateUser", User userId)
+                IM-->>API: {userId, totpSecret, recoveryCodes[]}
+                API-->>User: 201 Created {userId, totpSecret (QR-encodable), recoveryCodes[]}
+            end
         end
     end
 """,
@@ -561,7 +557,8 @@ sequenceDiagram
     <ul>
       <li><strong>MFA enrollment is not optional or deferred</strong> — FR-1.15 requires it complete before the account can log in at all, so it happens inline in registration, not as a follow-up step.</li>
       <li>The recovery codes are returned exactly once, at creation — the backend stores only their hashes (<code>mfa_recovery_codes.code_hash</code>), never the plaintext codes themselves after this response.</li>
-      <li>See FR-1.1, FR-1.15, OQ-29 (first_name/last_name resolved during data modeling).</li>
+      <li><strong>Redrawn to the implementation (M1):</strong> the route is <code>POST /auth/register</code> (was shown as <code>POST /users</code>); request shape is checked at the route against the contract, not by a <code>ValidationUtility</code>; a duplicate email is the insert&#39;s typed result, not a prior lookup that two simultaneous registrations could both pass.</li>
+      <li>See FR-1.1, FR-1.15, OQ-29 (first_name/last_name resolved during data modeling), OQ-114, OQ-116.</li>
     </ul>
 """,
 ))
@@ -634,25 +631,25 @@ UCS.append(dict(
     mermaid="""
 sequenceDiagram
 """ + P_CORE + """
-    participant VU as ValidationUtility
     participant UA as UserAccessor
     participant LOG as LoggingUtility
 
-    User->>API: PATCH /users/me {firstName?, lastName?, preferences?: {theme, language}}
-    API->>IM: editProfile(actor, input)
-    IM->>VU: check(input) &mdash; theme in {dark, light, system}, language in {pt-BR, en-US}
-    alt validation fails
-        VU-->>IM: rejected
-        IM-->>API: ValidationError
+    User->>API: PATCH /users/me {firstName?, lastName?, preferences?: {theme?, language?}}
+    Note over API: validated against the contract (OQ-93): names trimmed and<br/>non-blank, theme and language from their sets, nothing filled in (OQ-116)
+    alt request invalid
         API-->>User: 422 validation.failed {details}
     else valid
-        VU-->>IM: ok
-        IM->>UA: update(actor, {firstName, lastName, preferences})
-        UA-->>IM: updated
-        IM-->>LOG: logActivity(correlationId, actor, "EditProfile")
-        IM-->>LOG: recordAudit(actor, "User", actor)
-        IM-->>API: updated
-        API-->>User: 200 OK {firstName, lastName, preferences}
+        API->>IM: editProfile(actor, input)
+        alt nothing to change
+            IM->>UA: findById(actor.userId)
+            UA-->>IM: user
+        else some fields sent
+            IM->>UA: update(actor.userId, {only the fields sent})
+            UA-->>IM: user
+            IM-->>LOG: log.audit("EditUser", User actor.userId)
+        end
+        IM-->>API: user
+        API-->>User: 200 OK User {id, email, firstName, lastName, createdAt, preferences}
     end
 """,
     notes="""
@@ -1093,20 +1090,20 @@ sequenceDiagram
     User->>API: GET /households
     API->>IM: listMyHouseholds(actor)
     IM->>HA: listForUser(actor)
-    HA-->>IM: [{householdId, name, role, memberCount}, ...]
+    HA-->>IM: [{id, name, createdAt, role}, ...]
     IM-->>API: households
     API-->>User: 200 OK
     User->>API: GET /users/me/invitations
     API->>IM: listMyInvitations(actor)
     IM->>IA: listPendingForUser(actor)
-    IA-->>IM: [{invitationId, householdId, householdName, inviterUserId, role, sentAt}, ...]
+    IA-->>IM: [{id, householdId, householdName, role, invitedByUserId, inviterFirstName, inviterLastName, createdAt}, ...]
     IM-->>API: invitations
     API-->>User: 200 OK
 """,
     notes="""
     <ul>
       <li><strong>Switching is client-side:</strong> the frontend keeps the active household and sends it with each request; <code>AuthorizationUtility</code> checks membership on every call (NFR-SEC-6).</li>
-      <li>Plain reads of Identity&#39;s own entities &rarr; <code>IdentityManager</code> (read-ownership rule). <code>inviterUserId</code> is resolved for display by the frontend (OQ-82 pattern).</li>
+      <li>Plain reads of Identity&#39;s own entities &rarr; <code>IdentityManager</code> (read-ownership rule). <strong>The names come with the invitation</strong> (OQ-116): the invitee isn&#39;t a member yet, so the frontend couldn&#39;t look up the household or the inviter &mdash; the inviter&#39;s names are null when that account was deleted (shown as &ldquo;Someone&rdquo;, OQ-82). Each household comes with the caller&#39;s role.</li>
       <li>See FR-1.8, FR-1.10, OQ-60, OQ-62.</li>
     </ul>
 """,
