@@ -9,6 +9,7 @@
     "typecheck": "tsc --project tsconfig.json"
   },
   "dependencies": {
+    "@financas/i18n": "workspace:*",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
   },

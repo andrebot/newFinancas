@@ -1724,6 +1724,26 @@ OQ-112:** `NotificationDeliveryUtility` was misclassified.
 **Task 22 (`M1` IdentityManager) is complete**, in five PRs (OQ-114 –
 OQ-118). Delete User's cascade is `M1D` (task 135, slice 5).
 
+### OQ-119: Web ValidationUtility (task FU1)
+**Design decisions:**
+- **Rules answer in the API's field codes.** Each rule returns the
+  `{code, params}` of a 422 `details[]` entry (`field.required`,
+  `string.format`, `string.min`, `number.min/max`, `date.min/max`,
+  `field.invalid_type`), so a client-side error and a server-side one
+  render through the same catalog entry — no new catalog keys.
+- **Hand-written, never stricter than the API.** The web app doesn't
+  bundle the contract's Zod schemas (task N7), so the rules are written
+  in `apps/web/src/utilities/validation.ts`: email is trimmed and checked
+  with the same pattern `z.email()` uses; the password minimum (12) lives
+  in `apps/web/src/config/constants.ts`, mirroring the API's.
+- **Rules check typed values; the inputs parse text.** Money is checked
+  as an integer of minor units and dates as `YYYY-MM-DD`; turning
+  "1.234,56" or a locale date into those is the Money input's (K7) and
+  Date input's (K9) job.
+- **Format rules let an empty value through**, so optional fields work;
+  `required` / `nonBlank` make a field mandatory, combined with
+  `firstError`. `validateFields` returns only the failing fields.
+
 ## Refined (resolved, with a follow-up still open)
 
 *(OQ-4's legal-review follow-up below is closed for v1 by OQ-89.)*
