@@ -75,8 +75,8 @@ is worth building once.
 | K10 | Date range picker | filter drawer, audit export dialog |
 | K11 | Select / combobox (groups, disabled options with a reason) | account picker, claim-aware category picker, role |
 | K12 | Multi-select with search + presets, full width | payout holding selector (×2), filter kinds / accounts / categories |
-| K13 | Segmented control | theme, $ / R$, BRL / USD, kind groups |
-| K14 | Option card (radio cards with description) | account type, MFA method |
+| K13 | Segmented control (radio group; pills md / sm / xs, or tiles — OQ-127) | $ / R$, BRL / USD, goal status, kind groups |
+| K14 | Option card (radio cards with description) | account type, MFA method, theme (preview cards) |
 | K15 | Switch | visibility, incentivised debenture |
 | K16 | Checkbox | terms, multi-select rows |
 | K17 | Code input (6 digits) | MFA setup, MFA challenge |

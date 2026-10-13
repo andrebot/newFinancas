@@ -62,7 +62,7 @@ identity screens, the rest as later slices use them.
 - [x] **28.** `FU7` API client (OQ-124)
 - [x] **29.** `K2` Typography (OQ-125)
 - [x] **30.** `K3` Icon set (OQ-126)
-- [ ] **31.** `K13` Segmented control
+- [x] **31.** `K13` Segmented control (OQ-127)
 - [ ] **32.** `K14` Option card
 - [ ] **33.** `K16` Checkbox
 - [ ] **34.** `K22` Popover

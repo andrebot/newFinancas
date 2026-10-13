@@ -2043,6 +2043,31 @@ not a hardcoded assumption.
   TypeScript's optional props already say a prop may be absent, and
   React 19 ignores `defaultProps` on function components.
 
+### OQ-127: Segmented control (task K13)
+**Confirmed with the stakeholder (Oct 2026):**
+- **A value control, not tabs.** `<SegmentedControl>` picks one value
+  out of a few: it is a `radiogroup`. The mockups also use the `.seg`
+  look, marked `role="tablist"`, for the Account Setup and Investments
+  section switchers. Those are navigation, so they get their own nav
+  piece when those pages are built and can reuse K13's classes. K13 has
+  no tabs mode.
+- **Native radios.** Each segment is a visually hidden
+  `<input type="radio">` (one `name` per group, from `useId`) inside its
+  label. The browser supplies arrow-key movement, focus and radio
+  semantics, so there is no keyboard code to maintain. The selected and
+  focus looks come from `has-checked` / `has-focus-visible`. Controlled
+  only: `value` in, `onChange(value)` out. Texts arrive translated.
+- **One look for pills.** The mockups' $ / R$ switch (solid mint
+  selected, `raised` track) is unified with `.seg` (`mintdeep` selected,
+  bordered `card` track), at a new compact size. Pill sizes are `md` 36px
+  (section-level), `sm` 30px (goal status) and `xs` 26px (currency
+  switches). The exported mockup pages still show the old switch.
+- **Tiles layout.** `layout="tiles"` draws the Record drawer's kind
+  groups: equal full-width columns, 64px tall, icon over the label.
+- **Theme is not a K13 user.** Profile keeps the mockup's preview cards
+  for Dark / Light / System, built with K14 (Option card). The activity
+  list's K13 and K14 rows were updated to match.
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.
