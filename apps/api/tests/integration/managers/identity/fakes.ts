@@ -44,6 +44,11 @@ export const fakeDeps = () => {
     recordLoginFailure: vi.fn(async () => 1),
     lockLogin: vi.fn(async () => undefined),
     clearLoginFailures: vi.fn(async () => undefined),
+    consumeRecoveryCode: vi.fn(async () => true),
+    findPasswordHash: vi.fn(async (): Promise<string | undefined> => ANA.passwordHash),
+    updatePasswordHash: vi.fn(async () => true),
+    storeResetToken: vi.fn(async () => undefined),
+    consumeResetToken: vi.fn(async (): Promise<string | undefined> => ANA.id),
   };
   const sessions = {
     insert: vi.fn(async () => SESSION),
@@ -54,6 +59,7 @@ export const fakeDeps = () => {
     listByUser: vi.fn(async () => [SESSION]),
     deleteForUser: vi.fn(async () => true),
     deleteAllExceptCurrent: vi.fn(async () => 2),
+    deleteAllForUser: vi.fn(async () => 3),
   };
   const authentication = {
     hashPassword: vi.fn(async (password: string) => `hash(${password})`),
@@ -69,11 +75,18 @@ export const fakeDeps = () => {
     issueOpaqueToken: vi.fn(() => ({ token: 'refresh-token', tokenHash: 'refresh-hash' })),
     hashOpaqueToken: vi.fn((token: string) => `hash(${token})`),
     signAccessToken: vi.fn(async () => 'access-token'),
+    hashRecoveryCode: vi.fn((code: string) => `code-hash(${code})`),
   };
+  const notifications = { notify: vi.fn(async () => undefined) };
   const deps = {
-    users, sessions, authentication, now: () => NOW,
+    users,
+    sessions,
+    authentication,
+    notifications,
+    webAppUrl: 'http://web.test',
+    now: () => NOW,
   } as unknown as IdentityDeps;
   return {
-    deps, users, sessions, authentication,
+    deps, users, sessions, authentication, notifications,
   };
 };

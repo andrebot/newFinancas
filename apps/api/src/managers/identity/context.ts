@@ -2,6 +2,7 @@ import { actorLabel, createLogger, type Logger } from '@financas/logging';
 import type { SessionAccessor } from '../../accessors/sessionAccessor';
 import type { UserAccessor } from '../../accessors/userAccessor';
 import { authentication } from '../../config/constants';
+import type { NotificationEngine } from '../../engines/notification';
 import type { AccessTokenClaims, AuthenticationUtility } from '../../utilities/authentication';
 
 // What every IdentityManager use case shares: its dependencies (the tier below,
@@ -13,6 +14,9 @@ export interface IdentityDeps {
   readonly users: UserAccessor;
   readonly sessions: SessionAccessor;
   readonly authentication: AuthenticationUtility;
+  readonly notifications: NotificationEngine;
+  /** Where the web app runs; email links point here (WEB_APP_URL). */
+  readonly webAppUrl: string;
   readonly now: () => Date;
 }
 
@@ -48,6 +52,15 @@ export const loggerFor = (context: RequestContext, userId?: string): Logger => {
     actor: actorId ? actorLabel({ userId: actorId }) : actorLabel('unauthenticated'),
   });
 };
+
+/**
+ * The key failed sign-ins are counted under: the address as typed, trimmed and
+ * lower-cased — not the user, so unknown addresses lock too (OQ-114).
+ *
+ * @param email - The email as typed.
+ * @returns The key.
+ */
+export const emailKeyOf = (email: string): string => email.trim().toLowerCase();
 
 /**
  * When a refresh token issued now stops working (30-day sliding expiry, OQ-30).

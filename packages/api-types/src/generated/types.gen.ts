@@ -951,6 +951,11 @@ export type ChangePasswordErrors = {
      * Missing, invalid, or expired credentials. Codes: e.g. `auth.unauthenticated` (no valid access token on a protected endpoint), `auth.invalid_credentials` (identical for unknown user, wrong password and wrong MFA code — OQ-114), `auth.mfa_invalid`.
      */
     401: Error;
+    /**
+     * `password.too_short` (`params.min`), or `password.current_incorrect` — a wrong current password is a form error, not a 401, so the signed-in user isn't treated as signed out (OQ-115).
+     *
+     */
+    422: Error;
 };
 
 export type ChangePasswordError = ChangePasswordErrors[keyof ChangePasswordErrors];
@@ -990,9 +995,13 @@ export type ConfirmPasswordResetData = {
 
 export type ConfirmPasswordResetErrors = {
     /**
-     * Token invalid or expired.
+     * Token invalid, expired or already used: `password_reset.token_invalid`.
      */
     400: Error;
+    /**
+     * `password.too_short` (`params.min`) — checked before the token is used up.
+     */
+    422: Error;
 };
 
 export type ConfirmPasswordResetError = ConfirmPasswordResetErrors[keyof ConfirmPasswordResetErrors];
@@ -1020,6 +1029,10 @@ export type RecoverWithMfaCodeErrors = {
      * Missing, invalid, or expired credentials. Codes: e.g. `auth.unauthenticated` (no valid access token on a protected endpoint), `auth.invalid_credentials` (identical for unknown user, wrong password and wrong MFA code — OQ-114), `auth.mfa_invalid`.
      */
     401: Error;
+    /**
+     * Too many failed attempts for this email address (OQ-114) — answered the same whether or not an account exists. Code: `auth.too_many_attempts`, `params.retryAfterMinutes`.
+     */
+    429: Error;
 };
 
 export type RecoverWithMfaCodeError = RecoverWithMfaCodeErrors[keyof RecoverWithMfaCodeErrors];

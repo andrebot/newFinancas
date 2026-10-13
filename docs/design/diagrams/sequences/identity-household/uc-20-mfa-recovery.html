@@ -68,32 +68,36 @@ sequenceDiagram
     participant LOG as LoggingUtility
 
     User->>API: POST /auth/mfa/recover {email, password, recoveryCode}
-    API->>IM: recoverMfa(input, deviceInfo)
-    IM->>UA: findByEmail(email)
-    alt no matching user or password incorrect
-        UA-->>IM: invalid
-        IM-->>API: Unauthorized
-        API-->>User: 401 auth.invalid_credentials
-    else user + password valid
-        UA-->>IM: userId
-        IM->>AN: hashRecoveryCode(recoveryCode)
-        AN-->>IM: codeHash
-        IM->>UA: consumeRecoveryCode(userId, codeHash)
-        Note over UA: atomic UPDATE &hellip; SET used_at WHERE code_hash = ?<br/>AND used_at IS NULL &mdash; single-use, can never be replayed (FR-1.16)
-        alt code invalid, unknown, or already used
-            UA-->>IM: not consumed
+    API->>IM: recoverWithCode(input, deviceInfo = User-Agent)
+    IM->>UA: findLoginLock(emailKey)
+    alt address locked
+        IM-->>API: TooManyRequests
+        API-->>User: 429 auth.too_many_attempts (Retry-After)
+    else not locked
+        IM->>UA: findByEmail(email)
+        UA-->>IM: user (or none)
+        IM->>AN: verifyPassword(passwordHash or a dummy hash, password)
+        AN-->>IM: valid / invalid
+        opt user found and password valid
+            IM->>AN: hashRecoveryCode(recoveryCode)
+            AN-->>IM: codeHash
+            IM->>UA: consumeRecoveryCode(userId, codeHash, now)
+            Note over UA: atomic UPDATE &hellip; WHERE unused &mdash; single-use (FR-1.16),<br/>never reached with a wrong password, so no code is wasted
+            UA-->>IM: consumed / not
+        end
+        alt any factor failed
+            IM->>UA: recordLoginFailure(emailKey, &hellip;) (+ lockLogin at 5)
             IM-->>API: Unauthorized
-            API-->>User: 401 auth.recovery_code_invalid
-        else code valid and unused
-            UA-->>IM: consumed
+            API-->>User: 401 auth.invalid_credentials (same as login)
+        else password and code valid
+            IM->>UA: clearLoginFailures(emailKey)
             IM->>AN: issueOpaqueToken()
-            AN-->>IM: {refreshToken, refreshTokenHash}
-            IM->>SA: insert(userId, refreshTokenHash, deviceInfo, expiresAt)
-            SA-->>IM: sessionId
-            IM->>AN: signAccessToken({userId, sessionId})
+            AN-->>IM: {token, tokenHash}
+            IM->>SA: insert(userId, tokenHash, deviceInfo, expiresAt, now)
+            SA-->>IM: session
+            IM->>AN: signAccessToken({userId, sessionId, systemRole})
             AN-->>IM: accessToken
-            IM-->>LOG: logActivity(correlationId, userId, "MfaRecovery")
-            IM-->>LOG: recordAudit(userId, "Session", sessionId)
+            IM-->>LOG: log.audit("MfaRecovery", Session sessionId)
             IM-->>API: {accessToken, refreshToken}
             API-->>User: 200 OK {accessToken, refreshToken}
         end
@@ -103,6 +107,7 @@ sequenceDiagram
   <div class="notes">
     <ul>
       <li>Functionally an alternate second factor to Login&#39;s TOTP step, not a separate account-recovery mechanism &mdash; it still requires the correct password first, same as normal login.</li>
+      <li><strong>Same authentication step as Login (OQ-115):</strong> the lockout, the dummy-hash check for unknown emails, and one 401 for every failure. The earlier diagram answered a distinct <code>auth.recovery_code_invalid</code> after a correct password &mdash; that confirmed the password; corrected.</li>
       <li><strong>v1 scope limit (FR-1.16):</strong> if recovery codes are also exhausted or lost, there is no further self-service path &mdash; a manual/support-assisted process outside this system, not diagrammed since it isn&#39;t a backend flow (OQ-24).</li>
       <li>See FR-1.16, OQ-24.</li>
     </ul>

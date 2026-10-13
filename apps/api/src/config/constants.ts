@@ -45,6 +45,12 @@ export const authentication = {
   password: {
     minLength: 12,
   },
+  /** Password reset (FR-1.13, OQ-115): the emailed link works once, for this long. */
+  passwordReset: {
+    ttlMinutes: 30,
+    /** The web app's page the link opens; the token goes in `?token=`. */
+    path: '/reset-password',
+  },
   /**
    * Login lockout (OQ-114): this many failures for one email address within
    * the window lock that address for `lockMinutes`; a success clears it.

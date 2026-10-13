@@ -8,11 +8,14 @@ import { serve } from '@hono/node-server';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
 import createAuditLogAccessor from './accessors/auditLogAccessor';
+import createEmailAccessor from './accessors/emailAccessor';
+import createNotificationInboxAccessor from './accessors/notificationInboxAccessor';
 import createSessionAccessor from './accessors/sessionAccessor';
 import createUserAccessor from './accessors/userAccessor';
 import createApp from './app';
 import { logging } from './config/constants';
 import loadEnv from './config/env';
+import { createNotificationEngine } from './engines/notification';
 import { createIdentityManager } from './managers/identity';
 import { createAuthenticationUtility } from './utilities/authentication';
 import { newCorrelationId } from './utilities/correlationId';
@@ -41,10 +44,16 @@ logger.add(createAuditSink({
 const authentication = createAuthenticationUtility({
   jwtSecret: env.jwtSecret, mfaEncryptionKey: env.mfaEncryptionKey,
 });
+const notifications = createNotificationEngine({
+  insertNotification: createNotificationInboxAccessor(db).insert,
+  sendEmail: createEmailAccessor(env.emailProvider).send,
+});
 const identity = createIdentityManager({
   users: createUserAccessor(db),
   sessions: createSessionAccessor(db),
   authentication,
+  notifications,
+  webAppUrl: env.webAppUrl,
   now: () => new Date(),
 });
 

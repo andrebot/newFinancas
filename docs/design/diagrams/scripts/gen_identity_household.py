@@ -891,7 +891,7 @@ sequenceDiagram
 UCS.append(dict(
     filename="uc-18-reset-password.html",
     title="Reset Forgotten Password",
-    subtitle='Two-step flow &mdash; <span class="route">POST /auth/password-reset/request</span> then <span class="route">POST /auth/password-reset/confirm</span> &mdash; FR-1.13. A valid token invalidates every active session, not just the one making the change.',
+    subtitle='Two-step flow &mdash; <span class="route">POST /auth/password-reset/request</span> then <span class="route">POST /auth/password-reset/confirm</span> &mdash; FR-1.13/OQ-115. The link works once, for 30 minutes; using it ends every session and lifts any login lock.',
     mermaid="""
 sequenceDiagram
 """ + P_CORE + """
@@ -905,23 +905,24 @@ sequenceDiagram
     Note over User,API: Step 1 — request a reset token
     User->>API: POST /auth/password-reset/request {email}
     API->>IM: requestPasswordReset(email)
+    IM-->>API: accepted (before any lookup)
+    API-->>User: 202 Accepted
+    Note over IM: the rest runs after the response, so neither the answer<br/>nor its timing reveals whether the email has an account (OQ-115)
     IM->>UA: findByEmail(email)
     opt user exists
         UA-->>IM: found
         IM->>AN: issueOpaqueToken()
         AN-->>IM: {token, tokenHash}
-        IM->>UA: storeResetToken(userId, tokenHash, expiresAt)
+        IM->>UA: storeResetToken(userId, tokenHash, expiresAt = now + 30 min)
         Note over UA: only the hash is stored (OQ-100)
         UA-->>IM: stored
-        IM-->>NE: notify("password.reset", recipient = {email, language}, params = {resetLink, expiresInMinutes})
-        Note over NE: routing table: password.reset &rarr; email &mdash; renders subject + body<br/>from the shared i18n catalog in the recipient&#39;s language
+        IM->>NE: notify("password.reset", recipient = {email, language}, params = {resetLink, expiresInMinutes: 30})
+        Note over NE: resetLink = WEB_APP_URL + /reset-password?token=&hellip; &mdash;<br/>routed to email, rendered in the recipient&#39;s language (OQ-113)
         NE->>EA: send({to, subject, body})
         Note over EA: only sends &mdash; provider = configuration (EMAIL_PROVIDER),<br/>v1 console, terminal only (OQ-112)
         EA-->>NE: sent
     end
-    Note over IM: 202 returned either way &mdash; existence of the<br/>email is never revealed either way
-    IM-->>API: accepted
-    API-->>User: 202 Accepted
+    Note over IM: a failure here is logged, never returned
 
     Note over User,API: Step 2 — submit token + new password
     User->>API: POST /auth/password-reset/confirm {token, newPassword}
@@ -948,8 +949,10 @@ sequenceDiagram
         IM->>SA: deleteAllForUser(userId)
         Note over SA: every active session invalidated (FR-1.13) &mdash;<br/>unlike Change Password, there is no "current session" to spare
         SA-->>IM: all sessions revoked
-        IM-->>LOG: logActivity(correlationId, userId, "ResetPassword")
-        IM-->>LOG: recordAudit(userId, "User", userId)
+        IM->>UA: findById(userId), then clearLoginFailures(emailKey)
+        Note over UA: resetting proves control of the email,<br/>so any login lock on it is lifted (OQ-115)
+        UA-->>IM: cleared
+        IM-->>LOG: log.audit("ResetPassword", User userId)
         IM-->>API: reset
         API-->>User: 200 OK
     end
@@ -958,7 +961,7 @@ sequenceDiagram
     notes="""
     <ul>
       <li><strong>One use case, two HTTP requests</strong> &mdash; shown as a single diagram since FR-1.13 describes them as one continuous flow, separated by however long the user takes to check their email.</li>
-      <li>Step 1 always returns 202 regardless of whether the email matched anything &mdash; the branch is entirely internal (<code>opt</code>, not <code>alt</code>), so no observable response difference leaks account existence.</li>
+      <li>Step 1 answers 202 <strong>before</strong> looking anything up (OQ-115): the branch runs after the response (<code>opt</code>, not <code>alt</code>), so neither the answer nor how long it took leaks account existence. A failure to send is logged, never returned.</li>
       <li><strong>Email is a channel the Engine chooses</strong>, not one the Manager asks for (OQ-113): the Manager supplies a recipient with an email and language because <code>password.reset</code> is routed to email — the type system rejects a recipient without them.</li>
       <li>Contrast with Change Password (UC-19): a forgotten-password reset can&#39;t spare "the current session" (the user isn&#39;t logged in at all), so every session goes.</li>
       <li>See FR-1.13.</li>
@@ -980,29 +983,33 @@ sequenceDiagram
     participant LOG as LoggingUtility
 
     User->>API: POST /auth/change-password {currentPassword, newPassword}
-    API->>IM: changePassword(actor, currentSessionId, input)
-    IM->>AN: verifyPassword(actor.passwordHash, currentPassword)
-    alt current password incorrect
-        AN-->>IM: invalid
-        IM-->>API: Unauthorized
-        API-->>User: 401 auth.invalid_credentials
-    else newPassword shorter than 12 characters
-        AN-->>IM: valid
+    API->>IM: changePassword(actor, input)
+    alt newPassword shorter than 12 characters
+        Note over IM: checked first &mdash; no secret involved
         IM-->>API: ValidationError
         API-->>User: 422 password.too_short {min: 12}
-    else current password correct
-        AN-->>IM: valid
-        IM->>AN: hashPassword(newPassword)
-        AN-->>IM: newPasswordHash
-        IM->>UA: updatePasswordHash(actor, newPasswordHash)
-        UA-->>IM: updated
-        IM->>SA: deleteAllExceptCurrent(actor, currentSessionId)
-        Note over SA: every other active session invalidated (FR-1.3/1.14)<br/>&mdash; the session making this change survives
-        SA-->>IM: other sessions revoked
-        IM-->>LOG: logActivity(correlationId, actor, "ChangePassword")
-        IM-->>LOG: recordAudit(actor, "User", actor)
-        IM-->>API: changed
-        API-->>User: 200 OK
+    else long enough
+        IM->>UA: findPasswordHash(actor.userId)
+        UA-->>IM: passwordHash
+        IM->>AN: verifyPassword(passwordHash, currentPassword)
+        alt current password incorrect
+            AN-->>IM: invalid
+            IM-->>API: ValidationError
+            API-->>User: 422 password.current_incorrect
+            Note over API: not 401 &mdash; the user is signed in and stays so,<br/>a 401 would make the web app sign them out (OQ-115)
+        else current password correct
+            AN-->>IM: valid
+            IM->>AN: hashPassword(newPassword)
+            AN-->>IM: newPasswordHash
+            IM->>UA: updatePasswordHash(actor.userId, newPasswordHash)
+            UA-->>IM: updated
+            IM->>SA: deleteAllExceptCurrent(actor.userId, actor.sessionId)
+            Note over SA: every other active session invalidated (FR-1.3/1.14)<br/>&mdash; the session making this change survives
+            SA-->>IM: other sessions revoked
+            IM-->>LOG: log.audit("ChangePassword", User actor.userId)
+            IM-->>API: changed
+            API-->>User: 200 OK
+        end
     end
 """,
     notes="""
@@ -1027,32 +1034,36 @@ sequenceDiagram
     participant LOG as LoggingUtility
 
     User->>API: POST /auth/mfa/recover {email, password, recoveryCode}
-    API->>IM: recoverMfa(input, deviceInfo)
-    IM->>UA: findByEmail(email)
-    alt no matching user or password incorrect
-        UA-->>IM: invalid
-        IM-->>API: Unauthorized
-        API-->>User: 401 auth.invalid_credentials
-    else user + password valid
-        UA-->>IM: userId
-        IM->>AN: hashRecoveryCode(recoveryCode)
-        AN-->>IM: codeHash
-        IM->>UA: consumeRecoveryCode(userId, codeHash)
-        Note over UA: atomic UPDATE &hellip; SET used_at WHERE code_hash = ?<br/>AND used_at IS NULL &mdash; single-use, can never be replayed (FR-1.16)
-        alt code invalid, unknown, or already used
-            UA-->>IM: not consumed
+    API->>IM: recoverWithCode(input, deviceInfo = User-Agent)
+    IM->>UA: findLoginLock(emailKey)
+    alt address locked
+        IM-->>API: TooManyRequests
+        API-->>User: 429 auth.too_many_attempts (Retry-After)
+    else not locked
+        IM->>UA: findByEmail(email)
+        UA-->>IM: user (or none)
+        IM->>AN: verifyPassword(passwordHash or a dummy hash, password)
+        AN-->>IM: valid / invalid
+        opt user found and password valid
+            IM->>AN: hashRecoveryCode(recoveryCode)
+            AN-->>IM: codeHash
+            IM->>UA: consumeRecoveryCode(userId, codeHash, now)
+            Note over UA: atomic UPDATE &hellip; WHERE unused &mdash; single-use (FR-1.16),<br/>never reached with a wrong password, so no code is wasted
+            UA-->>IM: consumed / not
+        end
+        alt any factor failed
+            IM->>UA: recordLoginFailure(emailKey, &hellip;) (+ lockLogin at 5)
             IM-->>API: Unauthorized
-            API-->>User: 401 auth.recovery_code_invalid
-        else code valid and unused
-            UA-->>IM: consumed
+            API-->>User: 401 auth.invalid_credentials (same as login)
+        else password and code valid
+            IM->>UA: clearLoginFailures(emailKey)
             IM->>AN: issueOpaqueToken()
-            AN-->>IM: {refreshToken, refreshTokenHash}
-            IM->>SA: insert(userId, refreshTokenHash, deviceInfo, expiresAt)
-            SA-->>IM: sessionId
-            IM->>AN: signAccessToken({userId, sessionId})
+            AN-->>IM: {token, tokenHash}
+            IM->>SA: insert(userId, tokenHash, deviceInfo, expiresAt, now)
+            SA-->>IM: session
+            IM->>AN: signAccessToken({userId, sessionId, systemRole})
             AN-->>IM: accessToken
-            IM-->>LOG: logActivity(correlationId, userId, "MfaRecovery")
-            IM-->>LOG: recordAudit(userId, "Session", sessionId)
+            IM-->>LOG: log.audit("MfaRecovery", Session sessionId)
             IM-->>API: {accessToken, refreshToken}
             API-->>User: 200 OK {accessToken, refreshToken}
         end
@@ -1061,6 +1072,7 @@ sequenceDiagram
     notes="""
     <ul>
       <li>Functionally an alternate second factor to Login&#39;s TOTP step, not a separate account-recovery mechanism &mdash; it still requires the correct password first, same as normal login.</li>
+      <li><strong>Same authentication step as Login (OQ-115):</strong> the lockout, the dummy-hash check for unknown emails, and one 401 for every failure. The earlier diagram answered a distinct <code>auth.recovery_code_invalid</code> after a correct password &mdash; that confirmed the password; corrected.</li>
       <li><strong>v1 scope limit (FR-1.16):</strong> if recovery codes are also exhausted or lost, there is no further self-service path &mdash; a manual/support-assisted process outside this system, not diagrammed since it isn&#39;t a backend flow (OQ-24).</li>
       <li>See FR-1.16, OQ-24.</li>
     </ul>

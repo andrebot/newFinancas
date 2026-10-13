@@ -112,6 +112,59 @@ describe('identity routes — public', () => {
   });
 });
 
+describe('identity routes — passwords and recovery (OQ-115)', () => {
+  it('POST /auth/mfa/recover passes the device and returns tokens', async () => {
+    const { app, identity } = setup();
+    identity.recoverWithCode.mockResolvedValue({ accessToken: 'a', refreshToken: 'r' });
+    const body = { email: 'ana@example.com', password: 'p', recoveryCode: 'ABCD-EFGH' };
+
+    const response = await send(app, 'POST', '/auth/mfa/recover', {
+      body, headers: { 'User-Agent': 'Phone' },
+    });
+    await send(app, 'POST', '/auth/mfa/recover', { body });
+
+    expect(await response.json()).toEqual({ accessToken: 'a', refreshToken: 'r' });
+    expect(identity.recoverWithCode).toHaveBeenNthCalledWith(1, expect.anything(), body, 'Phone');
+    expect(identity.recoverWithCode).toHaveBeenNthCalledWith(2, expect.anything(), body, null);
+  });
+
+  it('POST /auth/password-reset/request → 202 whatever the address', async () => {
+    const { app, identity } = setup();
+    identity.requestPasswordReset.mockResolvedValueOnce(undefined);
+
+    const response = await send(app, 'POST', '/auth/password-reset/request', {
+      body: { email: 'ana@example.com' },
+    });
+
+    expect(response.status).toBe(202);
+    expect(identity.requestPasswordReset)
+      .toHaveBeenCalledWith(expect.anything(), 'ana@example.com');
+  });
+
+  it('POST /auth/password-reset/confirm → 200; length is the Manager\'s call', async () => {
+    const { app, identity } = setup();
+    const body = { token: 't', newPassword: 'short' };
+
+    const response = await send(app, 'POST', '/auth/password-reset/confirm', { body });
+
+    expect(response.status).toBe(200);
+    expect(identity.confirmPasswordReset).toHaveBeenCalledWith(expect.anything(), body);
+  });
+
+  it('POST /auth/change-password → 200 when signed in, 401 otherwise', async () => {
+    const { app, identity } = setup();
+    const body = { currentPassword: 'old', newPassword: 'short' };
+
+    const signedOut = await send(app, 'POST', '/auth/change-password', { body });
+    const changed = await send(app, 'POST', '/auth/change-password', { body, ...SIGNED_IN });
+
+    expect(signedOut.status).toBe(401);
+    expect(changed.status).toBe(200);
+    expect(identity.changePassword)
+      .toHaveBeenCalledWith(expect.objectContaining({ actor: ACTOR }), body);
+  });
+});
+
 describe('identity routes — signed in', () => {
   const NO_GOOD_TOKEN: SendOptions[] = [{}, { token: 'stolen-token' }];
 

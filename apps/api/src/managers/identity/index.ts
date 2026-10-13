@@ -1,4 +1,5 @@
 import type { IdentityDeps } from './context';
+import createPasswords from './passwords';
 import createRegistration from './registration';
 import createSessions from './sessions';
 import createSignIn from './signIn';
@@ -12,7 +13,8 @@ export type {
 } from './context';
 export type { Registered, Registration } from './registration';
 export type { SessionView } from './sessions';
-export type { Credentials } from './signIn';
+export type { PasswordChange, PasswordResetConfirmation } from './passwords';
+export type { Credentials, RecoveryCredentials } from './signIn';
 
 /**
  * Creates IdentityManager.
@@ -24,6 +26,7 @@ export const createIdentityManager = (deps: IdentityDeps) => ({
   ...createRegistration(deps),
   ...createSignIn(deps),
   ...createSessions(deps),
+  ...createPasswords(deps),
 });
 
 export type IdentityManager = ReturnType<typeof createIdentityManager>;

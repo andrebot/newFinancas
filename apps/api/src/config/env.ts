@@ -16,6 +16,7 @@ const envSchema = z.object({
     .default(3000),
   DATABASE_URL: postgresUrl,
   EMAIL_PROVIDER: z.enum(['console']).default('console'),
+  WEB_APP_URL: z.url({ protocol: /^https?$/ }).default('http://localhost:5173'),
   JWT_SECRET: z.string().min(authentication.accessToken.minSecretLength),
   MFA_ENCRYPTION_KEY: z.base64().refine(
     (value) => Buffer.from(value, 'base64').length === KEY_BYTES,
@@ -28,6 +29,8 @@ export interface Env {
   readonly port: number;
   readonly databaseUrl: string;
   readonly emailProvider: 'console';
+  /** Where the web app runs — links in emails point here (OQ-115). */
+  readonly webAppUrl: string;
   readonly jwtSecret: string;
   readonly mfaEncryptionKey: string;
 }
@@ -54,6 +57,7 @@ const loadEnv = (env: Record<string, string | undefined>): Env => {
     port: result.data.PORT,
     databaseUrl: result.data.DATABASE_URL,
     emailProvider: result.data.EMAIL_PROVIDER,
+    webAppUrl: result.data.WEB_APP_URL.replace(/\/+$/, ''),
     jwtSecret: result.data.JWT_SECRET,
     mfaEncryptionKey: result.data.MFA_ENCRYPTION_KEY,
   };

@@ -37,6 +37,7 @@ const ptBR = {
     'invitation.not_found': 'Convite não encontrado.',
     'invitation.not_pending': 'Este convite não está mais pendente.',
     'notification.not_found': 'Notificação não encontrada.',
+    'password.current_incorrect': 'Sua senha atual está incorreta.',
     'password.too_short': 'A senha precisa ter pelo menos {min, plural, one {# caractere} other {# caracteres}}.',
     'password_reset.token_invalid': 'Este link de redefinição é inválido ou expirou.',
     'report.unknown_type_or_range': 'Relatório desconhecido ou período inválido.',
