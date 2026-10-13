@@ -2086,6 +2086,35 @@ not a hardcoded assumption.
   `N14`'s row in `docs/planning/01-pd-activity-list.md`. The task's
   design step confirms them.
 
+**Settled in the task's design step (Oct 2026):**
+- **Smoke tests in jsdom.** `apps/web/tests/unit/stories/stories.smoke.test.tsx`
+  renders every story through the real preview (`composeStories`), inside
+  `pnpm check`. It catches a story that still typechecks but throws, for
+  example a missing provider. `@storybook/addon-vitest` (real Chromium)
+  was ruled out as too heavy for now. Axe checks run in the Storybook UI
+  only, with `a11y.test: 'error'`.
+- **Story-only helpers are tooling.** The swatch grid, the icon gallery,
+  the state wrapper for controlled components and `.storybook/`'s
+  decorator are documented but not unit-tested, like config files
+  (OQ-91). They live outside `src/`, so they are outside the coverage
+  gate. The smoke test renders them, and covers each one's single
+  behaviour (icon search, the kept selection).
+- **ESLint:** `eslint-plugin-storybook`'s flat recommended config. Stories
+  and `.storybook/` count as dev-only files, and
+  `react/jsx-props-no-spreading` is off there, because CSF passes args
+  with `{...args}`.
+- **Locale toolbar:** `StoryFrame` gives `I18nProvider` a controller
+  fixed to the toolbar's locale, so the app's saved locale is never
+  touched. Story args are plain example text, so the controls panel
+  can edit them. No catalog keys are added just for stories. Kit
+  components get their text from the caller, already translated, so
+  the toolbar affects the few that translate their own text, plus
+  `lang`.
+- `apps/web/tsconfig.json` lists `.storybook/*.ts(x)` by name, because
+  TypeScript's include wildcards skip dot-folders.
+
+**Task 32 (`N14`) is complete.**
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.
