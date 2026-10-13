@@ -53,8 +53,8 @@ const entryAt = async (db: Database, at: string, householdId: string, action: st
 };
 
 describe('AuditLogAccessor', () => {
-  const entry = (n: number, overrides = {}) => ({
-    id: `0199c5a0-0000-7000-8000-0000000000${String(n).padStart(2, '0')}`,
+  const entry = (sequence: number, overrides = {}) => ({
+    id: `0199c5a0-0000-7000-8000-0000000000${String(sequence).padStart(2, '0')}`,
     actorId: ANA,
     householdId: HOME,
     action: 'CreateBudget',
@@ -75,7 +75,8 @@ describe('AuditLogAccessor', () => {
     await audit.insert(entry(1));
 
     expect(await audit.insert(entry(1, { action: 'Changed' }))).toBe(false);
-    expect((await audit.listForExport(HOME, '2026-10-08', '2026-10-08')).map((e) => e.action))
+    const exported = await audit.listForExport(HOME, '2026-10-08', '2026-10-08');
+    expect(exported.map((logged) => logged.action))
       .toEqual(['CreateBudget']);
   }));
 
@@ -110,7 +111,8 @@ describe('AuditLogAccessor', () => {
 
       const entries = await audit.listForExport(HOME, '2026-10-08', '2026-10-08');
 
-      expect(entries.map((e) => e.action)).toEqual(['start of the 8th', 'end of the 8th']);
+      expect(entries.map((logged) => logged.action))
+        .toEqual(['start of the 8th', 'end of the 8th']);
     }));
 
     it('only returns the requested household, oldest first', test(async (audit, db) => {
@@ -120,7 +122,7 @@ describe('AuditLogAccessor', () => {
 
       const entries = await audit.listForExport(HOME, '2026-10-01', '2026-10-31');
 
-      expect(entries.map((e) => e.action)).toEqual(['first', 'second']);
+      expect(entries.map((logged) => logged.action)).toEqual(['first', 'second']);
     }));
 
     it('returns nothing for an empty or inverted range', test(async (audit, db) => {

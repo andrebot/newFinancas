@@ -25,19 +25,19 @@ const foreignKeys = (): Record<string, string> => Object.fromEntries(configs.fla
  * @param name - Table name.
  * @returns The table configuration.
  */
-const config = (name: string) => configs.find((c) => c.name === name)!;
+const config = (name: string) => configs.find((tableConfig) => tableConfig.name === name)!;
 
 describe('database schema (02-data-model.md)', () => {
-  it('defines the 26 v1 tables', () => {
-    expect(configs).toHaveLength(26);
-    expect(configs.map((c) => c.name)).not.toContain('dashboard_widgets');
+  it('defines the 27 v1 tables', () => {
+    expect(configs).toHaveLength(27);
+    expect(configs.map((tableConfig) => tableConfig.name)).not.toContain('dashboard_widgets');
   });
 
   it('gives every table a uuid primary key named id', () => {
-    configs.forEach((c) => {
-      const id = c.columns.find((column) => column.name === 'id');
-      expect(id?.primary, c.name).toBe(true);
-      expect(id?.getSQLType(), c.name).toBe('uuid');
+    configs.forEach((tableConfig) => {
+      const id = tableConfig.columns.find((column) => column.name === 'id');
+      expect(id?.primary, tableConfig.name).toBe(true);
+      expect(id?.getSQLType(), tableConfig.name).toBe('uuid');
     });
   });
 
@@ -100,7 +100,8 @@ describe('database schema (02-data-model.md)', () => {
     expect(actorColumns).toHaveLength(6);
     actorColumns.forEach((key) => {
       const [table, column] = key.split('.');
-      expect(config(table!).columns.find((c) => c.name === column)?.notNull, key).toBe(false);
+      const nullable = config(table!).columns.find((candidate) => candidate.name === column);
+      expect(nullable?.notNull, key).toBe(false);
     });
   });
 
@@ -109,7 +110,7 @@ describe('database schema (02-data-model.md)', () => {
   });
 
   it('declares the uniqueness the data model requires', () => {
-    const uniqueIndexes = configs.flatMap((c) => c.indexes
+    const uniqueIndexes = configs.flatMap((tableConfig) => tableConfig.indexes
       .filter((index) => index.config.unique)
       .map((index) => index.config.name));
 

@@ -175,6 +175,40 @@ describe('UserAccessor', () => {
     }));
   });
 
+  describe('login lockout counter (OQ-114)', () => {
+    const KEY = 'ana@example.com';
+
+    it('counts failures within the window and forgets older ones', test(async (users) => {
+      expect(await users.recordLoginFailure(KEY, NOW, later(-15))).toBe(1);
+      expect(await users.recordLoginFailure(KEY, later(5), later(-10))).toBe(2);
+      expect(await users.recordLoginFailure(KEY, later(10), later(-5))).toBe(3);
+
+      // The window began at NOW; a failure whose window starts after it begins again.
+      expect(await users.recordLoginFailure(KEY, later(20), later(1))).toBe(1);
+      expect(await users.recordLoginFailure(KEY, later(21), later(6))).toBe(2);
+    }));
+
+    it('keeps each address separate, whether or not it has an account', test(async (users) => {
+      await users.recordLoginFailure(KEY, NOW, later(-15));
+
+      expect(await users.recordLoginFailure('nobody@example.com', NOW, later(-15))).toBe(1);
+      expect(await users.recordLoginFailure(KEY, NOW, later(-15))).toBe(2);
+    }));
+
+    it('locks an address, and a success clears the count and the lock', test(async (users) => {
+      expect(await users.findLoginLock(KEY)).toBeUndefined();
+      await users.recordLoginFailure(KEY, NOW, later(-15));
+
+      expect(await users.findLoginLock(KEY)).toBeUndefined();
+      await users.lockLogin(KEY, later(15));
+      expect(await users.findLoginLock(KEY)).toEqual(later(15));
+
+      await users.clearLoginFailures(KEY);
+      expect(await users.findLoginLock(KEY)).toBeUndefined();
+      expect(await users.recordLoginFailure(KEY, NOW, later(-15))).toBe(1);
+    }));
+  });
+
   describe('delete', () => {
     it('removes the user and their credentials', test(async (users) => {
       const id = await registerAna(users);

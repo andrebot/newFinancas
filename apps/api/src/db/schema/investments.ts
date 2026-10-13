@@ -27,16 +27,16 @@ export const investmentHoldings = pgTable('investment_holdings', {
   archivedBy: text('archived_by'),
   maturedNotifiedAt: instant('matured_notified_at'),
   createdAt: createdAt(),
-}, (t) => [
-  check('investment_holdings_rate_type_check', isOneOf(t.rateType, RATE_TYPES)),
+}, (table) => [
+  check('investment_holdings_rate_type_check', isOneOf(table.rateType, RATE_TYPES)),
   check(
     'investment_holdings_rate_pair_check',
-    sql`(${t.rateType} IS NULL) = (${t.rateValue} IS NULL)`,
+    sql`(${table.rateType} IS NULL) = (${table.rateValue} IS NULL)`,
   ),
-  check('investment_holdings_archived_by_check', isOneOf(t.archivedBy, ARCHIVED_BY)),
+  check('investment_holdings_archived_by_check', isOneOf(table.archivedBy, ARCHIVED_BY)),
   check(
     'investment_holdings_archive_pair_check',
-    sql`(${t.archivedAt} IS NULL) = (${t.archivedBy} IS NULL)`,
+    sql`(${table.archivedAt} IS NULL) = (${table.archivedBy} IS NULL)`,
   ),
 ]);
 
@@ -48,9 +48,9 @@ export const investmentScheduleEntries = pgTable('investment_schedule_entries', 
   date: date('date').notNull(),
   postedAt: instant('posted_at'),
   createdAt: createdAt(),
-}, (t) => [
-  uniqueIndex('investment_schedule_entries_event_key').on(t.holdingId, t.date, t.kind),
-  check('investment_schedule_entries_amount_check', sql`${t.amount} > 0`),
+}, (table) => [
+  uniqueIndex('investment_schedule_entries_event_key').on(table.holdingId, table.date, table.kind),
+  check('investment_schedule_entries_amount_check', sql`${table.amount} > 0`),
 ]);
 
 export const indexRateValues = pgTable('index_rate_values', {
@@ -61,8 +61,8 @@ export const indexRateValues = pgTable('index_rate_values', {
   asOfDate: date('as_of_date').notNull(),
   createdByUserId: uuid('created_by_user_id').references(() => users.id),
   createdAt: createdAt(),
-}, (t) => [
-  uniqueIndex('index_rate_values_day_key').on(t.householdId, t.indexCode, t.asOfDate),
+}, (table) => [
+  uniqueIndex('index_rate_values_day_key').on(table.householdId, table.indexCode, table.asOfDate),
 ]);
 
 export const goals = pgTable('goals', {
@@ -77,9 +77,9 @@ export const goals = pgTable('goals', {
   // The one reversible lifecycle flag (FR-8.8/8.9, OQ-78).
   completedAt: instant('completed_at'),
   createdAt: createdAt(),
-}, (t) => [
-  check('goals_visibility_check', isOneOf(t.visibility, VISIBILITIES)),
-  check('goals_currency_check', sql`${t.targetCurrency} ~ '^[A-Z]{3}$'`),
+}, (table) => [
+  check('goals_visibility_check', isOneOf(table.visibility, VISIBILITIES)),
+  check('goals_currency_check', sql`${table.targetCurrency} ~ '^[A-Z]{3}$'`),
 ]);
 
 export const goalAllocations = pgTable('goal_allocations', {
@@ -89,7 +89,7 @@ export const goalAllocations = pgTable('goal_allocations', {
   // Whole percent, 1–100 (OQ-87); the per-holding 100% cap is application-level.
   percentage: smallint('percentage').notNull(),
   createdAt: createdAt(),
-}, (t) => [
-  uniqueIndex('goal_allocations_pair_key').on(t.holdingId, t.goalId),
-  check('goal_allocations_percentage_check', sql`${t.percentage} BETWEEN 1 AND 100`),
+}, (table) => [
+  uniqueIndex('goal_allocations_pair_key').on(table.holdingId, table.goalId),
+  check('goal_allocations_percentage_check', sql`${table.percentage} BETWEEN 1 AND 100`),
 ]);

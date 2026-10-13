@@ -75,6 +75,9 @@ export default [
     rules: {
       complexity: ['error', 7],
       'max-params': ['error', 7],
+      // Names say what a value is — no `c`, `t`, `n` (stakeholder, Oct 2026).
+      // `_` marks a parameter that is deliberately unused.
+      'id-length': ['error', { min: 2, properties: 'never', exceptions: ['_'] }],
       'no-restricted-syntax': [
         'error',
         { selector: 'ClassDeclaration', message: NO_CLASSES },

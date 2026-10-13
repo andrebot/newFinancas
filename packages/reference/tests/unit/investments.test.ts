@@ -5,8 +5,8 @@ import {
 
 describe('ASSET_TYPES (OQ-79)', () => {
   it('has 8 market-priced and 11 fixed-term types', () => {
-    expect(ASSET_TYPES.filter((t) => t.pricing === 'market')).toHaveLength(8);
-    expect(ASSET_TYPES.filter((t) => t.pricing === 'fixed_term')).toHaveLength(11);
+    expect(ASSET_TYPES.filter((assetType) => assetType.pricing === 'market')).toHaveLength(8);
+    expect(ASSET_TYPES.filter((assetType) => assetType.pricing === 'fixed_term')).toHaveLength(11);
   });
 
   it('gives every fixed-term type a market, and no market-priced one', () => {

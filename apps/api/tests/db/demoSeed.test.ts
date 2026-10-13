@@ -12,6 +12,8 @@ const TABLES = [
   'credit_cards', 'account_month_balances', 'credit_card_month_balances', 'index_rate_values',
 ];
 
+const CREDENTIALS = { passwordHash: '$argon2id$demo', encryptedMfaSecret: 'v1.sealed' };
+
 let database: PGlite;
 
 /**
@@ -40,7 +42,7 @@ afterAll(async () => {
 
 describe('applyDemoSeed (PGlite, as the application role)', () => {
   it('inserts the demo household, and inserts nothing new when run again', async () => {
-    const seed = buildDemoSeed(new Date('2026-10-08T12:00:00Z'));
+    const seed = buildDemoSeed(new Date('2026-10-08T12:00:00Z'), CREDENTIALS);
 
     await applyDemoSeed(drizzle(database), seed);
     const first = await rowCounts();
@@ -59,5 +61,18 @@ describe('applyDemoSeed (PGlite, as the application role)', () => {
       index_rate_values: 4,
     });
     expect(await rowCounts()).toEqual(first);
+  });
+
+  it('refreshes the demo users\' credentials on a rerun, changing nothing else', async () => {
+    const fresh = { passwordHash: '$argon2id$new', encryptedMfaSecret: 'v1.resealed' };
+    const before = await rowCounts();
+
+    await applyDemoSeed(drizzle(database), buildDemoSeed(new Date('2026-10-09T12:00:00Z'), fresh));
+
+    const { rows } = await database.query<{ password_hash: string; mfa_secret: string }>(
+      'SELECT DISTINCT password_hash, mfa_secret FROM users',
+    );
+    expect(rows).toEqual([{ password_hash: '$argon2id$new', mfa_secret: 'v1.resealed' }]);
+    expect(await rowCounts()).toEqual(before);
   });
 });

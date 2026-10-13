@@ -21,6 +21,8 @@ export interface ApiErrorInit {
   readonly message: string;
   readonly params?: Record<string, unknown>;
   readonly details?: readonly FieldDetail[];
+  /** Extra response headers, e.g. `Retry-After` on a 429. */
+  readonly headers?: Readonly<Record<string, string>>;
 }
 
 /** A throwable error that the error handler renders as the API error envelope. */

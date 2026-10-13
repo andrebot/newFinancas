@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
 import {
-  check, pgTable, text, uniqueIndex, uuid,
+  check, integer, pgTable, text, uniqueIndex, uuid,
 } from 'drizzle-orm/pg-core';
 import {
   CASCADE, createdAt, id, instant, isOneOf,
@@ -23,11 +23,11 @@ export const users = pgTable('users', {
   // Platform role, not a household role (OQ-111).
   systemRole: text('system_role').notNull().default('USER'),
   createdAt: createdAt(),
-}, (t) => [
-  uniqueIndex('users_email_key').on(sql`lower(${t.email})`),
-  check('users_theme_check', isOneOf(t.theme, THEMES)),
-  check('users_language_check', isOneOf(t.language, LANGUAGES)),
-  check('users_system_role_check', isOneOf(t.systemRole, SYSTEM_ROLES)),
+}, (table) => [
+  uniqueIndex('users_email_key').on(sql`lower(${table.email})`),
+  check('users_theme_check', isOneOf(table.theme, THEMES)),
+  check('users_language_check', isOneOf(table.language, LANGUAGES)),
+  check('users_system_role_check', isOneOf(table.systemRole, SYSTEM_ROLES)),
 ]);
 
 export const passwordResetTokens = pgTable('password_reset_tokens', {
@@ -38,6 +38,22 @@ export const passwordResetTokens = pgTable('password_reset_tokens', {
   usedAt: instant('used_at'),
   createdAt: createdAt(),
 });
+
+// Failed sign-ins per email address, for the login lockout (OQ-114). Keyed by the
+// address, not the user, and deliberately not linked to `users`: an address with
+// no account locks exactly like a real one, so a lockout never confirms that an
+// email is registered.
+export const loginAttempts = pgTable('login_attempts', {
+  id: id(),
+  // The email as typed, trimmed and lower-cased.
+  emailKey: text('email_key').notNull().unique(),
+  failedCount: integer('failed_count').notNull(),
+  // Start of the counting window; failures before it are forgotten.
+  windowStartedAt: instant('window_started_at').notNull(),
+  lockedUntil: instant('locked_until'),
+}, (table) => [
+  check('login_attempts_failed_count_check', sql`${table.failedCount} >= 0`),
+]);
 
 export const mfaRecoveryCodes = pgTable('mfa_recovery_codes', {
   id: id(),
@@ -71,12 +87,12 @@ export const householdMemberships = pgTable('household_memberships', {
   userId: uuid('user_id').notNull().references(() => users.id, CASCADE),
   role: text('role').notNull(),
   joinedAt: instant('joined_at').notNull().defaultNow(),
-}, (t) => [
-  uniqueIndex('household_memberships_member_key').on(t.householdId, t.userId),
+}, (table) => [
+  uniqueIndex('household_memberships_member_key').on(table.householdId, table.userId),
   // Exactly one Owner per household (OQ-28): makes ownership transfer atomic.
-  uniqueIndex('household_memberships_one_owner_key').on(t.householdId)
-    .where(sql`${t.role} = 'Owner'`),
-  check('household_memberships_role_check', isOneOf(t.role, ROLES)),
+  uniqueIndex('household_memberships_one_owner_key').on(table.householdId)
+    .where(sql`${table.role} = 'Owner'`),
+  check('household_memberships_role_check', isOneOf(table.role, ROLES)),
 ]);
 
 export const invitations = pgTable('invitations', {
@@ -90,7 +106,7 @@ export const invitations = pgTable('invitations', {
   status: text('status').notNull().default('pending'),
   createdAt: createdAt(),
   resolvedAt: instant('resolved_at'),
-}, (t) => [
-  check('invitations_role_check', isOneOf(t.role, INVITABLE_ROLES)),
-  check('invitations_status_check', isOneOf(t.status, INVITATION_STATUSES)),
+}, (table) => [
+  check('invitations_role_check', isOneOf(table.role, INVITABLE_ROLES)),
+  check('invitations_status_check', isOneOf(table.status, INVITATION_STATUSES)),
 ]);

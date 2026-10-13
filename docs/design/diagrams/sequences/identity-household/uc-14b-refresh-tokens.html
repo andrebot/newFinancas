@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Sequence — Refresh Tokens — New Finance App</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2236;
+    --panel-border: #2f3b56;
+    --text: #eef1f8;
+    --muted: #9aa4bb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px 0; }
+  p.subtitle { margin: 0 0 16px 0; color: var(--muted); font-size: 14px; max-width: 980px; line-height: 1.6; }
+  .diagram-card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 20px;
+    overflow-x: auto;
+    max-width: 100%;
+  }
+  .notes {
+    max-width: 980px;
+    margin: 16px 0 0 0;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.65;
+  }
+  .notes code { color: var(--text); }
+  .notes ul { padding-left: 20px; }
+  .notes li { margin-bottom: 6px; }
+  a { color: #7db4f0; }
+  .route {
+    display: inline-block;
+    background: #1f2b45;
+    border: 1px solid #3a4a70;
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    color: #a9c6f5;
+  }
+</style>
+</head>
+<body>
+  <h1>Refresh Tokens</h1>
+  <p class="subtitle"><span class="route">POST /auth/refresh</span> &mdash; OQ-30/OQ-100/OQ-106. Exchanges a refresh token for a new pair; each refresh token works once. Part of staying signed in after Login (UC-14).</p>
+  <div class="diagram-card">
+    <pre class="mermaid">
+sequenceDiagram
+    actor User
+    participant API as Hono route
+    participant IM as IdentityManager
+    participant AN as AuthenticationUtility
+    participant SA as SessionAccessor
+    participant UA as UserAccessor
+    participant LOG as LoggingUtility
+
+    User->>API: POST /auth/refresh {refreshToken}
+    API->>IM: refresh(refreshToken)
+    IM->>AN: hashOpaqueToken(refreshToken)
+    AN-->>IM: presentedHash
+    IM->>AN: issueOpaqueToken()
+    AN-->>IM: {token, tokenHash}
+    IM->>SA: rotate(presentedHash, tokenHash, expiresAt = now + 30 days, now)
+    Note over SA: guarded: applies only while presentedHash is the session&#39;s<br/>current, unexpired token, and remembers it as the previous one
+    alt rotated
+        SA-->>IM: session
+        IM->>UA: findById(session.userId)
+        UA-->>IM: user (systemRole)
+        IM->>AN: signAccessToken({userId, sessionId, systemRole})
+        AN-->>IM: accessToken
+        IM-->>API: {accessToken, refreshToken = token}
+        API-->>User: 200 OK
+    else stale
+        SA-->>IM: stale
+        IM->>SA: findByReplacedToken(presentedHash)
+        alt it was already used &mdash; a replay, likely a stolen token
+            SA-->>IM: {sessionId, userId}
+            IM->>SA: deleteForUser(userId, sessionId)
+            Note over IM: ends that session only &mdash; the user&#39;s other devices stay signed in
+            SA-->>IM: deleted
+            IM-->>LOG: log.warn("Refresh token replayed &mdash; session ended")
+        else unknown, expired or revoked
+            SA-->>IM: none
+        end
+        IM-->>API: Unauthorized
+        API-->>User: 401 auth.refresh_invalid
+    end
+    </pre>
+  </div>
+  <div class="notes">
+    <ul>
+      <li><strong>Rotation:</strong> every refresh issues a new refresh token (30-day sliding expiry) and consumes the old one, so each works once (OQ-100).</li>
+      <li><strong>Replay ends that session only</strong> (stakeholder decision, Oct 2026): whoever holds the old token &mdash; thief or victim &mdash; must sign in again on that device; other devices are untouched, and an attacker replaying an old token can&#39;t sign the user out everywhere.</li>
+      <li>The system role comes from the user record at each refresh, so a role change takes effect within one access-token lifetime (OQ-111).</li>
+      <li>No access token needed &mdash; this is how a client gets one back after it expires.</li>
+    </ul>
+  </div>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      securityLevel: 'loose'
+    });
+  </script>
+</body>
+</html>

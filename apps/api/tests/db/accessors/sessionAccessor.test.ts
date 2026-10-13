@@ -16,7 +16,7 @@ afterAll(async () => {
 });
 
 const NOW = new Date('2026-10-08T12:00:00Z');
-const days = (n: number) => new Date(NOW.getTime() + n * 86_400_000);
+const days = (count: number) => new Date(NOW.getTime() + count * 86_400_000);
 const hash = (char: string) => char.repeat(64);
 
 type Sessions = ReturnType<typeof createSessionAccessor>;
@@ -124,7 +124,7 @@ describe('SessionAccessor', () => {
 
     const listed = await sessions.listByUser(ana, days(3));
 
-    expect(listed.map((s) => s.id)).toEqual([recent.id, older.id]);
+    expect(listed.map((session) => session.id)).toEqual([recent.id, older.id]);
   }));
 
   describe('ending sessions', () => {
@@ -145,7 +145,8 @@ describe('SessionAccessor', () => {
       await sessions.insert(bia, hash('d'), null, days(30), NOW);
 
       expect(await sessions.deleteAllExceptCurrent(ana, current.id)).toBe(2);
-      expect((await sessions.listByUser(ana, NOW)).map((s) => s.id)).toEqual([current.id]);
+      const remaining = await sessions.listByUser(ana, NOW);
+      expect(remaining.map((session) => session.id)).toEqual([current.id]);
       expect(await sessions.listByUser(bia, NOW)).toHaveLength(1);
     }));
 

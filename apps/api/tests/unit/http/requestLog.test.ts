@@ -12,9 +12,9 @@ describe('request logger (NFR-OBS-1)', () => {
     app.onError(createErrorHandler(() => {}));
     app.use(correlationIdMiddleware);
     app.use(createRequestLogger(() => clock));
-    app.get('/slow', (c) => {
+    app.get('/slow', (httpContext) => {
       clock += 42;
-      return c.json({});
+      return httpContext.json({});
     });
     app.get('/boom', () => {
       throw new Error('x');
@@ -40,7 +40,7 @@ describe('request logger (NFR-OBS-1)', () => {
   it('uses the real clock by default', async () => {
     const app = new Hono<AppEnv>();
     app.use(createRequestLogger());
-    app.get('/', (c) => c.text('ok'));
+    app.get('/', (httpContext) => httpContext.text('ok'));
     const logs = captureLogs();
 
     await app.request('/');

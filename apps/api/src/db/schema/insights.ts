@@ -17,8 +17,8 @@ export const notifications = pgTable('notifications', {
   params: jsonb('params').notNull().default({}),
   seenAt: instant('seen_at'),
   createdAt: createdAt(),
-}, (t) => [
-  index('notifications_inbox_idx').on(t.userId, t.seenAt),
+}, (table) => [
+  index('notifications_inbox_idx').on(table.userId, table.seenAt),
 ]);
 
 // Append-only (NFR-AUD-1): the application role may only SELECT and INSERT
@@ -31,6 +31,6 @@ export const auditLogEntries = pgTable('audit_log_entries', {
   entityType: text('entity_type').notNull(),
   entityId: uuid('entity_id').notNull(),
   createdAt: createdAt(),
-}, (t) => [
-  index('audit_log_entries_export_idx').on(t.householdId, t.createdAt),
+}, (table) => [
+  index('audit_log_entries_export_idx').on(table.householdId, table.createdAt),
 ]);

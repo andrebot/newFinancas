@@ -85,8 +85,9 @@ describe('NotificationInboxAccessor', () => {
     const first = await inbox.listByUser(ana);
     const again = await inbox.listByUser(ana);
 
-    expect(first.map((n) => n.type)).toEqual(['invitation.received', 'holding.matured']);
-    expect(again.every((n) => n.seenAt === null)).toBe(true);
+    expect(first.map((notification) => notification.type))
+      .toEqual(['invitation.received', 'holding.matured']);
+    expect(again.every((notification) => notification.seenAt === null)).toBe(true);
   }));
 
   it('lists an unknown type, for the app\'s fallback', test(async (inbox, { ana }, db) => {
@@ -102,7 +103,8 @@ describe('NotificationInboxAccessor', () => {
 
       expect(await inbox.markSeen(ana, [shown.id], NOW)).toBe(1);
 
-      const byId = new Map((await inbox.listByUser(ana)).map((n) => [n.id, n.seenAt]));
+      const listed = await inbox.listByUser(ana);
+      const byId = new Map(listed.map((notification) => [notification.id, notification.seenAt]));
       expect(byId.get(shown.id)).toEqual(NOW);
       expect(byId.get(arrivedLater.id)).toBeNull();
     }));

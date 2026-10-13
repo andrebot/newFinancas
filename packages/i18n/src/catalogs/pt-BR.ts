@@ -24,6 +24,8 @@ const ptBR = {
     'auth.invalid_credentials': 'E-mail ou senha inválidos.',
     'auth.refresh_invalid': 'Sua sessão expirou. Entre novamente.',
     'auth.mfa_invalid': 'Código de verificação inválido.',
+    'auth.unauthenticated': 'Entre para continuar.',
+    'auth.too_many_attempts': 'Muitas tentativas de entrar. Tente de novo em {retryAfterMinutes, plural, one {# minuto} other {# minutos}}.',
     'budget.target_already_claimed': 'Esta categoria já pertence a outro orçamento.',
     'goal.allocation_exceeds_100': 'Este investimento já tem {current, number}% alocado; adicionar {requested, number}% passaria de 100%.',
     'household.changed': 'Os membros desta casa mudaram enquanto você editava. Tente novamente.',
@@ -41,6 +43,7 @@ const ptBR = {
     'session.not_found': 'Sessão não encontrada.',
     'snapshot.automatic_not_editable': 'Valores registrados automaticamente não podem ser editados.',
     'transaction.investment_not_allowed_on_account': 'Esta conta não aceita transações de investimento.',
+    'user.email_taken': 'Já existe uma conta com este e-mail.',
   },
   fields: {
     'field.required': 'Campo obrigatório.',

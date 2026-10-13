@@ -23,11 +23,11 @@ const valuationSnapshots = pgTable('valuation_snapshots', {
   accountTransactionId: uuid('account_transaction_id').unique()
     .references(() => accountTransactions.id, CASCADE),
   createdAt: createdAt(),
-}, (t) => [
-  check('valuation_snapshots_source_check', isOneOf(t.source, SNAPSHOT_SOURCES)),
+}, (table) => [
+  check('valuation_snapshots_source_check', isOneOf(table.source, SNAPSHOT_SOURCES)),
   check(
     'valuation_snapshots_source_link_check',
-    sql`(${t.source} = 'transaction') = (${t.accountTransactionId} IS NOT NULL)`,
+    sql`(${table.source} = 'transaction') = (${table.accountTransactionId} IS NOT NULL)`,
   ),
 ]);
 

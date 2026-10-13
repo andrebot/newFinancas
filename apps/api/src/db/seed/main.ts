@@ -4,16 +4,30 @@
 import { createLogger, logger } from '@financas/logging';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
+import { demoSeed } from '../../config/constants';
 import loadEnv from '../../config/env';
+import { createAuthenticationUtility } from '../../utilities/authentication';
 import { newCorrelationId } from '../../utilities/correlationId';
 import applyDemoSeed from './applyDemoSeed';
 import { buildDemoSeed } from './demoSeed';
 
-const pool = new pg.Pool({ connectionString: loadEnv(process.env).databaseUrl });
+const env = loadEnv(process.env);
+const pool = new pg.Pool({ connectionString: env.databaseUrl });
+const authentication = createAuthenticationUtility({
+  jwtSecret: env.jwtSecret, mfaEncryptionKey: env.mfaEncryptionKey,
+});
 const log = createLogger({ label: 'seed', correlationId: newCorrelationId(), actor: 'system' });
 
-applyDemoSeed(drizzle(pool), buildDemoSeed(new Date()))
-  .then(() => log.info('Demo household seeded', { users: 'ana@ / ben@demo.financas.local' }))
+authentication.hashPassword(demoSeed.password)
+  .then((passwordHash) => applyDemoSeed(drizzle(pool), buildDemoSeed(new Date(), {
+    passwordHash, encryptedMfaSecret: authentication.sealMfaSecret(demoSeed.totpSecret),
+  })))
+  .then(() => log.info(
+    'Demo household seeded. Sign in as ana@ or ben@demo.financas.local, '
+      + `password ${demoSeed.password}; TOTP secret ${demoSeed.totpSecret} `
+      + '(add it to an authenticator app)',
+    { consoleOnly: true },
+  ))
   .catch((error: unknown) => {
     log.error('Demo seed failed', { error: String(error) });
     process.exitCode = 1;

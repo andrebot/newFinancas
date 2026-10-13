@@ -64,6 +64,16 @@ export const createAuthenticationUtility = (
       return { ...enrolment, encryptedSecret };
     },
     /**
+     * Encrypts a known TOTP secret for storage — for fixed dev credentials (the
+     * demo seed); real users get theirs from `enrollMfa`.
+     *
+     * @param secret - Base32 TOTP secret.
+     * @returns The sealed secret, as `enrollMfa`'s `encryptedSecret`.
+     */
+    sealMfaSecret: (secret: string): string => (
+      sealSecret(encryptionKey, secret, deps.randomBytes(IV_BYTES))
+    ),
+    /**
      * Checks a TOTP code against a stored (encrypted) secret. A secret that won't
      * decrypt means a configuration error and throws, rather than failing quietly.
      *

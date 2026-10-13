@@ -1540,6 +1540,59 @@ OQ-112:** `NotificationDeliveryUtility` was misclassified.
   shows the pre-OQ-110 `logActivity`/`recordAudit` calls (left for a
   separate pass).
 
+### OQ-114: Sign-in — lockout, refresh-token replay, Manager error convention (task M1, PR 1)
+**Confirmed with the stakeholder (Oct 2026):**
+- **M1 ships as five PRs** (one task, ticked when the last merges):
+  1. request authentication + register, login, refresh, logout, sessions;
+  2. change/reset password + MFA recovery; 3. profile + list my households
+  and invitations; 4. households and members; 5. invitations.
+- **Login lockout, now.** 5 failures within 15 minutes lock the **email
+  address** for 15 minutes; a success clears it (`config/constants.ts`).
+  - Counted per address in a new `login_attempts` table, not on the user,
+    so an address with no account locks like a real one: a 429
+    `auth.too_many_attempts` (with `Retry-After`) never confirms that an
+    email is registered.
+  - **Owned by `UserAccessor`** (credentials and their protections), not a
+    new Accessor — the stakeholder preferred it once the existing
+    Accessors were laid out. IdentityManager decides the threshold, window
+    and lock length; the Accessor counts atomically, locks and clears.
+  - Every login failure — unknown email, wrong password, wrong MFA code —
+    answers the same 401 `auth.invalid_credentials`, and an unknown email
+    still costs one password check, so neither the code nor the timing
+    reveals which factor failed. (The old Login sequence showed
+    `auth.mfa_invalid` for a wrong code; corrected.)
+- **A replayed refresh token ends that session only** — the user's other
+  devices stay signed in; an attacker replaying an old token can't sign
+  the user out everywhere (matches the contract).
+- **Demo users get real dev credentials:** `pnpm db:seed:demo` gives Ana
+  and Ben the password and TOTP secret in `config/constants.ts`
+  (`demoSeed`), shown once in the seed's terminal output; a rerun
+  refreshes them.
+
+**Design decisions (PR 1):**
+- **Request authentication:** `requireSystemRole(verify, 'USER')` on every
+  protected route — no or invalid bearer token → 401
+  `auth.unauthenticated`; missing system role → 403 `auth.forbidden`
+  (OQ-111). The verified claims are the request's actor, and the request
+  log now names it.
+- **A Manager rejects by throwing the contract's error (code + status).**
+  First Manager, so this sets the convention: choosing 401 vs 404 vs 409 is
+  part of the use case's security decisions (enumeration avoidance, one
+  answer for every login failure). Accessors keep returning typed results
+  (OQ-103). Errors may carry headers (`Retry-After`).
+- **Registration:** a password under 12 characters is the Manager's
+  `password.too_short` (BDT plan), not a generic validation error; a taken
+  email is 409 `user.email_taken`. The contract gained
+  `auth.unauthenticated`, `auth.too_many_attempts` (+ the 429 response) and
+  `user.email_taken`, in both catalogs.
+- **Diagrams:** Login redrawn and a new Refresh Tokens sequence
+  (`uc-14b`); the Login call chain via `gen_login_lockout_oct2026.py`.
+- **Known limit (by design, OQ-30):** an access token stays valid until it
+  expires (≤ 15 minutes) even after logout or revocation; only the refresh
+  token is server-side.
+- **Follow-up:** rows for addresses that never sign in successfully stay
+  in `login_attempts`; purge old ones before any hosting.
+
 ## Refined (resolved, with a follow-up still open)
 
 *(OQ-4's legal-review follow-up below is closed for v1 by OQ-89.)*

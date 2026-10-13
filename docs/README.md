@@ -407,7 +407,7 @@ inactive given this session's own earlier decisions, so the inbox
 mechanism exists and is ready, but nothing writes to it yet.
 
 **Full ERD diagram: done** — `docs/design/diagrams/04-database-erd.html`, one panel
-per domain (26 tables total) rather than one giant interconnected graph,
+per domain (27 tables total — `login_attempts` added by OQ-114) rather than one giant interconnected graph,
 using mermaid's `erDiagram` since none of the project's 5 Harmonic
 Diagrams types cover an entity-relationship diagram (confirmed via the
 `harmonic-diagrams` skill before building it). Cross-domain tables appear

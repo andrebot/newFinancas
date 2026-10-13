@@ -21,8 +21,12 @@ const VALID_GOAL = {
 const buildApp = () => {
   const app = new Hono<AppEnv>();
   app.onError(createErrorHandler(() => {}));
-  app.post('/goals', validate('json', zGoalCreateRequest), (c) => c.json(c.req.valid('json')));
-  app.get('/accounts', validate('query', zListAccountsQuery), (c) => c.json(c.req.valid('query')));
+  app.post('/goals', validate('json', zGoalCreateRequest), (httpContext) => (
+    httpContext.json(httpContext.req.valid('json'))
+  ));
+  app.get('/accounts', validate('query', zListAccountsQuery), (httpContext) => (
+    httpContext.json(httpContext.req.valid('query'))
+  ));
   return app;
 };
 

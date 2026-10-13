@@ -47,7 +47,9 @@ describe.each(SUPPORTED_LOCALES)('catalog %s', (locale) => {
   const catalog = catalogs[locale];
 
   it('has exactly the sections and keys of the primary (pt-BR) catalog', () => {
-    const keysOf = (c: Catalog) => entriesOf(c).map(([section, key]) => `${section}:${key}`).sort();
+    const keysOf = (localeCatalog: Catalog) => (
+      entriesOf(localeCatalog).map(([section, key]) => `${section}:${key}`).sort()
+    );
 
     expect(keysOf(catalog)).toEqual(keysOf(primary));
   });

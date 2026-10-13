@@ -18,20 +18,20 @@ export interface DemoSeed {
   readonly indexRates: (typeof indexRateValues.$inferInsert)[];
 }
 
-/**
- * Credentials that can never verify. Demo users can log in once U4 (password
- * hashing + MFA) sets real ones; until then the rows only exist for data.
- */
-export const UNUSABLE_SECRET = 'demo:unusable';
+/** The demo users' stored credentials: the hash and the sealed TOTP secret. */
+export interface DemoCredentials {
+  readonly passwordHash: string;
+  readonly encryptedMfaSecret: string;
+}
 
 /**
  * A fixed id for demo row `n`, so re-running the seed inserts nothing new.
  *
- * @param n - Row number, unique across the demo seed.
+ * @param rowNumber - Row number, unique across the demo seed.
  * @returns A version-7-shaped UUID.
  */
-export const demoId = (n: number): string => (
-  `0d3e0000-0000-7000-8000-${String(n).padStart(12, '0')}`
+export const demoId = (rowNumber: number): string => (
+  `0d3e0000-0000-7000-8000-${String(rowNumber).padStart(12, '0')}`
 );
 
 const ANA = demoId(1);
@@ -52,12 +52,13 @@ const OPENING_BALANCES: Record<string, number> = {
 };
 
 /**
- * A demo user with unusable credentials.
+ * A demo user signing in with the shared dev credentials.
  *
  * @param id - Fixed id.
  * @param firstName - First name; the email is derived from it.
  * @param language - UI language.
  * @param theme - UI theme.
+ * @param credentials - The stored dev credentials.
  * @returns The user row.
  */
 const demoUser = (
@@ -65,6 +66,7 @@ const demoUser = (
   firstName: string,
   language: string,
   theme: string,
+  credentials: DemoCredentials,
 ): DemoSeed['users'][number] => ({
   id,
   email: `${firstName.toLowerCase()}@demo.financas.local`,
@@ -72,8 +74,8 @@ const demoUser = (
   lastName: 'Demo',
   language,
   theme,
-  passwordHash: UNUSABLE_SECRET,
-  mfaSecret: UNUSABLE_SECRET,
+  passwordHash: credentials.passwordHash,
+  mfaSecret: credentials.encryptedMfaSecret,
 });
 
 /**
@@ -131,15 +133,19 @@ const INDEX_RATES: readonly [string, number][] = [
  * current month, a credit card, and index rates. Later slices extend it.
  *
  * @param today - The seeding date; month balances and index rates use it.
+ * @param credentials - The dev credentials both users sign in with.
  * @returns Every row, with fixed ids.
  */
-export const buildDemoSeed = (today: Date): DemoSeed => {
+export const buildDemoSeed = (today: Date, credentials: DemoCredentials): DemoSeed => {
   const year = today.getUTCFullYear();
   const month = today.getUTCMonth() + 1;
   const asOfDate = today.toISOString().slice(0, 10);
 
   return {
-    users: [demoUser(ANA, 'Ana', 'pt-BR', 'dark'), demoUser(BEN, 'Ben', 'en-US', 'light')],
+    users: [
+      demoUser(ANA, 'Ana', 'pt-BR', 'dark', credentials),
+      demoUser(BEN, 'Ben', 'en-US', 'light', credentials),
+    ],
     households: [{ id: HOUSEHOLD, name: 'Casa Demo' }],
     memberships: [
       {

@@ -41,6 +41,19 @@ export const authentication = {
     /** 80 bits → 16 Crockford base32 characters. */
     bytes: 10,
   },
+  /** FR-1.1: the shortest password accepted (register, change, reset). */
+  password: {
+    minLength: 12,
+  },
+  /**
+   * Login lockout (OQ-114): this many failures for one email address within
+   * the window lock that address for `lockMinutes`; a success clears it.
+   */
+  loginLockout: {
+    maxFailures: 5,
+    windowMinutes: 15,
+    lockMinutes: 15,
+  },
 } as const;
 
 /** HTTP layer settings. */
@@ -67,4 +80,14 @@ export const logging = {
   apiFilePrefix: 'api',
   /** Waits between attempts to store an audit entry, in milliseconds. */
   auditRetryDelaysMs: [1_000, 5_000, 30_000],
+} as const;
+
+/**
+ * Demo seed (`pnpm db:seed:demo`, OQ-98): the dev credentials every demo user
+ * signs in with locally. Public on purpose — demo data never leaves a dev machine.
+ */
+export const demoSeed = {
+  password: 'financas-demo-2026',
+  /** Base32 TOTP secret; add it to an authenticator app to get the codes. */
+  totpSecret: 'DEMOFINANCASDEMOFINANCASDEMOFINA',
 } as const;

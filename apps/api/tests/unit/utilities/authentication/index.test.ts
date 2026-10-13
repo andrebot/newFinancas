@@ -29,6 +29,14 @@ describe('createAuthenticationUtility', () => {
     expect(auth.verifyTotp(enrolment.encryptedSecret, '000000')).toBe(false);
   });
 
+  it('seals a known secret (demo seed) so codes from that secret verify', () => {
+    const sealed = auth.sealMfaSecret('DEMOFINANCASDEMOFINANCASDEMOFINA');
+
+    expect(sealed.startsWith('v1.')).toBe(true);
+    expect(sealed).not.toContain('DEMOFINANCAS');
+    expect(auth.verifyTotp(sealed, auth.currentTotp(sealed))).toBe(true);
+  });
+
   it('throws when a stored secret cannot be decrypted (wrong key = configuration error)', () => {
     const otherKey = Buffer.alloc(32, 4).toString('base64');
     const other = createAuthenticationUtility({ ...CONFIG, mfaEncryptionKey: otherKey }, deps);

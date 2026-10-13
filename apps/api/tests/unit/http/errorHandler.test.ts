@@ -24,8 +24,8 @@ const appThrowing = (thrown: unknown, correlationId?: CorrelationId) => {
   const app = new Hono<AppEnv>();
   app.onError(createErrorHandler(onUnexpected));
   app.notFound(handleNotFound);
-  app.use(async (c, next) => {
-    if (correlationId) c.set('correlationId', correlationId);
+  app.use(async (httpContext, next) => {
+    if (correlationId) httpContext.set('correlationId', correlationId);
     await next();
   });
   app.get('/boom', () => {

@@ -3,7 +3,7 @@ import {
   findKind, isKindAllowed, KIND_GROUPS, kindsFor, TRANSACTION_KINDS,
 } from '../../src/transactionKinds';
 
-const codes = (kinds: readonly { code: string }[]) => kinds.map((k) => k.code);
+const codes = (kinds: readonly { code: string }[]) => kinds.map((kind) => kind.code);
 
 describe('TRANSACTION_KINDS', () => {
   it('has the 16 FR-3.1 kinds, each code once', () => {
@@ -17,7 +17,7 @@ describe('TRANSACTION_KINDS', () => {
   });
 
   it('uses only the four picker groups, each of them', () => {
-    const groups = [...new Set(TRANSACTION_KINDS.map((k) => k.group))].sort();
+    const groups = [...new Set(TRANSACTION_KINDS.map((kind) => kind.group))].sort();
 
     expect(groups).toEqual([...KIND_GROUPS].sort());
   });

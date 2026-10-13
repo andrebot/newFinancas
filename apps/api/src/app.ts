@@ -2,7 +2,16 @@ import { createLogger } from '@financas/logging';
 import { Hono } from 'hono';
 import correlationIdMiddleware from './http/correlation';
 import { createErrorHandler, handleNotFound, type AppEnv } from './http/errorHandler';
+import type { VerifyAccessToken } from './http/authentication';
 import createRequestLogger from './http/requestLog';
+import createIdentityRoutes from './http/routes/identity';
+import type { IdentityManager } from './managers/identity';
+
+/** What the routes call: the Managers, and access-token verification. */
+export interface AppDeps {
+  readonly identity: IdentityManager;
+  readonly verifyAccessToken: VerifyAccessToken;
+}
 
 /**
  * Logs an unexpected (500) error with its stack and the request's correlation
@@ -24,15 +33,18 @@ const logUnexpectedError = (error: Error, correlationId: string): void => {
  * request gets a correlation ID first and is logged; every failure leaves
  * through one error handler, as the contract's error envelope carrying that ID.
  *
- * @returns A Hono app exposing `GET /health` (liveness probe).
+ * @param deps - The Managers and token verification the routes use.
+ * @returns A Hono app exposing `GET /health` (liveness probe) and the contract's
+ *   routes under `/api/v1`.
  */
-const createApp = (): Hono<AppEnv> => {
+const createApp = (deps: AppDeps): Hono<AppEnv> => {
   const app = new Hono<AppEnv>();
   app.onError(createErrorHandler(logUnexpectedError));
   app.notFound(handleNotFound);
   app.use(correlationIdMiddleware);
   app.use(createRequestLogger());
-  app.get('/health', (c) => c.json({ status: 'ok' }));
+  app.get('/health', (httpContext) => httpContext.json({ status: 'ok' }));
+  app.route('/api/v1', createIdentityRoutes(deps.identity, deps.verifyAccessToken));
   return app;
 };
 

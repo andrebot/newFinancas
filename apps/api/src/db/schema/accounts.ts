@@ -22,10 +22,10 @@ export const accounts = pgTable('accounts', {
   visibility: text('visibility').notNull(),
   archivedAt: instant('archived_at'),
   createdAt: createdAt(),
-}, (t) => [
-  check('accounts_type_check', isOneOf(t.type, ACCOUNT_TYPES)),
-  check('accounts_visibility_check', isOneOf(t.visibility, VISIBILITIES)),
-  check('accounts_currency_check', sql`${t.currency} ~ '^[A-Z]{3}$'`),
+}, (table) => [
+  check('accounts_type_check', isOneOf(table.type, ACCOUNT_TYPES)),
+  check('accounts_visibility_check', isOneOf(table.visibility, VISIBILITIES)),
+  check('accounts_currency_check', sql`${table.currency} ~ '^[A-Z]{3}$'`),
 ]);
 
 export const creditCards = pgTable('credit_cards', {
@@ -38,11 +38,11 @@ export const creditCards = pgTable('credit_cards', {
   expirationMonth: smallint('expiration_month').notNull(),
   expirationYear: smallint('expiration_year').notNull(),
   createdAt: createdAt(),
-}, (t) => [
-  check('credit_cards_last4_check', sql`${t.last4} ~ '^[0-9]{4}$'`),
-  check('credit_cards_closing_day_check', sql`${t.closingDay} BETWEEN 1 AND 31`),
-  check('credit_cards_due_day_check', sql`${t.dueDay} BETWEEN 1 AND 31`),
-  check('credit_cards_expiration_month_check', sql`${t.expirationMonth} BETWEEN 1 AND 12`),
+}, (table) => [
+  check('credit_cards_last4_check', sql`${table.last4} ~ '^[0-9]{4}$'`),
+  check('credit_cards_closing_day_check', sql`${table.closingDay} BETWEEN 1 AND 31`),
+  check('credit_cards_due_day_check', sql`${table.dueDay} BETWEEN 1 AND 31`),
+  check('credit_cards_expiration_month_check', sql`${table.expirationMonth} BETWEEN 1 AND 12`),
 ]);
 
 export const accountMonthBalances = pgTable('account_month_balances', {
@@ -53,9 +53,9 @@ export const accountMonthBalances = pgTable('account_month_balances', {
   openingBalance: integerAmount('opening_balance').notNull(),
   endingBalance: integerAmount('ending_balance').notNull(),
   updatedAt: instant('updated_at').notNull().defaultNow(),
-}, (t) => [
-  uniqueIndex('account_month_balances_month_key').on(t.accountId, t.year, t.month),
-  check('account_month_balances_month_check', sql`${t.month} BETWEEN 1 AND 12`),
+}, (table) => [
+  uniqueIndex('account_month_balances_month_key').on(table.accountId, table.year, table.month),
+  check('account_month_balances_month_check', sql`${table.month} BETWEEN 1 AND 12`),
 ]);
 
 export const creditCardMonthBalances = pgTable('credit_card_month_balances', {
@@ -66,7 +66,8 @@ export const creditCardMonthBalances = pgTable('credit_card_month_balances', {
   openingOutstandingBalance: integerAmount('opening_outstanding_balance').notNull(),
   endingOutstandingBalance: integerAmount('ending_outstanding_balance').notNull(),
   updatedAt: instant('updated_at').notNull().defaultNow(),
-}, (t) => [
-  uniqueIndex('credit_card_month_balances_month_key').on(t.creditCardId, t.year, t.month),
-  check('credit_card_month_balances_month_check', sql`${t.month} BETWEEN 1 AND 12`),
+}, (table) => [
+  uniqueIndex('credit_card_month_balances_month_key')
+    .on(table.creditCardId, table.year, table.month),
+  check('credit_card_month_balances_month_check', sql`${table.month} BETWEEN 1 AND 12`),
 ]);
