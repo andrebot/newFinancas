@@ -1,5 +1,7 @@
 import type { Member, UserHousehold } from '../../accessors/householdAccessor';
-import type { ReceivedInvitation } from '../../accessors/invitationAccessor';
+import type {
+  HouseholdInvitation, Invitation, ReceivedInvitation,
+} from '../../accessors/invitationAccessor';
 import type { User } from '../../accessors/userAccessor';
 import type { SessionView } from '../../managers/identity';
 
@@ -81,4 +83,35 @@ export const toMembershipJson = (householdId: string, member: Member) => ({
   email: member.email,
   role: member.role,
   joinedAt: member.joinedAt.toISOString(),
+});
+
+/**
+ * An invitation (`components/schemas/Invitation`).
+ *
+ * @param invitation - The invitation.
+ * @returns The JSON shape.
+ */
+export const toInvitationJson = (invitation: Invitation) => ({
+  id: invitation.id,
+  householdId: invitation.householdId,
+  invitedUserId: invitation.invitedUserId,
+  invitedByUserId: invitation.invitedByUserId,
+  role: invitation.role,
+  status: invitation.status,
+  createdAt: invitation.createdAt.toISOString(),
+  resolvedAt: invitation.resolvedAt?.toISOString() ?? null,
+});
+
+/**
+ * One of a household's invitations, with the invitee's name and email
+ * (`components/schemas/HouseholdInvitation`, OQ-118).
+ *
+ * @param invitation - The invitation.
+ * @returns The JSON shape.
+ */
+export const toHouseholdInvitationJson = (invitation: HouseholdInvitation) => ({
+  ...toInvitationJson(invitation),
+  inviteeFirstName: invitation.inviteeFirstName,
+  inviteeLastName: invitation.inviteeLastName,
+  inviteeEmail: invitation.inviteeEmail,
 });

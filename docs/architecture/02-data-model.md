@@ -176,7 +176,10 @@ Backs `IdentityManager`'s Accessors: `UserAccessor`, `SessionAccessor`,
   (PK), `household_id` (FK), `invited_user_id` (FK → `users`, **not
   null**), `invited_by_user_id` (FK → `users`), `role`, `status`
   (pending/accepted/declined/revoked), `created_at`, `resolved_at`
-  (nullable).
+  (nullable). **Partial unique index** on `(household_id,
+  invited_user_id) WHERE status = 'pending'` (OQ-118): one pending
+  invitation per person per household, so two simultaneous invites can't
+  both be created.
 
 ### Invariants — DB constraint vs. application-level
 

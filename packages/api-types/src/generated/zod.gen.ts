@@ -122,6 +122,15 @@ export const zInvitation = z.object({
     resolvedAt: z.iso.datetime().nullish()
 });
 
+/**
+ * One of a household's invitations, as its Owner/Admin sees it (OQ-118).
+ */
+export const zHouseholdInvitation = zInvitation.and(z.object({
+    inviteeFirstName: z.string().optional(),
+    inviteeLastName: z.string().optional(),
+    inviteeEmail: z.email().optional()
+}));
+
 export const zAccount = z.object({
     id: z.uuid().optional(),
     householdId: z.uuid().optional(),
@@ -988,7 +997,7 @@ export const zListHouseholdInvitationsPath = z.object({
  * OK
  */
 export const zListHouseholdInvitationsResponse = z.object({
-    data: z.array(zInvitation).optional()
+    data: z.array(zHouseholdInvitation).optional()
 });
 
 export const zCreateInvitationBody = z.object({

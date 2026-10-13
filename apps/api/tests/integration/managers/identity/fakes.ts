@@ -44,6 +44,17 @@ export const MEMBER = {
   joinedAt: NOW,
 };
 
+export const INVITATION = {
+  id: '0199c5a0-0000-7000-8000-0000000000dd',
+  householdId: '0199c5a0-0000-7000-8000-0000000000bb',
+  invitedUserId: BEN_ID,
+  invitedByUserId: '0199c5a0-0000-7000-8000-000000000001',
+  role: 'Member' as const,
+  status: 'pending' as const,
+  createdAt: NOW,
+  resolvedAt: null,
+};
+
 export const RECEIVED = {
   id: '0199c5a0-0000-7000-8000-0000000000dd',
   householdId: HOUSEHOLD.id,
@@ -92,6 +103,7 @@ export const fakeDeps = () => {
     removeMember: vi.fn(async (): Promise<'removed' | 'stale'> => 'removed'),
     updateRole: vi.fn(async (): Promise<'updated' | 'stale'> => 'updated'),
     dissolve: vi.fn(async (): Promise<'dissolved' | 'stale'> => 'dissolved'),
+    addMember: vi.fn(async (): Promise<'added' | 'already_member'> => 'added'),
   };
   const authorization = {
     authorize: vi.fn(async (): Promise<{ outcome: string; role?: string }> => (
@@ -99,7 +111,16 @@ export const fakeDeps = () => {
     )),
   };
   const bus = { publish: vi.fn() };
-  const invitations = { listPendingForUser: vi.fn(async () => [RECEIVED]) };
+  const invitations = {
+    listPendingForUser: vi.fn(async () => [RECEIVED]),
+    insert: vi.fn(async (): Promise<
+      { ok: true; invitation: typeof INVITATION } | { ok: false; reason: string }
+    > => ({ ok: true, invitation: INVITATION })),
+    findById: vi.fn(async (): Promise<typeof INVITATION | undefined> => INVITATION),
+    findPending: vi.fn(async (): Promise<typeof INVITATION | undefined> => undefined),
+    listForHousehold: vi.fn(async () => [INVITATION]),
+    resolve: vi.fn(async (): Promise<'resolved' | 'stale'> => 'resolved'),
+  };
   const sessions = {
     insert: vi.fn(async () => SESSION),
     rotate: vi.fn(async () => ({ status: 'rotated' as const, session: SESSION })),

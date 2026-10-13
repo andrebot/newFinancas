@@ -110,6 +110,18 @@ describe('InvitationAccessor', () => {
       .toEqual({ ok: false, reason: 'invitee_missing' });
   }));
 
+  it('allows one pending invitation per person per household (OQ-118)', test(async (setup) => {
+    const first = await inviteBia(setup);
+    const again = { householdId: setup.home, invitedUserId: setup.bia, invitedByUserId: setup.ana };
+
+    expect(await setup.invites.insert({ ...again, role: 'Viewer' }))
+      .toEqual({ ok: false, reason: 'already_pending' });
+
+    // Once that one is resolved, a new one may be sent.
+    await setup.invites.resolve(first, 'declined', NOW);
+    expect(await setup.invites.insert({ ...again, role: 'Viewer' })).toMatchObject({ ok: true });
+  }));
+
   it('throws on an unexpected failure', test(async ({ invites, ana, bia }) => {
     await expect(invites.insert({
       householdId: 'not-a-uuid', invitedUserId: bia, invitedByUserId: ana, role: 'Member',
@@ -176,6 +188,9 @@ describe('InvitationAccessor', () => {
     expect(listed.map((invitation) => invitation.id).sort()).toEqual([first, second].sort());
     expect(listed.find((invitation) => invitation.id === first))
       .toMatchObject({ status: 'revoked', resolvedAt: NOW });
+    expect(listed[0]).toMatchObject({
+      inviteeFirstName: 'bia', inviteeEmail: 'bia@example.com',
+    });
   }));
 
   describe('resolve (guarded, FR-1.10)', () => {

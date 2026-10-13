@@ -109,4 +109,8 @@ export const invitations = pgTable('invitations', {
 }, (table) => [
   check('invitations_role_check', isOneOf(table.role, INVITABLE_ROLES)),
   check('invitations_status_check', isOneOf(table.status, INVITATION_STATUSES)),
+  // One pending invitation per person per household: two simultaneous invites
+  // can't both pass the Manager's duplicate check (OQ-109, OQ-118).
+  uniqueIndex('invitations_one_pending_key').on(table.householdId, table.invitedUserId)
+    .where(sql`${table.status} = 'pending'`),
 ]);

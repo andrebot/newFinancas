@@ -68,32 +68,35 @@ sequenceDiagram
 
     User->>API: DELETE /households/:householdId/invitations/:invitationId
     API->>IM: revokeInvitation(actor, householdId, invitationId)
-    IM->>AZ: canManageMembers(actor, householdId)?
-    alt not authorized
-        AZ-->>IM: denied
+    IM->>AZ: authorize(actor.userId, householdId, members.manage)
+    alt not a member
+        AZ-->>IM: not_member
+        IM-->>API: NotFound
+        API-->>User: 404 household.not_found
+    else not Owner or Admin
+        AZ-->>IM: forbidden
         IM-->>API: Forbidden
         API-->>User: 403 auth.forbidden
-    else authorized
+    else allowed
         AZ-->>IM: allowed
         IM->>IA: findById(invitationId)
-        IA-->>IM: invitation (or none)
-        alt none, or it belongs to another household
-            Note over IM: the URL&#39;s household must own it &mdash; otherwise an Admin<br/>of one household could revoke another&#39;s invitations (OQ-109)
+        alt missing, or another household&#39;s
+            IA-->>IM: none / elsewhere
             IM-->>API: NotFound
             API-->>User: 404 invitation.not_found
-        else this household&#39;s invitation
-        IM->>IA: resolve(invitationId, revoked, now)
-        alt no longer pending
-            IA-->>IM: stale
-            IM-->>API: Conflict
-            API-->>User: 409 invitation.not_pending
-        else resolved
-            IA-->>IM: resolved
-            IM-->>LOG: logActivity(correlationId, actor, "RevokeInvitation")
-            IM-->>LOG: recordAudit(actor, "Invitation", invitationId)
-            IM-->>API: revoked
-            API-->>User: 204 No Content
-        end
+        else this household&#39;s
+            IA-->>IM: invitation
+            IM->>IA: resolve(invitationId, revoked, now)
+            alt no longer pending (answered meanwhile)
+                IA-->>IM: stale
+                IM-->>API: Conflict
+                API-->>User: 409 invitation.not_pending
+            else resolved
+                IA-->>IM: resolved
+                IM-->>LOG: log.audit("RevokeInvitation", Invitation invitationId, household)
+                IM-->>API: revoked
+                API-->>User: 204 No Content
+            end
         end
     end
     </pre>

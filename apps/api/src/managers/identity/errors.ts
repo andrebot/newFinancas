@@ -137,3 +137,51 @@ export const memberNotFound = (): ApiError => createApiError({
 export const householdChanged = (): ApiError => createApiError({
   status: 409, code: 'household.changed', message: 'Household membership changed concurrently',
 });
+
+/**
+ * No invitation with that id in that household, or not the caller's to answer —
+ * the same answer for both, so it never confirms one exists (OQ-118).
+ *
+ * @returns 404 `invitation.not_found`.
+ */
+export const invitationNotFound = (): ApiError => createApiError({
+  status: 404, code: 'invitation.not_found', message: 'Invitation not found',
+});
+
+/**
+ * Invitations only reach registered users (FR-1.19, OQ-26).
+ *
+ * @returns 404 `invitation.invitee_not_registered`.
+ */
+export const inviteeNotRegistered = (): ApiError => createApiError({
+  status: 404,
+  code: 'invitation.invitee_not_registered',
+  message: 'No registered user has this email',
+});
+
+/**
+ * The person invited is already a member (OQ-109).
+ *
+ * @returns 409 `invitation.already_member`.
+ */
+export const alreadyMember = (): ApiError => createApiError({
+  status: 409, code: 'invitation.already_member', message: 'Already a member',
+});
+
+/**
+ * The person invited already has a pending invitation to this household (OQ-109).
+ *
+ * @returns 409 `invitation.already_pending`.
+ */
+export const alreadyPending = (): ApiError => createApiError({
+  status: 409, code: 'invitation.already_pending', message: 'Invitation already pending',
+});
+
+/**
+ * The invitation was accepted, declined or revoked already (FR-1.10).
+ *
+ * @returns 409 `invitation.not_pending`.
+ */
+export const invitationNotPending = (): ApiError => createApiError({
+  status: 409, code: 'invitation.not_pending', message: 'Invitation is no longer pending',
+});

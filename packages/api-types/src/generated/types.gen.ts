@@ -96,6 +96,15 @@ export type Household = {
 };
 
 /**
+ * One of a household's invitations, as its Owner/Admin sees it (OQ-118).
+ */
+export type HouseholdInvitation = Invitation & {
+    inviteeFirstName?: string;
+    inviteeLastName?: string;
+    inviteeEmail?: string;
+};
+
+/**
  * A household the current user belongs to, with their role in it (OQ-116).
  */
 export type MyHousehold = Household & {
@@ -1473,12 +1482,25 @@ export type ListHouseholdInvitationsData = {
     url: '/households/{householdId}/invitations';
 };
 
+export type ListHouseholdInvitationsErrors = {
+    /**
+     * Authenticated, but not permitted to perform this action. Codes: `auth.forbidden`.
+     */
+    403: Error;
+    /**
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `invitation.invitee_not_registered`.
+     */
+    404: Error;
+};
+
+export type ListHouseholdInvitationsError = ListHouseholdInvitationsErrors[keyof ListHouseholdInvitationsErrors];
+
 export type ListHouseholdInvitationsResponses = {
     /**
      * OK
      */
     200: {
-        data?: Array<Invitation>;
+        data?: Array<HouseholdInvitation>;
     };
 };
 
@@ -1542,7 +1564,7 @@ export type RevokeInvitationErrors = {
      */
     404: Error;
     /**
-     * Invitation is no longer pending.
+     * Code: `invitation.not_pending` — already accepted, declined or revoked.
      */
     409: Error;
 };
@@ -1569,11 +1591,12 @@ export type AcceptInvitationData = {
 
 export type AcceptInvitationErrors = {
     /**
-     * Authenticated, but not permitted to perform this action. Codes: `auth.forbidden`.
+     * `invitation.not_found` — no such invitation, or it isn't addressed to the caller: the same answer, so it never confirms one exists (OQ-118).
+     *
      */
-    403: Error;
+    404: Error;
     /**
-     * Invitation already resolved or revoked.
+     * Code: `invitation.not_pending` — already accepted, declined or revoked.
      */
     409: Error;
 };
@@ -1603,11 +1626,12 @@ export type DeclineInvitationData = {
 
 export type DeclineInvitationErrors = {
     /**
-     * Authenticated, but not permitted to perform this action. Codes: `auth.forbidden`.
+     * `invitation.not_found` — no such invitation, or it isn't addressed to the caller: the same answer, so it never confirms one exists (OQ-118).
+     *
      */
-    403: Error;
+    404: Error;
     /**
-     * Invitation already resolved or revoked.
+     * Code: `invitation.not_pending` — already accepted, declined or revoked.
      */
     409: Error;
 };

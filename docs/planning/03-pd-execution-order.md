@@ -53,7 +53,7 @@ identity screens, the rest as later slices use them.
 - [x] **19.** `U2` LoggingUtility
 - [x] **20.** `U5` AuthorizationUtility
 - [x] **21.** `U7` NotificationEngine + EmailAccessor (was NotificationDeliveryUtility — OQ-113)
-- [ ] **22.** `M1` IdentityManager
+- [x] **22.** `M1` IdentityManager (five PRs, OQ-114 – OQ-118; Delete User's cascade is `M1D`, task 135)
 - [ ] **23.** `FU1` ValidationUtility (web)
 - [ ] **24.** `FU2` PasswordStrengthUtility
 - [ ] **25.** `K1` Tailwind theme + tokens
