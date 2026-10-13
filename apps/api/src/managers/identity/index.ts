@@ -1,5 +1,6 @@
 import type { IdentityDeps } from './context';
 import createHouseholds from './households';
+import createInvitations from './invitations';
 import createMembers from './members';
 import createPasswords from './passwords';
 import createProfile from './profile';
@@ -16,6 +17,7 @@ export type {
 } from './context';
 export type { Registered, Registration } from './registration';
 export type { SessionView } from './sessions';
+export type { InvitationRequest } from './invitations';
 export type { PasswordChange, PasswordResetConfirmation } from './passwords';
 export type { ProfileEdit } from './profile';
 export type { Credentials, RecoveryCredentials } from './signIn';
@@ -34,6 +36,7 @@ export const createIdentityManager = (deps: IdentityDeps) => ({
   ...createProfile(deps),
   ...createHouseholds(deps),
   ...createMembers(deps),
+  ...createInvitations(deps),
 });
 
 export type IdentityManager = ReturnType<typeof createIdentityManager>;

@@ -36,6 +36,11 @@ export const mockIdentity = (): MockedIdentity => ({
   removeMember: vi.fn(),
   changeMemberRole: vi.fn(),
   transferOwnership: vi.fn(),
+  inviteUser: vi.fn(),
+  listHouseholdInvitations: vi.fn(),
+  revokeInvitation: vi.fn(),
+  acceptInvitation: vi.fn(),
+  declineInvitation: vi.fn(),
 });
 
 /**

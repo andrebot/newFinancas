@@ -585,6 +585,10 @@ paths:
       tags: [Households]
       operationId: listHouseholdInvitations
       summary: List this household's invitations
+      description: >
+        Owner/Admin only. Every status, newest first, each with the invitee's
+        name and email — they aren't members, so they can't be looked up
+        otherwise (OQ-118).
       responses:
         "200":
           description: OK
@@ -595,7 +599,9 @@ paths:
                 properties:
                   data:
                     type: array
-                    items: { $ref: "#/components/schemas/Invitation" }
+                    items: { $ref: "#/components/schemas/HouseholdInvitation" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
     post:
       tags: [Households]
       operationId: createInvitation
@@ -651,7 +657,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
         "409":
-          description: Invitation is no longer pending.
+          description: "Code: `invitation.not_pending` — already accepted, declined or revoked."
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
@@ -664,7 +670,7 @@ paths:
       operationId: acceptInvitation
       summary: Accept a household invitation
       description: >
-        FR-1.10. Only the invited user can accept. Establishes
+        FR-1.10. Only the invited user can accept; it is resolved first (guarded), then the membership is added (OQ-118). Establishes
         membership with the role specified in the invitation.
       responses:
         "200":
@@ -676,9 +682,16 @@ paths:
                 properties:
                   householdId: { type: string, format: uuid }
                   role: { type: string }
-        "403": { $ref: "#/components/responses/Forbidden" }
+        "404":
+          description: >
+            `invitation.not_found` — no such invitation, or it isn't
+            addressed to the caller: the same answer, so it never confirms one
+            exists (OQ-118).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
         "409":
-          description: Invitation already resolved or revoked.
+          description: "Code: `invitation.not_pending` — already accepted, declined or revoked."
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
@@ -693,9 +706,16 @@ paths:
       description: FR-1.10. Only the invited user can decline. No membership is ever created.
       responses:
         "200": { description: OK }
-        "403": { $ref: "#/components/responses/Forbidden" }
+        "404":
+          description: >
+            `invitation.not_found` — no such invitation, or it isn't
+            addressed to the caller: the same answer, so it never confirms one
+            exists (OQ-118).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
         "409":
-          description: Invitation already resolved or revoked.
+          description: "Code: `invitation.not_pending` — already accepted, declined or revoked."
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
@@ -2274,6 +2294,16 @@ components:
         id: { type: string, format: uuid }
         name: { type: string }
         createdAt: { type: string, format: date-time }
+
+    HouseholdInvitation:
+      description: One of a household's invitations, as its Owner/Admin sees it (OQ-118).
+      allOf:
+        - $ref: '#/components/schemas/Invitation'
+        - type: object
+          properties:
+            inviteeFirstName: { type: string }
+            inviteeLastName: { type: string }
+            inviteeEmail: { type: string, format: email }
 
     MyHousehold:
       description: A household the current user belongs to, with their role in it (OQ-116).

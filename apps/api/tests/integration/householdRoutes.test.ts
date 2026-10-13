@@ -152,4 +152,73 @@ describe('household routes', () => {
     expect(response.status).toBe(200);
     expect(identity.transferOwnership).toHaveBeenCalledWith(expect.anything(), HOME, BEN_ID);
   });
+
+  describe('invitations (OQ-118)', () => {
+    const INVITATION_ID = '0199c5a0-0000-7000-8000-0000000000dd';
+    const INVITATION = {
+      id: INVITATION_ID,
+      householdId: HOME,
+      invitedUserId: BEN_ID,
+      invitedByUserId: USER_ID,
+      role: 'Member' as const,
+      status: 'pending' as const,
+      createdAt: NOW,
+      resolvedAt: null,
+    };
+    const INVITATION_JSON = { ...INVITATION, createdAt: NOW.toISOString() };
+
+    it('GET …/invitations lists them with invitee names', async () => {
+      const { app, identity } = setup();
+      const invitee = {
+        inviteeFirstName: 'Ben', inviteeLastName: 'Demo', inviteeEmail: 'ben@x.co',
+      };
+      identity.listHouseholdInvitations.mockResolvedValueOnce([{ ...INVITATION, ...invitee }]);
+
+      const response = await send(app, 'GET', `/households/${HOME}/invitations`);
+
+      expect(await response.json()).toEqual({ data: [{ ...INVITATION_JSON, ...invitee }] });
+    });
+
+    it('POST …/invitations → 201', async () => {
+      const { app, identity } = setup();
+      identity.inviteUser.mockResolvedValueOnce({
+        ...INVITATION, status: 'accepted', resolvedAt: NOW,
+      });
+      const body = { email: 'ben@x.co', role: 'Member' };
+
+      const response = await send(app, 'POST', `/households/${HOME}/invitations`, body);
+
+      expect(response.status).toBe(201);
+      expect(await response.json())
+        .toEqual({ ...INVITATION_JSON, status: 'accepted', resolvedAt: NOW.toISOString() });
+      expect(identity.inviteUser).toHaveBeenCalledWith(expect.anything(), HOME, body);
+    });
+
+    it('DELETE …/invitations/:id revokes', async () => {
+      const { app, identity } = setup();
+
+      const path = `/households/${HOME}/invitations/${INVITATION_ID}`;
+      const response = await send(app, 'DELETE', path);
+
+      expect(response.status).toBe(204);
+      expect(identity.revokeInvitation)
+        .toHaveBeenCalledWith(expect.anything(), HOME, INVITATION_ID);
+    });
+
+    it('accept and decline need a signed-in user', async () => {
+      const { app, identity } = setup();
+      identity.acceptInvitation.mockResolvedValueOnce({ householdId: HOME, role: 'Member' });
+
+      const accepted = await send(app, 'POST', `/invitations/${INVITATION_ID}/accept`);
+      const declined = await send(app, 'POST', `/invitations/${INVITATION_ID}/decline`);
+      const signedOut = await app.request(`/api/v1/invitations/${INVITATION_ID}/accept`, {
+        method: 'POST',
+      });
+
+      expect(await accepted.json()).toEqual({ householdId: HOME, role: 'Member' });
+      expect(declined.status).toBe(200);
+      expect(identity.declineInvitation).toHaveBeenCalledWith(expect.anything(), INVITATION_ID);
+      expect(signedOut.status).toBe(401);
+    });
+  });
 });

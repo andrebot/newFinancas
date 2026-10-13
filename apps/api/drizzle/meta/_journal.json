@@ -43,6 +43,13 @@
       "when": 1791898431873,
       "tag": "0005_login_attempts",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791907356341,
+      "tag": "0006_one_pending_invitation",
+      "breakpoints": true
     }
   ]
 }

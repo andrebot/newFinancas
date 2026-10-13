@@ -1690,6 +1690,40 @@ OQ-112:** `NotificationDeliveryUtility` was misclassified.
 - **Sequences uc-01, 02, 07, 08, 09, 10 redrawn** to the implementation:
   `authorize(...)` with its outcomes, guarded writes and retries, `log.audit`.
 
+### OQ-118: Invitations (task M1, PR 5 — IdentityManager complete)
+**Gaps found and closed:**
+- **One pending invitation per person per household is now a database
+  rule** (partial unique index, migration `0006`): the Manager's duplicate
+  check (OQ-109) alone let two simultaneous invites both land.
+  `InvitationAccessor.insert` returns `already_pending` → 409.
+- **A household's invitation list carries the invitee's name and email**
+  (`HouseholdInvitation` schema): invitees aren't members, so the
+  Owner/Admin couldn't look them up — the same gap as OQ-116/117.
+
+**Design decisions:**
+- **Accepting or declining someone else's invitation is 404
+  `invitation.not_found`**, not the contract's 403 — the API's rule of
+  answering 404 where a 403 would confirm something exists. Contract
+  updated.
+- **Accept resolves the invitation first (guarded), then adds the
+  membership.** A revoke racing it can't also win, and no membership has to
+  be undone. Known limit: if the database fails between the two steps, the
+  invitation reads "accepted" without a membership — rare (it needs an
+  outage at that instant), and the Owner can invite again.
+- **Who may:** invite, list and revoke — Owner/Admin (`members.manage`);
+  accept and decline — only the invitee.
+- **Audit:** invite, revoke and accept are audited (household management
+  and membership); **decline is logged, not audited** — FR-7.1's audit log
+  covers household data, and declining changes none (uc-05's original
+  decision; the first implementation audited it, corrected before merge).
+- **The invitation notification is fire-and-forget** through
+  NotificationEngine (in-app, OQ-113); a failure is logged and the
+  invitation stands.
+- Sequences uc-03 – uc-06 redrawn to the implementation.
+
+**Task 22 (`M1` IdentityManager) is complete**, in five PRs (OQ-114 –
+OQ-118). Delete User's cascade is `M1D` (task 135, slice 5).
+
 ## Refined (resolved, with a follow-up still open)
 
 *(OQ-4's legal-review follow-up below is closed for v1 by OQ-89.)*

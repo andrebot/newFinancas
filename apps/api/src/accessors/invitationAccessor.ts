@@ -1,7 +1,7 @@
 import { and, desc, eq } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import type { Database } from '../db/database';
-import { PG_FOREIGN_KEY_VIOLATION, pgErrorCode } from '../db/errors';
+import { PG_FOREIGN_KEY_VIOLATION, PG_UNIQUE_VIOLATION, pgErrorCode } from '../db/errors';
 import { households, invitations, users } from '../db/schema';
 import type { AssignableRole } from './householdAccessor';
 
@@ -40,7 +40,16 @@ export interface ReceivedInvitation {
 
 export type InsertInvitationResult = | { readonly ok: true; readonly invitation: Invitation }
   /** The invited user no longer exists (removed since the Manager looked them up). */
-  | { readonly ok: false; readonly reason: 'invitee_missing' };
+  | { readonly ok: false; readonly reason: 'invitee_missing' }
+  /** Another pending invitation was created meanwhile (one per person, OQ-118). */
+  | { readonly ok: false; readonly reason: 'already_pending' };
+
+/** An invitation as the household's Owner/Admin sees it: with the invitee's name (OQ-118). */
+export interface HouseholdInvitation extends Invitation {
+  readonly inviteeFirstName: string;
+  readonly inviteeLastName: string;
+  readonly inviteeEmail: string;
+}
 
 const columns = {
   id: invitations.id,
@@ -71,7 +80,7 @@ const createInvitationAccessor = (db: Database) => ({
    * @param invitation.invitedUserId - The invitee.
    * @param invitation.invitedByUserId - The inviter.
    * @param invitation.role - The offered role.
-   * @returns The invitation, or `invitee_missing`.
+   * @returns The invitation, or `invitee_missing` / `already_pending`.
    */
   insert: async (invitation: {
     householdId: string; invitedUserId: string; invitedByUserId: string; role: AssignableRole;
@@ -83,6 +92,9 @@ const createInvitationAccessor = (db: Database) => ({
     } catch (error) {
       if (pgErrorCode(error) === PG_FOREIGN_KEY_VIOLATION) {
         return { ok: false, reason: 'invitee_missing' };
+      }
+      if (pgErrorCode(error) === PG_UNIQUE_VIOLATION) {
+        return { ok: false, reason: 'already_pending' };
       }
       throw error;
     }
@@ -144,16 +156,24 @@ const createInvitationAccessor = (db: Database) => ({
   ) as ReceivedInvitation[],
 
   /**
-   * Lists every invitation of a household, newest first.
+   * Lists every invitation of a household, newest first, with each invitee's
+   * name and email — they aren't members, so the household can't look them up
+   * otherwise (OQ-118).
    *
    * @param householdId - The household.
    * @returns The invitations, all statuses.
    */
-  listForHousehold: async (householdId: string): Promise<Invitation[]> => (
-    await db.select(columns).from(invitations)
+  listForHousehold: async (householdId: string): Promise<HouseholdInvitation[]> => (
+    await db.select({
+      ...columns,
+      inviteeFirstName: users.firstName,
+      inviteeLastName: users.lastName,
+      inviteeEmail: users.email,
+    }).from(invitations)
+      .innerJoin(users, eq(users.id, invitations.invitedUserId))
       .where(eq(invitations.householdId, householdId))
       .orderBy(desc(invitations.createdAt), desc(invitations.id))
-  ) as Invitation[],
+  ) as HouseholdInvitation[],
 
   /**
    * Resolves an invitation as accepted, declined or revoked. Guarded: applies only

@@ -121,51 +121,56 @@ sequenceDiagram
     participant LOG as LoggingUtility
 
     User->>API: POST /households/:householdId/invitations {email, role}
-    API->>IM: inviteUser(actor, householdId, email, role)
-    IM->>AZ: canManageMembers(actor, householdId)?
-    alt not authorized
-        AZ-->>IM: denied
+    API->>IM: inviteUser(actor, householdId, {email, role})
+    IM->>AZ: authorize(actor.userId, householdId, members.manage)
+    alt not a member
+        AZ-->>IM: not_member
+        IM-->>API: NotFound
+        API-->>User: 404 household.not_found
+    else not Owner or Admin
+        AZ-->>IM: forbidden
         IM-->>API: Forbidden
         API-->>User: 403 auth.forbidden
-    else authorized
+    else allowed
         AZ-->>IM: allowed
-        IM->>UA: findByEmail(email)
-        alt no registered user matches email
+        IM->>UA: findByEmail(email, trimmed)
+        alt no registered user (FR-1.19, the Manager&#39;s rule, OQ-109)
             UA-->>IM: none
-            Note over IM: FR-1.19 is the Manager&#39;s rule (OQ-109)
             IM-->>API: NotFound
             API-->>User: 404 invitation.invitee_not_registered
-        else user exists
-            UA-->>IM: invitedUserId
-            IM->>HA: findMembership(householdId, invitedUserId)
-            HA-->>IM: role (or none)
-            IM->>IA: findPending(householdId, invitedUserId)
-            IA-->>IM: pending invitation (or none)
+        else registered
+            UA-->>IM: invitee
+            IM->>HA: findMembership(householdId, invitee)
+            IM->>IA: findPending(householdId, invitee)
             alt already a member
                 IM-->>API: Conflict
                 API-->>User: 409 invitation.already_member
-            else already has a pending invitation
+            else already invited
                 IM-->>API: Conflict
                 API-->>User: 409 invitation.already_pending
             else neither
-            IM->>IA: insert({householdId, invitedUserId, invitedByUserId: actor, role})
-            Note over IA: the NOT NULL FK guarantees the invitee exists &mdash;<br/>invitee_missing if they were deleted meanwhile (→ 404)
-            IA-->>IM: invitationId (status: pending)
-            IM-->>NE: notify("invitation.received", recipient = {userId: invitedUserId}, params = {invitationId, householdId, inviterUserId, role})
-            Note over NE: routing table: invitation.received &rarr; in-app
-            NE->>NIA: insert(invitedUserId, "invitation.received", params)
-            NIA-->>NE: stored
-            IM-->>LOG: logActivity(correlationId, actor, "InviteUser")
-            IM-->>LOG: recordAudit(actor, "Invitation", invitationId)
-            IM-->>API: invitationId
-            API-->>User: 201 Created {invitationId, status: "pending"}
+                IM->>IA: insert({householdId, invitedUserId, invitedByUserId: actor, role})
+                Note over IA: one pending invitation per person per household &mdash; a<br/>simultaneous second invite fails the unique index (OQ-118)
+                alt lost a race
+                    IA-->>IM: already_pending / invitee_missing
+                    IM-->>API: Conflict / NotFound
+                    API-->>User: 409 invitation.already_pending / 404 invitee_not_registered
+                else inserted
+                    IA-->>IM: invitation (pending)
+                    IM-->>NE: notify("invitation.received", {userId: invitee}, {invitationId, householdId, inviterUserId, role})
+                    Note over NE: routed in-app (OQ-113) &mdash; fire-and-forget,<br/>a failure is logged and the invitation stands
+                    NE->>NIA: insert(invitee, "invitation.received", params)
+                    IM-->>LOG: log.audit("InviteUser", Invitation invitationId, household)
+                    IM-->>API: invitation
+                    API-->>User: 201 Created Invitation
+                end
             end
         end
     end
 """,
     notes="""
     <ul>
-      <li><strong>FR-1.19&#39;s "existing user only" rule lives in <code>InvitationAccessor.insert</code>&#39;s validated write</strong> — a real DB constraint per the data model doc (<code>invited_user_id NOT NULL</code>), not application-level filtering before the insert.</li>
+      <li><strong>FR-1.19&#39;s "existing user only" rule is the Manager&#39;s (OQ-109):</strong> it looks the email up and answers 404 <code>invitation.invitee_not_registered</code>. The <code>invited_user_id NOT NULL</code> foreign key is the backstop for an account deleted in between (<code>invitee_missing</code>), and a partial unique index allows one pending invitation per person per household, so two simultaneous invites can&#39;t both land (OQ-118).</li>
       <li>The notification is fire-and-forget — the 201 response doesn&#39;t wait on it. <strong><code>NotificationEngine</code> chooses the channel</strong> (in-app for <code>invitation.received</code>, OQ-68); the Manager only says what happened and to whom (OQ-113).</li>
       <li>See FR-1.5, FR-1.19, OQ-26.</li>
     </ul>
@@ -187,24 +192,24 @@ sequenceDiagram
     User->>API: POST /invitations/:invitationId/accept
     API->>IM: acceptInvitation(actor, invitationId)
     IM->>IA: findById(invitationId)
-    IA-->>IM: invitation (or none)
-    alt none, or actor is not the invited user
-        Note over IM: the Manager&#39;s check (OQ-109)
-        IM-->>API: Forbidden
-        API-->>User: 403 auth.forbidden
-    else invited user
+    alt missing, or not addressed to the caller
+        IA-->>IM: none / someone else&#39;s
+        IM-->>API: NotFound
+        API-->>User: 404 invitation.not_found (the same answer for both, OQ-118)
+    else the caller&#39;s invitation
+        IA-->>IM: invitation
         IM->>IA: resolve(invitationId, accepted, now)
-        Note over IA: guarded &mdash; applies only while still pending
-        alt no longer pending (resolved or revoked meanwhile)
+        Note over IA: guarded &mdash; only while still pending, so a revoke<br/>racing it can&#39;t also win (FR-1.10)
+        alt no longer pending (revoked, declined, accepted)
             IA-->>IM: stale
             IM-->>API: Conflict
             API-->>User: 409 invitation.not_pending
         else resolved
             IA-->>IM: resolved
-            IM->>HA: addMember(householdId, actor, role)
-            HA-->>IM: added (already_member counts as done)
-            IM-->>LOG: logActivity(correlationId, actor, "AcceptInvitation")
-            IM-->>LOG: recordAudit(actor, "HouseholdMembership", householdId)
+            IM->>HA: addMember(householdId, actor.userId, role)
+            Note over IM: resolve first, then join (OQ-118): the other order would<br/>need undoing a membership whenever a revoke raced in
+            HA-->>IM: added (already_member is fine)
+            IM-->>LOG: log.audit("AcceptInvitation", Invitation invitationId, household)
             IM-->>API: {householdId, role}
             API-->>User: 200 OK {householdId, role}
         end
@@ -232,11 +237,12 @@ sequenceDiagram
     User->>API: POST /invitations/:invitationId/decline
     API->>IM: declineInvitation(actor, invitationId)
     IM->>IA: findById(invitationId)
-    IA-->>IM: invitation (or none)
-    alt none, or actor is not the invited user
-        IM-->>API: Forbidden
-        API-->>User: 403 auth.forbidden
-    else invited user
+    alt missing, or not addressed to the caller
+        IA-->>IM: none / someone else&#39;s
+        IM-->>API: NotFound
+        API-->>User: 404 invitation.not_found (the same answer for both, OQ-118)
+    else the caller&#39;s invitation
+        IA-->>IM: invitation
         IM->>IA: resolve(invitationId, declined, now)
         alt no longer pending
             IA-->>IM: stale
@@ -244,9 +250,10 @@ sequenceDiagram
             API-->>User: 409 invitation.not_pending
         else resolved
             IA-->>IM: resolved
-            IM-->>LOG: logActivity(correlationId, actor, "DeclineInvitation")
+            Note over IM: no membership is ever created
+            IM-->>LOG: log.info("Invitation declined") &mdash; not audited (see notes)
             IM-->>API: declined
-            API-->>User: 200 OK {status: "declined"}
+            API-->>User: 200 OK
         end
     end
 """,
@@ -272,32 +279,35 @@ sequenceDiagram
 
     User->>API: DELETE /households/:householdId/invitations/:invitationId
     API->>IM: revokeInvitation(actor, householdId, invitationId)
-    IM->>AZ: canManageMembers(actor, householdId)?
-    alt not authorized
-        AZ-->>IM: denied
+    IM->>AZ: authorize(actor.userId, householdId, members.manage)
+    alt not a member
+        AZ-->>IM: not_member
+        IM-->>API: NotFound
+        API-->>User: 404 household.not_found
+    else not Owner or Admin
+        AZ-->>IM: forbidden
         IM-->>API: Forbidden
         API-->>User: 403 auth.forbidden
-    else authorized
+    else allowed
         AZ-->>IM: allowed
         IM->>IA: findById(invitationId)
-        IA-->>IM: invitation (or none)
-        alt none, or it belongs to another household
-            Note over IM: the URL&#39;s household must own it &mdash; otherwise an Admin<br/>of one household could revoke another&#39;s invitations (OQ-109)
+        alt missing, or another household&#39;s
+            IA-->>IM: none / elsewhere
             IM-->>API: NotFound
             API-->>User: 404 invitation.not_found
-        else this household&#39;s invitation
-        IM->>IA: resolve(invitationId, revoked, now)
-        alt no longer pending
-            IA-->>IM: stale
-            IM-->>API: Conflict
-            API-->>User: 409 invitation.not_pending
-        else resolved
-            IA-->>IM: resolved
-            IM-->>LOG: logActivity(correlationId, actor, "RevokeInvitation")
-            IM-->>LOG: recordAudit(actor, "Invitation", invitationId)
-            IM-->>API: revoked
-            API-->>User: 204 No Content
-        end
+        else this household&#39;s
+            IA-->>IM: invitation
+            IM->>IA: resolve(invitationId, revoked, now)
+            alt no longer pending (answered meanwhile)
+                IA-->>IM: stale
+                IM-->>API: Conflict
+                API-->>User: 409 invitation.not_pending
+            else resolved
+                IA-->>IM: resolved
+                IM-->>LOG: log.audit("RevokeInvitation", Invitation invitationId, household)
+                IM-->>API: revoked
+                API-->>User: 204 No Content
+            end
         end
     end
 """,
