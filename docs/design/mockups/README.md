@@ -21,7 +21,7 @@ round of October 2026. It replaces the old Python-generated HTML mockups
 |---|---|
 | Stack | Tailwind CSS + our own reusable components (replaces MUI — see NFR-UX-1). Headless primitives (Radix UI / Headless UI) for accessibility-heavy pieces: drawers/sheets, menus, switches. |
 | Shape | Rounded: cards radius 20px, inputs 14px, buttons and pills fully rounded. |
-| Type | Manrope (headings, big numbers) + Inter (text). All amounts use tabular figures. |
+| Type | Manrope (headings, big numbers) + Inter (text), self-hosted. Text is set by 14 role utilities (`type-display-lg`, `type-body`, `type-label`, …); the mockups' ad-hoc sizes map onto them as listed in OQ-125. All amounts use tabular figures (`tabular-nums`). Source: `apps/web/src/styles/typography.css` (K2, OQ-125). |
 | Icons | Material Symbols (outlined) via Iconify; card networks via Iconify `logos` set. |
 | Colour | Token-based, dark default + light theme. Every colour is a CSS variable (`--c-*`, hex; category palette as `--c-cat-*`) mapped to Tailwind v4 utilities — opacity modifiers work through `color-mix`. Tailwind's default palette is removed, so only tokens exist. Theme switches by setting `data-theme` on `<html>` (ThemeUtility, FU4 — dark / light / system, OQ-122); no per-page redesign. Source: `apps/web/src/styles/theme.css` (K1, OQ-121). |
 | Money semantics | Inflow = mint/green, outflow = coral/red, over budget = coral error state. Currency always explicit (R$ / $); currencies are never summed (no FX). |

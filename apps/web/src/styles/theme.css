@@ -15,6 +15,7 @@
  * stores; they share names with some theme tokens but not light values.
  */
 @import 'tailwindcss';
+@import './typography.css';
 
 :root {
   color-scheme: dark;

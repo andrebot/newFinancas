@@ -1952,6 +1952,52 @@ NFR-COMP-1/NFR-COMP-2 can be finalized. This does not block architecture
 work — the design already treats "region/compliance regime" as a variable,
 not a hardcoded assumption.
 
+### OQ-125: Typography (task K2)
+**Confirmed with the stakeholder (Oct 2026):**
+- **Self-hosted fonts.** Manrope (display) and Inter (text) come from
+  `@fontsource-variable/*`, bundled by Vite, not from Google Fonts: a
+  finance app makes no third-party request (no IP leak, strict CSP, works
+  offline). Each font is split by `unicode-range`, so a pt-BR / en-US page
+  downloads only the latin files (~25 kB + ~48 kB). `font-mono` (MFA keys,
+  backup codes) is the system monospace stack; not worth a third font.
+- **Text is set through role utilities, not a `<Text>` component.**
+  `apps/web/src/styles/typography.css` (imported by `theme.css`) declares
+  one `@utility` per role, bundling family, size, line height and, where
+  the role fixes them, weight, tracking and case. A utility works on any
+  element (button label, table cell, input), so nothing wraps text.
+- **The mockups' 16 ad-hoc sizes collapse into 14 roles:**
+
+  | Role | Font | Size / line (px) | Weight | Use | Mockup sizes |
+  |---|---|---|---|---|---|
+  | `type-display-xl` | Manrope | 40/44, tight | 800 | auth hero | 40 |
+  | `type-display-lg` | Manrope | 34/40, tight | 800 | page title, big total | 34, 36 |
+  | `type-display-md` | Manrope | 30/36, tight | 800 | auth screen title | 30 |
+  | `type-display-sm` | Manrope | 26/32 | 800 | form / setup amounts | 26, 28 |
+  | `type-display-xs` | Manrope | 22/28 | 800 | stat-card amounts | 22 |
+  | `type-heading-lg` | Manrope | 24/32 | 700 | section title | 2xl |
+  | `type-heading-md` | Manrope | 20/28 | 700 | drawer title | xl |
+  | `type-heading-sm` | Manrope | 18/26 | 700 | card title | lg |
+  | `type-body-lg` | Inter | 15/22 | — | inputs | 15, 17 |
+  | `type-body` | Inter | 14/20 | — | default text | sm |
+  | `type-body-sm` | Inter | 13/18 | — | dense rows | 13 |
+  | `type-caption` | Inter | 12/16 | — | hints, meta | xs, 12, 12.5, 11.5 |
+  | `type-label` | Inter | 11/14, uppercase, 0.05em | 600 | eyebrows, column headers | 11, 10.5 |
+  | `type-micro` | Inter | 10/12, uppercase, 0.05em | 700 | badges | 10 |
+
+  Text roles leave weight to the context (`type-body font-semibold`); a
+  weight utility also overrides a role's weight. `body` starts in
+  `type-body`.
+- **Tailwind's default families and size scale are removed**
+  (`--font-*: initial`, `--text-*: initial`): only `font-sans`,
+  `font-display`, `font-mono` and the roles exist, so `text-sm` generates
+  nothing; a size outside the scale needs an explicit `text-[…]`.
+- **Tabular figures stay opt-in** (`tabular-nums`), as in the mockups;
+  the Amount component (K29) applies them to money.
+- **Enforced by a test** that compiles the real stylesheet with Tailwind:
+  every role has the approved family, size and line height (none under
+  10px), default sizes and families generate nothing, and every font
+  source is local.
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.
