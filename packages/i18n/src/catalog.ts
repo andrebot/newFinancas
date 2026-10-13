@@ -21,3 +21,15 @@ export type NotificationType = Exclude<keyof Source['notifications'], 'fallback'
 export type EmailType = EmailKey extends infer Key
   ? (Key extends `${infer Type}.subject` ? Type : never)
   : never;
+
+type StrengthKey = keyof Source['passwordStrength'];
+
+/** A password strength meter level the catalog labels, e.g. `fair`. */
+export type PasswordStrengthLevel = StrengthKey extends infer Key
+  ? (Key extends `level.${infer Level}` ? Level : never)
+  : never;
+
+/** A password strength hint the catalog phrases, e.g. `avoid_common`. */
+export type PasswordStrengthHint = StrengthKey extends infer Key
+  ? (Key extends `hint.${infer Hint}` ? Hint : never)
+  : never;

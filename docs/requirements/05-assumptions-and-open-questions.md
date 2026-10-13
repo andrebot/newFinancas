@@ -1744,6 +1744,33 @@ OQ-118). Delete User's cascade is `M1D` (task 135, slice 5).
   `required` / `nonBlank` make a field mandatory, combined with
   `firstError`. `validateFields` returns only the failing fields.
 
+### OQ-120: Web PasswordStrengthUtility (task FU2)
+**Design decisions:**
+- **The estimate is zxcvbn-ts's**, not a length-and-symbols heuristic: a
+  heuristic rates `Password1234!` strong, which is the misleading reading
+  a meter exists to prevent. It catches common passwords, keyboard runs,
+  sequences, dates, l33t and the user's own details, with the common,
+  English and pt-BR dictionaries (both languages for every user).
+- **Loaded on demand.** The library and its dictionaries (~1 MB) are
+  imported by `loadPasswordStrengthEstimator()`, which the password
+  screens await, so they never weigh on the rest of the app.
+- **The library stays inside the utility.** Callers get our own reading:
+  `level` (`too_short` / `weak` / `fair` / `good` / `strong`), the
+  meter's four `segments`, and a `hint` code (`add_length`,
+  `avoid_common`, `avoid_patterns`, `avoid_dates`, `avoid_lone_words`,
+  `avoid_personal`) mapped from its warnings. Its own translations are
+  unused; the catalog's new `passwordStrength` section labels levels and
+  hints, and the level and hint types are derived from it.
+- **Below 12 characters the reading is always `too_short`** (the one hard
+  rule, NFR-SEC-4) without running the library. The meter never blocks a
+  submit.
+- **Personal inputs:** the app's own words (`config/constants.ts`) plus
+  the user's name and email; an email also contributes its local part,
+  with and without separators, since the library matches whole words.
+- **Known behaviour:** two names plus a year (`anasilva1990` without that
+  user's email) reads `good`: names are already in the dictionaries, and
+  that is zxcvbn's honest guess count.
+
 ## Refined (resolved, with a follow-up still open)
 
 *(OQ-4's legal-review follow-up below is closed for v1 by OQ-89.)*

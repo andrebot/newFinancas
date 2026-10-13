@@ -3,7 +3,6 @@
 // expression, a date format) stay next to the code that implements it.
 
 /** Form field rules (FU1 ValidationUtility). */
-// eslint-disable-next-line import-x/prefer-default-export -- grouped by area; more follow
 export const validation = {
   /** FR-1.1: the shortest password accepted (mirrors the API's `authentication.password`). */
   password: {
@@ -14,4 +13,12 @@ export const validation = {
     min: 1,
     max: 100,
   },
+};
+
+/** The advisory strength meter (FU2 PasswordStrengthUtility, NFR-SEC-4). */
+export const passwordStrength = {
+  /** Words about this app; a password built from them scores low. */
+  appWords: ['financas', 'finanças', 'finance', 'household', 'casa'],
+  /** Also match near-misses of a dictionary word (`Pasword`), not only exact ones. */
+  useLevenshteinDistance: true,
 };
