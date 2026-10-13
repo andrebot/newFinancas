@@ -69,6 +69,25 @@ export default [
     rules: { '@stylistic/max-len': ['error', { code: 100, ignoreStrings: true }] },
   },
 
+  // EBD: only Experiences call the backend (OQ-124). Flows, Interactions, the
+  // kit and Utilities can't import the API client (`src/api/`), an
+  // Experience's endpoints (`experiences/<name>/api.ts`) or RTK Query itself.
+  {
+    name: 'project/ebd-backend-calls',
+    files: [
+      'apps/web/src/**/flows/**', 'apps/web/src/**/interactions/**',
+      'apps/web/src/kit/**', 'apps/web/src/utilities/**',
+    ],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': ['error', {
+        patterns: [{
+          group: ['**/api', '**/api/**', '@reduxjs/toolkit/query', '@reduxjs/toolkit/query/**'],
+          message: 'Only Experiences call the backend (EBD): emit an event up to the Experience.',
+        }],
+      }],
+    },
+  },
+
   // Project rules (CLAUDE.md / NFR-MAINT-1, NFR-MAINT-2).
   {
     name: 'project/rules',

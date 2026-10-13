@@ -19,6 +19,15 @@ describe('safeStorage', () => {
     expect(localStorage.getItem('test.key')).toBe('light');
   });
 
+  it('forgets the value on remove', () => {
+    const storage = safeStorage(() => localStorage, 'test.key');
+    storage.write('light');
+
+    storage.remove();
+
+    expect(storage.read()).toBeNull();
+  });
+
   it('reads nothing and writes nothing when storage cannot be reached', () => {
     const unreachable = (): Storage => {
       throw new Error('SecurityError');
@@ -27,6 +36,7 @@ describe('safeStorage', () => {
 
     expect(storage.read()).toBeNull();
     expect(() => storage.write('light')).not.toThrow();
+    expect(() => storage.remove()).not.toThrow();
   });
 
   it('swallows a failing write (quota, private mode)', () => {

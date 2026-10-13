@@ -7,7 +7,7 @@ export {
   DEFAULT_LOCALE, isSupportedLocale, SUPPORTED_LOCALES, type Locale,
 } from './locales';
 export type {
-  Catalog, EmailType, ErrorCode, FieldCode, NotificationType,
+  Catalog, ClientErrorCode, EmailType, ErrorCode, FieldCode, NotificationType,
   PasswordStrengthHint, PasswordStrengthLevel,
 } from './catalog';
 

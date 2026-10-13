@@ -8,8 +8,11 @@ export type Catalog = {
   readonly [Section in keyof Source]: { readonly [Key in keyof Source[Section]]: string };
 };
 
+/** An error code the web client makes itself, never sent by the API (FU7). */
+export type ClientErrorCode = 'network.unavailable';
+
 /** An API error `code` the catalog translates — the only codes the API may emit. */
-export type ErrorCode = Exclude<keyof Source['errors'], 'fallback'>;
+export type ErrorCode = Exclude<keyof Source['errors'], 'fallback' | ClientErrorCode>;
 
 /** A validation `details[].code` the catalog translates. */
 export type FieldCode = keyof Source['fields'];

@@ -8,6 +8,7 @@ const enUS: Catalog = {
     'request.invalid': 'The request could not be processed.',
     'route.not_found': 'Not found.',
     'internal.unexpected': 'Something went wrong. Please try again.',
+    'network.unavailable': "Couldn't connect. Check your connection and try again.",
     'auth.forbidden': "You don't have permission to do that.",
     'auth.invalid_credentials': 'Invalid email or password.',
     'auth.refresh_invalid': 'Your session has expired. Please sign in again.',

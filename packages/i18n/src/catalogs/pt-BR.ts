@@ -7,7 +7,8 @@ type NotificationKey = Notification['type'] | 'fallback';
  * pt-BR catalog — the primary locale, and the source of the key set every other
  * locale must translate (NFR-I18N-3). Messages are ICU MessageFormat.
  *
- * - `errors`: API error `code`s (OQ-83); `fallback` covers unknown codes.
+ * - `errors`: API error `code`s (OQ-83); `fallback` covers unknown codes;
+ *   `network.unavailable` is the web client's own (the API was never reached, FU7).
  * - `fields`: validation `details[].code`s.
  * - `notifications`: notification `type`s (OQ-82); people arrive already resolved
  *   to names (`inviterName`), dates already formatted (NFR-I18N-2).
@@ -20,6 +21,7 @@ const ptBR = {
     'request.invalid': 'Não foi possível processar a solicitação.',
     'route.not_found': 'Recurso não encontrado.',
     'internal.unexpected': 'Algo deu errado. Tente novamente.',
+    'network.unavailable': 'Não foi possível conectar. Verifique sua conexão e tente novamente.',
     'auth.forbidden': 'Você não tem permissão para fazer isso.',
     'auth.invalid_credentials': 'E-mail ou senha inválidos.',
     'auth.refresh_invalid': 'Sua sessão expirou. Entre novamente.',
