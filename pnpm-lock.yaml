@@ -278,6 +278,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@financas/api-types':
+        specifier: workspace:*
+        version: link:../../packages/api-types
       '@financas/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n

@@ -1797,6 +1797,28 @@ OQ-118). Delete User's cascade is `M1D` (task 135, slice 5).
   colours reach ≥ 4.5:1 in both themes.
 - **Out of scope here:** fonts (K2), choosing dark / light / system (FU4).
 
+### OQ-122: ThemeUtility (task FU4)
+**Design decisions:**
+- **Applying a theme is one attribute.** `apps/web/src/utilities/theme.ts`
+  sets `data-theme` (`dark` / `light`) on `<html>`; the tokens in
+  `theme.css` do the rest, so nothing re-renders. `system` follows the
+  device's `prefers-color-scheme: light` query live; applying any other
+  preference stops listening.
+- **The last applied preference is remembered in `localStorage`**
+  (`theme.storageKey` in `config/constants.ts`) and restored in `main.tsx`
+  before the first render, so the sign-in screen and a reload start in the
+  user's theme. The server's `preferences.theme` wins once loaded. A
+  missing, unknown or blocked storage value gives the default (dark,
+  FR-1.21); a failing write is ignored.
+- **One controller per page** (`createThemeController`): a new preference
+  replaces the previous one, so the App Shell (S1) and Edit Preferences
+  (X3) apply through the same instance `main.tsx` creates.
+- **A category colour is a CSS variable reference**, `var(--c-cat-teal)`,
+  not a hex: it follows the theme without re-rendering and no hex values
+  are copied into TypeScript. For `style` props (fill, stroke,
+  background); static markup keeps the `cat-*` utilities. An unknown token
+  (a newer palette than this build) falls back to `slate`.
+
 ## Refined (resolved, with a follow-up still open)
 
 *(OQ-4's legal-review follow-up below is closed for v1 by OQ-89.)*

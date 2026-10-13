@@ -23,7 +23,7 @@ round of October 2026. It replaces the old Python-generated HTML mockups
 | Shape | Rounded: cards radius 20px, inputs 14px, buttons and pills fully rounded. |
 | Type | Manrope (headings, big numbers) + Inter (text). All amounts use tabular figures. |
 | Icons | Material Symbols (outlined) via Iconify; card networks via Iconify `logos` set. |
-| Colour | Token-based, dark default + light theme. Every colour is a CSS variable (`--c-*`, hex; category palette as `--c-cat-*`) mapped to Tailwind v4 utilities — opacity modifiers work through `color-mix`. Tailwind's default palette is removed, so only tokens exist. Theme switches by setting `data-theme="light"` on `<html>`; no per-page redesign. Source: `apps/web/src/styles/theme.css` (K1, OQ-121). |
+| Colour | Token-based, dark default + light theme. Every colour is a CSS variable (`--c-*`, hex; category palette as `--c-cat-*`) mapped to Tailwind v4 utilities — opacity modifiers work through `color-mix`. Tailwind's default palette is removed, so only tokens exist. Theme switches by setting `data-theme` on `<html>` (ThemeUtility, FU4 — dark / light / system, OQ-122); no per-page redesign. Source: `apps/web/src/styles/theme.css` (K1, OQ-121). |
 | Money semantics | Inflow = mint/green, outflow = coral/red, over budget = coral error state. Currency always explicit (R$ / $); currencies are never summed (no FX). |
 | Category colour | Each category has an icon + colour, reused everywhere it appears (ledger, budgets, categories). |
 | Motion | 150–250ms ease for hover, drawer slide, progress fills. |
