@@ -31,7 +31,9 @@
     "test:e2e": "playwright test",
     "generate:api": "pnpm --filter @financas/api-types generate",
     "check:contract": "pnpm --filter @financas/api-types lint:spec && pnpm generate:api && (git diff --quiet -- packages/api-types/src/generated && test -z \"$(git ls-files --others --exclude-standard -- packages/api-types/src/generated)\" || (echo 'Generated API code is stale: commit the regenerated packages/api-types/src/generated' && exit 1))",
-    "check": "pnpm lint && pnpm typecheck && pnpm check:contract && pnpm test:coverage"
+    "generate:icons": "pnpm --filter @financas/icons generate",
+    "check:icons": "pnpm generate:icons && (git diff --quiet -- apps/web/src/kit/icons/generated && test -z \"$(git ls-files --others --exclude-standard -- apps/web/src/kit/icons/generated)\" || (echo 'Icon registry is stale: commit the regenerated apps/web/src/kit/icons/generated' && exit 1))",
+    "check": "pnpm lint && pnpm typecheck && pnpm check:contract && pnpm check:icons && pnpm test:coverage"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
