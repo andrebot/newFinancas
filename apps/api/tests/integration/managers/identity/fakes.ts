@@ -33,6 +33,17 @@ export const HOUSEHOLD = {
   id: '0199c5a0-0000-7000-8000-0000000000bb', name: 'Casa', createdAt: NOW, role: 'Owner' as const,
 };
 
+export const BEN_ID = '0199c5a0-0000-7000-8000-000000000002';
+
+export const MEMBER = {
+  userId: BEN_ID,
+  firstName: 'Ben',
+  lastName: 'Demo',
+  email: 'ben@example.com',
+  role: 'Member' as const,
+  joinedAt: NOW,
+};
+
 export const RECEIVED = {
   id: '0199c5a0-0000-7000-8000-0000000000dd',
   householdId: HOUSEHOLD.id,
@@ -66,7 +77,28 @@ export const fakeDeps = () => {
     consumeResetToken: vi.fn(async (): Promise<string | undefined> => ANA.id),
     update: vi.fn(async (): Promise<typeof ANA | undefined> => ANA),
   };
-  const households = { listForUser: vi.fn(async () => [HOUSEHOLD]) };
+  const households = {
+    listForUser: vi.fn(async () => [HOUSEHOLD]),
+    insert: vi.fn(async () => ({ id: HOUSEHOLD.id, name: 'Casa', createdAt: NOW })),
+    delete: vi.fn(async () => true),
+    listMembers: vi.fn(async () => [MEMBER]),
+    findMembership: vi.fn(async (): Promise<{ role: string; joinedAt: Date } | undefined> => (
+      { role: 'Member', joinedAt: NOW }
+    )),
+    findSuccessor: vi.fn(async (): Promise<{ userId: string; role: string } | undefined> => (
+      { userId: BEN_ID, role: 'Admin' }
+    )),
+    swapOwner: vi.fn(async (): Promise<'swapped' | 'stale'> => 'swapped'),
+    removeMember: vi.fn(async (): Promise<'removed' | 'stale'> => 'removed'),
+    updateRole: vi.fn(async (): Promise<'updated' | 'stale'> => 'updated'),
+    dissolve: vi.fn(async (): Promise<'dissolved' | 'stale'> => 'dissolved'),
+  };
+  const authorization = {
+    authorize: vi.fn(async (): Promise<{ outcome: string; role?: string }> => (
+      { outcome: 'allowed', role: 'Owner' }
+    )),
+  };
+  const bus = { publish: vi.fn() };
   const invitations = { listPendingForUser: vi.fn(async () => [RECEIVED]) };
   const sessions = {
     insert: vi.fn(async () => SESSION),
@@ -101,12 +133,22 @@ export const fakeDeps = () => {
     sessions,
     households,
     invitations,
+    authorization,
+    bus,
     authentication,
     notifications,
     webAppUrl: 'http://web.test',
     now: () => NOW,
   } as unknown as IdentityDeps;
   return {
-    deps, users, sessions, households, invitations, authentication, notifications,
+    deps,
+    users,
+    sessions,
+    households,
+    invitations,
+    authorization,
+    bus,
+    authentication,
+    notifications,
   };
 };

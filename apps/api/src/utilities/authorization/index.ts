@@ -55,3 +55,6 @@ export const createAuthorizationUtility = (deps: AuthorizationDeps) => ({
       : { outcome: decision };
   },
 });
+
+/** The authorization utility's operations. */
+export type AuthorizationUtility = ReturnType<typeof createAuthorizationUtility>;

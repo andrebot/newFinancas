@@ -68,18 +68,21 @@ sequenceDiagram
 
     User->>API: DELETE /households/:householdId
     API->>IM: deleteHousehold(actor, householdId)
-    IM->>AZ: canManageMembers(actor, householdId)?
-    alt actor is not the Owner
-        AZ-->>IM: denied
+    IM->>AZ: authorize(actor.userId, householdId, household.delete)
+    alt not a member
+        AZ-->>IM: not_member
+        IM-->>API: NotFound
+        API-->>User: 404 household.not_found (the household isn&#39;t revealed)
+    else not the Owner
+        AZ-->>IM: forbidden
         IM-->>API: Forbidden
         API-->>User: 403 auth.forbidden
-    else actor is the Owner
-        AZ-->>IM: allowed
+    else allowed
+        AZ-->>IM: allowed (Owner)
         IM->>HA: delete(householdId)
-        Note over HA: cascading hard delete — every household-scoped<br/>record (accounts, categories, budgets, goals,<br/>holdings, memberships, invitations) goes with it &mdash;<br/>this is dissolution, not a member departing
+        Note over HA: everything household-scoped goes with it (FK cascade)
         HA-->>IM: deleted
-        IM-->>LOG: logActivity(correlationId, actor, "DeleteHousehold")
-        IM-->>LOG: recordAudit(actor, "Household", householdId)
+        IM-->>LOG: log.audit("DeleteHousehold", Household householdId)
         IM-->>API: deleted
         API-->>User: 204 No Content
     end

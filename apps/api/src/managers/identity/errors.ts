@@ -99,3 +99,41 @@ export const resetTokenInvalid = (): ApiError => createApiError({
 export const unauthenticated = (): ApiError => createApiError({
   status: 401, code: 'auth.unauthenticated', message: 'Account no longer exists',
 });
+
+/**
+ * The household doesn't exist or the caller isn't a member — the same answer
+ * for both, so it never confirms a household exists (OQ-117).
+ *
+ * @returns 404 `household.not_found`.
+ */
+export const householdNotFound = (): ApiError => createApiError({
+  status: 404, code: 'household.not_found', message: 'Household not found',
+});
+
+/**
+ * A member without the household role an action needs (FR-1.7, OQ-111).
+ *
+ * @returns 403 `auth.forbidden`.
+ */
+export const forbidden = (): ApiError => createApiError({
+  status: 403, code: 'auth.forbidden', message: 'Not permitted in this household',
+});
+
+/**
+ * The person acted on isn't a member of the household.
+ *
+ * @returns 404 `household.member_not_found`.
+ */
+export const memberNotFound = (): ApiError => createApiError({
+  status: 404, code: 'household.member_not_found', message: 'Not a member of this household',
+});
+
+/**
+ * The membership changed while the request ran, and retrying didn't settle it
+ * (OQ-107).
+ *
+ * @returns 409 `household.changed`.
+ */
+export const householdChanged = (): ApiError => createApiError({
+  status: 409, code: 'household.changed', message: 'Household membership changed concurrently',
+});

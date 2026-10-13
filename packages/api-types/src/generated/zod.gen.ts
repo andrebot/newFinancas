@@ -90,6 +90,9 @@ export const zReceivedInvitation = z.object({
 export const zHouseholdMembership = z.object({
     userId: z.uuid().optional(),
     householdId: z.uuid().optional(),
+    firstName: z.string().optional(),
+    lastName: z.string().optional(),
+    email: z.email().optional(),
     role: z.enum([
         'Owner',
         'Admin',
@@ -909,13 +912,13 @@ export const zListHouseholdsResponse = z.object({
 });
 
 export const zCreateHouseholdBody = z.object({
-    name: z.string()
+    name: z.string().min(1)
 });
 
 /**
  * Created
  */
-export const zCreateHouseholdResponse = zHousehold;
+export const zCreateHouseholdResponse = zMyHousehold;
 
 export const zDeleteHouseholdPath = z.object({
     householdId: z.uuid()
@@ -933,7 +936,7 @@ export const zGetHouseholdPath = z.object({
 /**
  * OK
  */
-export const zGetHouseholdResponse = zHousehold;
+export const zGetHouseholdResponse = zMyHousehold;
 
 export const zListMembersPath = z.object({
     householdId: z.uuid()

@@ -2,15 +2,16 @@ import {
   zChangePasswordBody, zConfirmPasswordResetBody, zLoginBody, zRecoverWithMfaCodeBody,
   zEditCurrentUserBody, zRefreshTokensBody, zRegisterUserBody, zRequestPasswordResetBody,
 } from '@financas/api-types/zod';
-import { Hono, type Context } from 'hono';
+import { Hono } from 'hono';
 import { z } from 'zod';
-import type { IdentityManager, RequestContext, SignedInContext } from '../../managers/identity';
-import { actorOf, requireSystemRole, type VerifyAccessToken } from '../authentication';
-import { correlationIdOf, type AppEnv } from '../errorHandler';
+import type { IdentityManager } from '../../managers/identity';
+import { requireSystemRole, type VerifyAccessToken } from '../authentication';
+import type { AppEnv } from '../errorHandler';
 import { validate } from '../validation';
 import {
-  toMyHouseholdJson, toReceivedInvitationJson, toSessionJson, toUserJson,
+  toReceivedInvitationJson, toSessionJson, toUserJson,
 } from './identityJson';
+import { publicContextOf, signedInContextOf } from './requestContext';
 
 // IdentityManager's routes (M1): thin — validate against the contract, call the
 // use case, shape the response. Register, login and refresh are public; the rest
@@ -38,26 +39,6 @@ const validResetConfirmation = validate(
 );
 const validResetRequest = validate('json', zRequestPasswordResetBody);
 const validSession = validate('param', z.object({ sessionId: z.uuid() }));
-
-/**
- * The request of a public route (no one is signed in yet).
- *
- * @param httpContext - The request context.
- * @returns Its correlation ID.
- */
-const publicContextOf = (httpContext: Context<AppEnv>): RequestContext => ({
-  correlationId: correlationIdOf(httpContext),
-});
-
-/**
- * The request of a protected route.
- *
- * @param httpContext - The request context.
- * @returns Its correlation ID and signed-in actor.
- */
-const signedInContextOf = (httpContext: Context<AppEnv>): SignedInContext => ({
-  correlationId: correlationIdOf(httpContext), actor: actorOf(httpContext),
-});
 
 /**
  * Builds IdentityManager's routes.
@@ -120,10 +101,6 @@ const createIdentityRoutes = (identity: IdentityManager, verifyAccessToken: Veri
     .get('/users/me/invitations', signedIn, async (httpContext) => {
       const invitations = await identity.listMyInvitations(signedInContextOf(httpContext));
       return httpContext.json({ data: invitations.map(toReceivedInvitationJson) });
-    })
-    .get('/households', signedIn, async (httpContext) => {
-      const households = await identity.listMyHouseholds(signedInContextOf(httpContext));
-      return httpContext.json({ data: households.map(toMyHouseholdJson) });
     })
     .get('/users/me/sessions', signedIn, async (httpContext) => {
       const sessions = await identity.listSessions(signedInContextOf(httpContext));

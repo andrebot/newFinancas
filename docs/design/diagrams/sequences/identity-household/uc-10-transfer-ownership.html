@@ -68,29 +68,40 @@ sequenceDiagram
 
     User->>API: POST /households/:householdId/transfer-ownership {targetUserId}
     API->>IM: transferOwnership(actor, householdId, targetUserId)
-    IM->>AZ: canManageMembers(actor, householdId)?
-    alt actor is not the current Owner
-        AZ-->>IM: denied
+    IM->>AZ: authorize(actor.userId, householdId, household.transferOwnership)
+    alt not a member
+        AZ-->>IM: not_member
+        IM-->>API: NotFound
+        API-->>User: 404 household.not_found (the household isn&#39;t revealed)
+    else not the Owner
+        AZ-->>IM: forbidden
         IM-->>API: Forbidden
         API-->>User: 403 auth.forbidden
-    else targetUserId is not an existing member
-        AZ-->>IM: allowed
-        IM-->>API: NotFound
-        API-->>User: 404 household.member_not_found
-    else valid target member
-        AZ-->>IM: allowed
-        IM->>HA: swapOwner(householdId, actor, targetUserId)
-        Note over HA: atomic dual-role swap, guarded: applies only while actor is still<br/>Owner and target still a member (OQ-28, OQ-107)
-        alt a concurrent change
-            HA-->>IM: stale
-            IM-->>API: Conflict
-            API-->>User: 409 household.changed
-        else applied
-        HA-->>IM: swapped
-        IM-->>LOG: logActivity(correlationId, actor, "TransferOwnership")
-        IM-->>LOG: recordAudit(actor, "HouseholdMembership", householdId)
-        IM-->>API: transferred
-        API-->>User: 200 OK {newOwnerId: targetUserId}
+    else allowed
+        AZ-->>IM: allowed (Owner)
+        opt targetUserId is the caller
+            IM-->>API: nothing to do
+            API-->>User: 200 OK
+        end
+        IM->>HA: findMembership(householdId, targetUserId)
+        alt not a member
+            HA-->>IM: none
+            IM-->>API: NotFound
+            API-->>User: 404 household.member_not_found
+        else a member
+            HA-->>IM: role
+            IM->>HA: swapOwner(householdId, actor.userId, targetUserId)
+            Note over HA: one transaction &mdash; the caller becomes Admin, the target Owner,<br/>never zero or two Owners (OQ-28), guarded (OQ-107)
+            alt stale
+                HA-->>IM: stale
+                IM-->>API: Conflict
+                API-->>User: 409 household.changed
+            else swapped
+                HA-->>IM: swapped
+                IM-->>LOG: log.audit("TransferOwnership", User targetUserId, household)
+                IM-->>API: transferred
+                API-->>User: 200 OK
+            end
         end
     end
     </pre>

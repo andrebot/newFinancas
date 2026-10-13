@@ -1,4 +1,6 @@
 import type { IdentityDeps } from './context';
+import createHouseholds from './households';
+import createMembers from './members';
 import createPasswords from './passwords';
 import createProfile from './profile';
 import createRegistration from './registration';
@@ -30,6 +32,8 @@ export const createIdentityManager = (deps: IdentityDeps) => ({
   ...createSessions(deps),
   ...createPasswords(deps),
   ...createProfile(deps),
+  ...createHouseholds(deps),
+  ...createMembers(deps),
 });
 
 export type IdentityManager = ReturnType<typeof createIdentityManager>;

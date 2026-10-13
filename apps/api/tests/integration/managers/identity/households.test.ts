@@ -1,0 +1,96 @@
+import { captureLogs } from '@financas/logging';
+import { describe, expect, it } from 'vitest';
+import { createIdentityManager } from '../../../../src/managers/identity';
+import {
+  ANA, fakeDeps, HOUSEHOLD, MEMBER, NOW, SESSION,
+} from './fakes';
+
+const ACTOR = { userId: ANA.id, sessionId: SESSION.id, systemRole: 'USER' as const };
+const CORRELATION_ID = '0199c5a0-0000-7000-8000-0000000000cc';
+const CONTEXT = { correlationId: CORRELATION_ID, actor: ACTOR };
+const NOT_FOUND = { apiError: { status: 404, code: 'household.not_found' } };
+const FORBIDDEN = { apiError: { status: 403, code: 'auth.forbidden' } };
+
+describe('IdentityManager — Create Household (uc-01, FR-1.4)', () => {
+  it('makes the caller Owner, announces it in their language, audits', async () => {
+    const { deps, households, bus } = fakeDeps();
+    const logs = captureLogs();
+
+    const created = await createIdentityManager(deps).createHousehold(CONTEXT, 'Casa');
+    logs.stop();
+
+    expect(households.insert).toHaveBeenCalledWith('Casa', ANA.id);
+    expect(created).toEqual({
+      id: HOUSEHOLD.id, name: 'Casa', createdAt: NOW, role: 'Owner',
+    });
+    expect(bus.publish).toHaveBeenCalledWith(
+      'household.created',
+      { householdId: HOUSEHOLD.id, createdByUserId: ANA.id, language: 'pt-BR' },
+      CORRELATION_ID,
+    );
+    expect(logs.events).toContainEqual(expect.objectContaining({
+      level: 'audit', message: 'CreateHousehold', householdId: HOUSEHOLD.id,
+    }));
+  });
+
+  it('answers 401 when the creator\'s account is gone, creating nothing', async () => {
+    const { deps, users, households } = fakeDeps();
+    users.findById.mockResolvedValueOnce(undefined);
+
+    await expect(createIdentityManager(deps).createHousehold(CONTEXT, 'Casa'))
+      .rejects.toMatchObject({ apiError: { status: 401 } });
+    expect(households.insert).not.toHaveBeenCalled();
+  });
+});
+
+describe('IdentityManager — households', () => {
+  it('gets one of the caller\'s households; anyone else\'s is 404', async () => {
+    const { deps } = fakeDeps();
+    const identity = createIdentityManager(deps);
+
+    await expect(identity.getHousehold(CONTEXT, HOUSEHOLD.id)).resolves.toEqual(HOUSEHOLD);
+    await expect(identity.getHousehold(CONTEXT, 'someone-elses')).rejects.toMatchObject(NOT_FOUND);
+  });
+
+  it('deletes a household for its Owner (uc-02), audited', async () => {
+    const { deps, households, authorization } = fakeDeps();
+    const logs = captureLogs();
+
+    await createIdentityManager(deps).deleteHousehold(CONTEXT, HOUSEHOLD.id);
+    logs.stop();
+
+    expect(authorization.authorize)
+      .toHaveBeenCalledWith(ANA.id, HOUSEHOLD.id, { action: 'household.delete' });
+    expect(households.delete).toHaveBeenCalledWith(HOUSEHOLD.id);
+    expect(logs.events).toContainEqual(expect.objectContaining({ message: 'DeleteHousehold' }));
+  });
+
+  it.each([
+    ['a non-member', { outcome: 'not_member' }, NOT_FOUND],
+    ['a member without the role', { outcome: 'forbidden' }, FORBIDDEN],
+  ])('refuses %s before touching anything', async (_who, outcome, answer) => {
+    const { deps, households, authorization } = fakeDeps();
+    authorization.authorize.mockResolvedValueOnce(outcome);
+
+    await expect(createIdentityManager(deps).deleteHousehold(CONTEXT, HOUSEHOLD.id))
+      .rejects.toMatchObject(answer);
+    expect(households.delete).not.toHaveBeenCalled();
+  });
+
+  it('answers 404 when the household vanished before the delete', async () => {
+    const { deps, households } = fakeDeps();
+    households.delete.mockResolvedValueOnce(false);
+
+    await expect(createIdentityManager(deps).deleteHousehold(CONTEXT, HOUSEHOLD.id))
+      .rejects.toMatchObject(NOT_FOUND);
+  });
+
+  it('lists the members for any member', async () => {
+    const { deps, authorization } = fakeDeps();
+
+    await expect(createIdentityManager(deps).listMembers(CONTEXT, HOUSEHOLD.id))
+      .resolves.toEqual([MEMBER]);
+    expect(authorization.authorize)
+      .toHaveBeenCalledWith(ANA.id, HOUSEHOLD.id, { action: 'household.view' });
+  });
+});

@@ -1,3 +1,4 @@
+import type { Language } from '../../db/schema/values';
 import type { CorrelationId } from '../correlationId';
 
 // The events Managers exchange (VBD §3.0): the only coupling between them is
@@ -6,7 +7,12 @@ import type { CorrelationId } from '../correlationId';
 /** Topic → payload of every event on the bus. */
 export interface BusEvents {
   /** IdentityManager created a household → AccountManager seeds default categories (§3.1b). */
-  readonly 'household.created': { readonly householdId: string };
+  /** Default categories are seeded in the creator's language (OQ-117). */
+  readonly 'household.created': {
+    readonly householdId: string;
+    readonly createdByUserId: string;
+    readonly language: Language;
+  };
   /** The daily job found a matured holding → AccountManager notifies its owners (§3.2a). */
   readonly 'holding.matured': {
     readonly holdingId: string;
