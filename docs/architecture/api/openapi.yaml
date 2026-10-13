@@ -438,13 +438,13 @@ paths:
               type: object
               required: [name]
               properties:
-                name: { type: string }
+                name: { type: string, minLength: 1, description: "Trimmed — must not be blank" }
       responses:
         "201":
           description: Created
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/Household" }
+              schema: { $ref: "#/components/schemas/MyHousehold" }
         "422": { $ref: "#/components/responses/ValidationError" }
 
   /households/{householdId}:
@@ -454,12 +454,13 @@ paths:
       tags: [Households]
       operationId: getHousehold
       summary: Get a household
+      description: One of the caller's households, with their role (OQ-117); 404 for anyone else's.
       responses:
         "200":
           description: OK
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/Household" }
+              schema: { $ref: "#/components/schemas/MyHousehold" }
     delete:
       tags: [Households]
       operationId: deleteHousehold
@@ -474,6 +475,7 @@ paths:
       responses:
         "204": { description: No Content }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
   /households/{householdId}/members:
     parameters:
@@ -493,6 +495,7 @@ paths:
                   data:
                     type: array
                     items: { $ref: "#/components/schemas/HouseholdMembership" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
   /households/{householdId}/members/{userId}:
     parameters:
@@ -2139,7 +2142,7 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
     NotFound:
-      description: 'Resource does not exist, or does not belong to the caller. Codes: e.g. `session.not_found`, `notification.not_found`, `invitation.invitee_not_registered`.'
+      description: 'Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `invitation.invitee_not_registered`.'
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
@@ -2301,6 +2304,9 @@ components:
       properties:
         userId: { type: string, format: uuid }
         householdId: { type: string, format: uuid }
+        firstName: { type: string, description: "For the members screen (OQ-117)" }
+        lastName: { type: string }
+        email: { type: string, format: email }
         role: { type: string, enum: [Owner, Admin, Member, Viewer], description: "FR-1.6 — exactly one of four, fixed set" }
         joinedAt: { type: string, format: date-time, description: "Read directly by FR-1.18's succession rule" }
 

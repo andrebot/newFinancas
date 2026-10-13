@@ -29,6 +29,7 @@ const ptBR = {
     'budget.target_already_claimed': 'Esta categoria já pertence a outro orçamento.',
     'goal.allocation_exceeds_100': 'Este investimento já tem {current, number}% alocado; adicionar {requested, number}% passaria de 100%.',
     'household.changed': 'Os membros desta casa mudaram enquanto você editava. Tente novamente.',
+    'household.not_found': 'Casa não encontrada.',
     'household.member_not_found': 'Esta pessoa não é membro da casa.',
     'holding.not_market_priced': 'Este investimento não usa valor de mercado manual.',
     'invitation.already_member': 'Usuário já é membro desta casa.',

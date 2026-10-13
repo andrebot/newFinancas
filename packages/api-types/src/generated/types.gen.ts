@@ -121,6 +121,12 @@ export type HouseholdMembership = {
     userId?: string;
     householdId?: string;
     /**
+     * For the members screen (OQ-117)
+     */
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    /**
      * FR-1.6 — exactly one of four, fixed set
      */
     role?: 'Owner' | 'Admin' | 'Member' | 'Viewer';
@@ -1187,7 +1193,7 @@ export type RevokeSessionData = {
 
 export type RevokeSessionErrors = {
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `session.not_found`, `notification.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
 };
@@ -1241,6 +1247,9 @@ export type ListHouseholdsResponse = ListHouseholdsResponses[keyof ListHousehold
 
 export type CreateHouseholdData = {
     body: {
+        /**
+         * Trimmed — must not be blank
+         */
         name: string;
     };
     path?: never;
@@ -1261,7 +1270,7 @@ export type CreateHouseholdResponses = {
     /**
      * Created
      */
-    201: Household;
+    201: MyHousehold;
 };
 
 export type CreateHouseholdResponse = CreateHouseholdResponses[keyof CreateHouseholdResponses];
@@ -1280,6 +1289,10 @@ export type DeleteHouseholdErrors = {
      * Authenticated, but not permitted to perform this action. Codes: `auth.forbidden`.
      */
     403: Error;
+    /**
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `invitation.invitee_not_registered`.
+     */
+    404: Error;
 };
 
 export type DeleteHouseholdError = DeleteHouseholdErrors[keyof DeleteHouseholdErrors];
@@ -1306,7 +1319,7 @@ export type GetHouseholdResponses = {
     /**
      * OK
      */
-    200: Household;
+    200: MyHousehold;
 };
 
 export type GetHouseholdResponse = GetHouseholdResponses[keyof GetHouseholdResponses];
@@ -1319,6 +1332,15 @@ export type ListMembersData = {
     query?: never;
     url: '/households/{householdId}/members';
 };
+
+export type ListMembersErrors = {
+    /**
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `invitation.invitee_not_registered`.
+     */
+    404: Error;
+};
+
+export type ListMembersError = ListMembersErrors[keyof ListMembersErrors];
 
 export type ListMembersResponses = {
     /**
@@ -1347,7 +1369,7 @@ export type RemoveMemberErrors = {
      */
     403: Error;
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `session.not_found`, `notification.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
     /**
@@ -1385,7 +1407,7 @@ export type ChangeMemberRoleErrors = {
      */
     403: Error;
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `session.not_found`, `notification.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
     /**
@@ -1424,7 +1446,7 @@ export type TransferOwnershipErrors = {
      */
     403: Error;
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `session.not_found`, `notification.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
     /**
@@ -1659,7 +1681,7 @@ export type GetAccountData = {
 
 export type GetAccountErrors = {
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `session.not_found`, `notification.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
 };
@@ -2630,7 +2652,7 @@ export type DeleteNotificationData = {
 
 export type DeleteNotificationErrors = {
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `session.not_found`, `notification.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
 };
@@ -2698,7 +2720,7 @@ export type DeleteMarketValueErrors = {
      */
     403: Error;
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `session.not_found`, `notification.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
     /**
@@ -2737,7 +2759,7 @@ export type EditMarketValueErrors = {
      */
     403: Error;
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `session.not_found`, `notification.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
     /**
@@ -2834,7 +2856,7 @@ export type DeleteIndexRateErrors = {
      */
     403: Error;
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `session.not_found`, `notification.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
 };
@@ -2872,7 +2894,7 @@ export type EditIndexRateErrors = {
      */
     403: Error;
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `session.not_found`, `notification.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
     /**

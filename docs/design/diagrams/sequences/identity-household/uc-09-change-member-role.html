@@ -67,33 +67,42 @@ sequenceDiagram
     participant LOG as LoggingUtility
 
     User->>API: PATCH /households/:householdId/members/:userId/role {role}
-    API->>IM: changeRole(actor, householdId, userId, role)
-    IM->>AZ: canManageMembers(actor, householdId)?
-    alt not authorized
-        AZ-->>IM: denied
+    Note over API: role is Admin, Member or Viewer &mdash; Owner is refused here (422),<br/>that&#39;s Transfer Ownership (FR-1.20)
+    API->>IM: changeMemberRole(actor, householdId, userId, role)
+    IM->>AZ: authorize(actor.userId, householdId, members.manage)
+    alt not a member
+        AZ-->>IM: not_member
+        IM-->>API: NotFound
+        API-->>User: 404 household.not_found (the household isn&#39;t revealed)
+    else member without the role
+        AZ-->>IM: forbidden
         IM-->>API: Forbidden
         API-->>User: 403 auth.forbidden
-    else role requested is Owner
-        AZ-->>IM: allowed
-        IM-->>API: rejected — use Transfer Ownership instead (FR-1.20)
-        API-->>User: 422 validation.failed {details}
-    else role is Admin/Member/Viewer
-        AZ-->>IM: allowed
+    else allowed
+        AZ-->>IM: allowed (Owner or Admin)
         IM->>HA: findMembership(householdId, userId)
-        HA-->>IM: role (or none)
-        alt userId is the Owner or not a member
-            Note over IM: the Owner role never changes here (FR-1.12, OQ-107)
-            IM-->>API: Forbidden / NotFound
-            API-->>User: 403 auth.forbidden / 404 household.member_not_found
-        else non-Owner member
+        alt not a member
+            HA-->>IM: none
+            IM-->>API: NotFound
+            API-->>User: 404 household.member_not_found
+        else the Owner
+            HA-->>IM: role Owner
+            IM-->>API: Forbidden
+            API-->>User: 403 auth.forbidden (never the Owner&#39;s role, OQ-111)
+        else another member
+            HA-->>IM: role
             IM->>HA: updateRole(householdId, userId, role)
-            Note over HA: guarded — stale if they became Owner or left meanwhile (409)
-            HA-->>IM: role updated
+            alt stale (made Owner or gone meanwhile)
+                HA-->>IM: stale
+                IM-->>API: Conflict
+                API-->>User: 409 household.changed
+            else updated
+                HA-->>IM: updated
+                IM-->>LOG: log.audit("ChangeMemberRole", User userId, household)
+                IM-->>API: updated
+                API-->>User: 200 OK
+            end
         end
-        IM-->>LOG: logActivity(correlationId, actor, "ChangeMemberRole")
-        IM-->>LOG: recordAudit(actor, "HouseholdMembership", householdId)
-        IM-->>API: updated
-        API-->>User: 200 OK {userId, role}
     end
     </pre>
   </div>

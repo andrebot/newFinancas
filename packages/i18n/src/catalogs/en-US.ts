@@ -17,6 +17,7 @@ const enUS: Catalog = {
     'budget.target_already_claimed': 'This category already belongs to another budget.',
     'goal.allocation_exceeds_100': 'This holding already has {current, number}% allocated; adding {requested, number}% would exceed 100%.',
     'household.changed': 'The members of this household changed while you were editing. Please try again.',
+    'household.not_found': 'Household not found.',
     'household.member_not_found': 'This person is not a member of the household.',
     'holding.not_market_priced': "This holding doesn't use a manual market value.",
     'invitation.already_member': 'User is already a member.',

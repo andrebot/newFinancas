@@ -6,6 +6,8 @@ import type { UserAccessor } from '../../accessors/userAccessor';
 import { authentication } from '../../config/constants';
 import type { NotificationEngine } from '../../engines/notification';
 import type { AccessTokenClaims, AuthenticationUtility } from '../../utilities/authentication';
+import type { AuthorizationUtility } from '../../utilities/authorization';
+import type { ServiceBus } from '../../utilities/serviceBus';
 
 // What every IdentityManager use case shares: its dependencies (the tier below,
 // injected so integration tests mock exactly that tier — BDT), the request it
@@ -18,6 +20,8 @@ export interface IdentityDeps {
   readonly households: HouseholdAccessor;
   readonly invitations: InvitationAccessor;
   readonly authentication: AuthenticationUtility;
+  readonly authorization: AuthorizationUtility;
+  readonly bus: Pick<ServiceBus, 'publish'>;
   readonly notifications: NotificationEngine;
   /** Where the web app runs; email links point here (WEB_APP_URL). */
   readonly webAppUrl: string;

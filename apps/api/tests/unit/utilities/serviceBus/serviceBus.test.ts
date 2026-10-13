@@ -5,6 +5,7 @@ import { newCorrelationId } from '../../../../src/utilities/correlationId';
 import { createServiceBus, type BusMessage } from '../../../../src/utilities/serviceBus';
 
 const NOW = new Date('2026-10-08T12:00:00Z');
+const CREATED = { householdId: 'h1', createdByUserId: 'u1', language: 'pt-BR' } as const;
 const CORRELATION_ID = newCorrelationId(() => '0199c5a0-1b2c-7d3e-8f40-123456789abc');
 
 /**
@@ -25,12 +26,12 @@ describe('ServiceBusUtility', () => {
       received.push(message);
     });
 
-    bus.publish('household.created', { householdId: 'h1' }, CORRELATION_ID);
+    bus.publish('household.created', CREATED, CORRELATION_ID);
     await bus.drain();
 
     expect(received).toEqual([{
       topic: 'household.created',
-      payload: { householdId: 'h1' },
+      payload: CREATED,
       correlationId: CORRELATION_ID,
       publishedAt: NOW,
     }]);
@@ -46,7 +47,7 @@ describe('ServiceBusUtility', () => {
       calls.push('second');
     });
 
-    bus.publish('household.created', { householdId: 'h1' }, CORRELATION_ID);
+    bus.publish('household.created', CREATED, CORRELATION_ID);
     await bus.drain();
 
     expect(calls).toEqual(['first', 'second']);
@@ -57,7 +58,7 @@ describe('ServiceBusUtility', () => {
     const handler = vi.fn();
     bus.subscribe('holding.matured', handler);
 
-    bus.publish('household.created', { householdId: 'h1' }, CORRELATION_ID);
+    bus.publish('household.created', CREATED, CORRELATION_ID);
     await bus.drain();
 
     expect(handler).not.toHaveBeenCalled();
@@ -71,7 +72,7 @@ describe('ServiceBusUtility', () => {
     bus.subscribe('household.created', kept);
 
     unsubscribe();
-    bus.publish('household.created', { householdId: 'h1' }, CORRELATION_ID);
+    bus.publish('household.created', CREATED, CORRELATION_ID);
     await bus.drain();
 
     expect(removed).not.toHaveBeenCalled();
@@ -84,7 +85,7 @@ describe('ServiceBusUtility', () => {
     bus.subscribe('household.created', handler);
     bus.subscribe('household.created', handler);
 
-    bus.publish('household.created', { householdId: 'h1' }, CORRELATION_ID);
+    bus.publish('household.created', CREATED, CORRELATION_ID);
     await bus.drain();
 
     expect(handler).toHaveBeenCalledTimes(1);
@@ -95,7 +96,7 @@ describe('ServiceBusUtility', () => {
     const handler = vi.fn();
     bus.subscribe('household.created', handler);
 
-    bus.publish('household.created', { householdId: 'h1' }, CORRELATION_ID);
+    bus.publish('household.created', CREATED, CORRELATION_ID);
 
     expect(handler).not.toHaveBeenCalled();
     await bus.drain();
@@ -111,7 +112,7 @@ describe('ServiceBusUtility', () => {
     });
     bus.subscribe('household.created', other);
 
-    const publish = () => bus.publish('household.created', { householdId: 'h1' }, CORRELATION_ID);
+    const publish = () => bus.publish('household.created', CREATED, CORRELATION_ID);
 
     expect(publish).not.toThrow();
     await bus.drain();
@@ -123,7 +124,9 @@ describe('ServiceBusUtility', () => {
 
   it('gives subscribers a frozen copy, so one cannot change what the next sees', async () => {
     const { bus } = setup();
-    const payload = { householdId: 'h1' };
+    const payload: { householdId: string; createdByUserId: string; language: 'pt-BR' } = {
+      ...CREATED,
+    };
     const seen: unknown[] = [];
     bus.subscribe('household.created', (message) => {
       expect(Object.isFrozen(message)).toBe(true);
@@ -148,7 +151,7 @@ describe('ServiceBusUtility', () => {
       bus.subscribe('household.created', late);
     });
 
-    bus.publish('household.created', { householdId: 'h1' }, CORRELATION_ID);
+    bus.publish('household.created', CREATED, CORRELATION_ID);
     await bus.drain();
 
     expect(late).not.toHaveBeenCalled();
@@ -171,7 +174,7 @@ describe('ServiceBusUtility', () => {
       order.push('holding handled');
     });
 
-    bus.publish('household.created', { householdId: 'h1' }, CORRELATION_ID);
+    bus.publish('household.created', CREATED, CORRELATION_ID);
     await bus.drain();
 
     expect(order).toEqual(['household handled', 'holding handled']);

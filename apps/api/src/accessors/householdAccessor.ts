@@ -1,5 +1,5 @@
 import {
-  and, asc, eq, ne, sql, TransactionRollbackError,
+  and, asc, eq, ne, notExists, sql, TransactionRollbackError,
 } from 'drizzle-orm';
 import type { Database } from '../db/database';
 import { PG_UNIQUE_VIOLATION, pgErrorCode } from '../db/errors';
@@ -249,6 +249,27 @@ const createHouseholdAccessor = (db: Database) => ({
       if (error instanceof TransactionRollbackError) return 'stale';
       throw error;
     }
+  },
+
+  /**
+   * Dissolves a household its last member is leaving (FR-1.18). Guarded: only
+   * while nobody else is a member — someone who joined meanwhile (an accepted
+   * invitation) must not be deleted with it.
+   *
+   * @param householdId - The household.
+   * @param lastMemberId - The member leaving.
+   * @returns `dissolved`, or `stale` (gone already, or someone else is a member).
+   */
+  dissolve: async (householdId: string, lastMemberId: string): Promise<Guarded<'dissolved'>> => {
+    const others = db.select({ userId: householdMemberships.userId }).from(householdMemberships)
+      .where(and(
+        eq(householdMemberships.householdId, householdId),
+        ne(householdMemberships.userId, lastMemberId),
+      ));
+    const dissolved = await db.delete(households)
+      .where(and(eq(households.id, householdId), notExists(others)))
+      .returning({ id: households.id });
+    return dissolved.length > 0 ? 'dissolved' : 'stale';
   },
 
   /**

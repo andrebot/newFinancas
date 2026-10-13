@@ -1659,6 +1659,37 @@ OQ-112:** `NotificationDeliveryUtility` was misclassified.
   the route, a duplicate email decided by the insert's unique index rather
   than a prior lookup that two simultaneous registrations could both pass.
 
+### OQ-117: Households and members (task M1, PR 4)
+**Design decisions, all following FR-1.4/1.7/1.11/1.12/1.18/1.20 and OQ-107/OQ-111:**
+- **Every household action asks AuthorizationUtility first.** A caller who
+  isn't a member gets **404 `household.not_found`** (new code) — the same as
+  for a household that doesn't exist, so it's never revealed; a member
+  without the role gets 403 `auth.forbidden`.
+- **Owner protection lives in IdentityManager (OQ-111):** Remove Member and
+  Change Role refuse an Owner target with 403; the guarded writes would also
+  refuse it (`stale` → 409) if it changed concurrently.
+- **Leave Household** (self-service): a non-Owner is removed; an Owner hands
+  the household to the longest-tenured Admin/Member/Viewer (`swapOwner`,
+  then removal) or, alone, dissolves it. Any `stale` step re-reads and
+  decides again, up to 3 attempts (`households.leaveAttempts`), then 409
+  `household.changed` (OQ-107).
+- **New guarded `HouseholdAccessor.dissolve(householdId, lastMemberId)`:**
+  the old unguarded `delete` would have deleted someone who accepted an
+  invitation between "no successor" and the delete. Deliberate dissolution
+  by the Owner (uc-02) still uses `delete`.
+- **`household.created` carries `{householdId, createdByUserId, language}`:**
+  default categories are seeded in the creator's language (an earlier
+  decision), and AccountManager must not reach into Identity's data to
+  find it.
+- **Transfer Ownership to oneself** changes nothing (200). Change Role to
+  `Owner` is refused by the contract (422) — that's Transfer Ownership.
+- **Contract gaps closed (same as OQ-116):** `HouseholdMembership` gains
+  first/last name and email (the members screen needs them; the Accessor
+  already returned them); create and get household return `MyHousehold`
+  (with the caller's role); the household name must not be blank.
+- **Sequences uc-01, 02, 07, 08, 09, 10 redrawn** to the implementation:
+  `authorize(...)` with its outcomes, guarded writes and retries, `log.audit`.
+
 ## Refined (resolved, with a follow-up still open)
 
 *(OQ-4's legal-review follow-up below is closed for v1 by OQ-89.)*

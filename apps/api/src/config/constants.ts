@@ -62,6 +62,15 @@ export const authentication = {
   },
 } as const;
 
+/** Households (OQ-107, OQ-117). */
+export const households = {
+  /**
+   * How many times Leave Household re-reads and retries when a concurrent
+   * change made its guarded write `stale`, before answering 409.
+   */
+  leaveAttempts: 3,
+} as const;
+
 /** HTTP layer settings. */
 export const http = {
   /** Request/response header carrying the correlation ID (OQ-99). */

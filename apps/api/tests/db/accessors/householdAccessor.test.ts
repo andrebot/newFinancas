@@ -234,4 +234,21 @@ describe('HouseholdAccessor', () => {
     expect(await roles(home.id)).toEqual({});
     expect(await households.delete(home.id)).toBe(false);
   }));
+  it('dissolves only while the leaver is the last member (FR-1.18)', test(async ({
+    households, user, join, roles,
+  }) => {
+    const ana = await user('ana');
+    const bia = await user('bia');
+    const home = await households.insert('Casa', ana);
+    await join(home.id, bia, 'Member', 0);
+
+    // Someone else joined meanwhile: nothing is deleted.
+    expect(await households.dissolve(home.id, ana)).toBe('stale');
+    expect(Object.keys(await roles(home.id))).toHaveLength(2);
+
+    await households.removeMember(home.id, bia);
+    expect(await households.dissolve(home.id, ana)).toBe('dissolved');
+    expect(await roles(home.id)).toEqual({});
+    expect(await households.dissolve(home.id, ana)).toBe('stale');
+  }));
 });

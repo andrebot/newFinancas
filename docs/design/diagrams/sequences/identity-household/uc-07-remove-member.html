@@ -67,31 +67,43 @@ sequenceDiagram
     participant LOG as LoggingUtility
 
     User->>API: DELETE /households/:householdId/members/:userId
+    Note over API: userId &ne; the caller (the caller themself is Leave Household, uc-08)
     API->>IM: removeMember(actor, householdId, userId)
-    IM->>AZ: canManageMembers(actor, householdId)?
-    alt not authorized
-        AZ-->>IM: denied
+    IM->>AZ: authorize(actor.userId, householdId, members.manage)
+    alt not a member
+        AZ-->>IM: not_member
+        IM-->>API: NotFound
+        API-->>User: 404 household.not_found (the household isn&#39;t revealed)
+    else member without the role
+        AZ-->>IM: forbidden
         IM-->>API: Forbidden
         API-->>User: 403 auth.forbidden
-    else authorized
-        AZ-->>IM: allowed
+    else allowed
+        AZ-->>IM: allowed (Owner or Admin)
         IM->>HA: findMembership(householdId, userId)
-        HA-->>IM: role (or none)
-        alt userId is the Owner
-            Note over IM: business rule, Manager's (OQ-107) — the Owner<br/>can only leave by their own action (FR-1.11/OQ-27)
-            IM-->>API: Forbidden
-            API-->>User: 403 auth.forbidden
-        else userId is not a member
+        alt not a member
+            HA-->>IM: none
             IM-->>API: NotFound
             API-->>User: 404 household.member_not_found
-        else userId is a non-Owner member
+        else the Owner
+            HA-->>IM: role Owner
+            Note over IM: nobody but the Owner ends the Owner&#39;s membership (OQ-111)
+            IM-->>API: Forbidden
+            API-->>User: 403 auth.forbidden
+        else another member
+            HA-->>IM: role
             IM->>HA: removeMember(householdId, userId)
-            Note over HA: guarded — applies only while userId is a non-Owner member,<br/>a concurrent change returns stale (Manager answers 409 household.changed)
-            HA-->>IM: removed
-            IM-->>LOG: logActivity(correlationId, actor, "RemoveMember")
-            IM-->>LOG: recordAudit(actor, "HouseholdMembership", householdId)
-            IM-->>API: removed
-            API-->>User: 204 No Content
+            Note over HA: guarded &mdash; never removes an Owner (OQ-107)
+            alt stale (made Owner or gone meanwhile)
+                HA-->>IM: stale
+                IM-->>API: Conflict
+                API-->>User: 409 household.changed
+            else removed
+                HA-->>IM: removed
+                IM-->>LOG: log.audit("RemoveMember", User userId, household)
+                IM-->>API: removed
+                API-->>User: 204 No Content
+            end
         end
     end
     </pre>

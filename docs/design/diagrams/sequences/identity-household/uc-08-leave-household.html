@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Leave Household</h1>
-  <p class="subtitle"><span class="route">DELETE /households/:householdId/members/me</span> (actor == target) &mdash; FR-1.11/FR-1.18. Self-service, no authorization check needed. If the leaving member is the Owner, auto-succession fires atomically.</p>
+  <p class="subtitle"><span class="route">DELETE /households/:householdId/members/:userId</span> (userId = the caller) &mdash; FR-1.11/FR-1.18. Self-service, no authorization check. If the leaving member is the Owner, the longest-tenured member takes over first, or the household dissolves when nobody else is left.</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -65,40 +65,49 @@ sequenceDiagram
     participant HA as HouseholdAccessor
     participant LOG as LoggingUtility
 
-    User->>API: DELETE /households/:householdId/members/me
-    API->>IM: removeMember(actor, householdId, actor)
-    Note over IM: actor == target — leaving is always self-service,<br/>the authorization check is skipped entirely (FR-1.11)
-    IM->>HA: findMembership(householdId, actor)
-    HA-->>IM: role
-    alt actor is not the Owner
-        IM->>HA: removeMember(householdId, actor)
-        HA-->>IM: removed
-    else actor is the Owner
-        Note over IM: FR-1.18 succession is the Manager&#39;s decision (OQ-107)
-        IM->>HA: findSuccessor(householdId, actor)
-        Note over HA: longest-tenured Admin, else Member, else Viewer
-        alt nobody else remains
+    User->>API: DELETE /households/:householdId/members/:userId (userId = the caller)
+    API->>IM: removeMember(actor, householdId, actor.userId)
+    Note over IM: self-service &mdash; no permission check. Each attempt decides from<br/>fresh facts, a stale guarded write starts it again, 3 attempts at most (OQ-107)
+    loop up to 3 attempts
+        IM->>HA: findMembership(householdId, actor.userId)
+        alt not a member
             HA-->>IM: none
-            IM->>HA: delete(householdId)
-            HA-->>IM: household dissolved
-        else successor found
-            HA-->>IM: successorId
-            IM->>HA: swapOwner(householdId, actor, successorId)
-            Note over HA: guarded, one transaction — never zero or two Owners (OQ-28)
-            HA-->>IM: swapped (stale → re-read and retry, at most 3 times)
-            IM->>HA: removeMember(householdId, actor)
-            HA-->>IM: removed
+            IM-->>API: NotFound
+            API-->>User: 404 household.not_found
+        else a member who is not the Owner
+            HA-->>IM: Admin / Member / Viewer
+            IM->>HA: removeMember(householdId, actor.userId)
+            HA-->>IM: removed (stale &rarr; next attempt)
+        else the Owner
+            HA-->>IM: Owner
+            IM->>HA: findSuccessor(householdId, actor.userId)
+            alt nobody else is a member
+                HA-->>IM: none
+                IM->>HA: dissolve(householdId, actor.userId)
+                Note over HA: guarded &mdash; only while nobody else is a member, so someone<br/>who just accepted an invitation isn&#39;t deleted with it (OQ-117)
+                HA-->>IM: dissolved (stale &rarr; next attempt)
+            else a successor (longest-tenured Admin, then Member, then Viewer)
+                HA-->>IM: successor
+                IM->>HA: swapOwner(householdId, actor.userId, successor)
+                HA-->>IM: swapped (stale &rarr; next attempt)
+                IM->>HA: removeMember(householdId, actor.userId)
+                HA-->>IM: removed (now an Admin)
+            end
         end
     end
-    IM-->>LOG: logActivity(correlationId, actor, "LeaveHousehold")
-    IM-->>LOG: recordAudit(actor, "HouseholdMembership", householdId)
-    IM-->>API: left
-    API-->>User: 204 No Content
+    alt still stale after 3 attempts
+        IM-->>API: Conflict
+        API-->>User: 409 household.changed
+    else left or dissolved
+        IM-->>LOG: log.audit("LeaveHousehold" or "DissolveHousehold", Household householdId)
+        IM-->>API: left
+        API-->>User: 204 No Content
+    end
     </pre>
   </div>
   <div class="notes">
     <ul>
-      <li><strong>All three branches return the same 204</strong> — the succession/deletion complexity is entirely internal to <code>HouseholdAccessor</code>&#39;s validated write; the caller never needs to know which branch fired.</li>
+      <li><strong><strong>All branches return the same 204, but the decisions are <code>IdentityManager</code>&#39;s (OQ-107):</strong> who succeeds, and whether the household dissolves. <code>HouseholdAccessor</code> applies each step as a guarded write and says <code>stale</code> when the facts changed meanwhile &mdash; the whole decision then runs again from fresh facts, up to three times (<code>households.leaveAttempts</code>), before a 409. <code>dissolve</code> is guarded too (OQ-117): someone who joined a moment ago is never deleted with the household.</li>
       <li>This is the richest of the three "membership ends" flows (Remove Member, Leave, and — via FR-1.17 — Delete User) precisely because it&#39;s the one place FR-1.18&#39;s succession rule is directly, voluntarily triggered rather than a side effect of account deletion.</li>
       <li>See FR-1.11, FR-1.18, OQ-25, OQ-27.</li>
     </ul>

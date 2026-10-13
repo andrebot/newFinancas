@@ -30,7 +30,7 @@ UCS.append(dict(
     mermaid="""
 sequenceDiagram
 """ + P_CORE + """
-    participant VU as ValidationUtility
+    participant UA as UserAccessor
     participant HA as HouseholdAccessor
     participant SB as ServiceBusUtility
     participant AM as AccountManager
@@ -38,30 +38,25 @@ sequenceDiagram
     participant LOG as LoggingUtility
 
     User->>API: POST /households {name}
-    API->>IM: createHousehold(actor, input)
-    IM->>VU: check(name)
-    alt name missing/invalid
-        VU-->>IM: rejected
-        IM-->>API: ValidationError
-        API-->>User: 422 validation.failed {details}
-    else valid
-        VU-->>IM: ok
-        IM->>HA: insert(household, ownerId=actor)
-        Note over HA: validated write — auto-assigns actor as Owner
-        HA-->>IM: householdId
-        IM->>SB: publish("household.created", {householdId})
-        SB-->>AM: subscribe("household.created")
-        AM->>CA: seedDefaults(householdId)
-        CA-->>AM: default Categories created
-        IM-->>LOG: logActivity(correlationId, actor, "CreateHousehold")
-        IM-->>LOG: recordAudit(actor, "Household", householdId)
-        IM-->>API: householdId
-        API-->>User: 201 Created {householdId}
-    end
+    Note over API: name trimmed and non-blank (contract validation, OQ-116)
+    API->>IM: createHousehold(actor, name)
+    IM->>UA: findById(actor.userId)
+    UA-->>IM: creator (language)
+    IM->>HA: insert(name, ownerUserId = actor.userId)
+    HA-->>IM: household (creator is Owner, one transaction)
+    IM->>SB: publish("household.created", {householdId, createdByUserId, language})
+    Note over SB: fire-and-forget &mdash; AccountManager seeds the default<br/>categories in the creator&#39;s language (OQ-117)
+    SB-->>AM: subscribe("household.created")
+    AM->>CA: seedDefaults(householdId, language)
+    CA-->>AM: default Categories created
+    IM-->>LOG: log.audit("CreateHousehold", Household householdId)
+    IM-->>API: household + role Owner
+    API-->>User: 201 Created MyHousehold
 """,
     notes="""
     <ul>
       <li><strong>No <code>IdentityManager</code> &rarr; <code>AccountManager</code> edge</strong> — the Category-seeding call is entirely on <code>AccountManager</code>&#39;s side of the Service Bus subscription; <code>IdentityManager</code> never learns <code>AccountManager</code> or <code>CategoryAccessor</code> exist (VBD doc &sect;3.1b).</li>
+      <li><strong>The event carries the creator and their language</strong> (<code>{householdId, createdByUserId, language}</code>, OQ-117): default categories are seeded in the creator&#39;s language, and <code>AccountManager</code> must not reach into Identity&#39;s data to find it.</li>
       <li>The Service Bus hop is fire-and-forget from <code>IdentityManager</code>&#39;s perspective — the 201 response doesn&#39;t wait on Category seeding completing.</li>
       <li>See <code>docs/architecture/backend/01-vbd-decomposition.md</code> &sect;3.1b and FR-1.4/FR-10.1.</li>
     </ul>
@@ -82,18 +77,21 @@ sequenceDiagram
 
     User->>API: DELETE /households/:householdId
     API->>IM: deleteHousehold(actor, householdId)
-    IM->>AZ: canManageMembers(actor, householdId)?
-    alt actor is not the Owner
-        AZ-->>IM: denied
+    IM->>AZ: authorize(actor.userId, householdId, household.delete)
+    alt not a member
+        AZ-->>IM: not_member
+        IM-->>API: NotFound
+        API-->>User: 404 household.not_found (the household isn&#39;t revealed)
+    else not the Owner
+        AZ-->>IM: forbidden
         IM-->>API: Forbidden
         API-->>User: 403 auth.forbidden
-    else actor is the Owner
-        AZ-->>IM: allowed
+    else allowed
+        AZ-->>IM: allowed (Owner)
         IM->>HA: delete(householdId)
-        Note over HA: cascading hard delete — every household-scoped<br/>record (accounts, categories, budgets, goals,<br/>holdings, memberships, invitations) goes with it &mdash;<br/>this is dissolution, not a member departing
+        Note over HA: everything household-scoped goes with it (FK cascade)
         HA-->>IM: deleted
-        IM-->>LOG: logActivity(correlationId, actor, "DeleteHousehold")
-        IM-->>LOG: recordAudit(actor, "Household", householdId)
+        IM-->>LOG: log.audit("DeleteHousehold", Household householdId)
         IM-->>API: deleted
         API-->>User: 204 No Content
     end
@@ -324,31 +322,43 @@ sequenceDiagram
     participant LOG as LoggingUtility
 
     User->>API: DELETE /households/:householdId/members/:userId
+    Note over API: userId &ne; the caller (the caller themself is Leave Household, uc-08)
     API->>IM: removeMember(actor, householdId, userId)
-    IM->>AZ: canManageMembers(actor, householdId)?
-    alt not authorized
-        AZ-->>IM: denied
+    IM->>AZ: authorize(actor.userId, householdId, members.manage)
+    alt not a member
+        AZ-->>IM: not_member
+        IM-->>API: NotFound
+        API-->>User: 404 household.not_found (the household isn&#39;t revealed)
+    else member without the role
+        AZ-->>IM: forbidden
         IM-->>API: Forbidden
         API-->>User: 403 auth.forbidden
-    else authorized
-        AZ-->>IM: allowed
+    else allowed
+        AZ-->>IM: allowed (Owner or Admin)
         IM->>HA: findMembership(householdId, userId)
-        HA-->>IM: role (or none)
-        alt userId is the Owner
-            Note over IM: business rule, Manager's (OQ-107) — the Owner<br/>can only leave by their own action (FR-1.11/OQ-27)
-            IM-->>API: Forbidden
-            API-->>User: 403 auth.forbidden
-        else userId is not a member
+        alt not a member
+            HA-->>IM: none
             IM-->>API: NotFound
             API-->>User: 404 household.member_not_found
-        else userId is a non-Owner member
+        else the Owner
+            HA-->>IM: role Owner
+            Note over IM: nobody but the Owner ends the Owner&#39;s membership (OQ-111)
+            IM-->>API: Forbidden
+            API-->>User: 403 auth.forbidden
+        else another member
+            HA-->>IM: role
             IM->>HA: removeMember(householdId, userId)
-            Note over HA: guarded — applies only while userId is a non-Owner member,<br/>a concurrent change returns stale (Manager answers 409 household.changed)
-            HA-->>IM: removed
-            IM-->>LOG: logActivity(correlationId, actor, "RemoveMember")
-            IM-->>LOG: recordAudit(actor, "HouseholdMembership", householdId)
-            IM-->>API: removed
-            API-->>User: 204 No Content
+            Note over HA: guarded &mdash; never removes an Owner (OQ-107)
+            alt stale (made Owner or gone meanwhile)
+                HA-->>IM: stale
+                IM-->>API: Conflict
+                API-->>User: 409 household.changed
+            else removed
+                HA-->>IM: removed
+                IM-->>LOG: log.audit("RemoveMember", User userId, household)
+                IM-->>API: removed
+                API-->>User: 204 No Content
+            end
         end
     end
 """,
@@ -365,46 +375,55 @@ sequenceDiagram
 UCS.append(dict(
     filename="uc-08-leave-household.html",
     title="Leave Household",
-    subtitle='<span class="route">DELETE /households/:householdId/members/me</span> (actor == target) &mdash; FR-1.11/FR-1.18. Self-service, no authorization check needed. If the leaving member is the Owner, auto-succession fires atomically.',
+    subtitle='<span class="route">DELETE /households/:householdId/members/:userId</span> (userId = the caller) &mdash; FR-1.11/FR-1.18. Self-service, no authorization check. If the leaving member is the Owner, the longest-tenured member takes over first, or the household dissolves when nobody else is left.',
     mermaid="""
 sequenceDiagram
 """ + P_CORE + """
     participant HA as HouseholdAccessor
     participant LOG as LoggingUtility
 
-    User->>API: DELETE /households/:householdId/members/me
-    API->>IM: removeMember(actor, householdId, actor)
-    Note over IM: actor == target — leaving is always self-service,<br/>the authorization check is skipped entirely (FR-1.11)
-    IM->>HA: findMembership(householdId, actor)
-    HA-->>IM: role
-    alt actor is not the Owner
-        IM->>HA: removeMember(householdId, actor)
-        HA-->>IM: removed
-    else actor is the Owner
-        Note over IM: FR-1.18 succession is the Manager&#39;s decision (OQ-107)
-        IM->>HA: findSuccessor(householdId, actor)
-        Note over HA: longest-tenured Admin, else Member, else Viewer
-        alt nobody else remains
+    User->>API: DELETE /households/:householdId/members/:userId (userId = the caller)
+    API->>IM: removeMember(actor, householdId, actor.userId)
+    Note over IM: self-service &mdash; no permission check. Each attempt decides from<br/>fresh facts, a stale guarded write starts it again, 3 attempts at most (OQ-107)
+    loop up to 3 attempts
+        IM->>HA: findMembership(householdId, actor.userId)
+        alt not a member
             HA-->>IM: none
-            IM->>HA: delete(householdId)
-            HA-->>IM: household dissolved
-        else successor found
-            HA-->>IM: successorId
-            IM->>HA: swapOwner(householdId, actor, successorId)
-            Note over HA: guarded, one transaction — never zero or two Owners (OQ-28)
-            HA-->>IM: swapped (stale → re-read and retry, at most 3 times)
-            IM->>HA: removeMember(householdId, actor)
-            HA-->>IM: removed
+            IM-->>API: NotFound
+            API-->>User: 404 household.not_found
+        else a member who is not the Owner
+            HA-->>IM: Admin / Member / Viewer
+            IM->>HA: removeMember(householdId, actor.userId)
+            HA-->>IM: removed (stale &rarr; next attempt)
+        else the Owner
+            HA-->>IM: Owner
+            IM->>HA: findSuccessor(householdId, actor.userId)
+            alt nobody else is a member
+                HA-->>IM: none
+                IM->>HA: dissolve(householdId, actor.userId)
+                Note over HA: guarded &mdash; only while nobody else is a member, so someone<br/>who just accepted an invitation isn&#39;t deleted with it (OQ-117)
+                HA-->>IM: dissolved (stale &rarr; next attempt)
+            else a successor (longest-tenured Admin, then Member, then Viewer)
+                HA-->>IM: successor
+                IM->>HA: swapOwner(householdId, actor.userId, successor)
+                HA-->>IM: swapped (stale &rarr; next attempt)
+                IM->>HA: removeMember(householdId, actor.userId)
+                HA-->>IM: removed (now an Admin)
+            end
         end
     end
-    IM-->>LOG: logActivity(correlationId, actor, "LeaveHousehold")
-    IM-->>LOG: recordAudit(actor, "HouseholdMembership", householdId)
-    IM-->>API: left
-    API-->>User: 204 No Content
+    alt still stale after 3 attempts
+        IM-->>API: Conflict
+        API-->>User: 409 household.changed
+    else left or dissolved
+        IM-->>LOG: log.audit("LeaveHousehold" or "DissolveHousehold", Household householdId)
+        IM-->>API: left
+        API-->>User: 204 No Content
+    end
 """,
     notes="""
     <ul>
-      <li><strong>All three branches return the same 204</strong> — the succession/deletion complexity is entirely internal to <code>HouseholdAccessor</code>&#39;s validated write; the caller never needs to know which branch fired.</li>
+      <li><strong><strong>All branches return the same 204, but the decisions are <code>IdentityManager</code>&#39;s (OQ-107):</strong> who succeeds, and whether the household dissolves. <code>HouseholdAccessor</code> applies each step as a guarded write and says <code>stale</code> when the facts changed meanwhile &mdash; the whole decision then runs again from fresh facts, up to three times (<code>households.leaveAttempts</code>), before a 409. <code>dissolve</code> is guarded too (OQ-117): someone who joined a moment ago is never deleted with the household.</li>
       <li>This is the richest of the three "membership ends" flows (Remove Member, Leave, and — via FR-1.17 — Delete User) precisely because it&#39;s the one place FR-1.18&#39;s succession rule is directly, voluntarily triggered rather than a side effect of account deletion.</li>
       <li>See FR-1.11, FR-1.18, OQ-25, OQ-27.</li>
     </ul>
@@ -424,33 +443,42 @@ sequenceDiagram
     participant LOG as LoggingUtility
 
     User->>API: PATCH /households/:householdId/members/:userId/role {role}
-    API->>IM: changeRole(actor, householdId, userId, role)
-    IM->>AZ: canManageMembers(actor, householdId)?
-    alt not authorized
-        AZ-->>IM: denied
+    Note over API: role is Admin, Member or Viewer &mdash; Owner is refused here (422),<br/>that&#39;s Transfer Ownership (FR-1.20)
+    API->>IM: changeMemberRole(actor, householdId, userId, role)
+    IM->>AZ: authorize(actor.userId, householdId, members.manage)
+    alt not a member
+        AZ-->>IM: not_member
+        IM-->>API: NotFound
+        API-->>User: 404 household.not_found (the household isn&#39;t revealed)
+    else member without the role
+        AZ-->>IM: forbidden
         IM-->>API: Forbidden
         API-->>User: 403 auth.forbidden
-    else role requested is Owner
-        AZ-->>IM: allowed
-        IM-->>API: rejected — use Transfer Ownership instead (FR-1.20)
-        API-->>User: 422 validation.failed {details}
-    else role is Admin/Member/Viewer
-        AZ-->>IM: allowed
+    else allowed
+        AZ-->>IM: allowed (Owner or Admin)
         IM->>HA: findMembership(householdId, userId)
-        HA-->>IM: role (or none)
-        alt userId is the Owner or not a member
-            Note over IM: the Owner role never changes here (FR-1.12, OQ-107)
-            IM-->>API: Forbidden / NotFound
-            API-->>User: 403 auth.forbidden / 404 household.member_not_found
-        else non-Owner member
+        alt not a member
+            HA-->>IM: none
+            IM-->>API: NotFound
+            API-->>User: 404 household.member_not_found
+        else the Owner
+            HA-->>IM: role Owner
+            IM-->>API: Forbidden
+            API-->>User: 403 auth.forbidden (never the Owner&#39;s role, OQ-111)
+        else another member
+            HA-->>IM: role
             IM->>HA: updateRole(householdId, userId, role)
-            Note over HA: guarded — stale if they became Owner or left meanwhile (409)
-            HA-->>IM: role updated
+            alt stale (made Owner or gone meanwhile)
+                HA-->>IM: stale
+                IM-->>API: Conflict
+                API-->>User: 409 household.changed
+            else updated
+                HA-->>IM: updated
+                IM-->>LOG: log.audit("ChangeMemberRole", User userId, household)
+                IM-->>API: updated
+                API-->>User: 200 OK
+            end
         end
-        IM-->>LOG: logActivity(correlationId, actor, "ChangeMemberRole")
-        IM-->>LOG: recordAudit(actor, "HouseholdMembership", householdId)
-        IM-->>API: updated
-        API-->>User: 200 OK {userId, role}
     end
 """,
     notes="""
@@ -475,29 +503,40 @@ sequenceDiagram
 
     User->>API: POST /households/:householdId/transfer-ownership {targetUserId}
     API->>IM: transferOwnership(actor, householdId, targetUserId)
-    IM->>AZ: canManageMembers(actor, householdId)?
-    alt actor is not the current Owner
-        AZ-->>IM: denied
+    IM->>AZ: authorize(actor.userId, householdId, household.transferOwnership)
+    alt not a member
+        AZ-->>IM: not_member
+        IM-->>API: NotFound
+        API-->>User: 404 household.not_found (the household isn&#39;t revealed)
+    else not the Owner
+        AZ-->>IM: forbidden
         IM-->>API: Forbidden
         API-->>User: 403 auth.forbidden
-    else targetUserId is not an existing member
-        AZ-->>IM: allowed
-        IM-->>API: NotFound
-        API-->>User: 404 household.member_not_found
-    else valid target member
-        AZ-->>IM: allowed
-        IM->>HA: swapOwner(householdId, actor, targetUserId)
-        Note over HA: atomic dual-role swap, guarded: applies only while actor is still<br/>Owner and target still a member (OQ-28, OQ-107)
-        alt a concurrent change
-            HA-->>IM: stale
-            IM-->>API: Conflict
-            API-->>User: 409 household.changed
-        else applied
-        HA-->>IM: swapped
-        IM-->>LOG: logActivity(correlationId, actor, "TransferOwnership")
-        IM-->>LOG: recordAudit(actor, "HouseholdMembership", householdId)
-        IM-->>API: transferred
-        API-->>User: 200 OK {newOwnerId: targetUserId}
+    else allowed
+        AZ-->>IM: allowed (Owner)
+        opt targetUserId is the caller
+            IM-->>API: nothing to do
+            API-->>User: 200 OK
+        end
+        IM->>HA: findMembership(householdId, targetUserId)
+        alt not a member
+            HA-->>IM: none
+            IM-->>API: NotFound
+            API-->>User: 404 household.member_not_found
+        else a member
+            HA-->>IM: role
+            IM->>HA: swapOwner(householdId, actor.userId, targetUserId)
+            Note over HA: one transaction &mdash; the caller becomes Admin, the target Owner,<br/>never zero or two Owners (OQ-28), guarded (OQ-107)
+            alt stale
+                HA-->>IM: stale
+                IM-->>API: Conflict
+                API-->>User: 409 household.changed
+            else swapped
+                HA-->>IM: swapped
+                IM-->>LOG: log.audit("TransferOwnership", User targetUserId, household)
+                IM-->>API: transferred
+                API-->>User: 200 OK
+            end
         end
     end
 """,

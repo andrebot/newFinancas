@@ -20,6 +20,8 @@ import loadEnv from './config/env';
 import { createNotificationEngine } from './engines/notification';
 import { createIdentityManager } from './managers/identity';
 import { createAuthenticationUtility } from './utilities/authentication';
+import { createAuthorizationUtility } from './utilities/authorization';
+import { createServiceBus } from './utilities/serviceBus';
 import { newCorrelationId } from './utilities/correlationId';
 import { createAuditSink } from './utilities/logging/auditSink';
 import { logFileLister, reconcileAudit } from './utilities/logging/reconcile';
@@ -50,12 +52,22 @@ const notifications = createNotificationEngine({
   insertNotification: createNotificationInboxAccessor(db).insert,
   sendEmail: createEmailAccessor(env.emailProvider).send,
 });
+const households = createHouseholdAccessor(db);
+const bus = createServiceBus({
+  now: () => new Date(),
+  onHandlerError: (error, message) => log.error(
+    `Subscriber failed for ${message.topic}`,
+    { error: String(error), correlationId: message.correlationId },
+  ),
+});
 const identity = createIdentityManager({
   users: createUserAccessor(db),
   sessions: createSessionAccessor(db),
-  households: createHouseholdAccessor(db),
+  households,
   invitations: createInvitationAccessor(db),
   authentication,
+  authorization: createAuthorizationUtility({ findMembership: households.findMembership }),
+  bus,
   notifications,
   webAppUrl: env.webAppUrl,
   now: () => new Date(),
