@@ -31,7 +31,10 @@ describe('palette and icons', () => {
 
 describe('DEFAULT_CATEGORIES (mockups 12 and 41)', () => {
   it('matches the approved starter set: icon and colour per category', () => {
-    expect(DEFAULT_CATEGORIES.map((c) => [c.name['en-US'], c.color, c.icon])).toEqual([
+    const shown = DEFAULT_CATEGORIES.map((category) => (
+      [category.name['en-US'], category.color, category.icon]
+    ));
+    expect(shown).toEqual([
       ['Housing', 'peach', 'home-outline'],
       ['Groceries', 'mint', 'shopping-cart-outline'],
       ['Transportation', 'sky', 'directions-car-outline'],
@@ -49,7 +52,10 @@ describe('DEFAULT_CATEGORIES (mockups 12 and 41)', () => {
   });
 
   it('names every category and subcategory in every supported locale', () => {
-    DEFAULT_CATEGORIES.flatMap((c) => [c.name, ...c.subcategories]).forEach((name) => {
+    const names = DEFAULT_CATEGORIES.flatMap((category) => (
+      [category.name, ...category.subcategories]
+    ));
+    names.forEach((name) => {
       SUPPORTED_LOCALES.forEach((locale) => expect(name[locale].trim()).not.toBe(''));
     });
   });

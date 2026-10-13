@@ -27,11 +27,11 @@ export interface DemoCredentials {
 /**
  * A fixed id for demo row `n`, so re-running the seed inserts nothing new.
  *
- * @param n - Row number, unique across the demo seed.
+ * @param rowNumber - Row number, unique across the demo seed.
  * @returns A version-7-shaped UUID.
  */
-export const demoId = (n: number): string => (
-  `0d3e0000-0000-7000-8000-${String(n).padStart(12, '0')}`
+export const demoId = (rowNumber: number): string => (
+  `0d3e0000-0000-7000-8000-${String(rowNumber).padStart(12, '0')}`
 );
 
 const ANA = demoId(1);

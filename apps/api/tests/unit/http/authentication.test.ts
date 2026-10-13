@@ -36,7 +36,9 @@ describe('requireSystemRole (OQ-111)', () => {
     const app = new Hono<AppEnv>();
     app.onError(createErrorHandler(vi.fn()));
     const verify = vi.fn(async () => claims);
-    app.get('/x', requireSystemRole(verify, required), (c) => c.json(actorOf(c)));
+    app.get('/x', requireSystemRole(verify, required), (httpContext) => (
+      httpContext.json(actorOf(httpContext))
+    ));
     return app;
   };
 
@@ -62,7 +64,7 @@ describe('requireSystemRole (OQ-111)', () => {
 describe('actorOf', () => {
   it('fails loudly on a route mounted without the middleware', async () => {
     const app = new Hono<AppEnv>();
-    app.get('/x', (c) => c.json(actorOf(c)));
+    app.get('/x', (httpContext) => httpContext.json(actorOf(httpContext)));
 
     expect((await app.request('/x')).status).toBe(500);
   });

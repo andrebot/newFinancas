@@ -22,42 +22,46 @@ describe('buildDemoSeed', () => {
   });
 
   it('has an Owner (pt-BR) and a Member (en-US), both with the dev credentials', () => {
-    expect(seed.memberships.map((m) => m.role)).toEqual(['Owner', 'Member']);
-    expect(seed.users.map((u) => [u.email, u.language])).toEqual([
+    expect(seed.memberships.map((membership) => membership.role)).toEqual(['Owner', 'Member']);
+    expect(seed.users.map((user) => [user.email, user.language])).toEqual([
       ['ana@demo.financas.local', 'pt-BR'],
       ['ben@demo.financas.local', 'en-US'],
     ]);
-    seed.users.forEach((u) => {
-      expect([u.passwordHash, u.mfaSecret]).toEqual(['$argon2id$demo', 'v1.sealed']);
+    seed.users.forEach((user) => {
+      expect([user.passwordHash, user.mfaSecret]).toEqual(['$argon2id$demo', 'v1.sealed']);
     });
   });
 
   it('seeds the default categories in the owner language, subcategories under their parent', () => {
-    expect(seed.categories.map((c) => c.name))
-      .toEqual(DEFAULT_CATEGORIES.map((c) => c.name['pt-BR']));
+    expect(seed.categories.map((category) => category.name))
+      .toEqual(DEFAULT_CATEGORIES.map((category) => category.name['pt-BR']));
     expect(seed.subcategories).toHaveLength(6);
-    const categoryIds = new Set(seed.categories.map((c) => c.id));
-    seed.subcategories.forEach((s) => expect(categoryIds.has(s.categoryId)).toBe(true));
+    const categoryIds = new Set(seed.categories.map((category) => category.id));
+    seed.subcategories.forEach((subcategory) => {
+      expect(categoryIds.has(subcategory.categoryId)).toBe(true);
+    });
   });
 
   it('opens a balance row for every account in the seeding month', () => {
-    expect(seed.accountMonthBalances.map((b) => b.accountId).sort())
-      .toEqual(seed.accounts.map((a) => a.id).sort());
-    seed.accountMonthBalances.forEach((b) => {
-      expect([b.year, b.month]).toEqual([2026, 10]);
-      expect(b.openingBalance).toBe(b.endingBalance);
+    expect(seed.accountMonthBalances.map((balance) => balance.accountId).sort())
+      .toEqual(seed.accounts.map((account) => account.id).sort());
+    seed.accountMonthBalances.forEach((balance) => {
+      expect([balance.year, balance.month]).toEqual([2026, 10]);
+      expect(balance.openingBalance).toBe(balance.endingBalance);
     });
     expect(seed.creditCardMonthBalances[0])
       .toMatchObject({ year: 2026, month: 10, endingOutstandingBalance: 0 });
   });
 
   it('records one value per index, dated the seeding day', () => {
-    expect(seed.indexRates.map((r) => r.indexCode)).toEqual(INDEX_CODES.map((i) => i.code));
-    seed.indexRates.forEach((r) => expect(r.asOfDate).toBe('2026-10-08'));
+    expect(seed.indexRates.map((rate) => rate.indexCode))
+      .toEqual(INDEX_CODES.map((index) => index.code));
+    seed.indexRates.forEach((rate) => expect(rate.asOfDate).toBe('2026-10-08'));
   });
 
   it('attaches the credit card to the credit_card_only account', () => {
-    const cardsAccount = seed.accounts.find((a) => a.id === seed.creditCards[0]!.accountId);
+    const cardAccountId = seed.creditCards[0]!.accountId;
+    const cardsAccount = seed.accounts.find((account) => account.id === cardAccountId);
 
     expect(cardsAccount?.type).toBe('credit_card_only');
   });

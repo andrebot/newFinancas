@@ -40,22 +40,22 @@ export const toErrorBody = (init: ApiErrorInit, correlationId: string): ErrorBod
  * Reads the request's correlation ID (set by `correlationIdMiddleware`), with a
  * fresh one as a defensive default for responses produced outside that chain.
  *
- * @param c - The request context.
+ * @param httpContext - The request context.
  * @returns The correlation ID.
  */
-export const correlationIdOf = (c: Context<AppEnv>): CorrelationId => (
-  c.get('correlationId') ?? newCorrelationId()
+export const correlationIdOf = (httpContext: Context<AppEnv>): CorrelationId => (
+  httpContext.get('correlationId') ?? newCorrelationId()
 );
 
 /**
  * The request's actor label for logs (NFR-OBS-2): `user:<id>` once the
  * authentication middleware has run, else `unauthenticated`.
  *
- * @param c - The request context.
+ * @param httpContext - The request context.
  * @returns The actor label.
  */
-export const actorLabelOf = (c: Context<AppEnv>): string => {
-  const actor = c.get('actor');
+export const actorLabelOf = (httpContext: Context<AppEnv>): string => {
+  const actor = httpContext.get('actor');
   return actor ? actorLabel({ userId: actor.userId }) : actorLabel('unauthenticated');
 };
 
@@ -86,23 +86,27 @@ const describeError = (err: Error): { init: ApiErrorInit; unexpected: boolean } 
  */
 export const createErrorHandler = (
   onUnexpected: (err: Error, correlationId: string) => void,
-): ErrorHandler<AppEnv> => (err, c) => {
+): ErrorHandler<AppEnv> => (err, httpContext) => {
   const { init, unexpected } = describeError(err);
-  const correlationId = correlationIdOf(c);
+  const correlationId = correlationIdOf(httpContext);
   if (unexpected) onUnexpected(err, correlationId);
-  return c.json(toErrorBody(init, correlationId), init.status, init.headers);
+  return httpContext.json(toErrorBody(init, correlationId), init.status, init.headers);
 };
 
 /**
  * Not-found handler: unknown routes answer 404 `route.not_found` in the envelope.
  *
- * @param c - The request context.
+ * @param httpContext - The request context.
  * @returns The 404 response.
  */
-export const handleNotFound: NotFoundHandler<AppEnv> = (c) => c.json(
+export const handleNotFound: NotFoundHandler<AppEnv> = (httpContext) => httpContext.json(
   toErrorBody(
-    { status: 404, code: 'route.not_found', message: `No route for ${c.req.method} ${c.req.path}` },
-    correlationIdOf(c),
+    {
+      status: 404,
+      code: 'route.not_found',
+      message: `No route for ${httpContext.req.method} ${httpContext.req.path}`,
+    },
+    correlationIdOf(httpContext),
   ),
   404,
 );

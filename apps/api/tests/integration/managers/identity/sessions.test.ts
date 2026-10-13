@@ -16,7 +16,8 @@ describe('IdentityManager — sessions (uc-16, uc-17, NFR-SEC-5)', () => {
     const listed = await createIdentityManager(deps).listSessions(CONTEXT);
 
     expect(sessions.listByUser).toHaveBeenCalledWith(ANA.id, NOW);
-    expect(listed.map((s) => [s.id, s.current])).toEqual([[SESSION.id, true], ['other', false]]);
+    expect(listed.map((session) => [session.id, session.current]))
+      .toEqual([[SESSION.id, true], ['other', false]]);
     expect(listed[1]).not.toHaveProperty('expiresAt');
   });
 

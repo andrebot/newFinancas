@@ -12,16 +12,16 @@ import { actorLabelOf, correlationIdOf, type AppEnv } from './errorHandler';
  */
 const createRequestLogger = (
   now: () => number = () => performance.now(),
-): MiddlewareHandler<AppEnv> => async (c, next) => {
+): MiddlewareHandler<AppEnv> => async (httpContext, next) => {
   const started = now();
   await next();
   const log = createLogger({
-    label: 'http', correlationId: correlationIdOf(c), actor: actorLabelOf(c),
+    label: 'http', correlationId: correlationIdOf(httpContext), actor: actorLabelOf(httpContext),
   });
-  const { status } = c.res;
+  const { status } = httpContext.res;
   const durationMs = Math.round(now() - started);
   const level = status >= 500 ? 'error' : 'info';
-  log.log(level, `${c.req.method} ${c.req.path}`, { status, durationMs });
+  log.log(level, `${httpContext.req.method} ${httpContext.req.path}`, { status, durationMs });
 };
 
 export default createRequestLogger;

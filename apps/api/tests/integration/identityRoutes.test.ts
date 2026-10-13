@@ -9,7 +9,7 @@ const USER_ID = '0199c5a0-0000-7000-8000-000000000001';
 const SESSION_ID = '0199c5a0-0000-7000-8000-0000000000aa';
 const CORRELATION_ID = '0199c5a0-0000-7000-8000-0000000000cc';
 const ACTOR = { userId: USER_ID, sessionId: SESSION_ID, systemRole: 'USER' as const };
-const T = new Date('2026-10-13T12:00:00Z');
+const NOW = new Date('2026-10-13T12:00:00Z');
 const SIGNED_IN = { token: 'good-token' };
 
 /**
@@ -91,7 +91,7 @@ describe('identity routes — public', () => {
 
   it('a lockout answers 429 with Retry-After and the wait in minutes', async () => {
     const { app, identity } = setup();
-    identity.login.mockRejectedValueOnce(tooManyAttempts(new Date(T.getTime() + 600_000), T));
+    identity.login.mockRejectedValueOnce(tooManyAttempts(new Date(NOW.getTime() + 600_000), NOW));
 
     const response = await send(app, 'POST', '/auth/login', { body: CREDENTIALS });
 
@@ -143,12 +143,12 @@ describe('identity routes — signed in', () => {
   it('GET /users/me/sessions lists them with ISO times', async () => {
     const { app, identity } = setup();
     identity.listSessions.mockResolvedValueOnce([{
-      id: SESSION_ID, deviceInfo: null, createdAt: T, lastUsedAt: T, current: true,
+      id: SESSION_ID, deviceInfo: null, createdAt: NOW, lastUsedAt: NOW, current: true,
     }]);
 
     const response = await send(app, 'GET', '/users/me/sessions', SIGNED_IN);
 
-    const iso = T.toISOString();
+    const iso = NOW.toISOString();
     expect(await response.json()).toEqual({
       data: [{
         id: SESSION_ID, deviceInfo: null, createdAt: iso, lastUsedAt: iso, current: true,

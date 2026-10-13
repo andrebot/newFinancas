@@ -60,7 +60,7 @@ const test = (work: (kit: Kit) => Promise<void>) => () => withRollback(pglite, a
     roles: async (householdId) => Object.fromEntries((await db.select({
       userId: householdMemberships.userId, role: householdMemberships.role,
     }).from(householdMemberships).where(eq(householdMemberships.householdId, householdId)))
-      .map((m) => [m.userId, m.role])),
+      .map((member) => [member.userId, member.role])),
   };
   await work(kit);
 });
@@ -89,7 +89,7 @@ describe('HouseholdAccessor', () => {
 
       const members = await households.listMembers(home.id);
 
-      expect(members.map((m) => [m.firstName, m.role]))
+      expect(members.map((member) => [member.firstName, member.role]))
         .toEqual([['ana', 'Owner'], ['adi', 'Admin'], ['vic', 'Viewer']]);
       expect(members[0]?.email).toBe('ana@example.com');
     }));

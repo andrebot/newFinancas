@@ -36,8 +36,8 @@ export const bearerToken = (header: string | undefined): string | undefined => (
 export const requireSystemRole = (
   verify: VerifyAccessToken,
   required: SystemRole,
-): MiddlewareHandler<AppEnv> => async (c, next) => {
-  const token = bearerToken(c.req.header('Authorization'));
+): MiddlewareHandler<AppEnv> => async (httpContext, next) => {
+  const token = bearerToken(httpContext.req.header('Authorization'));
   const claims = token === undefined ? undefined : await verify(token);
   if (!claims) {
     throw createApiError({
@@ -47,19 +47,19 @@ export const requireSystemRole = (
   if (!hasSystemRole(claims.systemRole, required)) {
     throw createApiError({ status: 403, code: 'auth.forbidden', message: 'System role required' });
   }
-  c.set('actor', claims);
+  httpContext.set('actor', claims);
   await next();
 };
 
 /**
  * The signed-in actor of a protected route.
  *
- * @param c - The request context.
+ * @param httpContext - The request context.
  * @returns The verified claims.
  * @throws {Error} When the route was mounted without the authentication middleware.
  */
-export const actorOf = (c: Context<AppEnv>): AccessTokenClaims => {
-  const actor = c.get('actor');
+export const actorOf = (httpContext: Context<AppEnv>): AccessTokenClaims => {
+  const actor = httpContext.get('actor');
   if (!actor) throw new Error('Route needs the authentication middleware');
   return actor;
 };

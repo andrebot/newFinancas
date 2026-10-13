@@ -5,10 +5,10 @@ import {
   logFileLister, logFilesFor, parseAuditRecords, reconcileAudit,
 } from '../../../../src/utilities/logging/reconcile';
 
-const audit = (n: number) => JSON.stringify({
+const audit = (sequence: number) => JSON.stringify({
   level: 'audit',
   message: 'CreateBudget',
-  auditId: `0199c5a0-0000-7000-8000-00000000000${n}`,
+  auditId: `0199c5a0-0000-7000-8000-00000000000${sequence}`,
   auditAt: '2026-10-09T14:00:00.000Z',
   actor: 'user:u1',
   householdId: 'h1',
@@ -21,7 +21,7 @@ describe('parseAuditRecords', () => {
     const other = '{"level":"info","message":"GET /health"}';
     const text = [audit(1), other, '', 'not json', audit(2)].join('\n');
 
-    expect(parseAuditRecords(text).map((r) => r.id)).toEqual([
+    expect(parseAuditRecords(text).map((record) => record.id)).toEqual([
       '0199c5a0-0000-7000-8000-000000000001', '0199c5a0-0000-7000-8000-000000000002',
     ]);
   });

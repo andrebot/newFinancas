@@ -20,9 +20,9 @@ export const budgets = pgTable('budgets', {
   currency: text('currency').notNull(),
   visibility: text('visibility').notNull(),
   createdAt: createdAt(),
-}, (t) => [
-  check('budgets_visibility_check', isOneOf(t.visibility, VISIBILITIES)),
-  check('budgets_currency_check', sql`${t.currency} ~ '^[A-Z]{3}$'`),
+}, (table) => [
+  check('budgets_visibility_check', isOneOf(table.visibility, VISIBILITIES)),
+  check('budgets_currency_check', sql`${table.currency} ~ '^[A-Z]{3}$'`),
 ]);
 
 export const budgetTargets = pgTable('budget_targets', {
@@ -34,23 +34,24 @@ export const budgetTargets = pgTable('budget_targets', {
   householdId: uuid('household_id').notNull().references(() => households.id, CASCADE),
   visibility: text('visibility').notNull(),
   ownerUserId: uuid('owner_user_id').references(() => users.id),
-}, (t) => [
+}, (table) => [
   check(
     'budget_targets_one_target_check',
-    sql`(${t.categoryId} IS NULL) <> (${t.subcategoryId} IS NULL)`,
+    sql`(${table.categoryId} IS NULL) <> (${table.subcategoryId} IS NULL)`,
   ),
-  check('budget_targets_visibility_check', isOneOf(t.visibility, VISIBILITIES)),
+  check('budget_targets_visibility_check', isOneOf(table.visibility, VISIBILITIES)),
   // FR-4.7: one claim per category/subcategory per scope. A shared scope is the
   // household (owner_user_id is only provenance there); a personal one, the owner.
-  uniqueIndex('budget_targets_shared_category_key').on(t.householdId, t.categoryId)
-    .where(sql`${t.visibility} = 'shared' AND ${t.categoryId} IS NOT NULL`),
-  uniqueIndex('budget_targets_personal_category_key').on(t.householdId, t.ownerUserId, t.categoryId)
-    .where(sql`${t.visibility} = 'personal' AND ${t.categoryId} IS NOT NULL`),
-  uniqueIndex('budget_targets_shared_subcategory_key').on(t.householdId, t.subcategoryId)
-    .where(sql`${t.visibility} = 'shared' AND ${t.subcategoryId} IS NOT NULL`),
+  uniqueIndex('budget_targets_shared_category_key').on(table.householdId, table.categoryId)
+    .where(sql`${table.visibility} = 'shared' AND ${table.categoryId} IS NOT NULL`),
+  uniqueIndex('budget_targets_personal_category_key')
+    .on(table.householdId, table.ownerUserId, table.categoryId)
+    .where(sql`${table.visibility} = 'personal' AND ${table.categoryId} IS NOT NULL`),
+  uniqueIndex('budget_targets_shared_subcategory_key').on(table.householdId, table.subcategoryId)
+    .where(sql`${table.visibility} = 'shared' AND ${table.subcategoryId} IS NOT NULL`),
   uniqueIndex('budget_targets_personal_subcategory_key')
-    .on(t.householdId, t.ownerUserId, t.subcategoryId)
-    .where(sql`${t.visibility} = 'personal' AND ${t.subcategoryId} IS NOT NULL`),
+    .on(table.householdId, table.ownerUserId, table.subcategoryId)
+    .where(sql`${table.visibility} = 'personal' AND ${table.subcategoryId} IS NOT NULL`),
 ]);
 
 export const budgetPeriods = pgTable('budget_periods', {
@@ -65,8 +66,8 @@ export const budgetPeriods = pgTable('budget_periods', {
   targetAmount: integerAmount('target_amount').notNull(),
   spendAmount: integerAmount('spend_amount').notNull().default(0),
   createdAt: createdAt(),
-}, (t) => [
-  uniqueIndex('budget_periods_month_key').on(t.budgetId, t.year, t.month),
-  check('budget_periods_month_check', sql`${t.month} BETWEEN 1 AND 12`),
-  check('budget_periods_currency_check', sql`${t.currency} ~ '^[A-Z]{3}$'`),
+}, (table) => [
+  uniqueIndex('budget_periods_month_key').on(table.budgetId, table.year, table.month),
+  check('budget_periods_month_check', sql`${table.month} BETWEEN 1 AND 12`),
+  check('budget_periods_currency_check', sql`${table.currency} ~ '^[A-Z]{3}$'`),
 ]);

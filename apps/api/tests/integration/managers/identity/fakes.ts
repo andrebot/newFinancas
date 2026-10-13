@@ -5,7 +5,7 @@ import type { IdentityDeps } from '../../../../src/managers/identity';
 // with their Accessors and Utilities mocked). Each test programs what it needs.
 
 export const NOW = new Date('2026-10-13T12:00:00Z');
-export const minutes = (n: number) => new Date(NOW.getTime() + n * 60_000);
+export const minutes = (count: number) => new Date(NOW.getTime() + count * 60_000);
 
 export const ANA = {
   id: '0199c5a0-0000-7000-8000-000000000001',

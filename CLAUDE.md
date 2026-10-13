@@ -32,6 +32,9 @@ in `docs/README.md`.
   Exception: tooling config files (`eslint.config.js`, `*.config.ts`) —
   documented but not unit-tested (OQ-91).
 - Cyclomatic complexity ≤ 7; at most 7 parameters per function.
+- Meaningful names: no single-letter identifiers (`httpContext`, not `c`;
+  `table`, not `t`) — enforced by ESLint `id-length`; `_` only for an
+  intentionally unused parameter.
 - Tests live outside `src/`, never co-located.
 - Never use `console`: every process logs through the shared logger
   (`import { createLogger } from '@financas/logging'`) — OQ-110.

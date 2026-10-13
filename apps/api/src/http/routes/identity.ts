@@ -22,21 +22,21 @@ const validSession = validate('param', z.object({ sessionId: z.uuid() }));
 /**
  * The request of a public route (no one is signed in yet).
  *
- * @param c - The request context.
+ * @param httpContext - The request context.
  * @returns Its correlation ID.
  */
-const publicContextOf = (c: Context<AppEnv>): RequestContext => ({
-  correlationId: correlationIdOf(c),
+const publicContextOf = (httpContext: Context<AppEnv>): RequestContext => ({
+  correlationId: correlationIdOf(httpContext),
 });
 
 /**
  * The request of a protected route.
  *
- * @param c - The request context.
+ * @param httpContext - The request context.
  * @returns Its correlation ID and signed-in actor.
  */
-const signedInContextOf = (c: Context<AppEnv>): SignedInContext => ({
-  correlationId: correlationIdOf(c), actor: actorOf(c),
+const signedInContextOf = (httpContext: Context<AppEnv>): SignedInContext => ({
+  correlationId: correlationIdOf(httpContext), actor: actorOf(httpContext),
 });
 
 /**
@@ -63,31 +63,37 @@ export const toSessionJson = (session: SessionView) => ({
 const createIdentityRoutes = (identity: IdentityManager, verifyAccessToken: VerifyAccessToken) => {
   const signedIn = requireSystemRole(verifyAccessToken, 'USER');
   return new Hono<AppEnv>()
-    .post('/auth/register', validate('json', registerBody), async (c) => (
-      c.json(await identity.register(publicContextOf(c), c.req.valid('json')), 201)
-    ))
-    .post('/auth/login', validate('json', zLoginBody), async (c) => {
-      const deviceInfo = c.req.header('User-Agent') ?? null;
-      return c.json(await identity.login(publicContextOf(c), c.req.valid('json'), deviceInfo));
+    .post('/auth/register', validate('json', registerBody), async (httpContext) => {
+      const registration = httpContext.req.valid('json');
+      const registered = await identity.register(publicContextOf(httpContext), registration);
+      return httpContext.json(registered, 201);
     })
-    .post('/auth/refresh', validate('json', zRefreshTokensBody), async (c) => (
-      c.json(await identity.refresh(publicContextOf(c), c.req.valid('json').refreshToken))
-    ))
-    .post('/auth/logout', signedIn, async (c) => {
-      await identity.logout(signedInContextOf(c));
-      return c.body(null, 204);
+    .post('/auth/login', validate('json', zLoginBody), async (httpContext) => {
+      const deviceInfo = httpContext.req.header('User-Agent') ?? null;
+      const credentials = httpContext.req.valid('json');
+      const tokens = await identity.login(publicContextOf(httpContext), credentials, deviceInfo);
+      return httpContext.json(tokens);
     })
-    .get('/users/me/sessions', signedIn, async (c) => {
-      const sessions = await identity.listSessions(signedInContextOf(c));
-      return c.json({ data: sessions.map(toSessionJson) });
+    .post('/auth/refresh', validate('json', zRefreshTokensBody), async (httpContext) => {
+      const { refreshToken } = httpContext.req.valid('json');
+      return httpContext.json(await identity.refresh(publicContextOf(httpContext), refreshToken));
     })
-    .delete('/users/me/sessions', signedIn, async (c) => {
-      await identity.revokeOtherSessions(signedInContextOf(c));
-      return c.body(null, 204);
+    .post('/auth/logout', signedIn, async (httpContext) => {
+      await identity.logout(signedInContextOf(httpContext));
+      return httpContext.body(null, 204);
     })
-    .delete('/users/me/sessions/:sessionId', signedIn, validSession, async (c) => {
-      await identity.revokeSession(signedInContextOf(c), c.req.valid('param').sessionId);
-      return c.body(null, 204);
+    .get('/users/me/sessions', signedIn, async (httpContext) => {
+      const sessions = await identity.listSessions(signedInContextOf(httpContext));
+      return httpContext.json({ data: sessions.map(toSessionJson) });
+    })
+    .delete('/users/me/sessions', signedIn, async (httpContext) => {
+      await identity.revokeOtherSessions(signedInContextOf(httpContext));
+      return httpContext.body(null, 204);
+    })
+    .delete('/users/me/sessions/:sessionId', signedIn, validSession, async (httpContext) => {
+      const { sessionId } = httpContext.req.valid('param');
+      await identity.revokeSession(signedInContextOf(httpContext), sessionId);
+      return httpContext.body(null, 204);
     });
 };
 

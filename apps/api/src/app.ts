@@ -43,7 +43,7 @@ const createApp = (deps: AppDeps): Hono<AppEnv> => {
   app.notFound(handleNotFound);
   app.use(correlationIdMiddleware);
   app.use(createRequestLogger());
-  app.get('/health', (c) => c.json({ status: 'ok' }));
+  app.get('/health', (httpContext) => httpContext.json({ status: 'ok' }));
   app.route('/api/v1', createIdentityRoutes(deps.identity, deps.verifyAccessToken));
   return app;
 };

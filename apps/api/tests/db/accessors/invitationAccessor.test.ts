@@ -139,7 +139,10 @@ describe('InvitationAccessor', () => {
 
       const received = await invites.listPendingForUser(bia);
 
-      expect(received.map((r) => [r.householdName, r.role, r.inviterFirstName])).toEqual([
+      const shown = received.map((invitation) => (
+        [invitation.householdName, invitation.role, invitation.inviterFirstName]
+      ));
+      expect(shown).toEqual([
         ['Praia', 'Viewer', 'ana'], ['Casa', 'Member', 'ana'],
       ]);
       expect(newer.ok && received[0]?.id).toBe(newer.ok && newer.invitation.id);
@@ -170,8 +173,8 @@ describe('InvitationAccessor', () => {
 
     const listed = await setup.invites.listForHousehold(setup.home);
 
-    expect(listed.map((i) => i.id).sort()).toEqual([first, second].sort());
-    expect(listed.find((i) => i.id === first))
+    expect(listed.map((invitation) => invitation.id).sort()).toEqual([first, second].sort());
+    expect(listed.find((invitation) => invitation.id === first))
       .toMatchObject({ status: 'revoked', resolvedAt: NOW });
   }));
 

@@ -23,7 +23,9 @@ const buildApp = () => {
   app.onError(createErrorHandler(() => {}));
   app.notFound(handleNotFound);
   app.use(correlationIdMiddleware);
-  app.get('/id', (c) => c.json({ correlationId: correlationIdOf(c) }));
+  app.get('/id', (httpContext) => (
+    httpContext.json({ correlationId: correlationIdOf(httpContext) })
+  ));
   app.get('/boom', () => {
     throw new Error('boom');
   });
