@@ -43,6 +43,19 @@ const send = (
 });
 
 describe('household routes', () => {
+  const PATHS = ['/households', `/households/${HOME}`];
+
+  it.each(PATHS)('check the token exactly once (%s)', async (path) => {
+    const verify = vi.fn(async () => ACTOR);
+    const { app, identity } = appWithMocks(verify);
+    identity.listMyHouseholds.mockResolvedValueOnce([]);
+    identity.getHousehold.mockResolvedValueOnce(HOUSEHOLD);
+
+    await app.request(`/api/v1${path}`, { headers: { Authorization: 'Bearer t' } });
+
+    expect(verify).toHaveBeenCalledTimes(1);
+  });
+
   it('need a signed-in user', async () => {
     const { app } = setup();
 

@@ -36,7 +36,7 @@ const createHouseholdRoutes = (
   identity: IdentityManager,
   verifyAccessToken: VerifyAccessToken,
 ) => new Hono<AppEnv>()
-  .use('/households', requireSystemRole(verifyAccessToken, 'USER'))
+  // `/households/*` also matches `/households` itself, so one guard covers every route.
   .use('/households/*', requireSystemRole(verifyAccessToken, 'USER'))
   .get('/households', async (httpContext) => {
     const households = await identity.listMyHouseholds(signedInContextOf(httpContext));
