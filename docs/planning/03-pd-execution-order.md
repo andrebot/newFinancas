@@ -56,7 +56,7 @@ identity screens, the rest as later slices use them.
 - [x] **22.** `M1` IdentityManager (five PRs, OQ-114 – OQ-118; Delete User's cascade is `M1D`, task 135)
 - [x] **23.** `FU1` ValidationUtility (web) (OQ-119)
 - [x] **24.** `FU2` PasswordStrengthUtility (OQ-120)
-- [ ] **25.** `K1` Tailwind theme + tokens
+- [x] **25.** `K1` Tailwind theme + tokens (OQ-121)
 - [ ] **26.** `FU4` ThemeUtility
 - [ ] **27.** `FU5` I18nUtility
 - [ ] **28.** `FU7` API client

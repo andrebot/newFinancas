@@ -1771,6 +1771,32 @@ OQ-118). Delete User's cascade is `M1D` (task 135, slice 5).
   user's email) reads `good`: names are already in the dictionaries, and
   that is zxcvbn's honest guess count.
 
+### OQ-121: Tailwind theme + design tokens (task K1)
+**Design decisions:**
+- **Tailwind v4, configured in CSS.** `apps/web/src/styles/theme.css` is
+  the single source: `:root` holds the dark tokens, `[data-theme='light']`
+  the light ones, and `@theme inline` maps each to a utility (`bg-card`,
+  `text-ink`, `bg-mint/15`). No `tailwind.config` file.
+- **Hex values, not RGB channels.** The mockups' channel form existed so
+  Tailwind v3 opacity modifiers worked; v4 does that with `color-mix`, so
+  the tokens are plain hex and diff one-to-one against the docs table.
+- **Tailwind's default palette is removed.** Only tokens exist as colour
+  utilities, so a non-token colour (`bg-white/5`) fails to build. That
+  enforces NFR-UX-2 in the build, not in review.
+- **Category palette as `cat-*`** (`--c-cat-teal`, `text-cat-teal`): six
+  names overlap the theme tokens with different light values. Resolving a
+  stored token to a colour at runtime is ThemeUtility's (FU4).
+- **Light accents darkened for NFR-UX-2.** The documented light `mint`
+  (`#0E9467`), `sun` (`#B07800`) and `peach` (`#D2602B`) were ~3.8:1 on
+  white, and `coral` (`#D2383B`) 4.46:1 on `bg`; they now use the category
+  palette's light values (`#0B7A55`, `#946200`, `#C2410C`, `#C2302F`).
+  `faint` is not a text colour (icons, dividers, disabled only).
+- **Enforced by a test** that parses `theme.css`: both themes declare the
+  same tokens, the category tokens equal `PALETTE_TOKENS`, every token
+  reaches Tailwind, and text tokens, on-fill pairs and the 18 category
+  colours reach ≥ 4.5:1 in both themes.
+- **Out of scope here:** fonts (K2), choosing dark / light / system (FU4).
+
 ## Refined (resolved, with a follow-up still open)
 
 *(OQ-4's legal-review follow-up below is closed for v1 by OQ-89.)*

@@ -7,6 +7,7 @@ Proves the light theme is a token swap, not a per-page redesign.
 import re
 
 # token -> (dark, light). Light values chosen for >=4.5:1 text contrast on white.
+# Mirrors apps/web/src/styles/theme.css (the app's source of truth, OQ-121).
 TOKENS = {
     "bg":        ("#0C100F", "#F4F7F5"),
     "card":      ("#131917", "#FFFFFF"),
@@ -16,18 +17,18 @@ TOKENS = {
     "ink":       ("#E7ECE9", "#13201A"),
     "muted":     ("#97A39D", "#56655E"),
     "faint":     ("#5F6B65", "#8A9791"),
-    "mint":      ("#5EE6B8", "#0E9467"),
+    "mint":      ("#5EE6B8", "#0B7A55"),
     "mintdeep":  ("#0F3B2E", "#DDF4EA"),
     "onmint":    ("#062A1F", "#FFFFFF"),
     "onmint2":   ("#00382B", "#FFFFFF"),
-    "coral":     ("#FF6B6B", "#D2383B"),
+    "coral":     ("#FF6B6B", "#C2302F"),
     "coraldeep": ("#3A1717", "#FBE5E5"),
     "oncoral":   ("#2A0A0A", "#FFFFFF"),
     "sky":       ("#7CB9FF", "#2368C9"),
     "onsky":     ("#0A1E33", "#FFFFFF"),
-    "sun":       ("#FFD166", "#B07800"),
+    "sun":       ("#FFD166", "#946200"),
     "lilac":     ("#C792EA", "#8A4CC6"),
-    "peach":     ("#FF8C69", "#D2602B"),
+    "peach":     ("#FF8C69", "#C2410C"),
     "deep":      ("#0A0E0D", "#E9F1ED"),
 }
 HEX2TOK = {d.lower(): k for k, (d, _) in TOKENS.items()}

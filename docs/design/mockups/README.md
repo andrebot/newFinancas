@@ -23,13 +23,18 @@ round of October 2026. It replaces the old Python-generated HTML mockups
 | Shape | Rounded: cards radius 20px, inputs 14px, buttons and pills fully rounded. |
 | Type | Manrope (headings, big numbers) + Inter (text). All amounts use tabular figures. |
 | Icons | Material Symbols (outlined) via Iconify; card networks via Iconify `logos` set. |
-| Colour | Token-based, dark default + light theme. Every colour is a CSS variable (`--c-*`, RGB channels) so Tailwind opacity modifiers keep working. Theme switches by setting `data-theme="light"` on `<html>`; no per-page redesign. |
+| Colour | Token-based, dark default + light theme. Every colour is a CSS variable (`--c-*`, hex; category palette as `--c-cat-*`) mapped to Tailwind v4 utilities — opacity modifiers work through `color-mix`. Tailwind's default palette is removed, so only tokens exist. Theme switches by setting `data-theme="light"` on `<html>`; no per-page redesign. Source: `apps/web/src/styles/theme.css` (K1, OQ-121). |
 | Money semantics | Inflow = mint/green, outflow = coral/red, over budget = coral error state. Currency always explicit (R$ / $); currencies are never summed (no FX). |
 | Category colour | Each category has an icon + colour, reused everywhere it appears (ledger, budgets, categories). |
 | Motion | 150–250ms ease for hover, drawer slide, progress fills. |
 | Responsive | Desktop-first; mobile layout validated on Transactions (sticky period header, swipe rails, overview first, floating Record button, drawers become full-screen sheets). |
 
 ### Colour tokens
+
+Text tokens (ink, muted, accents) keep ≥ 4.5:1 on bg, card and raised in
+both themes; `faint` is for icons, dividers and disabled states only. The
+light accents were darkened to the category palette's values to meet this
+(OQ-121); the exported mockup pages still show the earlier values.
 
 | Token | Dark | Light |
 |---|---|---|
@@ -41,18 +46,18 @@ round of October 2026. It replaces the old Python-generated HTML mockups
 | `--c-ink` | `#E7ECE9` | `#13201A` |
 | `--c-muted` | `#97A39D` | `#56655E` |
 | `--c-faint` | `#5F6B65` | `#8A9791` |
-| `--c-mint` (primary / inflow) | `#5EE6B8` | `#0E9467` |
+| `--c-mint` (primary / inflow) | `#5EE6B8` | `#0B7A55` |
 | `--c-mintdeep` | `#0F3B2E` | `#DDF4EA` |
 | `--c-onmint` | `#062A1F` | `#FFFFFF` |
 | `--c-onmint2` | `#00382B` | `#FFFFFF` |
-| `--c-coral` (outflow / error) | `#FF6B6B` | `#D2383B` |
+| `--c-coral` (outflow / error) | `#FF6B6B` | `#C2302F` |
 | `--c-coraldeep` | `#3A1717` | `#FBE5E5` |
 | `--c-oncoral` | `#2A0A0A` | `#FFFFFF` |
 | `--c-sky` (goals / BRL series) | `#7CB9FF` | `#2368C9` |
 | `--c-onsky` | `#0A1E33` | `#FFFFFF` |
-| `--c-sun` | `#FFD166` | `#B07800` |
+| `--c-sun` | `#FFD166` | `#946200` |
 | `--c-lilac` | `#C792EA` | `#8A4CC6` |
-| `--c-peach` | `#FF8C69` | `#D2602B` |
+| `--c-peach` | `#FF8C69` | `#C2410C` |
 | `--c-deep` | `#0A0E0D` | `#E9F1ED` |
 
 ### Category palette (18 colours, OQ-85)
