@@ -24,7 +24,9 @@ export interface CardNetworkLogoProps {
  */
 export function CardNetworkLogo({ network, label, className }: CardNetworkLogoProps) {
   if (network === 'other') {
-    return <Icon name="credit-card-outline" label={label} className={className} />;
+    // Like a logo, its width follows its height, so a height utility resizes it.
+    const sizing = ['aspect-square w-auto', className].filter(Boolean).join(' ');
+    return <Icon name="credit-card-outline" label={label} className={sizing} />;
   }
 
   const { width, height, body } = CARD_NETWORK_LOGOS[network];

@@ -2110,6 +2110,10 @@ not a hardcoded assumption.
   components get their text from the caller, already translated, so
   the toolbar affects the few that translate their own text, plus
   `lang`.
+- **K3 fix found by the stories:** `CardNetworkLogo`'s `other` fallback
+  (the card icon) kept `Icon`'s fixed 1em width, so a height utility
+  didn't resize it. It now gets `aspect-square w-auto`, like the logos'
+  auto width.
 - `apps/web/tsconfig.json` lists `.storybook/*.ts(x)` by name, because
   TypeScript's include wildcards skip dot-folders.
 
