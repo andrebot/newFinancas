@@ -36,6 +36,9 @@ ACTIVITIES = {
     "N11": ("Accessibility audit", ["I7", "I8", "I9", "I10", "I11", "I12"]),
     "N12": ("Local operations (backup/restore)", ["N5"]),
     "N13": ("First real use + stabilization", ["V3", "N10", "N11", "N12"]),
+    # Added during slice 1 (OQ-128): the kit library needs the foundations,
+    # ThemeUtility and I18nUtility for its theme / locale toolbar.
+    "N14": ("Component library (Storybook)", ["K1", "K2", "K3", "FU4", "FU5"]),
     # ---- UI kit: foundations
     "K1": ("Tailwind theme + tokens", ["N2"]),
     "K2": ("Typography", ["K1"]),

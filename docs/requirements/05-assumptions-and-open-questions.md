@@ -1723,7 +1723,7 @@ OQ-112:** `NotificationDeliveryUtility` was misclassified.
 - Sequences uc-03 – uc-06 redrawn to the implementation.
 
 **Task 22 (`M1` IdentityManager) is complete**, in five PRs (OQ-114 –
-OQ-118). Delete User's cascade is `M1D` (task 135, slice 5).
+OQ-118). Delete User's cascade is `M1D` (task 136, slice 5).
 
 ### OQ-119: Web ValidationUtility (task FU1)
 **Design decisions:**
@@ -2067,6 +2067,24 @@ not a hardcoded assumption.
 - **Theme is not a K13 user.** Profile keeps the mockup's preview cards
   for Dark / Light / System, built with K14 (Option card). The activity
   list's K13 and K14 rows were updated to match.
+
+### OQ-128: Component library (task N14)
+**Confirmed with the stakeholder (Oct 2026):**
+- **Why:** the stakeholder wants to see each kit component as it is
+  built, in isolation and in every state, instead of waiting for the
+  first page that uses it.
+- **Storybook 10**, over a home-made gallery page: it gives the
+  controls panel, docs pages and accessibility checks out of the box,
+  and supports Vite 8 and React 19. Ladle was ruled out because it
+  bundles Vite 6. Storybook is a dev-only dependency and never ships in
+  the app.
+- **A new activity, `N14`**, added during slice 1 as task 32, right after
+  K13. It depends on K1–K3, ThemeUtility and I18nUtility. Later tasks
+  moved down by one (149 in all).
+- **Every kit task from task 33 on ships its stories** with the component.
+- The setup details (story location, toolbar, addons, backfill) are in
+  `N14`'s row in `docs/planning/01-pd-activity-list.md`. The task's
+  design step confirms them.
 
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
