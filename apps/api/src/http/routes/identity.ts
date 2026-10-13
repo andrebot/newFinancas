@@ -1,5 +1,6 @@
 import {
-  zLoginBody, zRefreshTokensBody, zRegisterUserBody,
+  zChangePasswordBody, zConfirmPasswordResetBody, zLoginBody, zRecoverWithMfaCodeBody,
+  zRefreshTokensBody, zRegisterUserBody, zRequestPasswordResetBody,
 } from '@financas/api-types/zod';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
@@ -17,6 +18,15 @@ import { validate } from '../validation';
 // The minimum length is IdentityManager's rule, answered as `password.too_short`
 // (BDT plan), not as a generic validation failure.
 const registerBody = zRegisterUserBody.extend({ password: z.string() });
+const validPasswordChange = validate(
+  'json',
+  zChangePasswordBody.extend({ newPassword: z.string() }),
+);
+const validResetConfirmation = validate(
+  'json',
+  zConfirmPasswordResetBody.extend({ newPassword: z.string() }),
+);
+const validResetRequest = validate('json', zRequestPasswordResetBody);
 const validSession = validate('param', z.object({ sessionId: z.uuid() }));
 
 /**
@@ -73,6 +83,27 @@ const createIdentityRoutes = (identity: IdentityManager, verifyAccessToken: Veri
       const credentials = httpContext.req.valid('json');
       const tokens = await identity.login(publicContextOf(httpContext), credentials, deviceInfo);
       return httpContext.json(tokens);
+    })
+    .post('/auth/mfa/recover', validate('json', zRecoverWithMfaCodeBody), async (httpContext) => {
+      const deviceInfo = httpContext.req.header('User-Agent') ?? null;
+      const credentials = httpContext.req.valid('json');
+      const context = publicContextOf(httpContext);
+      return httpContext.json(await identity.recoverWithCode(context, credentials, deviceInfo));
+    })
+    .post('/auth/password-reset/request', validResetRequest, async (httpContext) => {
+      const { email } = httpContext.req.valid('json');
+      await identity.requestPasswordReset(publicContextOf(httpContext), email);
+      return httpContext.body(null, 202);
+    })
+    .post('/auth/password-reset/confirm', validResetConfirmation, async (httpContext) => {
+      const confirmation = httpContext.req.valid('json');
+      await identity.confirmPasswordReset(publicContextOf(httpContext), confirmation);
+      return httpContext.body(null, 200);
+    })
+    .post('/auth/change-password', signedIn, validPasswordChange, async (httpContext) => {
+      const change = httpContext.req.valid('json');
+      await identity.changePassword(signedInContextOf(httpContext), change);
+      return httpContext.body(null, 200);
     })
     .post('/auth/refresh', validate('json', zRefreshTokensBody), async (httpContext) => {
       const { refreshToken } = httpContext.req.valid('json');

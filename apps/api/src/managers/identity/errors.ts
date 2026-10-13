@@ -71,3 +71,31 @@ export const emailTaken = (): ApiError => createApiError({
 export const sessionNotFound = (): ApiError => createApiError({
   status: 404, code: 'session.not_found', message: 'Session not found',
 });
+
+/**
+ * A signed-in user typed the wrong current password. 422, not 401: a 401 would
+ * make the web app treat the session as expired and sign the user out (OQ-115).
+ *
+ * @returns 422 `password.current_incorrect`.
+ */
+export const currentPasswordIncorrect = (): ApiError => createApiError({
+  status: 422, code: 'password.current_incorrect', message: 'Current password is incorrect',
+});
+
+/**
+ * A reset link that is unknown, expired or already used (FR-1.13).
+ *
+ * @returns 400 `password_reset.token_invalid`.
+ */
+export const resetTokenInvalid = (): ApiError => createApiError({
+  status: 400, code: 'password_reset.token_invalid', message: 'Reset token is not valid',
+});
+
+/**
+ * The signed-in account no longer exists.
+ *
+ * @returns 401 `auth.unauthenticated`.
+ */
+export const unauthenticated = (): ApiError => createApiError({
+  status: 401, code: 'auth.unauthenticated', message: 'Account no longer exists',
+});

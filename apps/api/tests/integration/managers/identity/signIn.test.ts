@@ -1,7 +1,7 @@
 import { captureLogs } from '@financas/logging';
 import { describe, expect, it } from 'vitest';
 import { createIdentityManager } from '../../../../src/managers/identity';
-import { emailKeyOf } from '../../../../src/managers/identity/signIn';
+import { emailKeyOf } from '../../../../src/managers/identity/context';
 import {
   ANA, fakeDeps, minutes, NOW, SESSION,
 } from './fakes';
@@ -108,6 +108,63 @@ describe('IdentityManager — Login (uc-14, OQ-114)', () => {
     expect(users.lockLogin).not.toHaveBeenCalled();
     await expect(identity.login(CONTEXT, CREDENTIALS, null)).rejects.toMatchObject(INVALID);
     expect(users.lockLogin).toHaveBeenCalledWith('ana@example.com', minutes(15));
+  });
+});
+
+describe('IdentityManager — MFA Recovery (uc-20, OQ-115)', () => {
+  const RECOVERY = {
+    email: 'ana@example.com', password: 'correct horse battery', recoveryCode: 'abcd-efgh',
+  };
+
+  /**
+   * Recovers with the shared credentials through a fresh Manager.
+   *
+   * @param deps - The mocked tier below.
+   * @returns The recovery's promise.
+   */
+  const recoverWith = (deps: ReturnType<typeof fakeDeps>['deps']) => (
+    createIdentityManager(deps).recoverWithCode(CONTEXT, RECOVERY, 'Phone')
+  );
+
+  it('uses up the code and opens an audited session', async () => {
+    const { deps, users } = fakeDeps();
+    const logs = captureLogs();
+
+    await expect(recoverWith(deps))
+      .resolves.toEqual({ accessToken: 'access-token', refreshToken: 'refresh-token' });
+    logs.stop();
+
+    expect(users.consumeRecoveryCode).toHaveBeenCalledWith(ANA.id, 'code-hash(abcd-efgh)', NOW);
+    expect(users.clearLoginFailures).toHaveBeenCalledWith('ana@example.com');
+    expect(logs.events).toContainEqual(expect.objectContaining({
+      level: 'audit', message: 'MfaRecovery', entityType: 'Session',
+    }));
+  });
+
+  it('never uses up a code when the password is wrong', async () => {
+    const { deps, users, authentication } = fakeDeps();
+    authentication.verifyPassword.mockResolvedValueOnce(false);
+
+    await expect(recoverWith(deps)).rejects.toMatchObject(INVALID);
+    expect(users.consumeRecoveryCode).not.toHaveBeenCalled();
+    expect(users.recordLoginFailure).toHaveBeenCalled();
+  });
+
+  it('gives the same 401 for a used or unknown code, and counts it', async () => {
+    const { deps, users } = fakeDeps();
+    users.consumeRecoveryCode.mockResolvedValueOnce(false);
+
+    await expect(recoverWith(deps)).rejects.toMatchObject(INVALID);
+    expect(users.recordLoginFailure).toHaveBeenCalled();
+  });
+
+  it('is refused while the address is locked, like login', async () => {
+    const { deps, users } = fakeDeps();
+    users.findLoginLock.mockResolvedValueOnce(minutes(5));
+
+    await expect(recoverWith(deps))
+      .rejects.toMatchObject({ apiError: { status: 429, code: 'auth.too_many_attempts' } });
+    expect(users.consumeRecoveryCode).not.toHaveBeenCalled();
   });
 });
 

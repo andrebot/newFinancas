@@ -1593,6 +1593,39 @@ OQ-112:** `NotificationDeliveryUtility` was misclassified.
 - **Follow-up:** rows for addresses that never sign in successfully stay
   in `login_attempts`; purge old ones before any hosting.
 
+### OQ-115: Passwords and MFA recovery (task M1, PR 2)
+**Confirmed with the stakeholder (Oct 2026):**
+- **A reset link works once, for 30 minutes**
+  (`authentication.passwordReset.ttlMinutes`). It points at the web app:
+  `WEB_APP_URL` (new env variable, default `http://localhost:5173`) +
+  `/reset-password?token=…` — the web route comes with the Authenticate
+  experience.
+- **A wrong current password on Change Password is 422
+  `password.current_incorrect`, not 401.** The user is signed in and stays
+  so; a 401 would make the web app treat the session as expired. Contract
+  and both catalogs updated.
+- **A successful reset lifts any login lock on that address** — it proves
+  control of the email.
+
+**Design decisions (PR 2):**
+- **MFA recovery goes through Login's authentication step:** the same
+  lockout, the dummy-hash check for unknown emails and one 401 for every
+  failure; the recovery code is checked (and used up) only after the
+  password matched, so a wrong password never wastes a code. The old
+  sequence answered a distinct `auth.recovery_code_invalid` after a correct
+  password — which confirmed the password; corrected. One shared
+  `authenticate(email, password, secondFactor)` keeps the two from drifting.
+- **Reset request answers 202 before any lookup;** the token and email
+  happen afterwards, so neither the answer nor its timing reveals whether
+  an account exists. A failure there is logged, never returned.
+- **Length first:** both Change Password and the reset confirmation check
+  the new password's length before anything else (a too-short password
+  never uses up a link, OQ-103).
+- Change Password ends every **other** session; a reset ends **all** of
+  them (FR-1.13/1.14). Both are audited (`ChangePassword`,
+  `ResetPassword`), as is `MfaRecovery` (a Session, like Login).
+- Sequences uc-18, uc-19 and uc-20 redrawn accordingly.
+
 ## Refined (resolved, with a follow-up still open)
 
 *(OQ-4's legal-review follow-up below is closed for v1 by OQ-89.)*

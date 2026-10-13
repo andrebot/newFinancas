@@ -10,23 +10,29 @@ const SHORT_KEY = Buffer.alloc(31).toString('base64');
 describe('loadEnv', () => {
   it('maps a complete environment to the typed config', () => {
     const config = loadEnv({
-      PORT: '4000', DATABASE_URL, EMAIL_PROVIDER: 'console', ...SECRETS,
+      PORT: '4000',
+      DATABASE_URL,
+      EMAIL_PROVIDER: 'console',
+      WEB_APP_URL: 'https://financas.example.com/',
+      ...SECRETS,
     });
 
     expect(config).toEqual({
       port: 4000,
       databaseUrl: DATABASE_URL,
       emailProvider: 'console',
+      webAppUrl: 'https://financas.example.com',
       jwtSecret: JWT_SECRET,
       mfaEncryptionKey: MFA_ENCRYPTION_KEY,
     });
   });
 
-  it('defaults PORT to 3000 and EMAIL_PROVIDER to console', () => {
+  it('defaults PORT to 3000, EMAIL_PROVIDER to console and WEB_APP_URL to the dev server', () => {
     const config = loadEnv({ DATABASE_URL, ...SECRETS });
 
     expect(config.port).toBe(3000);
     expect(config.emailProvider).toBe('console');
+    expect(config.webAppUrl).toBe('http://localhost:5173');
   });
 
   it('accepts the postgresql:// scheme', () => {
@@ -42,7 +48,7 @@ describe('loadEnv', () => {
 
     expect(Object.keys(config).sort())
       .toEqual([
-        'databaseUrl', 'emailProvider', 'jwtSecret', 'mfaEncryptionKey', 'port',
+        'databaseUrl', 'emailProvider', 'jwtSecret', 'mfaEncryptionKey', 'port', 'webAppUrl',
       ]);
   });
 
@@ -59,6 +65,10 @@ describe('loadEnv', () => {
 
   it.each(['0', '65536', '3.5', 'abc'])('rejects PORT=%s', (port) => {
     expect(() => loadEnv({ PORT: port, DATABASE_URL, ...SECRETS })).toThrow(/PORT/);
+  });
+
+  it.each(['not a url', 'ftp://example.com'])('rejects WEB_APP_URL=%s', (url) => {
+    expect(() => loadEnv({ DATABASE_URL, WEB_APP_URL: url, ...SECRETS })).toThrow(/WEB_APP_URL/);
   });
 
   it('rejects an unknown EMAIL_PROVIDER', () => {

@@ -25,6 +25,7 @@ const enUS: Catalog = {
     'invitation.not_found': 'Invitation not found.',
     'invitation.not_pending': 'This invitation is no longer pending.',
     'notification.not_found': 'Notification not found.',
+    'password.current_incorrect': 'Your current password is incorrect.',
     'password.too_short': 'Password must be at least {min, plural, one {# character} other {# characters}}.',
     'password_reset.token_invalid': 'This reset link is invalid or has expired.',
     'report.unknown_type_or_range': 'Unknown report or invalid period.',

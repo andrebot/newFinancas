@@ -21,6 +21,10 @@ export const mockIdentity = (): MockedIdentity => ({
   listSessions: vi.fn(),
   revokeSession: vi.fn(),
   revokeOtherSessions: vi.fn(),
+  recoverWithCode: vi.fn(),
+  changePassword: vi.fn(),
+  requestPasswordReset: vi.fn(),
+  confirmPasswordReset: vi.fn(),
 });
 
 /**

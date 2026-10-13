@@ -189,6 +189,14 @@ paths:
       responses:
         "200": { description: OK }
         "401": { $ref: "#/components/responses/Unauthorized" }
+        "422":
+          description: >
+            `password.too_short` (`params.min`), or `password.current_incorrect`
+            — a wrong current password is a form error, not a 401, so the
+            signed-in user isn't treated as signed out (OQ-115).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
 
   /auth/password-reset/request:
     post:
@@ -197,7 +205,7 @@ paths:
       summary: Request a password reset token (step 1 of 2)
       description: >-
         FR-1.13. Always returns 202 regardless of whether the email matched an account — the branch is entirely internal, so there is no observable response difference that would leak account existence.
-         The reset link is emailed through `NotificationDeliveryUtility`'s email channel as type `password.reset` in the user's language (OQ-84); the token is stored hashed in `password_reset_tokens`.
+         The work happens after the 202 is sent, so the timing doesn't reveal it either (OQ-115). The reset link (`WEB_APP_URL` + `/reset-password?token=…`) works once, for 30 minutes; NotificationEngine emails it as `password.reset` in the user's language (OQ-113); the token is stored hashed in `password_reset_tokens`.
       security: []
       requestBody:
         required: true
@@ -233,8 +241,13 @@ paths:
                 newPassword: { type: string, minLength: 12 }
       responses:
         "200": { description: OK }
+        "422":
+          description: "`password.too_short` (`params.min`) — checked before the token is used up."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
         "400":
-          description: Token invalid or expired.
+          description: "Token invalid, expired or already used: `password_reset.token_invalid`."
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
@@ -249,6 +262,8 @@ paths:
         login — this is an alternate second factor, not a full
         account-recovery mechanism. If recovery codes are also
         exhausted/lost, there is no further self-service path (OQ-24).
+        Same lockout and same single 401 as login (OQ-115): a wrong
+        password never uses up a code.
       security: []
       requestBody:
         required: true
@@ -268,6 +283,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/AuthTokens" }
         "401": { $ref: "#/components/responses/Unauthorized" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
 
   /users/me:
     get:
