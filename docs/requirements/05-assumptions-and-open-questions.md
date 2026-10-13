@@ -1403,6 +1403,7 @@ to the financas app's style):**
 - **No `console` anywhere.** Every process logs through the shared
   logger: the API, the demo seed, audit reconciliation and the ops CLI.
   Under Vitest the logger is silent; tests read events with `captureLogs()`.
+  The browser logs through `@financas/logging/browser` (OQ-123).
 - **Logging is fire-and-forget:** Managers never wait. The correlation ID
   and actor (`user:<id>`, `system`, `unauthenticated`, NFR-OBS-2) are on
   every event. Every event is redacted before any transport sees it
@@ -1818,6 +1819,47 @@ OQ-118). Delete User's cascade is `M1D` (task 135, slice 5).
   are copied into TypeScript. For `style` props (fill, stroke,
   background); static markup keeps the `cat-*` utilities. An unknown token
   (a newer palette than this build) falls back to `slate`.
+
+### OQ-123: I18nUtility and the browser logger (task FU5)
+**Confirmed with the stakeholder (Oct 2026):**
+- **A translator per locale.** `apps/web/src/utilities/i18n.ts` formats
+  the shared catalog with `intl-messageformat` (the same ICU dialect the
+  catalog test parses). `createTranslator(locale)` gives:
+  - `text(section, key, params)` for copy; the compiler checks the section
+    and key;
+  - `error(code)`, `field(code)` and `notification(type)` for the codes the
+    API sends as plain strings.
+- **It never throws into the UI.**
+  - An unknown code shows its section's generic message:
+    `errors.fallback`, `fields['field.invalid']` or
+    `notifications.fallback`.
+  - A message that fails to format (a missing argument) does the same;
+    typed copy shows the key's name instead.
+  - Both are logged as warnings with the argument names, never their
+    values (OQ-82).
+- **Choosing the locale:** the remembered locale (`i18n.storageKey`),
+  else the first browser language the catalog supports (`navigator.languages`;
+  an exact tag first, then the same language, so `pt-PT` → pt-BR and
+  `en-GB` → en-US), else pt-BR. The server's `preferences.language` wins
+  once it loads. `createLocaleController` follows ThemeUtility's pattern:
+  - one controller per page, created and restored in `main.tsx`;
+  - `apply` sets `<html lang>` and remembers the locale;
+  - subscribers are told about each change.
+- **React binding.** `I18nProvider` re-renders on a locale change.
+  `useI18n()` returns the translator, and `useLocaleController()` lets S1
+  and X3 apply the user's language. A component outside the provider
+  throws, since that is a wiring bug.
+- **Shared never-throwing storage.** FU4's `localStorage` wrapper moved to
+  `utilities/safeStorage.ts`, and both utilities use it.
+- **No `ui` section yet.** It arrives with the first kit component that
+  has copy.
+- **The browser logger (refines OQ-110).** Winston and its file transport
+  are Node-only, so `@financas/logging/browser` gives the web app:
+  - the same `createLogger({ label })` call, levels and redaction;
+  - no `audit` level, since audit belongs to the API;
+  - a threshold of `info` (`loggingSettings.browserLevel`).
+  Its console sink is the one place in the web app that touches `console`.
+  It is silent under Vitest, and tests read events with `captureLogs()`.
 
 ## Refined (resolved, with a follow-up still open)
 
