@@ -62,25 +62,25 @@ sequenceDiagram
     actor User
     participant API as Hono route
     participant IM as IdentityManager
-    participant VU as ValidationUtility
     participant UA as UserAccessor
     participant LOG as LoggingUtility
 
-    User->>API: PATCH /users/me {firstName?, lastName?, preferences?: {theme, language}}
-    API->>IM: editProfile(actor, input)
-    IM->>VU: check(input) &mdash; theme in {dark, light, system}, language in {pt-BR, en-US}
-    alt validation fails
-        VU-->>IM: rejected
-        IM-->>API: ValidationError
+    User->>API: PATCH /users/me {firstName?, lastName?, preferences?: {theme?, language?}}
+    Note over API: validated against the contract (OQ-93): names trimmed and<br/>non-blank, theme and language from their sets, nothing filled in (OQ-116)
+    alt request invalid
         API-->>User: 422 validation.failed {details}
     else valid
-        VU-->>IM: ok
-        IM->>UA: update(actor, {firstName, lastName, preferences})
-        UA-->>IM: updated
-        IM-->>LOG: logActivity(correlationId, actor, "EditProfile")
-        IM-->>LOG: recordAudit(actor, "User", actor)
-        IM-->>API: updated
-        API-->>User: 200 OK {firstName, lastName, preferences}
+        API->>IM: editProfile(actor, input)
+        alt nothing to change
+            IM->>UA: findById(actor.userId)
+            UA-->>IM: user
+        else some fields sent
+            IM->>UA: update(actor.userId, {only the fields sent})
+            UA-->>IM: user
+            IM-->>LOG: log.audit("EditUser", User actor.userId)
+        end
+        IM-->>API: user
+        API-->>User: 200 OK User {id, email, firstName, lastName, createdAt, preferences}
     end
     </pre>
   </div>

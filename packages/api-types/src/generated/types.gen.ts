@@ -95,6 +95,28 @@ export type Household = {
     createdAt?: string;
 };
 
+/**
+ * A household the current user belongs to, with their role in it (OQ-116).
+ */
+export type MyHousehold = Household & {
+    role?: 'Owner' | 'Admin' | 'Member' | 'Viewer';
+};
+
+/**
+ * A pending invitation addressed to the current user, with the names they can't look up yet (OQ-116). The inviter's names are null when that account was deleted — shown as "Someone" (OQ-82).
+ *
+ */
+export type ReceivedInvitation = {
+    id?: string;
+    householdId?: string;
+    householdName?: string;
+    role?: 'Admin' | 'Member' | 'Viewer';
+    invitedByUserId?: string | null;
+    inviterFirstName?: string | null;
+    inviterLastName?: string | null;
+    createdAt?: string;
+};
+
 export type HouseholdMembership = {
     userId?: string;
     householdId?: string;
@@ -530,7 +552,8 @@ export type CursorPage = {
 };
 
 /**
- * FR-1.21 — per user, not per household
+ * FR-1.21 — per user, not per household. A new account starts with the dark theme. No schema default here: on PATCH /users/me a default would overwrite the theme whenever only the language is sent (OQ-116).
+ *
  */
 export type UserPreferences = {
     theme?: 'dark' | 'light' | 'system';
@@ -822,7 +845,13 @@ export type RegisterUserData = {
     body: {
         email: string;
         password: string;
+        /**
+         * Trimmed — must not be blank
+         */
         firstName: string;
+        /**
+         * Trimmed — must not be blank
+         */
         lastName: string;
     };
     path?: never;
@@ -1080,7 +1109,13 @@ export type GetCurrentUserResponse = GetCurrentUserResponses[keyof GetCurrentUse
 
 export type EditCurrentUserData = {
     body: {
+        /**
+         * Trimmed — must not be blank
+         */
         firstName?: string;
+        /**
+         * Trimmed — must not be blank
+         */
         lastName?: string;
         preferences?: UserPreferences;
     };
@@ -1180,7 +1215,7 @@ export type ListMyInvitationsResponses = {
      * OK
      */
     200: {
-        data?: Array<Invitation>;
+        data?: Array<ReceivedInvitation>;
     };
 };
 
@@ -1198,7 +1233,7 @@ export type ListHouseholdsResponses = {
      * OK
      */
     200: {
-        data?: Array<Household>;
+        data?: Array<MyHousehold>;
     };
 };
 

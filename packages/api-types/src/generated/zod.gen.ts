@@ -56,6 +56,37 @@ export const zHousehold = z.object({
     createdAt: z.iso.datetime().optional()
 });
 
+/**
+ * A household the current user belongs to, with their role in it (OQ-116).
+ */
+export const zMyHousehold = zHousehold.and(z.object({
+    role: z.enum([
+        'Owner',
+        'Admin',
+        'Member',
+        'Viewer'
+    ]).optional()
+}));
+
+/**
+ * A pending invitation addressed to the current user, with the names they can't look up yet (OQ-116). The inviter's names are null when that account was deleted — shown as "Someone" (OQ-82).
+ *
+ */
+export const zReceivedInvitation = z.object({
+    id: z.uuid().optional(),
+    householdId: z.uuid().optional(),
+    householdName: z.string().optional(),
+    role: z.enum([
+        'Admin',
+        'Member',
+        'Viewer'
+    ]).optional(),
+    invitedByUserId: z.uuid().nullish(),
+    inviterFirstName: z.string().nullish(),
+    inviterLastName: z.string().nullish(),
+    createdAt: z.iso.datetime().optional()
+});
+
 export const zHouseholdMembership = z.object({
     userId: z.uuid().optional(),
     householdId: z.uuid().optional(),
@@ -452,14 +483,15 @@ export const zCursorPage = z.object({
 });
 
 /**
- * FR-1.21 — per user, not per household
+ * FR-1.21 — per user, not per household. A new account starts with the dark theme. No schema default here: on PATCH /users/me a default would overwrite the theme whenever only the language is sent (OQ-116).
+ *
  */
 export const zUserPreferences = z.object({
     theme: z.enum([
         'dark',
         'light',
         'system'
-    ]).optional().default('dark'),
+    ]).optional(),
     language: z.enum(['pt-BR', 'en-US']).optional()
 });
 
@@ -757,8 +789,8 @@ export const zIndexValueId = z.uuid();
 export const zRegisterUserBody = z.object({
     email: z.email(),
     password: z.string().min(12),
-    firstName: z.string(),
-    lastName: z.string()
+    firstName: z.string().min(1),
+    lastName: z.string().min(1)
 });
 
 /**
@@ -831,8 +863,8 @@ export const zDeleteCurrentUserResponse = z.void();
 export const zGetCurrentUserResponse = zUser;
 
 export const zEditCurrentUserBody = z.object({
-    firstName: z.string().optional(),
-    lastName: z.string().optional(),
+    firstName: z.string().min(1).optional(),
+    lastName: z.string().min(1).optional(),
     preferences: zUserPreferences.optional()
 });
 
@@ -866,14 +898,14 @@ export const zRevokeSessionResponse = z.void();
  * OK
  */
 export const zListMyInvitationsResponse = z.object({
-    data: z.array(zInvitation).optional()
+    data: z.array(zReceivedInvitation).optional()
 });
 
 /**
  * OK
  */
 export const zListHouseholdsResponse = z.object({
-    data: z.array(zHousehold).optional()
+    data: z.array(zMyHousehold).optional()
 });
 
 export const zCreateHouseholdBody = z.object({

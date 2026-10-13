@@ -1,15 +1,16 @@
 import {
   zChangePasswordBody, zConfirmPasswordResetBody, zLoginBody, zRecoverWithMfaCodeBody,
-  zRefreshTokensBody, zRegisterUserBody, zRequestPasswordResetBody,
+  zEditCurrentUserBody, zRefreshTokensBody, zRegisterUserBody, zRequestPasswordResetBody,
 } from '@financas/api-types/zod';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
-import type {
-  IdentityManager, RequestContext, SessionView, SignedInContext,
-} from '../../managers/identity';
+import type { IdentityManager, RequestContext, SignedInContext } from '../../managers/identity';
 import { actorOf, requireSystemRole, type VerifyAccessToken } from '../authentication';
 import { correlationIdOf, type AppEnv } from '../errorHandler';
 import { validate } from '../validation';
+import {
+  toMyHouseholdJson, toReceivedInvitationJson, toSessionJson, toUserJson,
+} from './identityJson';
 
 // IdentityManager's routes (M1): thin — validate against the contract, call the
 // use case, shape the response. Register, login and refresh are public; the rest
@@ -17,7 +18,16 @@ import { validate } from '../validation';
 
 // The minimum length is IdentityManager's rule, answered as `password.too_short`
 // (BDT plan), not as a generic validation failure.
-const registerBody = zRegisterUserBody.extend({ password: z.string() });
+// Names are trimmed and must not be blank (OQ-116); the contract's minLength
+// alone would accept "  ".
+const name = z.string().trim().min(1);
+const registerBody = zRegisterUserBody.extend({
+  password: z.string(), firstName: name, lastName: name,
+});
+const validProfileEdit = validate(
+  'json',
+  zEditCurrentUserBody.extend({ firstName: name.optional(), lastName: name.optional() }),
+);
 const validPasswordChange = validate(
   'json',
   zChangePasswordBody.extend({ newPassword: z.string() }),
@@ -47,20 +57,6 @@ const publicContextOf = (httpContext: Context<AppEnv>): RequestContext => ({
  */
 const signedInContextOf = (httpContext: Context<AppEnv>): SignedInContext => ({
   correlationId: correlationIdOf(httpContext), actor: actorOf(httpContext),
-});
-
-/**
- * A session as the contract shows it (`components/schemas/Session`).
- *
- * @param session - The use case's view.
- * @returns The JSON shape, times as ISO strings.
- */
-export const toSessionJson = (session: SessionView) => ({
-  id: session.id,
-  deviceInfo: session.deviceInfo,
-  createdAt: session.createdAt.toISOString(),
-  lastUsedAt: session.lastUsedAt.toISOString(),
-  current: session.current,
 });
 
 /**
@@ -112,6 +108,22 @@ const createIdentityRoutes = (identity: IdentityManager, verifyAccessToken: Veri
     .post('/auth/logout', signedIn, async (httpContext) => {
       await identity.logout(signedInContextOf(httpContext));
       return httpContext.body(null, 204);
+    })
+    .get('/users/me', signedIn, async (httpContext) => (
+      httpContext.json(toUserJson(await identity.getProfile(signedInContextOf(httpContext))))
+    ))
+    .patch('/users/me', signedIn, validProfileEdit, async (httpContext) => {
+      const edit = httpContext.req.valid('json');
+      const user = await identity.editProfile(signedInContextOf(httpContext), edit);
+      return httpContext.json(toUserJson(user));
+    })
+    .get('/users/me/invitations', signedIn, async (httpContext) => {
+      const invitations = await identity.listMyInvitations(signedInContextOf(httpContext));
+      return httpContext.json({ data: invitations.map(toReceivedInvitationJson) });
+    })
+    .get('/households', signedIn, async (httpContext) => {
+      const households = await identity.listMyHouseholds(signedInContextOf(httpContext));
+      return httpContext.json({ data: households.map(toMyHouseholdJson) });
     })
     .get('/users/me/sessions', signedIn, async (httpContext) => {
       const sessions = await identity.listSessions(signedInContextOf(httpContext));

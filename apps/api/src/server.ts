@@ -9,6 +9,8 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
 import createAuditLogAccessor from './accessors/auditLogAccessor';
 import createEmailAccessor from './accessors/emailAccessor';
+import createHouseholdAccessor from './accessors/householdAccessor';
+import createInvitationAccessor from './accessors/invitationAccessor';
 import createNotificationInboxAccessor from './accessors/notificationInboxAccessor';
 import createSessionAccessor from './accessors/sessionAccessor';
 import createUserAccessor from './accessors/userAccessor';
@@ -51,6 +53,8 @@ const notifications = createNotificationEngine({
 const identity = createIdentityManager({
   users: createUserAccessor(db),
   sessions: createSessionAccessor(db),
+  households: createHouseholdAccessor(db),
+  invitations: createInvitationAccessor(db),
   authentication,
   notifications,
   webAppUrl: env.webAppUrl,

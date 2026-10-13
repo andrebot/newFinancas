@@ -25,6 +25,10 @@ export const mockIdentity = (): MockedIdentity => ({
   changePassword: vi.fn(),
   requestPasswordReset: vi.fn(),
   confirmPasswordReset: vi.fn(),
+  getProfile: vi.fn(),
+  editProfile: vi.fn(),
+  listMyHouseholds: vi.fn(),
+  listMyInvitations: vi.fn(),
 });
 
 /**

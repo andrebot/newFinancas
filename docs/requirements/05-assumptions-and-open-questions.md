@@ -1626,6 +1626,39 @@ OQ-112:** `NotificationDeliveryUtility` was misclassified.
   `ResetPassword`), as is `MfaRecovery` (a Session, like Login).
 - Sequences uc-18, uc-19 and uc-20 redrawn accordingly.
 
+### OQ-116: Profile and "my households" — contract gaps closed (task M1, PR 3)
+**Found while implementing; resolved toward the existing design:**
+- **The contract was the stale side** for the two lists the household
+  switcher needs (uc-21):
+  - `GET /households` returned plain `Household`s, without the caller's
+    **role** that HouseholdAccessor already returns → new `MyHousehold`
+    schema (Household + `role`).
+  - `GET /users/me/invitations` returned `Invitation`s without the
+    **household name or inviter's name** — and an invitee isn't a member, so
+    the web app couldn't look them up (the sequence's "the frontend
+    resolves `inviterUserId`" could never work). InvitationAccessor (A4)
+    already returns them → new `ReceivedInvitation` schema; the inviter's
+    names are null for a deleted account ("Someone", OQ-82).
+  - The sequence's `memberCount` was never returned by anything; dropped.
+- **`UserPreferences.theme` had `default: dark` in the contract**, so the
+  generated validator filled it in: a PATCH that changed only the language
+  would have reset the theme to dark. Caught by a route test; the default
+  moved to the description (new accounts still start dark — the database
+  default).
+- **Names must not be blank:** register and edit trim first and last name
+  and refuse an empty result (422 `validation.failed`, `string.min`); the
+  contract says `minLength: 1`. The BDT plan already required names.
+- **Edit User** changes only the fields sent; an edit that changes nothing
+  is a read. Audited as `EditUser`. Request-shape checks (theme, language
+  sets) are the route's contract validation (OQ-93), not a
+  `ValidationUtility` call — uc-13 redrawn.
+- **The system role is not exposed** by `GET /users/me` yet (OQ-111: waits
+  for the sys-admin pages).
+- **uc-11 (Create User) redrawn** to the PR 1 implementation: route
+  `POST /auth/register` (was drawn as `POST /users`), contract validation at
+  the route, a duplicate email decided by the insert's unique index rather
+  than a prior lookup that two simultaneous registrations could both pass.
+
 ## Refined (resolved, with a follow-up still open)
 
 *(OQ-4's legal-review follow-up below is closed for v1 by OQ-89.)*
