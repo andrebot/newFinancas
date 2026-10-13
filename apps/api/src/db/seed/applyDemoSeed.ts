@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import type { Database } from '../database';
 import {
   accountMonthBalances, accounts, categories, creditCardMonthBalances, creditCards,
@@ -15,7 +16,11 @@ import type { DemoSeed } from './demoSeed';
  */
 const applyDemoSeed = async (db: Database, seed: DemoSeed): Promise<void> => {
   await db.transaction(async (tx) => {
-    await tx.insert(users).values(seed.users).onConflictDoNothing();
+    // Credentials are refreshed on a rerun (e.g. after MFA_ENCRYPTION_KEY changed).
+    await tx.insert(users).values(seed.users).onConflictDoUpdate({
+      target: users.id,
+      set: { passwordHash: sql`excluded.password_hash`, mfaSecret: sql`excluded.mfa_secret` },
+    });
     await tx.insert(households).values(seed.households).onConflictDoNothing();
     await tx.insert(householdMemberships).values(seed.memberships).onConflictDoNothing();
     await tx.insert(categories).values(seed.categories).onConflictDoNothing();

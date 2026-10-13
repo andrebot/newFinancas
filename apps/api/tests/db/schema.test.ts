@@ -35,14 +35,14 @@ const insertHousehold = (connection: AppRoleConnection) => insertId(
 );
 
 describe('migrated schema', () => {
-  it('has the 26 v1 tables, with uuidv7 primary keys', async () => {
+  it('has the 27 v1 tables, with uuidv7 primary keys', async () => {
     await asAppRole(database, async (connection) => {
       const { rows } = await connection.query<{ count: number }>(
         `SELECT count(*)::int AS count FROM information_schema.tables
          WHERE table_schema = 'public'`,
       );
 
-      expect(rows[0]!.count).toBe(26);
+      expect(rows[0]!.count).toBe(27);
       expect(await insertUser(connection, 'uuid@example.com'))
         .toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-/);
     });

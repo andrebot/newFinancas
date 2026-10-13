@@ -8,16 +8,21 @@ import { serve } from '@hono/node-server';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
 import createAuditLogAccessor from './accessors/auditLogAccessor';
+import createSessionAccessor from './accessors/sessionAccessor';
+import createUserAccessor from './accessors/userAccessor';
 import createApp from './app';
 import { logging } from './config/constants';
 import loadEnv from './config/env';
+import { createIdentityManager } from './managers/identity';
+import { createAuthenticationUtility } from './utilities/authentication';
 import { newCorrelationId } from './utilities/correlationId';
 import { createAuditSink } from './utilities/logging/auditSink';
 import { logFileLister, reconcileAudit } from './utilities/logging/reconcile';
 
 const env = loadEnv(process.env);
 const pool = new pg.Pool({ connectionString: env.databaseUrl });
-const auditLog = createAuditLogAccessor(drizzle(pool));
+const db = drizzle(pool);
+const auditLog = createAuditLogAccessor(db);
 const log = createLogger({ label: 'api', correlationId: newCorrelationId(), actor: 'system' });
 
 // Audit events (log.audit) are also stored in audit_log_entries (OQ-110).
@@ -33,7 +38,20 @@ logger.add(createAuditSink({
   ),
 }));
 
-serve({ fetch: createApp().fetch, port: env.port });
+const authentication = createAuthenticationUtility({
+  jwtSecret: env.jwtSecret, mfaEncryptionKey: env.mfaEncryptionKey,
+});
+const identity = createIdentityManager({
+  users: createUserAccessor(db),
+  sessions: createSessionAccessor(db),
+  authentication,
+  now: () => new Date(),
+});
+
+serve({
+  fetch: createApp({ identity, verifyAccessToken: authentication.verifyAccessToken }).fetch,
+  port: env.port,
+});
 log.info('API started', { port: env.port });
 
 // Restore audit entries the sink could not store last time (OQ-110).

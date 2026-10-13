@@ -154,7 +154,9 @@ gap there as a missing scenario, not an acceptable gap.
 `AuthorizationUtility`, `ServiceBusUtility`, `LoggingUtility`,
 `NotificationEngine`.
 - Register: email available/taken, **password < 12 → `password.too_short`**, first/last name required (`uc-11-create-user.html`)
-- Login: user found/not-found, password valid/invalid, MFA valid/invalid (`uc-14-login.html`) — all three failure branches must assert the *same* 401, not leak which one failed
+- Login: user found/not-found, password valid/invalid, MFA valid/invalid (`uc-14-login.html`) — all three failure branches must assert the *same* 401, not leak which one failed; an unknown email still costs a password check (dummy hash). **Lockout (OQ-114):** locked → 429 `auth.too_many_attempts` with `Retry-After` and nothing checked; an ended lock passes; every failure is counted under the trimmed, lower-cased address; the 5th failure locks for 15 minutes, the 4th doesn't; success clears
+- Refresh (`uc-14b-refresh-tokens.html`): rotated → new pair with the user's current system role; stale + replayed → `deleteForUser` for that session only (never `deleteAllExceptCurrent`) + a warning; stale + unknown → nothing ended; user gone → 401
+- Routes (Manager mocked): public vs signed-in (401 `auth.unauthenticated` without a valid token, 403 without the system role), validation before the Manager, `User-Agent` → device, the 429's `Retry-After` header, session times as ISO strings
 - MFA recovery: code valid/invalid/already-used (`uc-20-mfa-recovery.html`)
 - Password reset request/confirm: user exists/doesn't (still 202 either way), token valid/expired, new password < 12; **request calls `NotificationEngine.notify("password.reset", {email, language}, {resetLink, expiresInMinutes})`** — assert the type, recipient and params, never a channel or a rendered body (OQ-113) (`uc-18-reset-password.html`)
 - Remove Member / Leave Household: not-authorized, target-is-Owner-removed-by-other (rejected), self-leave-as-non-Owner, self-leave-as-Owner-with-successor, self-leave-as-Owner-with-no-successor (`uc-07`/`uc-08`)
@@ -234,7 +236,7 @@ data model requires.
   Postgres 18 running in the test process, and each check runs as the
   application role.
 - **What they check:**
-  - the 26 tables and `uuidv7` ids;
+  - the 27 tables (`login_attempts` added by OQ-114) and `uuidv7` ids;
   - one Owner per household;
   - the FR-4.7 claim scopes;
   - the append-only audit log;

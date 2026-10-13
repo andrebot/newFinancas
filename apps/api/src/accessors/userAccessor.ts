@@ -3,11 +3,14 @@ import {
 } from 'drizzle-orm';
 import type { Database } from '../db/database';
 import { PG_FOREIGN_KEY_VIOLATION, PG_UNIQUE_VIOLATION, pgErrorCode } from '../db/errors';
-import { mfaRecoveryCodes, passwordResetTokens, users } from '../db/schema';
+import {
+  loginAttempts, mfaRecoveryCodes, passwordResetTokens, users,
+} from '../db/schema';
 import type { Language, SystemRole, Theme } from '../db/schema/values';
 
 // UserAccessor (A1, VBD): users and their credentials — password hash, the
-// encrypted MFA secret, recovery codes and password-reset tokens. Stores only
+// encrypted MFA secret, recovery codes, password-reset tokens and the failed-login
+// counter that protects them (per email address, OQ-114). Stores only
 // what AuthenticationUtility produced (hashes, ciphertext), never a plain secret.
 // Expected outcomes are typed results; only unexpected failures throw (OQ-103).
 
@@ -238,6 +241,66 @@ const createUserAccessor = (db: Database) => ({
       ))
       .returning({ userId: passwordResetTokens.userId });
     return row?.userId;
+  },
+
+  /**
+   * Reads when an email address's login lock ends (OQ-114).
+   *
+   * @param emailKey - The address, trimmed and lower-cased by the caller.
+   * @returns The end of the lock, or `undefined` when it was never locked.
+   */
+  findLoginLock: async (emailKey: string): Promise<Date | undefined> => {
+    const [row] = await db.select({ lockedUntil: loginAttempts.lockedUntil })
+      .from(loginAttempts).where(eq(loginAttempts.emailKey, emailKey));
+    return row?.lockedUntil ?? undefined;
+  },
+
+  /**
+   * Counts a failed login for an address, atomically: when its window began
+   * before `windowStart`, the count starts again at this failure (OQ-114).
+   * The window's length and the threshold are the Manager's rule.
+   *
+   * @param emailKey - The address, trimmed and lower-cased by the caller.
+   * @param now - When the failure happened (starts a new window).
+   * @param windowStart - Failures in windows that began before this are forgotten.
+   * @returns Failures counted in the current window, this one included.
+   */
+  recordLoginFailure: async (emailKey: string, now: Date, windowStart: Date): Promise<number> => {
+    const expired = sql`${loginAttempts.windowStartedAt} < ${windowStart}`;
+    const [row] = await db.insert(loginAttempts)
+      .values({ emailKey, failedCount: 1, windowStartedAt: now })
+      .onConflictDoUpdate({
+        target: loginAttempts.emailKey,
+        set: {
+          failedCount: sql`CASE WHEN ${expired} THEN 1 ELSE ${loginAttempts.failedCount} + 1 END`,
+          windowStartedAt: sql`CASE WHEN ${expired} THEN ${now}
+            ELSE ${loginAttempts.windowStartedAt} END`,
+        },
+      })
+      .returning({ failedCount: loginAttempts.failedCount });
+    return row!.failedCount;
+  },
+
+  /**
+   * Locks an address's logins until a time (OQ-114).
+   *
+   * @param emailKey - The address, trimmed and lower-cased by the caller.
+   * @param until - When logins are accepted again.
+   * @returns Resolves once stored.
+   */
+  lockLogin: async (emailKey: string, until: Date): Promise<void> => {
+    await db.update(loginAttempts).set({ lockedUntil: until })
+      .where(eq(loginAttempts.emailKey, emailKey));
+  },
+
+  /**
+   * Forgets an address's failed logins and any lock — after a successful login.
+   *
+   * @param emailKey - The address, trimmed and lower-cased by the caller.
+   * @returns Resolves once cleared.
+   */
+  clearLoginFailures: async (emailKey: string): Promise<void> => {
+    await db.delete(loginAttempts).where(eq(loginAttempts.emailKey, emailKey));
   },
 
   /**

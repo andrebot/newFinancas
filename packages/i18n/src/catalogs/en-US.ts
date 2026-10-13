@@ -12,6 +12,8 @@ const enUS: Catalog = {
     'auth.invalid_credentials': 'Invalid email or password.',
     'auth.refresh_invalid': 'Your session has expired. Please sign in again.',
     'auth.mfa_invalid': 'Invalid verification code.',
+    'auth.unauthenticated': 'Please sign in to continue.',
+    'auth.too_many_attempts': 'Too many sign-in attempts. Try again in {retryAfterMinutes, plural, one {# minute} other {# minutes}}.',
     'budget.target_already_claimed': 'This category already belongs to another budget.',
     'goal.allocation_exceeds_100': 'This holding already has {current, number}% allocated; adding {requested, number}% would exceed 100%.',
     'household.changed': 'The members of this household changed while you were editing. Please try again.',
@@ -29,6 +31,7 @@ const enUS: Catalog = {
     'session.not_found': 'Session not found.',
     'snapshot.automatic_not_editable': "Automatically recorded values can't be edited.",
     'transaction.investment_not_allowed_on_account': "This account doesn't accept investment transactions.",
+    'user.email_taken': 'An account with this email already exists.',
   },
   fields: {
     'field.required': 'Required.',

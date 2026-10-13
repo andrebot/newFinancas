@@ -3,14 +3,14 @@ import { captureLogs } from '@financas/logging';
 import { createAdaptorServer } from '@hono/node-server';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
-import createApp from '../../src/app';
+import { appWithMocks } from '../support/app';
 
 /**
  * Starts the real app on an ephemeral Node server for Supertest.
  *
  * @returns The Node HTTP server.
  */
-const server = () => createAdaptorServer({ fetch: createApp().fetch });
+const server = () => createAdaptorServer({ fetch: appWithMocks().app.fetch });
 
 describe('GET /health', () => {
   it('responds 200 with status ok', async () => {
@@ -52,7 +52,7 @@ describe('unknown routes', () => {
 
 describe('unexpected errors', () => {
   it('are logged with their stack and the request\'s correlation id', async () => {
-    const app = createApp();
+    const { app } = appWithMocks();
     app.get('/boom', () => {
       throw new Error('database unreachable');
     });

@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
 import {
-  check, pgTable, text, uniqueIndex, uuid,
+  check, integer, pgTable, text, uniqueIndex, uuid,
 } from 'drizzle-orm/pg-core';
 import {
   CASCADE, createdAt, id, instant, isOneOf,
@@ -38,6 +38,22 @@ export const passwordResetTokens = pgTable('password_reset_tokens', {
   usedAt: instant('used_at'),
   createdAt: createdAt(),
 });
+
+// Failed sign-ins per email address, for the login lockout (OQ-114). Keyed by the
+// address, not the user, and deliberately not linked to `users`: an address with
+// no account locks exactly like a real one, so a lockout never confirms that an
+// email is registered.
+export const loginAttempts = pgTable('login_attempts', {
+  id: id(),
+  // The email as typed, trimmed and lower-cased.
+  emailKey: text('email_key').notNull().unique(),
+  failedCount: integer('failed_count').notNull(),
+  // Start of the counting window; failures before it are forgotten.
+  windowStartedAt: instant('window_started_at').notNull(),
+  lockedUntil: instant('locked_until'),
+}, (t) => [
+  check('login_attempts_failed_count_check', sql`${t.failedCount} >= 0`),
+]);
 
 export const mfaRecoveryCodes = pgTable('mfa_recovery_codes', {
   id: id(),

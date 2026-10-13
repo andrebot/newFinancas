@@ -667,7 +667,7 @@ sequenceDiagram
 UCS.append(dict(
     filename="uc-14-login.html",
     title="Login",
-    subtitle='<span class="route">POST /auth/login</span> &mdash; FR-1.2/OQ-30. Password and MFA code supplied together in one request; JWT access token is stateless, the refresh token is the server-tracked, revocable record.',
+    subtitle='<span class="route">POST /auth/login</span> &mdash; FR-1.2/OQ-30/OQ-114. Password and MFA code together in one request. Every failure answers the same 401, and an address with too many failures is locked for a while &mdash; whether or not an account exists.',
     mermaid="""
 sequenceDiagram
 """ + P_CORE + """
@@ -677,49 +677,111 @@ sequenceDiagram
     participant LOG as LoggingUtility
 
     User->>API: POST /auth/login {email, password, mfaCode}
-    API->>IM: login(input, deviceInfo)
-    IM->>UA: findByEmail(email)
-    alt no matching user
-        UA-->>IM: not found
-        IM-->>API: Unauthorized
-        API-->>User: 401 auth.invalid_credentials
-    else user found
-        UA-->>IM: user record (passwordHash, totpSecret)
-        IM->>AN: verifyPassword(passwordHash, password)
-        alt password incorrect
-            AN-->>IM: invalid
-            IM-->>API: Unauthorized
-            API-->>User: 401 auth.invalid_credentials
-        else password correct
-            AN-->>IM: valid
-            IM->>AN: verifyTotp(totpSecret, mfaCode)
-            alt MFA code incorrect or missing
-                AN-->>IM: invalid
-                IM-->>API: Unauthorized
-                API-->>User: 401 auth.mfa_invalid
-            else MFA valid
-                AN-->>IM: valid
-                IM->>AN: issueOpaqueToken()
-                AN-->>IM: {refreshToken, refreshTokenHash}
-                IM->>SA: insert(userId, refreshTokenHash, deviceInfo, expiresAt)
-                Note over SA: stores only the hash (OQ-100), 30-day sliding expiry
-                SA-->>IM: sessionId
-                IM->>AN: signAccessToken({userId, sessionId})
-                Note over AN: the session ID (sid) tells the current device apart (OQ-106)
-                AN-->>IM: accessToken (15-minute JWT)
-                IM-->>LOG: logActivity(correlationId, userId, "Login")
-                IM-->>LOG: recordAudit(userId, "Session", sessionId)
-                IM-->>API: {accessToken, refreshToken}
-                API-->>User: 200 OK {accessToken, refreshToken}
+    API->>IM: login(input, deviceInfo = User-Agent)
+    IM->>UA: findLoginLock(emailKey)
+    Note over UA: emailKey = trimmed, lower-cased email &mdash; login_attempts<br/>is kept per address, not per account (OQ-114)
+    UA-->>IM: lockedUntil (or none)
+    alt address locked (lockedUntil > now)
+        IM-->>API: TooManyRequests {retryAfterSeconds}
+        API-->>User: 429 auth.too_many_attempts (Retry-After)
+    else not locked
+        IM->>UA: findByEmail(email)
+        UA-->>IM: user with passwordHash, encryptedMfaSecret, systemRole (or none)
+        IM->>AN: verifyPassword(passwordHash or a dummy hash, password)
+        Note over IM: a missing user still costs one Argon2 check &mdash;<br/>response time doesn&#39;t reveal whether the email exists
+        AN-->>IM: valid / invalid
+        opt user found and password valid
+            IM->>AN: verifyTotp(encryptedMfaSecret, mfaCode)
+            AN-->>IM: valid / invalid
+        end
+        alt any factor failed (no user, wrong password, wrong code)
+            IM->>UA: recordLoginFailure(emailKey, now, windowStart = now &minus; 15 min)
+            Note over UA: atomic: failures older than the window are<br/>forgotten, then this one is counted
+            UA-->>IM: failuresInWindow
+            opt failuresInWindow &ge; 5 (the Manager&#39;s rule)
+                IM->>UA: lockLogin(emailKey, until = now + 15 min)
+                UA-->>IM: locked
             end
+            IM-->>API: Unauthorized
+            API-->>User: 401 auth.invalid_credentials (same for every factor)
+        else every factor valid
+            IM->>UA: clearLoginFailures(emailKey)
+            UA-->>IM: cleared
+            IM->>AN: issueOpaqueToken()
+            AN-->>IM: {token, tokenHash}
+            IM->>SA: insert(userId, tokenHash, deviceInfo, expiresAt = now + 30 days, now)
+            Note over SA: stores only the hash (OQ-100)
+            SA-->>IM: session
+            IM->>AN: signAccessToken({userId, sessionId, systemRole})
+            Note over AN: sid tells the device apart (OQ-106), role is the system role (OQ-111)
+            AN-->>IM: accessToken (15-minute JWT)
+            IM-->>LOG: log.audit("Login", Session sessionId)
+            IM-->>API: {accessToken, refreshToken}
+            API-->>User: 200 OK {accessToken, refreshToken}
         end
     end
 """,
     notes="""
     <ul>
-      <li><strong>Identical 401 for "no such user" and "wrong password"</strong> &mdash; deliberate, avoids leaking which emails are registered (standard practice, not explicitly an NFR but consistent with this project&#39;s security-conscious defaults elsewhere).</li>
-      <li>The access token is never persisted anywhere (OQ-30) &mdash; it simply expires; only the refresh token is server-tracked in <code>sessions</code>, which is what View/Revoke Sessions (UC-16/17) actually operate on.</li>
-      <li>See FR-1.2, OQ-30.</li>
+      <li><strong>One 401 for every failure</strong> &mdash; unknown email, wrong password and wrong MFA code all answer <code>auth.invalid_credentials</code>, and a missing user still costs a password check, so neither the code nor the timing tells an attacker which factor failed or whether the email is registered. The earlier diagram showed <code>auth.mfa_invalid</code> for a wrong code; corrected.</li>
+      <li><strong>Lockout (OQ-114):</strong> 5 failures within 15 minutes lock the <em>address</em> for 15 minutes (<code>config/constants.ts</code>); a success clears it. The count lives in <code>login_attempts</code>, keyed by address, so an address with no account locks exactly like one with an account &mdash; a 429 never confirms registration. The Manager decides (threshold, window, lock length); <code>UserAccessor</code> applies (atomic count, lock, clear) &mdash; the counter is a protection on the user&#39;s credentials, next to the hashes, MFA secret, recovery codes and reset tokens it already owns, so no new Accessor.</li>
+      <li>The access token is never persisted (OQ-30); only the refresh token is server-tracked in <code>sessions</code>.</li>
+      <li>See FR-1.2, OQ-30, OQ-100, OQ-106, OQ-111, OQ-114.</li>
+    </ul>
+""",
+))
+
+# ---------------------------------------------------------------- UC-14b
+UCS.append(dict(
+    filename="uc-14b-refresh-tokens.html",
+    title="Refresh Tokens",
+    subtitle='<span class="route">POST /auth/refresh</span> &mdash; OQ-30/OQ-100/OQ-106. Exchanges a refresh token for a new pair; each refresh token works once. Part of staying signed in after Login (UC-14).',
+    mermaid="""
+sequenceDiagram
+""" + P_CORE + """
+    participant AN as AuthenticationUtility
+    participant SA as SessionAccessor
+    participant UA as UserAccessor
+    participant LOG as LoggingUtility
+
+    User->>API: POST /auth/refresh {refreshToken}
+    API->>IM: refresh(refreshToken)
+    IM->>AN: hashOpaqueToken(refreshToken)
+    AN-->>IM: presentedHash
+    IM->>AN: issueOpaqueToken()
+    AN-->>IM: {token, tokenHash}
+    IM->>SA: rotate(presentedHash, tokenHash, expiresAt = now + 30 days, now)
+    Note over SA: guarded: applies only while presentedHash is the session&#39;s<br/>current, unexpired token, and remembers it as the previous one
+    alt rotated
+        SA-->>IM: session
+        IM->>UA: findById(session.userId)
+        UA-->>IM: user (systemRole)
+        IM->>AN: signAccessToken({userId, sessionId, systemRole})
+        AN-->>IM: accessToken
+        IM-->>API: {accessToken, refreshToken = token}
+        API-->>User: 200 OK
+    else stale
+        SA-->>IM: stale
+        IM->>SA: findByReplacedToken(presentedHash)
+        alt it was already used &mdash; a replay, likely a stolen token
+            SA-->>IM: {sessionId, userId}
+            IM->>SA: deleteForUser(userId, sessionId)
+            Note over IM: ends that session only &mdash; the user&#39;s other devices stay signed in
+            SA-->>IM: deleted
+            IM-->>LOG: log.warn("Refresh token replayed &mdash; session ended")
+        else unknown, expired or revoked
+            SA-->>IM: none
+        end
+        IM-->>API: Unauthorized
+        API-->>User: 401 auth.refresh_invalid
+    end
+""",
+    notes="""
+    <ul>
+      <li><strong>Rotation:</strong> every refresh issues a new refresh token (30-day sliding expiry) and consumes the old one, so each works once (OQ-100).</li>
+      <li><strong>Replay ends that session only</strong> (stakeholder decision, Oct 2026): whoever holds the old token &mdash; thief or victim &mdash; must sign in again on that device; other devices are untouched, and an attacker replaying an old token can&#39;t sign the user out everywhere.</li>
+      <li>The system role comes from the user record at each refresh, so a role change takes effect within one access-token lifetime (OQ-111).</li>
+      <li>No access token needed &mdash; this is how a client gets one back after it expires.</li>
     </ul>
 """,
 ))

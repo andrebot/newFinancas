@@ -28,8 +28,8 @@ const foreignKeys = (): Record<string, string> => Object.fromEntries(configs.fla
 const config = (name: string) => configs.find((c) => c.name === name)!;
 
 describe('database schema (02-data-model.md)', () => {
-  it('defines the 26 v1 tables', () => {
-    expect(configs).toHaveLength(26);
+  it('defines the 27 v1 tables', () => {
+    expect(configs).toHaveLength(27);
     expect(configs.map((c) => c.name)).not.toContain('dashboard_widgets');
   });
 

@@ -1,9 +1,10 @@
 import { DEFAULT_CATEGORIES, INDEX_CODES } from '@financas/reference';
 import { describe, expect, it } from 'vitest';
-import { buildDemoSeed, demoId, UNUSABLE_SECRET } from '../../../src/db/seed/demoSeed';
+import { buildDemoSeed, demoId } from '../../../src/db/seed/demoSeed';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-8[0-9a-f]{3}-[0-9a-f]{12}$/;
-const seed = buildDemoSeed(new Date('2026-10-08T12:00:00Z'));
+const CREDENTIALS = { passwordHash: '$argon2id$demo', encryptedMfaSecret: 'v1.sealed' };
+const seed = buildDemoSeed(new Date('2026-10-08T12:00:00Z'), CREDENTIALS);
 
 describe('demoId', () => {
   it('builds fixed, version-7-shaped UUIDs', () => {
@@ -20,14 +21,14 @@ describe('buildDemoSeed', () => {
     ids.forEach((id) => expect(id).toMatch(UUID));
   });
 
-  it('has an Owner (pt-BR) and a Member (en-US) who cannot log in yet', () => {
+  it('has an Owner (pt-BR) and a Member (en-US), both with the dev credentials', () => {
     expect(seed.memberships.map((m) => m.role)).toEqual(['Owner', 'Member']);
     expect(seed.users.map((u) => [u.email, u.language])).toEqual([
       ['ana@demo.financas.local', 'pt-BR'],
       ['ben@demo.financas.local', 'en-US'],
     ]);
     seed.users.forEach((u) => {
-      expect([u.passwordHash, u.mfaSecret]).toEqual([UNUSABLE_SECRET, UNUSABLE_SECRET]);
+      expect([u.passwordHash, u.mfaSecret]).toEqual(['$argon2id$demo', 'v1.sealed']);
     });
   });
 

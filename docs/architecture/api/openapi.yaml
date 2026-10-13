@@ -115,10 +115,11 @@ paths:
           description: >
             Invalid email, password, or MFA code — deliberately
             identical for all three to avoid leaking which emails are
-            registered.
+            registered. Code: `auth.invalid_credentials`.
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
 
   /auth/logout:
     post:
@@ -2100,7 +2101,16 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
     Unauthorized:
-      description: 'Missing, invalid, or expired credentials. Codes: e.g. `auth.invalid_credentials` (identical for unknown user and wrong password), `auth.mfa_invalid`.'
+      description: 'Missing, invalid, or expired credentials. Codes: e.g. `auth.unauthenticated` (no valid access token on a protected endpoint), `auth.invalid_credentials` (identical for unknown user, wrong password and wrong MFA code — OQ-114), `auth.mfa_invalid`.'
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    TooManyRequests:
+      description: 'Too many failed attempts for this email address (OQ-114) — answered the same whether or not an account exists. Code: `auth.too_many_attempts`, `params.retryAfterMinutes`.'
+      headers:
+        Retry-After:
+          description: Seconds until the address may try again.
+          schema: { type: integer }
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
@@ -2115,7 +2125,7 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
     Conflict:
-      description: "The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `household.changed` (membership changed by a concurrent request — retry, OQ-107)."
+      description: "The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107)."
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }

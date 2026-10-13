@@ -832,7 +832,7 @@ export type RegisterUserData = {
 
 export type RegisterUserErrors = {
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
      */
     409: Error;
     /**
@@ -872,10 +872,14 @@ export type LoginData = {
 
 export type LoginErrors = {
     /**
-     * Invalid email, password, or MFA code — deliberately identical for all three to avoid leaking which emails are registered.
+     * Invalid email, password, or MFA code — deliberately identical for all three to avoid leaking which emails are registered. Code: `auth.invalid_credentials`.
      *
      */
     401: Error;
+    /**
+     * Too many failed attempts for this email address (OQ-114) — answered the same whether or not an account exists. Code: `auth.too_many_attempts`, `params.retryAfterMinutes`.
+     */
+    429: Error;
 };
 
 export type LoginError = LoginErrors[keyof LoginErrors];
@@ -944,7 +948,7 @@ export type ChangePasswordData = {
 
 export type ChangePasswordErrors = {
     /**
-     * Missing, invalid, or expired credentials. Codes: e.g. `auth.invalid_credentials` (identical for unknown user and wrong password), `auth.mfa_invalid`.
+     * Missing, invalid, or expired credentials. Codes: e.g. `auth.unauthenticated` (no valid access token on a protected endpoint), `auth.invalid_credentials` (identical for unknown user, wrong password and wrong MFA code — OQ-114), `auth.mfa_invalid`.
      */
     401: Error;
 };
@@ -1013,7 +1017,7 @@ export type RecoverWithMfaCodeData = {
 
 export type RecoverWithMfaCodeErrors = {
     /**
-     * Missing, invalid, or expired credentials. Codes: e.g. `auth.invalid_credentials` (identical for unknown user and wrong password), `auth.mfa_invalid`.
+     * Missing, invalid, or expired credentials. Codes: e.g. `auth.unauthenticated` (no valid access token on a protected endpoint), `auth.invalid_credentials` (identical for unknown user, wrong password and wrong MFA code — OQ-114), `auth.mfa_invalid`.
      */
     401: Error;
 };
@@ -1299,7 +1303,7 @@ export type RemoveMemberErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
      */
     409: Error;
 };
@@ -1337,7 +1341,7 @@ export type ChangeMemberRoleErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
      */
     409: Error;
     /**
@@ -1376,7 +1380,7 @@ export type TransferOwnershipErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
      */
     409: Error;
 };
@@ -2164,7 +2168,7 @@ export type RecordMarketValueErrors = {
      */
     403: Error;
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
      */
     409: Error;
     /**
@@ -2650,7 +2654,7 @@ export type DeleteMarketValueErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
      */
     409: Error;
 };
@@ -2689,7 +2693,7 @@ export type EditMarketValueErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
      */
     409: Error;
     /**
@@ -2746,7 +2750,7 @@ export type RecordIndexRateErrors = {
      */
     403: Error;
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
      */
     409: Error;
     /**

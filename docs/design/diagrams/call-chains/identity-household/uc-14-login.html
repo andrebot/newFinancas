@@ -50,7 +50,7 @@
 </head>
 <body>
   <h1>Call Chain — Login</h1>
-  <p class="subtitle">Use case 14 of 20 in the Identity &amp; Household set (CUC-2, FR-1.2). Create pattern (Session), two round-trips (password, then MFA), security-sensitive.</p>
+  <p class="subtitle">Use case 14 of 21 in the Identity &amp; Household set (CUC-2, FR-1.2). Create pattern (Session), one request (password + MFA code together), security-sensitive. Updated for the login lockout (OQ-114).</p>
 
   <div class="architecture">
     <svg id="arrows-svg"></svg>
@@ -135,8 +135,9 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain:</strong> <code>IdentityManager</code> ① <code>UserAccessor.findByEmail(...)</code> (sync) → ② <code>AuthenticationUtility.verifyPassword(...)</code> (sync) → ③ <code>AuthenticationUtility.issueMFAChallenge()</code> (sync) — <em>round-trip boundary</em> — ④ <code>AuthenticationUtility.verifyMFACode(...)</code> (sync) → ⑤ <code>SessionAccessor.create(...)</code> (sync) → ⑥ <code>LoggingUtility.logActivity + recordAudit</code> (async — login is one of the named security-sensitive events, NFR-OBS-4, so it hits both).</p>
-    <p><strong>No smell:</strong> three separate calls to <code>AuthenticationUtility</code> for three distinct primitives (password verify, challenge issuance, code verify) — correctly kept as one Utility with multiple stateless operations, not split into three Utilities.</p>
+    <p><strong>Chain:</strong> <code>IdentityManager</code> ① <code>UserAccessor.findLoginLock(emailKey)</code> — locked → 429 — then <code>findByEmail</code> → ② <code>AuthenticationUtility.verifyPassword</code> / <code>verifyTotp</code> (a dummy hash when there&#39;s no user) → ③ <code>UserAccessor.recordLoginFailure</code> (+ <code>lockLogin</code> at the threshold) on any failure, <code>clearLoginFailures</code> on success → ④ <code>AuthenticationUtility.issueOpaqueToken</code> / <code>signAccessToken</code> → ⑤ <code>SessionAccessor.insert</code> → ⑥ <code>LoggingUtility</code> (async, audit).</p>
+    <p><strong>No new component:</strong> the failure counter (<code>login_attempts</code>, per address) is a protection on the user&#39;s credentials, so <code>UserAccessor</code> owns it alongside the hashes, MFA secret, recovery codes and reset tokens (OQ-114). The Manager decides the threshold, window and lock length (<code>config/constants.ts</code>); the Accessor counts atomically, locks and clears (OQ-107 pattern).</p>
+    <p><strong>Corrected:</strong> the previous chain described two round-trips (password, then MFA); the contract has always taken both in one request (OQ-30).</p>
   </div>
 
   <script>
@@ -149,7 +150,7 @@
       svg.style.width = containerRect.width + 'px';
       svg.style.height = containerRect.height + 'px';
 
-      var edges = [{"from": "mgr-identity", "to": "acc-user", "type": "sync", "order": 1}, {"from": "mgr-identity", "to": "util-authn", "type": "sync", "order": 2}, {"from": "mgr-identity", "to": "util-authn", "type": "sync", "order": 3}, {"from": "mgr-identity", "to": "util-authn", "type": "sync", "order": 4}, {"from": "mgr-identity", "to": "acc-session", "type": "sync", "order": 5}, {"from": "mgr-identity", "to": "util-logging", "type": "async", "order": 6}];
+      var edges = [{"from": "mgr-identity", "to": "acc-user", "type": "sync", "order": 1}, {"from": "mgr-identity", "to": "util-authn", "type": "sync", "order": 2}, {"from": "mgr-identity", "to": "acc-user", "type": "sync", "order": 3}, {"from": "mgr-identity", "to": "util-authn", "type": "sync", "order": 4}, {"from": "mgr-identity", "to": "acc-session", "type": "sync", "order": 5}, {"from": "mgr-identity", "to": "util-logging", "type": "async", "order": 6}];
 
       var activeIds = {};
       edges.forEach(function (e) { activeIds[e.from] = true; activeIds[e.to] = true; });

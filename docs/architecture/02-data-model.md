@@ -147,6 +147,12 @@ Backs `IdentityManager`'s Accessors: `UserAccessor`, `SessionAccessor`,
   `code_hash`, `used_at` (nullable). Broken out as its own table rather
   than a blob column, since codes are consumed individually and
   single-use (FR-1.15/1.16).
+- **`login_attempts`** *(new, Oct 2026 — OQ-114)* — `id` (PK), `email_key`
+  (unique; the address as typed, trimmed and lower-cased), `failed_count`,
+  `window_started_at`, `locked_until` (nullable). Deliberately **no FK to
+  `users`**: an address with no account locks exactly like a real one, so
+  a lockout never confirms that an email is registered. A successful login
+  deletes the row. Owned by `UserAccessor`.
 - **`sessions`** — `id` (PK), `user_id` (FK → `users`),
   `refresh_token_hash`, **`previous_refresh_token_hash`** (nullable,
   unique — the token the last rotation replaced; presenting it again ends

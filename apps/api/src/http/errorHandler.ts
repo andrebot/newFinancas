@@ -1,12 +1,18 @@
 import type { Error as ErrorBody } from '@financas/api-types';
+import { actorLabel } from '@financas/logging';
 import type { Context, ErrorHandler, NotFoundHandler } from 'hono';
 import { HTTPException } from 'hono/http-exception';
+import type { AccessTokenClaims } from '../utilities/authentication';
 import { newCorrelationId, type CorrelationId } from '../utilities/correlationId';
 import { isApiError, type ApiErrorInit } from './apiError';
 
-/** Hono environment shared by the app; `correlationId` is set by `correlationIdMiddleware`. */
+/**
+ * Hono environment shared by the app: `correlationId` is set by
+ * `correlationIdMiddleware`, `actor` by the authentication middleware on
+ * protected routes.
+ */
 export interface AppEnv {
-  Variables: { correlationId?: CorrelationId };
+  Variables: { correlationId?: CorrelationId; actor?: AccessTokenClaims };
 }
 
 const UNEXPECTED: ApiErrorInit = {
@@ -42,6 +48,18 @@ export const correlationIdOf = (c: Context<AppEnv>): CorrelationId => (
 );
 
 /**
+ * The request's actor label for logs (NFR-OBS-2): `user:<id>` once the
+ * authentication middleware has run, else `unauthenticated`.
+ *
+ * @param c - The request context.
+ * @returns The actor label.
+ */
+export const actorLabelOf = (c: Context<AppEnv>): string => {
+  const actor = c.get('actor');
+  return actor ? actorLabel({ userId: actor.userId }) : actorLabel('unauthenticated');
+};
+
+/**
  * Describes a non-API error: Hono's own HTTP errors keep their status (e.g. 400
  * for malformed JSON); anything else is an unexpected 500 that reveals nothing.
  *
@@ -72,7 +90,7 @@ export const createErrorHandler = (
   const { init, unexpected } = describeError(err);
   const correlationId = correlationIdOf(c);
   if (unexpected) onUnexpected(err, correlationId);
-  return c.json(toErrorBody(init, correlationId), init.status);
+  return c.json(toErrorBody(init, correlationId), init.status, init.headers);
 };
 
 /**
