@@ -1,0 +1,147 @@
+/*
+ * K2 — Typography (OQ-125).
+ *
+ * Two self-hosted variable fonts: Manrope for display text (titles, big
+ * amounts) and Inter for everything else. No request leaves the app.
+ *
+ * Text is set through one role utility per use (`type-display-lg`,
+ * `type-body`, …), each bundling family, size, line height and, where the
+ * role fixes them, weight, tracking and case. Tailwind's default families
+ * and size scale are removed, so `text-sm` or `font-serif` don't exist.
+ * Weight and tracking utilities stay: `type-body font-semibold` is fine.
+ *
+ * Tabular figures stay opt-in (`tabular-nums`); the Amount component (K29)
+ * applies them to money.
+ */
+@import '@fontsource-variable/manrope';
+@import '@fontsource-variable/inter';
+
+@theme {
+  --font-*: initial;
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Manrope Variable', ui-sans-serif, system-ui, sans-serif;
+  /* Secrets and backup codes only; not worth a third font download. */
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --text-*: initial;
+}
+
+/* Display — Manrope, extra bold. */
+
+@utility type-display-xl {
+  font-family: var(--font-display);
+  font-size: 2.5rem;
+  line-height: 2.75rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+}
+
+@utility type-display-lg {
+  font-family: var(--font-display);
+  font-size: 2.125rem;
+  line-height: 2.5rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+}
+
+@utility type-display-md {
+  font-family: var(--font-display);
+  font-size: 1.875rem;
+  line-height: 2.25rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+}
+
+@utility type-display-sm {
+  font-family: var(--font-display);
+  font-size: 1.625rem;
+  line-height: 2rem;
+  font-weight: 800;
+}
+
+@utility type-display-xs {
+  font-family: var(--font-display);
+  font-size: 1.375rem;
+  line-height: 1.75rem;
+  font-weight: 800;
+}
+
+/* Headings — Manrope, bold. */
+
+@utility type-heading-lg {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  line-height: 2rem;
+  font-weight: 700;
+}
+
+@utility type-heading-md {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+  font-weight: 700;
+}
+
+@utility type-heading-sm {
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  line-height: 1.625rem;
+  font-weight: 700;
+}
+
+/* Text — Inter; weight comes from the context (`font-medium`, …). */
+
+@utility type-body-lg {
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  line-height: 1.375rem;
+}
+
+@utility type-body {
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+@utility type-body-sm {
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  line-height: 1.125rem;
+}
+
+@utility type-caption {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+/* Small caps-style labels — Inter, uppercase, widely tracked. */
+
+@utility type-label {
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  line-height: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+@utility type-micro {
+  font-family: var(--font-sans);
+  font-size: 0.625rem;
+  line-height: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* Every page starts in body text, so a bare element is never unstyled.
+   The family comes from Tailwind's preflight (`--font-sans` on <html>). */
+@layer base {
+  body {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}

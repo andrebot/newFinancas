@@ -60,7 +60,7 @@ identity screens, the rest as later slices use them.
 - [x] **26.** `FU4` ThemeUtility (OQ-122)
 - [x] **27.** `FU5` I18nUtility (OQ-123)
 - [x] **28.** `FU7` API client (OQ-124)
-- [ ] **29.** `K2` Typography
+- [x] **29.** `K2` Typography (OQ-125)
 - [ ] **30.** `K3` Icon set
 - [ ] **31.** `K13` Segmented control
 - [ ] **32.** `K14` Option card
