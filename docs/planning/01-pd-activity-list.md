@@ -11,10 +11,10 @@ Every code work package covers its full lifecycle: detail design →
 implementation → unit tests (100% coverage, per BDT) → docs (every
 function documented) → review.
 
-**Totals:** 13 non-code / infrastructure · 50 UI-kit · 7 backend Utilities ·
+**Totals:** 14 non-code / infrastructure · 50 UI-kit · 7 backend Utilities ·
 16 Accessors · 2 Engines · 4 Managers · 7 frontend Utilities (6 + API client) · 21 Flows ·
 8 Experiences + App Shell · 12 integration · 4 verification =
-**145 activities** (148 after three splits made for the execution order — see `docs/planning/03-pd-execution-order.md`). The kit is 50 of them on purpose: it replaces MUI,
+**146 activities** (149 after three splits made for the execution order — see `docs/planning/03-pd-execution-order.md`; `N14` was added during slice 1, OQ-128). The kit is 50 of them on purpose: it replaces MUI,
 and every Interaction is built from it, so it sits early in the network
 and pays for itself across the 81 Interactions.
 
@@ -41,6 +41,7 @@ compliance review** (OQ-89).
 | N11 | Accessibility audit | Keyboard, focus, contrast in both themes, labels |
 | N12 | Local operations | Postgres backup + restore script (and one restore drill), log files |
 | N13 | First real use + stabilization | Enter your real accounts and a month of data, fix what it surfaces |
+| N14 | Component library (Storybook) — OQ-128 | A browsable library of the UI kit, to review each component in both themes and both locales as it is built. **Tool:** Storybook 10 (`@storybook/react-vite`, which supports our Vite 8 and React 19), dev-only: `pnpm storybook` runs it locally; a static build goes to a git-ignored folder; not part of `pnpm check`. **Stories** live in `apps/web/stories/`, outside `src/` like the tests, mirroring `src/kit/`; CSF with `args`, so the controls panel can change every prop. They are example data, not functions: no unit tests and outside the coverage gate. **Preview** loads the real `theme.css` and `typography.css`; toolbar globals switch the theme (dark / light, `data-theme` as ThemeUtility sets it) and the locale (pt-BR / en-US through `I18nProvider`). **Addons:** docs + controls (essentials) and a11y (axe checks on every story). **Backfill:** colour tokens + category palette (swatches), typography roles, the Icon registry (searchable grid of UI and category icons), card-network logos, SegmentedControl (md / sm / xs, tiles, icon and count). **From this task on, every kit task ships its stories.** To settle in the task's design step: ESLint rules for stories, and whether to run stories as smoke tests (`@storybook/addon-vitest`). |
 
 Dropped by decision: hosting + environments, email provider setup
 (console provider instead), compliance review, data migration from the
@@ -75,8 +76,8 @@ is worth building once.
 | K10 | Date range picker | filter drawer, audit export dialog |
 | K11 | Select / combobox (groups, disabled options with a reason) | account picker, claim-aware category picker, role |
 | K12 | Multi-select with search + presets, full width | payout holding selector (×2), filter kinds / accounts / categories |
-| K13 | Segmented control | theme, $ / R$, BRL / USD, kind groups |
-| K14 | Option card (radio cards with description) | account type, MFA method |
+| K13 | Segmented control (radio group; pills md / sm / xs, or tiles — OQ-127) | $ / R$, BRL / USD, goal status, kind groups |
+| K14 | Option card (radio cards with description) | account type, MFA method, theme (preview cards) |
 | K15 | Switch | visibility, incentivised debenture |
 | K16 | Checkbox | terms, multi-select rows |
 | K17 | Code input (6 digits) | MFA setup, MFA challenge |

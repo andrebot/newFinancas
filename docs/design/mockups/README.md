@@ -94,7 +94,8 @@ variable-based form; `22-dashboard-light-theme.html` is the proof.
 
 - **Time context bar** (Transactions): year switcher + 12-month strip with
   in/out mini bars + In/Out/Total summary (single currency at a time via a
-  $/R$ switch). Drives balances, budgets and goals — **not** the ledger.
+  $/R$ switch — built as the `.seg` look at `xs` size, not the pages' solid
+  mint pill, OQ-127). Drives balances, budgets and goals — **not** the ledger.
 - **Ledger**: all transactions, newest first, lazily loaded, sticky month
   headers + day headers with day totals. Rows expand on click to reveal
   details and Edit/Delete.

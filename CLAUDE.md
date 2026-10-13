@@ -22,6 +22,8 @@ in `docs/README.md`.
 - Each task: detail design first → ask only the questions that block it →
   implement → tests → tick. If a step raises no questions, continue
   without waiting for approval.
+- Kit components ship with their Storybook stories (`apps/web/stories/`,
+  OQ-128) once task 32 (`N14`) is done.
 - When code and docs disagree, raise it — don't silently diverge. Record
   new decisions in the docs (OQ list / relevant architecture doc).
 
