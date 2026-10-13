@@ -15,13 +15,37 @@ export const PALETTE_TOKENS = [
 export type PaletteToken = (typeof PALETTE_TOKENS)[number];
 
 /**
- * Category icons (Material Symbols names, as in the approved mockups). K3 grows
- * this set for the icon picker; stored values are names from this list.
+ * Category icons (Material Symbols names, as in the approved mockups), in icon
+ * picker order and grouped by theme (OQ-126). Stored values are names from this
+ * list; the web kit's icon registry (K3) is generated to cover every one.
  */
 export const CATEGORY_ICONS = [
-  'home-outline', 'shopping-cart-outline', 'directions-car-outline', 'restaurant',
-  'medical-services-outline', 'shopping-bag-outline', 'child-care-outline',
-  'fitness-center', 'flight', 'pets', 'redeem', 'school-outline',
+  // Home & bills
+  'home-outline', 'apartment', 'bolt', 'water-drop-outline', 'local-fire-department-outline',
+  'wifi', 'smartphone-outline', 'build-outline', 'cleaning-services-outline', 'chair-outline',
+  // Food
+  'shopping-cart-outline', 'restaurant', 'local-cafe-outline', 'local-bar-outline',
+  'fastfood-outline', 'bakery-dining-outline',
+  // Transport
+  'directions-car-outline', 'local-gas-station-outline', 'directions-bus-outline',
+  'local-taxi-outline', 'local-parking', 'two-wheeler', 'flight',
+  // Health
+  'medical-services-outline', 'local-pharmacy-outline', 'fitness-center', 'spa-outline',
+  'psychology-outline',
+  // Shopping & personal
+  'shopping-bag-outline', 'checkroom', 'devices-outline', 'content-cut', 'redeem',
+  // Family
+  'child-care-outline', 'pets', 'school-outline', 'elderly',
+  // Leisure
+  'movie-outline', 'sports-esports-outline', 'music-note', 'menu-book-outline',
+  'theater-comedy-outline', 'beach-access-outline', 'celebration-outline',
+  'subscriptions-outline',
+  // Money
+  'payments-outline', 'work-outline', 'savings-outline', 'account-balance-outline',
+  'receipt-long-outline', 'credit-card-outline', 'trending-up', 'sell-outline',
+  'real-estate-agent-outline', 'shield-outline', 'volunteer-activism-outline',
+  // Other
+  'category-outline',
 ] as const;
 
 export type CategoryIcon = (typeof CATEGORY_ICONS)[number];

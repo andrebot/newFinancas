@@ -7,7 +7,7 @@ describe('card networks', () => {
       .toEqual(expect.arrayContaining(['visa', 'mastercard', 'elo', 'amex', 'other']));
   });
 
-  it.each([['visa', true], ['elo', true], ['Visa', false], ['jcb', false]])(
+  it.each([['visa', true], ['elo', true], ['jcb', true], ['Visa', false], ['maestro', false]])(
     'isCardNetwork(%s) → %s',
     (code, ok) => {
       expect(isCardNetwork(code)).toBe(ok);

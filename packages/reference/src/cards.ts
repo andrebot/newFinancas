@@ -2,7 +2,8 @@
 // extensible without a schema change (02-data-model.md).
 
 export const CARD_NETWORKS = [
-  'visa', 'mastercard', 'amex', 'elo', 'hipercard', 'diners', 'discover', 'other',
+  'visa', 'mastercard', 'amex', 'elo', 'hipercard', 'diners', 'discover', 'jcb', 'unionpay',
+  'other',
 ] as const;
 
 export type CardNetwork = (typeof CARD_NETWORKS)[number];

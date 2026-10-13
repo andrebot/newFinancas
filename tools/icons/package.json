@@ -1,0 +1,21 @@
+{
+  "name": "@financas/icons",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "generate": "LOG_FILE_PREFIX=icons tsx src/main.ts",
+    "typecheck": "tsc --project tsconfig.json"
+  },
+  "dependencies": {
+    "@financas/logging": "workspace:*",
+    "@financas/reference": "workspace:*",
+    "@iconify-json/logos": "1.2.16",
+    "@iconify-json/material-symbols": "1.2.95",
+    "@iconify/utils": "3.1.7"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.1",
+    "tsx": "^4.23.15",
+    "vitest": "^5.0.3"
+  }
+}

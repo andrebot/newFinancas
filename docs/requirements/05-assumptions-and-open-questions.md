@@ -1998,6 +1998,51 @@ not a hardcoded assumption.
   10px), default sizes and families generate nothing, and every font
   source is local.
 
+### OQ-126: Icon set and card-network logos (task K3)
+**Confirmed with the stakeholder (Oct 2026):**
+- **Self-hosted, generated subset.** The icons are not loaded from Iconify
+  at runtime, for the same reason as OQ-125's fonts: no third-party
+  request, a strict CSP, and offline use. `tools/icons` (`pnpm
+  generate:icons`) copies the chosen icons out of `@iconify-json/*` into
+  the committed `apps/web/src/kit/icons/generated/iconData.ts`.
+  `pnpm check:icons`, part of `pnpm check`, regenerates the file and
+  fails when the committed copy is stale, like `check:contract`.
+- **Material Symbols names, used as they are.** They're what the
+  mockups and stored category values use, so there's no layer of
+  semantic aliases; the registry is the one place to remap if the
+  library ever changes. `IconName` is a typed union, so a misspelled
+  name fails to compile.
+- **Two lists, one registry.** UI icons: `tools/icons/src/selection.ts`
+  (the mockups' 78 non-category icons plus `visibility-off-outline` for
+  the password field). Category icons: `CATEGORY_ICONS` in
+  `@financas/reference`, the list the API validates against, so every
+  storable icon can be drawn (a test checks this).
+- **The category set grows from 12 to 57**, in picker order and grouped
+  by theme: home & bills, food, transport, health, shopping & personal,
+  family, leisure, money, other. Adding names needs no schema change.
+- **`<Icon name label? className?>`** inlines the glyph as an SVG that
+  is 1em square and drawn in `currentColor`, so it follows the text
+  around it; utilities override size and colour. Without a `label` it
+  is decorative (`aria-hidden`); with one (already translated) it gets
+  `role="img"` and `aria-label`.
+- **Card-network logos come from Iconify `logos`** ("SVG Logos", CC0),
+  the set the mockups already use. The old app's SVGs were not reused:
+  they come from the commercial Nucleo pack, they lack Elo and
+  Hipercard, and their `amazon` "flag" is a co-brand, not a network.
+  `<CardNetworkLogo network label? className?>` keeps each logo's
+  colours and proportions: 1em tall, with the width following the
+  aspect ratio. `other` shows the `credit-card-outline` glyph.
+- **`jcb` and `unionpay` added to `CARD_NETWORKS`** (validated in code,
+  no schema change). Maestro and Visa Electron are left out: both are
+  debit-only (FR-2.7 is about credit cards), and Mastercard is retiring
+  Maestro. A Visa Electron number is detected as `visa`.
+- **Detecting the network from the number belongs to K48** (Credit-card
+  preview), its only user. The notes for that task are in its row in
+  `docs/planning/01-pd-activity-list.md`.
+- **ESLint `react/require-default-props` is off** for the web app.
+  TypeScript's optional props already say a prop may be absent, and
+  React 19 ignores `defaultProps` on function components.
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.
