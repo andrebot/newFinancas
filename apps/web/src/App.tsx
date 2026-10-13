@@ -6,7 +6,7 @@
  */
 export default function App() {
   return (
-    <main>
+    <main className="min-h-screen bg-bg text-ink">
       <h1>Finance APP</h1>
     </main>
   );

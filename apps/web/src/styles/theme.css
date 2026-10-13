@@ -1,0 +1,167 @@
+/*
+ * K1 — Tailwind theme + design tokens (NFR-UX-2, OQ-85, OQ-121).
+ *
+ * Every colour in the app is a token. `:root` holds the dark theme (the
+ * default); `[data-theme="light"]` on <html> swaps in the light one, so no
+ * component styles per theme. Tailwind's default palette is removed: only
+ * the utilities mapped below exist (`bg-card`, `text-ink`, `bg-mint/15`,
+ * `text-cat-teal`, …), so a non-token colour fails to compile.
+ *
+ * Text tokens (ink, muted and the accents) keep ≥ 4.5:1 on bg, card and
+ * raised in both themes; `faint` is for icons, dividers and disabled
+ * states only. `tests/unit/styles/theme.test.ts` enforces both rules.
+ *
+ * Category colours (`--c-cat-*`) are the 18 palette tokens a Category
+ * stores; they share names with some theme tokens but not light values.
+ */
+@import 'tailwindcss';
+
+:root {
+  color-scheme: dark;
+
+  --c-bg: #0C100F;
+  --c-card: #131917;
+  --c-raised: #1A211E;
+  --c-line: #232C28;
+  --c-track: #222B27;
+  --c-ink: #E7ECE9;
+  --c-muted: #97A39D;
+  --c-faint: #5F6B65;
+  --c-mint: #5EE6B8;
+  --c-mintdeep: #0F3B2E;
+  --c-onmint: #062A1F;
+  --c-onmint2: #00382B;
+  --c-coral: #FF6B6B;
+  --c-coraldeep: #3A1717;
+  --c-oncoral: #2A0A0A;
+  --c-sky: #7CB9FF;
+  --c-onsky: #0A1E33;
+  --c-sun: #FFD166;
+  --c-lilac: #C792EA;
+  --c-peach: #FF8C69;
+  --c-deep: #0A0E0D;
+
+  --c-cat-mint: #5EE6B8;
+  --c-cat-emerald: #34D399;
+  --c-cat-teal: #2DD4BF;
+  --c-cat-cyan: #22D3EE;
+  --c-cat-sky: #7CB9FF;
+  --c-cat-blue: #60A5FA;
+  --c-cat-indigo: #A5B4FC;
+  --c-cat-violet: #C4B5FD;
+  --c-cat-lilac: #C792EA;
+  --c-cat-fuchsia: #F0ABFC;
+  --c-cat-pink: #F9A8D4;
+  --c-cat-rose: #FDA4AF;
+  --c-cat-coral: #FF6B6B;
+  --c-cat-peach: #FF8C69;
+  --c-cat-orange: #FDBA74;
+  --c-cat-sun: #FFD166;
+  --c-cat-lime: #BEF264;
+  --c-cat-slate: #CBD5E1;
+}
+
+[data-theme='light'] {
+  color-scheme: light;
+
+  --c-bg: #F4F7F5;
+  --c-card: #FFFFFF;
+  --c-raised: #EEF3F0;
+  --c-line: #DCE4DF;
+  --c-track: #E3EAE6;
+  --c-ink: #13201A;
+  --c-muted: #56655E;
+  --c-faint: #8A9791;
+  --c-mint: #0B7A55;
+  --c-mintdeep: #DDF4EA;
+  --c-onmint: #FFFFFF;
+  --c-onmint2: #FFFFFF;
+  --c-coral: #C2302F;
+  --c-coraldeep: #FBE5E5;
+  --c-oncoral: #FFFFFF;
+  --c-sky: #2368C9;
+  --c-onsky: #FFFFFF;
+  --c-sun: #946200;
+  --c-lilac: #8A4CC6;
+  --c-peach: #C2410C;
+  --c-deep: #E9F1ED;
+
+  --c-cat-mint: #0B7A55;
+  --c-cat-emerald: #047857;
+  --c-cat-teal: #0F766E;
+  --c-cat-cyan: #0E7490;
+  --c-cat-sky: #2368C9;
+  --c-cat-blue: #1D4ED8;
+  --c-cat-indigo: #4338CA;
+  --c-cat-violet: #6D28D9;
+  --c-cat-lilac: #8A4CC6;
+  --c-cat-fuchsia: #A21CAF;
+  --c-cat-pink: #BE185D;
+  --c-cat-rose: #BE123C;
+  --c-cat-coral: #C2302F;
+  --c-cat-peach: #C2410C;
+  --c-cat-orange: #B45309;
+  --c-cat-sun: #946200;
+  --c-cat-lime: #4D7C0F;
+  --c-cat-slate: #475569;
+}
+
+@theme {
+  --color-*: initial;
+
+  --radius-card: 20px;
+  --radius-input: 14px;
+}
+
+/* `inline` makes each utility read the variable at runtime, so a theme swap
+   repaints without regenerating any CSS. */
+@theme inline {
+  --color-bg: var(--c-bg);
+  --color-card: var(--c-card);
+  --color-raised: var(--c-raised);
+  --color-line: var(--c-line);
+  --color-track: var(--c-track);
+  --color-ink: var(--c-ink);
+  --color-muted: var(--c-muted);
+  --color-faint: var(--c-faint);
+  --color-mint: var(--c-mint);
+  --color-mintdeep: var(--c-mintdeep);
+  --color-onmint: var(--c-onmint);
+  --color-onmint2: var(--c-onmint2);
+  --color-coral: var(--c-coral);
+  --color-coraldeep: var(--c-coraldeep);
+  --color-oncoral: var(--c-oncoral);
+  --color-sky: var(--c-sky);
+  --color-onsky: var(--c-onsky);
+  --color-sun: var(--c-sun);
+  --color-lilac: var(--c-lilac);
+  --color-peach: var(--c-peach);
+  --color-deep: var(--c-deep);
+
+  --color-cat-mint: var(--c-cat-mint);
+  --color-cat-emerald: var(--c-cat-emerald);
+  --color-cat-teal: var(--c-cat-teal);
+  --color-cat-cyan: var(--c-cat-cyan);
+  --color-cat-sky: var(--c-cat-sky);
+  --color-cat-blue: var(--c-cat-blue);
+  --color-cat-indigo: var(--c-cat-indigo);
+  --color-cat-violet: var(--c-cat-violet);
+  --color-cat-lilac: var(--c-cat-lilac);
+  --color-cat-fuchsia: var(--c-cat-fuchsia);
+  --color-cat-pink: var(--c-cat-pink);
+  --color-cat-rose: var(--c-cat-rose);
+  --color-cat-coral: var(--c-cat-coral);
+  --color-cat-peach: var(--c-cat-peach);
+  --color-cat-orange: var(--c-cat-orange);
+  --color-cat-sun: var(--c-cat-sun);
+  --color-cat-lime: var(--c-cat-lime);
+  --color-cat-slate: var(--c-cat-slate);
+}
+
+/* The page itself is themed before React mounts, so there is no flash. */
+@layer base {
+  html {
+    background-color: var(--color-bg);
+    color: var(--color-ink);
+  }
+}
