@@ -22,3 +22,13 @@ export const passwordStrength = {
   /** Also match near-misses of a dictionary word (`Pasword`), not only exact ones. */
   useLevenshteinDistance: true,
 };
+
+/** Dark / light / system and the category palette (FU4 ThemeUtility, FR-1.21, OQ-85). */
+export const theme = {
+  /** The product default (FR-1.21): used until a preference is saved or loaded. */
+  defaultPreference: 'dark',
+  /** Where the last applied preference is remembered, so a reload starts in it. */
+  storageKey: 'financas.theme',
+  /** Shown for a category colour this build doesn't know (a newer palette). */
+  fallbackCategoryColor: 'slate',
+} as const;

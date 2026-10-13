@@ -9,6 +9,7 @@
     "typecheck": "tsc --project tsconfig.json"
   },
   "dependencies": {
+    "@financas/api-types": "workspace:*",
     "@financas/i18n": "workspace:*",
     "@financas/reference": "workspace:*",
     "@zxcvbn-ts/core": "4.2.0",

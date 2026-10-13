@@ -4,6 +4,12 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import './styles/theme.css';
+import { browserThemeEnvironment, createThemeController } from './utilities/theme';
+
+// The remembered theme goes on <html> before the first render, so a reload
+// doesn't flash the default theme. The App Shell takes over the controller (S1).
+const themeController = createThemeController(browserThemeEnvironment(window));
+themeController.restore();
 
 const container = document.getElementById('root');
 

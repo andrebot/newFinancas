@@ -57,7 +57,7 @@ identity screens, the rest as later slices use them.
 - [x] **23.** `FU1` ValidationUtility (web) (OQ-119)
 - [x] **24.** `FU2` PasswordStrengthUtility (OQ-120)
 - [x] **25.** `K1` Tailwind theme + tokens (OQ-121)
-- [ ] **26.** `FU4` ThemeUtility
+- [x] **26.** `FU4` ThemeUtility (OQ-122)
 - [ ] **27.** `FU5` I18nUtility
 - [ ] **28.** `FU7` API client
 - [ ] **29.** `K2` Typography
