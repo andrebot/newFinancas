@@ -2314,6 +2314,66 @@ not a hardcoded assumption.
 
 **Task 38 (`K31`) is complete.**
 
+### OQ-135: Card, section header and kit layouts (task K34)
+**Confirmed with the stakeholder (Oct 2026):**
+- **`Card` is only the bordered surface** (`kit/card/Card.tsx`):
+  `bg-card`, `border-line`. The caller sets the layout inside through
+  `className`, because some cards stack and some run in a row (the year
+  bar). It renders a `section` by default (`as`: `article`, `div`). Its
+  `size` sets padding and radius together, so tighter cards round less:
+  `none` (flush and clipped, 20px, for the ledger and tables), `sm` (16px
+  padding and radius, for the nested contract / position panels), `md`
+  (20px / 20px, the default page panel) and `lg` (28px / 24px, the
+  wizard's step card). The mockups' one-off 18px `.acard` / `.ccard`
+  padding is aligned to `md`. Rail cards are K36's, not K34's.
+- **`SectionHeader`** (`kit/sectionHeader/SectionHeader.tsx`) is a
+  `type-heading-sm` title (`h2`, or `h3` through `as`) with these optional
+  parts:
+  - the **period chip**, the mockups' `.period` (`bg-mintdeep text-mint`,
+    12px / 600), whose text the caller formats ("September/2026");
+  - a quiet inline `hint` ("newest first");
+  - a caption `description` under the title;
+  - an `actions` slot on the right (rail arrows, a count `Tag`, "You're
+    the Owner", the payout total).
+- **`PageHeader`** (`kit/pageHeader/PageHeader.tsx`) holds:
+  - an optional `type-label` eyebrow naming the Experience;
+  - the page's `h1` (`type-display-lg`) and an optional muted description;
+  - a `leading` slot (the profile's 64px avatar);
+  - an `actions` slot, aligned to the bottom on the right;
+  - a `tabs` slot 20px below. It is a `ReactNode` because those tabs switch
+    routes: the Experience decides whether they're links or K13.
+- **`WizardLayout`** (`kit/layouts/WizardLayout.tsx`) is mockups 10–14. A
+  64px bar shows only the brand mark (no nav during setup). Below it comes
+  one of two layouts:
+  - with an `aside` (the K49 stepper): a `260px | 1fr` grid, max 1080px,
+    stacked below `lg`;
+  - without one: a centred column, `narrow` (560px, the default) or
+    `wide` (760px, the final summary).
+- **`AuthLayout`** (`kit/layouts/AuthLayout.tsx`) owns the whole brand
+  panel, which is identical on mockups 01–09:
+  - a 520px `bg-deep` panel with mint and sky glows and the mark;
+  - the headline, with its accent half in mint;
+  - the three feature lines;
+  - the © line, with the current year;
+  - a decorative product preview: a balance card and a goal card with a
+    ring. It is `aria-hidden`, and its sample figures are illustration
+    copy in the catalog's new `brand` section (pt-BR and en-US). The ring
+    is a plain SVG, and its percent is formatted in the page's locale
+    from one constant, so the fill and the label always agree. It doesn't
+    wait for K32 or K29.
+
+  The form sits centred, at most 400px wide. Below `lg` the panel is
+  hidden and the mark sits above the form.
+- **`BrandMark`** (`kit/brand/BrandMark.tsx`) is the mint savings tile
+  plus the product name: `md` (a 32px tile, for the wizard bar and, later,
+  the App Shell header) and `lg` (40px, for the auth panel). The name is
+  `config/constants.ts → brand.name`. It is a proper noun, so it isn't
+  translated. It is "Finance APP", as in the repo README and `index.html`.
+  The stakeholder chose this over the mockups' "New Finance App", so the
+  exported mockup pages are out of date on this point only.
+
+**Task 39 (`K34`) is complete.**
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.

@@ -76,3 +76,8 @@ export const avatar = {
   /** Everyone else is hashed by user id onto one of these; coral is left out (it means errors). */
   memberTones: ['sky', 'sun', 'lilac'],
 } as const;
+
+/** The product's identity, drawn by the brand mark (K34, OQ-135). A proper noun: not translated. */
+export const brand = {
+  name: 'Finance APP',
+} as const;

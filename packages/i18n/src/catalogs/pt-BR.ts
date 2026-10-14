@@ -12,6 +12,8 @@ type NotificationKey = Notification['type'] | 'fallback';
  * - `fields`: validation `details[].code`s.
  * - `notifications`: notification `type`s (OQ-82); people arrive already resolved
  *   to names (`inviterName`), dates already formatted (NFR-I18N-2).
+ * - `brand`: the auth brand panel's headline, feature lines and decorative
+ *   product preview (its sample figures are illustration, not data).
  * - `emails`: `<type>.subject` / `<type>.body` for the email channel (OQ-84).
  */
 const ptBR = {
@@ -86,6 +88,19 @@ const ptBR = {
     'hint.avoid_lone_words': 'uma palavra ou nome sozinho é fácil de adivinhar',
     'hint.avoid_patterns': 'evite sequências, repetições e padrões do teclado',
     'hint.avoid_personal': 'evite seu nome e seu e-mail',
+  },
+  brand: {
+    'headline.lead': 'O dinheiro da casa,',
+    'headline.accent': 'compartilhado com clareza.',
+    'feature.together': 'Acompanhe os gastos em conjunto, sabendo de quem é cada um',
+    'feature.goals': 'Faça crescer metas compartilhadas de poupança e investimento',
+    'feature.netWorth': 'Veja seu patrimônio num relance — em R$ e em US$',
+    'preview.account': 'Conta corrente',
+    'preview.balance': 'R$ 3.240,50',
+    'preview.change': '+R$ 2.368,61 este mês',
+    'preview.goal': 'Entrada da casa',
+    'preview.goalProgress': 'R$ 85.000 / R$ 150.000',
+    copyright: '© {year} {name}',
   },
   emails: {
     'password.reset.subject': 'Redefinição de senha',
