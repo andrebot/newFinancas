@@ -2149,6 +2149,40 @@ not a hardcoded assumption.
 
 **Task 33 (`K14`) is complete.**
 
+### OQ-130: Checkbox (task K16)
+**Confirmed with the stakeholder (Oct 2026):**
+- **One `<Checkbox>`, controlled only.** It takes `checked`, `onChange`
+  (which gets the new boolean) and a `label`. The label is a `ReactNode`,
+  already translated, so the terms agreement can hold its links. Clicking
+  a link follows it without toggling the box. Uses: the terms on Create
+  account, "I've saved these codes" on backup codes, and K12's
+  multi-select rows, which put their swatch and amount in the label.
+- **Same mechanism as K13/K14 (OQ-127).** A visually hidden native
+  checkbox sits inside its label, so the browser handles Space and the
+  semantics, and `has-checked` draws the ticked look. The input is named
+  by the label only (`aria-labelledby`).
+- **Look, from the mockups.** An 18px `rounded-md` box. Unticked, it has a
+  1.5px `faint` border (`muted` on hover). Ticked, it is filled `mint`
+  with a 14px `check` in `onmint`. There is no indeterminate state: the
+  multi-select's presets are buttons, and its group headers show counts.
+- **Label in `type-body` ink.** The mockups disagreed (terms muted,
+  backup codes ink); ink was chosen for both.
+- **The focus ring goes around the box only, not the row.** The input
+  sits inside the box, so the box uses the same `has-focus-visible` ring.
+- **Shared focus ring (closes OQ-129's deferral).** `kit/focusRing.ts`
+  exports `FOCUS_RING`. K13, K14 and K16 use it.
+- **Three extra states, built ahead of need:**
+  - **Description:** a `type-caption text-muted` line under the label,
+    wired through `aria-describedby`.
+  - **Error:** `error` (translated text) turns the unticked box coral,
+    sets `aria-invalid`, and shows a `type-caption` coral message under
+    the row. The message sits outside the label, so it describes the
+    input without being part of its name. How an unticked required box
+    blocks submit is left to each flow (e.g. FL3's terms).
+  - **Disabled:** the row drops to half opacity and can't be toggled.
+
+**Task 34 (`K16`) is complete.**
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.

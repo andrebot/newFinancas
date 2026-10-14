@@ -66,7 +66,7 @@ identity screens, the rest as later slices use them.
 - [x] **31.** `K13` Segmented control (OQ-127)
 - [x] **32.** `N14` Component library (Storybook) (OQ-128)
 - [x] **33.** `K14` Option card (OQ-129)
-- [ ] **34.** `K16` Checkbox
+- [x] **34.** `K16` Checkbox (OQ-130)
 - [ ] **35.** `K22` Popover
 - [ ] **36.** `K28` Skeleton + loading + empty state
 - [ ] **37.** `K30` Badge / tag / pill

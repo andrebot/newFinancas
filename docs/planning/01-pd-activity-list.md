@@ -79,7 +79,7 @@ is worth building once.
 | K13 | Segmented control (radio group; pills md / sm / xs, or tiles — OQ-127) | $ / R$, BRL / USD, goal status, kind groups |
 | K14 | Option card (radio cards with description; list rows or tiles with an optional preview — OQ-129) | account type, MFA method, theme (preview cards) |
 | K15 | Switch | visibility, incentivised debenture |
-| K16 | Checkbox (also: move the `has-focus-visible` focus-ring classes, repeated in K13 and K14, into a shared kit helper — OQ-129) | terms, multi-select rows |
+| K16 | Checkbox (label with links, description, error, disabled; plus the shared `FOCUS_RING` kit helper used by K13/K14/K16 — OQ-129, OQ-130) | terms, multi-select rows |
 | K17 | Code input (6 digits) | MFA setup, MFA challenge |
 | K18 | Icon picker | category form |
 | K19 | Colour swatch picker (18 tokens) | category form |
