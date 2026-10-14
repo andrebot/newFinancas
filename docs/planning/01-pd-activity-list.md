@@ -107,7 +107,7 @@ is worth building once.
 | K31 | Avatar (initials; you mint, members hashed by id onto sky / sun / lilac; 40 / 64px — OQ-134) | members, profile, nav drawer |
 | K32 | Progress ring | budget + goal rail cards |
 | K33 | Progress bar (pill with value inside) | goal cards, allocation total |
-| K34 | Card / panel surface + section header (title + "Month/Year" label + actions) | every page |
+| K34 | Card / panel surface + section header (title + "Month/Year" label + actions) + page header + auth / wizard layouts + brand mark (`Card` sizes none / sm / md / lg; auth brand panel with a decorative preview — OQ-135) | every page |
 | K35 | Card rail (horizontal scroll, snap, edge fade, arrows) | balances, budgets, goals — on Dashboard and Transactions |
 | K36 | Rail cards: balance, budget, goal | Dashboard, Transactions |
 | K37 | Stat tile (big number + delta + sparkline) | net worth, payout this month, rates |

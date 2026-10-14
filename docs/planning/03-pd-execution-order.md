@@ -71,7 +71,7 @@ identity screens, the rest as later slices use them.
 - [x] **36.** `K28` Skeleton + loading + empty state
 - [x] **37.** `K30` Badge / tag / pill (OQ-133)
 - [x] **38.** `K31` Avatar (OQ-134)
-- [ ] **39.** `K34` Card / panel + section header + layouts
+- [x] **39.** `K34` Card / panel + section header + layouts (OQ-135)
 - [ ] **40.** `K4` Button
 - [ ] **41.** `K5` Text field
 - [ ] **42.** `K11` Select / combobox
