@@ -2183,6 +2183,50 @@ not a hardcoded assumption.
 
 **Task 34 (`K16`) is complete.**
 
+### OQ-131: Popover (task K22)
+**Confirmed with the stakeholder (Oct 2026):**
+- **Built on `@floating-ui/react`.** It is the headless library OQ-65
+  allows. It flips or shifts the panel at the viewport's edges, sizes the
+  panel to the space left, and handles dismiss and focus return. It works
+  in jsdom. The native popover API with CSS anchor positioning was turned
+  down: it needs Safari 26+ and recent Firefox, and jsdom has neither.
+  Radix was turned down: Menu, Select and Tooltip would each need another
+  package. The Menu (K23) and Select (K11) will reuse Floating UI's list
+  and typeahead hooks.
+- **Shared positioning: `kit/popover/overlay.ts`.** `overlayMiddleware()`
+  runs offset, flip, shift and size, in that order. The gap is 8px and the
+  viewport padding is the 16px page gutter (`config/constants.ts →
+  overlay`). `fitToViewport` caps `max-width` and `max-height` at the space
+  left, so the 400px inbox fits a phone and scrolls inside. Phones get no
+  bottom sheet; that is the Drawer's job (K20). `OVERLAY_SURFACE` holds the
+  panel classes: `rounded-2xl`, `bg-raised`, `border-line`,
+  `shadow-overlay`, scrolling inside. K11, K18, K19, K23 and K24 build on
+  both.
+- **`<Popover>` is a non-modal dialog.** `trigger` is a render prop that
+  spreads the ref and the ARIA props (`aria-haspopup="dialog"`,
+  `aria-expanded`, `aria-controls`) on its own button; K4 Button doesn't
+  exist yet. `label` (translated) names the panel. Its other props are
+  `placement` (default `bottom-end`) and `width` in px (the viewport still
+  caps it). `children` is a node, or a function that gets `close`, e.g.
+  "View holding" closes the inbox after navigating. A click on the trigger
+  toggles the panel. Esc, a click outside or tabbing away closes it, and
+  focus returns to the trigger. It renders in a portal, so drawers and
+  cards with hidden overflow never clip it.
+- **Open state is internal.** Opening is UI state, unlike a checkbox's
+  value. `onOpenChange` reports each change, e.g. so the inbox can mark
+  notifications seen when it opens.
+- **New theme token: `shadow-overlay`** (`--s-overlay` per theme). Dark
+  uses the mockup's `0 24px 60px -20px` at 85% black. Light uses the same
+  geometry, softer and tinted with ink, because the mockups only show a
+  dark shadow.
+- **No open or close animation**, since the mockups show none.
+- **The household switcher is not a popover.** Mockup 21 expands it in
+  place inside the nav drawer, so it stays an inline disclosure. K22's
+  users are the notification inbox and the K11, K18, K19, K23 and K24
+  controls.
+
+**Task 35 (`K22`) is complete.**
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.

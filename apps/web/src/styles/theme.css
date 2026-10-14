@@ -60,6 +60,10 @@
   --c-cat-sun: #FFD166;
   --c-cat-lime: #BEF264;
   --c-cat-slate: #CBD5E1;
+
+  /* The lift under floating panels (popover, menu, …): deep on the dark
+     background, soft and ink-tinted on the light one. */
+  --s-overlay: 0 24px 60px -20px rgb(0 0 0 / 0.85);
 }
 
 [data-theme='light'] {
@@ -105,6 +109,8 @@
   --c-cat-sun: #946200;
   --c-cat-lime: #4D7C0F;
   --c-cat-slate: #475569;
+
+  --s-overlay: 0 24px 60px -20px rgb(19 32 26 / 0.22);
 }
 
 @theme {
@@ -157,6 +163,8 @@
   --color-cat-sun: var(--c-cat-sun);
   --color-cat-lime: var(--c-cat-lime);
   --color-cat-slate: var(--c-cat-slate);
+
+  --shadow-overlay: var(--s-overlay);
 }
 
 /* The page itself is themed before React mounts, so there is no flash. */
