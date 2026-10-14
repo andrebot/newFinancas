@@ -64,6 +64,9 @@
   /* The lift under floating panels (popover, menu, …): deep on the dark
      background, soft and ink-tinted on the light one. */
   --s-overlay: 0 24px 60px -20px rgb(0 0 0 / 0.85);
+  /* The mint glow under a raised primary button (the auth CTA, the floating
+     Record button). */
+  --s-glow: 0 6px 20px -6px rgb(94 230 184 / 0.55);
 }
 
 [data-theme='light'] {
@@ -111,6 +114,7 @@
   --c-cat-slate: #475569;
 
   --s-overlay: 0 24px 60px -20px rgb(19 32 26 / 0.22);
+  --s-glow: 0 6px 20px -6px rgb(11 122 85 / 0.45);
 }
 
 @theme {
@@ -165,6 +169,23 @@
   --color-cat-slate: var(--c-cat-slate);
 
   --shadow-overlay: var(--s-overlay);
+  --shadow-glow: var(--s-glow);
+
+  /* The kit buttons' press ripple (K4, OQ-136): grows to cover the button
+     while it fades, drawn in the button's text colour. */
+  --animate-ripple: ripple 450ms ease-out forwards;
+
+  @keyframes ripple {
+    from {
+      transform: scale(0);
+      opacity: 0.24;
+    }
+
+    to {
+      transform: scale(1);
+      opacity: 0;
+    }
+  }
 }
 
 /* The page itself is themed before React mounts, so there is no flash. */

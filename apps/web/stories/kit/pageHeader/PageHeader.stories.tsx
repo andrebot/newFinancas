@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
 import { Avatar } from '../../../src/kit/avatar/Avatar';
-import { Icon } from '../../../src/kit/icons/Icon';
+import { Button } from '../../../src/kit/button/Button';
 import { PageHeader, type PageHeaderProps } from '../../../src/kit/pageHeader/PageHeader';
 import { SegmentedControl } from '../../../src/kit/segmentedControl/SegmentedControl';
 
@@ -56,13 +56,7 @@ export const WithTabs: Story = {
     title: 'Accounts',
     description: 'Your checking, savings and credit card accounts, and their cards.',
     actions: (
-      <button
-        type="button"
-        className="flex h-10 items-center gap-2 rounded-full bg-mint pr-5 pl-4 text-onmint"
-      >
-        <Icon name="add" className="size-5" />
-        Add Account
-      </button>
+      <Button variant="primary" size="lg" leadingIcon="add">Add Account</Button>
     ),
     tabs: <SetupTabs />,
   },

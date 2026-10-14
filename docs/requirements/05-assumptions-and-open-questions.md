@@ -2374,6 +2374,71 @@ not a hardcoded assumption.
 
 **Task 39 (`K34`) is complete.**
 
+### OQ-136: Button (task K4)
+**Confirmed with the stakeholder (Oct 2026):**
+- **`Button` is the text button** (`kit/button/Button.tsx`). It is a native
+  `<button>` that takes every native prop and `ref`, so the Popover and
+  Menu triggers spread their ARIA props on it. `type` defaults to
+  `button`, so a form submit is always explicit. `className` is for layout
+  only (`w-full`, `flex-1`, `shrink-0`). `leadingIcon` / `trailingIcon`
+  take an icon name and are decorative.
+- **Seven variants**, all fully rounded:
+  - `primary`: `bg-mint text-onmint`, 600 weight;
+  - `tonal`: a 10% mint tint, for the soft "add" buttons;
+  - `secondary` (the default): a `border-line` outline, ink text;
+  - `ghost`: muted text, no border;
+  - `danger`: a coral outline at 40%, the mockups' usual destructive button;
+  - `danger-ghost`: coral text only, for a row's "Remove" / "Revoke";
+  - `danger-solid`: `bg-coral text-oncoral`, for a final destructive confirm.
+
+  Hover uses `ink/5` instead of the mockups' `white/5`, which can't be seen
+  in the light theme. Hover applies only while enabled. Focus is the mint
+  `focus-visible` outline. Disabled is `opacity-50` with a not-allowed
+  cursor, as on the Checkbox.
+- **Four sizes:** `sm` 32px, `md` 36px (the default), `lg` 40px and `xl`
+  46px (the auth and wizard CTA). The mockups' 44px (`h-11`) buttons are
+  aligned to `xl`. Small and medium use `type-body` with 16px icons. Large
+  and xl use `type-body-lg` with 18px icons.
+- **`elevated`** adds the mint glow under a raised primary: the auth CTA
+  and the floating Record button. It uses the new theme token
+  **`shadow-glow`** (`--s-glow` per theme). Light uses the light mint at
+  45%.
+- **`busy`**: the label goes invisible but keeps its space, so the width
+  doesn't jump. A `progress-activity` spinner (newly added to the icon
+  registry) sits on top and spins only when motion is allowed. The button
+  gets `aria-busy` and `aria-disabled` but stays focusable, so focus isn't
+  lost mid-submit. Clicks are dropped and `preventDefault` stops the form
+  submit they would trigger. No loading text is announced; the button
+  keeps its name.
+- **`buttonClasses()`** is exported, so an Experience can style a router
+  link as a button. Link semantics stay with the Experience.
+- **`IconButton`** (`kit/button/IconButton.tsx`) is the round icon-only
+  button: close, the rail arrows, the app bar's menu and bell, the auth
+  "back". `label` (translated) is required and names it through a
+  visually hidden span. A `badge` slot (the bell's `CountBadge`) adds its
+  own label to the name. It has two tones, `ghost` (the default) and
+  `outline` (`border-line`, muted), and four sizes: `xs` 28px, `sm` 32px
+  (the default), `md` 36px and `lg` 40px.
+- **Press ripple** (added at the stakeholder's request; `useRipple` in
+  `kit/button/ripple.tsx`). Both `Button` and `IconButton` ripple. A circle
+  in the button's own text colour grows from the press point until it
+  reaches the farthest corner, fading from 24% to nothing over 450ms. The
+  theme token is `animate-ripple`, with its keyframes in `theme.css`. A
+  keyboard press (Enter / Space, a click with `detail` 0) ripples from the
+  centre. The ripples sit in their own clipping layer, so the button keeps
+  no `overflow-hidden` that would cut the focus ring or the badge. Each
+  ripple removes itself when its animation ends, and quick presses stack.
+  There is no ripple while the button is disabled or busy, and none under
+  reduced motion. The mockups show no press feedback; the stakeholder
+  chose the ripple over a press-scale, and there is no press-scale.
+- **Not K4:** inline text links (`text-mint hover:underline`), the nav
+  drawer's items (App Shell), the Owner role pill (K23) and the dashed
+  "coming soon" placeholders. The Popover, EmptyState, SectionHeader,
+  PageHeader and CountBadge stories now use the kit buttons in place of
+  their stand-ins.
+
+**Task 40 (`K4`) is complete.**
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.

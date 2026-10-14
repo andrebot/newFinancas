@@ -67,7 +67,7 @@ is worth building once.
 
 | ID | Component | Reused by |
 |---|---|---|
-| K4 | Button (primary / secondary / ghost / danger, icon button, loading) | every page |
+| K4 | Button (primary / tonal / secondary / ghost / danger / danger-ghost / danger-solid; sm–xl, elevated glow, busy spinner, press ripple) + icon button (ghost / outline, 28–40px, badge slot) — OQ-136 | every page |
 | K5 | Text field (label, hint, inline error) | every form |
 | K6 | Password field (show / hide + strength slot) | sign in, register, reset, change password |
 | K7 | Money input (currency prefix, minor units) | record, account balance, budget target, goal target, market value |
