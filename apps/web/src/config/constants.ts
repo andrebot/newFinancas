@@ -79,5 +79,5 @@ export const avatar = {
 
 /** The product's identity, drawn by the brand mark (K34, OQ-135). A proper noun: not translated. */
 export const brand = {
-  name: 'New Finance App',
+  name: 'Finance APP',
 } as const;

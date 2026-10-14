@@ -2368,8 +2368,9 @@ not a hardcoded assumption.
   plus the product name: `md` (a 32px tile, for the wizard bar and, later,
   the App Shell header) and `lg` (40px, for the auth panel). The name is
   `config/constants.ts → brand.name`. It is a proper noun, so it isn't
-  translated. It is "New Finance App", as the approved mockups show; the
-  repo README and `index.html` still say "Finance APP".
+  translated. It is "Finance APP", as in the repo README and `index.html`.
+  The stakeholder chose this over the mockups' "New Finance App", so the
+  exported mockup pages are out of date on this point only.
 
 **Task 39 (`K34`) is complete.**
 
