@@ -91,7 +91,7 @@ is worth building once.
 | K20 | Drawer (right side; full-screen sheet on mobile) | record, filter, edit, add budget/goal, value history |
 | K21 | Dialog | audit export |
 | K22 | Popover (non-modal dialog panel; plus the shared `overlayMiddleware` / `OVERLAY_SURFACE` and the `shadow-overlay` token every floating panel uses — OQ-131) | notification inbox; base of K11, K18, K19, K23, K24 |
-| K23 | Menu (dropdown actions) | role menu, row actions |
+| K23 | Menu (dropdown actions; its trigger look also styles the static Owner role pill — OQ-133) | role menu, row actions |
 | K24 | Tooltip | chart points, disabled reasons ("v2", "claimed by") |
 | K25 | Toast + inline banner (renders AlertUtility) | every save / error |
 | K26 | Inline confirm (coral irreversible / mint reversible) | archive, delete, complete / reopen, revoke |
@@ -103,7 +103,7 @@ is worth building once.
 | ID | Component | Reused by |
 |---|---|---|
 | K29 | Amount (formatted, sign colour, tabular; uses FormattingUtility) | everywhere money shows |
-| K30 | Badge / tag / pill (count, role, "v2", "read-only") | bell, members, builders, contract panel |
+| K30 | Badge / tag / pill (`Tag` — tones, sizes, icon — and the bell's `CountBadge`; the Owner role pill takes K23's trigger look — OQ-133) | bell, members, builders, contract panel |
 | K31 | Avatar (initials) | members, profile, nav drawer |
 | K32 | Progress ring | budget + goal rail cards |
 | K33 | Progress bar (pill with value inside) | goal cards, allocation total |

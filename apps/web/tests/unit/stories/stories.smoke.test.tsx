@@ -1,9 +1,7 @@
 import { composeStories, setProjectAnnotations, type Meta } from '@storybook/react-vite';
 import { fireEvent, render, screen } from '@testing-library/react';
 import type { ComponentType } from 'react';
-import {
-  beforeAll, describe, expect, it,
-} from 'vitest';
+import { describe, expect, it } from 'vitest';
 import preview from '../../../.storybook/preview';
 import * as iconStories from '../../../stories/kit/icons/Icon.stories';
 import * as segmentedStories from '../../../stories/kit/segmentedControl/SegmentedControl.stories';
@@ -16,6 +14,10 @@ import * as segmentedStories from '../../../stories/kit/segmentedControl/Segment
 
 type StoryModule = { default: Meta } & Record<string, unknown>;
 
+// Before any composeStories call: stories composed earlier miss the preview's
+// decorators, so they'd render without StoryFrame.
+setProjectAnnotations(preview);
+
 const modules = import.meta.glob<StoryModule>('../../../stories/**/*.stories.tsx', {
   eager: true,
 });
@@ -26,10 +28,6 @@ const cases = Object.entries(modules).flatMap(([path, module]) => (
     Story: Story as ComponentType,
   }))
 ));
-
-beforeAll(() => {
-  setProjectAnnotations(preview);
-});
 
 describe('stories', () => {
   it('finds the stories', () => {
