@@ -28,12 +28,18 @@ describe('CardNetworkLogo', () => {
     expect(logo.getAttribute('class')).toBe('h-6');
   });
 
-  it('shows the generic card icon for other, keeping label and classes', () => {
+  it('shows the generic card icon for other, keeping label and adding the classes', () => {
     render(<CardNetworkLogo network="other" label="Outro cartão" className="h-6" />);
     const icon = screen.getByRole('img', { name: 'Outro cartão' });
 
     expect(icon.getAttribute('viewBox')).toBe('0 0 24 24');
     expect(icon.innerHTML).toBe(svgMarkup(GLYPHS['credit-card-outline']));
-    expect(icon.getAttribute('class')).toBe('h-6');
+    expect(icon.getAttribute('class')).toBe('aspect-square w-auto h-6');
+  });
+
+  it('lets the card icon for other take its width from its height', () => {
+    const { container } = render(<CardNetworkLogo network="other" />);
+
+    expect(container.querySelector('svg')?.getAttribute('class')).toBe('aspect-square w-auto');
   });
 });
