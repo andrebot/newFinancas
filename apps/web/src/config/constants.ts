@@ -57,6 +57,12 @@ export const overlay = {
   viewportPadding: 16,
 } as const;
 
+/** Count badges, e.g. the bell's unseen notifications (K30, OQ-133). */
+export const badge = {
+  /** The highest count shown as is; above it the badge reads "9+", so it stays a 16px circle. */
+  maxCount: 9,
+} as const;
+
 /** Placeholders shown while a list loads (K28, OQ-132). */
 export const skeleton = {
   /** How many loading rows stand in for the next page, as the ledger mockup shows. */

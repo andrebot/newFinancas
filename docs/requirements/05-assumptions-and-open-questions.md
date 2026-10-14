@@ -2255,6 +2255,44 @@ not a hardcoded assumption.
 
 **Task 36 (`K28`) is complete.**
 
+### OQ-133: Tag and count badge (task K30)
+**Confirmed with the stakeholder (Oct 2026):**
+- **`Tag` is the mockups' `.tag`** (`kit/tag/Tag.tsx`). It is a static,
+  rounded pill that never wraps. Uses: currencies, account kinds,
+  "Personal" / "Shared", "You", "This device", a section header's count,
+  "Mixed currencies", "read-only" / "editable" and "v2". `children` is
+  already translated, and an optional `icon` leads it as decoration.
+- **Five tones:** `neutral` (`bg-raised text-muted`, the default), plus
+  `mint`, `sky`, `sun` and `coral`, each tinted at 10% with its own ink.
+  Coral is in no mockup yet. It is built ahead of need for the over-budget
+  and overdue states. The mockups' one-off 15% mint count and mockup 51's
+  500-weight "read-only" / "editable" pills use the same look: 10% tint,
+  600 weight.
+- **Three sizes:** `md` (22px, 11px / 600, the default), `sm` (20px, for
+  dense rows such as the currencies in the record drawer) and `micro`
+  (`type-micro`, the "v2" marker).
+- **The Owner role pill is not a Tag.** Mockup 60 draws it 32px tall with
+  a mint border so it lines up with the Admin / Member / Viewer dropdowns
+  in the same column. It takes its look from the same base as K23 Menu's
+  trigger, so K30 covers only the small labels.
+- **`CountBadge` is the bell's coral circle**
+  (`kit/countBadge/CountBadge.tsx`): 16px, `type-micro` in `oncoral`,
+  with tabular figures. It renders nothing at zero. Past
+  `config/constants.ts → badge.maxCount` (9) it reads "9+", so it stays a
+  circle. The number is hidden from screen readers. A visually hidden
+  `label` (translated, e.g. "2 unseen notifications") goes in its place,
+  so it becomes part of the button's name. It draws only the bubble; the
+  caller places it (`absolute` in the button's corner).
+- **The dashboard's month-over-month delta pill is K37's.** The Stat tile
+  owns it, since it formats the amount through K29.
+- **Story smoke test fix.** `stories.smoke.test.tsx` now sets the preview
+  annotations before composing the stories. Before, they were set in
+  `beforeAll`, after the composition, so the loop rendered every story
+  without StoryFrame. A story whose root was one text-only element
+  (Tag › Neutral) then looked empty.
+
+**Task 37 (`K30`) is complete.**
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.
