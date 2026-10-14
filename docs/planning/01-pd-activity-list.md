@@ -104,7 +104,7 @@ is worth building once.
 |---|---|---|
 | K29 | Amount (formatted, sign colour, tabular; uses FormattingUtility) | everywhere money shows |
 | K30 | Badge / tag / pill (`Tag` — tones, sizes, icon — and the bell's `CountBadge`; the Owner role pill takes K23's trigger look — OQ-133) | bell, members, builders, contract panel |
-| K31 | Avatar (initials) | members, profile, nav drawer |
+| K31 | Avatar (initials; you mint, members hashed by id onto sky / sun / lilac; 40 / 64px — OQ-134) | members, profile, nav drawer |
 | K32 | Progress ring | budget + goal rail cards |
 | K33 | Progress bar (pill with value inside) | goal cards, allocation total |
 | K34 | Card / panel surface + section header (title + "Month/Year" label + actions) | every page |

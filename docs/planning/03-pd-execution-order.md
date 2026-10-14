@@ -70,7 +70,7 @@ identity screens, the rest as later slices use them.
 - [x] **35.** `K22` Popover (OQ-131)
 - [x] **36.** `K28` Skeleton + loading + empty state
 - [x] **37.** `K30` Badge / tag / pill (OQ-133)
-- [ ] **38.** `K31` Avatar
+- [x] **38.** `K31` Avatar (OQ-134)
 - [ ] **39.** `K34` Card / panel + section header + layouts
 - [ ] **40.** `K4` Button
 - [ ] **41.** `K5` Text field
