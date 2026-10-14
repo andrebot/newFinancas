@@ -2119,6 +2119,36 @@ not a hardcoded assumption.
 
 **Task 32 (`N14`) is complete.**
 
+### OQ-129: Option card (task K14)
+**Confirmed with the stakeholder (Oct 2026):**
+- **One component, two layouts.** `<OptionCardGroup>` picks one value
+  when each choice needs a description or a picture. `layout="list"`
+  (default) stacks full-width rows, each with an icon chip, the title and
+  description, and a radio dot. MFA method uses it. `layout="tiles"`
+  draws equal columns, two per row at phone width, with the icon on top.
+  Account type uses it.
+- **Same mechanism as K13 (OQ-127).** It is a `radiogroup` of visually
+  hidden native radios, one `name` per group from `useId`. It is
+  controlled only, and texts arrive translated. Each radio is named by
+  its title (`aria-labelledby`) and described by its description
+  (`aria-describedby`).
+- **One selected look.** The mockups had three. All option cards now use
+  the MFA card's: a `mint/60` border, a light mint tint and a 3px mint
+  glow ring. The account-type tile's `mintdeep` fill is dropped.
+- **Theme previews belong to the caller.** A tile takes any `preview`
+  node, drawn above the title and hidden from assistive tech. When a
+  preview is present, the icon moves before the title. Profile draws the
+  Dark / Light / System thumbnails when it is built. They show both
+  themes' fixed colours, whatever theme is active. The story uses
+  sample thumbnails.
+- No disabled option: the "coming later" MFA placeholder was dropped
+  (OQ-62), so nothing needs one.
+- **Shared focus ring, deferred to K16.** K13 and K14 both repeat the
+  `has-focus-visible` outline classes. K16 (Checkbox), the third user,
+  moves them into a shared kit helper.
+
+**Task 33 (`K14`) is complete.**
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.
