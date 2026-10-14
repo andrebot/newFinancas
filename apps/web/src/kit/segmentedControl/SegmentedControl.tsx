@@ -1,4 +1,5 @@
 import { useId } from 'react';
+import FOCUS_RING from '../focusRing';
 import { Icon, type IconName } from '../icons/Icon';
 
 // The kit's segmented control (K13, OQ-127): pick one value out of a few,
@@ -36,15 +37,10 @@ interface SegmentStyle {
   readonly icon: string;
 }
 
-const FOCUS = [
-  'has-focus-visible:outline-2',
-  'has-focus-visible:outline-offset-2',
-  'has-focus-visible:outline-mint',
-];
 const SEGMENT = [
   'cursor-pointer font-medium text-muted transition-colors duration-150 hover:text-ink',
   'has-checked:bg-mintdeep has-checked:font-semibold has-checked:text-mint',
-  ...FOCUS,
+  FOCUS_RING,
 ];
 const PILL_GROUP = 'inline-flex gap-1 rounded-full border border-line bg-card p-1';
 

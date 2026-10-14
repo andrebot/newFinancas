@@ -1,4 +1,5 @@
 import { useId, type ReactNode } from 'react';
+import FOCUS_RING from '../focusRing';
 import { Icon, type IconName } from '../icons/Icon';
 
 // The kit's option cards (K14, OQ-129): pick one value out of a few when each
@@ -40,7 +41,7 @@ const CARD = [
   'group flex cursor-pointer gap-3 rounded-2xl border border-line text-left',
   'transition-[border-color,background-color,box-shadow] duration-150 hover:border-faint',
   'has-checked:border-mint/60 has-checked:bg-mint/6 has-checked:ring-3 has-checked:ring-mint/12',
-  'has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-mint',
+  FOCUS_RING,
 ];
 
 /** The classes for the group and each card, per layout. */
