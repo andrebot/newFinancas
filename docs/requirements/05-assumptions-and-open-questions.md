@@ -2227,6 +2227,34 @@ not a hardcoded assumption.
 
 **Task 35 (`K22`) is complete.**
 
+### OQ-132: Skeleton, loading rows and empty state (task K28)
+**Confirmed with the stakeholder (Oct 2026):**
+- **`Skeleton` is one placeholder shape** (`kit/skeleton/Skeleton.tsx`):
+  `line` (default, `h-3`), `circle` or `block` (`rounded-2xl`, for cards),
+  sized by the caller's `className`. It is `bg-raised` and hidden from
+  screen readers. The pulse is `motion-safe:animate-pulse`, so it stops
+  for users who prefer reduced motion.
+- **`SkeletonRows` is the ledger's loading row** from mockup 30: a 36px
+  avatar circle, a title line, a quieter meta line (70% opacity) and an
+  amount bar. The two mockup rows' widths alternate, so longer runs don't
+  look like a grid. `count` defaults to `config/constants.ts →
+  skeleton.rows` (2, as the mockup shows). The rows sit in one
+  `role="status"` `aria-busy` region named by `label` (translated), so
+  screen readers announce the loading once. Every list uses it for its
+  first or next page. Card rails compose their own placeholder from
+  `Skeleton` blocks.
+- **`EmptyState` is centred** (`kit/emptyState/EmptyState.tsx`). It has an
+  icon in a 48px `bg-raised` circle, a `type-heading-sm` title, an
+  optional muted `type-body-sm` description and an optional `action`
+  slot. No mockup draws one; the stakeholder chose this look over a
+  compact inline row. The action is a `ReactNode` because K4 Button
+  doesn't exist yet. The same component covers "nothing yet" and "no
+  results for these filters".
+- **The month header's "loading…" label is not K28.** It belongs to the
+  grouped list's sticky header (K41).
+
+**Task 36 (`K28`) is complete.**
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.

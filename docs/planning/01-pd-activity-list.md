@@ -96,7 +96,7 @@ is worth building once.
 | K25 | Toast + inline banner (renders AlertUtility) | every save / error |
 | K26 | Inline confirm (coral irreversible / mint reversible) | archive, delete, complete / reopen, revoke |
 | K27 | Type-to-confirm | delete account, delete household |
-| K28 | Skeleton + loading row + empty state | ledger paging, every list |
+| K28 | Skeleton + loading row + empty state (`Skeleton` shapes, ledger-style `SkeletonRows`, centred `EmptyState` — OQ-132) | ledger paging, every list |
 
 ### K-D Data display
 

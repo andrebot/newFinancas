@@ -56,3 +56,9 @@ export const overlay = {
   /** The space a panel keeps from the viewport's edges, in px (the page gutter). */
   viewportPadding: 16,
 } as const;
+
+/** Placeholders shown while a list loads (K28, OQ-132). */
+export const skeleton = {
+  /** How many loading rows stand in for the next page, as the ledger mockup shows. */
+  rows: 2,
+} as const;
