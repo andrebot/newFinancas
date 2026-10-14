@@ -2293,6 +2293,27 @@ not a hardcoded assumption.
 
 **Task 37 (`K30`) is complete.**
 
+### OQ-134: Avatar (task K31)
+**Confirmed with the stakeholder (Oct 2026):**
+- **`Avatar` is the mockups' initials circle** (`kit/avatar/Avatar.tsx`):
+  the members list (60), the nav drawer (21) and the profile header (70).
+  It takes `firstName` / `lastName` (the API's user fields) and shows the
+  first character of each, uppercased. A character outside the BMP stays
+  whole and a blank name is skipped. It is decorative (`aria-hidden`),
+  because the person's name is always printed next to it.
+- **Colour rule:** the signed-in user is always mint. Everyone else gets
+  the tone their user id hashes to (`avatarTone(userId, isSelf)`), so a
+  person looks the same on every screen and device, whatever the list
+  order. The palette is `config/constants.ts → avatar` (`selfTone` mint,
+  `memberTones` sky / sun / lilac). Coral is left out because it means
+  errors and over-budget. Each tone is a 15% tint with its own ink.
+- **Two sizes:** `md` (40px, 14px text, the default) for rows and the
+  drawer, and `lg` (64px, `text-2xl`) for the profile header. Both use
+  Manrope at 800 weight. The members list's 700 weight is aligned to the
+  drawer and profile. No smaller size is built until a screen needs one.
+
+**Task 38 (`K31`) is complete.**
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.

@@ -68,3 +68,11 @@ export const skeleton = {
   /** How many loading rows stand in for the next page, as the ledger mockup shows. */
   rows: 2,
 } as const;
+
+/** Initials avatars: members, profile and the nav drawer (K31, OQ-134). */
+export const avatar = {
+  /** The signed-in user's own colour, on every screen. */
+  selfTone: 'mint',
+  /** Everyone else is hashed by user id onto one of these; coral is left out (it means errors). */
+  memberTones: ['sky', 'sun', 'lilac'],
+} as const;
