@@ -90,7 +90,7 @@ is worth building once.
 |---|---|---|
 | K20 | Drawer (right side; full-screen sheet on mobile) | record, filter, edit, add budget/goal, value history |
 | K21 | Dialog | audit export |
-| K22 | Popover | notification inbox, household switcher |
+| K22 | Popover (non-modal dialog panel; plus the shared `overlayMiddleware` / `OVERLAY_SURFACE` and the `shadow-overlay` token every floating panel uses — OQ-131) | notification inbox; base of K11, K18, K19, K23, K24 |
 | K23 | Menu (dropdown actions) | role menu, row actions |
 | K24 | Tooltip | chart points, disabled reasons ("v2", "claimed by") |
 | K25 | Toast + inline banner (renders AlertUtility) | every save / error |

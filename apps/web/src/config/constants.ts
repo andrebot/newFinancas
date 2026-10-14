@@ -48,3 +48,11 @@ export const api = {
   /** The cross-tab lock every refresh takes, so two tabs never rotate the same token. */
   refreshLockName: 'financas.auth.refresh',
 } as const;
+
+/** Floating panels: the popover and everything built on it (K22, OQ-131). */
+export const overlay = {
+  /** The gap between a panel and the element it opens from, in px. */
+  offset: 8,
+  /** The space a panel keeps from the viewport's edges, in px (the page gutter). */
+  viewportPadding: 16,
+} as const;

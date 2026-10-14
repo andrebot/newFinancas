@@ -94,6 +94,13 @@ describe('theme.css tokens', () => {
   it('removes Tailwind\'s default palette so only tokens are utilities', () => {
     expect(css).toContain('--color-*: initial;');
   });
+
+  it('gives each theme its own overlay shadow, read at runtime', () => {
+    const shadows = [...css.matchAll(/--s-overlay:\s*([^;]+);/g)].map((match) => match[1]);
+    expect(shadows).toHaveLength(2);
+    expect(shadows[0]).not.toBe(shadows[1]);
+    expect(css).toContain('--shadow-overlay: var(--s-overlay);');
+  });
 });
 
 describe.each(Object.entries(themes))('%s theme contrast', (_, tokens) => {
