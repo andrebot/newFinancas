@@ -55,33 +55,45 @@
 </head>
 <body>
   <h1>Manage Profile — Delete Account</h1>
-  <p class="subtitle"><span class="route">DELETE /users/me</span>.</p>
+  <p class="subtitle"><span class="route">DELETE /users/me</span> — unconditional. Consequences (with the households owned), then the user's email typed to confirm (OQ-151).</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
     actor User
-    participant OC as Ownership Check
     participant CR as Consequences Review
     participant TC as Type-to-Confirm
     participant FLOW as Delete Account<br/>Flow
     participant EXP as Manage Profile<br/>Experience
     participant API as Backend API
-    FLOW-->>OC: render — Owner? ownership passes to another member first (FR-1.18)
-    User->>OC: continue
-    OC->>FLOW: emit ownershipUnderstood
-    FLOW-->>CR: render consequences (personal data deleted, shared data anonymized)
-    User->>CR: continue
-    CR->>FLOW: emit consequencesAccepted
-    User->>TC: type the confirmation phrase
-    TC->>FLOW: emit confirmed
-    FLOW->>EXP: request deleteAccount
-    EXP->>API: DELETE /users/me
-    API-->>EXP: 204
-    EXP-->>FLOW: complete → App Shell signs out
+    EXP-->>FLOW: mount with email + names of the households owned (from GET /households, role Owner)
+    FLOW-->>CR: render danger zone (personal data deleted, shared data anonymized)
+    opt owns households
+        FLOW-->>CR: ownership note: each passes to another member first, or is deleted if no one else is in it (FR-1.18) + their names
+    end
+    User->>CR: 'Delete Account'
+    CR->>FLOW: emit continue
+    FLOW-->>TC: render in the button's place (phrase = email)
+    alt cancel (button or Escape)
+        User->>TC: Cancel
+        TC->>FLOW: emit cancel
+        FLOW-->>CR: render again, text dropped, focus back on its button
+    else confirm
+        User->>TC: type the email (confirm locked until it matches)
+        TC->>FLOW: emit confirm
+        FLOW->>EXP: request deleteAccount()
+        EXP->>API: DELETE /users/me
+        alt failure (network, 401)
+            API-->>EXP: error code
+            EXP-->>FLOW: outcome: failed(code) — banner under the confirm, email kept
+        else ok
+            API-->>EXP: 204
+            EXP-->>FLOW: outcome: ok — Flow stays busy, App Shell signs out
+        end
+    end
     </pre>
   </div>
   <div class="notes">
-<ul><li>Moved from Manage Household (Q1).</li></ul>
+<ul><li>Moved from Manage Household (Q1).</li><li>Ownership Check folded into Consequences Review as a note (mockup 70): nothing blocks the deletion — FR-1.18's succession runs server-side (OQ-151).</li><li>The danger zone is the kit's DangerZone (K34 family), shared with Household Deletion; the type-to-confirm is K27 (OQ-143).</li></ul>
   </div>
   <script>
     mermaid.initialize({

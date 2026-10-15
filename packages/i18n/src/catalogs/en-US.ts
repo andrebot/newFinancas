@@ -194,6 +194,16 @@ const enUS: Catalog = {
     'confirm.submit': 'Delete household',
     'confirm.cancel': 'Cancel',
   },
+  deleteAccount: {
+    title: 'Delete account',
+    consequences: 'Permanently deletes your credentials, sessions, and personal data. Your contributions to shared data are anonymized, not deleted.',
+    ownership: '{count, plural, one {You own this household. Ownership passes to another member first; if you are its only member, it is deleted with your account.} other {You own these # households. Ownership of each passes to another member first; any with no other member is deleted with your account.}}',
+    continue: 'Delete Account',
+    'confirm.message': 'This permanently deletes your account. This cannot be undone.',
+    'confirm.label': 'Type "{email}" to confirm',
+    'confirm.submit': 'Delete account',
+    'confirm.cancel': 'Cancel',
+  },
   emails: {
     'password.reset.subject': 'Reset your password',
     'password.reset.body': "We received a request to reset your password. Use the link below within {expiresInMinutes, plural, one {# minute} other {# minutes}}:\n\n{resetLink}\n\nIf this wasn't you, ignore this email; your password stays the same.",

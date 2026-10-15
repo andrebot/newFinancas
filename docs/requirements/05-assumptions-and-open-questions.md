@@ -3113,6 +3113,43 @@ not a hardcoded assumption.
 
 **Task 54 (`FL5`) is complete.**
 
+### OQ-151: The Delete Account Flow, and the kit's danger zone (task FL8)
+**Confirmed with the stakeholder (Oct 2026):**
+- **Nothing blocks the deletion.** `DELETE /users/me` is unconditional
+  (FR-1.17): FR-1.18's succession runs server-side for each household
+  the user owns, and a household with no other member is deleted with
+  the account. The BDT row's "blocked while owning households without a
+  successor" was wrong and is corrected.
+- **The ownership check is a note, not a step.** As mockup 70 draws it,
+  the danger zone carries the consequences and, only when the user owns
+  households, a note that ownership of each passes to another member
+  first (or the household is deleted if no one else is in it), with the
+  households' names as tags. The Ownership Check Interaction is folded
+  into Consequences Review. The names are tags rather than an "A, B and
+  C" phrase because the web has no list formatter until FormattingUtility
+  (FU6).
+- **The Flow (`experiences/manageProfile/flows/deleteAccount/`)** mirrors
+  Household Deletion (OQ-146): step (review or confirm), typed text, busy
+  flag, last failure, focus return — pure functions in
+  `deleteAccountState.ts`. It takes `email` (the phrase, OQ-143),
+  `ownedHouseholds` (names; the Experience filters `GET /households` by
+  role Owner) and one request, `onDelete`. After `ok` the Flow stays
+  busy while the App Shell signs out; a failure shows in a banner under
+  the confirm, the typed email kept. The state file is a sibling of
+  Household Deletion's, not shared: the two Flows change independently.
+- **`DangerZone` is a kit component (K34 family, `kit/card/`)** with its
+  story: the coral section with the warning tile, title, description,
+  an outline `danger` button, and the caller's confirm in the button's
+  place, re-focusing the button after a cancel. Household Deletion's
+  Consequences Review now uses it too. Folded into K34, as the layouts
+  were, so the kit count stays at 50.
+- **Texts** are in a new `deleteAccount` catalog section, in both
+  locales.
+- The EBD Delete Account sequence and the Manage Profile tier diagram
+  are redrawn through their generator.
+
+**Task 55 (`FL8`) is complete.**
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.

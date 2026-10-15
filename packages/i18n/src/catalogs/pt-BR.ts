@@ -209,6 +209,16 @@ const ptBR = {
     'confirm.submit': 'Excluir casa',
     'confirm.cancel': 'Cancelar',
   },
+  deleteAccount: {
+    title: 'Excluir conta',
+    consequences: 'Exclui permanentemente suas credenciais, sessões e dados pessoais. Suas contribuições aos dados compartilhados são anonimizadas, não excluídas.',
+    ownership: '{count, plural, one {Você é proprietário desta casa. A propriedade passa primeiro para outro membro; se você for o único membro, ela é excluída junto com sua conta.} other {Você é proprietário destas # casas. A propriedade de cada uma passa primeiro para outro membro; as que não tiverem outro membro são excluídas junto com sua conta.}}',
+    continue: 'Excluir conta',
+    'confirm.message': 'Isso exclui sua conta permanentemente. Não é possível desfazer.',
+    'confirm.label': 'Digite "{email}" para confirmar',
+    'confirm.submit': 'Excluir conta',
+    'confirm.cancel': 'Cancelar',
+  },
   emails: {
     'password.reset.subject': 'Redefinição de senha',
     'password.reset.body': 'Recebemos um pedido para redefinir a sua senha. Use o link abaixo em até {expiresInMinutes, plural, one {# minuto} other {# minutos}}:\n\n{resetLink}\n\nSe não foi você, ignore este e-mail; sua senha continua a mesma.',

@@ -1,16 +1,12 @@
-import {
-  useEffect, useId, useRef, type ReactNode,
-} from 'react';
-import { Button } from '../../../../../kit/button/Button';
-import { Icon } from '../../../../../kit/icons/Icon';
+import type { ReactNode } from 'react';
+import { DangerZone } from '../../../../../kit/card/DangerZone';
 import { useI18n } from '../../../../../utilities/I18nProvider';
 
-// Consequences Review (FL10, OQ-146): the danger zone at the foot of the
-// household page, drawn as mockup 60 draws it — a coral-ringed section with
-// the warning tile, what deleting costs (every member loses access, shared
-// data is removed for good) and the outline "Delete Household" button. The
-// button emits that the user read it and goes on; once they have, the Flow's
-// type-to-confirm opens inside the section, in the button's place.
+// Consequences Review (FL10, OQ-146): mockup 60's danger zone at the foot of
+// the household page (the kit's DangerZone, OQ-151) — what deleting costs
+// (every member loses access, shared data is removed for good) and the
+// "Delete Household" button. The button emits that the user read it and goes
+// on; once they have, the Flow's type-to-confirm opens in the button's place.
 
 /** Consequences Review's props. */
 export interface ConsequencesReviewProps {
@@ -23,49 +19,22 @@ export interface ConsequencesReviewProps {
 }
 
 /**
- * Renders the danger zone: the consequences and, until the user goes on, the
- * button that opens the type-to-confirm.
+ * Renders the household's danger zone.
  *
  * @param props - The handler, the confirm in the button's place, the focus rule.
  * @returns The section.
  */
-export function ConsequencesReview({
-  onContinue, confirm, returnFocus = false,
-}: ConsequencesReviewProps) {
+export function ConsequencesReview({ onContinue, confirm, returnFocus }: ConsequencesReviewProps) {
   const translator = useI18n();
-  const titleId = useId();
-  const buttonRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    if (returnFocus) buttonRef.current?.focus();
-  }, [returnFocus]);
 
   return (
-    <section
-      aria-labelledby={titleId}
-      className="flex flex-col gap-4 rounded-card border border-coral/30 bg-coral/[.04] px-5 py-4"
-    >
-      <div className="flex items-center gap-4">
-        <span
-          className="grid size-10 shrink-0 place-items-center rounded-full bg-coral/15 text-coral"
-        >
-          <Icon name="warning-outline" className="size-5" />
-        </span>
-        <div className="flex-1">
-          <h2 id={titleId} className="font-semibold">
-            {translator.text('householdDeletion', 'title')}
-          </h2>
-          <p className="type-body-sm text-muted">
-            {translator.text('householdDeletion', 'consequences')}
-          </p>
-        </div>
-        {confirm === undefined && (
-          <Button ref={buttonRef} variant="danger" size="lg" onClick={onContinue}>
-            {translator.text('householdDeletion', 'continue')}
-          </Button>
-        )}
-      </div>
-      {confirm}
-    </section>
+    <DangerZone
+      title={translator.text('householdDeletion', 'title')}
+      description={translator.text('householdDeletion', 'consequences')}
+      actionLabel={translator.text('householdDeletion', 'continue')}
+      onAction={onContinue}
+      confirm={confirm}
+      returnFocus={returnFocus}
+    />
   );
 }

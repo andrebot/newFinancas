@@ -80,7 +80,7 @@ Diagram: `docs/design/diagrams/ebd-tiers/app-shell.html`; sequence:
 | Flow | Interactions | Sequence |
 |---|---|---|
 | Security | Password Change, Session List, Sign Out All Others | `docs/design/diagrams/ebd-sequences/manage-profile-security.html` |
-| Delete Account | Ownership Check, Consequences Review, Type-to-Confirm | `docs/design/diagrams/ebd-sequences/manage-profile-delete-account.html` |
+| Delete Account | Consequences Review (with the ownership note — OQ-151), Type-to-Confirm | `docs/design/diagrams/ebd-sequences/manage-profile-delete-account.html` |
 | *(standalone)* | Edit Personal Info, Edit Preferences, Respond to Invitation | — |
 
 **Utilities:** ValidationUtility, PasswordStrengthUtility, AlertUtility, ThemeUtility, I18nUtility. Tier diagram: `docs/design/diagrams/ebd-tiers/manage-profile.html`.
@@ -644,10 +644,12 @@ Three real Flows remain, plus three standalone Interactions:
      Interaction, not its own Flow — less destructive than deletion (no
      data loss), so it doesn't clear the same bar.
 2. **Delete Account Flow**
-   - *Ownership Check Interaction* (surfaces any households you must
-     transfer first, blocks progress until resolved)
-   - *Review Consequences Interaction*
-   - *Confirm Deletion Interaction* (type-to-confirm)
+   - *Review Consequences Interaction* — with the ownership check folded
+     in as a note (OQ-151): nothing blocks the deletion, since
+     `DELETE /users/me` is unconditional and FR-1.18's succession runs
+     server-side; the note names the households you own and says each
+     passes to another member first.
+   - *Confirm Deletion Interaction* (type-to-confirm, your email)
 3. **Household Deletion Flow** (confirmed separate, per the original
    rough pass) — now decomposed:
    - *Review Consequences Interaction*
