@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Button } from '../../../../../kit/button/Button';
-import { StepHeading } from '../../../interactions/stepParts';
+import { StepHeading } from '../../../../interactions/stepParts';
 import { useAccountRecoveryText } from './accountRecoveryText';
 
 // Reset Complete (Account Recovery, OQ-147): the password is changed and

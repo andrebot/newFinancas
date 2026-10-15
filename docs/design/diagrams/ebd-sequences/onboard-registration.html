@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Onboard — Registration</h1>
-  <p class="subtitle"><span class="route">POST /auth/register</span>. Skipped by configuration when already signed in (OQ-81).</p>
+  <p class="subtitle"><span class="route">POST /auth/register</span>. Skipped by configuration when already signed in (OQ-81). One form, one request (OQ-148).</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -64,21 +64,26 @@ sequenceDiagram
     participant FLOW as Registration<br/>Flow
     participant EXP as Onboard<br/>Experience
     participant API as Backend API
-    User->>RF: first + last name, email, password, confirm, terms
-    RF->>FLOW: emit registrationSubmitted
-    FLOW->>EXP: request register(fields)
+    User->>RF: first + last name, email, password + confirm (strength meter, advisory)
+    RF->>FLOW: emit submit(registration) — names not blank, valid email, ≥ 12 characters, confirmation matches
+    FLOW->>EXP: request register(registration)
     EXP->>API: POST /auth/register
-    alt 409 user.email_taken or 422 password.too_short
+    alt 409 user.email_taken / 422 password.too_short (or another failure)
         API-->>EXP: error code
-        EXP-->>FLOW: state: error(code)
-    else created
-        API-->>EXP: userId + TOTP secret
-        EXP-->>FLOW: complete → Experience advances to MFA Enrollment
+        EXP-->>FLOW: outcome: failed(code)
+        FLOW-->>RF: email_taken under the email, too_short under the password, anything else in the banner — typing kept
+    else 201 created
+        API-->>EXP: userId + TOTP secret + recovery codes (kept by the Experience)
+        EXP-->>FLOW: outcome: ok (Flow stays busy)
+        EXP->>EXP: advance to MFA Enrollment
     end
+    User->>RF: Sign in instead
+    RF->>FLOW: emit signIn
+    FLOW->>EXP: emit signIn → Sign In
     </pre>
   </div>
   <div class="notes">
-<ul><li>First/last name split (OQ-29).</li></ul>
+<ul><li>First/last name split (OQ-29); names and email are trimmed before sending.</li><li>No terms box: mockup 02's "I agree to the Terms" is dropped for v1 (OQ-148).</li><li>The TOTP secret and recovery codes never pass through this Flow; the Experience hands them to MFA Enrollment.</li><li>The strength meter rates the password against the name and email typed.</li></ul>
   </div>
   <script>
     mermaid.initialize({

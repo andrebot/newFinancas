@@ -282,21 +282,26 @@ else ok
     FLOW->>EXP: emit backToSignIn → Sign In
 end
 """, ["Password ≥ 12 characters (NFR-SEC-4); the confirmation must match (`password.mismatch`, a client-only field code, OQ-147).", "The token lives in the Flow's state from mount until the reset is sent; the Experience reads it from the URL.", "Every session ends, so Reset Complete leads to Sign In rather than signing in."]),
-    ("onboard-registration", "Onboard — Registration", f"{R('POST /auth/register')}. Skipped by configuration when already signed in (OQ-81).",
+    ("onboard-registration", "Onboard — Registration", f"{R('POST /auth/register')}. Skipped by configuration when already signed in (OQ-81). One form, one request (OQ-148).",
      [("RF", "Registration Form Entry"), FLOW("Registration"), EXP("Onboard"), API],
      """
-User->>RF: first + last name, email, password, confirm, terms
-RF->>FLOW: emit registrationSubmitted
-FLOW->>EXP: request register(fields)
+User->>RF: first + last name, email, password + confirm (strength meter, advisory)
+RF->>FLOW: emit submit(registration) — names not blank, valid email, ≥ 12 characters, confirmation matches
+FLOW->>EXP: request register(registration)
 EXP->>API: POST /auth/register
-alt 409 user.email_taken or 422 password.too_short
+alt 409 user.email_taken / 422 password.too_short (or another failure)
     API-->>EXP: error code
-    EXP-->>FLOW: state: error(code)
-else created
-    API-->>EXP: userId + TOTP secret
-    EXP-->>FLOW: complete → Experience advances to MFA Enrollment
+    EXP-->>FLOW: outcome: failed(code)
+    FLOW-->>RF: email_taken under the email, too_short under the password, anything else in the banner — typing kept
+else 201 created
+    API-->>EXP: userId + TOTP secret + recovery codes (kept by the Experience)
+    EXP-->>FLOW: outcome: ok (Flow stays busy)
+    EXP->>EXP: advance to MFA Enrollment
 end
-""", ["First/last name split (OQ-29)."]),
+User->>RF: Sign in instead
+RF->>FLOW: emit signIn
+FLOW->>EXP: emit signIn → Sign In
+""", ["First/last name split (OQ-29); names and email are trimmed before sending.", "No terms box: mockup 02's \"I agree to the Terms\" is dropped for v1 (OQ-148).", "The TOTP secret and recovery codes never pass through this Flow; the Experience hands them to MFA Enrollment.", "The strength meter rates the password against the name and email typed."]),
     ("onboard-mfa-enrollment", "Onboard — MFA Enrollment", "Mandatory, no skip (FR-1.15).",
      [("MS", "MFA Method Selection"), ("SV", "MFA Setup Verification"), ("BA", "Backup Codes Acknowledgement"), FLOW("MFA Enrollment"), EXP("Onboard"), API],
      """

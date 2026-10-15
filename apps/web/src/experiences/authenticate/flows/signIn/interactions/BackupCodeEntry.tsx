@@ -6,7 +6,7 @@ import { Button } from '../../../../../kit/button/Button';
 import { BackupCodeInput } from '../../../../../kit/codeInput/BackupCodeInput';
 import {
   BackButton, StepAlert, StepHeading, TextAction,
-} from '../../../interactions/stepParts';
+} from '../../../../interactions/stepParts';
 import { useSignInText } from './signInText';
 
 // Backup Code Entry (Sign In, mockup 09): one single-use recovery code, in

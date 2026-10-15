@@ -10,7 +10,7 @@ import {
 } from '../../../../../utilities/validation';
 import {
   BackButton, StepAlert, StepHeading, TextAction,
-} from '../../../interactions/stepParts';
+} from '../../../../interactions/stepParts';
 import { useAccountRecoveryText } from './accountRecoveryText';
 
 // Recovery Request (Account Recovery, mockup 03): the email the reset link

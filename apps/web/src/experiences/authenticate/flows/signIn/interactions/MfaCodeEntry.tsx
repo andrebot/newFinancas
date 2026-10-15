@@ -6,7 +6,7 @@ import { Button } from '../../../../../kit/button/Button';
 import { CodeInput } from '../../../../../kit/codeInput/CodeInput';
 import {
   BackButton, StepAlert, StepHeading, TextAction,
-} from '../../../interactions/stepParts';
+} from '../../../../interactions/stepParts';
 import { useSignInText } from './signInText';
 
 // MFA Code Entry (Sign In, mockup 08): the six authenticator digits. The

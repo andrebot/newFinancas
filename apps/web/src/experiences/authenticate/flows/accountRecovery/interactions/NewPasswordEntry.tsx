@@ -4,14 +4,13 @@ import {
 import { Button } from '../../../../../kit/button/Button';
 import { PasswordField } from '../../../../../kit/passwordField/PasswordField';
 import { useI18n } from '../../../../../utilities/I18nProvider';
-import {
-  loadPasswordStrengthEstimator, strengthCaption, type PasswordStrengthEstimator,
-} from '../../../../../utilities/passwordStrength';
+import { strengthCaption } from '../../../../../utilities/passwordStrength';
+import usePasswordStrengthEstimator from '../../../../../utilities/usePasswordStrengthEstimator';
 import {
   firstError, matchesPassword, password as passwordRule, required, validateFields,
   type FieldErrors, type FieldRules,
 } from '../../../../../utilities/validation';
-import { StepAlert, StepHeading } from '../../../interactions/stepParts';
+import { StepAlert, StepHeading } from '../../../../interactions/stepParts';
 import { useAccountRecoveryText } from './accountRecoveryText';
 
 // New Password Entry (Account Recovery, mockup 04): the new password, with
@@ -50,27 +49,6 @@ const rulesFor = (values: NewPasswordValues): FieldRules<NewPasswordValues> => (
 });
 
 /**
- * Loads the strength estimator once, for as long as the entry is mounted.
- *
- * @returns The estimator, or `undefined` until it has loaded.
- */
-const useStrengthEstimator = () => {
-  const [estimate, setEstimate] = useState<PasswordStrengthEstimator | undefined>();
-
-  useEffect(() => {
-    let mounted = true;
-    loadPasswordStrengthEstimator().then((estimator) => {
-      if (mounted) setEstimate(() => estimator);
-    });
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  return estimate;
-};
-
-/**
  * Renders the new-password step: heading, banner, the two password fields
  * (the first with the strength meter), the submit button and the note that
  * every session ends. Focuses the new password on mount.
@@ -83,7 +61,7 @@ export function NewPasswordEntry({
 }: NewPasswordEntryProps) {
   const translator = useI18n();
   const text = useAccountRecoveryText();
-  const estimate = useStrengthEstimator();
+  const estimate = usePasswordStrengthEstimator();
   const [values, setValues] = useState<NewPasswordValues>({ password: '', confirmation: '' });
   const [errors, setErrors] = useState<FieldErrors<NewPasswordValues>>({});
   const passwordRef = useRef<HTMLInputElement>(null);

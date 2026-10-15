@@ -1,12 +1,13 @@
 import type { ReactNode } from 'react';
-import { InlineBanner } from '../../../kit/alert/InlineBanner';
-import { IconButton } from '../../../kit/button/IconButton';
-import { Icon, type IconName } from '../../../kit/icons/Icon';
+import { InlineBanner } from '../../kit/alert/InlineBanner';
+import { IconButton } from '../../kit/button/IconButton';
+import { Icon, type IconName } from '../../kit/icons/Icon';
 
-// The pieces the Authenticate entries share (Sign In, mockups 01, 08 and 09;
-// Account Recovery, mockups 03 and 04): the heading (with the icon tile), the
-// failure banner, the mint text actions and the back arrow in the page's
-// corner. Display only: each takes translated text and emits its click.
+// The pieces the entry pages share across Experiences (Sign In, mockups 01,
+// 08 and 09; Account Recovery, mockups 03 and 04; Registration, mockup 02):
+// the heading (with the icon tile), the failure banner, the mint text actions
+// and the back arrow in the page's corner. Display only: each takes
+// translated text and emits its click.
 
 /** The heading's props. */
 export interface StepHeadingProps {

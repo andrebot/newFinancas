@@ -281,7 +281,7 @@ is the caller, represented by a stub callback. **100% coverage target.**
 |---|---|---|
 | Sign In (Authenticate) | step (credentials / code / backup code), email kept, last failure | credentials → MFA code or → backup code (escape event); `auth.mfa_invalid` clears only the code; `auth.challenge_expired` / `auth.too_many_attempts` restart at credentials, email kept (OQ-145); codes surfaced via I18nUtility, never `message` |
 | Account Recovery (Authenticate) | step, token, link requested, last failure | no token → request → inbox note (form kept); token → new password → done → Sign In; `password.too_short` under the field; `password_reset.token_invalid` back to the request with the banner; `password.mismatch` client-side (OQ-147) |
-| Registration (Onboard) | form fields, errors | first/last name required; password < 12 inline; `user.email_taken`; success hands off to MFA Enrollment |
+| Registration (Onboard) | busy, last failure | names not blank, valid email, password < 12 and `password.mismatch` client-side; `user.email_taken` under the email, `password.too_short` under the password, anything else in the banner, typing kept; success stays busy while the Experience hands off to MFA Enrollment (OQ-148) |
 | MFA Enrollment (Onboard) | method, secret, code, codes, ack | verify fail/retry/success → codes → acknowledged (no skip) |
 | Household Setup (Onboard) | name | success → Guided Setup; also reached from the shell for an additional household |
 | Guided Setup (Onboard) | step, per-step skippable flags | account step **not** skippable (Next disabled until an account exists); category and budget steps skippable; summary renders counts |
