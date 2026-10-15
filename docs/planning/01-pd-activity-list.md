@@ -95,7 +95,7 @@ is worth building once.
 | K24 | Tooltip | chart points, disabled reasons ("v2", "claimed by") |
 | K25 | Toast + inline banner (four tones, toast region and auto-dismiss timer; renders AlertUtility — OQ-141) | every save / error |
 | K26 | Inline confirm (coral irreversible / mint reversible; focus on Cancel, restored on cancel — OQ-142) | archive, delete, complete / reopen, revoke |
-| K27 | Type-to-confirm | delete account, delete household |
+| K27 | Type-to-confirm (the item's name, trimmed, case-sensitive; same coral box as K26 — OQ-143) | delete account, delete household |
 | K28 | Skeleton + loading row + empty state (`Skeleton` shapes, ledger-style `SkeletonRows`, centred `EmptyState` — OQ-132) | ledger paging, every list |
 
 ### K-D Data display

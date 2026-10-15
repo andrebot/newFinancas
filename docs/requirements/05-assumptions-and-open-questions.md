@@ -2737,6 +2737,40 @@ not a hardcoded assumption.
 
 **Task 46 (`K26`) is complete.**
 
+### OQ-143: Type-to-confirm (task K27)
+**Confirmed with the stakeholder (Oct 2026):**
+- **`TypeToConfirm` (`kit/confirm/`)** is the last step of Delete Account
+  and Household Deletion. The user types a phrase before the confirm
+  unlocks. No mockup draws it, so it wears the destructive `InlineConfirm`
+  box (OQ-142): `rounded-2xl`, `p-3`, a `coral/30` border on `coral/10`,
+  the `warning-outline` glyph and a `type-body-sm` message. Below sit a
+  `TextField` (K5), then a `ghost sm` Cancel and a `danger-solid sm`
+  confirm. Where the box sits (a page section, or later a dialog) is the
+  Flow's choice.
+- **The phrase is the item's name:** the household's name for Household
+  Deletion, the user's email for Delete Account. The kit takes it as
+  `phrase`. The caller also builds the field's `label`
+  (e.g. `Type "Casa Silva" to confirm`).
+- **Matching (`matchesPhrase`):** spaces around the text are ignored;
+  otherwise the match is exact and case-sensitive. An empty phrase never
+  matches. The check is only in the UI, since neither DELETE endpoint
+  takes the phrase.
+- **Paste is allowed.** Blocking it hurts dictation and assistive input,
+  and it is easy to get around anyway. Autocomplete, autocorrect,
+  autocapitalize and spellcheck are off.
+- **Holds no state.** The Flow keeps the typed text ("confirmation text",
+  BDT plan) and gets changes through `onChange`.
+- **Keys and focus:** the box is a `form` named by its message. Enter
+  confirms once the phrase matches. When the box opens, focus goes to
+  the field. A cancel (the button, or Escape, which doesn't reach the
+  page) gives focus back to the earlier holder. `useConfirmFocus` is now
+  generic over the element it focuses (`focusRef`). `cancelOnEscape`
+  takes any element's key event.
+- **Busy:** a spinner shows on confirm, and submits are ignored. The field
+  and Cancel are disabled, and Escape does nothing.
+
+**Task 47 (`K27`) is complete.**
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.
