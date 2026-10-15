@@ -9,12 +9,12 @@ import {
   useTypeahead,
 } from '@floating-ui/react';
 import {
-  useEffect, useMemo, useRef, useState, type KeyboardEvent,
+  useEffect, useMemo, useRef, useState,
 } from 'react';
+import { disabledIndicesOf, pickHandlers, typeaheadLabelsOf } from '../floatingList/listItems';
 import { overlayMiddleware } from '../popover/overlay';
 import {
-  disabledIndicesOf, filterSections, flattenSections, toSections,
-  type SelectEntry, type SelectOption,
+  filterSections, flattenSections, toSections, type SelectEntry, type SelectOption,
 } from './options';
 
 // The select's behaviour (K11, OQ-138), apart from its looks: the panel's
@@ -46,50 +46,6 @@ export const indexOfValue = <Value extends string>(
   const index = options.findIndex((option) => option.value === value);
   return index === -1 ? null : index;
 };
-
-/**
- * Lists the texts typeahead matches against; a disabled option has none, so
- * typing never lands on it.
- *
- * @param options - The options drawn, in display order.
- * @returns One label, or `null`, per option.
- */
-export const typeaheadLabelsOf = <Value extends string>(
-  options: readonly SelectOption<Value>[],
-) => options.map((option) => (option.disabledReason ? null : option.label));
-
-/**
- * Tells whether a key picks the option the keyboard is on.
- *
- * @param event - The key pressed on an option.
- * @returns Whether it is Enter or Space.
- */
-export const isPickKey = (event: KeyboardEvent) => event.key === 'Enter' || event.key === ' ';
-
-/**
- * Builds the handlers that pick an option by click, Enter or Space; a
- * disabled option ignores them.
- *
- * @param option - The option the handlers belong to.
- * @param pick - Picks an option and closes the panel.
- * @returns The option's click and key handlers.
- */
-export const pickHandlers = <Value extends string>(
-  option: SelectOption<Value>,
-  pick: (option: SelectOption<Value>) => void,
-) => ({
-  onClick: () => {
-    if (!option.disabledReason) {
-      pick(option);
-    }
-  },
-  onKeyDown: (event: KeyboardEvent) => {
-    if (isPickKey(event) && !option.disabledReason) {
-      event.preventDefault();
-      pick(option);
-    }
-  },
-});
 
 /**
  * Runs the select: opens and closes the panel, narrows it to the search,

@@ -2607,6 +2607,67 @@ not a hardcoded assumption.
 
 **Task 43 (`K17`) is complete.**
 
+### OQ-140: Menu and the role pill (task K23)
+**Confirmed with the stakeholder (Oct 2026):**
+- **Only the role menu is drawn.** Mockup 60 opens it from a member's role
+  pill: a 300px panel of `menuitemradio` rows, each with an icon, a label
+  and a muted description, and the current role in mint with a check. No
+  mockup draws a row's overflow menu; every row action today is an inline
+  icon button (Edit / Archive / Remove). The stakeholder chose to build
+  both kinds now, since the activity list names "row actions" too.
+- **`Menu` (`kit/menu/Menu.tsx`) is built on Floating UI** (OQ-131), like
+  the Popover. `trigger` is a render prop that spreads the ref and the
+  ARIA props (`aria-haspopup="menu"`, `aria-expanded`, `aria-controls`) on
+  its own button: a `MenuPill` for a role, an `IconButton` (`more-horiz`)
+  for a row's actions. `label` (translated) names the menu. Floating UI's
+  default naming after the trigger is dropped, because the trigger shows
+  the current choice ("Member"), not what the menu is. `placement`
+  defaults to `bottom-end`, and `width` is in px (the viewport still caps
+  it). It renders in a portal on `OVERLAY_SURFACE`. Open state is
+  internal, and there is no `onOpenChange`, since no screen needs it.
+- **Entries, in display order:**
+  - `action`: an `id`, an `onSelect` and an optional `tone: 'danger'`
+    (coral label and icon, for Delete);
+  - `radio`: a group with `value` (`null` while nothing is chosen),
+    `onChange(value)` and its `options`, drawn in a `role="group"`, named
+    when it has a `label`. The caller holds the value, as with K11;
+  - `separator`: a `border-line` rule.
+
+  Every row may carry an `icon`, a `description` and a `disabledReason`.
+  A row is disabled exactly when it has a reason, as in K11: it fades to
+  45% with the reason as faint trailing text (`aria-describedby`).
+- **Keyboard and pointer.** A click, Enter, Space or the arrow keys open
+  the menu. The keyboard starts on the current choice. The arrow keys
+  loop and skip disabled rows. Typing letters jumps forward to the next
+  matching row. Enter, Space or a click picks a row: the menu closes,
+  then the action or `onChange` runs, so a Flow can open a confirm
+  straight from it. Esc, a click outside or tabbing away closes it, and
+  focus returns to the trigger.
+- **Look, from mockup 60's `.menu`.** The panel has `p-1.5`. Rows are
+  `rounded-[10px]` with `px-2.5 py-2`, a 18px icon (muted, mint when
+  checked, coral when destructive) and a `type-body font-semibold` label
+  over a `type-caption` muted description. The row under the keyboard or
+  pointer, and the checked one, get `bg-ink/5`.
+- **Shared list rules: `kit/floatingList/listItems.ts`.** The select's
+  `typeaheadLabelsOf`, `disabledIndicesOf`, `isPickKey` and
+  `pickHandlers` moved there, typed on `{ label, disabledReason }`, so K11
+  and K23 walk and pick rows by the same rules.
+- **`MenuPill` and `StaticPill` (`kit/menu/MenuPill.tsx`).** This is the
+  role pill from mockup 60: 32px, fully rounded, `type-body-sm`.
+  - `MenuPill` is the menu's trigger. It is a `border-line` button with
+    500-weight text and an `expand-more` chevron that turns over while
+    open. While open it gets the `mint/60` border and `mint/15` halo. It
+    takes every native prop, so callers give it an `aria-label` that says
+    whose role it is.
+  - `StaticPill` is the Owner's pill (OQ-133): the same shape as a
+    `<span>`, in `bg-mintdeep` with a `mint/50` border, 600-weight mint
+    text and an optional leading icon (the crown). It lines up with the
+    role pills in the same column.
+
+  The pills don't ripple: OQ-136 keeps the role pill out of K4.
+
+**Task 44 (`K23`) is complete.**
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.

@@ -9,6 +9,7 @@ import * as checkboxStories from '../../../stories/kit/checkbox/Checkbox.stories
 import * as backupCodeStories from '../../../stories/kit/codeInput/BackupCodeInput.stories';
 import * as codeInputStories from '../../../stories/kit/codeInput/CodeInput.stories';
 import * as iconStories from '../../../stories/kit/icons/Icon.stories';
+import * as menuStories from '../../../stories/kit/menu/Menu.stories';
 import * as optionCardStories from '../../../stories/kit/optionCard/OptionCardGroup.stories';
 import * as popoverStories from '../../../stories/kit/popover/Popover.stories';
 import * as selectStories from '../../../stories/kit/select/Select.stories';
@@ -145,6 +146,34 @@ describe('stories', () => {
 
     expect(screen.getByRole('combobox').textContent).toContain('Nubank');
     expect(Accounts.args.onChange).toHaveBeenCalledExactlyOnceWith('nubank');
+  });
+
+  it('keeps the picked role and reports it', async () => {
+    const { MemberRole } = composeStories(menuStories);
+    render(<MemberRole />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Sam Costa's role/ }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('menuitemradio', { name: /Admin/ }));
+    });
+
+    expect(screen.getByRole('button', { name: /Sam Costa's role/ }).textContent).toBe('Admin');
+    expect(MemberRole.args.onChange).toHaveBeenCalledExactlyOnceWith('admin');
+  });
+
+  it('runs a row action from its menu', async () => {
+    const { RowActions } = composeStories(menuStories);
+    render(<RowActions />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Actions for Main Checking' }));
+    });
+
+    expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
+      'Edit', 'Archive', 'Delete',
+    ]);
   });
 
   it('shows the inbox rows once the bell opens the popover', async () => {
