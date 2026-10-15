@@ -2498,6 +2498,63 @@ not a hardcoded assumption.
 
 **Task 41 (`K5`) is complete.**
 
+### OQ-138: Select / combobox (task K11)
+**Confirmed with the stakeholder (Oct 2026):**
+- **No mockup draws a dropdown select.** The screens named for K11 use
+  other controls: the record drawer picks the account and category with
+  chips, the budget form's claim-aware picker is a multi-pick checkbox
+  list (mockup 42), and the role is chosen with chips (invite) or a menu
+  (member row, K23). **K11 is the fallback for long lists.** A screen
+  keeps its chips as drawn and switches to K11 only when the list grows
+  too long for a row of chips, e.g. many accounts, or categories with
+  their subcategories.
+- **A select-only combobox, built on Floating UI** (OQ-131). The trigger
+  is a `<button role="combobox">` in the shared `Field` frame (OQ-137).
+  It opens a floating listbox in a portal. It is controlled only:
+  `value` (`null` while nothing is chosen) and `onChange(value)`. The open
+  state, the keyboard position and the search are internal UI state,
+  like the popover's. A native `<select>` was turned down because it
+  can't draw groups with icons, tags, descriptions or disabled reasons
+  in the app's theme.
+- **Options.** Each option has a `value` and a `label` (translated), plus
+  optional slots: `leading` (a category icon or account dot), `trailing`
+  (a currency tag) and `description` (a muted second line, like the role
+  menu's). `{ group, options }` entries draw a `type-label` heading over
+  a `role="group"`.
+- **Disabled means "has a reason".** An option is disabled exactly when
+  it has a `disabledReason`, so a disabled option always says why. The
+  reason shows as faint trailing text ("in Fun Money", as mockup 42 shows
+  claimed categories) and describes the option via `aria-describedby`.
+  The row fades to 45%. Arrow keys, typeahead and clicks skip it.
+- **Keyboard.** The arrow keys walk the options and loop. Enter or Space
+  picks. Esc, a click outside or tabbing away closes the list, and focus
+  returns to the trigger. Typing letters jumps to an option, and while
+  the list is closed it picks that option, as a native select does.
+- **Search is opt-in.** `search={{ label, placeholder, noResults }}` adds
+  a search box at the top of the panel, focused on open. The search
+  ignores case and accents ("saude" finds "Saúde") and matches option
+  labels. A group whose heading matches keeps all its options. Typeahead
+  is off while searching, and the search clears when the list closes.
+  With nothing left, the panel shows `noResults`. The listbox is the
+  list inside the panel, not the panel itself, because a listbox may
+  hold only options.
+- **Look.** The trigger is the text field's box (46px, `rounded-[14px]`,
+  `bg-bg`, `border-line`) with an `expand-more` chevron that turns over
+  while the list is open. The mint border and halo show while it is
+  focused or open, as mockup 50's open multi-select does; coral while
+  invalid. It shows the chosen option's leading slot and label, or the
+  faint placeholder. The panel is `OVERLAY_SURFACE`, at least as wide as
+  the trigger. Its list scrolls inside after 288px (`max-h-72`). The row
+  under the keyboard or pointer gets `bg-ink/5`. The chosen row's label
+  turns mint and gets a mint check.
+- **`overlayMiddleware({ matchReferenceWidth })`** sets the panel's
+  `min-width` to the reference's width (`fitToViewportAndReference`).
+  The popover keeps the plain `fitToViewport`.
+- **Multi-select stays K12.** It builds on K11's option rows and
+  checkboxes (K16).
+
+**Task 42 (`K11`) is complete.**
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.

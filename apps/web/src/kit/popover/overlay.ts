@@ -22,6 +22,17 @@ export interface AvailableSpace {
   readonly elements: { readonly floating: HTMLElement };
 }
 
+/** The space a panel may take, plus the size of the element it opens from. */
+export interface AvailableSpaceBeside extends AvailableSpace {
+  readonly rects: { readonly reference: { readonly width: number } };
+}
+
+/** How a panel is sized beyond fitting the viewport. */
+export interface OverlayOptions {
+  /** Never narrower than the element it opens from (a select's list under its box). */
+  readonly matchReferenceWidth?: boolean | undefined;
+}
+
 /**
  * Caps the panel at the space the viewport has left, so it stays on screen
  * and scrolls inside instead of overflowing it.
@@ -36,14 +47,29 @@ export const fitToViewport = ({ availableWidth, availableHeight, elements }: Ava
 };
 
 /**
+ * Fits the panel to the viewport and makes it at least as wide as the element
+ * it opens from, so a select's list lines up with its box.
+ *
+ * @param space - The available width and height, the panel and the reference's size.
+ */
+export const fitToViewportAndReference = (space: AvailableSpaceBeside) => {
+  fitToViewport(space);
+  Object.assign(space.elements.floating.style, { minWidth: `${space.rects.reference.width}px` });
+};
+
+/**
  * Builds the positioning steps every kit panel uses, in Floating UI's order:
  * gap, flip, shift, then fit.
  *
+ * @param options - Whether the panel also matches the reference's width.
  * @returns The middleware list for `useFloating`.
  */
-export const overlayMiddleware = (): Middleware[] => [
+export const overlayMiddleware = ({ matchReferenceWidth }: OverlayOptions = {}): Middleware[] => [
   offset(overlay.offset),
   flip({ padding: overlay.viewportPadding }),
   shift({ padding: overlay.viewportPadding }),
-  size({ padding: overlay.viewportPadding, apply: fitToViewport }),
+  size({
+    padding: overlay.viewportPadding,
+    apply: matchReferenceWidth ? fitToViewportAndReference : fitToViewport,
+  }),
 ];
