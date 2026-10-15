@@ -85,7 +85,7 @@ identity screens, the rest as later slices use them.
 - [x] **50.** `FL10` Household Deletion
 - [x] **51.** `FL2` Account Recovery (OQ-147)
 - [x] **52.** `FL3` Registration (OQ-148)
-- [ ] **53.** `FL4` MFA Enrollment
+- [x] **53.** `FL4` MFA Enrollment (OQ-149: enrollment confirmation, backend included)
 - [ ] **54.** `FL5` Household Setup
 - [ ] **55.** `FL8` Delete Account
 - [ ] **56.** `FU3` AlertUtility

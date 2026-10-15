@@ -3057,6 +3057,36 @@ not a hardcoded assumption.
   Sending a returning user from Sign In to MFA Enrollment is X1/X2's.
 - The token helpers became one pair (sign/verify a step token by
   audience), shared by the challenge and the enrollment token.
+- **The Flow (`experiences/onboard/flows/mfaEnrollment/`)** gets the
+  enrollment from the Onboard Experience as props — `otpauthUri`,
+  `totpSecret`, `recoveryCodes`, `accountEmail` — and one request,
+  `onConfirm(code)` answering the shared `RequestOutcome`; `onComplete`
+  once the codes are acknowledged. Its rules are pure functions in
+  `mfaEnrollmentState.ts` (step, method, busy, last failure). No skip and
+  no way back out of the Flow. A wrong code shows in the banner and
+  clears the boxes, as in Sign In. `auth.enrollment_expired` is the
+  Experience's to handle (sign in again, remount with the fresh
+  enrollment) — X2.
+- **Steps are mockups 05–07.**
+  - *MFA Method Selection* — one option card per `mfa.methods`
+    (configuration; the app only in v1), then Continue.
+  - *MFA Setup Verification* — the QR (`qrcode.react`, black on white in
+    both themes, scanners need the contrast) of the API's `otpauthUri`,
+    the setup key in groups of 4 with a copy button, "Account: email",
+    the 6-digit code (submits on the last digit), back to the method.
+  - *Backup Codes Acknowledgement* — every code the API issued (10, not
+    the mockup's 8), Download (a `.txt` with a line naming the account),
+    Copy all, and Continue enabled only once "I've saved these" is ticked.
+- **Two new Utilities:** ClipboardUtility (`utilities/useClipboardCopy.ts`
+  — copy with a two-second "Copied", a refusal logged) and
+  DownloadUtility (`utilities/downloadTextFile.ts`). Settings in
+  `config/constants.ts` (`mfa.methods`, `mfa.setupKeyGroupSize`,
+  `mfa.qrSizePx`, `clipboard.copiedFeedbackMs`).
+- **Texts** are in a new `mfaEnrollment` catalog section, in both locales.
+- The EBD Onboard MFA Enrollment and Registration sequences and the
+  Onboard tier diagram are redrawn through their generator.
+
+**Task 53 (`FL4`) is complete.**
 
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every

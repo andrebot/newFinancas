@@ -91,6 +91,17 @@ export const mfa = {
     length: 16,
     groupSize: 4,
   },
+  /** The second factors offered at enrollment, in order (FR-1.15, OQ-149); v1 has the app only. */
+  methods: ['authenticator'],
+  /** The setup key (base32 secret) shown in groups of this many characters, for typing by hand. */
+  setupKeyGroupSize: 4,
+  /** The QR code's side, in CSS pixels, inside its white tile (mockup 06). */
+  qrSizePx: 126,
+} as const;
+
+/** Copy buttons (OQ-149): how long "Copied" shows after a copy, in ms. */
+export const clipboard = {
+  copiedFeedbackMs: 2000,
 } as const;
 
 /** Toasts: the brief notes after a save or an error (K25, OQ-141). */
