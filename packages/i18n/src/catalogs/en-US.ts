@@ -178,6 +178,13 @@ const enUS: Catalog = {
     'codes.fileName': 'backup-codes.txt',
     'codes.fileHeader': 'Backup codes for {email} — each works once.',
   },
+  householdSetup: {
+    title: 'Name your household',
+    subtitle: 'This is what everyone you invite will see. You can change it later.',
+    name: 'Household name',
+    submit: 'Continue',
+    cancel: 'Cancel',
+  },
   householdDeletion: {
     title: 'Delete household',
     consequences: 'Every member loses access and shared household data is permanently removed. Only the Owner can do this.',

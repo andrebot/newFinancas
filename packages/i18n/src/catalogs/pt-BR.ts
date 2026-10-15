@@ -193,6 +193,13 @@ const ptBR = {
     'codes.fileName': 'codigos-de-backup.txt',
     'codes.fileHeader': 'Códigos de backup de {email} — cada um funciona uma vez.',
   },
+  householdSetup: {
+    title: 'Dê um nome à sua casa',
+    subtitle: 'É o que todos que você convidar vão ver. Você pode mudar depois.',
+    name: 'Nome da casa',
+    submit: 'Continuar',
+    cancel: 'Cancelar',
+  },
   householdDeletion: {
     title: 'Excluir casa',
     consequences: 'Todos os membros perdem o acesso e os dados compartilhados da casa são removidos permanentemente. Só o proprietário pode fazer isso.',
