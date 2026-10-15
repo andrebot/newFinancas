@@ -3212,6 +3212,53 @@ not a hardcoded assumption.
 
 **Task 57 (`K45`) is complete.**
 
+### OQ-154: The Security Flow (task FL7)
+**Confirmed with the stakeholder (Oct 2026):**
+- **Both panels at once, no sub-views.** As mockup 70 draws it, the Flow
+  (`experiences/manageProfile/flows/security/`) renders Change password
+  and Active sessions side by side. The EBD note's "which sub-view
+  active" state is dropped. The state (pure functions in
+  `securityState.ts`) is the sessions (loading, failed with a retry,
+  or loaded: this device first, then the most recently used), the revoke
+  that is out (one session or all the others), whether the "sign out all
+  others" confirm is open, whether the password change is out, each
+  panel's last failure, and a counter that empties the password form
+  after a change.
+- **The Flow fetches the list as it mounts.** It takes four requests from
+  the Manage Profile Experience: `onLoadSessions`, `onRevokeSession(id)`,
+  `onRevokeOthers` and `onChangePassword({ currentPassword, newPassword })`.
+  The Experience passes a stable `onLoadSessions`. A successful revoke or
+  password change removes the sessions it ended from the list, matching
+  what the API did (FR-1.14 signs out every other session), so nothing is
+  re-fetched.
+- **Device names come from the User-Agent, read on the web.** The API's
+  `deviceInfo` is the raw header. `utilities/userAgent.ts`
+  (`describeUserAgent`) returns the browser and system brands (never
+  translated) and the kind of device. The kind picks the row's glyph:
+  laptop for macOS, desktop, phone or tablet. The catalog joins the two
+  brands ("Chrome on macOS" / "Chrome no macOS"). With one brand the row
+  shows that one; with neither, "Unknown device". The reader belongs to
+  FormattingUtility's family (no new Utility). The contract is unchanged.
+- **Only "Sign out all others" asks first.** It opens the kit's
+  destructive `InlineConfirm` under the panel's header, and the header
+  button stays in place so a cancel can give it the focus back. Revoking
+  one row happens at once, because the device can simply sign in again.
+  While any revoke is out, every other revoke waits. The button is
+  hidden when this device is the only session.
+- **Successes are toasts (AlertUtility):** "Password changed. Your other
+  sessions were signed out.", "Session signed out.", "Other sessions
+  signed out." Failures stay inline. In the password panel,
+  `password.current_incorrect` shows under the current password,
+  `password.too_short` under the new one, and anything else in a banner.
+  In the sessions panel, a revoke failure shows in a banner and a failed
+  load shows a banner with "Try again".
+- **Dates go through the catalog** (`{signedIn, date, ::ddMMyyyy}`), in
+  each locale's own order, so they don't wait for FormattingUtility (FU6).
+- **Texts** are in a new `security` catalog section, in both locales.
+- The EBD Security sequence is redrawn through its generator.
+
+**Task 58 (`FL7`) is complete.**
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.
