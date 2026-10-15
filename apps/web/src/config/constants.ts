@@ -77,6 +77,18 @@ export const avatar = {
   memberTones: ['sky', 'sun', 'lilac'],
 } as const;
 
+/** Household roles (FR-1.6, FR-1.7) — reference data, never hard-coded in a Flow (EBD Step 5). */
+export const household = {
+  /** The roles an Owner/Admin may give: on an invite or a role change (FR-1.12). */
+  assignableRoles: ['Admin', 'Member', 'Viewer'],
+  /** The role an invite starts on. */
+  defaultInviteRole: 'Member',
+  /** The roles that manage members, roles and invitations (FR-1.5, FR-1.11). */
+  managerRoles: ['Owner', 'Admin'],
+  /** The members list's order: the Owner first, then by how much each role may do. */
+  roleOrder: ['Owner', 'Admin', 'Member', 'Viewer'],
+} as const;
+
 /** The product's identity, drawn by the brand mark (K34, OQ-135). A proper noun: not translated. */
 export const brand = {
   name: 'Finance APP',

@@ -194,7 +194,7 @@ Experiences call.
 | FL6 | Guided Setup | 2 (+ composes FL11–FL13) |
 | FL7 | Security (both panels; User-Agent device names — OQ-154) | 3 |
 | FL8 | Delete Account | 3 |
-| FL9 | Membership Management | 6 |
+| FL9 | Membership Management (transfer to any member; revoke unconfirmed — OQ-155) | 6 |
 | FL10 | Household Deletion | 2 |
 | FL11 | Account & Card Management | 3 |
 | FL12 | Category Management | 4 |

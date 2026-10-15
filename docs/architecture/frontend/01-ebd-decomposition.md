@@ -91,7 +91,7 @@ Diagram: `docs/design/diagrams/ebd-tiers/app-shell.html`; sequence:
 
 | Flow | Interactions | Sequence |
 |---|---|---|
-| Membership Management | Member List, Role Menu, Invite Member, Pending Invitations, Remove Member Confirm, Transfer Ownership | `docs/design/diagrams/ebd-sequences/manage-household-membership-management.html` |
+| Membership Management | Member List, Role Menu, Invite Member, Pending Invitations, Remove Member Confirm, Transfer Ownership (OQ-155) | `docs/design/diagrams/ebd-sequences/manage-household-membership-management.html` |
 | Household Deletion | Consequences Review, Type-to-Confirm | `docs/design/diagrams/ebd-sequences/manage-household-household-deletion.html` |
 | *(standalone)* | Leave Household, Switch Household | — |
 
@@ -640,9 +640,13 @@ Three real Flows remain, plus three standalone Interactions:
      dispatching to the right backend target based on the selected row's
      type. Same merge logic as Account Setup's Objective Status
      Transition — different backend entity, same UI gesture.
+     *Split when built (OQ-155): only Remove asks first (Remove Member
+     Confirm); a revoke happens at once from Pending Invitations, since an
+     invitation can simply be sent again.*
    - *Change Role Interaction* (active Memberships only)
    - *Transfer Ownership Interaction* (pick new Owner from current
-     Admins, confirm — auto-demotes current Owner). Kept as one
+     Admins, confirm — auto-demotes current Owner). *Corrected when built
+     (OQ-155): any member may be picked, as FR-1.20 and the API allow.* Kept as one
      Interaction, not its own Flow — less destructive than deletion (no
      data loss), so it doesn't clear the same bar.
 2. **Delete Account Flow**
