@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
-  disabledIndicesOf, filterSections, findOption, flattenSections, isGroup,
+  filterSections, findOption, flattenSections, isGroup,
   normalizeForSearch, toSections, type SelectEntry,
 } from '../../../../src/kit/select/options';
 
-// Kit helper (BDT: Utility → unit, nothing mocked): sections, flattening,
-// search and the disabled positions the arrow keys skip.
+// Kit helper (BDT: Utility → unit, nothing mocked): sections, flattening
+// and search.
 
 type Category = 'moradia' | 'aluguel' | 'luz' | 'mercado' | 'saude' | 'lazer';
 
@@ -93,11 +93,5 @@ describe('filterSections', () => {
 
   it('gives nothing when nothing matches', () => {
     expect(filterSections(sections, 'viagem')).toEqual([]);
-  });
-});
-
-describe('disabledIndicesOf', () => {
-  it('lists the positions of the options with a reason', () => {
-    expect(disabledIndicesOf(flattenSections(toSections(entries)))).toEqual([1]);
   });
 });

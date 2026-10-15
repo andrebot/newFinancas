@@ -155,14 +155,3 @@ export const filterSections = <Value extends string>(
     .map((section) => narrowSection(section, query))
     .filter((section) => section.options.length > 0);
 };
-
-/**
- * Lists the positions, in display order, of the options that can't be
- * picked, so the arrow keys skip them.
- *
- * @param options - The options drawn, in display order.
- * @returns The indices of the disabled options.
- */
-export const disabledIndicesOf = <Value extends string>(
-  options: readonly SelectOption<Value>[],
-) => options.flatMap((option, index) => (option.disabledReason ? [index] : []));
