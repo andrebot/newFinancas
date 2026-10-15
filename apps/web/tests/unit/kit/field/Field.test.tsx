@@ -49,6 +49,19 @@ describe('Field', () => {
     expect(input.getAttribute('aria-describedby')).toBeNull();
   });
 
+  it('keeps a hidden label for screen readers only, without its action', () => {
+    render(
+      <Field controlId="mfa" label="Código" labelHidden labelAction={<a href="#x">Ajuda</a>}>
+        <input id="mfa" />
+      </Field>,
+    );
+
+    const label = screen.getByText('Código');
+    expect(label.className).toBe('sr-only');
+    expect(screen.getByRole('textbox', { name: 'Código' }).id).toBe('mfa');
+    expect(screen.queryByRole('link')).toBeNull();
+  });
+
   it('places the label action beside the label, outside it', () => {
     render(
       <Field controlId="pw" label="Senha" labelAction={<a href="#forgot">Esqueceu a senha?</a>}>

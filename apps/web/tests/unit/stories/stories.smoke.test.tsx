@@ -6,6 +6,8 @@ import type { ComponentType } from 'react';
 import { describe, expect, it } from 'vitest';
 import preview from '../../../.storybook/preview';
 import * as checkboxStories from '../../../stories/kit/checkbox/Checkbox.stories';
+import * as backupCodeStories from '../../../stories/kit/codeInput/BackupCodeInput.stories';
+import * as codeInputStories from '../../../stories/kit/codeInput/CodeInput.stories';
 import * as iconStories from '../../../stories/kit/icons/Icon.stories';
 import * as optionCardStories from '../../../stories/kit/optionCard/OptionCardGroup.stories';
 import * as popoverStories from '../../../stories/kit/popover/Popover.stories';
@@ -107,6 +109,27 @@ describe('stories', () => {
 
     expect(screen.getByRole<HTMLInputElement>('textbox').value).toBe('Casa Silva');
     expect(Filled.args.onChange).toHaveBeenCalledExactlyOnceWith('Casa Silva');
+  });
+
+  it('keeps the typed digits and reports them, then the full code', () => {
+    const { Partial } = composeStories(codeInputStories);
+    render(<Partial />);
+
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: '482193' } });
+
+    expect(screen.getByRole<HTMLInputElement>('textbox').value).toBe('482193');
+    expect(Partial.args.onChange).toHaveBeenCalledExactlyOnceWith('482193');
+    expect(Partial.args.onComplete).toHaveBeenCalledExactlyOnceWith('482193');
+  });
+
+  it('keeps the typed backup code and reports it clean', () => {
+    const { Empty } = composeStories(backupCodeStories);
+    render(<Empty />);
+
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: '7hjx21na' } });
+
+    expect(screen.getByRole<HTMLInputElement>('textbox').value).toBe('7HJX-21NA');
+    expect(Empty.args.onChange).toHaveBeenCalledExactlyOnceWith('7HJX21NA');
   });
 
   it('keeps the picked option and reports it', async () => {

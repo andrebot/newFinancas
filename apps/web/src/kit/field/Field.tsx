@@ -21,6 +21,8 @@ export interface FieldTexts {
 export interface FieldProps extends FieldTexts {
   /** The id of the control inside, which the label points at. */
   readonly controlId: string;
+  /** Keeps the label for screen readers only, when a heading already says it (MFA code). */
+  readonly labelHidden?: boolean | undefined;
   /** Layout only, e.g. `w-48`, `flex-1`. */
   readonly className?: string | undefined;
   readonly children: ReactNode;
@@ -74,6 +76,27 @@ function FieldMessage({
 }
 
 /**
+ * Renders the label above a control, with its action beside it, or the label
+ * alone and only for screen readers while it is hidden.
+ *
+ * @param props - The control's id, the label, its action and whether it is hidden.
+ * @returns The label row.
+ */
+function FieldLabel({
+  controlId, label, labelAction, labelHidden,
+}: Pick<FieldProps, 'controlId' | 'label' | 'labelAction' | 'labelHidden'>) {
+  if (labelHidden) {
+    return <label htmlFor={controlId} className="sr-only">{label}</label>;
+  }
+  return (
+    <div className="flex items-baseline justify-between gap-2">
+      <label htmlFor={controlId} className="type-caption font-semibold text-muted">{label}</label>
+      {labelAction && <span className="type-caption font-medium">{labelAction}</span>}
+    </div>
+  );
+}
+
+/**
  * Renders a control in its frame: the label (with its action beside it) above
  * and the hint or error below. The control itself must spread
  * `fieldAria(controlId, …)` so the message describes it.
@@ -82,14 +105,16 @@ function FieldMessage({
  * @returns The labelled control.
  */
 export function Field({
-  controlId, label, labelAction, hint, error, className, children,
+  controlId, label, labelAction, labelHidden, hint, error, className, children,
 }: FieldProps) {
   return (
     <div className={['flex flex-col gap-1.5', className].filter(Boolean).join(' ')}>
-      <div className="flex items-baseline justify-between gap-2">
-        <label htmlFor={controlId} className="type-caption font-semibold text-muted">{label}</label>
-        {labelAction && <span className="type-caption font-medium">{labelAction}</span>}
-      </div>
+      <FieldLabel
+        controlId={controlId}
+        label={label}
+        labelAction={labelAction}
+        labelHidden={labelHidden}
+      />
       {children}
       <FieldMessage id={messageIdOf(controlId)} hint={hint} error={error} />
     </div>

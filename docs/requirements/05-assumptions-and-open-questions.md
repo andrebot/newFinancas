@@ -2489,12 +2489,14 @@ not a hardcoded assumption.
   - K7: money, as you type, per locale, giving minor units;
   - K8: percentages and rates;
   - K9: the date, `dd/mm/aaaa` or `mm/dd/yyyy`;
-  - K17: the 6-digit code, and the backup code `XXXX-XXXX`;
+  - K17: the 6-digit code, and the backup code `XXXX-XXXX-XXXX-XXXX`
+    (16 characters, as the API issues them — corrected by OQ-139);
   - K48: the card number, grouped in fours. It never leaves the form;
     only `network` + `last4` are sent (FR on PAN storage).
 
   Caret handling, the hard part of any mask, is written once as a shared
-  `useMaskedInput(format, parse)` hook when K7 first needs it.
+  `useMaskedInput(format, parse)` hook. K17's backup code was the first to
+  need it, so it was built there (OQ-139).
 
 **Task 41 (`K5`) is complete.**
 
@@ -2554,6 +2556,56 @@ not a hardcoded assumption.
   checkboxes (K16).
 
 **Task 42 (`K11`) is complete.**
+
+### OQ-139: Code input and backup code input (task K17)
+**Confirmed with the stakeholder (Oct 2026):**
+- **Backup codes are 16 characters, `XXXX-XXXX-XXXX-XXXX`.** The API
+  issues 80 random bits as 16 Crockford base32 characters
+  (`recoveryCodes.bytes: 10`). OQ-137's `XXXX-XXXX` and mockup 09's
+  `7HJX-21NA` were wrong; the mockup's value is only an example. The API
+  is not shortened, because 80 bits is the right strength for a code that
+  replaces the second factor.
+- **`CodeInput` (`kit/codeInput/CodeInput.tsx`) is one native input under
+  six drawn boxes, not six inputs.** The `<input>` (`inputMode="numeric"`,
+  `autoComplete="one-time-code"`) is laid invisibly over the boxes, so OS /
+  SMS autofill, password managers, paste, backspace and screen readers
+  work natively, with no focus to move between inputs. The boxes are
+  `aria-hidden`. The caret stays at the end of the digits, because it is
+  invisible and a mid-code edit couldn't be seen. There is no `maxLength`:
+  it would cut a pasted "482 193" before the space is dropped.
+- **Its value is only digits** (`onChange(digits)`). Anything else typed or
+  pasted is dropped, and input stops at `mfa.codeLength` (6,
+  `config/constants.ts`, the API's `totp.digits`). `onComplete(code)` fires
+  when the last digit is typed. The Flow decides whether to submit then;
+  the mockups' Verify button stays.
+- **Look, from the mockups' `.digit`.** Each box is 52×60 (`max-w-13
+  h-15`, shrinking on narrow screens), `rounded-[14px]`, with a `bg-bg`
+  fill, a `border-line` border and `type-display-sm` digits. The box the
+  next digit goes in (the last once full) gets the mint border and
+  `mint/15` halo while the input has focus. Invalid turns every box coral,
+  with a coral halo on that box. Disabled is `opacity-50`. It sits in the
+  `Field` frame.
+- **`Field` gains `labelHidden`.** The label is then kept for screen
+  readers only (`sr-only`), without its action. The MFA challenge (mockup
+  08) has no visible label because its heading says what to type.
+- **`BackupCodeInput` (`kit/codeInput/BackupCodeInput.tsx`)** is the text
+  field in mockup 09's look (`font-mono tracking-[.2em] text-center`). It
+  shows the code in dashed groups of 4 (`mfa.backupCode`), with a dash
+  only once the next group has begun. Typing is as forgiving as the API's
+  `normalizeRecoveryCode`: lower case is raised, O / I / L become 0 / 1 /
+  1, and anything else is dropped. The caller holds and gets the clean
+  code (no dashes, upper case). It turns off autocorrect and spellcheck,
+  and asks for capitals.
+- **`useMaskedInput` (`kit/maskedInput/useMaskedInput.ts`)** is the shared
+  mask hook OQ-137 planned, built now because K17 needs it before K7. A
+  `Mask` is `format(clean)` and `parse(text)`, and `parse` must read each
+  character on its own. After each edit the caret is put back after the
+  same number of clean characters it followed. A backspace that only
+  removed a separator removes the clean character before it instead, so
+  the key always does something. It counts from the left. K7's money
+  mask, whose digits fill from the right, may extend it when it is built.
+
+**Task 43 (`K17`) is complete.**
 
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
