@@ -3,10 +3,11 @@ import { jwtVerify, SignJWT } from 'jose';
 import { authentication } from '../../config/constants';
 import { SYSTEM_ROLES, type SystemRole } from '../../db/schema/values';
 
-// Tokens (OQ-30, OQ-100): a short-lived JWT access token, and opaque random
-// tokens (refresh, password reset) stored only as hashes. Policy: config/constants.
+// Tokens (OQ-30, OQ-100): a short-lived JWT access token, a five-minute MFA
+// challenge JWT (OQ-145), and opaque random tokens (refresh, password reset)
+// stored only as hashes. Policy: config/constants.
 
-const { accessToken, opaqueTokenBytes } = authentication;
+const { accessToken, challengeToken, opaqueTokenBytes } = authentication;
 
 /** Who an access token speaks for, from which session (device), with which platform role. */
 export interface AccessTokenClaims {
@@ -75,6 +76,68 @@ export const verifyAccessToken = async (
     const { sub: userId, sid: sessionId, role: systemRole } = payload;
     return typeof userId === 'string' && typeof sessionId === 'string' && isSystemRole(systemRole)
       ? { userId, sessionId, systemRole }
+      : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+/** Whom an MFA challenge token was issued to, after their password matched (OQ-145). */
+export interface ChallengeClaims {
+  readonly userId: string;
+  /** The address signed in with: step two looks the user up, and counts failures, by it. */
+  readonly email: string;
+}
+
+/**
+ * Signs an MFA challenge token: proof the password matched, valid for five
+ * minutes and only for the second step of sign-in (OQ-145).
+ *
+ * @param key - HS256 signing key.
+ * @param claims - The user (subject) and the address they signed in with.
+ * @param now - Issue time.
+ * @returns The compact JWT.
+ */
+export const signChallengeToken = (
+  key: Uint8Array,
+  claims: ChallengeClaims,
+  now: Date,
+): Promise<string> => {
+  const issuedAt = Math.floor(now.getTime() / 1000);
+  return new SignJWT({ email: claims.email })
+    .setProtectedHeader({ alg: accessToken.algorithm })
+    .setSubject(claims.userId)
+    .setIssuer(accessToken.issuer)
+    .setAudience(challengeToken.audience)
+    .setIssuedAt(issuedAt)
+    .setExpirationTime(issuedAt + challengeToken.ttlSeconds)
+    .sign(key);
+};
+
+/**
+ * Verifies an MFA challenge token.
+ *
+ * @param key - HS256 signing key.
+ * @param token - The compact JWT from the request body.
+ * @param now - Current time.
+ * @returns The user and address, or `undefined` for an invalid, expired or
+ *   foreign token (an access token included), or one missing a claim.
+ */
+export const verifyChallengeToken = async (
+  key: Uint8Array,
+  token: string,
+  now: Date,
+): Promise<ChallengeClaims | undefined> => {
+  try {
+    const { payload } = await jwtVerify(token, key, {
+      algorithms: [accessToken.algorithm],
+      issuer: accessToken.issuer,
+      audience: challengeToken.audience,
+      currentDate: now,
+    });
+    const { sub: userId, email } = payload;
+    return typeof userId === 'string' && typeof email === 'string'
+      ? { userId, email }
       : undefined;
   } catch {
     return undefined;

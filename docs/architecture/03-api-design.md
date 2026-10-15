@@ -29,9 +29,12 @@ exist for either.
   expensive to retrofit later.
 - **Auth: stateless JWT bearer token** (`Authorization: Bearer <token>`),
   matching OQ-30's confirmed mechanism. Public (no auth required):
-  `POST /auth/register`, `POST /auth/login`, `POST /auth/password-reset/request`,
-  `POST /auth/password-reset/confirm`, `POST /auth/mfa/recover` — every
-  other endpoint requires a valid access token.
+  `POST /auth/register`, `POST /auth/login`, `POST /auth/mfa/verify`,
+  `POST /auth/mfa/recover`, `POST /auth/password-reset/request`,
+  `POST /auth/password-reset/confirm` — every other endpoint requires a
+  valid access token. Sign-in is two steps (OQ-145): `login` checks the
+  password and answers a five-minute challenge token; `mfa/verify` (or
+  `mfa/recover`) trades it with the second factor for the tokens.
 - **Money is an integer — a count of the currency's minor unit (cents
   for USD/BRL) — never a decimal, and never a string.** `$1,234.56` is
   transmitted as `123456`. **Revised from the original decision**

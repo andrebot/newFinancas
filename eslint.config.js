@@ -82,6 +82,22 @@ export default [
     rules: { 'react/jsx-props-no-spreading': 'off' },
   },
 
+  // Module paths: a Flow's or Interaction's file sits deep in its Experience,
+  // so a test's import (or vi.mock) of it can pass 100 characters on its own.
+  // Only a line that is nothing but the path is let through (OQ-145).
+  {
+    name: 'project/module-paths',
+    files: ['apps/web/**/*.{ts,tsx}'],
+    rules: {
+      '@stylistic/max-len': ['error', {
+        code: 100,
+        tabWidth: 2,
+        ignorePattern: String.raw`^(\} from |import .* from |vi\.mock\()'[./\w-]+'`
+          + String.raw`(;|, \(\) => \(\{)$`,
+      }],
+    },
+  },
+
   // Message catalogs: an ICU message stays one readable string, however long.
   {
     name: 'project/i18n-catalogs',

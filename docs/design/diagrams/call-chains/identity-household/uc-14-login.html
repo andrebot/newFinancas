@@ -50,7 +50,7 @@
 </head>
 <body>
   <h1>Call Chain — Login</h1>
-  <p class="subtitle">Use case 14 of 21 in the Identity &amp; Household set (CUC-2, FR-1.2). Create pattern (Session), one request (password + MFA code together), security-sensitive. Updated for the login lockout (OQ-114).</p>
+  <p class="subtitle">Use case 14 of 21 in the Identity &amp; Household set (CUC-2, FR-1.2). Create pattern (Session), two requests (password, then MFA code — OQ-145), security-sensitive. Updated for the login lockout (OQ-114).</p>
 
   <div class="architecture">
     <svg id="arrows-svg"></svg>
@@ -135,9 +135,10 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain:</strong> <code>IdentityManager</code> ① <code>UserAccessor.findLoginLock(emailKey)</code> — locked → 429 — then <code>findByEmail</code> → ② <code>AuthenticationUtility.verifyPassword</code> / <code>verifyTotp</code> (a dummy hash when there&#39;s no user) → ③ <code>UserAccessor.recordLoginFailure</code> (+ <code>lockLogin</code> at the threshold) on any failure, <code>clearLoginFailures</code> on success → ④ <code>AuthenticationUtility.issueOpaqueToken</code> / <code>signAccessToken</code> → ⑤ <code>SessionAccessor.insert</code> → ⑥ <code>LoggingUtility</code> (async, audit).</p>
-    <p><strong>No new component:</strong> the failure counter (<code>login_attempts</code>, per address) is a protection on the user&#39;s credentials, so <code>UserAccessor</code> owns it alongside the hashes, MFA secret, recovery codes and reset tokens (OQ-114). The Manager decides the threshold, window and lock length (<code>config/constants.ts</code>); the Accessor counts atomically, locks and clears (OQ-107 pattern).</p>
-    <p><strong>Corrected:</strong> the previous chain described two round-trips (password, then MFA); the contract has always taken both in one request (OQ-30).</p>
+    <p><strong>Chain, step 1 (<code>POST /auth/login</code>):</strong> <code>IdentityManager</code> ① <code>UserAccessor.findLoginLock(emailKey)</code> — locked → 429 — then <code>findByEmail</code> → ② <code>AuthenticationUtility.verifyPassword</code> (a dummy hash when there&#39;s no user), then <code>signChallengeToken</code> on success → ③ <code>UserAccessor.recordLoginFailure</code> (+ <code>lockLogin</code> at the threshold) on failure.</p>
+    <p><strong>Chain, step 2 (<code>POST /auth/mfa/verify</code>):</strong> ② <code>AuthenticationUtility.verifyChallengeToken</code> → ① <code>UserAccessor.findLoginLock</code> / <code>findByEmail</code> → ② <code>verifyTotp</code> → ③ <code>recordLoginFailure</code> on a wrong code, <code>clearLoginFailures</code> on success → ④ <code>AuthenticationUtility.issueOpaqueToken</code> / <code>signAccessToken</code> → ⑤ <code>SessionAccessor.insert</code> → ⑥ <code>LoggingUtility</code> (async, audit).</p>
+    <p><strong>No new component:</strong> the failure counter (<code>login_attempts</code>, per address) is a protection on the user&#39;s credentials, so <code>UserAccessor</code> owns it alongside the hashes, MFA secret, recovery codes and reset tokens (OQ-114). The challenge token is a stateless JWT — an identity-proof primitive, so <code>AuthenticationUtility</code>&#39;s, with no storage (OQ-145). The Manager decides the threshold, window and lock length (<code>config/constants.ts</code>); the Accessor counts atomically, locks and clears (OQ-107 pattern).</p>
+    <p><strong>Changed (OQ-145):</strong> the chain took password and MFA code in one request (OQ-30); it is two again, so a wrong code can be retried alone. Wrong codes count against the same lockout as wrong passwords.</p>
   </div>
 
   <script>

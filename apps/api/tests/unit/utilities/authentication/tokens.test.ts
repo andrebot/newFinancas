@@ -2,7 +2,8 @@ import { SignJWT } from 'jose';
 import { describe, expect, it } from 'vitest';
 import { authentication } from '../../../../src/config/constants';
 import {
-  hashOpaqueToken, issueOpaqueToken, signAccessToken, verifyAccessToken,
+  hashOpaqueToken, issueOpaqueToken, signAccessToken, signChallengeToken, verifyAccessToken,
+  verifyChallengeToken,
 } from '../../../../src/utilities/authentication/tokens';
 
 const KEY = new TextEncoder().encode('k'.repeat(32));
@@ -67,6 +68,46 @@ describe('access tokens (JWT, HS256)', () => {
     expect(await verifyAccessToken(KEY, forged, T0)).toBeUndefined();
     expect(await verifyAccessToken(KEY, unsigned, T0)).toBeUndefined();
     expect(await verifyAccessToken(KEY, 'garbage', T0)).toBeUndefined();
+  });
+});
+
+describe('MFA challenge tokens (JWT, HS256, OQ-145)', () => {
+  const CHALLENGE = { userId: 'user-1', email: 'ana@example.com' };
+
+  it('verify within 5 minutes and return the user and address', async () => {
+    const token = await signChallengeToken(KEY, CHALLENGE, T0);
+
+    expect(authentication.challengeToken.ttlSeconds).toBe(300);
+    expect(await verifyChallengeToken(KEY, token, after(299))).toEqual(CHALLENGE);
+  });
+
+  it('expire after 5 minutes', async () => {
+    const token = await signChallengeToken(KEY, CHALLENGE, T0);
+
+    expect(await verifyChallengeToken(KEY, token, after(301))).toBeUndefined();
+  });
+
+  it('never pass as access tokens, nor access tokens as challenges', async () => {
+    const challenge = await signChallengeToken(KEY, CHALLENGE, T0);
+    const access = await signAccessToken(KEY, CLAIMS, T0);
+
+    expect(await verifyAccessToken(KEY, challenge, T0)).toBeUndefined();
+    expect(await verifyChallengeToken(KEY, access, T0)).toBeUndefined();
+  });
+
+  it('are rejected with another key, without the address, or when garbage', async () => {
+    const token = await signChallengeToken(KEY, CHALLENGE, T0);
+    const noEmail = await new SignJWT({})
+      .setProtectedHeader({ alg: 'HS256' })
+      .setSubject('user-1')
+      .setIssuer('financas-api')
+      .setAudience('financas-mfa-challenge')
+      .setExpirationTime(Math.floor(T0.getTime() / 1000) + 60)
+      .sign(KEY);
+
+    expect(await verifyChallengeToken(OTHER_KEY, token, T0)).toBeUndefined();
+    expect(await verifyChallengeToken(KEY, noEmail, T0)).toBeUndefined();
+    expect(await verifyChallengeToken(KEY, 'garbage', T0)).toBeUndefined();
   });
 });
 

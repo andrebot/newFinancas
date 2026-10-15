@@ -7,47 +7,52 @@ import {
 } from './fakes';
 
 const CONTEXT = { correlationId: 'c1' };
-const CREDENTIALS = {
-  email: ' Ana@Example.com ', password: 'correct horse battery', mfaCode: '123456',
-};
+const CREDENTIALS = { email: ' Ana@Example.com ', password: 'correct horse battery' };
+const VERIFICATION = { challengeToken: 'challenge-token', mfaCode: '123456' };
 const THIRTY_DAYS = minutes(30 * 24 * 60);
 
+type Deps = ReturnType<typeof fakeDeps>['deps'];
+
 /**
- * Logs in with the shared credentials through a fresh Manager.
+ * Runs the password step with the shared credentials through a fresh Manager.
  *
  * @param deps - The mocked tier below.
  * @returns The login's promise.
  */
-const loginWith = (deps: ReturnType<typeof fakeDeps>['deps']) => (
-  createIdentityManager(deps).login(CONTEXT, CREDENTIALS, null)
+const loginWith = (deps: Deps) => createIdentityManager(deps).login(CONTEXT, CREDENTIALS);
+
+/**
+ * Runs the MFA step with the shared verification through a fresh Manager.
+ *
+ * @param deps - The mocked tier below.
+ * @returns The verification's promise.
+ */
+const verifyWith = (deps: Deps) => (
+  createIdentityManager(deps).verifyMfa(CONTEXT, VERIFICATION, 'Firefox')
 );
 const INVALID = { apiError: { status: 401, code: 'auth.invalid_credentials' } };
+const MFA_INVALID = { apiError: { status: 401, code: 'auth.mfa_invalid' } };
+const EXPIRED = { apiError: { status: 401, code: 'auth.challenge_expired' } };
+const LOCKED = { apiError: { status: 429, code: 'auth.too_many_attempts' } };
 
-describe('IdentityManager — Login (uc-14, OQ-114)', () => {
+describe('IdentityManager — Login, password step (uc-14, OQ-114, OQ-145)', () => {
   it('counts failures under the trimmed, lower-cased address', () => {
     expect(emailKeyOf(' Ana@Example.COM ')).toBe('ana@example.com');
   });
 
-  it('opens a session with a hashed refresh token and a role-bearing access token', async () => {
+  it('answers a challenge naming the user, opening no session, clearing nothing', async () => {
     const {
       deps, users, sessions, authentication,
     } = fakeDeps();
-    const logs = captureLogs();
 
-    const tokens = await createIdentityManager(deps).login(CONTEXT, CREDENTIALS, 'Firefox');
-    logs.stop();
+    await expect(loginWith(deps)).resolves.toEqual({ challengeToken: 'challenge-token' });
 
-    expect(tokens).toEqual({ accessToken: 'access-token', refreshToken: 'refresh-token' });
     expect(users.findByEmail).toHaveBeenCalledWith('Ana@Example.com');
-    expect(users.clearLoginFailures).toHaveBeenCalledWith('ana@example.com');
-    expect(sessions.insert)
-      .toHaveBeenCalledWith(ANA.id, 'refresh-hash', 'Firefox', THIRTY_DAYS, NOW);
-    expect(authentication.signAccessToken).toHaveBeenCalledWith({
-      userId: ANA.id, sessionId: SESSION.id, systemRole: 'USER',
-    });
-    expect(logs.events).toContainEqual(expect.objectContaining({
-      level: 'audit', message: 'Login', entityType: 'Session', entityId: SESSION.id,
-    }));
+    expect(authentication.signChallengeToken)
+      .toHaveBeenCalledWith({ userId: ANA.id, email: ANA.email });
+    expect(users.clearLoginFailures).not.toHaveBeenCalled();
+    expect(sessions.insert).not.toHaveBeenCalled();
+    expect(authentication.verifyTotp).not.toHaveBeenCalled();
   });
 
   it('answers 429 while the address is locked, without checking anything', async () => {
@@ -78,24 +83,23 @@ describe('IdentityManager — Login (uc-14, OQ-114)', () => {
     users.findByEmail.mockResolvedValue(undefined);
     const identity = createIdentityManager(deps);
 
-    await expect(identity.login(CONTEXT, CREDENTIALS, null)).rejects.toMatchObject(INVALID);
-    await expect(identity.login(CONTEXT, CREDENTIALS, null)).rejects.toMatchObject(INVALID);
+    await expect(identity.login(CONTEXT, CREDENTIALS)).rejects.toMatchObject(INVALID);
+    await expect(identity.login(CONTEXT, CREDENTIALS)).rejects.toMatchObject(INVALID);
 
     expect(authentication.verifyPassword)
       .toHaveBeenCalledWith('hash(timing-equaliser-not-a-password)', CREDENTIALS.password);
     expect(authentication.hashPassword).toHaveBeenCalledTimes(1);
     expect(users.recordLoginFailure).toHaveBeenCalledWith('ana@example.com', NOW, minutes(-15));
+    expect(authentication.signChallengeToken).not.toHaveBeenCalled();
   });
 
-  it('gives the same 401 for a wrong password (code unchecked) and a wrong code', async () => {
-    const { deps, authentication } = fakeDeps();
+  it('gives the same 401 for a wrong password, and counts it', async () => {
+    const { deps, users, authentication } = fakeDeps();
     authentication.verifyPassword.mockResolvedValueOnce(false);
 
     await expect(loginWith(deps)).rejects.toMatchObject(INVALID);
-    expect(authentication.verifyTotp).not.toHaveBeenCalled();
-
-    authentication.verifyTotp.mockReturnValueOnce(false);
-    await expect(loginWith(deps)).rejects.toMatchObject(INVALID);
+    expect(users.recordLoginFailure).toHaveBeenCalled();
+    expect(authentication.signChallengeToken).not.toHaveBeenCalled();
   });
 
   it('locks the address for 15 minutes at the fifth failure, not before', async () => {
@@ -104,25 +108,96 @@ describe('IdentityManager — Login (uc-14, OQ-114)', () => {
     users.recordLoginFailure.mockResolvedValueOnce(4).mockResolvedValueOnce(5);
     const identity = createIdentityManager(deps);
 
-    await expect(identity.login(CONTEXT, CREDENTIALS, null)).rejects.toMatchObject(INVALID);
+    await expect(identity.login(CONTEXT, CREDENTIALS)).rejects.toMatchObject(INVALID);
     expect(users.lockLogin).not.toHaveBeenCalled();
-    await expect(identity.login(CONTEXT, CREDENTIALS, null)).rejects.toMatchObject(INVALID);
+    await expect(identity.login(CONTEXT, CREDENTIALS)).rejects.toMatchObject(INVALID);
     expect(users.lockLogin).toHaveBeenCalledWith('ana@example.com', minutes(15));
   });
 });
 
-describe('IdentityManager — MFA Recovery (uc-20, OQ-115)', () => {
-  const RECOVERY = {
-    email: 'ana@example.com', password: 'correct horse battery', recoveryCode: 'abcd-efgh',
-  };
+describe('IdentityManager — Login, MFA step (uc-14, OQ-145)', () => {
+  it('opens a session with a hashed refresh token and a role-bearing access token', async () => {
+    const {
+      deps, users, sessions, authentication,
+    } = fakeDeps();
+    const logs = captureLogs();
+
+    const tokens = await verifyWith(deps);
+    logs.stop();
+
+    expect(tokens).toEqual({ accessToken: 'access-token', refreshToken: 'refresh-token' });
+    expect(authentication.verifyChallengeToken).toHaveBeenCalledWith('challenge-token');
+    expect(users.findByEmail).toHaveBeenCalledWith(ANA.email);
+    expect(authentication.verifyTotp).toHaveBeenCalledWith('sealed-secret', '123456');
+    expect(users.clearLoginFailures).toHaveBeenCalledWith('ana@example.com');
+    expect(sessions.insert)
+      .toHaveBeenCalledWith(ANA.id, 'refresh-hash', 'Firefox', THIRTY_DAYS, NOW);
+    expect(authentication.signAccessToken).toHaveBeenCalledWith({
+      userId: ANA.id, sessionId: SESSION.id, systemRole: 'USER',
+    });
+    expect(logs.events).toContainEqual(expect.objectContaining({
+      level: 'audit', message: 'Login', entityType: 'Session', entityId: SESSION.id,
+    }));
+  });
+
+  it('names a wrong code, counts it against the lockout, and clears nothing', async () => {
+    const { deps, users, authentication } = fakeDeps();
+    authentication.verifyTotp.mockReturnValueOnce(false);
+
+    await expect(verifyWith(deps)).rejects.toMatchObject(MFA_INVALID);
+    expect(users.recordLoginFailure).toHaveBeenCalledWith('ana@example.com', NOW, minutes(-15));
+    expect(users.clearLoginFailures).not.toHaveBeenCalled();
+  });
+
+  it('locks the address at the fifth failure, code guesses included', async () => {
+    const { deps, users, authentication } = fakeDeps();
+    authentication.verifyTotp.mockReturnValueOnce(false);
+    users.recordLoginFailure.mockResolvedValueOnce(5);
+
+    await expect(verifyWith(deps)).rejects.toMatchObject(MFA_INVALID);
+    expect(users.lockLogin).toHaveBeenCalledWith('ana@example.com', minutes(15));
+  });
+
+  it('refuses a locked address before checking the code', async () => {
+    const { deps, users, authentication } = fakeDeps();
+    users.findLoginLock.mockResolvedValueOnce(minutes(5));
+
+    await expect(verifyWith(deps)).rejects.toMatchObject(LOCKED);
+    expect(users.findLoginLock).toHaveBeenCalledWith('ana@example.com');
+    expect(authentication.verifyTotp).not.toHaveBeenCalled();
+  });
+
+  it('answers challenge_expired for an invalid or expired challenge, uncounted', async () => {
+    const { deps, users, authentication } = fakeDeps();
+    authentication.verifyChallengeToken.mockResolvedValueOnce(undefined);
+
+    await expect(verifyWith(deps)).rejects.toMatchObject(EXPIRED);
+    expect(users.findByEmail).not.toHaveBeenCalled();
+    expect(users.recordLoginFailure).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['is gone', undefined],
+    ['now has another account', { ...ANA, id: 'someone-else' }],
+  ])('answers challenge_expired when the challenged address %s', async (_case, found) => {
+    const { deps, users, authentication } = fakeDeps();
+    users.findByEmail.mockResolvedValueOnce(found as typeof ANA | undefined);
+
+    await expect(verifyWith(deps)).rejects.toMatchObject(EXPIRED);
+    expect(authentication.verifyTotp).not.toHaveBeenCalled();
+  });
+});
+
+describe('IdentityManager — MFA Recovery (uc-20, OQ-115, OQ-145)', () => {
+  const RECOVERY = { challengeToken: 'challenge-token', recoveryCode: 'abcd-efgh' };
 
   /**
-   * Recovers with the shared credentials through a fresh Manager.
+   * Recovers with the shared verification through a fresh Manager.
    *
    * @param deps - The mocked tier below.
    * @returns The recovery's promise.
    */
-  const recoverWith = (deps: ReturnType<typeof fakeDeps>['deps']) => (
+  const recoverWith = (deps: Deps) => (
     createIdentityManager(deps).recoverWithCode(CONTEXT, RECOVERY, 'Phone')
   );
 
@@ -141,20 +216,19 @@ describe('IdentityManager — MFA Recovery (uc-20, OQ-115)', () => {
     }));
   });
 
-  it('never uses up a code when the password is wrong', async () => {
+  it('never uses up a code without a valid challenge', async () => {
     const { deps, users, authentication } = fakeDeps();
-    authentication.verifyPassword.mockResolvedValueOnce(false);
+    authentication.verifyChallengeToken.mockResolvedValueOnce(undefined);
 
-    await expect(recoverWith(deps)).rejects.toMatchObject(INVALID);
+    await expect(recoverWith(deps)).rejects.toMatchObject(EXPIRED);
     expect(users.consumeRecoveryCode).not.toHaveBeenCalled();
-    expect(users.recordLoginFailure).toHaveBeenCalled();
   });
 
-  it('gives the same 401 for a used or unknown code, and counts it', async () => {
+  it('names a used or unknown code, and counts it', async () => {
     const { deps, users } = fakeDeps();
     users.consumeRecoveryCode.mockResolvedValueOnce(false);
 
-    await expect(recoverWith(deps)).rejects.toMatchObject(INVALID);
+    await expect(recoverWith(deps)).rejects.toMatchObject(MFA_INVALID);
     expect(users.recordLoginFailure).toHaveBeenCalled();
   });
 
@@ -162,8 +236,7 @@ describe('IdentityManager — MFA Recovery (uc-20, OQ-115)', () => {
     const { deps, users } = fakeDeps();
     users.findLoginLock.mockResolvedValueOnce(minutes(5));
 
-    await expect(recoverWith(deps))
-      .rejects.toMatchObject({ apiError: { status: 429, code: 'auth.too_many_attempts' } });
+    await expect(recoverWith(deps)).rejects.toMatchObject(LOCKED);
     expect(users.consumeRecoveryCode).not.toHaveBeenCalled();
   });
 });

@@ -58,6 +58,13 @@ export type Money = number;
  */
 export type Quantity = number;
 
+export type MfaChallenge = {
+    /**
+     * Five-minute JWT proving the password matched; only POST /auth/mfa/verify and /auth/mfa/recover accept it (OQ-145)
+     */
+    challengeToken: string;
+};
+
 export type AuthTokens = {
     /**
      * Short-lived JWT, stateless (OQ-30)
@@ -907,7 +914,6 @@ export type LoginData = {
     body: {
         email: string;
         password: string;
-        mfaCode: string;
     };
     path?: never;
     query?: never;
@@ -916,7 +922,7 @@ export type LoginData = {
 
 export type LoginErrors = {
     /**
-     * Invalid email, password, or MFA code — deliberately identical for all three to avoid leaking which emails are registered. Code: `auth.invalid_credentials`.
+     * Invalid email or password — deliberately identical for both, to avoid leaking which emails are registered. Code: `auth.invalid_credentials`.
      *
      */
     401: Error;
@@ -932,10 +938,42 @@ export type LoginResponses = {
     /**
      * OK
      */
-    200: AuthTokens;
+    200: MfaChallenge;
 };
 
 export type LoginResponse = LoginResponses[keyof LoginResponses];
+
+export type VerifyMfaData = {
+    body: {
+        challengeToken: string;
+        mfaCode: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/auth/mfa/verify';
+};
+
+export type VerifyMfaErrors = {
+    /**
+     * The second sign-in step failed (OQ-145). Codes: `auth.mfa_invalid` (wrong MFA or recovery code — named, since the caller already proved the password; counted against the lockout), `auth.challenge_expired` (challenge token expired or not valid — start again from the password).
+     */
+    401: Error;
+    /**
+     * Too many failed attempts for this email address (OQ-114) — answered the same whether or not an account exists. Code: `auth.too_many_attempts`, `params.retryAfterMinutes`.
+     */
+    429: Error;
+};
+
+export type VerifyMfaError = VerifyMfaErrors[keyof VerifyMfaErrors];
+
+export type VerifyMfaResponses = {
+    /**
+     * OK
+     */
+    200: AuthTokens;
+};
+
+export type VerifyMfaResponse = VerifyMfaResponses[keyof VerifyMfaResponses];
 
 export type LogoutData = {
     body?: never;
@@ -992,7 +1030,7 @@ export type ChangePasswordData = {
 
 export type ChangePasswordErrors = {
     /**
-     * Missing, invalid, or expired credentials. Codes: e.g. `auth.unauthenticated` (no valid access token on a protected endpoint), `auth.invalid_credentials` (identical for unknown user, wrong password and wrong MFA code — OQ-114), `auth.mfa_invalid`.
+     * Missing, invalid, or expired credentials. Codes: e.g. `auth.unauthenticated` (no valid access token on a protected endpoint), `auth.invalid_credentials` (identical for unknown user and wrong password — OQ-114, OQ-145).
      */
     401: Error;
     /**
@@ -1059,8 +1097,7 @@ export type ConfirmPasswordResetResponses = {
 
 export type RecoverWithMfaCodeData = {
     body: {
-        email: string;
-        password: string;
+        challengeToken: string;
         recoveryCode: string;
     };
     path?: never;
@@ -1070,7 +1107,7 @@ export type RecoverWithMfaCodeData = {
 
 export type RecoverWithMfaCodeErrors = {
     /**
-     * Missing, invalid, or expired credentials. Codes: e.g. `auth.unauthenticated` (no valid access token on a protected endpoint), `auth.invalid_credentials` (identical for unknown user, wrong password and wrong MFA code — OQ-114), `auth.mfa_invalid`.
+     * The second sign-in step failed (OQ-145). Codes: `auth.mfa_invalid` (wrong MFA or recovery code — named, since the caller already proved the password; counted against the lockout), `auth.challenge_expired` (challenge token expired or not valid — start again from the password).
      */
     401: Error;
     /**

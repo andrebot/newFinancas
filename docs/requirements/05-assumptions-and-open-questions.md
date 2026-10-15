@@ -1549,6 +1549,8 @@ OQ-112:** `NotificationDeliveryUtility` was misclassified.
   and invitations; 4. households and members; 5. invitations.
 - **Login lockout, now.** 5 failures within 15 minutes lock the **email
   address** for 15 minutes; a success clears it (`config/constants.ts`).
+  *(OQ-145: sign-in is now two steps. Both steps count, and only a full
+  sign-in clears the count.)*
   - Counted per address in a new `login_attempts` table, not on the user,
     so an address with no account locks like a real one: a 429
     `auth.too_many_attempts` (with `Retry-After`) never confirms that an
@@ -1557,6 +1559,9 @@ OQ-112:** `NotificationDeliveryUtility` was misclassified.
     new Accessor — the stakeholder preferred it once the existing
     Accessors were laid out. IdentityManager decides the threshold, window
     and lock length; the Accessor counts atomically, locks and clears.
+  - *(Changed by OQ-145: only the password step still gives one 401 for
+    every failure. A wrong code at the second step is
+    `auth.mfa_invalid`.)*
   - Every login failure — unknown email, wrong password, wrong MFA code —
     answers the same 401 `auth.invalid_credentials`, and an unknown email
     still costs one password check, so neither the code nor the timing
@@ -2812,6 +2817,91 @@ not a hardcoded assumption.
   joins the two parts. The kit takes only translated text.
 
 **Task 48 (`K6`) is complete.**
+
+### OQ-145: Two-step sign-in, and the Sign In Flow (task FL1)
+**Confirmed with the stakeholder (Oct 2026):**
+- **Sign-in takes two requests; this reverses OQ-30's "password and MFA
+  code together".** With one request, a wrong code couldn't be told
+  apart from a wrong password, so the user had to type everything again.
+  Now the user retries only the code, as in most apps.
+  - `POST /auth/login {email, password}` answers `{challengeToken}`.
+  - `POST /auth/mfa/verify {challengeToken, mfaCode}` answers the tokens.
+  - `POST /auth/mfa/recover` now takes
+    `{challengeToken, recoveryCode}`.
+  - All three are public. The sequences (`uc-14`, `uc-20`), the call
+    chains and the EBD Sign In sequence are redrawn through their
+    generators.
+- **OQ-114's guard against enumeration stays where it matters.** The
+  password step still gives one 401 `auth.invalid_credentials` for an
+  unknown email and for a wrong password. A missing user still costs a
+  password check, so the timing reveals nothing either.
+  - The second step names a wrong code (`auth.mfa_invalid`), because
+    its caller has already proved the password, so naming the code
+    reveals nothing new.
+  - A challenge that is expired, forged or names a user who is gone
+    answers `auth.challenge_expired`. That error code is new, in both
+    catalogs.
+- **The lockout covers both steps.** A wrong password and a wrong code
+  each count as one failure for the address, and 5 failures in 15
+  minutes lock it, as before.
+  - Step 2 checks the lock before it checks the code.
+  - **Only a full sign-in clears the count.** A correct password does
+    not, otherwise repeating the password step would reset the counter
+    and allow unlimited code guesses.
+- **The challenge token is a stateless JWT.**
+  - It is valid for 5 minutes (`authentication.challengeToken`).
+  - It carries the user (`sub`) and the address (`email`), and has its
+    own audience (`financas-mfa-challenge`). So an access token can't
+    be used as a challenge, and a challenge can't be used as an access
+    token.
+  - `AuthenticationUtility` gets `signChallengeToken` and
+    `verifyChallengeToken`.
+  - There is no table. Reusing a challenge within its 5 minutes still
+    needs a correct code, under the same lockout.
+  - Step 2 looks the user up by the address and checks that the id
+    still matches.
+- **The Sign In Flow (`experiences/authenticate/flows/signIn/`)** holds
+  the step (credentials, code or backup code), the email to put back,
+  the busy flag and the last failure. The rules for moving between
+  steps are pure functions in `signInState.ts`.
+  - It never sees the challenge token. The Experience keeps it between
+    the two requests.
+  - Each request is a callback that resolves to an outcome:
+    `{ok: true}`, or `{ok: false, error: {code, params}}`.
+  - It also emits `onForgotPassword` and `onCreateAccount`; where they
+    lead is the Experience's decision.
+  - **A wrong code clears only the code**, by remounting its entry. The
+    user then types the code again; the password is not re-entered.
+  - **After `auth.challenge_expired` or `auth.too_many_attempts` the
+    user goes back to the password step with the email kept.** The
+    second case is there because a lock lasts longer than a challenge.
+  - A wrong password clears the password and keeps the email.
+  - After a successful second step the Flow stays busy while the
+    Experience takes over.
+- **The Flow's three Interactions:** Credential Entry, MFA Code Entry
+  and Backup Code Entry.
+  - Each holds what the user typed and emits it when it's submitted.
+    Credential Entry checks its fields with ValidationUtility first.
+  - All three share `stepParts.tsx`: the heading, the error banner, the
+    mint text actions and the back arrow.
+  - **The code submits by itself on its sixth digit.** Verify is also
+    there, and stays disabled until the code is complete. The backup
+    code works the same way at 16 characters.
+  - **No countdown to the next code.** Mockup 08's "new code in 18s" is
+    dropped, because the authenticator app already shows one.
+  - **The back arrow** goes from the code step to the password step, and
+    from the backup code step to the code step.
+  - Texts are in a new `signIn` catalog section, in both locales.
+- **Smaller changes:**
+  - ValidationUtility's `FieldError.params` is now typed as
+    `MessageParams`, so it goes straight to `translator.field`.
+  - The web tests share a `renderInLocale` helper
+    (`tests/support/`).
+  - ESLint's `max-len` now lets through a line that is nothing but a
+    module path (an import or a `vi.mock`). Flow and Interaction tests
+    sit 6–7 folders deep.
+
+**Task 49 (`FL1`) is complete.**
 
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every

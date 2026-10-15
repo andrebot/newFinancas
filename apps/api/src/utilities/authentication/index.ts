@@ -7,10 +7,11 @@ import {
   IV_BYTES, openSecret, parseEncryptionKey, sealSecret,
 } from './secretBox';
 import {
-  hashOpaqueToken, issueOpaqueToken, signAccessToken, verifyAccessToken, type AccessTokenClaims,
+  hashOpaqueToken, issueOpaqueToken, signAccessToken, signChallengeToken, verifyAccessToken,
+  verifyChallengeToken, type AccessTokenClaims, type ChallengeClaims,
 } from './tokens';
 
-export type { AccessTokenClaims } from './tokens';
+export type { AccessTokenClaims, ChallengeClaims } from './tokens';
 
 // AuthenticationUtility (U4, VBD): pure identity-proof primitives — passwords,
 // MFA, tokens. Touches no storage; Managers persist what it returns (OQ-100).
@@ -107,6 +108,22 @@ export const createAuthenticationUtility = (
      * @returns User and session, or `undefined` when not valid.
      */
     verifyAccessToken: (token: string) => verifyAccessToken(signingKey, token, deps.now()),
+    /**
+     * Signs a five-minute MFA challenge token for a user whose password matched (OQ-145).
+     *
+     * @param claims - The user and the address they signed in with.
+     * @returns The JWT.
+     */
+    signChallengeToken: (claims: ChallengeClaims) => (
+      signChallengeToken(signingKey, claims, deps.now())
+    ),
+    /**
+     * Verifies an MFA challenge token.
+     *
+     * @param token - The JWT.
+     * @returns User and address, or `undefined` when not valid.
+     */
+    verifyChallengeToken: (token: string) => verifyChallengeToken(signingKey, token, deps.now()),
     /**
      * Issues a refresh or password-reset token.
      *

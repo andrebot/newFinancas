@@ -1,5 +1,6 @@
 import type { FieldCode } from '@financas/i18n';
 import { validation } from '../config/constants';
+import type { MessageParams } from './i18n';
 
 // ValidationUtility (FU1, EBD): field rules shared by every form. Pure — no
 // React, no translation, no backend. A rule answers with the same
@@ -14,7 +15,8 @@ import { validation } from '../config/constants';
 /** One field's problem: a catalog `fields` code plus its ICU params. */
 export interface FieldError {
   readonly code: FieldCode;
-  readonly params?: Record<string, unknown>;
+  /** The ICU params, ready for `translator.field`. */
+  readonly params?: MessageParams;
 }
 
 /** Checks one value; `undefined` means it passed. */

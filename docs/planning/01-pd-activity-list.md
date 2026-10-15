@@ -186,7 +186,7 @@ Experiences call.
 
 | ID | Flow | Interactions |
 |---|---|---|
-| FL1 | Sign In | 3 |
+| FL1 | Sign In (two-step: password, then MFA or backup code — OQ-145) | 3 |
 | FL2 | Account Recovery | 2 |
 | FL3 | Registration | 1 |
 | FL4 | MFA Enrollment | 3 |

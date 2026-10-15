@@ -20,7 +20,9 @@ export type { SessionView } from './sessions';
 export type { InvitationRequest } from './invitations';
 export type { PasswordChange, PasswordResetConfirmation } from './passwords';
 export type { ProfileEdit } from './profile';
-export type { Credentials, RecoveryCredentials } from './signIn';
+export type {
+  Challenge, Credentials, MfaVerification, RecoveryVerification,
+} from './signIn';
 
 /**
  * Creates IdentityManager.

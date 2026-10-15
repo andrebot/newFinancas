@@ -4,27 +4,42 @@ import {
   emailKeyOf, loggerFor, refreshTokenExpiry,
   type AuthTokens, type IdentityDeps, type RequestContext, type SignedInContext,
 } from './context';
-import { invalidCredentials, refreshInvalid, tooManyAttempts } from './errors';
+import {
+  challengeExpired, invalidCredentials, mfaInvalid, refreshInvalid, tooManyAttempts,
+} from './errors';
 
 // Login (uc-14), MFA Recovery (uc-20), Refresh Tokens (uc-14b) and Logout
-// (uc-15). Login and MFA recovery share one authentication step — the lockout,
-// the password check, one answer for every failure — and differ only in the
-// second factor (OQ-114, OQ-115). UserAccessor only counts, locks and clears.
+// (uc-15). Sign-in takes two steps (OQ-145): the password earns a five-minute
+// challenge token, which the MFA code — or a single-use recovery code — trades
+// for a session. The password step answers one 401 for every failure, so it
+// never reveals a registered email (OQ-114); the second step names a wrong
+// code, since its caller already proved the password. Both steps count against
+// the same per-address lockout, and only a full sign-in clears it.
+// UserAccessor only counts, locks and clears.
 
 const { loginLockout } = authentication;
 const MINUTE_MS = 60_000;
 
-/** What a user signs in with: password and MFA code together (OQ-30). */
+/** The password step's input (OQ-145). */
 export interface Credentials {
   readonly email: string;
   readonly password: string;
+}
+
+/** What the password step answers: the challenge the second step needs. */
+export interface Challenge {
+  readonly challengeToken: string;
+}
+
+/** The second step with the authenticator code (FR-1.2). */
+export interface MfaVerification {
+  readonly challengeToken: string;
   readonly mfaCode: string;
 }
 
-/** Signing in with a single-use recovery code instead of the MFA code (FR-1.16). */
-export interface RecoveryCredentials {
-  readonly email: string;
-  readonly password: string;
+/** The second step with a single-use recovery code instead (FR-1.16). */
+export interface RecoveryVerification {
+  readonly challengeToken: string;
   readonly recoveryCode: string;
 }
 
@@ -35,7 +50,7 @@ type SecondFactor = (user: UserWithCredentials) => boolean | Promise<boolean>;
  * Builds the sign-in use cases.
  *
  * @param deps - The tier below.
- * @returns `login`, `recoverWithCode`, `refresh`, `logout`.
+ * @returns `login`, `verifyMfa`, `recoverWithCode`, `refresh`, `logout`.
  */
 const createSignIn = (deps: IdentityDeps) => {
   const { users, sessions, authentication: auth } = deps;
@@ -53,7 +68,7 @@ const createSignIn = (deps: IdentityDeps) => {
   };
 
   /**
-   * Counts a failed sign-in, locking the address at the threshold (OQ-114).
+   * Counts a failed sign-in step, locking the address at the threshold (OQ-114).
    *
    * @param emailKey - The address.
    * @param now - Current time.
@@ -81,51 +96,47 @@ const createSignIn = (deps: IdentityDeps) => {
 
   /**
    * Checks the password — against a dummy hash when there is no user, so an
-   * unknown email costs the same work — then, only if it matched, the second
-   * factor (so a recovery code isn't used up by a wrong password).
+   * unknown email costs the same work.
    *
    * @param user - The account for the email, if any.
    * @param password - As typed.
-   * @param secondFactor - The MFA code or recovery-code check.
-   * @returns Whether the user exists and both factors are right.
+   * @returns Whether the user exists and the password is theirs.
    */
-  const factorsMatch = async (
+  const passwordMatches = async (
     user: UserWithCredentials | undefined,
     password: string,
-    secondFactor: SecondFactor,
   ): Promise<boolean> => {
     const hash = user?.passwordHash ?? await timingHash();
-    const passwordMatches = await auth.verifyPassword(hash, password);
-    return !!user && passwordMatches && secondFactor(user);
+    const matches = await auth.verifyPassword(hash, password);
+    return !!user && matches;
   };
 
   /**
-   * The shared authentication step: refuses a locked address, checks the
-   * password (a dummy hash when no user matches) and then the second factor,
-   * counts any failure and answers it the same way, and clears the count on
-   * success (OQ-114).
+   * The second step, shared by the MFA code and the recovery code: checks the
+   * challenge, refuses a locked address, checks the factor, counts a failure
+   * and clears the count on success (OQ-145).
    *
-   * @param email - As typed.
-   * @param password - As typed.
+   * @param challengeToken - From the password step.
    * @param secondFactor - The MFA code or recovery-code check.
    * @param now - Current time.
    * @returns The authenticated user.
-   * @throws {ApiError} 429 `auth.too_many_attempts`; 401 `auth.invalid_credentials`.
+   * @throws {ApiError} 401 `auth.challenge_expired`; 429 `auth.too_many_attempts`;
+   *   401 `auth.mfa_invalid`.
    */
-  const authenticate = async (
-    email: string,
-    password: string,
+  const completeChallenge = async (
+    challengeToken: string,
     secondFactor: SecondFactor,
     now: Date,
   ): Promise<UserWithCredentials> => {
-    const emailKey = emailKeyOf(email);
+    const claims = await auth.verifyChallengeToken(challengeToken);
+    if (!claims) throw challengeExpired();
+    const emailKey = emailKeyOf(claims.email);
     await refuseIfLocked(emailKey, now);
-    const user = await users.findByEmail(email.trim());
-    // Always run the check: an unknown email must cost a password check too.
-    const matches = await factorsMatch(user, password, secondFactor);
-    if (!user || !matches) {
+    const user = await users.findByEmail(claims.email);
+    if (user?.id !== claims.userId) throw challengeExpired();
+    if (!await secondFactor(user)) {
       await countFailure(emailKey, now);
-      throw invalidCredentials();
+      throw mfaInvalid();
     }
     await users.clearLoginFailures(emailKey);
     return user;
@@ -179,49 +190,75 @@ const createSignIn = (deps: IdentityDeps) => {
 
   return {
     /**
-     * Signs a user in with password and MFA code (uc-14, FR-1.2).
+     * The password step of sign-in (uc-14, OQ-145): refuses a locked address,
+     * checks the password (a dummy hash when no user matches), counts any
+     * failure and answers it the same way. Success does not clear the count —
+     * only a full sign-in does, so the password can't buy endless code guesses.
      *
      * @param context - The request.
-     * @param credentials - Email, password, MFA code.
-     * @param deviceInfo - The device (User-Agent), for the sessions list.
-     * @returns Access and refresh tokens.
+     * @param credentials - Email and password.
+     * @returns The challenge token for the second step.
      * @throws {ApiError} 429 `auth.too_many_attempts`; 401 `auth.invalid_credentials`.
      */
-    login: async (
+    login: async (_context: RequestContext, credentials: Credentials): Promise<Challenge> => {
+      const now = deps.now();
+      const emailKey = emailKeyOf(credentials.email);
+      await refuseIfLocked(emailKey, now);
+      const user = await users.findByEmail(credentials.email.trim());
+      // Always run the check: an unknown email must cost a password check too.
+      const matches = await passwordMatches(user, credentials.password);
+      if (!user || !matches) {
+        await countFailure(emailKey, now);
+        throw invalidCredentials();
+      }
+      const challengeToken = await auth.signChallengeToken({ userId: user.id, email: user.email });
+      return { challengeToken };
+    },
+
+    /**
+     * The second step with the authenticator code (uc-14, FR-1.2): opens a session.
+     *
+     * @param context - The request.
+     * @param verification - Challenge token and MFA code.
+     * @param deviceInfo - The device (User-Agent), for the sessions list.
+     * @returns Access and refresh tokens.
+     * @throws {ApiError} 401 `auth.challenge_expired`; 429 `auth.too_many_attempts`;
+     *   401 `auth.mfa_invalid`.
+     */
+    verifyMfa: async (
       context: RequestContext,
-      credentials: Credentials,
+      verification: MfaVerification,
       deviceInfo: string | null,
     ): Promise<AuthTokens> => {
-      const now = deps.now();
       const totpMatches: SecondFactor = (user) => (
-        auth.verifyTotp(user.encryptedMfaSecret, credentials.mfaCode)
+        auth.verifyTotp(user.encryptedMfaSecret, verification.mfaCode)
       );
-      const user = await authenticate(credentials.email, credentials.password, totpMatches, now);
+      const user = await completeChallenge(verification.challengeToken, totpMatches, deps.now());
       return openSession(context, user, deviceInfo, 'Login');
     },
 
     /**
-     * Signs a user in with a single-use recovery code in place of the MFA code
-     * (uc-20, FR-1.16). Same lockout and same single answer as login; the code
-     * is used up atomically, only once the password matched.
+     * The second step with a single-use recovery code in place of the MFA code
+     * (uc-20, FR-1.16). The code is used up atomically, only when it is right.
      *
      * @param context - The request.
-     * @param credentials - Email, password, recovery code.
+     * @param verification - Challenge token and recovery code.
      * @param deviceInfo - The device (User-Agent), for the sessions list.
      * @returns Access and refresh tokens.
-     * @throws {ApiError} 429 `auth.too_many_attempts`; 401 `auth.invalid_credentials`.
+     * @throws {ApiError} 401 `auth.challenge_expired`; 429 `auth.too_many_attempts`;
+     *   401 `auth.mfa_invalid`.
      */
     recoverWithCode: async (
       context: RequestContext,
-      credentials: RecoveryCredentials,
+      verification: RecoveryVerification,
       deviceInfo: string | null,
     ): Promise<AuthTokens> => {
       const now = deps.now();
-      const codeHash = auth.hashRecoveryCode(credentials.recoveryCode);
+      const codeHash = auth.hashRecoveryCode(verification.recoveryCode);
       const codeConsumed: SecondFactor = (user) => (
         users.consumeRecoveryCode(user.id, codeHash, now)
       );
-      const user = await authenticate(credentials.email, credentials.password, codeConsumed, now);
+      const user = await completeChallenge(verification.challengeToken, codeConsumed, now);
       return openSession(context, user, deviceInfo, 'MfaRecovery');
     },
 
