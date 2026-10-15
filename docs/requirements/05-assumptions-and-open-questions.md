@@ -2771,6 +2771,48 @@ not a hardcoded assumption.
 
 **Task 47 (`K27`) is complete.**
 
+### OQ-144: Password field and the strength meter (task K6)
+**Confirmed with the stakeholder (Oct 2026):**
+- **`PasswordField` (`kit/passwordField/`)** is the text field (K5)
+  with the input masked. It takes all of the text field's props except
+  `type` and the trailing slot. Sign in, register, reset and change
+  password all use it. The only state it holds is whether the password
+  shows; the value stays with the caller.
+- **An eye button shows and hides the password, on every password
+  field.** The mockups draw plain password inputs, so this is a small
+  addition to them, kept "just in case". It is an `xs` ghost
+  `IconButton` in the trailing slot. The icon shows what a press does:
+  `visibility-outline` while the password is hidden, and
+  `visibility-off-outline` while it shows. Its name doesn't change (the
+  caller's `revealLabel`, e.g. "Show password"); `aria-pressed` reports
+  the state. It is disabled with the field. The input never
+  spell-checks, autocapitalises or autocorrects, so a password that
+  shows isn't marked up or changed.
+- **`StrengthMeter`, as the mockups draw it.** Four `h-1.5` bars with a
+  `gap-1`, and a `type-caption text-muted` caption under them. The bars
+  filled for each level: too short 0, weak 1 in `coral`, fair 2 in
+  `sun`, good 3 in `mint`, strong 4 in `mint`. Create account's mockup
+  shows three mint bars labelled "Strong"; that is only an example
+  state. The bars are hidden from assistive tech. The input's
+  `aria-describedby` points at the caption, so screen readers read the
+  strength with the field, and no live region announces every
+  keystroke.
+- **The meter sits under the box, above the hint or error.** The
+  password field passes `strength` (a reading and its caption). This
+  adds two things to `TextField`: a `footer` slot under the box, and an
+  `aria-describedby` passed in that joins the message's (`joinIds`).
+  With no `strength` (Sign in, current password) no meter shows; the
+  screens also leave it out until the estimator has loaded.
+- **The caption comes from `strengthCaption(reading, translator)`** in
+  PasswordStrengthUtility, so register, reset and change password word it
+  the same way. It gives the level, then the hint, or the 12-character
+  minimum when the password is too short or already strong
+  ("Fair · avoid dates and years", "Strong · at least 12 characters").
+  The catalog's new `passwordStrength.caption` (`{level} · {detail}`)
+  joins the two parts. The kit takes only translated text.
+
+**Task 48 (`K6`) is complete.**
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.

@@ -80,7 +80,7 @@ identity screens, the rest as later slices use them.
 - [x] **45.** `K25` Toast + inline banner
 - [x] **46.** `K26` Inline confirm (OQ-142)
 - [x] **47.** `K27` Type-to-confirm (OQ-143)
-- [ ] **48.** `K6` Password field
+- [x] **48.** `K6` Password field (OQ-144)
 - [ ] **49.** `FL1` Sign In
 - [ ] **50.** `FL10` Household Deletion
 - [ ] **51.** `FL2` Account Recovery

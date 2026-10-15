@@ -1,6 +1,7 @@
 import type { PasswordStrengthHint, PasswordStrengthLevel } from '@financas/i18n';
 import type { FeedbackType, Score } from '@zxcvbn-ts/core';
 import { passwordStrength, validation } from '../config/constants';
+import type { Translator } from './i18n';
 
 // PasswordStrengthUtility (FU2, EBD): the advisory strength meter on register,
 // reset and change password. The 12-character minimum is the only hard rule
@@ -161,4 +162,24 @@ export const loadPasswordStrengthEstimator = async (): Promise<PasswordStrengthE
   return createPasswordStrengthEstimator(
     (password, userInputs) => zxcvbn.check(password, userInputs),
   );
+};
+
+/**
+ * Words a reading as the meter's caption: the level, then what to change —
+ * or the minimum length, while the password is too short (the hard rule) or
+ * already strong (nothing left to change). E.g. "Fair · avoid dates and years",
+ * "Strong · at least 12 characters". Shared by register, reset and change
+ * password, so they all say it the same way.
+ *
+ * @param reading - The meter's reading.
+ * @param translator - The current locale's translator.
+ * @returns The caption.
+ */
+export const strengthCaption = (reading: PasswordStrength, translator: Translator): string => {
+  const detail = reading.level === 'too_short' || !reading.hint
+    ? translator.text('passwordStrength', 'minimum', { min: validation.password.minLength })
+    : translator.text('passwordStrength', `hint.${reading.hint}`);
+  const level = translator.text('passwordStrength', `level.${reading.level}`);
+
+  return translator.text('passwordStrength', 'caption', { level, detail });
 };

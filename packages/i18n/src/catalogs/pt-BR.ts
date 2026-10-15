@@ -81,6 +81,7 @@ const ptBR = {
     'level.fair': 'Razoável',
     'level.good': 'Boa',
     'level.strong': 'Forte',
+    caption: '{level} · {detail}',
     minimum: 'pelo menos {min, plural, one {# caractere} other {# caracteres}}',
     'hint.add_length': 'use mais caracteres ou mais palavras',
     'hint.avoid_common': 'esta senha é muito comum',

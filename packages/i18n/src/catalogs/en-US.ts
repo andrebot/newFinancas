@@ -66,6 +66,7 @@ const enUS: Catalog = {
     'level.fair': 'Fair',
     'level.good': 'Good',
     'level.strong': 'Strong',
+    caption: '{level} · {detail}',
     minimum: 'at least {min, plural, one {# character} other {# characters}}',
     'hint.add_length': 'add more characters or another word',
     'hint.avoid_common': 'this is a very common password',
