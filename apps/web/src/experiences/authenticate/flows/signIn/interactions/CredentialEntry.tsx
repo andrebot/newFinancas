@@ -11,7 +11,7 @@ import {
 } from '../../../../../utilities/validation';
 import {
   StepAlert, StepHeading, TextAction,
-} from '../../../interactions/stepParts';
+} from '../../../../interactions/stepParts';
 import { useSignInText } from './signInText';
 
 // Credential Entry (Sign In, mockup 01): email and password, submitted

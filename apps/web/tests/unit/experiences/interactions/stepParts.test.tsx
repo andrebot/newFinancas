@@ -4,10 +4,10 @@ import {
 } from 'vitest';
 import {
   BackButton, StepAlert, StepHeading, TextAction,
-} from '../../../../../src/experiences/authenticate/interactions/stepParts';
-import { renderInLocale } from '../../../../support/renderInLocale';
+} from '../../../../src/experiences/interactions/stepParts';
+import { renderInLocale } from '../../../support/renderInLocale';
 
-// Display pieces of the Authenticate entries (BDT: Interaction tier → unit):
+// Display pieces shared by the sign-in and onboarding entries (BDT: Interaction tier → unit):
 // nothing mocked but the click handlers.
 
 describe('Authenticate step parts', () => {

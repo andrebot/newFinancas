@@ -416,10 +416,13 @@ reached, so a drop-off can resume), and hands off to whichever Experience
 owns "home" (Review Insights' Dashboard) once setup is complete or
 skipped. Only tier that calls the backend.
 
-- **Registration Flow** — state: form fields, validation errors,
-  submission status. Exit: account created.
-  - *Registration Form Entry Interaction* — name/email/password/confirm,
-    submit.
+- **Registration Flow** — state: submission status, last failure (the
+  form fields and their client-side errors live in the Interaction).
+  Exit: account created — the Experience keeps the TOTP secret and
+  recovery codes and moves on to MFA Enrollment (OQ-148).
+  - *Registration Form Entry Interaction* — first/last name, email,
+    password (strength meter) and confirm, submit; "Sign in" instead.
+    No terms box (OQ-148).
 - **MFA Enrollment Flow** — mandatory, no skip (UC-11 bundles this with
   registration on the backend, implying it isn't optional). State:
   selected method, secret/QR data, entered verification code, generated

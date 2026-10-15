@@ -2990,6 +2990,41 @@ not a hardcoded assumption.
 
 **Task 51 (`FL2`) is complete.**
 
+### OQ-148: The Registration Flow (task FL3)
+**Confirmed with the stakeholder (Oct 2026):**
+- **No terms box in v1.** Mockup 02 draws "I agree to the Terms and
+  Privacy Policy", but no requirement asks for it, there are no Terms or
+  Privacy pages, and `POST /auth/register` doesn't record acceptance. It
+  comes back, stored, once those pages exist. The EBD sequence no longer
+  lists "terms".
+- **The Flow (`experiences/onboard/flows/registration/`)** holds only the
+  busy flag and the last failure; its rules are pure functions in
+  `registrationState.ts`. It takes one request, `onRegister(registration)`
+  answering the shared `RequestOutcome` (OQ-146), and the way out,
+  `onSignIn`. On `ok` it stays busy while the Onboard Experience moves on
+  to MFA Enrollment, as Sign In does. The TOTP secret and recovery codes
+  the API returns stay with the Experience; they never pass through this
+  Flow.
+- **Registration Form Entry is mockup 02** without the terms box. The
+  checks before a submit: first and last name not blank (the API trims
+  them), a valid email, at least 12 characters (NFR-SEC-4), and the
+  confirmation repeats the password (`password.mismatch`, OQ-147). Names
+  and email are sent trimmed. The strength meter (FU2) is advisory and
+  rates the password against the name and email typed.
+- **Failures.** `user.email_taken` shows under the email,
+  `password.too_short` under the password; anything else in the banner.
+  What was typed is kept.
+- **Shared parts move up.** The step heading, banner, text action and back
+  arrow are now used by two Experiences, so `stepParts.tsx` moved from
+  `experiences/authenticate/interactions/` to `experiences/interactions/`
+  (one Experience never imports from another). The estimator-loading hook
+  became `utilities/usePasswordStrengthEstimator.ts`, used by New Password
+  Entry and Registration Form Entry.
+- **Texts** are in a new `registration` catalog section, in both locales.
+- The EBD Onboard Registration sequence is redrawn through its generator.
+
+**Task 52 (`FL3`) is complete.**
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.
