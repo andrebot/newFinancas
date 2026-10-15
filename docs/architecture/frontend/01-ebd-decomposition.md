@@ -436,10 +436,14 @@ skipped. Only tier that calls the backend.
     method with a live code)
   - *Backup Codes Acknowledgement Interaction* (view, download, copy,
     confirm saved)
-- **Household Setup Flow** — state: household name, submission status.
+- **Household Setup Flow** — state: busy flag, last failure (the name
+  typed lives in the Interaction — OQ-150). One request, `onCreate(name)`.
   Exit: household created (category-seeding happens server-side via the
-  pub/sub path, §3.1b of the backend doc — transparent here).
-  - *Household Name Entry Interaction*
+  pub/sub path, §3.1b of the backend doc — transparent here); an optional
+  `onCancel`, passed only by the shell for an additional household.
+  - *Household Name Entry Interaction* — the name (empty, not blank,
+    trimmed), Continue; Cancel only when given a way out. No "Ideas"
+    chips (OQ-150).
 - **Guided First Setup Flow** — state: current wizard step, per-step skip
   flags. Owns only wizard navigation directly; the actual data-entry
   steps are composed from Account Setup's own Flows rather than

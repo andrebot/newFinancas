@@ -3088,6 +3088,31 @@ not a hardcoded assumption.
 
 **Task 53 (`FL4`) is complete.**
 
+### OQ-150: The Household Setup Flow (task FL5)
+**Confirmed with the stakeholder (Oct 2026):**
+- **Frontend only.** `POST /households` (UC-1) was already in place: the
+  name is trimmed and must not be blank (422 otherwise); category seeding
+  stays server-side.
+- **The Flow (`experiences/onboard/flows/householdSetup/`)** keeps only
+  the busy flag and the last failure (`householdSetupState.ts`, pure). The
+  name lives in the Interaction, as Registration's fields do (OQ-148), so
+  the EBD and BDT docs no longer list it as Flow state. One request,
+  `onCreate(name)` answering the shared `RequestOutcome`; success stays
+  busy while the Experience moves on. Every failure shows in the banner:
+  the only field-level objection, a blank name, is caught client-side.
+- **A way out only from the shell.** The Flow takes an optional
+  `onCancel`; the shell passes it when the Flow is reached to add another
+  household, and "Cancel" shows under Continue. Onboard leaves it out: a
+  new user must create a household.
+- **Mockup 10, without its "Ideas" chips.** The suggestions ("The Doe
+  Family", "Apt 4B", "Casa da Praia") are dropped, and the field starts
+  empty — the mockup's filled-in name is a representative state.
+- **Texts** are in a new `householdSetup` catalog section, in both locales.
+- The EBD Onboard Household Setup sequence is redrawn through its
+  generator.
+
+**Task 54 (`FL5`) is complete.**
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.

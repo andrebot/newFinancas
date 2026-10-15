@@ -337,13 +337,28 @@ SV->>FLOW: emit back → method step (choice kept)
     ("onboard-household-setup", "Onboard — Household Setup", f"{R('POST /households')}. Also the entry for an additional household from the switcher.",
      [("HN", "Household Name Entry"), FLOW("Household Setup"), EXP("Onboard"), API],
      """
-User->>HN: household name (or pick an idea)
-HN->>FLOW: emit nameEntered
-FLOW->>EXP: request createHousehold(name)
-EXP->>API: POST /households
-API-->>EXP: householdId (default categories seeded via household.created)
-EXP-->>FLOW: complete → Guided Setup
-""", ["Default categories arrive with preset icons and colours (OQ-85)."]),
+User->>HN: household name, Continue
+HN->>HN: blank → 'Required.' under the field (nothing sent)
+HN->>FLOW: emit submit(name, trimmed)
+FLOW->>EXP: request create(name)
+EXP->>API: POST /households {name}
+alt 422 / another failure
+    API-->>EXP: error code
+    EXP-->>FLOW: outcome: failed(code)
+    FLOW-->>HN: reason in the banner (name kept)
+else 201 MyHousehold
+    API-->>EXP: household + role Owner (default categories seeded via household.created)
+    EXP-->>FLOW: outcome: ok (Flow stays busy)
+    EXP->>EXP: advance to Guided Setup (or back to the shell)
+end
+opt reached from the shell (onCancel given)
+    User->>HN: Cancel
+    HN->>FLOW: emit cancel
+    FLOW->>EXP: emit cancel → back to the shell
+end
+""", ["Default categories arrive with preset icons and colours (OQ-85).",
+        "No \"Ideas\" chips: mockup 10's suggestions are dropped; the field starts empty (OQ-150).",
+        "Onboard gives no way out — a new user must create a household; Cancel appears only when the shell mounts the Flow with `onCancel`."]),
     ("onboard-guided-setup", "Onboard — Guided Setup", "Composes Account Setup's Flows as wizard steps; the account step is mandatory.",
      [("WN", "Wizard Navigation"), ("ACF", "Account & Card<br/>Management Flow"), ("CF", "Category<br/>Management Flow"), ("BF", "Budget<br/>Management Flow"), ("SC", "Setup Complete<br/>Summary"), FLOW("Guided Setup"), EXP("Onboard"), API],
      """
