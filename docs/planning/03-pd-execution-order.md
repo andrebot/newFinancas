@@ -89,7 +89,7 @@ identity screens, the rest as later slices use them.
 - [x] **54.** `FL5` Household Setup (OQ-150)
 - [x] **55.** `FL8` Delete Account (OQ-151)
 - [x] **56.** `FU3` AlertUtility (OQ-152)
-- [ ] **57.** `K45` List row
+- [x] **57.** `K45` List row (OQ-153)
 - [ ] **58.** `FL7` Security
 - [ ] **59.** `FL9` Membership Management
 - [ ] **60.** `S1` App Shell
