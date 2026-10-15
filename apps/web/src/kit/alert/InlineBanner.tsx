@@ -52,7 +52,7 @@ export function InlineBanner({
   return (
     <div
       role={roleOf(tone)}
-      className={`flex items-start gap-2.5 rounded-xl border p-3 ${SURFACES[tone]}`}
+      className={`flex items-start gap-2.5 rounded-2xl border p-3 ${SURFACES[tone]}`}
     >
       <Icon name={TONE_ICONS[tone]} className={`mt-px size-4.5 shrink-0 ${TONE_ACCENTS[tone]}`} />
       <div className="flex min-w-0 flex-1 flex-col gap-0.5 type-body-sm text-ink">

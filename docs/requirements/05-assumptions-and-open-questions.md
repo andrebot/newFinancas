@@ -2680,7 +2680,7 @@ not a hardcoded assumption.
   error has `role="alert"`, so it is announced at once; the other tones
   have `role="status"`.
 - **`InlineBanner`** stays in the page where it applies. It takes the look
-  of mockup 41's inline confirm box: `rounded-xl`, `p-3`, a `tone/30`
+  of mockup 41's inline confirm box: `rounded-2xl` (OQ-142), `p-3`, a `tone/30`
   border on a `tone/10` background, the 18px glyph in the tone's colour,
   and `type-body-sm` ink text. It has an optional bold `title` and an
   optional `action` slot (a `Button`). `dismiss: { label, onDismiss }`
@@ -2706,6 +2706,36 @@ not a hardcoded assumption.
   Record button (mockup 34: `bottom-6`, 56px tall).
 
 **Task 45 (`K25`) is complete.**
+
+### OQ-142: Inline confirm (task K26)
+**Confirmed with the stakeholder (Oct 2026):**
+- **`InlineConfirm` (`kit/confirm/`)** is the "are you sure?" that opens
+  inside the card or row it is about: archive, delete, complete / reopen,
+  revoke. It follows mockups 41 and 43. The kit only draws it. The caller
+  opens it, runs the request and shows any failure in a banner or toast
+  (OQ-141).
+- **Two tones.** `destructive` (coral, `warning-outline`, a `danger-solid`
+  confirm) is for a step that can't be undone. `reversible` (mint,
+  `check-circle-outline`, a `primary` confirm) is for one that can. An
+  `icon` prop replaces the tone's glyph.
+- **Look:** a `rounded-2xl` box with `p-3`, a `tone/30` border on a
+  `tone/10` background, and the 18px glyph with a `type-body-sm` message.
+  The `message` is a `ReactNode`, so the caller can bold the item's name.
+  Under it, right-aligned, sit a `ghost sm` Cancel and the `sm` confirm.
+  The host card's `ring-1 ring-tone/40` is the caller's: the kit exports
+  `CONFIRM_RINGS` for its `className`.
+- **The radius follows the mockup.** OQ-141's `InlineBanner` had
+  `rounded-xl`, though it was meant to copy this box, so it is now
+  `rounded-2xl` too.
+- **Focus:** when the confirm opens, focus moves to Cancel, the safe
+  answer. A cancel (the button, or Escape, which doesn't reach the page)
+  gives focus back to what held it before the confirm opened, usually the
+  trigger. After a confirm the caller decides, because the item is often
+  gone. The box is a `group` named by its message.
+- **Busy:** while the caller's request runs (`busy`), the confirm shows its
+  spinner and ignores clicks, Cancel is disabled and Escape does nothing.
+
+**Task 46 (`K26`) is complete.**
 
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
