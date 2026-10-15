@@ -50,7 +50,7 @@
 </head>
 <body>
   <h1>Call Chain — Recover MFA via Backup Code</h1>
-  <p class="subtitle">Use case 20 of 20 in the Identity &amp; Household set (CUC-2, FR-1.16). Create pattern (Session), variant entry into Login.</p>
+  <p class="subtitle">Use case 20 of 21 in the Identity &amp; Household set (FR-1.16). Login&#39;s second step with a single-use recovery code (OQ-145).</p>
 
   <div class="architecture">
     <svg id="arrows-svg"></svg>
@@ -135,8 +135,8 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain:</strong> <code>IdentityManager</code> ① <code>AuthenticationUtility.verifyRecoveryCode(...)</code> (sync) → ② <code>SessionAccessor.create(...)</code> (sync) → ③ <code>LoggingUtility</code> (async).</p>
-    <p><strong>No smell:</strong> shorter than full Login (UC-14) because it substitutes for the whole password+MFA-challenge sequence with one recovery-code check — correctly a variant entry point into the same Create(Session) pattern, not a separate flow.</p>
+    <p><strong>Chain (<code>POST /auth/mfa/recover</code>):</strong> <code>IdentityManager</code> ① <code>AuthenticationUtility.verifyChallengeToken</code> / <code>hashRecoveryCode</code> → ② <code>UserAccessor.findLoginLock</code> / <code>findByEmail</code> / <code>consumeRecoveryCode</code> (atomic, single-use), then <code>recordLoginFailure</code> on a used or unknown code or <code>clearLoginFailures</code> on success → ③ <code>AuthenticationUtility.issueOpaqueToken</code> / <code>signAccessToken</code> → ④ <code>SessionAccessor.insert</code> → ⑤ <code>LoggingUtility</code> (async, audit).</p>
+    <p><strong>No smell:</strong> a variant of Login&#39;s second step — the same challenge check and lockout, a different factor — entering the same Create(Session) pattern, not a separate flow. The previous chain left out <code>UserAccessor</code>, which owns the recovery codes; corrected.</p>
   </div>
 
   <script>
@@ -149,7 +149,7 @@
       svg.style.width = containerRect.width + 'px';
       svg.style.height = containerRect.height + 'px';
 
-      var edges = [{"from": "mgr-identity", "to": "util-authn", "type": "sync", "order": 1}, {"from": "mgr-identity", "to": "acc-session", "type": "sync", "order": 2}, {"from": "mgr-identity", "to": "util-logging", "type": "async", "order": 3}];
+      var edges = [{"from": "mgr-identity", "to": "util-authn", "type": "sync", "order": 1}, {"from": "mgr-identity", "to": "acc-user", "type": "sync", "order": 2}, {"from": "mgr-identity", "to": "util-authn", "type": "sync", "order": 3}, {"from": "mgr-identity", "to": "acc-session", "type": "sync", "order": 4}, {"from": "mgr-identity", "to": "util-logging", "type": "async", "order": 5}];
 
       var activeIds = {};
       edges.forEach(function (e) { activeIds[e.from] = true; activeIds[e.to] = true; });

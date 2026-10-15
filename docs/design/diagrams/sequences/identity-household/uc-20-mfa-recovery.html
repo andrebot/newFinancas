@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Recover MFA via Backup Code</h1>
-  <p class="subtitle"><span class="route">POST /auth/mfa/recover</span> &mdash; FR-1.16. Each recovery code is single-use; exhausting/losing all of them falls outside self-service (OQ-24), not modeled here.</p>
+  <p class="subtitle"><span class="route">POST /auth/mfa/recover</span> &mdash; FR-1.16/OQ-145. Login&#39;s second step with a single-use recovery code in place of the MFA code; exhausting/losing all of them falls outside self-service (OQ-24), not modeled here.</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -67,29 +67,28 @@ sequenceDiagram
     participant SA as SessionAccessor
     participant LOG as LoggingUtility
 
-    User->>API: POST /auth/mfa/recover {email, password, recoveryCode}
+    Note over User,LOG: after Login&#39;s password step answered {challengeToken} (UC-14)
+    User->>API: POST /auth/mfa/recover {challengeToken, recoveryCode}
     API->>IM: recoverWithCode(input, deviceInfo = User-Agent)
-    IM->>UA: findLoginLock(emailKey)
-    alt address locked
-        IM-->>API: TooManyRequests
-        API-->>User: 429 auth.too_many_attempts (Retry-After)
-    else not locked
-        IM->>UA: findByEmail(email)
-        UA-->>IM: user (or none)
-        IM->>AN: verifyPassword(passwordHash or a dummy hash, password)
-        AN-->>IM: valid / invalid
-        opt user found and password valid
-            IM->>AN: hashRecoveryCode(recoveryCode)
-            AN-->>IM: codeHash
-            IM->>UA: consumeRecoveryCode(userId, codeHash, now)
-            Note over UA: atomic UPDATE &hellip; WHERE unused &mdash; single-use (FR-1.16),<br/>never reached with a wrong password, so no code is wasted
-            UA-->>IM: consumed / not
-        end
-        alt any factor failed
+    IM->>AN: verifyChallengeToken(challengeToken)
+    AN-->>IM: {userId, email} (or none)
+    alt challenge expired or not valid
+        IM-->>API: Unauthorized
+        API-->>User: 401 auth.challenge_expired (start again)
+    else challenge valid
+        IM->>UA: findLoginLock(emailKey), then findByEmail(email)
+        UA-->>IM: lockedUntil, user
+        Note over IM: locked &rarr; 429 &mdash; user gone or not the one challenged &rarr; challenge_expired
+        IM->>AN: hashRecoveryCode(recoveryCode)
+        AN-->>IM: codeHash
+        IM->>UA: consumeRecoveryCode(userId, codeHash, now)
+        Note over UA: atomic UPDATE &hellip; WHERE unused &mdash; single-use (FR-1.16),<br/>never reached without a proven password, so no code is wasted
+        UA-->>IM: consumed / not
+        alt code used or unknown
             IM->>UA: recordLoginFailure(emailKey, &hellip;) (+ lockLogin at 5)
             IM-->>API: Unauthorized
-            API-->>User: 401 auth.invalid_credentials (same as login)
-        else password and code valid
+            API-->>User: 401 auth.mfa_invalid (retry the code)
+        else code consumed
             IM->>UA: clearLoginFailures(emailKey)
             IM->>AN: issueOpaqueToken()
             AN-->>IM: {token, tokenHash}
@@ -106,10 +105,10 @@ sequenceDiagram
   </div>
   <div class="notes">
     <ul>
-      <li>Functionally an alternate second factor to Login&#39;s TOTP step, not a separate account-recovery mechanism &mdash; it still requires the correct password first, same as normal login.</li>
-      <li><strong>Same authentication step as Login (OQ-115):</strong> the lockout, the dummy-hash check for unknown emails, and one 401 for every failure. The earlier diagram answered a distinct <code>auth.recovery_code_invalid</code> after a correct password &mdash; that confirmed the password; corrected.</li>
+      <li>Functionally an alternate second factor to Login&#39;s TOTP step, not a separate account-recovery mechanism &mdash; it needs the challenge from Login&#39;s password step, so the password is always proven first.</li>
+      <li><strong>Same second step as Login (OQ-145):</strong> the same challenge check, the same lockout (a wrong code counts like a wrong password, OQ-114) and the same <code>auth.mfa_invalid</code> for a used or unknown code &mdash; naming the code is safe once the password is proven.</li>
       <li><strong>v1 scope limit (FR-1.16):</strong> if recovery codes are also exhausted or lost, there is no further self-service path &mdash; a manual/support-assisted process outside this system, not diagrammed since it isn&#39;t a backend flow (OQ-24).</li>
-      <li>See FR-1.16, OQ-24.</li>
+      <li>See FR-1.16, OQ-24, OQ-114, OQ-145.</li>
     </ul>
   </div>
   <script>

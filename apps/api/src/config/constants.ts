@@ -18,6 +18,15 @@ export const authentication = {
     /** Lifetime of a refresh token; each one is single-use (rotated). */
     ttlDays: 30,
   },
+  /**
+   * The MFA challenge (OQ-145): a correct password earns this short-lived JWT,
+   * traded with the MFA or recovery code for a session. Its own audience, so it
+   * never passes as an access token.
+   */
+  challengeToken: {
+    ttlSeconds: 5 * 60,
+    audience: 'financas-mfa-challenge',
+  },
   /** Random bytes in an opaque token (refresh, password reset): 256 bits. */
   opaqueTokenBytes: 32,
   /** Argon2id parameters (OWASP); stored in each hash, so they can be raised. */

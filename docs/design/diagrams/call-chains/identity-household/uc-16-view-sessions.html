@@ -50,7 +50,7 @@
 </head>
 <body>
   <h1>Call Chain — View Active Sessions</h1>
-  <p class="subtitle">Use case 16 of 20 in the Identity &amp; Household set (CUC-2, FR-1.3). View pattern, read-only.</p>
+  <p class="subtitle">Use case 16 of 21 (FR-1.3). Read-only.</p>
 
   <div class="architecture">
     <svg id="arrows-svg"></svg>
@@ -135,8 +135,8 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain:</strong> <code>IdentityManager</code> ① <code>SessionAccessor.findByUser(userId)</code> (sync).</p>
-    <p><strong>No smell — and worth noting the convention:</strong> a single edge, no <code>LoggingUtility</code> call shown. Basic per-request activity logging is treated as cross-cutting middleware in these diagrams, not an explicit orchestration step — only business-meaningful log/audit calls a Manager itself decides to make (mutations, security-sensitive reads) are drawn. This is the degenerate case the View pattern should produce: minimal, read-only, no side effects.</p>
+    <p><strong>Chain:</strong> <code>IdentityManager</code> &#9312; <code>SessionAccessor.listByUser(userId, now)</code> (active only, most recently used first); the Manager marks <code>current</code> by the access token&#39;s session id (OQ-106).</p>
+    <p>Per-request logging is middleware and not drawn; only the log and audit calls a Manager makes are. Synced with the code (task M1 audit, Oct 2026).</p>
   </div>
 
   <script>

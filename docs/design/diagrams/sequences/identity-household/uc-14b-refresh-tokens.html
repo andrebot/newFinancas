@@ -79,6 +79,7 @@ sequenceDiagram
         SA-->>IM: session
         IM->>UA: findById(session.userId)
         UA-->>IM: user (systemRole)
+        Note over IM: no user (the account is gone) &rarr; 401 auth.refresh_invalid
         IM->>AN: signAccessToken({userId, sessionId, systemRole})
         AN-->>IM: accessToken
         IM-->>API: {accessToken, refreshToken = token}

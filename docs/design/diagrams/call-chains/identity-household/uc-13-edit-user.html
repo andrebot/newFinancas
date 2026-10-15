@@ -50,7 +50,7 @@
 </head>
 <body>
   <h1>Call Chain — Edit User (Profile)</h1>
-  <p class="subtitle">Use case 13 of 20 in the Identity &amp; Household set (CUC-2). Edit pattern, simplest in the set.</p>
+  <p class="subtitle">Use case 13 of 21 (FR-1.21). Names and preferences; the caller&#39;s own profile only.</p>
 
   <div class="architecture">
     <svg id="arrows-svg"></svg>
@@ -135,8 +135,8 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain:</strong> <code>IdentityManager</code> ① <code>ValidationUtility.check(...)</code> (sync) → ② <code>UserAccessor.update(...)</code> (sync) → ③ <code>LoggingUtility</code> (async).</p>
-    <p><strong>No smell:</strong> no <code>AuthorizationUtility</code> call — correct, a user always edits only their own profile, there's no actor-vs-target distinction to gate.</p>
+    <p><strong>Chain:</strong> <code>IdentityManager</code> &#9312; <code>UserAccessor.update(userId, only the fields sent)</code> &mdash; or <code>findById</code> when nothing changes (gone &rarr; 401) &rarr; &#9313; <code>LoggingUtility</code> audit, only when something changed.</p>
+    <p>No <code>ValidationUtility</code> step: the contract validates at the route (OQ-116). Synced with the code (task M1 audit, Oct 2026).</p>
   </div>
 
   <script>
@@ -149,7 +149,7 @@
       svg.style.width = containerRect.width + 'px';
       svg.style.height = containerRect.height + 'px';
 
-      var edges = [{"from": "mgr-identity", "to": "util-validation", "type": "sync", "order": 1}, {"from": "mgr-identity", "to": "acc-user", "type": "sync", "order": 2}, {"from": "mgr-identity", "to": "util-logging", "type": "async", "order": 3}];
+      var edges = [{"from": "mgr-identity", "to": "acc-user", "type": "sync", "order": 1}, {"from": "mgr-identity", "to": "util-logging", "type": "async", "order": 2}];
 
       var activeIds = {};
       edges.forEach(function (e) { activeIds[e.from] = true; activeIds[e.to] = true; });

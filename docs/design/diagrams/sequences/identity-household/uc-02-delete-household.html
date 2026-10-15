@@ -81,10 +81,16 @@ sequenceDiagram
         AZ-->>IM: allowed (Owner)
         IM->>HA: delete(householdId)
         Note over HA: everything household-scoped goes with it (FK cascade)
-        HA-->>IM: deleted
-        IM-->>LOG: log.audit("DeleteHousehold", Household householdId)
-        IM-->>API: deleted
-        API-->>User: 204 No Content
+        alt already gone (deleted meanwhile)
+            HA-->>IM: not deleted
+            IM-->>API: NotFound
+            API-->>User: 404 household.not_found
+        else deleted
+            HA-->>IM: deleted
+            IM-->>LOG: log.audit("DeleteHousehold", Household householdId)
+            IM-->>API: deleted
+            API-->>User: 204 No Content
+        end
     end
     </pre>
   </div>

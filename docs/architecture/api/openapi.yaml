@@ -86,12 +86,14 @@ paths:
     post:
       tags: [Auth]
       operationId: login
-      summary: Login (password + MFA code together)
+      summary: Login, step 1 of 2 — the password earns an MFA challenge
       description: >
-        FR-1.2/OQ-30. Password and MFA code supplied in one request. The
-        access token is stateless (never persisted); the refresh token
-        is the server-tracked, revocable record backing
-        GET/DELETE /users/me/sessions. See
+        FR-1.2/OQ-30/OQ-145. Sign-in takes two steps: this one checks the
+        password and answers a five-minute challenge token; POST
+        /auth/mfa/verify (or /auth/mfa/recover) trades it, with the second
+        factor, for a session. Every failure here answers the same 401, so
+        it never reveals which emails are registered. A success does not
+        clear the address's failure count — only a full sign-in does. See
         docs/design/diagrams/sequences/identity-household/uc-14-login.html.
       security: []
       requestBody:
@@ -100,10 +102,46 @@ paths:
           application/json:
             schema:
               type: object
-              required: [email, password, mfaCode]
+              required: [email, password]
               properties:
                 email: { type: string, format: email }
                 password: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MfaChallenge" }
+        "401":
+          description: >
+            Invalid email or password — deliberately identical for both, to
+            avoid leaking which emails are registered. Code:
+            `auth.invalid_credentials`.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+
+  /auth/mfa/verify:
+    post:
+      tags: [Auth]
+      operationId: verifyMfa
+      summary: Login, step 2 of 2 — the MFA code opens a session
+      description: >
+        FR-1.2/OQ-145. The access token is stateless (never persisted); the
+        refresh token is the server-tracked, revocable record backing
+        GET/DELETE /users/me/sessions. A wrong code counts against the same
+        lockout as a wrong password (OQ-114).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [challengeToken, mfaCode]
+              properties:
+                challengeToken: { type: string }
                 mfaCode: { type: string }
       responses:
         "200":
@@ -111,14 +149,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/AuthTokens" }
-        "401":
-          description: >
-            Invalid email, password, or MFA code — deliberately
-            identical for all three to avoid leaking which emails are
-            registered. Code: `auth.invalid_credentials`.
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/Error" }
+        "401": { $ref: "#/components/responses/ChallengeRejected" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
 
   /auth/logout:
@@ -256,14 +287,14 @@ paths:
     post:
       tags: [Auth]
       operationId: recoverWithMfaCode
-      summary: Log in using a single-use MFA recovery code
+      summary: Login, step 2 of 2 — a single-use MFA recovery code opens a session
       description: >
-        FR-1.16. Requires the correct password too, same as normal
-        login — this is an alternate second factor, not a full
-        account-recovery mechanism. If recovery codes are also
-        exhausted/lost, there is no further self-service path (OQ-24).
-        Same lockout and same single 401 as login (OQ-115): a wrong
-        password never uses up a code.
+        FR-1.16/OQ-145. In place of POST /auth/mfa/verify: needs the
+        challenge token from the password step, so it is an alternate
+        second factor, not a full account-recovery mechanism. If recovery
+        codes are also exhausted/lost, there is no further self-service
+        path (OQ-24). A code is used up only when it is right; a wrong one
+        counts against the same lockout as login (OQ-114).
       security: []
       requestBody:
         required: true
@@ -271,10 +302,9 @@ paths:
           application/json:
             schema:
               type: object
-              required: [email, password, recoveryCode]
+              required: [challengeToken, recoveryCode]
               properties:
-                email: { type: string, format: email }
-                password: { type: string }
+                challengeToken: { type: string }
                 recoveryCode: { type: string }
       responses:
         "200":
@@ -282,7 +312,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/AuthTokens" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
+        "401": { $ref: "#/components/responses/ChallengeRejected" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
 
   /users/me:
@@ -2143,7 +2173,12 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
     Unauthorized:
-      description: 'Missing, invalid, or expired credentials. Codes: e.g. `auth.unauthenticated` (no valid access token on a protected endpoint), `auth.invalid_credentials` (identical for unknown user, wrong password and wrong MFA code — OQ-114), `auth.mfa_invalid`.'
+      description: 'Missing, invalid, or expired credentials. Codes: e.g. `auth.unauthenticated` (no valid access token on a protected endpoint), `auth.invalid_credentials` (identical for unknown user and wrong password — OQ-114, OQ-145).'
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    ChallengeRejected:
+      description: 'The second sign-in step failed (OQ-145). Codes: `auth.mfa_invalid` (wrong MFA or recovery code — named, since the caller already proved the password; counted against the lockout), `auth.challenge_expired` (challenge token expired or not valid — start again from the password).'
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
@@ -2261,6 +2296,11 @@ components:
         or a string. See 03-api-design.md.
       example: 1000000000
 
+    MfaChallenge:
+      type: object
+      required: [challengeToken]
+      properties:
+        challengeToken: { type: string, description: "Five-minute JWT proving the password matched; only POST /auth/mfa/verify and /auth/mfa/recover accept it (OQ-145)" }
     AuthTokens:
       type: object
       properties:

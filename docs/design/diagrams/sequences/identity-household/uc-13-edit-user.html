@@ -79,6 +79,7 @@ sequenceDiagram
             UA-->>IM: user
             IM-->>LOG: log.audit("EditUser", User actor.userId)
         end
+        Note over IM: no user (the account is gone) &rarr; 401 auth.unauthenticated
         IM-->>API: user
         API-->>User: 200 OK User {id, email, firstName, lastName, createdAt, preferences}
     end

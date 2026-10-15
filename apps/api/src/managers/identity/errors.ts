@@ -6,13 +6,33 @@ import { createApiError, type ApiError } from '../../http/apiError';
 // security decisions (enumeration avoidance, one answer for every login failure).
 
 /**
- * Any login failure — unknown email, wrong password or wrong MFA code — gives
- * this one answer, so it never reveals which factor failed (OQ-114).
+ * A failed password step — unknown email or wrong password — gives this one
+ * answer, so it never reveals which emails are registered (OQ-114, OQ-145).
  *
  * @returns 401 `auth.invalid_credentials`.
  */
 export const invalidCredentials = (): ApiError => createApiError({
   status: 401, code: 'auth.invalid_credentials', message: 'Invalid credentials',
+});
+
+/**
+ * A wrong MFA or recovery code. Said plainly: whoever reaches this step already
+ * proved the password, so naming the factor reveals nothing (OQ-145).
+ *
+ * @returns 401 `auth.mfa_invalid`.
+ */
+export const mfaInvalid = (): ApiError => createApiError({
+  status: 401, code: 'auth.mfa_invalid', message: 'Invalid MFA or recovery code',
+});
+
+/**
+ * An MFA challenge token that is expired, forged, or names a user who is gone:
+ * the client starts again from the password (OQ-145).
+ *
+ * @returns 401 `auth.challenge_expired`.
+ */
+export const challengeExpired = (): ApiError => createApiError({
+  status: 401, code: 'auth.challenge_expired', message: 'Sign-in challenge expired',
 });
 
 /**

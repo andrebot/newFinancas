@@ -37,6 +37,10 @@ export const zMoney = z.int();
  */
 export const zQuantity = z.int();
 
+export const zMfaChallenge = z.object({
+    challengeToken: z.string()
+});
+
 export const zAuthTokens = z.object({
     accessToken: z.string().optional(),
     refreshToken: z.string().optional()
@@ -816,14 +820,23 @@ export const zRegisterUserResponse = z.object({
 
 export const zLoginBody = z.object({
     email: z.email(),
-    password: z.string(),
+    password: z.string()
+});
+
+/**
+ * OK
+ */
+export const zLoginResponse = zMfaChallenge;
+
+export const zVerifyMfaBody = z.object({
+    challengeToken: z.string(),
     mfaCode: z.string()
 });
 
 /**
  * OK
  */
-export const zLoginResponse = zAuthTokens;
+export const zVerifyMfaResponse = zAuthTokens;
 
 /**
  * No Content
@@ -854,8 +867,7 @@ export const zConfirmPasswordResetBody = z.object({
 });
 
 export const zRecoverWithMfaCodeBody = z.object({
-    email: z.email(),
-    password: z.string(),
+    challengeToken: z.string(),
     recoveryCode: z.string()
 });
 

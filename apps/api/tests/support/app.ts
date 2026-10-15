@@ -16,6 +16,7 @@ export type MockedIdentity = { [K in keyof IdentityManager]: Mock<IdentityManage
 export const mockIdentity = (): MockedIdentity => ({
   register: vi.fn(),
   login: vi.fn(),
+  verifyMfa: vi.fn(),
   refresh: vi.fn(),
   logout: vi.fn(),
   listSessions: vi.fn(),

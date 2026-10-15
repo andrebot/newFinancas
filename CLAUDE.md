@@ -26,6 +26,10 @@ in `docs/README.md`.
   OQ-128) once task 32 (`N14`) is done.
 - When code and docs disagree, raise it — don't silently diverge. Record
   new decisions in the docs (OQ list / relevant architecture doc).
+- Keep the diagrams current, in the same PR as the change: whenever a
+  task changes a call, a route, an error code or a step, update every
+  sequence diagram it touches (backend `sequences/`, EBD `ebd-sequences/`)
+  and its call chain, through the generators in `docs/design/diagrams/scripts/`.
 
 ## Code rules
 

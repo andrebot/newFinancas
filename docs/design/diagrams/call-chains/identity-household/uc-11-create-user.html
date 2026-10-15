@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>Call Chain — Create User — New Finance App</title>
+<title>Call Chain — Create User (Registration) — New Finance App</title>
 <style>
   :root {
     --bg: #0f1420; --panel: #1a2236; --panel-border: #2f3b56; --text: #eef1f8; --muted: #9aa4bb;
@@ -49,8 +49,8 @@
 </style>
 </head>
 <body>
-  <h1>Call Chain — Create User</h1>
-  <p class="subtitle">Use case 11 of 20 in the Identity &amp; Household set (CUC-2, FR-1.1/FR-1.15). Create pattern, two round-trips shown as one chain (registration + MFA enrollment).</p>
+  <h1>Call Chain — Create User (Registration)</h1>
+  <p class="subtitle">Use case 11 of 21 (FR-1.1/1.15). One request: the account, its MFA secret and its recovery codes together.</p>
 
   <div class="architecture">
     <svg id="arrows-svg"></svg>
@@ -135,8 +135,8 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain:</strong> <code>IdentityManager</code> ① <code>ValidationUtility.check(email, password)</code> (sync) → ② <code>UserAccessor.create(...)</code> (sync) → ③ <code>AuthenticationUtility.generateMFASecret()</code> (sync) — <em>round-trip boundary</em> — ④ <code>AuthenticationUtility.verifyMFACode(...)</code> + generate recovery codes (sync) → ⑤ <code>UserAccessor.markMFAEnrolled(...)</code> (sync) → ⑥ <code>LoggingUtility</code> (async).</p>
-    <p><strong>No smell:</strong> <code>AuthenticationUtility</code> is called twice for two genuinely different primitives (secret generation, code verification) — both stateless crypto operations, correctly isolated from <code>UserAccessor</code>'s persistence role.</p>
+    <p><strong>Chain:</strong> <code>IdentityManager</code> (password &lt; 12 &rarr; 422 <code>password.too_short</code>, before any work) &#9312; <code>AuthenticationUtility.enrollMfa(email)</code> (TOTP secret, sealed, + 10 recovery codes and their hashes) and <code>hashPassword</code> &rarr; &#9313; <code>UserAccessor.insert</code> (one transaction; the unique index on <code>lower(email)</code> decides a duplicate &rarr; 409) &rarr; &#9314; <code>LoggingUtility</code> audit.</p>
+    <p>Corrected: no <code>ValidationUtility</code> step (the contract validates at the route) and no second round-trip to verify a first code &mdash; registration answers the secret and codes once; MFA Enrollment&#39;s verify step is the web Flow&#39;s. Synced with the code (task M1 audit, Oct 2026).</p>
   </div>
 
   <script>
@@ -149,7 +149,7 @@
       svg.style.width = containerRect.width + 'px';
       svg.style.height = containerRect.height + 'px';
 
-      var edges = [{"from": "mgr-identity", "to": "util-validation", "type": "sync", "order": 1}, {"from": "mgr-identity", "to": "acc-user", "type": "sync", "order": 2}, {"from": "mgr-identity", "to": "util-authn", "type": "sync", "order": 3}, {"from": "mgr-identity", "to": "util-authn", "type": "sync", "order": 4}, {"from": "mgr-identity", "to": "acc-user", "type": "sync", "order": 5}, {"from": "mgr-identity", "to": "util-logging", "type": "async", "order": 6}];
+      var edges = [{"from": "mgr-identity", "to": "util-authn", "type": "sync", "order": 1}, {"from": "mgr-identity", "to": "acc-user", "type": "sync", "order": 2}, {"from": "mgr-identity", "to": "util-logging", "type": "async", "order": 3}];
 
       var activeIds = {};
       edges.forEach(function (e) { activeIds[e.from] = true; activeIds[e.to] = true; });

@@ -279,7 +279,7 @@ is the caller, represented by a stub callback. **100% coverage target.**
 
 | Flow (Experience) | Real accumulated state | Response states to cover |
 |---|---|---|
-| Sign In (Authenticate) | step (credentials / challenge), active challenge | credentials → MFA code or → backup code (escape event); 401 codes surfaced via I18nUtility, never `message` |
+| Sign In (Authenticate) | step (credentials / code / backup code), email kept, last failure | credentials → MFA code or → backup code (escape event); `auth.mfa_invalid` clears only the code; `auth.challenge_expired` / `auth.too_many_attempts` restart at credentials, email kept (OQ-145); codes surfaced via I18nUtility, never `message` |
 | Account Recovery (Authenticate) | email, token, new password | request → (email out of band) → new password; `password.too_short`, `password_reset.token_invalid` |
 | Registration (Onboard) | form fields, errors | first/last name required; password < 12 inline; `user.email_taken`; success hands off to MFA Enrollment |
 | MFA Enrollment (Onboard) | method, secret, code, codes, ack | verify fail/retry/success → codes → acknowledged (no skip) |
@@ -376,7 +376,7 @@ Not business-logic regressions — deployment/build/wiring breakage. Fast
 enough to gate every merge without anyone noticing the wait:
 
 1. Register a new user → MFA enrollment data returned.
-2. Login with valid credentials → tokens returned.
+2. Login with valid credentials → challenge returned; verify the MFA code → tokens returned (OQ-145).
 3. Create a household → default Categories exist.
 4. Record one simple transaction → account balance reflects it.
 5. Backend health check / a Dashboard request returns `200`.

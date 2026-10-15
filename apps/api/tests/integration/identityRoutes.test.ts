@@ -49,7 +49,8 @@ const send = (app: App, method: string, path: string, options: SendOptions = {})
 const REGISTRATION = {
   email: 'ana@example.com', password: 'short', firstName: 'Ana', lastName: 'Lima',
 };
-const CREDENTIALS = { email: 'ana@example.com', password: 'p', mfaCode: '123456' };
+const CREDENTIALS = { email: 'ana@example.com', password: 'p' };
+const VERIFICATION = { challengeToken: 'challenge', mfaCode: '123456' };
 
 describe('identity routes — public', () => {
   it('POST /auth/register → 201; the Manager judges password length', async () => {
@@ -75,18 +76,29 @@ describe('identity routes — public', () => {
     expect(identity.register).not.toHaveBeenCalled();
   });
 
-  it('POST /auth/login passes the device (User-Agent), or null without one', async () => {
+  it('POST /auth/login answers the MFA challenge (OQ-145)', async () => {
     const { app, identity } = setup();
-    identity.login.mockResolvedValue({ accessToken: 'a', refreshToken: 'r' });
+    identity.login.mockResolvedValueOnce({ challengeToken: 'challenge' });
 
-    const ok = await send(app, 'POST', '/auth/login', {
-      body: CREDENTIALS, headers: { 'User-Agent': 'Firefox' },
+    const response = await send(app, 'POST', '/auth/login', { body: CREDENTIALS });
+
+    expect(await response.json()).toEqual({ challengeToken: 'challenge' });
+    expect(identity.login).toHaveBeenCalledWith(expect.anything(), CREDENTIALS);
+  });
+
+  it('POST /auth/mfa/verify passes the device (User-Agent), or null without one', async () => {
+    const { app, identity } = setup();
+    identity.verifyMfa.mockResolvedValue({ accessToken: 'a', refreshToken: 'r' });
+
+    const ok = await send(app, 'POST', '/auth/mfa/verify', {
+      body: VERIFICATION, headers: { 'User-Agent': 'Firefox' },
     });
-    await send(app, 'POST', '/auth/login', { body: CREDENTIALS });
+    await send(app, 'POST', '/auth/mfa/verify', { body: VERIFICATION });
 
     expect(await ok.json()).toEqual({ accessToken: 'a', refreshToken: 'r' });
-    expect(identity.login).toHaveBeenNthCalledWith(1, expect.anything(), CREDENTIALS, 'Firefox');
-    expect(identity.login).toHaveBeenNthCalledWith(2, expect.anything(), CREDENTIALS, null);
+    expect(identity.verifyMfa)
+      .toHaveBeenNthCalledWith(1, expect.anything(), VERIFICATION, 'Firefox');
+    expect(identity.verifyMfa).toHaveBeenNthCalledWith(2, expect.anything(), VERIFICATION, null);
   });
 
   it('a lockout answers 429 with Retry-After and the wait in minutes', async () => {
@@ -116,7 +128,7 @@ describe('identity routes — passwords and recovery (OQ-115)', () => {
   it('POST /auth/mfa/recover passes the device and returns tokens', async () => {
     const { app, identity } = setup();
     identity.recoverWithCode.mockResolvedValue({ accessToken: 'a', refreshToken: 'r' });
-    const body = { email: 'ana@example.com', password: 'p', recoveryCode: 'ABCD-EFGH' };
+    const body = { challengeToken: 'challenge', recoveryCode: 'ABCD-EFGH' };
 
     const response = await send(app, 'POST', '/auth/mfa/recover', {
       body, headers: { 'User-Agent': 'Phone' },

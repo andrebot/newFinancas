@@ -41,6 +41,11 @@ sequenceDiagram
     Note over API: name trimmed and non-blank (contract validation, OQ-116)
     API->>IM: createHousehold(actor, name)
     IM->>UA: findById(actor.userId)
+    alt the account is gone
+        UA-->>IM: none
+        IM-->>API: Unauthorized
+        API-->>User: 401 auth.unauthenticated
+    else found
     UA-->>IM: creator (language)
     IM->>HA: insert(name, ownerUserId = actor.userId)
     HA-->>IM: household (creator is Owner, one transaction)
@@ -52,6 +57,7 @@ sequenceDiagram
     IM-->>LOG: log.audit("CreateHousehold", Household householdId)
     IM-->>API: household + role Owner
     API-->>User: 201 Created MyHousehold
+    end
 """,
     notes="""
     <ul>
@@ -90,10 +96,16 @@ sequenceDiagram
         AZ-->>IM: allowed (Owner)
         IM->>HA: delete(householdId)
         Note over HA: everything household-scoped goes with it (FK cascade)
-        HA-->>IM: deleted
-        IM-->>LOG: log.audit("DeleteHousehold", Household householdId)
-        IM-->>API: deleted
-        API-->>User: 204 No Content
+        alt already gone (deleted meanwhile)
+            HA-->>IM: not deleted
+            IM-->>API: NotFound
+            API-->>User: 404 household.not_found
+        else deleted
+            HA-->>IM: deleted
+            IM-->>LOG: log.audit("DeleteHousehold", Household householdId)
+            IM-->>API: deleted
+            API-->>User: 204 No Content
+        end
     end
 """,
     notes="""
@@ -697,6 +709,7 @@ sequenceDiagram
             UA-->>IM: user
             IM-->>LOG: log.audit("EditUser", User actor.userId)
         end
+        Note over IM: no user (the account is gone) &rarr; 401 auth.unauthenticated
         IM-->>API: user
         API-->>User: 200 OK User {id, email, firstName, lastName, createdAt, preferences}
     end
@@ -713,7 +726,7 @@ sequenceDiagram
 UCS.append(dict(
     filename="uc-14-login.html",
     title="Login",
-    subtitle='<span class="route">POST /auth/login</span> &mdash; FR-1.2/OQ-30/OQ-114. Password and MFA code together in one request. Every failure answers the same 401, and an address with too many failures is locked for a while &mdash; whether or not an account exists.',
+    subtitle='<span class="route">POST /auth/login</span> then <span class="route">POST /auth/mfa/verify</span> &mdash; FR-1.2/OQ-30/OQ-114/OQ-145. Two steps: the password earns a five-minute challenge, the MFA code trades it for a session. The password step answers one 401 for every failure; both steps count against the same per-address lockout &mdash; whether or not an account exists.',
     mermaid="""
 sequenceDiagram
 """ + P_CORE + """
@@ -722,8 +735,9 @@ sequenceDiagram
     participant SA as SessionAccessor
     participant LOG as LoggingUtility
 
-    User->>API: POST /auth/login {email, password, mfaCode}
-    API->>IM: login(input, deviceInfo = User-Agent)
+    Note over User,LOG: Step 1 &mdash; the password
+    User->>API: POST /auth/login {email, password}
+    API->>IM: login(input)
     IM->>UA: findLoginLock(emailKey)
     Note over UA: emailKey = trimmed, lower-cased email &mdash; login_attempts<br/>is kept per address, not per account (OQ-114)
     UA-->>IM: lockedUntil (or none)
@@ -732,27 +746,48 @@ sequenceDiagram
         API-->>User: 429 auth.too_many_attempts (Retry-After)
     else not locked
         IM->>UA: findByEmail(email)
-        UA-->>IM: user with passwordHash, encryptedMfaSecret, systemRole (or none)
+        UA-->>IM: user with passwordHash (or none)
         IM->>AN: verifyPassword(passwordHash or a dummy hash, password)
         Note over IM: a missing user still costs one Argon2 check &mdash;<br/>response time doesn&#39;t reveal whether the email exists
         AN-->>IM: valid / invalid
-        opt user found and password valid
-            IM->>AN: verifyTotp(encryptedMfaSecret, mfaCode)
-            AN-->>IM: valid / invalid
-        end
-        alt any factor failed (no user, wrong password, wrong code)
+        alt no user or wrong password
             IM->>UA: recordLoginFailure(emailKey, now, windowStart = now &minus; 15 min)
             Note over UA: atomic: failures older than the window are<br/>forgotten, then this one is counted
             UA-->>IM: failuresInWindow
             opt failuresInWindow &ge; 5 (the Manager&#39;s rule)
                 IM->>UA: lockLogin(emailKey, until = now + 15 min)
-                UA-->>IM: locked
             end
             IM-->>API: Unauthorized
-            API-->>User: 401 auth.invalid_credentials (same for every factor)
-        else every factor valid
+            API-->>User: 401 auth.invalid_credentials (same for both)
+        else password valid
+            IM->>AN: signChallengeToken({userId, email})
+            Note over AN: five-minute JWT, its own audience &mdash;<br/>never passes as an access token (OQ-145)
+            AN-->>IM: challengeToken
+            IM-->>API: {challengeToken}
+            API-->>User: 200 OK {challengeToken}
+        end
+    end
+
+    Note over User,LOG: Step 2 &mdash; the MFA code
+    User->>API: POST /auth/mfa/verify {challengeToken, mfaCode}
+    API->>IM: verifyMfa(input, deviceInfo = User-Agent)
+    IM->>AN: verifyChallengeToken(challengeToken)
+    AN-->>IM: {userId, email} (or none)
+    alt challenge expired or not valid
+        IM-->>API: Unauthorized
+        API-->>User: 401 auth.challenge_expired (start again)
+    else challenge valid
+        IM->>UA: findLoginLock(emailKey), then findByEmail(email)
+        UA-->>IM: lockedUntil, user with encryptedMfaSecret, systemRole
+        Note over IM: locked &rarr; 429 &mdash; user gone or not the one challenged &rarr; challenge_expired
+        IM->>AN: verifyTotp(encryptedMfaSecret, mfaCode)
+        AN-->>IM: valid / invalid
+        alt wrong code
+            IM->>UA: recordLoginFailure(emailKey, &hellip;) (+ lockLogin at 5)
+            IM-->>API: Unauthorized
+            API-->>User: 401 auth.mfa_invalid (retry the code)
+        else code valid
             IM->>UA: clearLoginFailures(emailKey)
-            UA-->>IM: cleared
             IM->>AN: issueOpaqueToken()
             AN-->>IM: {token, tokenHash}
             IM->>SA: insert(userId, tokenHash, deviceInfo, expiresAt = now + 30 days, now)
@@ -769,10 +804,12 @@ sequenceDiagram
 """,
     notes="""
     <ul>
-      <li><strong>One 401 for every failure</strong> &mdash; unknown email, wrong password and wrong MFA code all answer <code>auth.invalid_credentials</code>, and a missing user still costs a password check, so neither the code nor the timing tells an attacker which factor failed or whether the email is registered. The earlier diagram showed <code>auth.mfa_invalid</code> for a wrong code; corrected.</li>
-      <li><strong>Lockout (OQ-114):</strong> 5 failures within 15 minutes lock the <em>address</em> for 15 minutes (<code>config/constants.ts</code>); a success clears it. The count lives in <code>login_attempts</code>, keyed by address, so an address with no account locks exactly like one with an account &mdash; a 429 never confirms registration. The Manager decides (threshold, window, lock length); <code>UserAccessor</code> applies (atomic count, lock, clear) &mdash; the counter is a protection on the user&#39;s credentials, next to the hashes, MFA secret, recovery codes and reset tokens it already owns, so no new Accessor.</li>
+      <li><strong>Two steps (OQ-145).</strong> The single request (password + MFA code together) made a wrong code indistinguishable from a wrong password, so the user had to retype everything. Now the password step answers a five-minute challenge token and the code is retried alone, as in most apps.</li>
+      <li><strong>Enumeration guard kept where it matters:</strong> the password step still answers <code>auth.invalid_credentials</code> for an unknown email and a wrong password alike, and a missing user still costs a password check. Step 2 names a wrong code (<code>auth.mfa_invalid</code>) &mdash; its caller already proved the password, so that reveals nothing new.</li>
+      <li><strong>Lockout (OQ-114) spans both steps:</strong> 5 failures &mdash; wrong passwords and wrong codes alike &mdash; within 15 minutes lock the <em>address</em> for 15 minutes (<code>config/constants.ts</code>). Only a full sign-in clears the count; a correct password does not, or it could buy endless code guesses. The count lives in <code>login_attempts</code>, keyed by address, so an address with no account locks exactly like one with an account. The Manager decides; <code>UserAccessor</code> applies (atomic count, lock, clear).</li>
+      <li><strong>The challenge token is stateless</strong> (a JWT naming the user and address): no table, and reusing it within its five minutes still needs a correct code, under the same lockout.</li>
       <li>The access token is never persisted (OQ-30); only the refresh token is server-tracked in <code>sessions</code>.</li>
-      <li>See FR-1.2, OQ-30, OQ-100, OQ-106, OQ-111, OQ-114.</li>
+      <li>See FR-1.2, OQ-30, OQ-100, OQ-106, OQ-111, OQ-114, OQ-145.</li>
     </ul>
 """,
 ))
@@ -802,6 +839,7 @@ sequenceDiagram
         SA-->>IM: session
         IM->>UA: findById(session.userId)
         UA-->>IM: user (systemRole)
+        Note over IM: no user (the account is gone) &rarr; 401 auth.refresh_invalid
         IM->>AN: signAccessToken({userId, sessionId, systemRole})
         AN-->>IM: accessToken
         IM-->>API: {accessToken, refreshToken = token}
@@ -848,7 +886,7 @@ sequenceDiagram
     IM->>SA: deleteForUser(actor, currentSessionId)
     Note over SA: invalidates this refresh token only (FR-1.9) &mdash;<br/>the access token simply expires shortly after, unrevoked
     SA-->>IM: revoked
-    IM-->>LOG: logActivity(correlationId, actor, "Logout")
+    IM-->>LOG: log.info("Logout")
     IM-->>API: logged out
     API-->>User: 204 No Content
 """,
@@ -879,7 +917,7 @@ sequenceDiagram
     SA-->>IM: [{id, deviceInfo, createdAt, lastUsedAt}, ...]
     Note over IM: current = (id == the access token's sid) (OQ-106)
     IM-->>API: sessions[]
-    API-->>User: 200 OK [{id, deviceInfo, createdAt, lastUsedAt, current}, ...]
+    API-->>User: 200 OK {data: [{id, deviceInfo, createdAt, lastUsedAt, current}, ...]}
 """,
     notes="""
     <ul>
@@ -910,7 +948,7 @@ sequenceDiagram
         API-->>User: 404 session.not_found
     else the actor's
         SA-->>IM: revoked
-        IM-->>LOG: logActivity(correlationId, actor, "RevokeSession")
+        IM-->>LOG: log.info("Session revoked", {sessionId})
         IM-->>API: revoked
         API-->>User: 204 No Content
     end
@@ -921,7 +959,7 @@ sequenceDiagram
     IM->>SA: deleteAllExceptCurrent(actor, currentSessionId)
     Note over SA: same method Change Password (UC-19) already uses
     SA-->>IM: other sessions revoked
-    IM-->>LOG: logActivity(correlationId, actor, "RevokeOtherSessions")
+    IM-->>LOG: log.info("Other sessions revoked", {ended})
     IM-->>API: revoked
     API-->>User: 204 No Content
 """,
@@ -967,8 +1005,9 @@ sequenceDiagram
         NE->>EA: send({to, subject, body})
         Note over EA: only sends &mdash; provider = configuration (EMAIL_PROVIDER),<br/>v1 console, terminal only (OQ-112)
         EA-->>NE: sent
+        IM-->>LOG: log.info("Password reset link sent")
     end
-    Note over IM: a failure here is logged, never returned
+    Note over IM: a failure here is logged (log.error), never returned
 
     Note over User,API: Step 2 — submit token + new password
     User->>API: POST /auth/password-reset/confirm {token, newPassword}
@@ -1037,6 +1076,7 @@ sequenceDiagram
     else long enough
         IM->>UA: findPasswordHash(actor.userId)
         UA-->>IM: passwordHash
+        Note over IM: no hash (the account is gone) &rarr; 401 auth.unauthenticated
         IM->>AN: verifyPassword(passwordHash, currentPassword)
         alt current password incorrect
             AN-->>IM: invalid
@@ -1070,7 +1110,7 @@ sequenceDiagram
 UCS.append(dict(
     filename="uc-20-mfa-recovery.html",
     title="Recover MFA via Backup Code",
-    subtitle='<span class="route">POST /auth/mfa/recover</span> &mdash; FR-1.16. Each recovery code is single-use; exhausting/losing all of them falls outside self-service (OQ-24), not modeled here.',
+    subtitle='<span class="route">POST /auth/mfa/recover</span> &mdash; FR-1.16/OQ-145. Login&#39;s second step with a single-use recovery code in place of the MFA code; exhausting/losing all of them falls outside self-service (OQ-24), not modeled here.',
     mermaid="""
 sequenceDiagram
 """ + P_CORE + """
@@ -1079,29 +1119,28 @@ sequenceDiagram
     participant SA as SessionAccessor
     participant LOG as LoggingUtility
 
-    User->>API: POST /auth/mfa/recover {email, password, recoveryCode}
+    Note over User,LOG: after Login&#39;s password step answered {challengeToken} (UC-14)
+    User->>API: POST /auth/mfa/recover {challengeToken, recoveryCode}
     API->>IM: recoverWithCode(input, deviceInfo = User-Agent)
-    IM->>UA: findLoginLock(emailKey)
-    alt address locked
-        IM-->>API: TooManyRequests
-        API-->>User: 429 auth.too_many_attempts (Retry-After)
-    else not locked
-        IM->>UA: findByEmail(email)
-        UA-->>IM: user (or none)
-        IM->>AN: verifyPassword(passwordHash or a dummy hash, password)
-        AN-->>IM: valid / invalid
-        opt user found and password valid
-            IM->>AN: hashRecoveryCode(recoveryCode)
-            AN-->>IM: codeHash
-            IM->>UA: consumeRecoveryCode(userId, codeHash, now)
-            Note over UA: atomic UPDATE &hellip; WHERE unused &mdash; single-use (FR-1.16),<br/>never reached with a wrong password, so no code is wasted
-            UA-->>IM: consumed / not
-        end
-        alt any factor failed
+    IM->>AN: verifyChallengeToken(challengeToken)
+    AN-->>IM: {userId, email} (or none)
+    alt challenge expired or not valid
+        IM-->>API: Unauthorized
+        API-->>User: 401 auth.challenge_expired (start again)
+    else challenge valid
+        IM->>UA: findLoginLock(emailKey), then findByEmail(email)
+        UA-->>IM: lockedUntil, user
+        Note over IM: locked &rarr; 429 &mdash; user gone or not the one challenged &rarr; challenge_expired
+        IM->>AN: hashRecoveryCode(recoveryCode)
+        AN-->>IM: codeHash
+        IM->>UA: consumeRecoveryCode(userId, codeHash, now)
+        Note over UA: atomic UPDATE &hellip; WHERE unused &mdash; single-use (FR-1.16),<br/>never reached without a proven password, so no code is wasted
+        UA-->>IM: consumed / not
+        alt code used or unknown
             IM->>UA: recordLoginFailure(emailKey, &hellip;) (+ lockLogin at 5)
             IM-->>API: Unauthorized
-            API-->>User: 401 auth.invalid_credentials (same as login)
-        else password and code valid
+            API-->>User: 401 auth.mfa_invalid (retry the code)
+        else code consumed
             IM->>UA: clearLoginFailures(emailKey)
             IM->>AN: issueOpaqueToken()
             AN-->>IM: {token, tokenHash}
@@ -1117,10 +1156,10 @@ sequenceDiagram
 """,
     notes="""
     <ul>
-      <li>Functionally an alternate second factor to Login&#39;s TOTP step, not a separate account-recovery mechanism &mdash; it still requires the correct password first, same as normal login.</li>
-      <li><strong>Same authentication step as Login (OQ-115):</strong> the lockout, the dummy-hash check for unknown emails, and one 401 for every failure. The earlier diagram answered a distinct <code>auth.recovery_code_invalid</code> after a correct password &mdash; that confirmed the password; corrected.</li>
+      <li>Functionally an alternate second factor to Login&#39;s TOTP step, not a separate account-recovery mechanism &mdash; it needs the challenge from Login&#39;s password step, so the password is always proven first.</li>
+      <li><strong>Same second step as Login (OQ-145):</strong> the same challenge check, the same lockout (a wrong code counts like a wrong password, OQ-114) and the same <code>auth.mfa_invalid</code> for a used or unknown code &mdash; naming the code is safe once the password is proven.</li>
       <li><strong>v1 scope limit (FR-1.16):</strong> if recovery codes are also exhausted or lost, there is no further self-service path &mdash; a manual/support-assisted process outside this system, not diagrammed since it isn&#39;t a backend flow (OQ-24).</li>
-      <li>See FR-1.16, OQ-24.</li>
+      <li>See FR-1.16, OQ-24, OQ-114, OQ-145.</li>
     </ul>
 """,
 ))

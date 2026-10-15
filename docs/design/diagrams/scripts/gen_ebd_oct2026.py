@@ -209,32 +209,46 @@ EXP = lambda n: ("EXP", f"{n}<br/>Experience")
 API = ("API", "Backend API")
 
 SEQUENCES = [
-    ("authenticate-sign-in", "Authenticate — Sign In", f"{R('POST /auth/login')}. Credentials, then MFA code or backup code.",
+    ("authenticate-sign-in", "Authenticate — Sign In", f"{R('POST /auth/login')} then {R('POST /auth/mfa/verify')} (or {R('POST /auth/mfa/recover')}). Credentials, then MFA code or backup code (OQ-145).",
      [("CE", "Credential Entry"), ("MFA", "MFA Code Entry"), ("BC", "Backup Code Entry"), FLOW("Sign In"), EXP("Authenticate"), API],
      """
 User->>CE: email + password, submit
 CE->>FLOW: emit credentialsEntered
-FLOW-->>MFA: render (challenge step)
+FLOW->>EXP: request submitCredentials(email, password)
+EXP->>API: POST /auth/login
+alt 401 auth.invalid_credentials / 429
+    API-->>EXP: error code
+    EXP-->>FLOW: outcome: failed(code) — I18nUtility renders it
+else ok
+    API-->>EXP: challengeToken (kept by the Experience)
+    EXP-->>FLOW: outcome: ok
+    FLOW-->>MFA: render (challenge step)
+end
 alt authenticator code
-    User->>MFA: 6 digits
+    User->>MFA: 6 digits (submits on the last one)
     MFA->>FLOW: emit codeEntered
+    FLOW->>EXP: request submitCode(code)
+    EXP->>API: POST /auth/mfa/verify
 else lost phone
     User->>MFA: 'Use a backup code'
     MFA->>FLOW: emit switchToBackupCode
     FLOW-->>BC: render
     User->>BC: backup code
     BC->>FLOW: emit backupCodeEntered
+    FLOW->>EXP: request submitBackupCode(code)
+    EXP->>API: POST /auth/mfa/recover
 end
-FLOW->>EXP: request signIn(credentials, challenge)
-EXP->>API: POST /auth/login (or /auth/mfa/recover)
-alt 401 auth.invalid_credentials or auth.mfa_invalid
+alt 401 auth.mfa_invalid
     API-->>EXP: error code
-    EXP-->>FLOW: state: error(code) — I18nUtility renders it
+    EXP-->>FLOW: outcome: failed(code) — code cleared, retried alone
+else 401 auth.challenge_expired / 429
+    API-->>EXP: error code
+    EXP-->>FLOW: outcome: failed(code) — back to credentials, email kept
 else ok
     API-->>EXP: tokens
-    EXP-->>FLOW: state: signedIn → App Shell takes over
+    EXP-->>FLOW: outcome: ok — App Shell takes over
 end
-""", ["Same error code for unknown user and wrong password (no enumeration).", "No 'Remember me' (OQ-62)."]),
+""", ["Same error code for unknown user and wrong password (no enumeration); a wrong code is named, since the password is already proven (OQ-145).", "The challenge token never reaches the Flow: the Experience holds it between the two calls.", "No 'Remember me' (OQ-62)."]),
     ("authenticate-account-recovery", "Authenticate — Account Recovery", f"{R('POST /auth/password-reset/request')} then {R('POST /auth/password-reset/confirm')}.",
      [("RR", "Recovery Request"), ("NP", "New Password Entry"), FLOW("Account Recovery"), EXP("Authenticate"), API],
      """

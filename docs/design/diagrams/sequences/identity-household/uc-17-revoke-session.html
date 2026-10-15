@@ -75,7 +75,7 @@ sequenceDiagram
         API-->>User: 404 session.not_found
     else the actor's
         SA-->>IM: revoked
-        IM-->>LOG: logActivity(correlationId, actor, "RevokeSession")
+        IM-->>LOG: log.info("Session revoked", {sessionId})
         IM-->>API: revoked
         API-->>User: 204 No Content
     end
@@ -86,7 +86,7 @@ sequenceDiagram
     IM->>SA: deleteAllExceptCurrent(actor, currentSessionId)
     Note over SA: same method Change Password (UC-19) already uses
     SA-->>IM: other sessions revoked
-    IM-->>LOG: logActivity(correlationId, actor, "RevokeOtherSessions")
+    IM-->>LOG: log.info("Other sessions revoked", {ended})
     IM-->>API: revoked
     API-->>User: 204 No Content
     </pre>

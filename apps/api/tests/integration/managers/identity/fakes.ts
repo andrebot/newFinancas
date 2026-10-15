@@ -146,6 +146,12 @@ export const fakeDeps = () => {
     issueOpaqueToken: vi.fn(() => ({ token: 'refresh-token', tokenHash: 'refresh-hash' })),
     hashOpaqueToken: vi.fn((token: string) => `hash(${token})`),
     signAccessToken: vi.fn(async () => 'access-token'),
+    signChallengeToken: vi.fn(async () => 'challenge-token'),
+    verifyChallengeToken: vi.fn(
+      async (): Promise<{ userId: string; email: string } | undefined> => (
+        { userId: ANA.id, email: ANA.email }
+      ),
+    ),
     hashRecoveryCode: vi.fn((code: string) => `code-hash(${code})`),
   };
   const notifications = { notify: vi.fn(async () => undefined) };

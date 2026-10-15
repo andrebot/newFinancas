@@ -50,7 +50,7 @@
 </head>
 <body>
   <h1>Call Chain — Leave Household</h1>
-  <p class="subtitle">Use case 8 of 20 in the Identity &amp; Household set (CUC-1, FR-1.11/FR-1.18). Lifecycle Transition (Membership → removed, self), the richest simple chain in this set — succession lives inside one Accessor call.</p>
+  <p class="subtitle">Use case 8 of 21 (FR-1.11/1.18). Self-service; an Owner is succeeded, or the household dissolves.</p>
 
   <div class="architecture">
     <svg id="arrows-svg"></svg>
@@ -135,8 +135,8 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain:</strong> <code>IdentityManager</code> ① <code>HouseholdAccessor.transitionMembership(householdId, actorId, "removed")</code> (sync — if actor is Owner, atomically promotes the longest-tenured remaining Admin/Member/Viewer or dissolves the household, FR-1.18) → ② <code>LoggingUtility</code> (async).</p>
-    <p><strong>No smell, and worth calling out explicitly:</strong> despite being the use case with the richest invariant in the whole Identity area (Owner succession), the chain is only 2 steps — exactly because the succession logic is a single validated write, not a Manager-orchestrated multi-step sequence. A wider fan-out here would have been the actual smell (succession logic leaking into the Manager).</p>
+    <p><strong>Chain:</strong> <code>IdentityManager</code> &#9312; <code>HouseholdAccessor.findMembership</code> &rarr; a non-Owner: <code>removeMember</code>; the Owner: <code>findSuccessor</code>, then <code>swapOwner</code> + <code>removeMember</code>, or <code>dissolve</code> when nobody else is left &mdash; each a guarded write, the whole attempt retried on <code>stale</code> up to 3 times (OQ-107) &rarr; &#9313; <code>LoggingUtility</code> audit (<code>LeaveHousehold</code> or <code>DissolveHousehold</code>).</p>
+    <p>Corrected: the old chain had succession inside one Accessor call. The Manager decides succession (Manager decides, Accessor applies); the one edge to <code>HouseholdAccessor</code> carries several calls. Synced with the code (task M1 audit, Oct 2026).</p>
   </div>
 
   <script>
