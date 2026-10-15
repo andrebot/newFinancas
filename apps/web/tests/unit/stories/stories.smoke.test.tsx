@@ -1,16 +1,23 @@
 import { composeStories, setProjectAnnotations, type Meta } from '@storybook/react-vite';
-import { fireEvent, render, screen } from '@testing-library/react';
+import {
+  act, fireEvent, render, screen,
+} from '@testing-library/react';
 import type { ComponentType } from 'react';
 import { describe, expect, it } from 'vitest';
 import preview from '../../../.storybook/preview';
+import * as checkboxStories from '../../../stories/kit/checkbox/Checkbox.stories';
 import * as iconStories from '../../../stories/kit/icons/Icon.stories';
+import * as optionCardStories from '../../../stories/kit/optionCard/OptionCardGroup.stories';
+import * as popoverStories from '../../../stories/kit/popover/Popover.stories';
 import * as segmentedStories from '../../../stories/kit/segmentedControl/SegmentedControl.stories';
+import * as textFieldStories from '../../../stories/kit/textField/TextField.stories';
+import { fixedLocaleController } from '../../../stories/support/StoryFrame';
 
 // Smoke test for the component library (N14, OQ-128): every story renders
 // through the real preview (StoryFrame's theme and locale) without throwing.
-// It catches a story broken by a kit change that still typechecks. The two
-// story-only behaviours (icon search, the selection kept by a controlled
-// story) get one check each.
+// It catches a story broken by a kit change that still typechecks. The
+// story-only behaviours (icon search, the state a controlled story keeps,
+// the popover's content) get one check each.
 
 type StoryModule = { default: Meta } & Record<string, unknown>;
 
@@ -69,5 +76,73 @@ describe('stories', () => {
 
     expect(screen.getByRole<HTMLInputElement>('radio', { name: '$' }).checked).toBe(true);
     expect(Medium.args.onChange).toHaveBeenCalledExactlyOnceWith('USD');
+  });
+
+  it('ticks the clicked checkbox and reports it', () => {
+    const { Unchecked } = composeStories(checkboxStories);
+    render(<Unchecked />);
+
+    fireEvent.click(screen.getByRole('checkbox'));
+
+    expect(screen.getByRole<HTMLInputElement>('checkbox').checked).toBe(true);
+    expect(Unchecked.args.onChange).toHaveBeenCalledExactlyOnceWith(true);
+  });
+
+  it('selects the clicked option card and reports it', () => {
+    const { ListOfSeveral } = composeStories(optionCardStories);
+    render(<ListOfSeveral />);
+
+    fireEvent.click(screen.getByRole('radio', { name: /Checking/ }));
+
+    expect(screen.getByRole<HTMLInputElement>('radio', { name: /Checking/ }).checked).toBe(true);
+    expect(ListOfSeveral.args.onChange).toHaveBeenCalledExactlyOnceWith('checking');
+  });
+
+  it('keeps the typed text and reports it', () => {
+    const { Filled } = composeStories(textFieldStories);
+    render(<Filled />);
+
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Casa Silva' } });
+
+    expect(screen.getByRole<HTMLInputElement>('textbox').value).toBe('Casa Silva');
+    expect(Filled.args.onChange).toHaveBeenCalledExactlyOnceWith('Casa Silva');
+  });
+
+  it('shows the inbox rows once the bell opens the popover', async () => {
+    const { NotificationInbox } = composeStories(popoverStories);
+    render(<NotificationInbox />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Notifications' }));
+    });
+
+    expect(screen.getByText('Priya Shah accepted your invitation')).toBeDefined();
+  });
+
+  it('closes the popover from its own content', async () => {
+    const { ClosesFromInside } = composeStories(popoverStories);
+    render(<ClosesFromInside />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Notifications' }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    });
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+});
+
+describe('fixedLocaleController', () => {
+  it('always reports its locale and ignores the rest', () => {
+    const controller = fixedLocaleController('en-US');
+
+    controller.apply('pt-BR');
+    controller.restore();
+    const unsubscribe = controller.subscribe(() => {});
+    unsubscribe();
+
+    expect(controller.current()).toBe('en-US');
   });
 });
