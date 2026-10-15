@@ -8,6 +8,8 @@ import { Field, fieldAria, type FieldTexts } from '../field/Field';
 // form sets `type`, `autoComplete`, `inputMode`, `maxLength` and so on. The
 // `leading` / `trailing` slots sit inside the box: the money input's R$
 // prefix (K7), the password field's show / hide button (K6), a search icon.
+// The `footer` sits under the box, above the hint or error: the password
+// field's strength meter. An `aria-describedby` passed in joins the message's.
 
 /** The text field's props: the native ones plus the field texts, slots and value. */
 export interface TextFieldProps
@@ -20,6 +22,8 @@ export interface TextFieldProps
   readonly leading?: ReactNode | undefined;
   /** Inside the box, after the text: a suffix or a button. */
   readonly trailing?: ReactNode | undefined;
+  /** Under the box, above the hint or error, e.g. the strength meter (K6). */
+  readonly footer?: ReactNode | undefined;
   /** Layout only, on the whole field, e.g. `w-48`, `flex-1`. */
   readonly className?: string | undefined;
   /** Text styling only, on the input, e.g. `tabular-nums`, `font-mono text-center`. */
@@ -57,6 +61,16 @@ export const inputClasses = (inputClassName?: string) => [
 ].filter(Boolean).join(' ');
 
 /**
+ * Joins the ids that describe the input: the caller's, then the message's.
+ *
+ * @param ids - Ids, some possibly absent.
+ * @returns The space-separated ids, or `undefined` when there are none.
+ */
+export const joinIds = (...ids: readonly (string | undefined)[]) => (
+  ids.filter(Boolean).join(' ') || undefined
+);
+
+/**
  * Renders a slot inside the box, or nothing when it is empty.
  *
  * @param props - The slot's content.
@@ -79,10 +93,12 @@ function Slot({ children }: { readonly children: ReactNode }) {
  */
 export function TextField({
   value, onChange, label, labelAction, hint, error,
-  leading, trailing, className, inputClassName, id, ...native
+  leading, trailing, footer, className, inputClassName, id,
+  'aria-describedby': describedBy, ...native
 }: TextFieldProps) {
   const generatedId = useId();
   const controlId = id ?? generatedId;
+  const aria = fieldAria(controlId, { hint, error });
 
   return (
     <Field
@@ -98,7 +114,8 @@ export function TextField({
         <input
           type="text"
           {...native}
-          {...fieldAria(controlId, { hint, error })}
+          {...aria}
+          aria-describedby={joinIds(describedBy, aria['aria-describedby'])}
           id={controlId}
           className={inputClasses(inputClassName)}
           value={value}
@@ -106,6 +123,7 @@ export function TextField({
         />
         <Slot>{trailing}</Slot>
       </div>
+      {footer}
     </Field>
   );
 }

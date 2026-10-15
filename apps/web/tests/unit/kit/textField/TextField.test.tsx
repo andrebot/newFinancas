@@ -3,7 +3,9 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import {
   describe, expect, it, vi,
 } from 'vitest';
-import { boxClasses, inputClasses, TextField } from '../../../../src/kit/textField/TextField';
+import {
+  boxClasses, inputClasses, joinIds, TextField,
+} from '../../../../src/kit/textField/TextField';
 import { messageIdOf } from '../../../../src/kit/field/Field';
 
 // Kit component (BDT: Interaction tier → unit): only the caller's change
@@ -82,6 +84,37 @@ describe('TextField', () => {
 
     expect(inputNamed('Ticker').getAttribute('aria-describedby')).toBe(messageIdOf('tk'));
     expect(screen.getByText('Liga a uma posição')).toBeDefined();
+  });
+
+  it('joins a caller’s description to the message’s', () => {
+    render(
+      <TextField
+        label="Senha"
+        value=""
+        onChange={vi.fn()}
+        hint="Dica"
+        id="pw"
+        aria-describedby="meter"
+      />,
+    );
+
+    expect(inputNamed('Senha').getAttribute('aria-describedby')).toBe(`meter ${messageIdOf('pw')}`);
+  });
+
+  it('is described by nothing without a hint, an error or a caller’s description', () => {
+    render(<TextField label="Nome" value="" onChange={vi.fn()} />);
+
+    expect(inputNamed('Nome').hasAttribute('aria-describedby')).toBe(false);
+  });
+
+  it('draws the footer under the box, above the message', () => {
+    render(
+      <TextField label="Senha" value="" onChange={vi.fn()} hint="Dica" footer={<p>Medidor</p>} />,
+    );
+
+    const box = inputNamed('Senha').parentElement as HTMLElement;
+    expect(box.nextElementSibling?.textContent).toBe('Medidor');
+    expect(box.nextElementSibling?.nextElementSibling?.textContent).toBe('Dica');
   });
 
   it('shows the error in place of the hint, turns coral and is invalid', () => {
@@ -165,5 +198,16 @@ describe('inputClasses', () => {
   it('adds nothing without them', () => {
     expect(inputClasses()).toBe(inputClasses(''));
     expect(inputClasses()).toContain('type-body-lg');
+  });
+});
+
+describe('joinIds', () => {
+  it('joins the ids that are present, in order', () => {
+    expect(joinIds('meter', undefined, 'message')).toBe('meter message');
+  });
+
+  it('gives undefined when none is present', () => {
+    expect(joinIds(undefined, '')).toBeUndefined();
+    expect(joinIds()).toBeUndefined();
   });
 });

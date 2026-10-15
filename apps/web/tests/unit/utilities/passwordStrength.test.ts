@@ -5,10 +5,12 @@ import {
   createPasswordStrengthEstimator,
   loadPasswordStrengthEstimator,
   personalWords,
+  strengthCaption,
   toPasswordStrength,
   type CheckPassword,
   type PasswordStrengthEstimator,
 } from '../../../src/utilities/passwordStrength';
+import { createTranslator } from '../../../src/utilities/i18n';
 
 describe('toPasswordStrength', () => {
   it.each([
@@ -149,5 +151,31 @@ describe('loadPasswordStrengthEstimator (the real zxcvbn-ts)', () => {
 
   it('reads a long, unpredictable passphrase as strong', () => {
     expect(estimate('vela-marfim-trovão-57-cobalto')).toEqual({ level: 'strong', segments: 4 });
+  });
+});
+
+describe('strengthCaption', () => {
+  const english = createTranslator('en-US');
+
+  it('words a weaker reading as the level and its hint', () => {
+    expect(strengthCaption({ level: 'fair', segments: 2, hint: 'avoid_dates' }, english))
+      .toBe('Fair · avoid dates and years');
+  });
+
+  it('gives the minimum length while the password is too short', () => {
+    expect(strengthCaption({ level: 'too_short', segments: 0, hint: 'add_length' }, english))
+      .toBe('Too short · at least 12 characters');
+  });
+
+  it('gives the minimum length once the password is strong', () => {
+    expect(strengthCaption({ level: 'strong', segments: 4 }, english))
+      .toBe('Strong · at least 12 characters');
+  });
+
+  it('words it in the translator’s locale', () => {
+    const reading = { level: 'weak', segments: 1, hint: 'avoid_common' } as const;
+
+    expect(strengthCaption(reading, createTranslator('pt-BR')))
+      .toBe('Fraca · esta senha é muito comum');
   });
 });
