@@ -29,6 +29,7 @@ const ptBR = {
     'auth.refresh_invalid': 'Sua sessão expirou. Entre novamente.',
     'auth.mfa_invalid': 'Código de verificação inválido.',
     'auth.challenge_expired': 'Sua entrada demorou demais. Informe seu e-mail e senha novamente.',
+    'auth.enrollment_expired': 'A configuração demorou demais. Entre novamente para receber um novo código.',
     'auth.unauthenticated': 'Entre para continuar.',
     'auth.too_many_attempts': 'Muitas tentativas de entrar. Tente de novo em {retryAfterMinutes, plural, one {# minuto} other {# minutos}}.',
     'budget.target_already_claimed': 'Esta categoria já pertence a outro orçamento.',

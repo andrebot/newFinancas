@@ -50,6 +50,13 @@
       "when": 1791907356341,
       "tag": "0006_one_pending_invitation",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792094245906,
+      "tag": "0007_mfa_confirmation",
+      "breakpoints": true
     }
   ]
 }

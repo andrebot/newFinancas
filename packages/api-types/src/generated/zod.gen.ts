@@ -38,8 +38,23 @@ export const zMoney = z.int();
 export const zQuantity = z.int();
 
 export const zMfaChallenge = z.object({
+    step: z.enum(['mfa']),
     challengeToken: z.string()
 });
+
+export const zMfaEnrollmentStart = z.object({
+    enrollmentToken: z.string(),
+    totpSecret: z.string(),
+    otpauthUri: z.string(),
+    recoveryCodes: z.array(z.string())
+});
+
+/**
+ * The password step's answer while the MFA enrollment is unconfirmed (OQ-149).
+ */
+export const zMfaEnrollment = z.object({
+    step: z.enum(['enroll'])
+}).and(zMfaEnrollmentStart);
 
 export const zAuthTokens = z.object({
     accessToken: z.string().optional(),
@@ -813,10 +828,8 @@ export const zRegisterUserBody = z.object({
  * Created. Recovery codes are returned exactly once and never again.
  */
 export const zRegisterUserResponse = z.object({
-    userId: z.uuid().optional(),
-    totpSecret: z.string().optional(),
-    recoveryCodes: z.array(z.string()).optional()
-});
+    userId: z.uuid()
+}).and(zMfaEnrollmentStart);
 
 export const zLoginBody = z.object({
     email: z.email(),
@@ -826,7 +839,14 @@ export const zLoginBody = z.object({
 /**
  * OK
  */
-export const zLoginResponse = zMfaChallenge;
+export const zLoginResponse = z.union([
+    z.object({
+        step: z.literal('mfa')
+    }).and(zMfaChallenge),
+    z.object({
+        step: z.literal('enroll')
+    }).and(zMfaEnrollment)
+]);
 
 export const zVerifyMfaBody = z.object({
     challengeToken: z.string(),
@@ -837,6 +857,16 @@ export const zVerifyMfaBody = z.object({
  * OK
  */
 export const zVerifyMfaResponse = zAuthTokens;
+
+export const zConfirmMfaEnrollmentBody = z.object({
+    enrollmentToken: z.string(),
+    mfaCode: z.string()
+});
+
+/**
+ * OK
+ */
+export const zConfirmMfaEnrollmentResponse = zAuthTokens;
 
 /**
  * No Content

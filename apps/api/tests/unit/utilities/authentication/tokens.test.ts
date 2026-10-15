@@ -2,8 +2,8 @@ import { SignJWT } from 'jose';
 import { describe, expect, it } from 'vitest';
 import { authentication } from '../../../../src/config/constants';
 import {
-  hashOpaqueToken, issueOpaqueToken, signAccessToken, signChallengeToken, verifyAccessToken,
-  verifyChallengeToken,
+  hashOpaqueToken, issueOpaqueToken, signAccessToken, signChallengeToken, signEnrollmentToken,
+  verifyAccessToken, verifyChallengeToken, verifyEnrollmentToken,
 } from '../../../../src/utilities/authentication/tokens';
 
 const KEY = new TextEncoder().encode('k'.repeat(32));
@@ -108,6 +108,41 @@ describe('MFA challenge tokens (JWT, HS256, OQ-145)', () => {
     expect(await verifyChallengeToken(OTHER_KEY, token, T0)).toBeUndefined();
     expect(await verifyChallengeToken(KEY, noEmail, T0)).toBeUndefined();
     expect(await verifyChallengeToken(KEY, 'garbage', T0)).toBeUndefined();
+  });
+});
+
+describe('MFA enrollment tokens (JWT, HS256, OQ-149)', () => {
+  const ENROLLMENT = { userId: 'user-1', email: 'ana@example.com' };
+
+  it('verify within 15 minutes and return the user and address', async () => {
+    const token = await signEnrollmentToken(KEY, ENROLLMENT, T0);
+
+    expect(authentication.enrollmentToken.ttlSeconds).toBe(900);
+    expect(await verifyEnrollmentToken(KEY, token, after(899))).toEqual(ENROLLMENT);
+  });
+
+  it('expire after 15 minutes', async () => {
+    const token = await signEnrollmentToken(KEY, ENROLLMENT, T0);
+
+    expect(await verifyEnrollmentToken(KEY, token, after(901))).toBeUndefined();
+  });
+
+  it('never pass as challenge or access tokens, nor those as enrollments', async () => {
+    const enrollment = await signEnrollmentToken(KEY, ENROLLMENT, T0);
+    const challenge = await signChallengeToken(KEY, ENROLLMENT, T0);
+    const access = await signAccessToken(KEY, CLAIMS, T0);
+
+    expect(await verifyChallengeToken(KEY, enrollment, T0)).toBeUndefined();
+    expect(await verifyAccessToken(KEY, enrollment, T0)).toBeUndefined();
+    expect(await verifyEnrollmentToken(KEY, challenge, T0)).toBeUndefined();
+    expect(await verifyEnrollmentToken(KEY, access, T0)).toBeUndefined();
+  });
+
+  it('are rejected with another key or when garbage', async () => {
+    const token = await signEnrollmentToken(KEY, ENROLLMENT, T0);
+
+    expect(await verifyEnrollmentToken(OTHER_KEY, token, T0)).toBeUndefined();
+    expect(await verifyEnrollmentToken(KEY, 'garbage', T0)).toBeUndefined();
   });
 });
 

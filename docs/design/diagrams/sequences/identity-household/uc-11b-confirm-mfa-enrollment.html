@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Sequence — Confirm MFA Enrollment — New Finance App</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2236;
+    --panel-border: #2f3b56;
+    --text: #eef1f8;
+    --muted: #9aa4bb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px 0; }
+  p.subtitle { margin: 0 0 16px 0; color: var(--muted); font-size: 14px; max-width: 980px; line-height: 1.6; }
+  .diagram-card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 20px;
+    overflow-x: auto;
+    max-width: 100%;
+  }
+  .notes {
+    max-width: 980px;
+    margin: 16px 0 0 0;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.65;
+  }
+  .notes code { color: var(--text); }
+  .notes ul { padding-left: 20px; }
+  .notes li { margin-bottom: 6px; }
+  a { color: #7db4f0; }
+  .route {
+    display: inline-block;
+    background: #1f2b45;
+    border: 1px solid #3a4a70;
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    color: #a9c6f5;
+  }
+</style>
+</head>
+<body>
+  <h1>Confirm MFA Enrollment</h1>
+  <p class="subtitle"><span class="route">POST /auth/mfa/enrollment/confirm</span> &mdash; FR-1.15/OQ-149. The first authenticator code proves the app was set up: it confirms the enrollment, once, and opens the first session. Follows Create User (UC-11), or a sign-in to an unconfirmed account (UC-14).</p>
+  <div class="diagram-card">
+    <pre class="mermaid">
+sequenceDiagram
+    actor User
+    participant API as Hono route
+    participant IM as IdentityManager
+    participant UA as UserAccessor
+    participant AN as AuthenticationUtility
+    participant SA as SessionAccessor
+    participant LOG as LoggingUtility
+
+    User->>API: POST /auth/mfa/enrollment/confirm {enrollmentToken, mfaCode}
+    API->>IM: confirmMfaEnrollment(input, deviceInfo = User-Agent)
+    IM->>AN: verifyEnrollmentToken(enrollmentToken)
+    AN-->>IM: {userId, email} (or none)
+    alt token expired or not valid
+        IM-->>API: Unauthorized
+        API-->>User: 401 auth.enrollment_expired (sign in again)
+    else token valid
+        IM->>UA: findLoginLock(emailKey), then findByEmail(email)
+        UA-->>IM: lockedUntil, user with encryptedMfaSecret
+        Note over IM: locked &rarr; 429 &mdash; user gone or not the one named &rarr; enrollment_expired
+        IM->>AN: verifyTotp(encryptedMfaSecret, mfaCode)
+        AN-->>IM: valid / invalid
+        alt wrong code
+            IM->>UA: recordLoginFailure(emailKey, &hellip;) (+ lockLogin at 5)
+            IM-->>API: Unauthorized
+            API-->>User: 401 auth.mfa_invalid (retry the code)
+        else code valid
+            IM->>UA: clearLoginFailures(emailKey)
+            IM->>UA: confirmMfaEnrollment(userId, now)
+            Note over UA: guarded on mfa_confirmed_at IS NULL &mdash;<br/>a token confirms once (OQ-107 pattern)
+            alt already confirmed
+                UA-->>IM: stale
+                IM-->>API: Unauthorized
+                API-->>User: 401 auth.enrollment_expired
+            else confirmed
+                UA-->>IM: confirmed
+                IM->>AN: issueOpaqueToken(), signAccessToken({userId, sessionId, systemRole})
+                IM->>SA: insert(userId, tokenHash, deviceInfo, expiresAt = now + 30 days, now)
+                SA-->>IM: session
+                IM-->>LOG: log.audit("ConfirmMfaEnrollment", Session sessionId)
+                IM-->>API: {accessToken, refreshToken}
+                API-->>User: 200 OK {accessToken, refreshToken}
+            end
+        end
+    end
+    </pre>
+  </div>
+  <div class="notes">
+    <ul>
+      <li><strong>Why a confirmation step (OQ-149):</strong> registration answers the secret once; without a live code nothing proves the user&#39;s app holds it, and a wrong scan would only show at the next sign-in &mdash; with no way back in. The first code closes that gap and is also what signs the new user in, so Onboard continues to Household Setup with a session.</li>
+      <li><strong>Same protections as sign-in&#39;s second step:</strong> the enrollment token is a stateless JWT with its own audience (it never passes as a challenge or an access token), wrong codes count against the per-address lockout (OQ-114), and success clears it.</li>
+      <li><strong>An unconfirmed account can always finish:</strong> the token lasts 15 minutes (<code>config/constants.ts</code>); after that, signing in with the password answers a fresh enrollment (UC-14), replacing the secret and recovery codes no one saw.</li>
+      <li>See FR-1.15, OQ-114, OQ-145, OQ-149.</li>
+    </ul>
+  </div>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      securityLevel: 'loose'
+    });
+  </script>
+</body>
+</html>

@@ -59,6 +59,14 @@ describe('createAuthenticationUtility', () => {
     expect(await auth.verifyAccessToken(challenge)).toBeUndefined();
   });
 
+  it('signs and verifies MFA enrollment tokens, which never pass as challenges', async () => {
+    const claims = { userId: 'user-1', email: 'ana@example.com' };
+    const enrollment = await auth.signEnrollmentToken(claims);
+
+    expect(await auth.verifyEnrollmentToken(enrollment)).toEqual(claims);
+    expect(await auth.verifyChallengeToken(enrollment)).toBeUndefined();
+  });
+
   it('issues opaque tokens', () => {
     const { token, tokenHash } = auth.issueOpaqueToken();
 

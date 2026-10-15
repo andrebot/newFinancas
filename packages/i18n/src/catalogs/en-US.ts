@@ -14,6 +14,7 @@ const enUS: Catalog = {
     'auth.refresh_invalid': 'Your session has expired. Please sign in again.',
     'auth.mfa_invalid': 'Invalid verification code.',
     'auth.challenge_expired': 'Your sign-in took too long. Please enter your email and password again.',
+    'auth.enrollment_expired': 'Your setup took too long. Please sign in again to get a new code.',
     'auth.unauthenticated': 'Please sign in to continue.',
     'auth.too_many_attempts': 'Too many sign-in attempts. Try again in {retryAfterMinutes, plural, one {# minute} other {# minutes}}.',
     'budget.target_already_claimed': 'This category already belongs to another budget.',

@@ -55,7 +55,13 @@ const VERIFICATION = { challengeToken: 'challenge', mfaCode: '123456' };
 describe('identity routes — public', () => {
   it('POST /auth/register → 201; the Manager judges password length', async () => {
     const { app, identity } = setup();
-    const registered = { userId: USER_ID, totpSecret: 'S', recoveryCodes: ['C'] };
+    const registered = {
+      userId: USER_ID,
+      enrollmentToken: 'enrollment',
+      totpSecret: 'S',
+      otpauthUri: 'otpauth://totp/x',
+      recoveryCodes: ['C'],
+    };
     identity.register.mockResolvedValueOnce(registered);
 
     const response = await send(app, 'POST', '/auth/register', { body: REGISTRATION });
@@ -78,12 +84,39 @@ describe('identity routes — public', () => {
 
   it('POST /auth/login answers the MFA challenge (OQ-145)', async () => {
     const { app, identity } = setup();
-    identity.login.mockResolvedValueOnce({ challengeToken: 'challenge' });
+    identity.login.mockResolvedValueOnce({ step: 'mfa', challengeToken: 'challenge' });
 
     const response = await send(app, 'POST', '/auth/login', { body: CREDENTIALS });
 
-    expect(await response.json()).toEqual({ challengeToken: 'challenge' });
+    expect(await response.json()).toEqual({ step: 'mfa', challengeToken: 'challenge' });
     expect(identity.login).toHaveBeenCalledWith(expect.anything(), CREDENTIALS);
+  });
+
+  it('POST /auth/mfa/enrollment/confirm passes the device, returns tokens (OQ-149)', async () => {
+    const { app, identity } = setup();
+    identity.confirmMfaEnrollment.mockResolvedValue({ accessToken: 'a', refreshToken: 'r' });
+    const body = { enrollmentToken: 'enrollment', mfaCode: '123456' };
+
+    const response = await send(app, 'POST', '/auth/mfa/enrollment/confirm', {
+      body, headers: { 'User-Agent': 'Firefox' },
+    });
+    await send(app, 'POST', '/auth/mfa/enrollment/confirm', { body });
+
+    expect(await response.json()).toEqual({ accessToken: 'a', refreshToken: 'r' });
+    expect(identity.confirmMfaEnrollment)
+      .toHaveBeenNthCalledWith(1, expect.anything(), body, 'Firefox');
+    expect(identity.confirmMfaEnrollment).toHaveBeenNthCalledWith(2, expect.anything(), body, null);
+  });
+
+  it('rejects a confirmation without its code before the Manager', async () => {
+    const { app, identity } = setup();
+
+    const response = await send(app, 'POST', '/auth/mfa/enrollment/confirm', {
+      body: { enrollmentToken: 'enrollment' },
+    });
+
+    expect(response.status).toBe(422);
+    expect(identity.confirmMfaEnrollment).not.toHaveBeenCalled();
   });
 
   it('POST /auth/mfa/verify passes the device (User-Agent), or null without one', async () => {

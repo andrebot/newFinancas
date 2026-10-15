@@ -59,6 +59,7 @@ const OPENING_BALANCES: Record<string, number> = {
  * @param language - UI language.
  * @param theme - UI theme.
  * @param credentials - The stored dev credentials.
+ * @param today - The seeding date: the MFA enrollment counts as confirmed then (OQ-149).
  * @returns The user row.
  */
 const demoUser = (
@@ -67,6 +68,7 @@ const demoUser = (
   language: string,
   theme: string,
   credentials: DemoCredentials,
+  today: Date,
 ): DemoSeed['users'][number] => ({
   id,
   email: `${firstName.toLowerCase()}@demo.financas.local`,
@@ -76,6 +78,7 @@ const demoUser = (
   theme,
   passwordHash: credentials.passwordHash,
   mfaSecret: credentials.encryptedMfaSecret,
+  mfaConfirmedAt: today,
 });
 
 /**
@@ -143,8 +146,8 @@ export const buildDemoSeed = (today: Date, credentials: DemoCredentials): DemoSe
 
   return {
     users: [
-      demoUser(ANA, 'Ana', 'pt-BR', 'dark', credentials),
-      demoUser(BEN, 'Ben', 'en-US', 'light', credentials),
+      demoUser(ANA, 'Ana', 'pt-BR', 'dark', credentials, today),
+      demoUser(BEN, 'Ben', 'en-US', 'light', credentials, today),
     ],
     households: [{ id: HOUSEHOLD, name: 'Casa Demo' }],
     memberships: [

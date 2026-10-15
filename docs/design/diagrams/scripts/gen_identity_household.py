@@ -607,9 +607,12 @@ sequenceDiagram
                 API-->>User: 409 user.email_taken
             else created
                 UA-->>IM: {ok: true, user}
+                Note over UA: mfa_confirmed_at stays null until the first code (OQ-149)
                 IM-->>LOG: log.audit("CreateUser", User userId)
-                IM-->>API: {userId, totpSecret, recoveryCodes[]}
-                API-->>User: 201 Created {userId, totpSecret (QR-encodable), recoveryCodes[]}
+                IM->>AN: signEnrollmentToken({userId, email})
+                AN-->>IM: enrollmentToken (15-minute JWT, its own audience)
+                IM-->>API: {userId, enrollmentToken, totpSecret, otpauthUri, recoveryCodes[]}
+                API-->>User: 201 Created {userId, enrollmentToken, totpSecret, otpauthUri (the QR), recoveryCodes[]}
             end
         end
     end
@@ -617,9 +620,71 @@ sequenceDiagram
     notes="""
     <ul>
       <li><strong>MFA enrollment is not optional or deferred</strong> — FR-1.15 requires it complete before the account can log in at all, so it happens inline in registration, not as a follow-up step.</li>
+      <li><strong>Confirmed by its first code (OQ-149).</strong> The enrollment stays unconfirmed until <code>POST /auth/mfa/enrollment/confirm</code> (UC-11b) receives a code from the app, with the <code>enrollmentToken</code> answered here; that confirmation opens the first session. Signing in before then answers a fresh enrollment instead of a challenge (UC-14), so a user who closed the tab before scanning is never locked out.</li>
+      <li><code>otpauthUri</code> carries the issuer and TOTP settings (<code>config/constants.ts</code>), so the web app draws the QR without repeating them.</li>
       <li>The recovery codes are returned exactly once, at creation — the backend stores only their hashes (<code>mfa_recovery_codes.code_hash</code>), never the plaintext codes themselves after this response.</li>
       <li><strong>Redrawn to the implementation (M1):</strong> the route is <code>POST /auth/register</code> (was shown as <code>POST /users</code>); request shape is checked at the route against the contract, not by a <code>ValidationUtility</code>; a duplicate email is the insert&#39;s typed result, not a prior lookup that two simultaneous registrations could both pass.</li>
-      <li>See FR-1.1, FR-1.15, OQ-29 (first_name/last_name resolved during data modeling), OQ-114, OQ-116.</li>
+      <li>See FR-1.1, FR-1.15, OQ-29 (first_name/last_name resolved during data modeling), OQ-114, OQ-116, OQ-149.</li>
+    </ul>
+""",
+))
+
+# ---------------------------------------------------------------- UC-11b
+UCS.append(dict(
+    filename="uc-11b-confirm-mfa-enrollment.html",
+    title="Confirm MFA Enrollment",
+    subtitle='<span class="route">POST /auth/mfa/enrollment/confirm</span> &mdash; FR-1.15/OQ-149. The first authenticator code proves the app was set up: it confirms the enrollment, once, and opens the first session. Follows Create User (UC-11), or a sign-in to an unconfirmed account (UC-14).',
+    mermaid="""
+sequenceDiagram
+""" + P_CORE + """
+    participant UA as UserAccessor
+    participant AN as AuthenticationUtility
+    participant SA as SessionAccessor
+    participant LOG as LoggingUtility
+
+    User->>API: POST /auth/mfa/enrollment/confirm {enrollmentToken, mfaCode}
+    API->>IM: confirmMfaEnrollment(input, deviceInfo = User-Agent)
+    IM->>AN: verifyEnrollmentToken(enrollmentToken)
+    AN-->>IM: {userId, email} (or none)
+    alt token expired or not valid
+        IM-->>API: Unauthorized
+        API-->>User: 401 auth.enrollment_expired (sign in again)
+    else token valid
+        IM->>UA: findLoginLock(emailKey), then findByEmail(email)
+        UA-->>IM: lockedUntil, user with encryptedMfaSecret
+        Note over IM: locked &rarr; 429 &mdash; user gone or not the one named &rarr; enrollment_expired
+        IM->>AN: verifyTotp(encryptedMfaSecret, mfaCode)
+        AN-->>IM: valid / invalid
+        alt wrong code
+            IM->>UA: recordLoginFailure(emailKey, &hellip;) (+ lockLogin at 5)
+            IM-->>API: Unauthorized
+            API-->>User: 401 auth.mfa_invalid (retry the code)
+        else code valid
+            IM->>UA: clearLoginFailures(emailKey)
+            IM->>UA: confirmMfaEnrollment(userId, now)
+            Note over UA: guarded on mfa_confirmed_at IS NULL &mdash;<br/>a token confirms once (OQ-107 pattern)
+            alt already confirmed
+                UA-->>IM: stale
+                IM-->>API: Unauthorized
+                API-->>User: 401 auth.enrollment_expired
+            else confirmed
+                UA-->>IM: confirmed
+                IM->>AN: issueOpaqueToken(), signAccessToken({userId, sessionId, systemRole})
+                IM->>SA: insert(userId, tokenHash, deviceInfo, expiresAt = now + 30 days, now)
+                SA-->>IM: session
+                IM-->>LOG: log.audit("ConfirmMfaEnrollment", Session sessionId)
+                IM-->>API: {accessToken, refreshToken}
+                API-->>User: 200 OK {accessToken, refreshToken}
+            end
+        end
+    end
+""",
+    notes="""
+    <ul>
+      <li><strong>Why a confirmation step (OQ-149):</strong> registration answers the secret once; without a live code nothing proves the user&#39;s app holds it, and a wrong scan would only show at the next sign-in &mdash; with no way back in. The first code closes that gap and is also what signs the new user in, so Onboard continues to Household Setup with a session.</li>
+      <li><strong>Same protections as sign-in&#39;s second step:</strong> the enrollment token is a stateless JWT with its own audience (it never passes as a challenge or an access token), wrong codes count against the per-address lockout (OQ-114), and success clears it.</li>
+      <li><strong>An unconfirmed account can always finish:</strong> the token lasts 15 minutes (<code>config/constants.ts</code>); after that, signing in with the password answers a fresh enrollment (UC-14), replacing the secret and recovery codes no one saw.</li>
+      <li>See FR-1.15, OQ-114, OQ-145, OQ-149.</li>
     </ul>
 """,
 ))
@@ -759,12 +824,23 @@ sequenceDiagram
             end
             IM-->>API: Unauthorized
             API-->>User: 401 auth.invalid_credentials (same for both)
+        else password valid, MFA enrollment unconfirmed (OQ-149)
+            IM->>AN: enrollMfa(email)
+            AN-->>IM: {secret, otpauthUri, encryptedSecret, recoveryCodes[], recoveryCodeHashes[]}
+            IM->>UA: replaceMfaEnrollment(userId, {encryptedMfaSecret, recoveryCodeHashes})
+            Note over UA: guarded on mfa_confirmed_at IS NULL &mdash;<br/>confirmed meanwhile &rarr; stale &rarr; the challenge below
+            UA-->>IM: replaced
+            IM-->>LOG: log.audit("RestartMfaEnrollment", User userId)
+            IM->>AN: signEnrollmentToken({userId, email})
+            AN-->>IM: enrollmentToken
+            IM-->>API: {step: enroll, enrollmentToken, totpSecret, otpauthUri, recoveryCodes[]}
+            API-->>User: 200 OK &mdash; finish the enrollment (UC-11b)
         else password valid
             IM->>AN: signChallengeToken({userId, email})
             Note over AN: five-minute JWT, its own audience &mdash;<br/>never passes as an access token (OQ-145)
             AN-->>IM: challengeToken
-            IM-->>API: {challengeToken}
-            API-->>User: 200 OK {challengeToken}
+            IM-->>API: {step: mfa, challengeToken}
+            API-->>User: 200 OK {step: mfa, challengeToken}
         end
     end
 
@@ -809,7 +885,8 @@ sequenceDiagram
       <li><strong>Lockout (OQ-114) spans both steps:</strong> 5 failures &mdash; wrong passwords and wrong codes alike &mdash; within 15 minutes lock the <em>address</em> for 15 minutes (<code>config/constants.ts</code>). Only a full sign-in clears the count; a correct password does not, or it could buy endless code guesses. The count lives in <code>login_attempts</code>, keyed by address, so an address with no account locks exactly like one with an account. The Manager decides; <code>UserAccessor</code> applies (atomic count, lock, clear).</li>
       <li><strong>The challenge token is stateless</strong> (a JWT naming the user and address): no table, and reusing it within its five minutes still needs a correct code, under the same lockout.</li>
       <li>The access token is never persisted (OQ-30); only the refresh token is server-tracked in <code>sessions</code>.</li>
-      <li>See FR-1.2, OQ-30, OQ-100, OQ-106, OQ-111, OQ-114, OQ-145.</li>
+      <li><strong>Unconfirmed MFA enrollment (OQ-149):</strong> an account whose first authenticator code never arrived gets no challenge &mdash; the right password answers a fresh enrollment (new secret and recovery codes, replacing the ones no one saw), confirmed through UC-11b. The answer is tagged by <code>step</code> (<code>mfa</code> or <code>enroll</code>). A wrong password is answered as before, so this reveals nothing to someone without it.</li>
+      <li>See FR-1.2, FR-1.15, OQ-30, OQ-100, OQ-106, OQ-111, OQ-114, OQ-145, OQ-149.</li>
     </ul>
 """,
 ))

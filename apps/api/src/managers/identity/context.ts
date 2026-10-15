@@ -45,6 +45,43 @@ export interface AuthTokens {
   readonly refreshToken: string;
 }
 
+/** What an unconfirmed MFA enrollment hands the client, once (OQ-149). */
+export interface EnrollmentStart {
+  /** Fifteen-minute JWT that, with the first authenticator code, confirms the enrollment. */
+  readonly enrollmentToken: string;
+  readonly totpSecret: string;
+  /** The `otpauth://` URI the QR code encodes — issuer and TOTP settings included. */
+  readonly otpauthUri: string;
+  readonly recoveryCodes: readonly string[];
+}
+
+/** A fresh enrollment's plain parts, as AuthenticationUtility.enrollMfa returns them. */
+interface PlainEnrollment {
+  readonly secret: string;
+  readonly otpauthUri: string;
+  readonly recoveryCodes: readonly string[];
+}
+
+/**
+ * Hands a fresh, unconfirmed enrollment to the client: its plain secret, QR URI
+ * and recovery codes, and the token that confirms it (OQ-149).
+ *
+ * @param auth - Signs the enrollment token.
+ * @param user - Whose enrollment: the token names their id and address.
+ * @param enrollment - The plain secret, URI and codes.
+ * @returns What the client shows and sends back.
+ */
+export const enrollmentStart = async (
+  auth: Pick<AuthenticationUtility, 'signEnrollmentToken'>,
+  user: { readonly id: string; readonly email: string },
+  enrollment: PlainEnrollment,
+): Promise<EnrollmentStart> => ({
+  enrollmentToken: await auth.signEnrollmentToken({ userId: user.id, email: user.email }),
+  totpSecret: enrollment.secret,
+  otpauthUri: enrollment.otpauthUri,
+  recoveryCodes: enrollment.recoveryCodes,
+});
+
 /**
  * A logger for one use case run, labelled IdentityManager.
  *

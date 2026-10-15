@@ -1,11 +1,15 @@
 import type { UserWithCredentials } from '../../accessors/userAccessor';
 import { authentication } from '../../config/constants';
+import type { ApiError } from '../../http/apiError';
+import type { ChallengeClaims } from '../../utilities/authentication';
 import {
-  emailKeyOf, loggerFor, refreshTokenExpiry,
-  type AuthTokens, type IdentityDeps, type RequestContext, type SignedInContext,
+  emailKeyOf, enrollmentStart, loggerFor, refreshTokenExpiry,
+  type AuthTokens, type EnrollmentStart, type IdentityDeps, type RequestContext,
+  type SignedInContext,
 } from './context';
 import {
-  challengeExpired, invalidCredentials, mfaInvalid, refreshInvalid, tooManyAttempts,
+  challengeExpired, enrollmentExpired, invalidCredentials, mfaInvalid, refreshInvalid,
+  tooManyAttempts,
 } from './errors';
 
 // Login (uc-14), MFA Recovery (uc-20), Refresh Tokens (uc-14b) and Logout
@@ -16,6 +20,9 @@ import {
 // code, since its caller already proved the password. Both steps count against
 // the same per-address lockout, and only a full sign-in clears it.
 // UserAccessor only counts, locks and clears.
+// An account whose MFA enrollment was never confirmed gets no challenge: the
+// password step answers a fresh enrollment, whose first authenticator code
+// confirms it and opens the session (OQ-149, uc-11b).
 
 const { loginLockout } = authentication;
 const MINUTE_MS = 60_000;
@@ -28,7 +35,22 @@ export interface Credentials {
 
 /** What the password step answers: the challenge the second step needs. */
 export interface Challenge {
+  readonly step: 'mfa';
   readonly challengeToken: string;
+}
+
+/** What the password step answers while the MFA enrollment is unconfirmed (OQ-149). */
+export interface EnrollmentStep extends EnrollmentStart {
+  readonly step: 'enroll';
+}
+
+/** The password step's answer: an MFA challenge, or an enrollment to finish. */
+export type LoginStep = Challenge | EnrollmentStep;
+
+/** Confirms an MFA enrollment with its first authenticator code (OQ-149). */
+export interface EnrollmentConfirmation {
+  readonly enrollmentToken: string;
+  readonly mfaCode: string;
 }
 
 /** The second step with the authenticator code (FR-1.2). */
@@ -112,34 +134,69 @@ const createSignIn = (deps: IdentityDeps) => {
   };
 
   /**
-   * The second step, shared by the MFA code and the recovery code: checks the
-   * challenge, refuses a locked address, checks the factor, counts a failure
-   * and clears the count on success (OQ-145).
+   * The step after the password, shared by the MFA code, the recovery code and
+   * the enrollment's first code: checks the step token's claims, refuses a
+   * locked address, checks the factor, counts a failure and clears the count on
+   * success (OQ-145, OQ-149).
    *
-   * @param challengeToken - From the password step.
-   * @param secondFactor - The MFA code or recovery-code check.
+   * @param claims - The step token's claims; `undefined` when it didn't verify.
+   * @param expired - The rejection for a token that is not (or no longer) valid.
+   * @param secondFactor - The code check.
    * @param now - Current time.
    * @returns The authenticated user.
-   * @throws {ApiError} 401 `auth.challenge_expired`; 429 `auth.too_many_attempts`;
-   *   401 `auth.mfa_invalid`.
+   * @throws {ApiError} `expired()`; 429 `auth.too_many_attempts`; 401 `auth.mfa_invalid`.
    */
-  const completeChallenge = async (
-    challengeToken: string,
+  const completeStep = async (
+    claims: ChallengeClaims | undefined,
+    expired: () => ApiError,
     secondFactor: SecondFactor,
     now: Date,
   ): Promise<UserWithCredentials> => {
-    const claims = await auth.verifyChallengeToken(challengeToken);
-    if (!claims) throw challengeExpired();
+    if (!claims) throw expired();
     const emailKey = emailKeyOf(claims.email);
     await refuseIfLocked(emailKey, now);
     const user = await users.findByEmail(claims.email);
-    if (user?.id !== claims.userId) throw challengeExpired();
+    if (user?.id !== claims.userId) throw expired();
     if (!await secondFactor(user)) {
       await countFailure(emailKey, now);
       throw mfaInvalid();
     }
     await users.clearLoginFailures(emailKey);
     return user;
+  };
+
+  /**
+   * The ordinary answer to a matching password: a challenge for the MFA step.
+   *
+   * @param user - Whose password matched.
+   * @returns The challenge.
+   */
+  const challengeFor = async (user: UserWithCredentials): Promise<Challenge> => ({
+    step: 'mfa',
+    challengeToken: await auth.signChallengeToken({ userId: user.id, email: user.email }),
+  });
+
+  /**
+   * Starts the user's MFA enrollment over — a new secret and recovery codes
+   * replacing the unconfirmed ones, which the client never showed or lost — and
+   * audits it (OQ-149). Confirmed meanwhile: an ordinary challenge instead.
+   *
+   * @param context - The request.
+   * @param user - Whose enrollment is unconfirmed.
+   * @returns The enrollment to finish, or the challenge.
+   */
+  const restartEnrollment = async (
+    context: RequestContext,
+    user: UserWithCredentials,
+  ): Promise<LoginStep> => {
+    const mfa = auth.enrollMfa(user.email);
+    const result = await users.replaceMfaEnrollment(user.id, {
+      encryptedMfaSecret: mfa.encryptedSecret, recoveryCodeHashes: mfa.recoveryCodeHashes,
+    });
+    if (result === 'stale') return challengeFor(user);
+    loggerFor(context, user.id)
+      .audit('RestartMfaEnrollment', { entityType: 'User', entityId: user.id, householdId: null });
+    return { step: 'enroll', ...await enrollmentStart(auth, user, mfa) };
   };
 
   /**
@@ -194,13 +251,14 @@ const createSignIn = (deps: IdentityDeps) => {
      * checks the password (a dummy hash when no user matches), counts any
      * failure and answers it the same way. Success does not clear the count —
      * only a full sign-in does, so the password can't buy endless code guesses.
+     * An unconfirmed MFA enrollment is started over instead (OQ-149).
      *
      * @param context - The request.
      * @param credentials - Email and password.
-     * @returns The challenge token for the second step.
+     * @returns The challenge token for the second step, or the enrollment to finish.
      * @throws {ApiError} 429 `auth.too_many_attempts`; 401 `auth.invalid_credentials`.
      */
-    login: async (_context: RequestContext, credentials: Credentials): Promise<Challenge> => {
+    login: async (context: RequestContext, credentials: Credentials): Promise<LoginStep> => {
       const now = deps.now();
       const emailKey = emailKeyOf(credentials.email);
       await refuseIfLocked(emailKey, now);
@@ -211,8 +269,8 @@ const createSignIn = (deps: IdentityDeps) => {
         await countFailure(emailKey, now);
         throw invalidCredentials();
       }
-      const challengeToken = await auth.signChallengeToken({ userId: user.id, email: user.email });
-      return { challengeToken };
+      if (!user.mfaConfirmedAt) return restartEnrollment(context, user);
+      return challengeFor(user);
     },
 
     /**
@@ -233,8 +291,37 @@ const createSignIn = (deps: IdentityDeps) => {
       const totpMatches: SecondFactor = (user) => (
         auth.verifyTotp(user.encryptedMfaSecret, verification.mfaCode)
       );
-      const user = await completeChallenge(verification.challengeToken, totpMatches, deps.now());
+      const claims = await auth.verifyChallengeToken(verification.challengeToken);
+      const user = await completeStep(claims, challengeExpired, totpMatches, deps.now());
       return openSession(context, user, deviceInfo, 'Login');
+    },
+
+    /**
+     * Confirms an MFA enrollment with its first authenticator code and opens a
+     * session (uc-11b, OQ-149) — proof the app was set up. A wrong code counts
+     * against the same lockout as sign-in; the confirmation is guarded, so a
+     * token works for one confirmation only.
+     *
+     * @param context - The request.
+     * @param confirmation - Enrollment token and authenticator code.
+     * @param deviceInfo - The device (User-Agent), for the sessions list.
+     * @returns Access and refresh tokens.
+     * @throws {ApiError} 401 `auth.enrollment_expired`; 429 `auth.too_many_attempts`;
+     *   401 `auth.mfa_invalid`.
+     */
+    confirmMfaEnrollment: async (
+      context: RequestContext,
+      confirmation: EnrollmentConfirmation,
+      deviceInfo: string | null,
+    ): Promise<AuthTokens> => {
+      const now = deps.now();
+      const totpMatches: SecondFactor = (user) => (
+        auth.verifyTotp(user.encryptedMfaSecret, confirmation.mfaCode)
+      );
+      const claims = await auth.verifyEnrollmentToken(confirmation.enrollmentToken);
+      const user = await completeStep(claims, enrollmentExpired, totpMatches, now);
+      if (await users.confirmMfaEnrollment(user.id, now) === 'stale') throw enrollmentExpired();
+      return openSession(context, user, deviceInfo, 'ConfirmMfaEnrollment');
     },
 
     /**
@@ -258,7 +345,8 @@ const createSignIn = (deps: IdentityDeps) => {
       const codeConsumed: SecondFactor = (user) => (
         users.consumeRecoveryCode(user.id, codeHash, now)
       );
-      const user = await completeChallenge(verification.challengeToken, codeConsumed, now);
+      const claims = await auth.verifyChallengeToken(verification.challengeToken);
+      const user = await completeStep(claims, challengeExpired, codeConsumed, now);
       return openSession(context, user, deviceInfo, 'MfaRecovery');
     },
 

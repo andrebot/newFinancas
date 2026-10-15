@@ -59,11 +59,38 @@ export type Money = number;
 export type Quantity = number;
 
 export type MfaChallenge = {
+    step: 'mfa';
     /**
      * Five-minute JWT proving the password matched; only POST /auth/mfa/verify and /auth/mfa/recover accept it (OQ-145)
      */
     challengeToken: string;
 };
+
+export type MfaEnrollmentStart = {
+    /**
+     * Fifteen-minute JWT; only POST /auth/mfa/enrollment/confirm accepts it (OQ-149)
+     */
+    enrollmentToken: string;
+    /**
+     * Base32 TOTP secret, for entering the key by hand
+     */
+    totpSecret: string;
+    /**
+     * otpauth:// URI the QR code encodes — issuer, account and TOTP settings included
+     */
+    otpauthUri: string;
+    /**
+     * Single-use recovery codes, returned this once (stored only as hashes)
+     */
+    recoveryCodes: Array<string>;
+};
+
+/**
+ * The password step's answer while the MFA enrollment is unconfirmed (OQ-149).
+ */
+export type MfaEnrollment = {
+    step: 'enroll';
+} & MfaEnrollmentStart;
 
 export type AuthTokens = {
     /**
@@ -899,13 +926,8 @@ export type RegisterUserResponses = {
      * Created. Recovery codes are returned exactly once and never again.
      */
     201: {
-        userId?: string;
-        /**
-         * QR-encodable TOTP enrollment secret
-         */
-        totpSecret?: string;
-        recoveryCodes?: Array<string>;
-    };
+        userId: string;
+    } & MfaEnrollmentStart;
 };
 
 export type RegisterUserResponse = RegisterUserResponses[keyof RegisterUserResponses];
@@ -938,7 +960,11 @@ export type LoginResponses = {
     /**
      * OK
      */
-    200: MfaChallenge;
+    200: ({
+        step: 'mfa';
+    } & MfaChallenge) | ({
+        step: 'enroll';
+    } & MfaEnrollment);
 };
 
 export type LoginResponse = LoginResponses[keyof LoginResponses];
@@ -974,6 +1000,38 @@ export type VerifyMfaResponses = {
 };
 
 export type VerifyMfaResponse = VerifyMfaResponses[keyof VerifyMfaResponses];
+
+export type ConfirmMfaEnrollmentData = {
+    body: {
+        enrollmentToken: string;
+        mfaCode: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/auth/mfa/enrollment/confirm';
+};
+
+export type ConfirmMfaEnrollmentErrors = {
+    /**
+     * The enrollment was not confirmed (OQ-149). Codes: `auth.mfa_invalid` (wrong authenticator code — counted against the lockout), `auth.enrollment_expired` (enrollment token expired or not valid, or the enrollment is already confirmed — sign in again, which answers a fresh enrollment while it is unconfirmed).
+     */
+    401: Error;
+    /**
+     * Too many failed attempts for this email address (OQ-114) — answered the same whether or not an account exists. Code: `auth.too_many_attempts`, `params.retryAfterMinutes`.
+     */
+    429: Error;
+};
+
+export type ConfirmMfaEnrollmentError = ConfirmMfaEnrollmentErrors[keyof ConfirmMfaEnrollmentErrors];
+
+export type ConfirmMfaEnrollmentResponses = {
+    /**
+     * OK
+     */
+    200: AuthTokens;
+};
+
+export type ConfirmMfaEnrollmentResponse = ConfirmMfaEnrollmentResponses[keyof ConfirmMfaEnrollmentResponses];
 
 export type LogoutData = {
     body?: never;

@@ -3025,6 +3025,39 @@ not a hardcoded assumption.
 
 **Task 52 (`FL3`) is complete.**
 
+### OQ-149: Confirming MFA enrollment, and the MFA Enrollment Flow (task FL4)
+**Confirmed with the stakeholder (Oct 2026):**
+- **The backend checks the first code.** Mockup 06's "Verify & continue"
+  had nothing to call: registration answers the secret once, and
+  `/auth/mfa/verify` takes only a sign-in challenge. The M1 call chain had
+  left the check to the web Flow, which could not prove anything. Now:
+  - `POST /auth/register` also answers an **`enrollmentToken`** — a JWT
+    with its own audience (`financas-mfa-enrollment`) that lasts 15
+    minutes (`config/constants.ts`), long enough to install an app and
+    scan — and the **`otpauthUri`** the QR encodes, so the issuer and TOTP
+    settings stay the backend's.
+  - **`POST /auth/mfa/enrollment/confirm {enrollmentToken, mfaCode}`**
+    checks the code, confirms the enrollment once (guarded write) and
+    opens a session (audit `ConfirmMfaEnrollment`). The new user is signed
+    in, which Household Setup needs. A wrong code is `auth.mfa_invalid`
+    and counts against the sign-in lockout (OQ-114); a bad, expired or
+    already-used token is the new **`auth.enrollment_expired`** (401).
+    Sequence `uc-11b-confirm-mfa-enrollment.html`.
+- **Sign-in waits for the confirmation (FR-1.15), and can resume it.**
+  `users.mfa_confirmed_at` is null until the first code; the migration
+  marks existing users confirmed at their creation, and the demo seed
+  does too. For an unconfirmed account, the right password makes
+  `POST /auth/login` answer a **fresh enrollment** — new secret and
+  recovery codes replacing the ones no one saw (guarded: confirmed
+  meanwhile → the ordinary challenge), audited `RestartMfaEnrollment` —
+  instead of a challenge. So someone who closes the tab before scanning
+  is never locked out. The answer is tagged:
+  `{step: 'mfa', challengeToken}` or
+  `{step: 'enroll', enrollmentToken, totpSecret, otpauthUri, recoveryCodes}`.
+  Sending a returning user from Sign In to MFA Enrollment is X1/X2's.
+- The token helpers became one pair (sign/verify a step token by
+  audience), shared by the challenge and the enrollment token.
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.
