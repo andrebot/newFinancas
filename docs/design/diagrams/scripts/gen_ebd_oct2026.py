@@ -25,7 +25,7 @@ SEQS = ROOT / "ebd-sequences"
 UTILS = {
     "ValidationUtility": "Field rules shared by every form (email, password ≥ 12, money, dates)",
     "PasswordStrengthUtility": "Strength meter for register / reset / change password",
-    "AlertUtility": "Toasts and inline banners",
+    "AlertUtility": "The page's toast queue: at most 3 shown, the rest wait; repeats ignored (OQ-152)",
     "ThemeUtility": "Design tokens, dark / light / system, category palette tokens (OQ-85, NFR-UX-2)",
     "I18nUtility": "Shared ICU catalog — renders notifications by type and errors by code (NFR-I18N-3)",
     "FormattingUtility": "Intl formatting — money in minor units, rates × 10,000, whole percent, dates (NFR-I18N-2)",

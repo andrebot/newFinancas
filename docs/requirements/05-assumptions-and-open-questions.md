@@ -3150,6 +3150,38 @@ not a hardcoded assumption.
 
 **Task 55 (`FL8`) is complete.**
 
+### OQ-152: AlertUtility, the toast queue (task FU3)
+**Confirmed with the stakeholder (Oct 2026):**
+- **Toasts only.** AlertUtility is the page's toast queue. Inline banners
+  stay kit pieces (`InlineBanner`, via `StepAlert`) that the Flow owning
+  the state draws, and the "are you sure?" steps are the kit's
+  `InlineConfirm` / `TypeToConfirm` (OQ-142, OQ-143). The EBD Utilities
+  table and the Manage Household notes said otherwise and are corrected.
+- **The queue (`utilities/alerts.ts`, `createAlertQueue`)** is plain
+  TypeScript: `show({ tone, message, action?, duration? })` returns an id,
+  `dismiss(id)` closes a toast that is shown or still waiting, `visible()`
+  is the shown list and `subscribe` follows it.
+- **At most 3 on screen** (`toast.maxVisible`, `config/constants.ts`),
+  oldest first. Extra toasts wait in order and appear as shown ones close,
+  so a sticky error is never pushed out unread. A waiting toast's timer
+  starts only once it is shown, because the kit runs the timer.
+- **Repeats are ignored.** A toast with the same tone and message as one
+  already shown or waiting is not added again, and `show` returns the
+  existing toast's id. Once that toast closes, the same message can
+  show again.
+- **Messages arrive translated.** Callers render them with I18nUtility
+  (e.g. `translator.error(code)`), as the Flows do for their banners.
+- **React binding (`utilities/AlertProvider.tsx`).** `AlertProvider` is
+  mounted in `main.tsx` inside the `I18nProvider`. It draws the shown
+  toasts in the kit's `ToastRegion`. `useAlerts()` gives
+  `success / info / warning / error(message, { action?, duration? })` and
+  `dismiss(id)`. Any tier may call it, as with every Utility.
+- **Copy (new `alerts` catalog section):** the region is named
+  "Alerts" / "Avisos" (not "Notifications", which is the bell's inbox),
+  and the close button says "Dismiss" / "Dispensar".
+
+**Task 56 (`FU3`) is complete.**
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.

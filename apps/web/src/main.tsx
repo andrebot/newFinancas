@@ -3,8 +3,11 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
+import { toast } from './config/constants';
 import './styles/theme.css';
 import { browserLocaleEnvironment, createLocaleController } from './utilities/i18n';
+import { AlertProvider } from './utilities/AlertProvider';
+import { createAlertQueue } from './utilities/alerts';
 import { I18nProvider } from './utilities/I18nProvider';
 import { browserThemeEnvironment, createThemeController } from './utilities/theme';
 
@@ -18,13 +21,18 @@ themeController.restore();
 const localeController = createLocaleController(browserLocaleEnvironment(window));
 localeController.restore();
 
+// The page's toasts; the provider draws them over whatever page is shown.
+const alertQueue = createAlertQueue(toast.maxVisible);
+
 const container = document.getElementById('root');
 
 if (container) {
   createRoot(container).render(
     <StrictMode>
       <I18nProvider controller={localeController}>
-        <App />
+        <AlertProvider queue={alertQueue}>
+          <App />
+        </AlertProvider>
       </I18nProvider>
     </StrictMode>,
   );

@@ -204,6 +204,10 @@ const enUS: Catalog = {
     'confirm.submit': 'Delete account',
     'confirm.cancel': 'Cancel',
   },
+  alerts: {
+    region: 'Alerts',
+    dismiss: 'Dismiss',
+  },
   emails: {
     'password.reset.subject': 'Reset your password',
     'password.reset.body': "We received a request to reset your password. Use the link below within {expiresInMinutes, plural, one {# minute} other {# minutes}}:\n\n{resetLink}\n\nIf this wasn't you, ignore this email; your password stays the same.",

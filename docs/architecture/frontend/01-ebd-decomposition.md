@@ -153,7 +153,7 @@ Diagram: `docs/design/diagrams/ebd-tiers/app-shell.html`; sequence:
 |---|---|
 | `ValidationUtility` | Field rules shared by every form (email, password ≥ 12, money, dates) |
 | `PasswordStrengthUtility` | Strength meter for register / reset / change password |
-| `AlertUtility` | Toasts and inline banners |
+| `AlertUtility` | The page's toast queue: at most 3 shown, the rest wait; repeats ignored (OQ-152). Inline banners and confirms are kit pieces the Flow draws |
 | `ThemeUtility` | Design tokens, dark / light / system, category palette tokens (OQ-85, NFR-UX-2) |
 | `I18nUtility` | Shared ICU catalog — renders notifications by type and errors by code (NFR-I18N-3) |
 | `FormattingUtility` | Intl formatting — money in minor units, rates × 10,000, whole percent, dates (NFR-I18N-2) |
@@ -594,8 +594,9 @@ against the same litmus test that demoted Authenticate's Sign Out.
 - **Non-functional:** none evidenced. GDPR hard-delete is a fixed
   requirement, not a tracked alternative — not volatility.
 - **Cross-cutting:** locale, validation (email format for invites),
-  AlertUtility (confirmation dialogs — this Experience is the heaviest
-  user of it so far, given how many destructive actions live here).
+  AlertUtility (toasts after each action — this Experience is the
+  heaviest user of it, given how many destructive actions live here; the
+  confirms themselves are the kit's inline / type-to-confirm, OQ-152).
 - **Environmental:** backend API shape for all the Identity & Household
   use cases involved — already pinned down by their call-chain diagrams.
 
