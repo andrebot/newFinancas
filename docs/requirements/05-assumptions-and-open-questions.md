@@ -2439,6 +2439,65 @@ not a hardcoded assumption.
 
 **Task 40 (`K4`) is complete.**
 
+### OQ-137: Text field and the field frame (task K5)
+**Confirmed with the stakeholder (Oct 2026):**
+- **`Field` (`kit/field/Field.tsx`) is the frame every form control sits
+  in.** It draws the label (`type-caption font-semibold text-muted`) above
+  the control, an optional `labelAction` to its right (Sign in's "Forgot
+  password?"), and one message under it. The control is passed in as a
+  child and spreads `fieldAria(controlId, { hint, error })`, so the
+  message describes it and an error marks it `aria-invalid`. K6–K11
+  (password, money, number, date, select) reuse the frame instead of
+  copying the label, hint and error code.
+- **The error replaces the hint.** While a field is invalid, only the
+  coral `type-caption font-medium` error shows. The hint comes back once
+  the error clears, so the form doesn't grow when it's validated. This
+  differs from the Checkbox (OQ-130), which shows both.
+- **Hint in `text-muted`, not the mockup's `faint`.** This matches the
+  Checkbox description and the strength caption, and gives better
+  contrast.
+- **`TextField` (`kit/textField/TextField.tsx`)** is a native `<input>`
+  in that frame. It takes every native prop and `ref`, like the Button
+  (OQ-136). `type` defaults to `text`. It is controlled only: `value`,
+  plus `onChange`, which gets the new string, as the Checkbox's gets a
+  boolean. An `id` passed in is used for the input; otherwise one is
+  generated. `className` sets layout on the whole field.
+  `inputClassName` sets text styling on the input (`tabular-nums`, or the
+  backup code's `font-mono` centred look).
+- **Look, from the mockups' `.field`.** The box is 46px tall,
+  `rounded-[14px]`, with a `bg-bg` fill, a `border-line` border and 14px
+  side padding. Text is `type-body-lg` ink with `faint` placeholders.
+  Focus draws a mint border and a 3px `mint/15` halo. It uses
+  `focus-within`, so it shows for any focus (mouse included), as fields
+  usually do, and it stays on while a slot's button has focus. Invalid
+  turns the border coral, with a `coral/15` halo on focus. Disabled is
+  `opacity-50` with a not-allowed cursor. There is one size: the small
+  inline inputs (allocation %, the exchange rate) belong to K8 and K47.
+  There is no required marker, since the mockups show none.
+- **`leading` / `trailing` slots inside the box** were built ahead of
+  need, so K6 and K7 stay thin. They hold the money input's R$ / $
+  prefix, the password field's show / hide button and a search icon.
+  Slots are muted and size their icons at 18px. An empty slot renders
+  nothing.
+- **No `type="number"`.** It rejects or empties pt-BR decimals ("10,25"),
+  reports `""` mid-typing, changes value on scroll, accepts `e`, and drops
+  leading zeros. Numeric text uses `inputMode="numeric"` or `"decimal"`
+  and our own parsing.
+- **No mask in K5.** Masks change on screen only; the caller always gets
+  clean values (digits, minor units, a date). Each mask lives in its own
+  input:
+  - K7: money, as you type, per locale, giving minor units;
+  - K8: percentages and rates;
+  - K9: the date, `dd/mm/aaaa` or `mm/dd/yyyy`;
+  - K17: the 6-digit code, and the backup code `XXXX-XXXX`;
+  - K48: the card number, grouped in fours. It never leaves the form;
+    only `network` + `last4` are sent (FR on PAN storage).
+
+  Caret handling, the hard part of any mask, is written once as a shared
+  `useMaskedInput(format, parse)` hook when K7 first needs it.
+
+**Task 41 (`K5`) is complete.**
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.
