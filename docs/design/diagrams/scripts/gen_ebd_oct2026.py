@@ -51,7 +51,7 @@ EXPERIENCES = [
     ("Manage Profile", "manage-profile", "Look after my own account",
      [("Security", ["Password Change", "Session List", "Sign Out All Others"], "security"),
       ("Delete Account", ["Consequences Review", "Type-to-Confirm"], "delete-account")],
-     ["Edit Personal Info", "Edit Preferences", "Respond to Invitation"], ["ValidationUtility", "PasswordStrengthUtility", "AlertUtility", "ThemeUtility", "I18nUtility"],
+     ["Edit Personal Info", "Edit Preferences", "Respond to Invitation"], ["ValidationUtility", "PasswordStrengthUtility", "AlertUtility", "ThemeUtility", "I18nUtility", "FormattingUtility"],
      "New Experience (Q1): split out of Authenticate (Security) and Manage Household (Edit Profile, Delete Account)."),
     ("Manage Household", "manage-household", "Run the household",
      [("Membership Management", ["Member List", "Role Menu", "Invite Member", "Pending Invitations", "Remove Member Confirm", "Transfer Ownership"], "membership-management"),
@@ -383,33 +383,49 @@ end
 FLOW-->>SC: render summary + next steps
 FLOW->>EXP: complete → App Shell (Dashboard)
 """, ["A composed Flow's backend calls route through whichever Experience hosts it — here Onboard (convention kept from the original decomposition).", "Main nav stays hidden until this completes."]),
-    ("manage-profile-security", "Manage Profile — Security", f"{R('POST /auth/change-password')}, {R('GET /users/me/sessions')}, {R('DELETE /users/me/sessions[/:sessionId]')}.",
+    ("manage-profile-security", "Manage Profile — Security", f"{R('GET /users/me/sessions')}, {R('DELETE /users/me/sessions[/:sessionId]')}, {R('POST /auth/change-password')}. Both panels at once (mockup 70, OQ-154).",
      [("PC", "Password Change"), ("SL", "Session List"), ("SO", "Sign Out All Others"), FLOW("Security"), EXP("Manage Profile"), API],
      """
-FLOW->>EXP: request sessions
+FLOW->>EXP: request loadSessions() (on mount)
 EXP->>API: GET /users/me/sessions
-API-->>EXP: sessions
-EXP-->>FLOW: state: sessions
-FLOW-->>SL: render (This device / others)
-alt revoke one
+alt failure
+    API-->>EXP: error code
+    EXP-->>FLOW: outcome: failed(code)
+    FLOW-->>SL: render banner + 'Try again' (retry = request loadSessions() again)
+else ok
+    API-->>EXP: sessions
+    EXP-->>FLOW: outcome: ok(sessions)
+    FLOW-->>SL: render this device first (tagged), then most recently used — device named from its User-Agent
+end
+alt revoke one (no confirm)
     User->>SL: Revoke
-    SL->>FLOW: emit revokeSession {id}
-    FLOW->>EXP: request revoke(id)
+    SL->>FLOW: emit revoke {sessionId}
+    FLOW->>EXP: request revokeSession(id)
     EXP->>API: DELETE /users/me/sessions/:sessionId
-else sign out all others
+else sign out all others (only when others are listed)
     User->>SO: Sign out all others
-    SO->>FLOW: emit revokeOthers
-    FLOW->>EXP: request revokeOthers
+    SO->>FLOW: emit open
+    FLOW-->>SO: render the inline confirm under the header
+    User->>SO: Confirm (or Cancel / Escape: closed, focus back on the button)
+    SO->>FLOW: emit confirm
+    FLOW->>EXP: request revokeOthers()
     EXP->>API: DELETE /users/me/sessions
 else change password
     User->>PC: current + new (≥ 12) + confirm
-    PC->>FLOW: emit passwordChange
-    FLOW->>EXP: request changePassword
+    PC->>FLOW: emit change {currentPassword, newPassword}
+    FLOW->>EXP: request changePassword(change)
     EXP->>API: POST /auth/change-password
 end
-API-->>EXP: done or error code
-EXP-->>FLOW: state refreshed
-""", ["Moved from Authenticate (Q1)."]),
+alt failure (network, 404, 422)
+    API-->>EXP: error code
+    EXP-->>FLOW: outcome: failed(code) — under its field (current_incorrect, too_short) or in the panel's banner
+else ok
+    API-->>EXP: 200 / 204
+    EXP-->>FLOW: outcome: ok — ended sessions dropped from the list, form emptied, success toast
+end
+""", ["Moved from Authenticate (Q1).",
+        "No re-fetch after an action: the Flow drops what the API ended (one session, or every one but this device) — OQ-154.",
+        "Only 'sign out all others' asks first (kit InlineConfirm, K26); successes are AlertUtility toasts (FU3)."]),
     ("manage-profile-delete-account", "Manage Profile — Delete Account", f"{R('DELETE /users/me')} — unconditional. Consequences (with the households owned), then the user's email typed to confirm (OQ-151).",
      [("CR", "Consequences Review"), ("TC", "Type-to-Confirm"), FLOW("Delete Account"), EXP("Manage Profile"), API],
      """

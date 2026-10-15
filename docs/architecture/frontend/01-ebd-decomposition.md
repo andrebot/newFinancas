@@ -79,11 +79,11 @@ Diagram: `docs/design/diagrams/ebd-tiers/app-shell.html`; sequence:
 
 | Flow | Interactions | Sequence |
 |---|---|---|
-| Security | Password Change, Session List, Sign Out All Others | `docs/design/diagrams/ebd-sequences/manage-profile-security.html` |
+| Security | Password Change, Session List, Sign Out All Others (OQ-154) | `docs/design/diagrams/ebd-sequences/manage-profile-security.html` |
 | Delete Account | Consequences Review (with the ownership note — OQ-151), Type-to-Confirm | `docs/design/diagrams/ebd-sequences/manage-profile-delete-account.html` |
 | *(standalone)* | Edit Personal Info, Edit Preferences, Respond to Invitation | — |
 
-**Utilities:** ValidationUtility, PasswordStrengthUtility, AlertUtility, ThemeUtility, I18nUtility. Tier diagram: `docs/design/diagrams/ebd-tiers/manage-profile.html`.
+**Utilities:** ValidationUtility, PasswordStrengthUtility, AlertUtility, ThemeUtility, I18nUtility, FormattingUtility (device names — OQ-154). Tier diagram: `docs/design/diagrams/ebd-tiers/manage-profile.html`.
 
 ### Manage Household
 
@@ -156,7 +156,7 @@ Diagram: `docs/design/diagrams/ebd-tiers/app-shell.html`; sequence:
 | `AlertUtility` | The page's toast queue: at most 3 shown, the rest wait; repeats ignored (OQ-152). Inline banners and confirms are kit pieces the Flow draws |
 | `ThemeUtility` | Design tokens, dark / light / system, category palette tokens (OQ-85, NFR-UX-2) |
 | `I18nUtility` | Shared ICU catalog — renders notifications by type and errors by code (NFR-I18N-3) |
-| `FormattingUtility` | Intl formatting — money in minor units, rates × 10,000, whole percent, dates (NFR-I18N-2) |
+| `FormattingUtility` | Intl formatting — money in minor units, rates × 10,000, whole percent, dates (NFR-I18N-2); device names from a session's User-Agent (`utilities/userAgent.ts`, built with FL7 — OQ-154) |
 
 ## Communication rules (unchanged principles, applied to the new shape)
 
@@ -363,8 +363,9 @@ authenticated), which Flow is active. Only tier that calls the backend.
   - *New Password Entry Interaction* — new + confirm password, submit
   - *Reset Complete Interaction* — password changed, "Sign in" (every
     session was revoked, so the way on is Sign In)
-- **Security Maintenance Flow** — state: which sub-view active, fetched
-  sessions list.
+- **Security Maintenance Flow** — *moved to Manage Profile as the
+  Security Flow (Q1); built per OQ-154: both panels at once, so no
+  "which sub-view" state.* State: fetched sessions list.
   - *Password Change Interaction* — current + new password, submit
   - *Session Management Interaction* — view sessions list + revoke a
     specific one (merged into one — selecting a row to revoke isn't a
