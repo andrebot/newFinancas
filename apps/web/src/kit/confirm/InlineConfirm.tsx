@@ -67,7 +67,7 @@ export interface InlineConfirmProps {
  * @returns The confirm's key handler.
  */
 export const cancelOnEscape = (busy: boolean, cancel: () => void) => (
-  event: KeyboardEvent<HTMLDivElement>,
+  event: KeyboardEvent<HTMLElement>,
 ) => {
   if (event.key !== 'Escape' || busy) return;
   event.stopPropagation();
@@ -85,7 +85,7 @@ export function InlineConfirm({
   tone, message, confirmLabel, cancelLabel, onConfirm, onCancel, busy = false, icon,
 }: InlineConfirmProps) {
   const messageId = useId();
-  const { cancelRef, restoreFocus } = useConfirmFocus();
+  const { focusRef, restoreFocus } = useConfirmFocus<HTMLButtonElement>();
   const cancel = () => {
     onCancel();
     restoreFocus();
@@ -105,7 +105,7 @@ export function InlineConfirm({
         <p id={messageId}>{message}</p>
       </div>
       <div className="flex justify-end gap-2">
-        <Button ref={cancelRef} variant="ghost" size="sm" disabled={busy} onClick={cancel}>
+        <Button ref={focusRef} variant="ghost" size="sm" disabled={busy} onClick={cancel}>
           {cancelLabel}
         </Button>
         <Button variant={CONFIRM_VARIANTS[tone]} size="sm" busy={busy} onClick={onConfirm}>

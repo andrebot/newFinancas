@@ -11,8 +11,8 @@ import { useConfirmFocus } from '../../../../src/kit/confirm/useConfirmFocus';
  * @returns The host's cancel button.
  */
 function Host() {
-  const { cancelRef, restoreFocus } = useConfirmFocus();
-  return <button ref={cancelRef} type="button" onClick={restoreFocus}>Cancelar</button>;
+  const { focusRef, restoreFocus } = useConfirmFocus<HTMLButtonElement>();
+  return <button ref={focusRef} type="button" onClick={restoreFocus}>Cancelar</button>;
 }
 
 describe('useConfirmFocus', () => {
