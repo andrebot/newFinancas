@@ -186,6 +186,21 @@
       opacity: 0;
     }
   }
+
+  /* A toast's entrance (K25, OQ-141): it rises a little as it fades in. */
+  --animate-toast-in: toast-in 200ms ease-out;
+
+  @keyframes toast-in {
+    from {
+      transform: translateY(8px);
+      opacity: 0;
+    }
+
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
 }
 
 /* The page itself is themed before React mounts, so there is no flash. */

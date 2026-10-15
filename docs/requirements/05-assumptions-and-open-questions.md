@@ -2668,6 +2668,45 @@ not a hardcoded assumption.
 
 **Task 44 (`K23`) is complete.**
 
+### OQ-141: Toast and inline banner (task K25)
+**Confirmed with the stakeholder (Oct 2026):**
+- **No mockup draws either one**, so both are built from the design
+  tokens. The kit only draws them. AlertUtility (FU3) holds the queue, the
+  `success / error / …` API and any cap on how many show at once.
+- **Four tones (`kit/alert/tones.ts`):** `success` (mint,
+  `check-circle-outline`), `info` (sky, `info-outline`), `warning` (sun,
+  `warning-outline`) and `error` (coral, `error-outline`).
+  `error-outline` was added to the icon selection for this (OQ-126). An
+  error has `role="alert"`, so it is announced at once; the other tones
+  have `role="status"`.
+- **`InlineBanner`** stays in the page where it applies. It takes the look
+  of mockup 41's inline confirm box: `rounded-xl`, `p-3`, a `tone/30`
+  border on a `tone/10` background, the 18px glyph in the tone's colour,
+  and `type-body-sm` ink text. It has an optional bold `title` and an
+  optional `action` slot (a `Button`). `dismiss: { label, onDismiss }`
+  adds a close button; without it the banner stays.
+- **`Toast`** sits on the floating panels' surface (`bg-raised`,
+  `border-line`, `rounded-2xl`, `shadow-overlay`). It shows the tone's
+  glyph, the message, an optional single text action
+  (`action: { label, onAction }`, a secondary `sm` Button; a click runs it,
+  then closes the toast) and a close button named by `dismissLabel`. It
+  rises in over 200ms (`animate-toast-in`) and has no motion under
+  `prefers-reduced-motion`. It has no exit animation.
+- **Auto-dismiss lives in the kit** (`useAutoDismiss`). Success and info
+  toasts close after `toast.durationMs` (5s, `config/constants.ts`).
+  Warnings and errors (`toast.stickyTones`) stay until closed. A
+  `duration` prop overrides the default; `null` keeps the toast. The timer
+  pauses while the toast is hovered or focus is inside it, and starts the
+  full time over afterwards.
+- **`ToastRegion`** is a named `<section>` portalled to `<body>` with
+  `pointer-events-none` between toasts. Its toasts are oldest first, so the
+  newest sits at the bottom. On a desktop (`sm` and up) it sits at the
+  bottom-right, 24px in, 360px wide. On a phone it spans the width with
+  the 16px gutter and sits 96px up (`bottom-24`), clear of the floating
+  Record button (mockup 34: `bottom-6`, 56px tall).
+
+**Task 45 (`K25`) is complete.**
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.
