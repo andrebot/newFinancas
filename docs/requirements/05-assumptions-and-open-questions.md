@@ -3182,6 +3182,36 @@ not a hardcoded assumption.
 
 **Task 56 (`FU3`) is complete.**
 
+### OQ-153: List row (task K45)
+**Confirmed with the stakeholder (Oct 2026):**
+- **`ListRows` + `ListRow`** (`kit/listRow/ListRow.tsx`) are the mockups'
+  people / item rows: members and pending invitations (60), sessions and
+  invitations to other households (70), the notification inbox (23) and
+  coming due (20). `ListRows` renders a `ul` (optional `label`) and each
+  `ListRow` an `li`, so screen readers announce the count.
+- **Slots, not variants.** `leading` (an `Avatar`, a `ListRowIcon`, or a
+  caller's mark such as coming due's date tile), `title` and `meta` (nodes,
+  so a "You" `Tag` or "in 3 months" in sun fits), `trailing` (role pill,
+  icon buttons, Revoke, an amount) and `footer` (actions under the text,
+  as a notification's Accept / Decline; the row then aligns to the top).
+  The row itself is never a click target — no mockup has one.
+- **Two surfaces on `ListRows`:** `divided` (default; hairlines between
+  rows, none under the last) and `raised` (each row its own rounded
+  `bg-raised` card, stacked with a gap — the invitation lists).
+- **Sizes normalised:** the title is 14px (`type-body`) everywhere — the
+  members list's 16px is aligned down. `titleWeight` is `semibold` (a
+  name, cut to one line) or `regular` (a sentence with its own bold parts,
+  which wraps — notifications). Meta is `type-caption` muted; the
+  notifications' 11.5px faint line is aligned to it. `dimmed` fades a row
+  to 60% (a seen notification).
+- **`ListRowIcon`** (`kit/listRow/ListRowIcon.tsx`) is a glyph in a tinted
+  circle, decorative: tones `neutral` (`bg-ink/5`, theme-safe, replacing
+  the mockups' `white/5`) / mint / sky / sun / lilac (Avatar's set); sizes
+  `md` 40px (default) and `sm` 36px (dense: notifications, pending
+  invitations). The profile's 44px household-invite circle becomes 40px.
+
+**Task 57 (`K45`) is complete.**
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.
