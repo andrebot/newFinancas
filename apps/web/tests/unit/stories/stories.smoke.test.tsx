@@ -9,6 +9,7 @@ import * as checkboxStories from '../../../stories/kit/checkbox/Checkbox.stories
 import * as iconStories from '../../../stories/kit/icons/Icon.stories';
 import * as optionCardStories from '../../../stories/kit/optionCard/OptionCardGroup.stories';
 import * as popoverStories from '../../../stories/kit/popover/Popover.stories';
+import * as selectStories from '../../../stories/kit/select/Select.stories';
 import * as segmentedStories from '../../../stories/kit/segmentedControl/SegmentedControl.stories';
 import * as textFieldStories from '../../../stories/kit/textField/TextField.stories';
 import { fixedLocaleController } from '../../../stories/support/StoryFrame';
@@ -106,6 +107,21 @@ describe('stories', () => {
 
     expect(screen.getByRole<HTMLInputElement>('textbox').value).toBe('Casa Silva');
     expect(Filled.args.onChange).toHaveBeenCalledExactlyOnceWith('Casa Silva');
+  });
+
+  it('keeps the picked option and reports it', async () => {
+    const { Accounts } = composeStories(selectStories);
+    render(<Accounts />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('combobox', { name: 'From account' }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('option', { name: /Nubank/ }));
+    });
+
+    expect(screen.getByRole('combobox').textContent).toContain('Nubank');
+    expect(Accounts.args.onChange).toHaveBeenCalledExactlyOnceWith('nubank');
   });
 
   it('shows the inbox rows once the bell opens the popover', async () => {

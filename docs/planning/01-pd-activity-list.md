@@ -74,7 +74,7 @@ is worth building once.
 | K8 | Number / percent / rate input (quantity, whole %, × 10,000 rates) | investment buy, allocations, rates |
 | K9 | Date input | record, filter, as-of dates, goal due date |
 | K10 | Date range picker | filter drawer, audit export dialog |
-| K11 | Select / combobox (groups, disabled options with a reason) | account picker, claim-aware category picker, role |
+| K11 | Select / combobox (groups, disabled options with a reason, slots, description, opt-in search) — the fallback when a pick list outgrows a row of chips — OQ-138 | long account / category lists (mockups draw chips; the claim-aware picker is multi-pick, K12) |
 | K12 | Multi-select with search + presets, full width | payout holding selector (×2), filter kinds / accounts / categories |
 | K13 | Segmented control (radio group; pills md / sm / xs, or tiles — OQ-127) | $ / R$, BRL / USD, goal status, kind groups |
 | K14 | Option card (radio cards with description; list rows or tiles with an optional preview — OQ-129) | account type, MFA method, theme (preview cards) |
