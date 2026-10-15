@@ -83,7 +83,7 @@ identity screens, the rest as later slices use them.
 - [x] **48.** `K6` Password field (OQ-144)
 - [x] **49.** `FL1` Sign In (OQ-145: two-step sign-in, backend included)
 - [x] **50.** `FL10` Household Deletion
-- [ ] **51.** `FL2` Account Recovery
+- [x] **51.** `FL2` Account Recovery (OQ-147)
 - [ ] **52.** `FL3` Registration
 - [ ] **53.** `FL4` MFA Enrollment
 - [ ] **54.** `FL5` Household Setup

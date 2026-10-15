@@ -95,6 +95,17 @@ export const password: Rule<string | undefined> = (value) => {
 };
 
 /**
+ * Builds the rule for a password's confirmation: it must repeat the password
+ * exactly. Lets an empty value through, like every format rule.
+ *
+ * @param expected - The password the confirmation must repeat.
+ * @returns A rule failing with `password.mismatch` when the two differ.
+ */
+export const matchesPassword = (expected: string): Rule<string | undefined> => (value) => (
+  isEmpty(value) || value === expected ? undefined : { code: 'password.mismatch' }
+);
+
+/**
  * Checks a value against optional inclusive bounds.
  *
  * @param value - The value to place.

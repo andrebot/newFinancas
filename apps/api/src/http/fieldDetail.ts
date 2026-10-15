@@ -81,7 +81,7 @@ const DESCRIBE: Describers = {
  * @param issue - A Zod validation issue.
  * @param input - The raw request value, used to tell "missing" from "wrong type".
  * @returns The field detail; unknown issue kinds become `field.invalid`. Every
- *   code it can produce is a `FieldCode`, so the catalog translates it.
+ *   code it can produce is an `ApiFieldCode`, so the catalog translates it.
  */
 export const toFieldDetail = (issue: Issue, input: unknown): FieldDetail => {
   const field = formatFieldPath(issue.path);

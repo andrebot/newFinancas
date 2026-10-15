@@ -5,8 +5,9 @@ import { mfa } from '../../../../../config/constants';
 import { Button } from '../../../../../kit/button/Button';
 import { CodeInput } from '../../../../../kit/codeInput/CodeInput';
 import {
-  BackButton, StepAlert, StepHeading, TextAction, useSignInText,
-} from './stepParts';
+  BackButton, StepAlert, StepHeading, TextAction,
+} from '../../../interactions/stepParts';
+import { useSignInText } from './signInText';
 
 // MFA Code Entry (Sign In, mockup 08): the six authenticator digits. The
 // code submits by itself on its last digit, or with Verify. "Use a backup

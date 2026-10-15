@@ -3,30 +3,14 @@ import {
   describe, expect, it, vi,
 } from 'vitest';
 import {
-  BackButton, StepAlert, StepHeading, TextAction, useSignInText,
-} from '../../../../../../../src/experiences/authenticate/flows/signIn/interactions/stepParts';
-import { renderInLocale } from '../../../../../../support/renderInLocale';
+  BackButton, StepAlert, StepHeading, TextAction,
+} from '../../../../../src/experiences/authenticate/interactions/stepParts';
+import { renderInLocale } from '../../../../support/renderInLocale';
 
-// Display pieces of the Sign In entries (BDT: Interaction tier → unit):
+// Display pieces of the Authenticate entries (BDT: Interaction tier → unit):
 // nothing mocked but the click handlers.
 
-/**
- * Shows one `signIn` text, to exercise the hook.
- *
- * @returns The back label.
- */
-function BackLabel() {
-  const text = useSignInText();
-  return <span>{text('back')}</span>;
-}
-
-describe('Sign In step parts', () => {
-  it('useSignInText reads the signIn section in the current locale', () => {
-    renderInLocale(<BackLabel />, 'pt-BR');
-
-    expect(screen.getByText('Voltar')).toBeTruthy();
-  });
-
+describe('Authenticate step parts', () => {
   it('StepHeading draws the title and subtitle, with the icon tile only when given', () => {
     const { container, rerenderInLocale } = renderInLocale(
       <StepHeading title="Welcome back" subtitle="Sign in." />,

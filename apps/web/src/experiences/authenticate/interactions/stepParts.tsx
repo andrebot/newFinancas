@@ -1,33 +1,18 @@
-import type { Catalog } from '@financas/i18n';
 import type { ReactNode } from 'react';
-import { InlineBanner } from '../../../../../kit/alert/InlineBanner';
-import { IconButton } from '../../../../../kit/button/IconButton';
-import { Icon, type IconName } from '../../../../../kit/icons/Icon';
-import { useI18n } from '../../../../../utilities/I18nProvider';
+import { InlineBanner } from '../../../kit/alert/InlineBanner';
+import { IconButton } from '../../../kit/button/IconButton';
+import { Icon, type IconName } from '../../../kit/icons/Icon';
 
-// The pieces Sign In's three entries share, drawn as mockups 01, 08 and 09
-// draw them: the heading (with the challenge steps' icon tile), the failure
-// banner, the mint text actions and the back arrow in the page's corner.
-// Display only: each takes translated text and emits its click.
-
-/** A key of the catalog's `signIn` section. */
-export type SignInTextKey = keyof Catalog['signIn'];
-
-/**
- * The `signIn` section of the current locale's catalog.
- *
- * @returns A function from a `signIn` key to its text.
- */
-export const useSignInText = () => {
-  const translator = useI18n();
-  return (key: SignInTextKey) => translator.text('signIn', key);
-};
+// The pieces the Authenticate entries share (Sign In, mockups 01, 08 and 09;
+// Account Recovery, mockups 03 and 04): the heading (with the icon tile), the
+// failure banner, the mint text actions and the back arrow in the page's
+// corner. Display only: each takes translated text and emits its click.
 
 /** The heading's props. */
 export interface StepHeadingProps {
   readonly title: string;
   readonly subtitle: string;
-  /** The mint tile above the title, on the challenge steps. */
+  /** The mint tile above the title, on every step but Sign In's first. */
   readonly icon?: IconName | undefined;
 }
 

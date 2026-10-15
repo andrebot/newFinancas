@@ -1,11 +1,11 @@
-import type { ErrorCode, FieldCode } from '@financas/i18n';
+import type { ApiFieldCode, ErrorCode } from '@financas/i18n';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
 
 /** One field-level problem, rendered by the frontend from `code` + `params`. */
 export interface FieldDetail {
   readonly field: string;
   /** A code the shared i18n catalog translates (NFR-I18N-3). */
-  readonly code: FieldCode;
+  readonly code: ApiFieldCode;
   readonly params?: Record<string, unknown>;
 }
 
