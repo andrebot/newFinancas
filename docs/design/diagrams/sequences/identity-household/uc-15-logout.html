@@ -70,7 +70,7 @@ sequenceDiagram
     IM->>SA: deleteForUser(actor, currentSessionId)
     Note over SA: invalidates this refresh token only (FR-1.9) &mdash;<br/>the access token simply expires shortly after, unrevoked
     SA-->>IM: revoked
-    IM-->>LOG: logActivity(correlationId, actor, "Logout")
+    IM-->>LOG: log.info("Logout")
     IM-->>API: logged out
     API-->>User: 204 No Content
     </pre>

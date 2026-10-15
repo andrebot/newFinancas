@@ -50,7 +50,7 @@
 </head>
 <body>
   <h1>Call Chain — Transfer Ownership</h1>
-  <p class="subtitle">Use case 10 of 20 in the Identity &amp; Household set (CUC-1, FR-1.20/OQ-28). Edit pattern, atomic dual-entity role swap, Owner-only.</p>
+  <p class="subtitle">Use case 10 of 21 (FR-1.20). Owner-only atomic swap.</p>
 
   <div class="architecture">
     <svg id="arrows-svg"></svg>
@@ -135,8 +135,8 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain:</strong> <code>IdentityManager</code> ① <code>AuthorizationUtility.canManageMembers</code> (sync, Owner-only) → ② <code>HouseholdAccessor.transferOwnership(householdId, actor, targetUserId)</code> (sync, atomic dual-role swap — never observably zero or two Owners) → ③ <code>LoggingUtility</code> (async).</p>
-    <p><strong>No smell:</strong> the atomicity requirement is satisfied by one Accessor call doing both role changes together, not two separate calls the Manager sequences — two separate calls here would have been the smell (a window where the invariant could be observed broken).</p>
+    <p><strong>Chain:</strong> <code>IdentityManager</code> &#9312; <code>AuthorizationUtility.authorize(household.transferOwnership)</code> &rarr; &#9313; <code>HouseholdAccessor.findMembership(target)</code> (none &rarr; 404), then <code>swapOwner(householdId, actor, target)</code> (one transaction, never zero or two Owners, guarded &mdash; <code>stale</code> &rarr; 409) &rarr; &#9314; <code>LoggingUtility</code> audit. Transferring to oneself does nothing.</p>
+    <p>Synced with the code (task M1 audit, Oct 2026).</p>
   </div>
 
   <script>

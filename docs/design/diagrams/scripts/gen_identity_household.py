@@ -41,6 +41,11 @@ sequenceDiagram
     Note over API: name trimmed and non-blank (contract validation, OQ-116)
     API->>IM: createHousehold(actor, name)
     IM->>UA: findById(actor.userId)
+    alt the account is gone
+        UA-->>IM: none
+        IM-->>API: Unauthorized
+        API-->>User: 401 auth.unauthenticated
+    else found
     UA-->>IM: creator (language)
     IM->>HA: insert(name, ownerUserId = actor.userId)
     HA-->>IM: household (creator is Owner, one transaction)
@@ -52,6 +57,7 @@ sequenceDiagram
     IM-->>LOG: log.audit("CreateHousehold", Household householdId)
     IM-->>API: household + role Owner
     API-->>User: 201 Created MyHousehold
+    end
 """,
     notes="""
     <ul>
@@ -90,10 +96,16 @@ sequenceDiagram
         AZ-->>IM: allowed (Owner)
         IM->>HA: delete(householdId)
         Note over HA: everything household-scoped goes with it (FK cascade)
-        HA-->>IM: deleted
-        IM-->>LOG: log.audit("DeleteHousehold", Household householdId)
-        IM-->>API: deleted
-        API-->>User: 204 No Content
+        alt already gone (deleted meanwhile)
+            HA-->>IM: not deleted
+            IM-->>API: NotFound
+            API-->>User: 404 household.not_found
+        else deleted
+            HA-->>IM: deleted
+            IM-->>LOG: log.audit("DeleteHousehold", Household householdId)
+            IM-->>API: deleted
+            API-->>User: 204 No Content
+        end
     end
 """,
     notes="""
@@ -697,6 +709,7 @@ sequenceDiagram
             UA-->>IM: user
             IM-->>LOG: log.audit("EditUser", User actor.userId)
         end
+        Note over IM: no user (the account is gone) &rarr; 401 auth.unauthenticated
         IM-->>API: user
         API-->>User: 200 OK User {id, email, firstName, lastName, createdAt, preferences}
     end
@@ -826,6 +839,7 @@ sequenceDiagram
         SA-->>IM: session
         IM->>UA: findById(session.userId)
         UA-->>IM: user (systemRole)
+        Note over IM: no user (the account is gone) &rarr; 401 auth.refresh_invalid
         IM->>AN: signAccessToken({userId, sessionId, systemRole})
         AN-->>IM: accessToken
         IM-->>API: {accessToken, refreshToken = token}
@@ -872,7 +886,7 @@ sequenceDiagram
     IM->>SA: deleteForUser(actor, currentSessionId)
     Note over SA: invalidates this refresh token only (FR-1.9) &mdash;<br/>the access token simply expires shortly after, unrevoked
     SA-->>IM: revoked
-    IM-->>LOG: logActivity(correlationId, actor, "Logout")
+    IM-->>LOG: log.info("Logout")
     IM-->>API: logged out
     API-->>User: 204 No Content
 """,
@@ -903,7 +917,7 @@ sequenceDiagram
     SA-->>IM: [{id, deviceInfo, createdAt, lastUsedAt}, ...]
     Note over IM: current = (id == the access token's sid) (OQ-106)
     IM-->>API: sessions[]
-    API-->>User: 200 OK [{id, deviceInfo, createdAt, lastUsedAt, current}, ...]
+    API-->>User: 200 OK {data: [{id, deviceInfo, createdAt, lastUsedAt, current}, ...]}
 """,
     notes="""
     <ul>
@@ -934,7 +948,7 @@ sequenceDiagram
         API-->>User: 404 session.not_found
     else the actor's
         SA-->>IM: revoked
-        IM-->>LOG: logActivity(correlationId, actor, "RevokeSession")
+        IM-->>LOG: log.info("Session revoked", {sessionId})
         IM-->>API: revoked
         API-->>User: 204 No Content
     end
@@ -945,7 +959,7 @@ sequenceDiagram
     IM->>SA: deleteAllExceptCurrent(actor, currentSessionId)
     Note over SA: same method Change Password (UC-19) already uses
     SA-->>IM: other sessions revoked
-    IM-->>LOG: logActivity(correlationId, actor, "RevokeOtherSessions")
+    IM-->>LOG: log.info("Other sessions revoked", {ended})
     IM-->>API: revoked
     API-->>User: 204 No Content
 """,
@@ -991,8 +1005,9 @@ sequenceDiagram
         NE->>EA: send({to, subject, body})
         Note over EA: only sends &mdash; provider = configuration (EMAIL_PROVIDER),<br/>v1 console, terminal only (OQ-112)
         EA-->>NE: sent
+        IM-->>LOG: log.info("Password reset link sent")
     end
-    Note over IM: a failure here is logged, never returned
+    Note over IM: a failure here is logged (log.error), never returned
 
     Note over User,API: Step 2 — submit token + new password
     User->>API: POST /auth/password-reset/confirm {token, newPassword}
@@ -1061,6 +1076,7 @@ sequenceDiagram
     else long enough
         IM->>UA: findPasswordHash(actor.userId)
         UA-->>IM: passwordHash
+        Note over IM: no hash (the account is gone) &rarr; 401 auth.unauthenticated
         IM->>AN: verifyPassword(passwordHash, currentPassword)
         alt current password incorrect
             AN-->>IM: invalid

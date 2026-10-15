@@ -50,10 +50,7 @@
 </head>
 <body>
   <h1>Call Chain — Delete Household</h1>
-  <p class="subtitle">
-    Use case 2 of 20 in the Identity &amp; Household set (CUC-1, FR-1.7).
-    Owner-only. Lifecycle Transition pattern (Household → deleted).
-  </p>
+  <p class="subtitle">Use case 2 of 21 (FR-1.7). Owner-only, deliberate dissolution.</p>
 
   <div class="architecture">
     <svg id="arrows-svg"></svg>
@@ -138,18 +135,8 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain:</strong> <code>IdentityManager</code> ①
-    <code>AuthorizationUtility.canManageMembers(actor, householdId)</code>
-    (sync, Owner-only) → ②
-    <code>HouseholdAccessor.transitionStatus(householdId, "deleted")</code>
-    (sync, Lifecycle Transition) → ③ <code>LoggingUtility</code>
-    (fire-and-forget).</p>
-    <p><strong>No smell:</strong> shallow 3-step chain, exactly what a
-    single Lifecycle Transition should look like — one permission gate,
-    one validated write, one log. Nothing else touched, correctly (no
-    cascading Account/Budget/Goal cleanup shown here because
-    household-scoped data isn't deleted when the household is — out of
-    scope for this use case's own requirements).</p>
+    <p><strong>Chain:</strong> <code>IdentityManager</code> &#9312; <code>AuthorizationUtility.authorize(household.delete)</code> (non-member &rarr; 404, not Owner &rarr; 403) &rarr; &#9313; <code>HouseholdAccessor.delete(householdId)</code> (household-scoped data goes with it, FK cascade; already gone &rarr; 404) &rarr; &#9314; <code>LoggingUtility</code> audit.</p>
+    <p>The household is deleted, not moved to a &quot;deleted&quot; status. Synced with the code (task M1 audit, Oct 2026).</p>
   </div>
 
   <script>
@@ -162,11 +149,7 @@
       svg.style.width = containerRect.width + 'px';
       svg.style.height = containerRect.height + 'px';
 
-      var edges = [
-        { from: 'mgr-identity', to: 'util-authz', type: 'sync', order: 1 },
-        { from: 'mgr-identity', to: 'acc-household', type: 'sync', order: 2 },
-        { from: 'mgr-identity', to: 'util-logging', type: 'async', order: 3 }
-      ];
+      var edges = [{"from": "mgr-identity", "to": "util-authz", "type": "sync", "order": 1}, {"from": "mgr-identity", "to": "acc-household", "type": "sync", "order": 2}, {"from": "mgr-identity", "to": "util-logging", "type": "async", "order": 3}];
 
       var activeIds = {};
       edges.forEach(function (e) { activeIds[e.from] = true; activeIds[e.to] = true; });

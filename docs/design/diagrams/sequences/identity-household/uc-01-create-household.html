@@ -73,6 +73,11 @@ sequenceDiagram
     Note over API: name trimmed and non-blank (contract validation, OQ-116)
     API->>IM: createHousehold(actor, name)
     IM->>UA: findById(actor.userId)
+    alt the account is gone
+        UA-->>IM: none
+        IM-->>API: Unauthorized
+        API-->>User: 401 auth.unauthenticated
+    else found
     UA-->>IM: creator (language)
     IM->>HA: insert(name, ownerUserId = actor.userId)
     HA-->>IM: household (creator is Owner, one transaction)
@@ -84,6 +89,7 @@ sequenceDiagram
     IM-->>LOG: log.audit("CreateHousehold", Household householdId)
     IM-->>API: household + role Owner
     API-->>User: 201 Created MyHousehold
+    end
     </pre>
   </div>
   <div class="notes">

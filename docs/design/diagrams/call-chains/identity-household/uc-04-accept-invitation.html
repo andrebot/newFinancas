@@ -50,7 +50,7 @@
 </head>
 <body>
   <h1>Call Chain — Accept Household Invitation</h1>
-  <p class="subtitle">Use case 4 of 20 in the Identity &amp; Household set (CUC-1, FR-1.10). Lifecycle Transition (Invitation → accepted) with a Create cascade (Membership).</p>
+  <p class="subtitle">Use case 4 of 21 (FR-1.10). Self-service: only the invitee answers.</p>
 
   <div class="architecture">
     <svg id="arrows-svg"></svg>
@@ -135,8 +135,8 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain:</strong> <code>IdentityManager</code> ① <code>InvitationAccessor.transitionStatus(id, "accepted")</code> (sync, validated write — verifies pending and belongs to this user) → ② <code>HouseholdAccessor.createMembership(...)</code> (sync, cascade) → ③ <code>LoggingUtility</code> (async).</p>
-    <p><strong>No smell:</strong> self-service, so no <code>AuthorizationUtility</code> call — ownership of the invitation is verified inside the Accessor's own transition, not by a separate permission gate. Two Accessor calls is the minimum this cascade can be (transition the invitation, then create the membership it produces).</p>
+    <p><strong>Chain:</strong> <code>IdentityManager</code> &#9312; <code>InvitationAccessor.findById</code> (missing or someone else&#39;s &rarr; 404, OQ-118), then <code>resolve(id, accepted, now)</code> (guarded &mdash; only while pending, else 409) &rarr; &#9313; <code>HouseholdAccessor.addMember(householdId, userId, role)</code> (<code>already_member</code> is fine) &rarr; &#9314; <code>LoggingUtility</code> audit.</p>
+    <p>Resolve first, then join (OQ-118): the other order would need undoing a membership whenever a revoke raced in. The Manager checks ownership of the invitation, the Accessor only guards the status. Synced with the code (task M1 audit, Oct 2026).</p>
   </div>
 
   <script>

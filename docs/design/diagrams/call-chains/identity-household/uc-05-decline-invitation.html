@@ -50,7 +50,7 @@
 </head>
 <body>
   <h1>Call Chain — Decline Household Invitation</h1>
-  <p class="subtitle">Use case 5 of 20 in the Identity &amp; Household set (CUC-1, FR-1.10). Lifecycle Transition (Invitation → declined).</p>
+  <p class="subtitle">Use case 5 of 21 (FR-1.10). No membership is ever created.</p>
 
   <div class="architecture">
     <svg id="arrows-svg"></svg>
@@ -135,8 +135,8 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain:</strong> <code>IdentityManager</code> ① <code>InvitationAccessor.transitionStatus(id, "declined")</code> (sync) → ② <code>LoggingUtility</code> (async).</p>
-    <p><strong>No smell:</strong> the shallowest possible chain — no cascade, since declining creates nothing. Correctly simpler than Accept (UC-4), which is the point of splitting them.</p>
+    <p><strong>Chain:</strong> <code>IdentityManager</code> &#9312; <code>InvitationAccessor.findById</code> (missing or someone else&#39;s &rarr; 404), then <code>resolve(id, declined, now)</code> (guarded, else 409) &rarr; &#9313; <code>LoggingUtility</code> info (not audited).</p>
+    <p>Synced with the code (task M1 audit, Oct 2026).</p>
   </div>
 
   <script>

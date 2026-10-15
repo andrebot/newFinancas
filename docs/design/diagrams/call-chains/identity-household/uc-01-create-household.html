@@ -159,13 +159,7 @@
 </head>
 <body>
   <h1>Call Chain — Create Household</h1>
-  <p class="subtitle">
-    Use case 1 of 20 in the Identity &amp; Household set (CUC-1, FR-1.4/FR-10.1).
-    Same fixed layout as <code>docs/design/diagrams/03-backend-layered-architecture.html</code>
-    — everything not part of this flow is dimmed. Solid arrow = synchronous
-    call, dotted = asynchronous/fire-and-forget. No return arrows shown.
-    Numbers indicate call order, read top down.
-  </p>
+  <p class="subtitle">Use case 1 of 21 (FR-1.4). Create pattern (Household); the one Manager&harr;Manager effect, through the Service Bus.</p>
 
   <div class="architecture">
     <svg id="arrows-svg"></svg>
@@ -250,26 +244,8 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain:</strong> <code>IdentityManager</code> ①
-    <code>ValidationUtility.check(name)</code> (sync) → ②
-    <code>HouseholdAccessor.insert(household, ownerId=actor)</code> (sync,
-    validated write — auto-assigns Owner role, FR-1.6) → ③
-    <code>ServiceBusUtility.publish("household.created")</code> (async) →
-    ④ <code>AccountManager</code> subscribes → ⑤
-    <code>CategoryAccessor.seedDefaults(householdId)</code> (sync, within
-    the subscription — FR-10.1) → ⑥
-    <code>LoggingUtility.logActivity + recordAudit</code>
-    (fire-and-forget).</p>
-    <p><strong>Updated after closing the Category-management gap:</strong>
-    this now has the one genuine Manager↔Manager <em>effect</em> in the
-    whole system — but routed correctly, through
-    <code>ServiceBusUtility</code>, never a direct
-    <code>IdentityManager</code> → <code>AccountManager</code> call or a
-    direct reach into <code>CategoryAccessor</code> (which
-    <code>IdentityManager</code> doesn't own). No
-    <code>AuthorizationUtility</code> call — still correct, FR-1.4 doesn't
-    restrict who can create a household. See
-    <code>docs/architecture/backend/01-vbd-decomposition.md</code> §3.1b.</p>
+    <p><strong>Chain:</strong> <code>IdentityManager</code> &#9312; <code>UserAccessor.findById</code> (the creator&#39;s language; gone &rarr; 401) &rarr; &#9313; <code>HouseholdAccessor.insert(name, ownerUserId)</code> (the creator is Owner, one transaction) &rarr; &#9314; <code>ServiceBusUtility.publish(&quot;household.created&quot;, {householdId, createdByUserId, language})</code> &rarr; &#9315; <code>AccountManager</code> subscribes &rarr; &#9316; <code>CategoryAccessor.seedDefaults</code> (not built yet &mdash; slice 2, I5) &rarr; &#9317; <code>LoggingUtility</code> audit.</p>
+    <p>No <code>ValidationUtility</code> step: the name is trimmed and checked against the contract at the route (OQ-116). Synced with the code (task M1 audit, Oct 2026).</p>
   </div>
 
   <script>
@@ -282,14 +258,7 @@
       svg.style.width = containerRect.width + 'px';
       svg.style.height = containerRect.height + 'px';
 
-      var edges = [
-        { from: 'mgr-identity', to: 'util-validation', type: 'sync', order: 1 },
-        { from: 'mgr-identity', to: 'acc-household', type: 'sync', order: 2 },
-        { from: 'mgr-identity', to: 'util-servicebus', type: 'async', order: 3 },
-        { from: 'util-servicebus', to: 'mgr-account', type: 'async', order: 4 },
-        { from: 'mgr-account', to: 'acc-category', type: 'sync', order: 5 },
-        { from: 'mgr-identity', to: 'util-logging', type: 'async', order: 6 }
-      ];
+      var edges = [{"from": "mgr-identity", "to": "acc-user", "type": "sync", "order": 1}, {"from": "mgr-identity", "to": "acc-household", "type": "sync", "order": 2}, {"from": "mgr-identity", "to": "util-servicebus", "type": "async", "order": 3}, {"from": "util-servicebus", "to": "mgr-account", "type": "async", "order": 4}, {"from": "mgr-account", "to": "acc-category", "type": "sync", "order": 5}, {"from": "mgr-identity", "to": "util-logging", "type": "async", "order": 6}];
 
       var activeIds = {};
       edges.forEach(function (e) { activeIds[e.from] = true; activeIds[e.to] = true; });

@@ -50,7 +50,7 @@
 </head>
 <body>
   <h1>Call Chain — Logout</h1>
-  <p class="subtitle">Use case 15 of 20 in the Identity &amp; Household set (CUC-2, FR-1.9). Lifecycle Transition (Session → ended, self).</p>
+  <p class="subtitle">Use case 15 of 21 (FR-1.9). The current session only.</p>
 
   <div class="architecture">
     <svg id="arrows-svg"></svg>
@@ -135,8 +135,8 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain:</strong> <code>IdentityManager</code> ① <code>SessionAccessor.transitionStatus(sessionId, "ended")</code> (sync) → ② <code>LoggingUtility</code> (async).</p>
-    <p><strong>No smell:</strong> the shallowest chain in the whole set — exactly right for terminating one session with no cascade.</p>
+    <p><strong>Chain:</strong> <code>IdentityManager</code> &#9312; <code>SessionAccessor.deleteForUser(userId, sessionId)</code> (the session is deleted; idempotent) &rarr; &#9313; <code>LoggingUtility</code> info.</p>
+    <p>Synced with the code (task M1 audit, Oct 2026).</p>
   </div>
 
   <script>

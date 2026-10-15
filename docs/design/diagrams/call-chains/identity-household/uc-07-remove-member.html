@@ -50,7 +50,7 @@
 </head>
 <body>
   <h1>Call Chain — Remove Member from Household</h1>
-  <p class="subtitle">Use case 7 of 20 in the Identity &amp; Household set (CUC-1, FR-1.11/OQ-27). Lifecycle Transition (Membership → removed), Owner/Admin-initiated.</p>
+  <p class="subtitle">Use case 7 of 21 (FR-1.11). Owner/Admin removes another member; never the Owner.</p>
 
   <div class="architecture">
     <svg id="arrows-svg"></svg>
@@ -135,8 +135,8 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain:</strong> <code>IdentityManager</code> ① <code>AuthorizationUtility.canManageMembers</code> (sync) → ② <code>HouseholdAccessor.transitionMembership(householdId, targetUserId, "removed")</code> (sync, validated write — rejects if target is Owner, OQ-27) → ③ <code>LoggingUtility</code> (async).</p>
-    <p><strong>No smell:</strong> the Owner-immunity invariant lives entirely inside the Accessor call, not as a separate Manager-level check — consistent with how every other invariant in this architecture is handled (a validated write, not a workflow decision).</p>
+    <p><strong>Chain:</strong> <code>IdentityManager</code> &#9312; <code>AuthorizationUtility.authorize(members.manage)</code> &rarr; &#9313; <code>HouseholdAccessor.findMembership</code> (none &rarr; 404, the Owner &rarr; 403 &mdash; the Manager&#39;s rule, OQ-111), then <code>removeMember</code> (guarded, <code>stale</code> &rarr; 409) &rarr; &#9314; <code>LoggingUtility</code> audit.</p>
+    <p>The Manager decides who may be removed; the Accessor applies it as a guarded write that also refuses an Owner (OQ-107). Synced with the code (task M1 audit, Oct 2026).</p>
   </div>
 
   <script>
