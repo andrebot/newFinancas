@@ -80,7 +80,7 @@ is worth building once.
 | K14 | Option card (radio cards with description; list rows or tiles with an optional preview — OQ-129) | account type, MFA method, theme (preview cards) |
 | K15 | Switch | visibility, incentivised debenture |
 | K16 | Checkbox (label with links, description, error, disabled; plus the shared `FOCUS_RING` kit helper used by K13/K14/K16 — OQ-129, OQ-130) | terms, multi-select rows |
-| K17 | Code input (6 digits) | MFA setup, MFA challenge |
+| K17 | Code input (6 digits; plus the backup code input `XXXX-XXXX-XXXX-XXXX` and the shared mask hook) — OQ-139 | MFA setup, MFA challenge, backup code entry |
 | K18 | Icon picker | category form |
 | K19 | Colour swatch picker (18 tokens) | category form |
 

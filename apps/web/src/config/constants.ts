@@ -81,3 +81,14 @@ export const avatar = {
 export const brand = {
   name: 'Finance APP',
 } as const;
+
+/** Two-factor sign-in codes (K17, OQ-139); they mirror the API's `authentication` settings. */
+export const mfa = {
+  /** Digits in an authenticator code (the API's `totp.digits`). */
+  codeLength: 6,
+  /** A backup code (the API's `recoveryCodes`): 16 characters shown in groups of 4. */
+  backupCode: {
+    length: 16,
+    groupSize: 4,
+  },
+} as const;
