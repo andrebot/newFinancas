@@ -1,5 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { fn } from 'storybook/test';
+import { Button } from '../../../src/kit/button/Button';
+import { IconButton } from '../../../src/kit/button/IconButton';
 import { Icon } from '../../../src/kit/icons/Icon';
 import {
   Popover, type PopoverProps, type PopoverTriggerProps,
@@ -16,14 +18,7 @@ import {
  * @returns The bell button.
  */
 const bell = (props: PopoverTriggerProps) => (
-  <button
-    type="button"
-    aria-label="Notifications"
-    className="grid size-10 place-items-center rounded-full bg-ink/5 text-ink"
-    {...props}
-  >
-    <Icon name="notifications-outline" className="size-5.5" />
-  </button>
+  <IconButton icon="notifications-outline" label="Notifications" size="lg" {...props} />
 );
 
 /** One inbox row's content. */
@@ -116,9 +111,7 @@ export const ClosesFromInside: Story = {
     children: (close: () => void) => (
       <div className="flex flex-col gap-3 p-4">
         <p className="type-body">Archive CDB Banco Inter 2026?</p>
-        <button type="button" className="h-8 rounded-full bg-mint px-4 text-onmint" onClick={close}>
-          Done
-        </button>
+        <Button variant="primary" size="sm" onClick={close}>Done</Button>
       </div>
     ),
   },

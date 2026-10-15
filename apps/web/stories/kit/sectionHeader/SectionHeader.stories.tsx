@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { Icon } from '../../../src/kit/icons/Icon';
+import { IconButton } from '../../../src/kit/button/IconButton';
 import {
   SectionHeader, type SectionHeaderProps,
 } from '../../../src/kit/sectionHeader/SectionHeader';
@@ -23,8 +23,6 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-const ARROW = 'grid size-8 place-items-center rounded-full border border-line text-muted';
-
 /** Just the title. */
 export const Title: Story = {};
 
@@ -35,12 +33,8 @@ export const Period: Story = {
     period: 'September/2026',
     actions: (
       <>
-        <button type="button" className={ARROW} aria-label="Scroll balances left">
-          <Icon name="chevron-left" className="size-5" />
-        </button>
-        <button type="button" className={ARROW} aria-label="Scroll balances right">
-          <Icon name="chevron-right" className="size-5" />
-        </button>
+        <IconButton icon="chevron-left" label="Scroll balances left" tone="outline" />
+        <IconButton icon="chevron-right" label="Scroll balances right" tone="outline" />
       </>
     ),
   },

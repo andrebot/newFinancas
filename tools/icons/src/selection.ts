@@ -7,7 +7,8 @@ import type { CardNetwork } from '@financas/reference';
 /**
  * UI icons (Material Symbols names): every icon the approved mockups use outside
  * category icons, plus `visibility-off-outline` for the password field's hide
- * state. Add a name here and run `pnpm generate:icons` when a screen needs one.
+ * state and `progress-activity` for the busy button's spinner (K4). Add a name
+ * here and run `pnpm generate:icons` when a screen needs one.
  */
 export const UI_ICONS = [
   'account-balance-wallet-outline', 'add', 'add-card-outline', 'add-circle-outline',
@@ -24,6 +25,7 @@ export const UI_ICONS = [
   'lock-reset', 'logout', 'mail-outline', 'mark-email-read-outline', 'menu', 'more-horiz',
   'north-east', 'notifications-outline', 'password', 'percent', 'person-add-outline',
   'person-outline', 'person-remove-outline', 'phone-iphone-outline', 'pie-chart-outline',
+  'progress-activity',
   'query-stats', 'search', 'send-outline', 'shield-lock-outline', 'shield-person-outline',
   'south-west', 'space-dashboard-outline', 'swap-horiz', 'table-rows-outline', 'undo',
   'unfold-more', 'verified-user-outline', 'visibility-off-outline', 'visibility-outline',

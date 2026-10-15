@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { Button } from '../../../src/kit/button/Button';
 import { EmptyState, type EmptyStateProps } from '../../../src/kit/emptyState/EmptyState';
 
 // The kit's empty state (K28, OQ-132). No mockup draws one; the look was
@@ -29,12 +30,7 @@ export const NoResults: Story = {
     title: 'No results',
     description: 'No transaction matches these filters.',
     action: (
-      <button
-        type="button"
-        className="rounded-full bg-mint px-4 py-2 type-body-sm font-semibold text-onmint"
-      >
-        Clear filters
-      </button>
+      <Button variant="primary">Clear filters</Button>
     ),
   },
 };
