@@ -100,7 +100,10 @@ describe('UserAccessor', () => {
       const id = await registerAna(users);
 
       expect(await users.findByEmail('ANA@example.COM')).toMatchObject({
-        id, passwordHash: '$argon2id$hash', encryptedMfaSecret: 'v1.iv.tag.ciphertext',
+        id,
+        passwordHash: '$argon2id$hash',
+        encryptedMfaSecret: 'v1.iv.tag.ciphertext',
+        mfaConfirmedAt: null,
       });
       expect(await users.findByEmail('nobody@example.com')).toBeUndefined();
     }));
@@ -154,6 +157,46 @@ describe('UserAccessor', () => {
       expect(await users.consumeRecoveryCode(id, 'a'.repeat(64), NOW)).toBe(true);
       expect(await users.consumeRecoveryCode(id, 'a'.repeat(64), NOW)).toBe(false);
       expect(await users.consumeRecoveryCode(id, 'c'.repeat(64), NOW)).toBe(false);
+    }));
+  });
+
+  describe('MFA enrollment (OQ-149)', () => {
+    const FRESH = { encryptedMfaSecret: 'v1.fresh', recoveryCodeHashes: ['c'.repeat(64)] };
+
+    it('replaces an unconfirmed secret and every recovery code', test(async (users) => {
+      const id = await registerAna(users);
+
+      expect(await users.replaceMfaEnrollment(id, FRESH)).toBe('replaced');
+      expect(await users.findByEmail(ANA.email))
+        .toMatchObject({ encryptedMfaSecret: 'v1.fresh', mfaConfirmedAt: null });
+      expect(await users.consumeRecoveryCode(id, 'a'.repeat(64), NOW)).toBe(false);
+      expect(await users.consumeRecoveryCode(id, 'c'.repeat(64), NOW)).toBe(true);
+    }));
+
+    it('stores no codes when the enrollment brings none', test(async (users) => {
+      const id = await registerAna(users);
+
+      expect(await users.replaceMfaEnrollment(id, { ...FRESH, recoveryCodeHashes: [] }))
+        .toBe('replaced');
+      expect(await users.consumeRecoveryCode(id, 'a'.repeat(64), NOW)).toBe(false);
+    }));
+
+    it('confirms once; a confirmed enrollment is never replaced', test(async (users) => {
+      const id = await registerAna(users);
+
+      expect(await users.confirmMfaEnrollment(id, NOW)).toBe('confirmed');
+      expect(await users.confirmMfaEnrollment(id, later(1))).toBe('stale');
+      expect(await users.replaceMfaEnrollment(id, FRESH)).toBe('stale');
+      expect(await users.findByEmail(ANA.email))
+        .toMatchObject({ encryptedMfaSecret: ANA.encryptedMfaSecret, mfaConfirmedAt: NOW });
+      expect(await users.consumeRecoveryCode(id, 'a'.repeat(64), NOW)).toBe(true);
+    }));
+
+    it('answers stale for an unknown user', test(async (users) => {
+      const unknown = '0199c5a0-0000-7000-8000-000000000000';
+
+      expect(await users.confirmMfaEnrollment(unknown, NOW)).toBe('stale');
+      expect(await users.replaceMfaEnrollment(unknown, FRESH)).toBe('stale');
     }));
   });
 

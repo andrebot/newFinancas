@@ -90,9 +90,12 @@ sequenceDiagram
                 API-->>User: 409 user.email_taken
             else created
                 UA-->>IM: {ok: true, user}
+                Note over UA: mfa_confirmed_at stays null until the first code (OQ-149)
                 IM-->>LOG: log.audit("CreateUser", User userId)
-                IM-->>API: {userId, totpSecret, recoveryCodes[]}
-                API-->>User: 201 Created {userId, totpSecret (QR-encodable), recoveryCodes[]}
+                IM->>AN: signEnrollmentToken({userId, email})
+                AN-->>IM: enrollmentToken (15-minute JWT, its own audience)
+                IM-->>API: {userId, enrollmentToken, totpSecret, otpauthUri, recoveryCodes[]}
+                API-->>User: 201 Created {userId, enrollmentToken, totpSecret, otpauthUri (the QR), recoveryCodes[]}
             end
         end
     end
@@ -101,9 +104,11 @@ sequenceDiagram
   <div class="notes">
     <ul>
       <li><strong>MFA enrollment is not optional or deferred</strong> — FR-1.15 requires it complete before the account can log in at all, so it happens inline in registration, not as a follow-up step.</li>
+      <li><strong>Confirmed by its first code (OQ-149).</strong> The enrollment stays unconfirmed until <code>POST /auth/mfa/enrollment/confirm</code> (UC-11b) receives a code from the app, with the <code>enrollmentToken</code> answered here; that confirmation opens the first session. Signing in before then answers a fresh enrollment instead of a challenge (UC-14), so a user who closed the tab before scanning is never locked out.</li>
+      <li><code>otpauthUri</code> carries the issuer and TOTP settings (<code>config/constants.ts</code>), so the web app draws the QR without repeating them.</li>
       <li>The recovery codes are returned exactly once, at creation — the backend stores only their hashes (<code>mfa_recovery_codes.code_hash</code>), never the plaintext codes themselves after this response.</li>
       <li><strong>Redrawn to the implementation (M1):</strong> the route is <code>POST /auth/register</code> (was shown as <code>POST /users</code>); request shape is checked at the route against the contract, not by a <code>ValidationUtility</code>; a duplicate email is the insert&#39;s typed result, not a prior lookup that two simultaneous registrations could both pass.</li>
-      <li>See FR-1.1, FR-1.15, OQ-29 (first_name/last_name resolved during data modeling), OQ-114, OQ-116.</li>
+      <li>See FR-1.1, FR-1.15, OQ-29 (first_name/last_name resolved during data modeling), OQ-114, OQ-116, OQ-149.</li>
     </ul>
   </div>
   <script>

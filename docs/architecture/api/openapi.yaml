@@ -52,7 +52,9 @@ paths:
         FR-1.1/FR-1.15. Enrolls TOTP-based MFA and issues recovery codes
         inline — an account cannot be used to log in until MFA is
         enrolled, so this happens as part of registration, not a
-        follow-up step. See docs/design/diagrams/sequences/identity-household/uc-11-create-user.html.
+        follow-up step. The enrollment stays unconfirmed until POST
+        /auth/mfa/enrollment/confirm receives its first code (OQ-149). See
+        docs/design/diagrams/sequences/identity-household/uc-11-create-user.html.
       security: []
       requestBody:
         required: true
@@ -72,13 +74,12 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  userId: { type: string, format: uuid }
-                  totpSecret: { type: string, description: "QR-encodable TOTP enrollment secret" }
-                  recoveryCodes:
-                    type: array
-                    items: { type: string }
+                allOf:
+                  - type: object
+                    required: [userId]
+                    properties:
+                      userId: { type: string, format: uuid }
+                  - $ref: "#/components/schemas/MfaEnrollmentStart"
         "409": { $ref: "#/components/responses/Conflict" }
         "422": { $ref: "#/components/responses/ValidationError" }
 
@@ -91,7 +92,10 @@ paths:
         FR-1.2/OQ-30/OQ-145. Sign-in takes two steps: this one checks the
         password and answers a five-minute challenge token; POST
         /auth/mfa/verify (or /auth/mfa/recover) trades it, with the second
-        factor, for a session. Every failure here answers the same 401, so
+        factor, for a session. An account whose MFA enrollment was never
+        confirmed gets no challenge: the answer is a fresh enrollment (new
+        secret and recovery codes, replacing the old ones) to confirm
+        through POST /auth/mfa/enrollment/confirm (OQ-149). Every failure here answers the same 401, so
         it never reveals which emails are registered. A success does not
         clear the address's failure count — only a full sign-in does. See
         docs/design/diagrams/sequences/identity-household/uc-14-login.html.
@@ -111,7 +115,15 @@ paths:
           description: OK
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/MfaChallenge" }
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/MfaChallenge"
+                  - $ref: "#/components/schemas/MfaEnrollment"
+                discriminator:
+                  propertyName: step
+                  mapping:
+                    mfa: "#/components/schemas/MfaChallenge"
+                    enroll: "#/components/schemas/MfaEnrollment"
         "401":
           description: >
             Invalid email or password — deliberately identical for both, to
@@ -150,6 +162,38 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/AuthTokens" }
         "401": { $ref: "#/components/responses/ChallengeRejected" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+
+  /auth/mfa/enrollment/confirm:
+    post:
+      tags: [Auth]
+      operationId: confirmMfaEnrollment
+      summary: Confirm MFA enrollment — the first authenticator code opens a session
+      description: >
+        FR-1.15/OQ-149. Proves the authenticator app was set up: the
+        enrollment token from POST /auth/register (or from POST /auth/login
+        while the enrollment is unconfirmed) and the app's current code.
+        Confirms the enrollment once and opens a session. A wrong code
+        counts against the same lockout as sign-in (OQ-114). See
+        docs/design/diagrams/sequences/identity-household/uc-11b-confirm-mfa-enrollment.html.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [enrollmentToken, mfaCode]
+              properties:
+                enrollmentToken: { type: string }
+                mfaCode: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthTokens" }
+        "401": { $ref: "#/components/responses/EnrollmentRejected" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
 
   /auth/logout:
@@ -2182,6 +2226,11 @@ components:
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
+    EnrollmentRejected:
+      description: 'The enrollment was not confirmed (OQ-149). Codes: `auth.mfa_invalid` (wrong authenticator code — counted against the lockout), `auth.enrollment_expired` (enrollment token expired or not valid, or the enrollment is already confirmed — sign in again, which answers a fresh enrollment while it is unconfirmed).'
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
     TooManyRequests:
       description: 'Too many failed attempts for this email address (OQ-114) — answered the same whether or not an account exists. Code: `auth.too_many_attempts`, `params.retryAfterMinutes`.'
       headers:
@@ -2298,9 +2347,29 @@ components:
 
     MfaChallenge:
       type: object
-      required: [challengeToken]
+      required: [step, challengeToken]
       properties:
+        step: { type: string, enum: [mfa] }
         challengeToken: { type: string, description: "Five-minute JWT proving the password matched; only POST /auth/mfa/verify and /auth/mfa/recover accept it (OQ-145)" }
+    MfaEnrollmentStart:
+      type: object
+      required: [enrollmentToken, totpSecret, otpauthUri, recoveryCodes]
+      properties:
+        enrollmentToken: { type: string, description: "Fifteen-minute JWT; only POST /auth/mfa/enrollment/confirm accepts it (OQ-149)" }
+        totpSecret: { type: string, description: "Base32 TOTP secret, for entering the key by hand" }
+        otpauthUri: { type: string, description: "otpauth:// URI the QR code encodes — issuer, account and TOTP settings included" }
+        recoveryCodes:
+          type: array
+          description: Single-use recovery codes, returned this once (stored only as hashes)
+          items: { type: string }
+    MfaEnrollment:
+      description: The password step's answer while the MFA enrollment is unconfirmed (OQ-149).
+      allOf:
+        - type: object
+          required: [step]
+          properties:
+            step: { type: string, enum: [enroll] }
+        - $ref: "#/components/schemas/MfaEnrollmentStart"
     AuthTokens:
       type: object
       properties:

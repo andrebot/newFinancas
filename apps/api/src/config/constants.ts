@@ -27,6 +27,15 @@ export const authentication = {
     ttlSeconds: 5 * 60,
     audience: 'financas-mfa-challenge',
   },
+  /**
+   * The MFA enrollment (OQ-149): registration — or signing in to an account
+   * whose enrollment was never confirmed — earns this JWT, traded with the first
+   * authenticator code for a session. Long enough to install an app and scan.
+   */
+  enrollmentToken: {
+    ttlSeconds: 15 * 60,
+    audience: 'financas-mfa-enrollment',
+  },
   /** Random bytes in an opaque token (refresh, password reset): 256 bits. */
   opaqueTokenBytes: 32,
   /** Argon2id parameters (OWASP); stored in each hash, so they can be raised. */

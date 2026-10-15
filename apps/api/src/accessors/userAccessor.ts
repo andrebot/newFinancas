@@ -32,6 +32,14 @@ export interface UserWithCredentials extends User {
   readonly passwordHash: string;
   /** AES-GCM sealed TOTP secret (OQ-100). */
   readonly encryptedMfaSecret: string;
+  /** When the first authenticator code confirmed the enrollment; `null` until then (OQ-149). */
+  readonly mfaConfirmedAt: Date | null;
+}
+
+/** A fresh MFA enrollment's stored forms: the sealed secret and recovery-code hashes. */
+export interface MfaEnrollment {
+  readonly encryptedMfaSecret: string;
+  readonly recoveryCodeHashes: readonly string[];
 }
 
 /** What registration stores. */
@@ -136,10 +144,16 @@ const createUserAccessor = (db: Database) => ({
    */
   findByEmail: async (email: string): Promise<UserWithCredentials | undefined> => {
     const [row] = await db.select({
-      ...userColumns, passwordHash: users.passwordHash, encryptedMfaSecret: users.mfaSecret,
+      ...userColumns,
+      passwordHash: users.passwordHash,
+      encryptedMfaSecret: users.mfaSecret,
+      mfaConfirmedAt: users.mfaConfirmedAt,
     }).from(users).where(sql`lower(${users.email}) = lower(${email})`);
     return row && {
-      ...toUser(row), passwordHash: row.passwordHash, encryptedMfaSecret: row.encryptedMfaSecret,
+      ...toUser(row),
+      passwordHash: row.passwordHash,
+      encryptedMfaSecret: row.encryptedMfaSecret,
+      mfaConfirmedAt: row.mfaConfirmedAt,
     };
   },
 
@@ -190,6 +204,46 @@ const createUserAccessor = (db: Database) => ({
     const updated = await db.update(users).set({ passwordHash }).where(eq(users.id, id))
       .returning({ id: users.id });
     return updated.length > 0;
+  },
+
+  /**
+   * Replaces an unconfirmed MFA enrollment — the secret and every recovery code —
+   * atomically, guarded so a confirmed enrollment is never overwritten (OQ-149).
+   *
+   * @param userId - Whose enrollment.
+   * @param enrollment - The new sealed secret and recovery-code hashes.
+   * @returns `replaced`, or `stale` when it was confirmed meanwhile (nothing written).
+   */
+  replaceMfaEnrollment: async (
+    userId: string,
+    enrollment: MfaEnrollment,
+  ): Promise<'replaced' | 'stale'> => db.transaction(async (tx) => {
+    const updated = await tx.update(users).set({ mfaSecret: enrollment.encryptedMfaSecret })
+      .where(and(eq(users.id, userId), isNull(users.mfaConfirmedAt)))
+      .returning({ id: users.id });
+    if (updated.length === 0) return 'stale';
+    await tx.delete(mfaRecoveryCodes).where(eq(mfaRecoveryCodes.userId, userId));
+    if (enrollment.recoveryCodeHashes.length > 0) {
+      await tx.insert(mfaRecoveryCodes).values(
+        enrollment.recoveryCodeHashes.map((codeHash) => ({ userId, codeHash })),
+      );
+    }
+    return 'replaced';
+  }),
+
+  /**
+   * Confirms an MFA enrollment, once: guarded on its not being confirmed yet,
+   * so two simultaneous confirmations can't both win (OQ-149).
+   *
+   * @param userId - Whose enrollment.
+   * @param now - When it is confirmed.
+   * @returns `confirmed`, or `stale` when it already was (or the user is gone).
+   */
+  confirmMfaEnrollment: async (userId: string, now: Date): Promise<'confirmed' | 'stale'> => {
+    const confirmed = await db.update(users).set({ mfaConfirmedAt: now })
+      .where(and(eq(users.id, userId), isNull(users.mfaConfirmedAt)))
+      .returning({ id: users.id });
+    return confirmed.length > 0 ? 'confirmed' : 'stale';
   },
 
   /**

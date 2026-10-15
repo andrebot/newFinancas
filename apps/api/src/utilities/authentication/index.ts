@@ -7,11 +7,12 @@ import {
   IV_BYTES, openSecret, parseEncryptionKey, sealSecret,
 } from './secretBox';
 import {
-  hashOpaqueToken, issueOpaqueToken, signAccessToken, signChallengeToken, verifyAccessToken,
-  verifyChallengeToken, type AccessTokenClaims, type ChallengeClaims,
+  hashOpaqueToken, issueOpaqueToken, signAccessToken, signChallengeToken, signEnrollmentToken,
+  verifyAccessToken, verifyChallengeToken, verifyEnrollmentToken,
+  type AccessTokenClaims, type ChallengeClaims, type EnrollmentClaims,
 } from './tokens';
 
-export type { AccessTokenClaims, ChallengeClaims } from './tokens';
+export type { AccessTokenClaims, ChallengeClaims, EnrollmentClaims } from './tokens';
 
 // AuthenticationUtility (U4, VBD): pure identity-proof primitives — passwords,
 // MFA, tokens. Touches no storage; Managers persist what it returns (OQ-100).
@@ -124,6 +125,25 @@ export const createAuthenticationUtility = (
      * @returns User and address, or `undefined` when not valid.
      */
     verifyChallengeToken: (token: string) => verifyChallengeToken(signingKey, token, deps.now()),
+    /**
+     * Signs a fifteen-minute MFA enrollment token for a user whose enrollment
+     * still needs its first code (OQ-149).
+     *
+     * @param claims - The user and their address.
+     * @returns The JWT.
+     */
+    signEnrollmentToken: (claims: EnrollmentClaims) => (
+      signEnrollmentToken(signingKey, claims, deps.now())
+    ),
+    /**
+     * Verifies an MFA enrollment token.
+     *
+     * @param token - The JWT.
+     * @returns User and address, or `undefined` when not valid.
+     */
+    verifyEnrollmentToken: (token: string) => (
+      verifyEnrollmentToken(signingKey, token, deps.now())
+    ),
     /**
      * Issues a refresh or password-reset token.
      *

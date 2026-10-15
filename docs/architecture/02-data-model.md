@@ -133,6 +133,8 @@ Backs `IdentityManager`'s Accessors: `UserAccessor`, `SessionAccessor`,
 - **`users`** — `id` (PK), `email` (unique), `password_hash`,
   `first_name`, `last_name` (OQ-29, resolved during this data-modeling
   pass — see `05-assumptions-and-open-questions.md`), `mfa_secret`,
+  **`mfa_confirmed_at`** (nullable — set by the first authenticator code;
+  until then sign-in answers a fresh enrollment, OQ-149),
   **`theme`** (`dark` | `light` | `system`, default `dark`) and
   **`language`** (`pt-BR` | `en-US`) — FR-1.21, columns not JSON (two
   known, always-set fields, Oct 2026), **`system_role`** (`USER` |

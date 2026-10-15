@@ -45,7 +45,8 @@ describe('IdentityManager — Login, password step (uc-14, OQ-114, OQ-145)', () 
       deps, users, sessions, authentication,
     } = fakeDeps();
 
-    await expect(loginWith(deps)).resolves.toEqual({ challengeToken: 'challenge-token' });
+    await expect(loginWith(deps))
+      .resolves.toEqual({ step: 'mfa', challengeToken: 'challenge-token' });
 
     expect(users.findByEmail).toHaveBeenCalledWith('Ana@Example.com');
     expect(authentication.signChallengeToken)
@@ -112,6 +113,132 @@ describe('IdentityManager — Login, password step (uc-14, OQ-114, OQ-145)', () 
     expect(users.lockLogin).not.toHaveBeenCalled();
     await expect(identity.login(CONTEXT, CREDENTIALS)).rejects.toMatchObject(INVALID);
     expect(users.lockLogin).toHaveBeenCalledWith('ana@example.com', minutes(15));
+  });
+});
+
+describe('IdentityManager — Login, unconfirmed MFA enrollment (uc-14, OQ-149)', () => {
+  const UNCONFIRMED = { ...ANA, mfaConfirmedAt: null };
+
+  it('starts the enrollment over instead of a challenge, and audits it', async () => {
+    const { deps, users, authentication } = fakeDeps();
+    users.findByEmail.mockResolvedValueOnce(UNCONFIRMED);
+    const logs = captureLogs();
+
+    const answer = await loginWith(deps);
+    logs.stop();
+
+    expect(answer).toEqual({
+      step: 'enroll',
+      enrollmentToken: 'enrollment-token',
+      totpSecret: 'TOTPSECRET',
+      otpauthUri: 'otpauth://totp/x',
+      recoveryCodes: ['CODE1', 'CODE2'],
+    });
+    expect(authentication.enrollMfa).toHaveBeenCalledWith(ANA.email);
+    expect(users.replaceMfaEnrollment).toHaveBeenCalledWith(ANA.id, {
+      encryptedMfaSecret: 'sealed-new', recoveryCodeHashes: ['h1', 'h2'],
+    });
+    expect(authentication.signChallengeToken).not.toHaveBeenCalled();
+    expect(users.clearLoginFailures).not.toHaveBeenCalled();
+    expect(logs.events).toContainEqual(expect.objectContaining({
+      level: 'audit', message: 'RestartMfaEnrollment', entityType: 'User', entityId: ANA.id,
+    }));
+  });
+
+  it('answers the challenge when the enrollment was confirmed meanwhile', async () => {
+    const { deps, users } = fakeDeps();
+    users.findByEmail.mockResolvedValueOnce(UNCONFIRMED);
+    users.replaceMfaEnrollment.mockResolvedValueOnce('stale');
+
+    await expect(loginWith(deps))
+      .resolves.toEqual({ step: 'mfa', challengeToken: 'challenge-token' });
+  });
+
+  it('never starts it over for a wrong password', async () => {
+    const { deps, users, authentication } = fakeDeps();
+    users.findByEmail.mockResolvedValueOnce(UNCONFIRMED);
+    authentication.verifyPassword.mockResolvedValueOnce(false);
+
+    await expect(loginWith(deps)).rejects.toMatchObject(INVALID);
+    expect(authentication.enrollMfa).not.toHaveBeenCalled();
+    expect(users.replaceMfaEnrollment).not.toHaveBeenCalled();
+  });
+});
+
+describe('IdentityManager — Confirm MFA Enrollment (uc-11b, OQ-149)', () => {
+  const CONFIRMATION = { enrollmentToken: 'enrollment-token', mfaCode: '123456' };
+  const ENROLLMENT_EXPIRED = { apiError: { status: 401, code: 'auth.enrollment_expired' } };
+
+  /**
+   * Confirms with the shared confirmation through a fresh Manager.
+   *
+   * @param deps - The mocked tier below.
+   * @returns The confirmation's promise.
+   */
+  const confirmWith = (deps: Deps) => (
+    createIdentityManager(deps).confirmMfaEnrollment(CONTEXT, CONFIRMATION, 'Firefox')
+  );
+
+  it('confirms the enrollment, clears the count and opens an audited session', async () => {
+    const {
+      deps, users, sessions, authentication,
+    } = fakeDeps();
+    const logs = captureLogs();
+
+    const tokens = await confirmWith(deps);
+    logs.stop();
+
+    expect(tokens).toEqual({ accessToken: 'access-token', refreshToken: 'refresh-token' });
+    expect(authentication.verifyEnrollmentToken).toHaveBeenCalledWith('enrollment-token');
+    expect(authentication.verifyTotp).toHaveBeenCalledWith('sealed-secret', '123456');
+    expect(users.confirmMfaEnrollment).toHaveBeenCalledWith(ANA.id, NOW);
+    expect(users.clearLoginFailures).toHaveBeenCalledWith('ana@example.com');
+    expect(sessions.insert)
+      .toHaveBeenCalledWith(ANA.id, 'refresh-hash', 'Firefox', THIRTY_DAYS, NOW);
+    expect(logs.events).toContainEqual(expect.objectContaining({
+      level: 'audit', message: 'ConfirmMfaEnrollment', entityType: 'Session', entityId: SESSION.id,
+    }));
+  });
+
+  it('names a wrong code, counts it, and confirms nothing', async () => {
+    const { deps, users, authentication } = fakeDeps();
+    authentication.verifyTotp.mockReturnValueOnce(false);
+
+    await expect(confirmWith(deps)).rejects.toMatchObject(MFA_INVALID);
+    expect(users.recordLoginFailure).toHaveBeenCalledWith('ana@example.com', NOW, minutes(-15));
+    expect(users.confirmMfaEnrollment).not.toHaveBeenCalled();
+  });
+
+  it('refuses a locked address before checking the code', async () => {
+    const { deps, users, authentication } = fakeDeps();
+    users.findLoginLock.mockResolvedValueOnce(minutes(5));
+
+    await expect(confirmWith(deps)).rejects.toMatchObject(LOCKED);
+    expect(authentication.verifyTotp).not.toHaveBeenCalled();
+  });
+
+  it('answers enrollment_expired for an invalid token, uncounted', async () => {
+    const { deps, users, authentication } = fakeDeps();
+    authentication.verifyEnrollmentToken.mockResolvedValueOnce(undefined);
+
+    await expect(confirmWith(deps)).rejects.toMatchObject(ENROLLMENT_EXPIRED);
+    expect(users.findByEmail).not.toHaveBeenCalled();
+    expect(users.recordLoginFailure).not.toHaveBeenCalled();
+  });
+
+  it('answers enrollment_expired when the user is gone', async () => {
+    const { deps, users } = fakeDeps();
+    users.findByEmail.mockResolvedValueOnce(undefined);
+
+    await expect(confirmWith(deps)).rejects.toMatchObject(ENROLLMENT_EXPIRED);
+  });
+
+  it('answers enrollment_expired once already confirmed, opening no session', async () => {
+    const { deps, users, sessions } = fakeDeps();
+    users.confirmMfaEnrollment.mockResolvedValueOnce('stale');
+
+    await expect(confirmWith(deps)).rejects.toMatchObject(ENROLLMENT_EXPIRED);
+    expect(sessions.insert).not.toHaveBeenCalled();
   });
 });
 

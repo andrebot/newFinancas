@@ -135,8 +135,9 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain:</strong> <code>IdentityManager</code> (password &lt; 12 &rarr; 422 <code>password.too_short</code>, before any work) &#9312; <code>AuthenticationUtility.enrollMfa(email)</code> (TOTP secret, sealed, + 10 recovery codes and their hashes) and <code>hashPassword</code> &rarr; &#9313; <code>UserAccessor.insert</code> (one transaction; the unique index on <code>lower(email)</code> decides a duplicate &rarr; 409) &rarr; &#9314; <code>LoggingUtility</code> audit.</p>
-    <p>Corrected: no <code>ValidationUtility</code> step (the contract validates at the route) and no second round-trip to verify a first code &mdash; registration answers the secret and codes once; MFA Enrollment&#39;s verify step is the web Flow&#39;s. Synced with the code (task M1 audit, Oct 2026).</p>
+    <p><strong>Chain:</strong> <code>IdentityManager</code> (password &lt; 12 &rarr; 422 <code>password.too_short</code>, before any work) &#9312; <code>AuthenticationUtility.enrollMfa(email)</code> (TOTP secret, sealed, + 10 recovery codes and their hashes) and <code>hashPassword</code> &rarr; &#9313; <code>UserAccessor.insert</code> (one transaction; the unique index on <code>lower(email)</code> decides a duplicate &rarr; 409) &rarr; &#9314; <code>LoggingUtility</code> audit; then &#9312; again, <code>signEnrollmentToken</code>, for the confirmation (OQ-149).</p>
+    <p>Corrected: no <code>ValidationUtility</code> step (the contract validates at the route). Synced with the code (task M1 audit, Oct 2026).</p>
+    <p><strong>Changed (OQ-149):</strong> the first code is now checked by the backend, in a second request &mdash; Confirm MFA Enrollment (uc-11b) &mdash; with the <code>enrollmentToken</code> answered here. It replaces the M1 note that the verify step was the web Flow&#39;s alone: no endpoint existed to check it.</p>
   </div>
 
   <script>

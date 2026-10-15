@@ -112,7 +112,7 @@ the rest).
 
 | Accessor | Validated-write scenarios to cover |
 |---|---|
-| `UserAccessor` | Insert (success, duplicate email → real DB unique constraint surfaces as a driver error this Accessor translates); preferences update (`theme`, `language` — unknown values rejected); **password reset tokens** (`password_reset_tokens`): insert stores only the hash, find by token valid / expired / already used, mark used |
+| `UserAccessor` | Insert (success, duplicate email → real DB unique constraint surfaces as a driver error this Accessor translates); preferences update (`theme`, `language` — unknown values rejected); **MFA enrollment (OQ-149):** `replaceMfaEnrollment` swaps the secret and every recovery code while unconfirmed, `confirmMfaEnrollment` applies once — both `stale` once confirmed or for an unknown user; **password reset tokens** (`password_reset_tokens`): insert stores only the hash, find by token valid / expired / already used, mark used |
 | `SessionAccessor` | Insert; guarded `rotate` (rotated / `stale` for a replaced, unknown or expired token, changing nothing); `findByReplacedToken`; `deleteForUser` (revoke/logout); `deleteAllForUser`; `deleteAllExceptCurrent` (also serves "sign out all others" — assert the current session survives). The replay *response* (ending the session) is IdentityManager's scenario (OQ-108) |
 | `HouseholdAccessor` | **Revised (OQ-107): data changes only.** `findSuccessor` ordering (Admin over Member over Viewer, longest-tenured first; none when the Owner is alone); guarded writes — `updateRole`/`removeMember` apply to a non-Owner member and return `stale` otherwise; `swapOwner` leaves exactly one Owner, and returns `stale` changing nothing when `from` is no longer Owner or `to` is gone (demotion rolled back). The concurrency-shaped version (two transfers at once) needs real connections — E2E against the container (OQ-96). |
 | `InvitationAccessor` | **Revised (OQ-109):** insert by invitee ID — a vanished invitee surfaces as the real NOT NULL FK (`invitee_missing`); `findById` / `findPending`; `listPendingForUser` with household and inviter names (inviter deleted → null names); `listForHousehold`; guarded `resolve` — each of accepted/declined/revoked applies once, then `stale`. Who may accept/decline/revoke, and FR-1.19's email lookup, are IdentityManager's scenarios |
@@ -153,7 +153,9 @@ gap there as a missing scenario, not an acceptable gap.
 `HouseholdAccessor`, `InvitationAccessor`, `AuthenticationUtility`,
 `AuthorizationUtility`, `ServiceBusUtility`, `LoggingUtility`,
 `NotificationEngine`.
-- Register: email available/taken, **password < 12 → `password.too_short`**, first/last name required (`uc-11-create-user.html`)
+- Register: email available/taken, **password < 12 → `password.too_short`**, first/last name required, answers the enrollment with its token (`uc-11-create-user.html`)
+- Confirm MFA enrollment (OQ-149, `uc-11b-confirm-mfa-enrollment.html`): token invalid → 401 `auth.enrollment_expired`, uncounted; locked → 429 before the code; wrong code → 401 `auth.mfa_invalid`, counted, nothing confirmed; already confirmed (`stale`) → `enrollment_expired`, no session; success → failures cleared, confirmed, audited session
+- Login with an unconfirmed enrollment (OQ-149): the right password answers `step: enroll` with a fresh enrollment (`replaceMfaEnrollment`, audited), never a challenge; confirmed meanwhile (`stale`) → the challenge; a wrong password never re-enrolls
 - Login: user found/not-found, password valid/invalid, MFA valid/invalid (`uc-14-login.html`) — all three failure branches must assert the *same* 401, not leak which one failed; an unknown email still costs a password check (dummy hash). **Lockout (OQ-114):** locked → 429 `auth.too_many_attempts` with `Retry-After` and nothing checked; an ended lock passes; every failure is counted under the trimmed, lower-cased address; the 5th failure locks for 15 minutes, the 4th doesn't; success clears
 - Refresh (`uc-14b-refresh-tokens.html`): rotated → new pair with the user's current system role; stale + replayed → `deleteForUser` for that session only (never `deleteAllExceptCurrent`) + a warning; stale + unknown → nothing ended; user gone → 401
 - Routes (Manager mocked): public vs signed-in (401 `auth.unauthenticated` without a valid token, 403 without the system role), validation before the Manager, `User-Agent` → device, the 429's `Retry-After` header, session times as ISO strings
@@ -282,7 +284,7 @@ is the caller, represented by a stub callback. **100% coverage target.**
 | Sign In (Authenticate) | step (credentials / code / backup code), email kept, last failure | credentials → MFA code or → backup code (escape event); `auth.mfa_invalid` clears only the code; `auth.challenge_expired` / `auth.too_many_attempts` restart at credentials, email kept (OQ-145); codes surfaced via I18nUtility, never `message` |
 | Account Recovery (Authenticate) | step, token, link requested, last failure | no token → request → inbox note (form kept); token → new password → done → Sign In; `password.too_short` under the field; `password_reset.token_invalid` back to the request with the banner; `password.mismatch` client-side (OQ-147) |
 | Registration (Onboard) | busy, last failure | names not blank, valid email, password < 12 and `password.mismatch` client-side; `user.email_taken` under the email, `password.too_short` under the password, anything else in the banner, typing kept; success stays busy while the Experience hands off to MFA Enrollment (OQ-148) |
-| MFA Enrollment (Onboard) | method, secret, code, codes, ack | verify fail/retry/success → codes → acknowledged (no skip) |
+| MFA Enrollment (Onboard) | step, method, busy, last failure | method → setup with the enrollment's URI, secret and email → back keeps the method; confirm busy, fail (reason in the banner, code cleared) / retry / success → every code → acknowledged only once ticked saved (no skip) (OQ-149) |
 | Household Setup (Onboard) | name | success → Guided Setup; also reached from the shell for an additional household |
 | Guided Setup (Onboard) | step, per-step skippable flags | account step **not** skippable (Next disabled until an account exists); category and budget steps skippable; summary renders counts |
 | Security (Manage Profile) | sessions, active action | revoke one / sign out all others (current session kept) / change password |
@@ -375,7 +377,7 @@ document):
 Not business-logic regressions — deployment/build/wiring breakage. Fast
 enough to gate every merge without anyone noticing the wait:
 
-1. Register a new user → MFA enrollment data returned.
+1. Register a new user → MFA enrollment data returned; confirm it with the current code → tokens returned (OQ-149).
 2. Login with valid credentials → challenge returned; verify the MFA code → tokens returned (OQ-145).
 3. Create a household → default Categories exist.
 4. Record one simple transaction → account balance reflects it.

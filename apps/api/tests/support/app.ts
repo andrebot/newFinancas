@@ -17,6 +17,7 @@ export const mockIdentity = (): MockedIdentity => ({
   register: vi.fn(),
   login: vi.fn(),
   verifyMfa: vi.fn(),
+  confirmMfaEnrollment: vi.fn(),
   refresh: vi.fn(),
   logout: vi.fn(),
   listSessions: vi.fn(),

@@ -91,12 +91,23 @@ sequenceDiagram
             end
             IM-->>API: Unauthorized
             API-->>User: 401 auth.invalid_credentials (same for both)
+        else password valid, MFA enrollment unconfirmed (OQ-149)
+            IM->>AN: enrollMfa(email)
+            AN-->>IM: {secret, otpauthUri, encryptedSecret, recoveryCodes[], recoveryCodeHashes[]}
+            IM->>UA: replaceMfaEnrollment(userId, {encryptedMfaSecret, recoveryCodeHashes})
+            Note over UA: guarded on mfa_confirmed_at IS NULL &mdash;<br/>confirmed meanwhile &rarr; stale &rarr; the challenge below
+            UA-->>IM: replaced
+            IM-->>LOG: log.audit("RestartMfaEnrollment", User userId)
+            IM->>AN: signEnrollmentToken({userId, email})
+            AN-->>IM: enrollmentToken
+            IM-->>API: {step: enroll, enrollmentToken, totpSecret, otpauthUri, recoveryCodes[]}
+            API-->>User: 200 OK &mdash; finish the enrollment (UC-11b)
         else password valid
             IM->>AN: signChallengeToken({userId, email})
             Note over AN: five-minute JWT, its own audience &mdash;<br/>never passes as an access token (OQ-145)
             AN-->>IM: challengeToken
-            IM-->>API: {challengeToken}
-            API-->>User: 200 OK {challengeToken}
+            IM-->>API: {step: mfa, challengeToken}
+            API-->>User: 200 OK {step: mfa, challengeToken}
         end
     end
 
@@ -142,7 +153,8 @@ sequenceDiagram
       <li><strong>Lockout (OQ-114) spans both steps:</strong> 5 failures &mdash; wrong passwords and wrong codes alike &mdash; within 15 minutes lock the <em>address</em> for 15 minutes (<code>config/constants.ts</code>). Only a full sign-in clears the count; a correct password does not, or it could buy endless code guesses. The count lives in <code>login_attempts</code>, keyed by address, so an address with no account locks exactly like one with an account. The Manager decides; <code>UserAccessor</code> applies (atomic count, lock, clear).</li>
       <li><strong>The challenge token is stateless</strong> (a JWT naming the user and address): no table, and reusing it within its five minutes still needs a correct code, under the same lockout.</li>
       <li>The access token is never persisted (OQ-30); only the refresh token is server-tracked in <code>sessions</code>.</li>
-      <li>See FR-1.2, OQ-30, OQ-100, OQ-106, OQ-111, OQ-114, OQ-145.</li>
+      <li><strong>Unconfirmed MFA enrollment (OQ-149):</strong> an account whose first authenticator code never arrived gets no challenge &mdash; the right password answers a fresh enrollment (new secret and recovery codes, replacing the ones no one saw), confirmed through UC-11b. The answer is tagged by <code>step</code> (<code>mfa</code> or <code>enroll</code>). A wrong password is answered as before, so this reveals nothing to someone without it.</li>
+      <li>See FR-1.2, FR-1.15, OQ-30, OQ-100, OQ-106, OQ-111, OQ-114, OQ-145, OQ-149.</li>
     </ul>
   </div>
   <script>

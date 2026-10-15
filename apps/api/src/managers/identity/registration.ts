@@ -1,10 +1,13 @@
 import { authentication } from '../../config/constants';
-import type { IdentityDeps, RequestContext } from './context';
-import { loggerFor } from './context';
+import {
+  enrollmentStart, loggerFor,
+  type EnrollmentStart, type IdentityDeps, type RequestContext,
+} from './context';
 import { emailTaken, passwordTooShort } from './errors';
 
 // Create User (uc-11, FR-1.1/FR-1.15): registration enrols TOTP and issues the
-// recovery codes in the same step — an account can't sign in without MFA.
+// recovery codes in the same step — an account can't sign in without MFA. The
+// enrollment stays unconfirmed until its first code (OQ-149, uc-11b).
 
 /** What someone registers with. */
 export interface Registration {
@@ -14,11 +17,9 @@ export interface Registration {
   readonly lastName: string;
 }
 
-/** What registration returns, once: the secret to scan and the recovery codes. */
-export interface Registered {
+/** What registration returns, once: the enrollment to confirm (OQ-149). */
+export interface Registered extends EnrollmentStart {
   readonly userId: string;
-  readonly totpSecret: string;
-  readonly recoveryCodes: readonly string[];
 }
 
 /**
@@ -34,7 +35,8 @@ const createRegistration = (deps: IdentityDeps) => ({
    *
    * @param context - The request.
    * @param input - Email, password and name; text is trimmed here (OQ-108).
-   * @returns The new user's id, TOTP secret and recovery codes.
+   * @returns The new user's id, TOTP secret, QR URI, recovery codes and the
+   *   token that confirms the enrollment.
    * @throws {ApiError} 422 `password.too_short`; 409 `user.email_taken`.
    */
   register: async (context: RequestContext, input: Registration): Promise<Registered> => {
@@ -53,7 +55,7 @@ const createRegistration = (deps: IdentityDeps) => ({
     const userId = result.user.id;
     loggerFor(context, userId)
       .audit('CreateUser', { entityType: 'User', entityId: userId, householdId: null });
-    return { userId, totpSecret: mfa.secret, recoveryCodes: mfa.recoveryCodes };
+    return { userId, ...await enrollmentStart(deps.authentication, result.user, mfa) };
   },
 });
 

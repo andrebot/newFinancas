@@ -66,23 +66,32 @@ sequenceDiagram
     participant FLOW as MFA Enrollment<br/>Flow
     participant EXP as Onboard<br/>Experience
     participant API as Backend API
+    EXP-->>FLOW: state: enrollment (otpauth URI, secret, recovery codes, account email)
     User->>MS: Authenticator app, continue
-    MS->>FLOW: emit methodChosen
-    FLOW-->>SV: render QR + setup key
-    User->>SV: 6-digit code
-    SV->>FLOW: emit codeEntered
-    FLOW->>EXP: request verifyMfa(code)
-    EXP->>API: verify MFA enrollment
-    API-->>EXP: verified + recovery codes
-    EXP-->>FLOW: state: recoveryCodes
-    FLOW-->>BA: render 8 codes (download / copy)
-    User->>BA: 'I've saved these'
-    BA->>FLOW: emit acknowledged
-    FLOW->>EXP: complete → Household Setup
+    MS->>FLOW: emit choose(method)
+    FLOW-->>SV: render QR (otpauth URI) + setup key (copy) + account
+    User->>SV: 6-digit code (sends itself on the last digit)
+    SV->>FLOW: emit submit(code)
+    FLOW->>EXP: request confirm(code)
+    EXP->>API: POST /auth/mfa/enrollment/confirm {enrollmentToken, mfaCode}
+    alt 401 auth.mfa_invalid / 429 / another failure
+        API-->>EXP: error code
+        EXP-->>FLOW: outcome: failed(code)
+        FLOW-->>SV: remount (code cleared), reason in the banner
+    else 200 tokens (signed in)
+        API-->>EXP: access + refresh tokens (kept by the Experience)
+        EXP-->>FLOW: outcome: ok
+        FLOW-->>BA: render every recovery code (download / copy all)
+        User->>BA: tick 'I've saved these', Continue
+        BA->>FLOW: emit acknowledge
+        FLOW->>EXP: emit complete → Household Setup
+    end
+    User->>SV: back
+    SV->>FLOW: emit back → method step (choice kept)
     </pre>
   </div>
   <div class="notes">
-<ul><li>Method list is configuration (only the authenticator app in v1).</li></ul>
+<ul><li>Method list is configuration (`mfa.methods`; only the authenticator app in v1).</li><li>The enrollment comes from POST /auth/register — or from POST /auth/login when the enrollment was never confirmed (`step: enroll`); the Experience mounts the Flow with it (OQ-149).</li><li>`auth.enrollment_expired` (token past its 15 minutes) is the Experience's to handle: it signs in again for a fresh enrollment and remounts the Flow.</li><li>The QR stays black on white in both themes; the codes are shown this once (FR-1.15).</li></ul>
   </div>
   <script>
     mermaid.initialize({

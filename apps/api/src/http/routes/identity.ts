@@ -1,5 +1,6 @@
 import {
-  zChangePasswordBody, zConfirmPasswordResetBody, zLoginBody, zRecoverWithMfaCodeBody,
+  zChangePasswordBody, zConfirmMfaEnrollmentBody, zConfirmPasswordResetBody, zLoginBody,
+  zRecoverWithMfaCodeBody,
   zEditCurrentUserBody, zRefreshTokensBody, zRegisterUserBody, zRequestPasswordResetBody,
   zVerifyMfaBody,
 } from '@financas/api-types/zod';
@@ -15,8 +16,9 @@ import {
 import { publicContextOf, signedInContextOf } from './requestContext';
 
 // IdentityManager's routes (M1): thin — validate against the contract, call the
-// use case, shape the response. Register, both sign-in steps, refresh and the
-// password reset are public; the rest need a signed-in USER (OQ-111).
+// use case, shape the response. Register, both sign-in steps, the MFA enrollment
+// confirmation, refresh and the password reset are public; the rest need a
+// signed-in USER (OQ-111).
 
 // The minimum length is IdentityManager's rule, answered as `password.too_short`
 // (BDT plan), not as a generic validation failure.
@@ -39,6 +41,7 @@ const validResetConfirmation = validate(
   zConfirmPasswordResetBody.extend({ newPassword: z.string() }),
 );
 const validResetRequest = validate('json', zRequestPasswordResetBody);
+const validEnrollmentConfirmation = validate('json', zConfirmMfaEnrollmentBody);
 const validSession = validate('param', z.object({ sessionId: z.uuid() }));
 
 /**
@@ -71,6 +74,13 @@ const createIdentityRoutes = (identity: IdentityManager, verifyAccessToken: Veri
       const verification = httpContext.req.valid('json');
       const context = publicContextOf(httpContext);
       return httpContext.json(await identity.recoverWithCode(context, verification, deviceInfo));
+    })
+    .post('/auth/mfa/enrollment/confirm', validEnrollmentConfirmation, async (httpContext) => {
+      const deviceInfo = httpContext.req.header('User-Agent') ?? null;
+      const confirmation = httpContext.req.valid('json');
+      const context = publicContextOf(httpContext);
+      const tokens = await identity.confirmMfaEnrollment(context, confirmation, deviceInfo);
+      return httpContext.json(tokens);
     })
     .post('/auth/password-reset/request', validResetRequest, async (httpContext) => {
       const { email } = httpContext.req.valid('json');

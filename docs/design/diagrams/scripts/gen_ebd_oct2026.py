@@ -29,6 +29,8 @@ UTILS = {
     "ThemeUtility": "Design tokens, dark / light / system, category palette tokens (OQ-85, NFR-UX-2)",
     "I18nUtility": "Shared ICU catalog — renders notifications by type and errors by code (NFR-I18N-3)",
     "FormattingUtility": "Intl formatting — money in minor units, rates × 10,000, whole percent, dates (NFR-I18N-2)",
+    "ClipboardUtility": "Copy to the clipboard with a short-lived 'Copied' (OQ-149)",
+    "DownloadUtility": "Hand the user a text file made in the browser (OQ-149)",
 }
 
 # name, slug, purpose, [(flow, [interactions], sequence_slug)], [standalone interactions], [utilities], notes
@@ -43,7 +45,8 @@ EXPERIENCES = [
       ("MFA Enrollment", ["MFA Method Selection", "MFA Setup Verification", "Backup Codes Acknowledgement"], "mfa-enrollment"),
       ("Household Setup", ["Household Name Entry"], "household-setup"),
       ("Guided Setup", ["Wizard Navigation", "Setup Complete Summary"], "guided-setup")],
-     [], ["ValidationUtility", "PasswordStrengthUtility", "AlertUtility", "I18nUtility", "FormattingUtility"],
+     [], ["ValidationUtility", "PasswordStrengthUtility", "AlertUtility", "I18nUtility", "FormattingUtility",
+          "ClipboardUtility", "DownloadUtility"],
      "Guided Setup composes Account Setup's Account & Card (mandatory, no Skip — FR-1.22), Category and Budget Flows. Registration + MFA Enrollment are skipped by configuration when the user is already signed in (additional household, OQ-81)."),
     ("Manage Profile", "manage-profile", "Look after my own account",
      [("Security", ["Password Change", "Session List", "Sign Out All Others"], "security"),
@@ -294,7 +297,7 @@ alt 409 user.email_taken / 422 password.too_short (or another failure)
     EXP-->>FLOW: outcome: failed(code)
     FLOW-->>RF: email_taken under the email, too_short under the password, anything else in the banner — typing kept
 else 201 created
-    API-->>EXP: userId + TOTP secret + recovery codes (kept by the Experience)
+    API-->>EXP: userId + enrollment token, TOTP secret, otpauth URI, recovery codes (kept by the Experience)
     EXP-->>FLOW: outcome: ok (Flow stays busy)
     EXP->>EXP: advance to MFA Enrollment
 end
@@ -305,20 +308,32 @@ FLOW->>EXP: emit signIn → Sign In
     ("onboard-mfa-enrollment", "Onboard — MFA Enrollment", "Mandatory, no skip (FR-1.15).",
      [("MS", "MFA Method Selection"), ("SV", "MFA Setup Verification"), ("BA", "Backup Codes Acknowledgement"), FLOW("MFA Enrollment"), EXP("Onboard"), API],
      """
+EXP-->>FLOW: state: enrollment (otpauth URI, secret, recovery codes, account email)
 User->>MS: Authenticator app, continue
-MS->>FLOW: emit methodChosen
-FLOW-->>SV: render QR + setup key
-User->>SV: 6-digit code
-SV->>FLOW: emit codeEntered
-FLOW->>EXP: request verifyMfa(code)
-EXP->>API: verify MFA enrollment
-API-->>EXP: verified + recovery codes
-EXP-->>FLOW: state: recoveryCodes
-FLOW-->>BA: render 8 codes (download / copy)
-User->>BA: 'I've saved these'
-BA->>FLOW: emit acknowledged
-FLOW->>EXP: complete → Household Setup
-""", ["Method list is configuration (only the authenticator app in v1)."]),
+MS->>FLOW: emit choose(method)
+FLOW-->>SV: render QR (otpauth URI) + setup key (copy) + account
+User->>SV: 6-digit code (sends itself on the last digit)
+SV->>FLOW: emit submit(code)
+FLOW->>EXP: request confirm(code)
+EXP->>API: POST /auth/mfa/enrollment/confirm {enrollmentToken, mfaCode}
+alt 401 auth.mfa_invalid / 429 / another failure
+    API-->>EXP: error code
+    EXP-->>FLOW: outcome: failed(code)
+    FLOW-->>SV: remount (code cleared), reason in the banner
+else 200 tokens (signed in)
+    API-->>EXP: access + refresh tokens (kept by the Experience)
+    EXP-->>FLOW: outcome: ok
+    FLOW-->>BA: render every recovery code (download / copy all)
+    User->>BA: tick 'I've saved these', Continue
+    BA->>FLOW: emit acknowledge
+    FLOW->>EXP: emit complete → Household Setup
+end
+User->>SV: back
+SV->>FLOW: emit back → method step (choice kept)
+""", ["Method list is configuration (`mfa.methods`; only the authenticator app in v1).",
+        "The enrollment comes from POST /auth/register — or from POST /auth/login when the enrollment was never confirmed (`step: enroll`); the Experience mounts the Flow with it (OQ-149).",
+        "`auth.enrollment_expired` (token past its 15 minutes) is the Experience's to handle: it signs in again for a fresh enrollment and remounts the Flow.",
+        "The QR stays black on white in both themes; the codes are shown this once (FR-1.15)."]),
     ("onboard-household-setup", "Onboard — Household Setup", f"{R('POST /households')}. Also the entry for an additional household from the switcher.",
      [("HN", "Household Name Entry"), FLOW("Household Setup"), EXP("Onboard"), API],
      """

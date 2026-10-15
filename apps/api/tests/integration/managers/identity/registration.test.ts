@@ -13,7 +13,7 @@ const INPUT = {
 
 describe('IdentityManager — Register (uc-11)', () => {
   it('stores hashes and the sealed secret, returns the secret and codes once, audits', async () => {
-    const { deps, users } = fakeDeps();
+    const { deps, users, authentication } = fakeDeps();
     const logs = captureLogs();
 
     const registered = await createIdentityManager(deps).register(CONTEXT, INPUT);
@@ -27,8 +27,15 @@ describe('IdentityManager — Register (uc-11)', () => {
       encryptedMfaSecret: 'sealed-new',
       recoveryCodeHashes: ['h1', 'h2'],
     });
-    expect(registered)
-      .toEqual({ userId: ANA.id, totpSecret: 'TOTPSECRET', recoveryCodes: ['CODE1', 'CODE2'] });
+    expect(registered).toEqual({
+      userId: ANA.id,
+      enrollmentToken: 'enrollment-token',
+      totpSecret: 'TOTPSECRET',
+      otpauthUri: 'otpauth://totp/x',
+      recoveryCodes: ['CODE1', 'CODE2'],
+    });
+    expect(authentication.signEnrollmentToken)
+      .toHaveBeenCalledWith({ userId: ANA.id, email: ANA.email });
     expect(logs.events).toContainEqual(expect.objectContaining({
       level: 'audit',
       message: 'CreateUser',

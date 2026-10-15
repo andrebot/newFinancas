@@ -73,7 +73,7 @@ sequenceDiagram
         EXP-->>FLOW: outcome: failed(code)
         FLOW-->>RF: email_taken under the email, too_short under the password, anything else in the banner — typing kept
     else 201 created
-        API-->>EXP: userId + TOTP secret + recovery codes (kept by the Experience)
+        API-->>EXP: userId + enrollment token, TOTP secret, otpauth URI, recovery codes (kept by the Experience)
         EXP-->>FLOW: outcome: ok (Flow stays busy)
         EXP->>EXP: advance to MFA Enrollment
     end

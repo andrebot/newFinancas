@@ -36,6 +36,17 @@ export const challengeExpired = (): ApiError => createApiError({
 });
 
 /**
+ * An MFA enrollment token that is expired or forged, names a user who is gone,
+ * or whose enrollment is already confirmed: the client signs in again, which
+ * answers a fresh enrollment while it is unconfirmed (OQ-149).
+ *
+ * @returns 401 `auth.enrollment_expired`.
+ */
+export const enrollmentExpired = (): ApiError => createApiError({
+  status: 401, code: 'auth.enrollment_expired', message: 'MFA enrollment expired',
+});
+
+/**
  * An address locked after too many failed logins (OQ-114).
  *
  * @param lockedUntil - When it unlocks.

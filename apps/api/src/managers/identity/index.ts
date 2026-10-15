@@ -13,7 +13,7 @@ import createSignIn from './signIn';
 // apply (OQ-107). Built in parts so each stays small.
 
 export type {
-  AuthTokens, IdentityDeps, RequestContext, SignedInContext,
+  AuthTokens, EnrollmentStart, IdentityDeps, RequestContext, SignedInContext,
 } from './context';
 export type { Registered, Registration } from './registration';
 export type { SessionView } from './sessions';
@@ -21,7 +21,8 @@ export type { InvitationRequest } from './invitations';
 export type { PasswordChange, PasswordResetConfirmation } from './passwords';
 export type { ProfileEdit } from './profile';
 export type {
-  Challenge, Credentials, MfaVerification, RecoveryVerification,
+  Challenge, Credentials, EnrollmentConfirmation, EnrollmentStep, LoginStep, MfaVerification,
+  RecoveryVerification,
 } from './signIn';
 
 /**

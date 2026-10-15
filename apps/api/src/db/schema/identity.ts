@@ -18,6 +18,9 @@ export const users = pgTable('users', {
   firstName: text('first_name').notNull(),
   lastName: text('last_name').notNull(),
   mfaSecret: text('mfa_secret').notNull(),
+  // Set by the first authenticator code after enrolling (OQ-149); until then
+  // signing in answers a fresh enrollment instead of an MFA challenge.
+  mfaConfirmedAt: instant('mfa_confirmed_at'),
   theme: text('theme').notNull().default('dark'),
   language: text('language').notNull().default('pt-BR'),
   // Platform role, not a household role (OQ-111).

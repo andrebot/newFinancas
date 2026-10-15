@@ -30,11 +30,15 @@ exist for either.
 - **Auth: stateless JWT bearer token** (`Authorization: Bearer <token>`),
   matching OQ-30's confirmed mechanism. Public (no auth required):
   `POST /auth/register`, `POST /auth/login`, `POST /auth/mfa/verify`,
-  `POST /auth/mfa/recover`, `POST /auth/password-reset/request`,
-  `POST /auth/password-reset/confirm` — every other endpoint requires a
-  valid access token. Sign-in is two steps (OQ-145): `login` checks the
-  password and answers a five-minute challenge token; `mfa/verify` (or
-  `mfa/recover`) trades it with the second factor for the tokens.
+  `POST /auth/mfa/recover`, `POST /auth/mfa/enrollment/confirm`,
+  `POST /auth/password-reset/request`, `POST /auth/password-reset/confirm`
+  — every other endpoint requires a valid access token. Sign-in is two
+  steps (OQ-145): `login` checks the password and answers a five-minute
+  challenge token; `mfa/verify` (or `mfa/recover`) trades it with the
+  second factor for the tokens. Registration answers an enrollment token
+  instead; `mfa/enrollment/confirm` trades it with the app's first code
+  for the tokens, and until then `login` answers a fresh enrollment
+  (`step: enroll`) rather than a challenge (OQ-149).
 - **Money is an integer — a count of the currency's minor unit (cents
   for USD/BRL) — never a decimal, and never a string.** `$1,234.56` is
   transmitted as `123456`. **Revised from the original decision**

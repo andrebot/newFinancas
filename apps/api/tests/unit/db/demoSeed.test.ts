@@ -29,6 +29,7 @@ describe('buildDemoSeed', () => {
     ]);
     seed.users.forEach((user) => {
       expect([user.passwordHash, user.mfaSecret]).toEqual(['$argon2id$demo', 'v1.sealed']);
+      expect(user.mfaConfirmedAt).toEqual(new Date('2026-10-08T12:00:00Z'));
     });
   });
 

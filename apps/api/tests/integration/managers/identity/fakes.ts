@@ -18,6 +18,7 @@ export const ANA = {
   createdAt: NOW,
   passwordHash: '$argon2id$ana',
   encryptedMfaSecret: 'sealed-secret',
+  mfaConfirmedAt: NOW as Date | null,
 } as const;
 
 export const SESSION = {
@@ -82,6 +83,8 @@ export const fakeDeps = () => {
     lockLogin: vi.fn(async () => undefined),
     clearLoginFailures: vi.fn(async () => undefined),
     consumeRecoveryCode: vi.fn(async () => true),
+    replaceMfaEnrollment: vi.fn(async (): Promise<'replaced' | 'stale'> => 'replaced'),
+    confirmMfaEnrollment: vi.fn(async (): Promise<'confirmed' | 'stale'> => 'confirmed'),
     findPasswordHash: vi.fn(async (): Promise<string | undefined> => ANA.passwordHash),
     updatePasswordHash: vi.fn(async () => true),
     storeResetToken: vi.fn(async () => undefined),
@@ -148,6 +151,12 @@ export const fakeDeps = () => {
     signAccessToken: vi.fn(async () => 'access-token'),
     signChallengeToken: vi.fn(async () => 'challenge-token'),
     verifyChallengeToken: vi.fn(
+      async (): Promise<{ userId: string; email: string } | undefined> => (
+        { userId: ANA.id, email: ANA.email }
+      ),
+    ),
+    signEnrollmentToken: vi.fn(async () => 'enrollment-token'),
+    verifyEnrollmentToken: vi.fn(
       async (): Promise<{ userId: string; email: string } | undefined> => (
         { userId: ANA.id, email: ANA.email }
       ),

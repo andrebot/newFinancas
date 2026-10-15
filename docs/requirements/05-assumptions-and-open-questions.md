@@ -3025,6 +3025,69 @@ not a hardcoded assumption.
 
 **Task 52 (`FL3`) is complete.**
 
+### OQ-149: Confirming MFA enrollment, and the MFA Enrollment Flow (task FL4)
+**Confirmed with the stakeholder (Oct 2026):**
+- **The backend checks the first code.** Mockup 06's "Verify & continue"
+  had nothing to call: registration answers the secret once, and
+  `/auth/mfa/verify` takes only a sign-in challenge. The M1 call chain had
+  left the check to the web Flow, which could not prove anything. Now:
+  - `POST /auth/register` also answers an **`enrollmentToken`** — a JWT
+    with its own audience (`financas-mfa-enrollment`) that lasts 15
+    minutes (`config/constants.ts`), long enough to install an app and
+    scan — and the **`otpauthUri`** the QR encodes, so the issuer and TOTP
+    settings stay the backend's.
+  - **`POST /auth/mfa/enrollment/confirm {enrollmentToken, mfaCode}`**
+    checks the code, confirms the enrollment once (guarded write) and
+    opens a session (audit `ConfirmMfaEnrollment`). The new user is signed
+    in, which Household Setup needs. A wrong code is `auth.mfa_invalid`
+    and counts against the sign-in lockout (OQ-114); a bad, expired or
+    already-used token is the new **`auth.enrollment_expired`** (401).
+    Sequence `uc-11b-confirm-mfa-enrollment.html`.
+- **Sign-in waits for the confirmation (FR-1.15), and can resume it.**
+  `users.mfa_confirmed_at` is null until the first code; the migration
+  marks existing users confirmed at their creation, and the demo seed
+  does too. For an unconfirmed account, the right password makes
+  `POST /auth/login` answer a **fresh enrollment** — new secret and
+  recovery codes replacing the ones no one saw (guarded: confirmed
+  meanwhile → the ordinary challenge), audited `RestartMfaEnrollment` —
+  instead of a challenge. So someone who closes the tab before scanning
+  is never locked out. The answer is tagged:
+  `{step: 'mfa', challengeToken}` or
+  `{step: 'enroll', enrollmentToken, totpSecret, otpauthUri, recoveryCodes}`.
+  Sending a returning user from Sign In to MFA Enrollment is X1/X2's.
+- The token helpers became one pair (sign/verify a step token by
+  audience), shared by the challenge and the enrollment token.
+- **The Flow (`experiences/onboard/flows/mfaEnrollment/`)** gets the
+  enrollment from the Onboard Experience as props — `otpauthUri`,
+  `totpSecret`, `recoveryCodes`, `accountEmail` — and one request,
+  `onConfirm(code)` answering the shared `RequestOutcome`; `onComplete`
+  once the codes are acknowledged. Its rules are pure functions in
+  `mfaEnrollmentState.ts` (step, method, busy, last failure). No skip and
+  no way back out of the Flow. A wrong code shows in the banner and
+  clears the boxes, as in Sign In. `auth.enrollment_expired` is the
+  Experience's to handle (sign in again, remount with the fresh
+  enrollment) — X2.
+- **Steps are mockups 05–07.**
+  - *MFA Method Selection* — one option card per `mfa.methods`
+    (configuration; the app only in v1), then Continue.
+  - *MFA Setup Verification* — the QR (`qrcode.react`, black on white in
+    both themes, scanners need the contrast) of the API's `otpauthUri`,
+    the setup key in groups of 4 with a copy button, "Account: email",
+    the 6-digit code (submits on the last digit), back to the method.
+  - *Backup Codes Acknowledgement* — every code the API issued (10, not
+    the mockup's 8), Download (a `.txt` with a line naming the account),
+    Copy all, and Continue enabled only once "I've saved these" is ticked.
+- **Two new Utilities:** ClipboardUtility (`utilities/useClipboardCopy.ts`
+  — copy with a two-second "Copied", a refusal logged) and
+  DownloadUtility (`utilities/downloadTextFile.ts`). Settings in
+  `config/constants.ts` (`mfa.methods`, `mfa.setupKeyGroupSize`,
+  `mfa.qrSizePx`, `clipboard.copiedFeedbackMs`).
+- **Texts** are in a new `mfaEnrollment` catalog section, in both locales.
+- The EBD Onboard MFA Enrollment and Registration sequences and the
+  Onboard tier diagram are redrawn through their generator.
+
+**Task 53 (`FL4`) is complete.**
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.

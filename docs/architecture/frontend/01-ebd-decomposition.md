@@ -71,7 +71,7 @@ Diagram: `docs/design/diagrams/ebd-tiers/app-shell.html`; sequence:
 | Household Setup | Household Name Entry | `docs/design/diagrams/ebd-sequences/onboard-household-setup.html` |
 | Guided Setup | Wizard Navigation, Setup Complete Summary | `docs/design/diagrams/ebd-sequences/onboard-guided-setup.html` |
 
-**Utilities:** ValidationUtility, PasswordStrengthUtility, AlertUtility, I18nUtility, FormattingUtility. Tier diagram: `docs/design/diagrams/ebd-tiers/onboard.html`.
+**Utilities:** ValidationUtility, PasswordStrengthUtility, AlertUtility, I18nUtility, FormattingUtility, ClipboardUtility, DownloadUtility. Tier diagram: `docs/design/diagrams/ebd-tiers/onboard.html`.
 
 ### Manage Profile
 
@@ -424,13 +424,18 @@ skipped. Only tier that calls the backend.
     password (strength meter) and confirm, submit; "Sign in" instead.
     No terms box (OQ-148).
 - **MFA Enrollment Flow** — mandatory, no skip (UC-11 bundles this with
-  registration on the backend, implying it isn't optional). State:
-  selected method, secret/QR data, entered verification code, generated
-  backup codes, acknowledgement flag.
-  - *MFA Method Selection Interaction*
-  - *MFA Setup Verification Interaction* (confirm the method with a live
-    code)
-  - *Backup Codes Acknowledgement Interaction* (view + confirm saved)
+  registration on the backend, implying it isn't optional). State: step,
+  selected method, busy flag, last failure. The enrollment (otpauth URI,
+  secret, recovery codes, account email) comes down from the Experience
+  as props; the code typed and the "saved" tick live in their
+  Interactions (OQ-149). One request, `onConfirm(code)` — the Experience
+  calls `POST /auth/mfa/enrollment/confirm`, which signs the user in.
+  Exit: codes acknowledged (`onComplete`).
+  - *MFA Method Selection Interaction* (one card per configured method)
+  - *MFA Setup Verification Interaction* (QR + setup key; confirm the
+    method with a live code)
+  - *Backup Codes Acknowledgement Interaction* (view, download, copy,
+    confirm saved)
 - **Household Setup Flow** — state: household name, submission status.
   Exit: household created (category-seeding happens server-side via the
   pub/sub path, §3.1b of the backend doc — transparent here).
