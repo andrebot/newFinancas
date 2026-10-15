@@ -358,7 +358,7 @@ active household; Create household starts Onboard in signed-in mode.
 |---|---|---|
 | `ValidationUtility` | Unit | Nothing (pure — incl. password ≥ 12, whole percent 1–100) |
 | `PasswordStrengthUtility` | Unit | Nothing |
-| `AlertUtility` | Unit | The rendering sink |
+| `AlertUtility` | Unit | The rendering sink (the kit's `Toast` / `ToastRegion`) — the queue itself is pure: cap, waiting order, duplicates |
 | `ThemeUtility` | Unit | `matchMedia` (for `system`) and `<html data-theme>` — every one of the 18 palette tokens resolves in both themes |
 | `I18nUtility` | Unit | The catalog loader — ICU plurals/params per locale; unknown key → fallback + logged |
 | `FormattingUtility` | Unit | Nothing — minor units → `R$ 1.234,56` / `$1,234.56`, rates × 10,000 → `10.50%`, whole percent, dates per locale; a BRL amount stays BRL-formatted for an en-US user (NFR-I18N-2) |

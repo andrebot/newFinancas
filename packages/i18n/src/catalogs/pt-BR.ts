@@ -219,6 +219,10 @@ const ptBR = {
     'confirm.submit': 'Excluir conta',
     'confirm.cancel': 'Cancelar',
   },
+  alerts: {
+    region: 'Avisos',
+    dismiss: 'Dispensar',
+  },
   emails: {
     'password.reset.subject': 'Redefinição de senha',
     'password.reset.body': 'Recebemos um pedido para redefinir a sua senha. Use o link abaixo em até {expiresInMinutes, plural, one {# minuto} other {# minutos}}:\n\n{resetLink}\n\nSe não foi você, ignore este e-mail; sua senha continua a mesma.',

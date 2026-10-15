@@ -110,4 +110,6 @@ export const toast = {
   durationMs: 5000,
   /** These stay until closed: a warning or an error must not vanish unread. */
   stickyTones: ['warning', 'error'],
+  /** How many show at once (FU3 AlertUtility, OQ-152); the rest wait their turn. */
+  maxVisible: 3,
 } as const;
