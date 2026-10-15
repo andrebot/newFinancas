@@ -93,7 +93,7 @@ is worth building once.
 | K22 | Popover (non-modal dialog panel; plus the shared `overlayMiddleware` / `OVERLAY_SURFACE` and the `shadow-overlay` token every floating panel uses — OQ-131) | notification inbox; base of K11, K18, K19, K23, K24 |
 | K23 | Menu (dropdown actions and radio groups; plus `MenuPill` / `StaticPill` — the static Owner role pill — and the shared `floatingList` rules — OQ-133, OQ-140) | role menu, row actions |
 | K24 | Tooltip | chart points, disabled reasons ("v2", "claimed by") |
-| K25 | Toast + inline banner (renders AlertUtility) | every save / error |
+| K25 | Toast + inline banner (four tones, toast region and auto-dismiss timer; renders AlertUtility — OQ-141) | every save / error |
 | K26 | Inline confirm (coral irreversible / mint reversible) | archive, delete, complete / reopen, revoke |
 | K27 | Type-to-confirm | delete account, delete household |
 | K28 | Skeleton + loading row + empty state (`Skeleton` shapes, ledger-style `SkeletonRows`, centred `EmptyState` — OQ-132) | ledger paging, every list |

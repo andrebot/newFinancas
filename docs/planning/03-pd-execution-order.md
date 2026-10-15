@@ -77,7 +77,7 @@ identity screens, the rest as later slices use them.
 - [x] **42.** `K11` Select / combobox (OQ-138)
 - [x] **43.** `K17` Code input (6 digits) (OQ-139)
 - [x] **44.** `K23` Menu (OQ-140)
-- [ ] **45.** `K25` Toast + inline banner
+- [x] **45.** `K25` Toast + inline banner
 - [ ] **46.** `K26` Inline confirm
 - [ ] **47.** `K27` Type-to-confirm
 - [ ] **48.** `K6` Password field

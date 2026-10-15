@@ -7,7 +7,8 @@ import type { CardNetwork } from '@financas/reference';
 /**
  * UI icons (Material Symbols names): every icon the approved mockups use outside
  * category icons, plus `visibility-off-outline` for the password field's hide
- * state and `progress-activity` for the busy button's spinner (K4). Add a name
+ * state, `progress-activity` for the busy button's spinner (K4) and
+ * `error-outline` for the error toast and banner (K25). Add a name
  * here and run `pnpm generate:icons` when a screen needs one.
  */
 export const UI_ICONS = [
@@ -18,8 +19,8 @@ export const UI_ICONS = [
   'cloud-download-outline', 'content-copy-outline', 'contrast', 'credit-card-off-outline',
   'crown-outline', 'currency-exchange', 'dark-mode-outline', 'delete-outline',
   'description-outline', 'desktop-windows-outline', 'donut-large', 'download',
-  'edit-note-outline', 'edit-outline', 'event-available-outline', 'expand-less',
-  'expand-more', 'filter-list', 'flag-outline', 'group-add-outline', 'group-outline',
+  'edit-note-outline', 'edit-outline', 'error-outline', 'event-available-outline',
+  'expand-less', 'expand-more', 'filter-list', 'flag-outline', 'group-add-outline', 'group-outline',
   'groups-outline', 'history', 'info-outline', 'inventory-2-outline', 'key-outline',
   'laptop-mac-outline', 'light-mode-outline', 'lightbulb-outline', 'lock-outline',
   'lock-reset', 'logout', 'mail-outline', 'mark-email-read-outline', 'menu', 'more-horiz',

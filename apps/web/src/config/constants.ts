@@ -92,3 +92,11 @@ export const mfa = {
     groupSize: 4,
   },
 } as const;
+
+/** Toasts: the brief notes after a save or an error (K25, OQ-141). */
+export const toast = {
+  /** How long a success or info toast stays, in ms, while not hovered or focused. */
+  durationMs: 5000,
+  /** These stay until closed: a warning or an error must not vanish unread. */
+  stickyTones: ['warning', 'error'],
+} as const;
