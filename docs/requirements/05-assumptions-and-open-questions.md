@@ -3259,6 +3259,60 @@ not a hardcoded assumption.
 
 **Task 58 (`FL7`) is complete.**
 
+### OQ-155: The Membership Management Flow (task FL9)
+**Confirmed with the stakeholder (Oct 2026):**
+- **Three panels, as mockup 60 draws them.** The Flow
+  (`experiences/manageHousehold/flows/membershipManagement/`) renders the
+  Members list, then Invite someone and Pending invitations side by side.
+  The page header and the danger zone (FL10) stay with the Experience. The
+  state (pure functions in `membershipState.ts`) is the lists (loading,
+  failed with a retry, or loaded: the Owner first, then by role, then the
+  longest-tenured; pending invitations only, newest first), the request
+  that is out (every control waits on it), the open confirm, each panel's
+  last failure, and a counter that empties the invite form after a send.
+- **Who sees what comes from the loaded list.** The Flow takes the
+  signed-in `selfUserId` and reads their role from the members. An
+  Owner/Admin gets the role menus, Remove (never on their own row or the
+  Owner's), Invite and Pending; a Member or Viewer sees the members only.
+  After a transfer the list itself says the caller is now an Admin.
+- **The Flow fetches as it mounts.** It takes six requests from the Manage
+  Household Experience: `onLoad` (members, plus invitations for an
+  Owner/Admin — they 403 otherwise), `onChangeRole`, `onRemoveMember`,
+  `onTransferOwnership`, `onInvite` (answers the created invitation) and
+  `onRevokeInvitation`. The Experience passes a stable `onLoad`. A success
+  changes the lists as the API did — nothing is re-fetched — except
+  `409 household.changed`, which shows in the panel and reloads both lists.
+- **Transfer Ownership goes to any member**, not only an Admin: FR-1.20
+  and the API both allow it, so the EBD note "pick from current Admins" is
+  corrected. The swap button on the Owner's row opens a menu of the other
+  members; a pick opens a destructive `InlineConfirm` under the Members
+  header ("you will become an Admin").
+- **Only Remove asks first.** Removing a member opens a destructive
+  `InlineConfirm` under the header. Revoking an invitation happens at once
+  — it can simply be sent again — so the EBD's single "Remove/Revoke
+  (confirmed)" Interaction is split: Remove Member Confirm is its own
+  Interaction, revoke lives in Pending Invitations. A role change applies
+  at the pick; picking the current role sends nothing.
+- **Leave Household stays a standalone Interaction** of the Experience
+  (built with X4). The Flow takes a `selfActions` slot that it renders on
+  the signed-in user's row, after the Owner's transfer button.
+- **Invite:** ValidationUtility checks the email (required, well formed);
+  the role is a `SegmentedControl` starting on Member. The invitee codes
+  (`invitation.invitee_not_registered`, `already_member`,
+  `already_pending`) show under the email; anything else in a banner.
+- **The roles are reference data** (EBD Step 5): `household` in
+  `config/constants.ts` lists the assignable roles, the invite default,
+  the managing roles and the list order. Labels and what each role may do
+  are in the catalog.
+- **Successes are toasts (AlertUtility)**; failures stay inline in their
+  panel. **Dates go through the catalog** — "since 03/2024"
+  (`::MMyyyy`) and "sent 12/10/2026" (`::ddMMyyyy`, not the mockup's
+  relative "3 days ago") — so they don't wait for FormattingUtility (FU6).
+- **Texts** are in a new `membership` catalog section, in both locales.
+- The EBD Membership Management sequence is redrawn through its generator.
+
+**Task 59 (`FL9`) is complete.**
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.

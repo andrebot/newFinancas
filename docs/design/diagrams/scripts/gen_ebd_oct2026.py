@@ -457,34 +457,68 @@ end
 """, ["Moved from Manage Household (Q1).",
         "Ownership Check folded into Consequences Review as a note (mockup 70): nothing blocks the deletion — FR-1.18's succession runs server-side (OQ-151).",
         "The danger zone is the kit's DangerZone (K34 family), shared with Household Deletion; the type-to-confirm is K27 (OQ-143)."]),
-    ("manage-household-membership-management", "Manage Household — Membership Management", f"{R('GET/POST/PATCH/DELETE /households/:id/members…, /invitations…, /transfer-ownership')}.",
-     [("ML", "Member List"), ("RM", "Role Menu"), ("IM", "Invite Member"), ("PI", "Pending Invitations"), FLOW("Membership Management"), EXP("Manage Household"), API],
+    ("manage-household-membership-management", "Manage Household — Membership Management", f"{R('GET /households/:id/members')}, {R('GET/POST/DELETE /households/:id/invitations…')}, {R('PATCH /households/:id/members/:userId/role')}, {R('DELETE /households/:id/members/:userId')}, {R('POST /households/:id/transfer-ownership')}. Mockup 60 (OQ-155).",
+     [("ML", "Member List"), ("RM", "Role Menu"), ("RC", "Remove Member Confirm"), ("TO", "Transfer Ownership"), ("IM", "Invite Member"), ("PI", "Pending Invitations"), FLOW("Membership Management"), EXP("Manage Household"), API],
      """
-FLOW->>EXP: request members + pending invitations
-EXP->>API: GET /households/:id/members, GET /households/:id/invitations
-API-->>EXP: lists
-EXP-->>FLOW: state
-FLOW-->>ML: render members
-alt change a role
+FLOW->>EXP: request load() (on mount)
+EXP->>API: GET /households/:id/members (+ GET /households/:id/invitations for an Owner/Admin)
+alt failure
+    API-->>EXP: error code
+    EXP-->>FLOW: outcome: failed(code)
+    FLOW-->>ML: render banner + 'Try again' (retry = request load() again)
+else ok
+    API-->>EXP: members, invitations
+    EXP-->>FLOW: outcome: ok(members, invitations)
+    FLOW-->>ML: render Owner first, then by role — the user's row tagged You (+ Leave, from the Experience)
+    FLOW-->>PI: render pending only, newest first (Owner/Admin only, with Invite Member)
+end
+alt change a role (no confirm — never the Owner's, never their own)
     User->>RM: pick Admin / Member / Viewer
-    RM->>FLOW: emit roleChosen
-    FLOW->>EXP: request changeRole
+    RM->>FLOW: emit change {userId, role} (same role: ignored)
+    FLOW->>EXP: request changeRole(userId, role)
     EXP->>API: PATCH /households/:id/members/:userId/role
+else remove a member
+    User->>ML: Remove
+    ML->>FLOW: emit remove {userId}
+    FLOW-->>RC: render the inline confirm under the header
+    User->>RC: Remove (or Cancel / Escape: closed)
+    RC->>FLOW: emit confirm
+    FLOW->>EXP: request removeMember(userId)
+    EXP->>API: DELETE /households/:id/members/:userId
+else transfer ownership (the Owner, to any member — FR-1.20)
+    User->>TO: swap button on their row, pick a member
+    TO->>FLOW: emit pick {userId}
+    FLOW-->>TO: render the inline confirm under the header ("you become an Admin")
+    User->>TO: Transfer ownership (or Cancel)
+    TO->>FLOW: emit confirm
+    FLOW->>EXP: request transferOwnership(userId)
+    EXP->>API: POST /households/:id/transfer-ownership
 else invite
-    User->>IM: email + role, Send
-    IM->>FLOW: emit inviteSubmitted
-    FLOW->>EXP: request invite
+    User->>IM: email (checked client-side) + role (Member by default), Send
+    IM->>FLOW: emit submit {email, role}
+    FLOW->>EXP: request invite({email, role})
     EXP->>API: POST /households/:id/invitations
     Note over API: creates an in-app notification for the invitee (type invitation.received)
-else revoke an invitation
+else revoke an invitation (no confirm)
     User->>PI: Revoke
-    PI->>FLOW: emit revokeInvitation
-    FLOW->>EXP: request revoke
+    PI->>FLOW: emit revoke {invitationId}
+    FLOW->>EXP: request revokeInvitation(id)
     EXP->>API: DELETE /households/:id/invitations/:invitationId
 end
-API-->>EXP: done or error code (e.g. 404 invitation.invitee_not_registered)
-EXP-->>FLOW: state refreshed
-""", ["Remove member and Transfer ownership follow the same confirm-then-request shape."]),
+alt 409 household.changed
+    API-->>EXP: error code
+    EXP-->>FLOW: outcome: failed(code) — banner in the panel, then request load() again
+else other failure
+    API-->>EXP: error code
+    EXP-->>FLOW: outcome: failed(code) — invitee codes under the email, the rest in the panel's banner
+else ok
+    API-->>EXP: 200 / 201 / 204
+    EXP-->>FLOW: outcome: ok — lists changed as the API did (no refetch), confirm closed, success toast
+end
+""", ["Only an Owner/Admin sees the role menus, Remove, Invite Member and Pending Invitations; a Member or Viewer sees the members.",
+        "Transfer goes to any member, not only an Admin (FR-1.20, OQ-155); the old Owner becomes an Admin and the list re-sorts.",
+        "Revoking an invitation asks nothing — it can be sent again; removing a member asks first (OQ-155).",
+        "Every control waits while one request is out."]),
     ("manage-household-household-deletion", "Manage Household — Household Deletion", f"{R('DELETE /households/:householdId')} (Owner only). Consequences, then the household's name typed to confirm (OQ-146).",
      [("CR", "Consequences Review"), ("TC", "Type-to-Confirm"), FLOW("Household Deletion"), EXP("Manage Household"), API],
      """
