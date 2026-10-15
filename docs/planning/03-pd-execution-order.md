@@ -92,7 +92,7 @@ identity screens, the rest as later slices use them.
 - [x] **57.** `K45` List row (OQ-153)
 - [x] **58.** `FL7` Security (OQ-154)
 - [x] **59.** `FL9` Membership Management (OQ-155)
-- [ ] **60.** `S1` App Shell
+- [x] **60.** `S1` App Shell (OQ-156: React Router v7; chrome data injected by its owners)
 - [ ] **61.** `X1` Authenticate
 - [ ] **62.** `X2` Onboard (Registration, MFA, Household Setup)
 - [ ] **63.** `X3` Manage Profile

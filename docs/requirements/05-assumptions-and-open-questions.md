@@ -1929,9 +1929,10 @@ OQ-118). Delete User's cascade is `M1D` (task 136, slice 5).
 - **Same origin.** The base URL is `/api/v1` on the page's origin; the
   Vite dev server proxies `/api` to the API's port 3000. No CORS and no
   env var.
-- **Follow-up (S1/X1):** signing out in one tab clears the shared refresh
-  token, but other tabs notice only when their access token next fails
-  (≤ 15 minutes). Listening to the `storage` event would end them at once.
+- **Follow-up (S1/X1) — done in S1 (OQ-156):** signing out in one tab
+  clears the shared refresh token, but other tabs noticed only when their
+  access token next failed (≤ 15 minutes). The shell now listens to the
+  `storage` event, which ends them at once.
 
 ## Refined (resolved, with a follow-up still open)
 
@@ -3312,6 +3313,94 @@ not a hardcoded assumption.
 - The EBD Membership Management sequence is redrawn through its generator.
 
 **Task 59 (`FL9`) is complete.**
+
+### OQ-156: The App Shell (task S1)
+**Confirmed with the stakeholder (Oct 2026):**
+- **React Router v7, declarative mode** (`react-router`): `<Routes>`, the
+  history API and real addresses, so email links (`/reset-password?token=…`,
+  OQ-147) and deep links work. The routing table
+  (`apps/web/src/shell/routes.ts`) lists every page with who may open it:
+  - `signedOut`: Sign In, Registration, Forgot / Reset Password. A
+    signed-in user is sent on, to where Sign In was asked for, else the
+    Dashboard.
+  - `signedIn`: Onboard (`/setup`) and Create household
+    (`/households/new`), with no chrome.
+  - `household`: every page inside the chrome. A signed-out user goes to
+    Sign In, carrying `{ from }` in the navigation state. Only an on-site
+    path is followed back (`//host` isn't).
+
+  The addresses are in `config/constants.ts` (`shell.paths`). The main
+  nav is built from the same table. An unknown address goes to the
+  Dashboard.
+- **The shell never calls the backend; the owners hand it their data.**
+  `ShellConfig` (`shell/shellConfig.ts`) holds the following, built by the
+  composition root (`App.tsx`):
+  - each page's element;
+  - the chrome's data as hooks from the owning Experiences: identity and the
+    pending-invitation count from Manage Profile, the households from
+    Manage Household, and the inbox (unseen count, panel, dismiss) from
+    Review Insights;
+  - the handlers for Sign Out (Authenticate) and Export audit log (Review
+    Insights);
+  - the notification routing table;
+  - the page's theme controller.
+
+  Until each X task plugs in its own, `placeholders.tsx` stands in: every
+  page is "Coming soon", the data never loads, Sign out ends the session in
+  this browser only, and there is no bell. The file goes away with the last
+  Experience.
+- **Session state lives in the store's `shell` slice**
+  (`shell/shellState.ts`). A page loads signed in when a refresh token is
+  kept. Authenticate and Onboard dispatch `sessionStarted` once they hold
+  tokens; the signed-out guard then takes the user on. `api/sessionEnded`
+  (from the API client, Sign Out, or another tab) signs the user out. A
+  store listener then clears this tab's tokens and resets the API cache, so
+  the next user sees nothing cached. `S1` creates the store
+  (`src/store.ts`), with the thunk extra `{ api, shell }`.
+- **Cross-tab sign-out (OQ-124's follow-up):** `watchSignOutElsewhere`
+  listens for the `storage` event on the refresh-token key, or a cleared
+  storage. Another tab's sign-out ends this tab's session at once.
+- **The active household is remembered** (`shell.householdStorageKey`).
+  The household gate waits for the households, then picks:
+  - the current household if the user still belongs to it, else the
+    remembered one, else the first;
+  - with no households at all, the user goes to Onboard;
+  - a failed load shows a retry.
+
+  The chrome renders only once a household is active.
+- **Switch Household is the shell's own thunk, not Manage Household's.**
+  The EBD tier diagram routed the switcher to "Manage Household's Switch
+  Household", but the switch calls no endpoint. It sets the active id,
+  remembers it, and resets the API cache (OQ-124), so every Experience
+  fetches again for the new household. Manage Household has nothing to
+  add, so the routing entry is dropped from the tier diagram and the BDT
+  row moves to the shell. Create household opens Onboard in signed-in
+  mode; Pending invitations opens Manage Profile.
+- **Notification routing is configuration:** a `NotificationRoutes` table
+  maps each type to its owning Experience's handler. The handler reports
+  `done` or `failed`; the shell dismisses the notification (the inbox
+  owner's `dismiss`) only after `done`. An unknown type is `unrouted`; the
+  inbox shows its generic text. The table starts empty; X3 / X7 add their
+  entries and I12 checks the seam.
+- **The saved theme and language win once the profile loads**
+  (OQ-122, OQ-123). The shell applies them through the page's one theme
+  and locale controller.
+- **Chrome, as mockups 20–24 and 34 draw it:**
+  - a sticky 64px header (menu button, brand, bell);
+  - an overlay drawer at every width (312px, or the screen less 48px on a
+    phone), under the header, over a scrim. Esc, a scrim click or any pick
+    closes it, and focus returns to the menu button. It is exposed as the
+    page's navigation landmark, not a dialog, and doesn't trap focus;
+  - the page column, 1400px at most, with gutters of 16 / 24 / 48px.
+- **Two departures from mockup 21:**
+  - the switcher's rows show the role only. `MyHousehold` has no member
+    count, so "Owner · 4 members" becomes "Owner";
+  - Records (Export audit log) is hidden from a Member or Viewer rather
+    than captioned "Owner/Admin", which leaves the caption nothing to say.
+- **Texts** are in a new `shell` catalog section in both locales; role names
+  reuse `membership`.
+
+**Task 60 (`S1`) is complete.**
 
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
