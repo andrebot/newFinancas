@@ -280,7 +280,7 @@ is the caller, represented by a stub callback. **100% coverage target.**
 | Flow (Experience) | Real accumulated state | Response states to cover |
 |---|---|---|
 | Sign In (Authenticate) | step (credentials / code / backup code), email kept, last failure | credentials → MFA code or → backup code (escape event); `auth.mfa_invalid` clears only the code; `auth.challenge_expired` / `auth.too_many_attempts` restart at credentials, email kept (OQ-145); codes surfaced via I18nUtility, never `message` |
-| Account Recovery (Authenticate) | email, token, new password | request → (email out of band) → new password; `password.too_short`, `password_reset.token_invalid` |
+| Account Recovery (Authenticate) | step, token, link requested, last failure | no token → request → inbox note (form kept); token → new password → done → Sign In; `password.too_short` under the field; `password_reset.token_invalid` back to the request with the banner; `password.mismatch` client-side (OQ-147) |
 | Registration (Onboard) | form fields, errors | first/last name required; password < 12 inline; `user.email_taken`; success hands off to MFA Enrollment |
 | MFA Enrollment (Onboard) | method, secret, code, codes, ack | verify fail/retry/success → codes → acknowledged (no skip) |
 | Household Setup (Onboard) | name | success → Guided Setup; also reached from the shell for an additional household |

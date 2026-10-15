@@ -10,8 +10,9 @@ import {
   type FieldErrors, type FieldRules,
 } from '../../../../../utilities/validation';
 import {
-  StepAlert, StepHeading, TextAction, useSignInText,
-} from './stepParts';
+  StepAlert, StepHeading, TextAction,
+} from '../../../interactions/stepParts';
+import { useSignInText } from './signInText';
 
 // Credential Entry (Sign In, mockup 01): email and password, submitted
 // together. It holds what is typed and checks it before emitting; the Flow

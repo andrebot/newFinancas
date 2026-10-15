@@ -55,7 +55,7 @@ Diagram: `docs/design/diagrams/ebd-tiers/app-shell.html`; sequence:
 | Flow | Interactions | Sequence |
 |---|---|---|
 | Sign In | Credential Entry, MFA Code Entry, Backup Code Entry | `docs/design/diagrams/ebd-sequences/authenticate-sign-in.html` |
-| Account Recovery | Recovery Request, New Password Entry | `docs/design/diagrams/ebd-sequences/authenticate-account-recovery.html` |
+| Account Recovery | Recovery Request, New Password Entry, Reset Complete | `docs/design/diagrams/ebd-sequences/authenticate-account-recovery.html` |
 | *(standalone)* | Sign Out | — |
 
 **Utilities:** ValidationUtility, PasswordStrengthUtility, AlertUtility, I18nUtility. Tier diagram: `docs/design/diagrams/ebd-tiers/authenticate.html`.
@@ -355,10 +355,14 @@ authenticated), which Flow is active. Only tier that calls the backend.
     rather than branching internally
   - *Backup Code Entry Interaction* — sibling to the above, Flow decides
     which to render
-- **Account Recovery Flow** — state: email entered, reset token (from
-  URL), new password. Real multi-step progression, unlike Sign Out.
-  - *Recovery Request Interaction* — enter email, submit
+- **Account Recovery Flow** — state: step, reset token (from URL, passed
+  in by the Experience), whether a link was asked for, last failure. Real
+  multi-step progression, unlike Sign Out (OQ-147).
+  - *Recovery Request Interaction* — enter email, submit; shows the
+    "check your inbox" note once sent
   - *New Password Entry Interaction* — new + confirm password, submit
+  - *Reset Complete Interaction* — password changed, "Sign in" (every
+    session was revoked, so the way on is Sign In)
 - **Security Maintenance Flow** — state: which sub-view active, fetched
   sessions list.
   - *Password Change Interaction* — current + new password, submit

@@ -5,8 +5,9 @@ import { mfa } from '../../../../../config/constants';
 import { Button } from '../../../../../kit/button/Button';
 import { BackupCodeInput } from '../../../../../kit/codeInput/BackupCodeInput';
 import {
-  BackButton, StepAlert, StepHeading, TextAction, useSignInText,
-} from './stepParts';
+  BackButton, StepAlert, StepHeading, TextAction,
+} from '../../../interactions/stepParts';
+import { useSignInText } from './signInText';
 
 // Backup Code Entry (Sign In, mockup 09): one single-use recovery code, in
 // place of the authenticator's. "Use authenticator app instead" is emitted

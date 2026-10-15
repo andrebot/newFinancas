@@ -2945,6 +2945,51 @@ not a hardcoded assumption.
 
 **Task 50 (`FL10`) is complete.**
 
+### OQ-147: The Account Recovery Flow (task FL2)
+**Confirmed with the stakeholder (Oct 2026):**
+- **The Flow (`experiences/authenticate/flows/accountRecovery/`)** holds
+  the step (request, new password or done), the reset token, whether a
+  link was asked for, the busy flag and the last failure. Its rules are
+  pure functions in `accountRecoveryState.ts`.
+  - It takes an optional `token` and two requests, `onRequestReset(email)`
+    and `onConfirmReset(token, newPassword)`, both answering the shared
+    `RequestOutcome` (OQ-146), plus the way out, `onBackToSignIn`.
+  - The Experience reads the token from `/reset-password?token=…` and
+    passes it in. Without one the Flow asks for a link; with one it
+    takes the new password. It reads the token once, on mount.
+- **Recovery Request is mockup 03.** After the 202 the "check your inbox"
+  note shows under the button (a success inline banner). The form stays,
+  so the user can ask again. The note never says whether an account has
+  that address, matching the API (OQ-115).
+- **New Password Entry is mockup 04.** The strength meter (FU2) is
+  advisory, loaded on mount. The checks before a submit: at least 12
+  characters (NFR-SEC-4), and the confirmation must repeat the password.
+  - The repeat check is a new **client-only field code,
+    `password.mismatch`**. The catalog types it as `ClientFieldCode`, and
+    the API's 422 details use `ApiFieldCode` (every field code but the
+    client's), so the API can't send it. This mirrors `ClientErrorCode`.
+  - The mockup's "signed out of every other device" says "every device"
+    instead: the reset revokes every session, and the user has none.
+- **After a successful reset the Flow shows a done step, Reset Complete**
+  (no mockup: icon tile, "Password updated", a "Sign in" button that
+  emits `onBackToSignIn`). The user isn't signed in: every session was
+  revoked.
+- **Failures.** `password_reset.token_invalid` (expired, used or unknown
+  link) goes back to the request step with the reason in its banner — a
+  new link is the only fix. `password.too_short` shows under the new
+  password field. Any other failure shows in the banner, and what was
+  typed is kept.
+- **Shared step parts.** Sign In's heading, banner, text action and back
+  arrow moved to `experiences/authenticate/interactions/stepParts.tsx`,
+  since both Authenticate Flows use them. Each Flow keeps its own text
+  hook (`signInText.ts`, `accountRecoveryText.ts`).
+- **Texts** are in a new `accountRecovery` catalog section, in both
+  locales.
+- The EBD Account Recovery sequence and the Authenticate tier diagram
+  are redrawn through their generator.
+
+**Task 51 (`FL2`) is complete.**
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.

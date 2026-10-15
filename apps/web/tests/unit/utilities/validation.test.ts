@@ -3,6 +3,7 @@ import {
   email,
   firstError,
   isoDate,
+  matchesPassword,
   money,
   nonBlank,
   password,
@@ -69,6 +70,23 @@ describe('password', () => {
 
   it.each([undefined, ''])('lets an empty value through (%j)', (value) => {
     expect(password(value)).toBeUndefined();
+  });
+});
+
+describe('matchesPassword', () => {
+  const rule = matchesPassword('correct horse battery');
+
+  it('passes an exact repeat', () => {
+    expect(rule('correct horse battery')).toBeUndefined();
+  });
+
+  it('fails anything else with password.mismatch — nothing is trimmed', () => {
+    expect(rule('correct horse battery ')).toEqual({ code: 'password.mismatch' });
+    expect(rule('Correct horse battery')).toEqual({ code: 'password.mismatch' });
+  });
+
+  it.each([undefined, ''])('lets an empty value through (%j)', (value) => {
+    expect(rule(value)).toBeUndefined();
   });
 });
 

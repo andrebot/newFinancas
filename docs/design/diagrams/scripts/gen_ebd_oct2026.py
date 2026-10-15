@@ -35,7 +35,7 @@ UTILS = {
 EXPERIENCES = [
     ("Authenticate", "authenticate", "Get in, get out — the entry gate",
      [("Sign In", ["Credential Entry", "MFA Code Entry", "Backup Code Entry"], "sign-in"),
-      ("Account Recovery", ["Recovery Request", "New Password Entry"], "account-recovery")],
+      ("Account Recovery", ["Recovery Request", "New Password Entry", "Reset Complete"], "account-recovery")],
      ["Sign Out"], ["ValidationUtility", "PasswordStrengthUtility", "AlertUtility", "I18nUtility"],
      "Security Maintenance moved to Manage Profile (Q1). 'Remember me' removed (OQ-62)."),
     ("Onboard", "onboard", "Set up a household from nothing",
@@ -249,28 +249,39 @@ else ok
     EXP-->>FLOW: outcome: ok — App Shell takes over
 end
 """, ["Same error code for unknown user and wrong password (no enumeration); a wrong code is named, since the password is already proven (OQ-145).", "The challenge token never reaches the Flow: the Experience holds it between the two calls.", "No 'Remember me' (OQ-62)."]),
-    ("authenticate-account-recovery", "Authenticate — Account Recovery", f"{R('POST /auth/password-reset/request')} then {R('POST /auth/password-reset/confirm')}.",
-     [("RR", "Recovery Request"), ("NP", "New Password Entry"), FLOW("Account Recovery"), EXP("Authenticate"), API],
+    ("authenticate-account-recovery", "Authenticate — Account Recovery", f"{R('POST /auth/password-reset/request')} then {R('POST /auth/password-reset/confirm')}. Ask for a link; from the link, a new password (OQ-147).",
+     [("RR", "Recovery Request"), ("NP", "New Password Entry"), ("RC", "Reset Complete"), FLOW("Account Recovery"), EXP("Authenticate"), API],
      """
 User->>RR: email, submit
-RR->>FLOW: emit recoveryRequested
+RR->>FLOW: emit submit(email)
 FLOW->>EXP: request requestReset(email)
 EXP->>API: POST /auth/password-reset/request
 API-->>EXP: 202 (same answer whether or not the email exists)
-EXP-->>FLOW: state: emailSent
+EXP-->>FLOW: outcome: ok
+FLOW-->>RR: state: linkRequested — "check your inbox" note, form kept to ask again
 Note over User,RR: user opens the emailed link (sent by NotificationEngine via EmailAccessor, OQ-113)
-User->>NP: new password + confirm (strength meter)
-NP->>FLOW: emit passwordChosen
+EXP->>FLOW: mount with token (read from /reset-password?token=…)
+User->>NP: new password + confirm (strength meter, advisory)
+NP->>FLOW: emit submit(password) — ≥ 12 characters and confirmation matches
 FLOW->>EXP: request confirmReset(token, password)
 EXP->>API: POST /auth/password-reset/confirm
-alt 422 password.too_short or 400 password_reset.token_invalid
+alt 400 password_reset.token_invalid
     API-->>EXP: error code
-    EXP-->>FLOW: state: error(code)
+    EXP-->>FLOW: outcome: failed(code)
+    FLOW-->>RR: back to asking for a link, reason in the banner
+else 422 password.too_short (or another failure)
+    API-->>EXP: error code
+    EXP-->>FLOW: outcome: failed(code)
+    FLOW-->>NP: too_short under the field, anything else in the banner — typing kept
 else ok
     API-->>EXP: reset, all sessions revoked
-    EXP-->>FLOW: state: done → Sign In
+    EXP-->>FLOW: outcome: ok
+    FLOW-->>RC: done step
+    User->>RC: Sign in
+    RC->>FLOW: emit signIn
+    FLOW->>EXP: emit backToSignIn → Sign In
 end
-""", ["Password ≥ 12 characters (NFR-SEC-4)."]),
+""", ["Password ≥ 12 characters (NFR-SEC-4); the confirmation must match (`password.mismatch`, a client-only field code, OQ-147).", "The token lives in the Flow's state from mount until the reset is sent; the Experience reads it from the URL.", "Every session ends, so Reset Complete leads to Sign In rather than signing in."]),
     ("onboard-registration", "Onboard — Registration", f"{R('POST /auth/register')}. Skipped by configuration when already signed in (OQ-81).",
      [("RF", "Registration Form Entry"), FLOW("Registration"), EXP("Onboard"), API],
      """

@@ -3,7 +3,7 @@ import {
 } from '@formatjs/icu-messageformat-parser';
 import { describe, expect, it } from 'vitest';
 import {
-  catalogs, SUPPORTED_LOCALES, type Catalog, type ClientErrorCode,
+  catalogs, SUPPORTED_LOCALES, type Catalog, type ClientErrorCode, type ClientFieldCode,
 } from '../../src';
 
 const NAMED_TYPES = new Set([
@@ -92,6 +92,12 @@ describe('catalog contents', () => {
     const clientCodes: ClientErrorCode[] = ['network.unavailable'];
 
     clientCodes.forEach((code) => expect(primary.errors[code]).toBeTruthy());
+  });
+
+  it("has the web client's own field codes", () => {
+    const clientCodes: ClientFieldCode[] = ['password.mismatch'];
+
+    clientCodes.forEach((code) => expect(primary.fields[code]).toBeTruthy());
   });
 });
 
