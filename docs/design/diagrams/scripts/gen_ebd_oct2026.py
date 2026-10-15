@@ -408,19 +408,32 @@ end
 API-->>EXP: done or error code (e.g. 404 invitation.invitee_not_registered)
 EXP-->>FLOW: state refreshed
 """, ["Remove member and Transfer ownership follow the same confirm-then-request shape."]),
-    ("manage-household-household-deletion", "Manage Household — Household Deletion", f"{R('DELETE /households/:householdId')} (Owner only).",
+    ("manage-household-household-deletion", "Manage Household — Household Deletion", f"{R('DELETE /households/:householdId')} (Owner only). Consequences, then the household's name typed to confirm (OQ-146).",
      [("CR", "Consequences Review"), ("TC", "Type-to-Confirm"), FLOW("Household Deletion"), EXP("Manage Household"), API],
      """
-FLOW-->>CR: render (every member loses access, shared data removed)
-User->>CR: continue
-CR->>FLOW: emit consequencesAccepted
-User->>TC: type the household name
-TC->>FLOW: emit confirmed
-FLOW->>EXP: request deleteHousehold
-EXP->>API: DELETE /households/:householdId
-API-->>EXP: 204
-EXP-->>FLOW: complete → App Shell switches to another household or Onboard
-""", []),
+EXP-->>FLOW: mount for the Owner only, with householdName
+FLOW-->>CR: render danger zone (every member loses access, shared data removed)
+User->>CR: 'Delete Household'
+CR->>FLOW: emit continue
+FLOW-->>TC: render in the button's place (phrase = householdName)
+alt cancel (button or Escape)
+    User->>TC: Cancel
+    TC->>FLOW: emit cancel
+    FLOW-->>CR: render again, text dropped, focus back on its button
+else confirm
+    User->>TC: type the household name (confirm locked until it matches)
+    TC->>FLOW: emit confirm
+    FLOW->>EXP: request deleteHousehold()
+    EXP->>API: DELETE /households/:householdId
+    alt 403 auth.forbidden / 404 household.not_found
+        API-->>EXP: error code
+        EXP-->>FLOW: outcome: failed(code) — banner under the confirm, name kept
+    else ok
+        API-->>EXP: 204
+        EXP-->>FLOW: outcome: ok — Flow stays busy, App Shell switches to another household or Onboard
+    end
+end
+""", ["The type-to-confirm is the kit's K27 (OQ-143); matching the name is UI-only — the DELETE takes no phrase."]),
     ("account-setup-account-card-management", "Account Setup — Account & Card Management", f"{R('POST/PATCH /accounts')}, {R('POST /accounts/:id/archive')}.",
      [("AF", "Account Form"), ("CE", "Card Entry with<br/>Live Preview"), ("AC", "Archive Confirm"), FLOW("Account & Card Management"), EXP("Account Setup"), API],
      """

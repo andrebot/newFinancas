@@ -1,4 +1,4 @@
-import type { MessageParams } from '../../../../utilities/i18n';
+import type { RequestFailure, RequestOutcome } from '../../../../utilities/requestOutcome';
 
 // Sign In Flow's state (FL1, OQ-145): which step shows, the email to keep
 // when the Flow starts over, whether a request is out, and the last failure.
@@ -9,18 +9,6 @@ import type { MessageParams } from '../../../../utilities/i18n';
 /** The Flow's steps: the password, then one of the two second factors. */
 export type SignInStep = 'credentials' | 'code' | 'backupCode';
 
-/** Why a request failed: an API (or client) error code and its ICU params. */
-export interface SignInFailure {
-  readonly code: string;
-  readonly params?: MessageParams | undefined;
-}
-
-/** What the Experience answers for each request the Flow makes. */
-export type SignInOutcome = { readonly ok: true } | {
-  readonly ok: false;
-  readonly error: SignInFailure;
-};
-
 /** The Flow's accumulated state. */
 export interface SignInState {
   readonly step: SignInStep;
@@ -29,7 +17,7 @@ export interface SignInState {
   /** A request is out: submits are ignored and the button spins. */
   readonly busy: boolean;
   /** The last failure, shown in the banner until the next submit or switch. */
-  readonly error?: SignInFailure | undefined;
+  readonly error?: RequestFailure | undefined;
   /** Bumped to remount the step's entry, clearing what was typed. */
   readonly attempt: number;
 }
@@ -67,7 +55,7 @@ export const submitting = (state: SignInState): SignInState => ({
 export const afterCredentials = (
   state: SignInState,
   email: string,
-  outcome: SignInOutcome,
+  outcome: RequestOutcome,
 ): SignInState => ({
   ...state,
   step: outcome.ok ? 'code' : 'credentials',
@@ -87,7 +75,7 @@ export const afterCredentials = (
  * @param outcome - The Experience's answer.
  * @returns The next state.
  */
-export const afterSecondFactor = (state: SignInState, outcome: SignInOutcome): SignInState => {
+export const afterSecondFactor = (state: SignInState, outcome: RequestOutcome): SignInState => {
   if (outcome.ok) return state;
 
   return {

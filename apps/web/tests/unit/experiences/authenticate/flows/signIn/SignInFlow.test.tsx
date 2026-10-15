@@ -4,8 +4,9 @@ import {
   beforeEach, describe, expect, it, vi,
 } from 'vitest';
 import {
-  SignInFlow, type SignInFlowProps, type SignInOutcome,
+  SignInFlow, type SignInFlowProps,
 } from '../../../../../../src/experiences/authenticate/flows/signIn/SignInFlow';
+import type { RequestOutcome } from '../../../../../../src/utilities/requestOutcome';
 import { renderInLocale } from '../../../../../support/renderInLocale';
 
 // Flow (BDT: unit, the Interactions beneath mocked): each entry is a stub that
@@ -131,7 +132,7 @@ vi.mock('../../../../../../src/experiences/authenticate/flows/signIn/interaction
   ),
 }));
 
-const OK: SignInOutcome = { ok: true };
+const OK: RequestOutcome = { ok: true };
 
 /**
  * A failed outcome.
@@ -140,7 +141,7 @@ const OK: SignInOutcome = { ok: true };
  * @param params - Its ICU params.
  * @returns The outcome.
  */
-const failed = (code: string, params?: Record<string, number>): SignInOutcome => (
+const failed = (code: string, params?: Record<string, number>): RequestOutcome => (
   { ok: false, error: { code, params } }
 );
 
@@ -198,8 +199,8 @@ describe('SignInFlow — the password step', () => {
   });
 
   it('asks the Experience, spinning meanwhile, and shows the code step on ok', async () => {
-    let answer: (outcome: SignInOutcome) => void = () => {};
-    const onSubmitCredentials = vi.fn(() => new Promise<SignInOutcome>((resolve) => {
+    let answer: (outcome: RequestOutcome) => void = () => {};
+    const onSubmitCredentials = vi.fn(() => new Promise<RequestOutcome>((resolve) => {
       answer = resolve;
     }));
     renderFlow({ onSubmitCredentials });

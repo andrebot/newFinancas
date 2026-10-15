@@ -2903,6 +2903,48 @@ not a hardcoded assumption.
 
 **Task 49 (`FL1`) is complete.**
 
+### OQ-146: The Household Deletion Flow (task FL10)
+**Confirmed with the stakeholder (Oct 2026):**
+- **Only the Owner sees it.** The Manage Household Experience mounts
+  the Flow only when the caller's role is Owner. Everyone else never
+  sees the danger zone. The Flow takes no role.
+- **The Flow (`experiences/manageHousehold/flows/householdDeletion/`)**
+  holds the step (review or confirm), the typed text ("confirmation
+  text", BDT plan), the busy flag and the last failure. Its rules are
+  pure functions in `householdDeletionState.ts`.
+  - It takes `householdName` (the phrase to type) and one request,
+    `onDelete`. `onDelete` resolves to the shared outcome:
+    `{ok: true}`, or `{ok: false, error: {code, params}}`.
+  - After `ok` the Flow stays busy. The household is gone, and the
+    Experience has the App Shell switch to another household or start
+    Onboard.
+  - A failure (403 `auth.forbidden`, 404 `household.not_found`) shows
+    as an error banner under the confirm, translated through
+    I18nUtility. The typed name is kept for another try.
+- **Consequences Review is mockup 60's danger zone:** the coral-ringed
+  section with the warning tile, "Delete household", the consequences
+  text and the outline "Delete Household" button (`danger`, `lg`).
+- **The type-to-confirm (K27, OQ-143) opens inline,** inside the same
+  section, in the button's place. There is no dialog in the kit yet,
+  and OQ-143 leaves the placement to the Flow.
+  - The phrase is the household's name. The label is
+    `Type "{householdName}" to confirm`.
+  - A cancel (the button, or Escape) goes back to the review and drops
+    the typed text and any failure. The kit gives focus back to the
+    element that held it before, but that button has unmounted by
+    then, so the review re-focuses its own button when it shows again.
+- **The outcome type is shared.** Sign In's `SignInOutcome` and
+  `SignInFailure` became `RequestOutcome` and `RequestFailure` in
+  `utilities/requestOutcome.ts`. Every Flow's request uses the same
+  answer.
+- **Texts** are in a new `householdDeletion` catalog section, in both
+  locales. pt-BR calls the Owner "proprietário". It is the first place
+  the role is named in pt-BR.
+- The EBD Household Deletion sequence is redrawn through its generator.
+  It now shows the Owner-only mount, the cancel and the failure branch.
+
+**Task 50 (`FL10`) is complete.**
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.

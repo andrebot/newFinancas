@@ -1,15 +1,15 @@
 import { useState } from 'react';
 import { useI18n } from '../../../../utilities/I18nProvider';
+import type { RequestOutcome } from '../../../../utilities/requestOutcome';
 import { BackupCodeEntry } from './interactions/BackupCodeEntry';
 import { CredentialEntry, type Credentials } from './interactions/CredentialEntry';
 import { MfaCodeEntry } from './interactions/MfaCodeEntry';
 import {
   afterCredentials, afterSecondFactor, INITIAL_SIGN_IN, submitting, switchedTo,
-  type SignInOutcome, type SignInState,
+  type SignInState,
 } from './signInState';
 
 export type { Credentials } from './interactions/CredentialEntry';
-export type { SignInFailure, SignInOutcome } from './signInState';
 
 // Sign In Flow (FL1, EBD; OQ-145): email and password, then the MFA code —
 // or a backup code instead. It owns which step shows and what carries over
@@ -21,11 +21,11 @@ export type { SignInFailure, SignInOutcome } from './signInState';
 /** What the Flow asks of the Experience, and the ways out it emits. */
 export interface SignInFlowProps {
   /** The password step: `ok` once a challenge is held. */
-  readonly onSubmitCredentials: (credentials: Credentials) => Promise<SignInOutcome>;
+  readonly onSubmitCredentials: (credentials: Credentials) => Promise<RequestOutcome>;
   /** The authenticator code: `ok` once signed in. */
-  readonly onSubmitCode: (mfaCode: string) => Promise<SignInOutcome>;
+  readonly onSubmitCode: (mfaCode: string) => Promise<RequestOutcome>;
   /** A single-use backup code instead: `ok` once signed in. */
-  readonly onSubmitBackupCode: (recoveryCode: string) => Promise<SignInOutcome>;
+  readonly onSubmitBackupCode: (recoveryCode: string) => Promise<RequestOutcome>;
   readonly onForgotPassword: () => void;
   readonly onCreateAccount: () => void;
 }
@@ -61,7 +61,7 @@ export function SignInFlow({
    * @param request - The Experience's request for that factor.
    * @returns The handler, which sends the code and applies the outcome.
    */
-  const secondFactor = (request: (code: string) => Promise<SignInOutcome>) => (
+  const secondFactor = (request: (code: string) => Promise<RequestOutcome>) => (
     async (code: string) => {
       setState(submitting);
       const outcome = await request(code);

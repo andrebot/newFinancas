@@ -82,7 +82,7 @@ identity screens, the rest as later slices use them.
 - [x] **47.** `K27` Type-to-confirm (OQ-143)
 - [x] **48.** `K6` Password field (OQ-144)
 - [x] **49.** `FL1` Sign In (OQ-145: two-step sign-in, backend included)
-- [ ] **50.** `FL10` Household Deletion
+- [x] **50.** `FL10` Household Deletion
 - [ ] **51.** `FL2` Account Recovery
 - [ ] **52.** `FL3` Registration
 - [ ] **53.** `FL4` MFA Enrollment

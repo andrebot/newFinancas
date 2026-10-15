@@ -127,6 +127,15 @@ const ptBR = {
     'backupCode.submit': 'Verificar',
     'backupCode.useApp': 'Usar o app autenticador',
   },
+  householdDeletion: {
+    title: 'Excluir casa',
+    consequences: 'Todos os membros perdem o acesso e os dados compartilhados da casa são removidos permanentemente. Só o proprietário pode fazer isso.',
+    continue: 'Excluir casa',
+    'confirm.message': 'Isso exclui {householdName} permanentemente para todos os membros. Não é possível desfazer.',
+    'confirm.label': 'Digite "{householdName}" para confirmar',
+    'confirm.submit': 'Excluir casa',
+    'confirm.cancel': 'Cancelar',
+  },
   emails: {
     'password.reset.subject': 'Redefinição de senha',
     'password.reset.body': 'Recebemos um pedido para redefinir a sua senha. Use o link abaixo em até {expiresInMinutes, plural, one {# minuto} other {# minutos}}:\n\n{resetLink}\n\nSe não foi você, ignore este e-mail; sua senha continua a mesma.',

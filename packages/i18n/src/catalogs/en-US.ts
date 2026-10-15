@@ -112,6 +112,15 @@ const enUS: Catalog = {
     'backupCode.submit': 'Verify',
     'backupCode.useApp': 'Use authenticator app instead',
   },
+  householdDeletion: {
+    title: 'Delete household',
+    consequences: 'Every member loses access and shared household data is permanently removed. Only the Owner can do this.',
+    continue: 'Delete Household',
+    'confirm.message': 'This permanently deletes {householdName} for every member. This cannot be undone.',
+    'confirm.label': 'Type "{householdName}" to confirm',
+    'confirm.submit': 'Delete household',
+    'confirm.cancel': 'Cancel',
+  },
   emails: {
     'password.reset.subject': 'Reset your password',
     'password.reset.body': "We received a request to reset your password. Use the link below within {expiresInMinutes, plural, one {# minute} other {# minutes}}:\n\n{resetLink}\n\nIf this wasn't you, ignore this email; your password stays the same.",

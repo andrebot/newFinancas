@@ -288,7 +288,7 @@ is the caller, represented by a stub callback. **100% coverage target.**
 | Security (Manage Profile) | sessions, active action | revoke one / sign out all others (current session kept) / change password |
 | Delete Account (Manage Profile) | ownership result, confirmation text | blocked while owning households without a successor → review → type-to-confirm |
 | Membership Management (Manage Household) | selected row, open role menu | role change, invite (404 invitee), revoke pending, remove member, transfer ownership |
-| Household Deletion (Manage Household) | confirmation text | review → type-to-confirm |
+| Household Deletion (Manage Household) | step, confirmation text, last failure | review → type-to-confirm (locked until the name matches); cancel drops the text and refocuses the review; 403 `auth.forbidden` / 404 `household.not_found` banner, name kept; ok stays busy (OQ-146) |
 | Account & Card Management (Account Setup) | selection, draft account + cards | 4 types only; card entry emits network + last4 only (never the full number); archive confirm |
 | Category Management (Account Setup) | selection, draft, open picker | icon + colour from palette tokens; inline subcategory add; archive cascade visible |
 | Budget Management (Account Setup) | selection, draft, claimed map | claimed categories disabled with owner; 409 `budget.target_already_claimed` refreshes the picker |
