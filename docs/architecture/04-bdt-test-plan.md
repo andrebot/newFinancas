@@ -288,7 +288,7 @@ is the caller, represented by a stub callback. **100% coverage target.**
 | Household Setup (Onboard) | busy, last failure | blank name refused client-side, sent trimmed; failure in the banner, name kept; success stays busy → Guided Setup; Cancel only when the shell passes `onCancel` (additional household) (OQ-150) |
 | Guided Setup (Onboard) | step, per-step skippable flags | account step **not** skippable (Next disabled until an account exists); category and budget steps skippable; summary renders counts |
 | Security (Manage Profile) | sessions, active action | revoke one / sign out all others (current session kept) / change password |
-| Delete Account (Manage Profile) | ownership result, confirmation text | blocked while owning households without a successor → review → type-to-confirm |
+| Delete Account (Manage Profile) | step, confirmation text, last failure | review (ownership note only when households are owned — never blocking, OQ-151) → type-to-confirm (the email; locked until it matches); cancel drops the text and refocuses the review; failure in the banner, email kept; ok stays busy |
 | Membership Management (Manage Household) | selected row, open role menu | role change, invite (404 invitee), revoke pending, remove member, transfer ownership |
 | Household Deletion (Manage Household) | step, confirmation text, last failure | review → type-to-confirm (locked until the name matches); cancel drops the text and refocuses the review; 403 `auth.forbidden` / 404 `household.not_found` banner, name kept; ok stays busy (OQ-146) |
 | Account & Card Management (Account Setup) | selection, draft account + cards | 4 types only; card entry emits network + last4 only (never the full number); archive confirm |

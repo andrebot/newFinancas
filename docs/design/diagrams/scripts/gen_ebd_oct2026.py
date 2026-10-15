@@ -50,7 +50,7 @@ EXPERIENCES = [
      "Guided Setup composes Account Setup's Account & Card (mandatory, no Skip — FR-1.22), Category and Budget Flows. Registration + MFA Enrollment are skipped by configuration when the user is already signed in (additional household, OQ-81)."),
     ("Manage Profile", "manage-profile", "Look after my own account",
      [("Security", ["Password Change", "Session List", "Sign Out All Others"], "security"),
-      ("Delete Account", ["Ownership Check", "Consequences Review", "Type-to-Confirm"], "delete-account")],
+      ("Delete Account", ["Consequences Review", "Type-to-Confirm"], "delete-account")],
      ["Edit Personal Info", "Edit Preferences", "Respond to Invitation"], ["ValidationUtility", "PasswordStrengthUtility", "AlertUtility", "ThemeUtility", "I18nUtility"],
      "New Experience (Q1): split out of Authenticate (Security) and Manage Household (Edit Profile, Delete Account)."),
     ("Manage Household", "manage-household", "Run the household",
@@ -410,22 +410,37 @@ end
 API-->>EXP: done or error code
 EXP-->>FLOW: state refreshed
 """, ["Moved from Authenticate (Q1)."]),
-    ("manage-profile-delete-account", "Manage Profile — Delete Account", f"{R('DELETE /users/me')}.",
-     [("OC", "Ownership Check"), ("CR", "Consequences Review"), ("TC", "Type-to-Confirm"), FLOW("Delete Account"), EXP("Manage Profile"), API],
+    ("manage-profile-delete-account", "Manage Profile — Delete Account", f"{R('DELETE /users/me')} — unconditional. Consequences (with the households owned), then the user's email typed to confirm (OQ-151).",
+     [("CR", "Consequences Review"), ("TC", "Type-to-Confirm"), FLOW("Delete Account"), EXP("Manage Profile"), API],
      """
-FLOW-->>OC: render — Owner? ownership passes to another member first (FR-1.18)
-User->>OC: continue
-OC->>FLOW: emit ownershipUnderstood
-FLOW-->>CR: render consequences (personal data deleted, shared data anonymized)
-User->>CR: continue
-CR->>FLOW: emit consequencesAccepted
-User->>TC: type the confirmation phrase
-TC->>FLOW: emit confirmed
-FLOW->>EXP: request deleteAccount
-EXP->>API: DELETE /users/me
-API-->>EXP: 204
-EXP-->>FLOW: complete → App Shell signs out
-""", ["Moved from Manage Household (Q1)."]),
+EXP-->>FLOW: mount with email + names of the households owned (from GET /households, role Owner)
+FLOW-->>CR: render danger zone (personal data deleted, shared data anonymized)
+opt owns households
+    FLOW-->>CR: ownership note: each passes to another member first, or is deleted if no one else is in it (FR-1.18) + their names
+end
+User->>CR: 'Delete Account'
+CR->>FLOW: emit continue
+FLOW-->>TC: render in the button's place (phrase = email)
+alt cancel (button or Escape)
+    User->>TC: Cancel
+    TC->>FLOW: emit cancel
+    FLOW-->>CR: render again, text dropped, focus back on its button
+else confirm
+    User->>TC: type the email (confirm locked until it matches)
+    TC->>FLOW: emit confirm
+    FLOW->>EXP: request deleteAccount()
+    EXP->>API: DELETE /users/me
+    alt failure (network, 401)
+        API-->>EXP: error code
+        EXP-->>FLOW: outcome: failed(code) — banner under the confirm, email kept
+    else ok
+        API-->>EXP: 204
+        EXP-->>FLOW: outcome: ok — Flow stays busy, App Shell signs out
+    end
+end
+""", ["Moved from Manage Household (Q1).",
+        "Ownership Check folded into Consequences Review as a note (mockup 70): nothing blocks the deletion — FR-1.18's succession runs server-side (OQ-151).",
+        "The danger zone is the kit's DangerZone (K34 family), shared with Household Deletion; the type-to-confirm is K27 (OQ-143)."]),
     ("manage-household-membership-management", "Manage Household — Membership Management", f"{R('GET/POST/PATCH/DELETE /households/:id/members…, /invitations…, /transfer-ownership')}.",
      [("ML", "Member List"), ("RM", "Role Menu"), ("IM", "Invite Member"), ("PI", "Pending Invitations"), FLOW("Membership Management"), EXP("Manage Household"), API],
      """

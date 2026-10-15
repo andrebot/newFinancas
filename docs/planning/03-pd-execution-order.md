@@ -87,7 +87,7 @@ identity screens, the rest as later slices use them.
 - [x] **52.** `FL3` Registration (OQ-148)
 - [x] **53.** `FL4` MFA Enrollment (OQ-149: enrollment confirmation, backend included)
 - [x] **54.** `FL5` Household Setup (OQ-150)
-- [ ] **55.** `FL8` Delete Account
+- [x] **55.** `FL8` Delete Account (OQ-151)
 - [ ] **56.** `FU3` AlertUtility
 - [ ] **57.** `K45` List row
 - [ ] **58.** `FL7` Security
