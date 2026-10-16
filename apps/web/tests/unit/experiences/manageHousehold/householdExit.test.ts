@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { manageHouseholdApi } from '../../../../src/experiences/manageHousehold/api';
+import { identityApi } from '../../../../src/api/identityApi';
 import { moveOnFrom } from '../../../../src/experiences/manageHousehold/householdExit';
 import { householdChosen, selectActiveHouseholdId } from '../../../../src/shell/shellState';
 import { envelope, jsonResponse } from '../../api/fakes';
@@ -25,7 +25,7 @@ const storeAfterLeaving = async (households: () => Response) => {
   const fetchFn = fakeFetch({ '/households': () => answer() });
   const { store, householdMemory } = fakeStore({ refreshToken: 'r-0', fetchFn });
   store.dispatch(householdChosen('doe'));
-  const cached = store.dispatch(manageHouseholdApi.endpoints.listHouseholds.initiate());
+  const cached = store.dispatch(identityApi.endpoints.listHouseholds.initiate());
   await cached;
   cached.unsubscribe();
   answer = households;
@@ -70,7 +70,7 @@ describe('moveOnFrom', () => {
 
     await expect(store.dispatch(moveOnFrom('doe'))).resolves.toBe('dashboard');
 
-    const selectHouseholds = manageHouseholdApi.endpoints.listHouseholds.select();
+    const selectHouseholds = identityApi.endpoints.listHouseholds.select();
     const households = selectHouseholds(
       store.getState() as unknown as Parameters<typeof selectHouseholds>[0],
     );

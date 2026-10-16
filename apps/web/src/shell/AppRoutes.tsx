@@ -10,7 +10,8 @@ import { useAppDispatch, useAppSelector } from '../store';
 import { useI18n } from '../utilities/I18nProvider';
 import { AppShell } from './AppShell';
 import { returnPathOf, routesFor, type ReturnState } from './routes';
-import type { ShellConfig, ShellHousehold, SourceState } from './shellConfig';
+import type { SourceState } from '../utilities/sourceState';
+import type { ShellConfig, ShellHousehold } from './shellConfig';
 import {
   selectActiveHouseholdId, selectSession, settleActiveHousehold,
 } from './shellState';

@@ -16,12 +16,11 @@ import { useAlerts } from '../../utilities/AlertProvider';
 import { useI18n } from '../../utilities/I18nProvider';
 import type { RequestFailure } from '../../utilities/requestOutcome';
 import type { ThemePreference } from '../../utilities/theme';
-import { useHouseholds } from '../manageHousehold/api';
+import { useGetCurrentUserQuery, useHouseholds } from '../../api/identityApi';
 import {
   useChangePasswordMutation,
   useDeleteCurrentUserMutation,
   useEditCurrentUserMutation,
-  useGetCurrentUserQuery,
   useLazyListSessionsQuery,
   useListMyInvitationsQuery,
   useRevokeOtherSessionsMutation,

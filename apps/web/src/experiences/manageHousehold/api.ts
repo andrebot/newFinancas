@@ -3,23 +3,19 @@ import type {
   HouseholdInvitation,
   HouseholdMembership,
   ListHouseholdInvitationsResponse,
-  ListHouseholdsResponse,
   ListMembersResponse,
-  MyHousehold,
 } from '@financas/api-types';
 import backendApi from '../../api/backendApi';
-import { toSourceState } from '../../api/sourceState';
-import type { ShellHousehold, SourceState } from '../../shell/shellConfig';
 import type {
   AssignableRole, HouseholdMember, ListedInvitation,
 } from './flows/membershipManagement/membershipState';
 
-// The Manage Household Experience's endpoints (X4, OQ-160). X3 brought the
-// households list in early (OQ-159): the App Shell's household gate needs it,
-// and Manage Profile reads it for the user's role and the households they own.
-// The members are cached per household: the page header counts them and Leave
-// Household names the successor from them, so every change to the membership
-// fetches them again. The invitations are the Membership Management Flow's
+// The Manage Household Experience's endpoints (X4, OQ-160). The households
+// list is a shared identity read (`api/identityApi.ts`, OQ-163); this slice
+// invalidates its tag when a transfer changes the user's role. The members
+// are cached per household: the page header counts them and Leave Household
+// names the successor from them, so every change to the membership fetches
+// them again. The invitations are the Membership Management Flow's
 // own list, fetched as it mounts and never kept. A transfer also fetches the
 // households again, where the user's role changed. Leaving or deleting the
 // household invalidates nothing: the Experience fetches the households itself
@@ -123,11 +119,6 @@ export const manageHouseholdApi = backendApi.enhanceEndpoints({
   addTagTypes: ['Households', 'Members'],
 }).injectEndpoints({
   endpoints: (build) => ({
-    listHouseholds: build.query<readonly MyHousehold[], void>({
-      query: () => '/households',
-      transformResponse: (response: ListHouseholdsResponse) => response.data ?? [],
-      providesTags: ['Households'],
-    }),
     listMembers: build.query<readonly HouseholdMember[], string>({
       query: (householdId) => householdPath(householdId, '/members'),
       transformResponse: (response: ListMembersResponse) => (
@@ -183,7 +174,6 @@ export const manageHouseholdApi = backendApi.enhanceEndpoints({
 });
 
 export const {
-  useListHouseholdsQuery,
   useListMembersQuery,
   useLazyListMembersQuery,
   useLazyListHouseholdInvitationsQuery,
@@ -195,13 +185,3 @@ export const {
   useLeaveHouseholdMutation,
   useDeleteHouseholdMutation,
 } = manageHouseholdApi;
-
-/**
- * The user's households, with their role in each, as the App Shell takes
- * them (`ShellSources.useHouseholds`).
- *
- * @returns The list's state.
- */
-export const useHouseholds = (): SourceState<readonly ShellHousehold[]> => (
-  toSourceState(useListHouseholdsQuery())
-);

@@ -2,7 +2,7 @@ import type { ThunkAction, UnknownAction } from '@reduxjs/toolkit';
 import backendApi from '../../api/backendApi';
 import { switchHousehold, type ThunkExtra } from '../../shell/shellState';
 import type { RootState } from '../../store';
-import { manageHouseholdApi } from './api';
+import { identityApi } from '../../api/identityApi';
 
 // After the user left or deleted the active household (X4, OQ-160): the
 // households are fetched again and the App Shell switches to the next one —
@@ -25,7 +25,7 @@ type ExitThunk = ThunkAction<Promise<ExitDestination>, RootState, ThunkExtra, Un
  */
 export const moveOnFrom = (goneId: string): ExitThunk => async (dispatch) => {
   const request = dispatch(
-    manageHouseholdApi.endpoints.listHouseholds.initiate(undefined, { forceRefetch: true }),
+    identityApi.endpoints.listHouseholds.initiate(undefined, { forceRefetch: true }),
   );
   const result = await request;
   request.unsubscribe();

@@ -4,7 +4,7 @@ import {
 } from 'vitest';
 import App, { shellConfigFor } from '../../src/App';
 import { AuthenticateExperience } from '../../src/experiences/authenticate/AuthenticateExperience';
-import { useHouseholds } from '../../src/experiences/manageHousehold/api';
+import { useHouseholds } from '../../src/api/identityApi';
 import {
   ManageHouseholdExperience,
 } from '../../src/experiences/manageHousehold/ManageHouseholdExperience';

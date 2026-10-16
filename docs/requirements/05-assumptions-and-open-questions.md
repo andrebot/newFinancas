@@ -3789,6 +3789,20 @@ not a hardcoded assumption.
     API mounts nothing the contract lacks. A Flow can no longer reach for
     an endpoint nobody planned to build yet without the gap being written
     down.
+- **Shared identity reads have one home.** OQ-158 called Authenticate
+  hosting Onboard's enrollment step "the one place" one Experience imports
+  another's piece. OQ-159 then had Manage Profile read `useHouseholds` from
+  Manage Household's slice, and Manage Household read
+  `useGetCurrentUserQuery` from Manage Profile's. The current user and the
+  households are read by several Experiences and, as sources, by the App
+  Shell, so they now live in `apps/web/src/api/identityApi.ts`:
+  `getCurrentUser`, `listHouseholds` and the `useHouseholds` source. The
+  Experience slices keep their own endpoints and invalidate the shared
+  tags. The enrollment step stays OQ-158's single hosting decision.
+- **`SourceState`** (loading / ready / failed with a retry) moves from the
+  shell's configuration to `utilities/sourceState.ts`: a display type the
+  shell's Interactions take, and that `api/sourceState.ts` builds from a
+  query. `api/` and `shell/` no longer import each other's types.
 
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
