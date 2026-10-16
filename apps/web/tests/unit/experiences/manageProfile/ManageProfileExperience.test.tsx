@@ -180,15 +180,21 @@ const LOADED: Answers = {
  * @param answers - The API's answers, over the loaded page's.
  * @param loads - Whether to wait for the profile to show.
  * @param activeId - The household the shell has active.
+ * @param deleteAccount - Whether Delete Account is offered (its own tests turn it on).
  * @returns The store and the fake `fetch`.
  */
-const renderExperience = async (answers: Answers = {}, loads = true, activeId = 'doe') => {
+const renderExperience = async (
+  answers: Answers = {},
+  loads = true,
+  activeId = 'doe',
+  deleteAccount = false,
+) => {
   const fetchFn = fakeFetch({ ...LOADED, ...answers });
   const { store } = fakeStore({ fetchFn, refreshToken: 'r-0' });
   store.dispatch(householdChosen(activeId));
   renderWithShell(
     <AlertProvider queue={createAlertQueue(3)}>
-      <ManageProfileExperience />
+      <ManageProfileExperience deleteAccount={deleteAccount} />
     </AlertProvider>,
     store,
     { path: '/profile' },
@@ -225,7 +231,7 @@ describe('ManageProfileExperience — the page', () => {
 
   it('shows the email alone until the households load', async () => {
     const pending = deferred();
-    await renderExperience({ 'GET /households': () => pending.promise });
+    await renderExperience({ 'GET /households': () => pending.promise }, true, 'doe', true);
 
     expect(screen.getByText('jane.doe@example.com')).toBeTruthy();
     expect(shownBy('deleteAccount')).toEqual({
@@ -503,8 +509,23 @@ describe('ManageProfileExperience — invitations', () => {
 });
 
 describe('ManageProfileExperience — delete account', () => {
+  it('is not offered while its endpoint is still on the plan (task 136)', async () => {
+    const fetchFn = fakeFetch(LOADED);
+    const { store } = fakeStore({ fetchFn, refreshToken: 'r-0' });
+    renderWithShell(
+      <AlertProvider queue={createAlertQueue(3)}>
+        <ManageProfileExperience />
+      </AlertProvider>,
+      store,
+      { path: '/profile' },
+    );
+    await screen.findByRole('heading', { level: 1 });
+
+    expect(screen.queryByTestId('deleteAccount')).toBeNull();
+  });
+
   it('gives the Flow the email and the households the user owns', async () => {
-    await renderExperience();
+    await renderExperience({}, true, 'doe', true);
 
     expect(shownBy('deleteAccount')).toEqual({
       email: 'jane.doe@example.com',
@@ -515,7 +536,7 @@ describe('ManageProfileExperience — delete account', () => {
   it('deletes the account, toasts it and ends the session', async () => {
     const { store, fetchFn } = await renderExperience({
       'DELETE /users/me': () => jsonResponse(204),
-    });
+    }, true, 'doe', true);
 
     await press('delete');
 
@@ -527,7 +548,7 @@ describe('ManageProfileExperience — delete account', () => {
   it('hands a failed deletion to the Flow, still signed in', async () => {
     const { store } = await renderExperience({
       'DELETE /users/me': () => jsonResponse(500, envelope('internal.unexpected')),
-    });
+    }, true, 'doe', true);
 
     await press('delete');
 

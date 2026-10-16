@@ -188,7 +188,7 @@ identity screens, the rest as later slices use them.
 
 *Done when:* dashboard, audit export, notification bell routing, delete account.
 
-- [ ] **136.** `M1D` IdentityManager: Delete User cascade
+- [ ] **136.** `M1D` IdentityManager: Delete User cascade (then turn on `profile.deleteAccount` in the web settings and drop `DELETE /users/me` from the contract-routes test's plan list, OQ-163)
 - [ ] **137.** `K21` Dialog
 - [ ] **138.** `FL21` Dashboard
 - [ ] **139.** `X8` Review Insights

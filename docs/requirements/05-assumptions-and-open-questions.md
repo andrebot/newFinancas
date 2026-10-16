@@ -3774,6 +3774,22 @@ not a hardcoded assumption.
   it as a known issue.
 - The uc-14b sequence is redrawn.
 
+### OQ-163: Architecture review fixes (code review, phase 3)
+**Confirmed with the stakeholder (Oct 2026):**
+- **Delete Account waits for its endpoint.** The Delete Account Flow (task
+  55) shipped in slice 1, but `DELETE /users/me` is the Delete User cascade,
+  task 136 (`M1D`), in slice 5. The page offered an action that failed.
+  - Manage Profile takes a `deleteAccount` setting, defaulting to
+    `profile.deleteAccount` in the web's `config/constants.ts` (off). Task
+    136 turns it on.
+  - **A contract-routes check** (`apps/api/tests/integration/
+    contractRoutes.test.ts`) compares `openapi.yaml` with the routes the
+    API mounts: every operation is routed or listed as still on the plan
+    (by slice, or by task); nothing on that list is routed already; and the
+    API mounts nothing the contract lacks. A Flow can no longer reach for
+    an endpoint nobody planned to build yet without the gap being written
+    down.
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.
