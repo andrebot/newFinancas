@@ -38,7 +38,7 @@ describe('withRollback', () => {
     await withRollback(pglite, async (db) => {
       await db.execute(sql`INSERT INTO households (name) VALUES ('Home')`);
       const result = await db.execute(sql`SELECT current_user AS role`);
-      role = result.rows[0]?.role;
+      role = (result as { rows: { role: string }[] }).rows[0]?.role;
     });
 
     expect(role).toBe('financas_app');
