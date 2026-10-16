@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Refresh Tokens</h1>
-  <p class="subtitle"><span class="route">POST /auth/refresh</span> &mdash; OQ-30/OQ-100/OQ-106. Exchanges a refresh token for a new pair; each refresh token works once. Part of staying signed in after Login (UC-14).</p>
+  <p class="subtitle"><span class="route">POST /auth/refresh</span> &mdash; OQ-30/OQ-100/OQ-106/OQ-162. Exchanges a refresh token for a new pair; each refresh token works once, with a short grace for a page reloaded mid-refresh. Part of staying signed in after Login (UC-14).</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -86,24 +86,39 @@ sequenceDiagram
         API-->>User: 200 OK
     else stale
         SA-->>IM: stale
-        IM->>SA: findByReplacedToken(presentedHash)
-        alt it was already used &mdash; a replay, likely a stolen token
-            SA-->>IM: {sessionId, userId}
-            IM->>SA: deleteForUser(userId, sessionId)
-            Note over IM: ends that session only &mdash; the user&#39;s other devices stay signed in
-            SA-->>IM: deleted
-            IM-->>LOG: log.warn("Refresh token replayed &mdash; session ended")
-        else unknown, expired or revoked
-            SA-->>IM: none
+        IM->>SA: reissueReplaced(presentedHash, tokenHash, expiresAt, rotatedSince = now &minus; 10 s, now)
+        Note over SA: guarded: applies only while presentedHash is the token the last rotation<br/>replaced, that rotation was at or after rotatedSince, and the session is unexpired &mdash;<br/>the dropped token becomes the replaced one, the last use is left alone
+        alt reissued &mdash; a page reloaded mid-refresh (OQ-162)
+            SA-->>IM: session
+            IM-->>LOG: log.info("Replaced refresh token reused within the grace window")
+            IM->>UA: findById(session.userId)
+            UA-->>IM: user (systemRole)
+            IM->>AN: signAccessToken({userId, sessionId, systemRole})
+            AN-->>IM: accessToken
+            IM-->>API: {accessToken, refreshToken = token}
+            API-->>User: 200 OK
+        else stale
+            SA-->>IM: stale
+            IM->>SA: findByReplacedToken(presentedHash)
+            alt it was already used &mdash; a replay, likely a stolen token
+                SA-->>IM: {sessionId, userId}
+                IM->>SA: deleteForUser(userId, sessionId)
+                Note over IM: ends that session only &mdash; the user&#39;s other devices stay signed in
+                SA-->>IM: deleted
+                IM-->>LOG: log.warn("Refresh token replayed &mdash; session ended")
+            else unknown, expired or revoked
+                SA-->>IM: none
+            end
+            IM-->>API: Unauthorized
+            API-->>User: 401 auth.refresh_invalid
         end
-        IM-->>API: Unauthorized
-        API-->>User: 401 auth.refresh_invalid
     end
     </pre>
   </div>
   <div class="notes">
     <ul>
       <li><strong>Rotation:</strong> every refresh issues a new refresh token (30-day sliding expiry) and consumes the old one, so each works once (OQ-100).</li>
+      <li><strong>Reuse grace</strong> (OQ-162): within 10 s of a rotation, the token it replaced earns a new pair instead of counting as a replay &mdash; a page reloaded mid-refresh never stored the new token. The window is anchored to the rotation, and the token issued in between becomes the replaced one, so a thief is still caught.</li>
       <li><strong>Replay ends that session only</strong> (stakeholder decision, Oct 2026): whoever holds the old token &mdash; thief or victim &mdash; must sign in again on that device; other devices are untouched, and an attacker replaying an old token can&#39;t sign the user out everywhere.</li>
       <li>The system role comes from the user record at each refresh, so a role change takes effect within one access-token lifetime (OQ-111).</li>
       <li>No access token needed &mdash; this is how a client gets one back after it expires.</li>

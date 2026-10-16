@@ -1,5 +1,5 @@
 import {
-  and, desc, eq, gt, ne,
+  and, desc, eq, gt, gte, ne, sql,
 } from 'drizzle-orm';
 import type { Database } from '../db/database';
 import { sessions } from '../db/schema';
@@ -91,6 +91,44 @@ const createSessionAccessor = (db: Database) => ({
       .where(and(eq(sessions.refreshTokenHash, presentedHash), gt(sessions.expiresAt, now)))
       .returning(columns);
     return rotated ? { status: 'rotated', session: rotated } : { status: 'stale' };
+  },
+
+  /**
+   * Gives a session a new refresh token in exchange for the one its last
+   * rotation replaced, atomically (OQ-162). Guarded: applies only while the
+   * presented token is that replaced one, the rotation happened at or after
+   * `rotatedSince`, and the session is unexpired; otherwise nothing changes.
+   * The token being dropped becomes the remembered replaced one, so whoever
+   * still holds it is caught as a replay. The last use is left alone, so the
+   * window stays anchored to the rotation and can't be stretched.
+   *
+   * @param presentedHash - Hash of the token the device sent.
+   * @param newHash - Hash of the replacement token.
+   * @param expiresAt - New expiry (sliding).
+   * @param rotatedSince - The earliest rotation time that still qualifies.
+   * @param now - Current time.
+   * @returns `rotated` with the session, or `stale`.
+   */
+  reissueReplaced: async (
+    presentedHash: string,
+    newHash: string,
+    expiresAt: Date,
+    rotatedSince: Date,
+    now: Date,
+  ): Promise<RotateResult> => {
+    const [reissued] = await db.update(sessions)
+      .set({
+        previousRefreshTokenHash: sql`${sessions.refreshTokenHash}`,
+        refreshTokenHash: newHash,
+        expiresAt,
+      })
+      .where(and(
+        eq(sessions.previousRefreshTokenHash, presentedHash),
+        gte(sessions.lastUsedAt, rotatedSince),
+        gt(sessions.expiresAt, now),
+      ))
+      .returning(columns);
+    return reissued ? { status: 'rotated', session: reissued } : { status: 'stale' };
   },
 
   /**

@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
-import { createHousehold, registerUser, type TestUser } from '../support/identityApi';
+import {
+  createHousehold, refreshStatus, registerUser, type TestUser,
+} from '../support/identityApi';
 import { signInThroughUi, signOut, submitCredentials } from '../support/signIn';
 import text from '../support/text';
 
@@ -14,15 +16,48 @@ test.beforeEach(async ({ request }) => {
   await createHousehold(request, user, 'Signin Home');
 });
 
-test('a user signs in with their authenticator code and signs out again', async ({ page }) => {
+test('a user signs in with their authenticator code and signs out again', async ({
+  page, request,
+}) => {
   await signInThroughUi(page, user);
   await expect(page).toHaveURL(/\/$/);
+  // The refresh token this browser holds (apps/web config `api.refreshTokenStorageKey`).
+  const refreshToken = await page.evaluate(() => localStorage.getItem('financas.refreshToken'));
+  expect(refreshToken).toBeTruthy();
 
   await signOut(page);
+
+  // Ended at the API too, not only forgotten by the page.
+  expect(await refreshStatus(request, refreshToken!)).toBe(401);
 
   // The session is over: the Dashboard sends them back to Sign In.
   await page.goto('/');
   await expect(page).toHaveURL(/\/sign-in$/);
+});
+
+test('a reload that lost a token refresh answer keeps the session (OQ-162)', async ({ page }) => {
+  await signInThroughUi(page, user);
+  await expect(page).toHaveURL(/\/$/);
+
+  // The next refresh reaches the API — the token rotates there — but its
+  // answer never reaches the page, as when the page reloads mid-refresh.
+  let dropped = false;
+  await page.route('**/api/v1/auth/refresh', async (route) => {
+    if (dropped) {
+      await route.continue();
+      return;
+    }
+    dropped = true;
+    await route.fetch();
+    await route.abort();
+  });
+  await page.reload();
+  await expect.poll(() => dropped).toBe(true);
+
+  // The page still holds the replaced token; a reload presents it again.
+  await page.reload();
+  await expect(page.getByRole('button', { name: text('shell', 'header.openMenu') })).toBeVisible();
+  await expect(page).not.toHaveURL(/\/sign-in$/);
 });
 
 test('a wrong password is refused with the localized message', async ({ page }) => {

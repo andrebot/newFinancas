@@ -24,8 +24,9 @@ import {
 // password step answers a fresh enrollment, whose first authenticator code
 // confirms it and opens the session (OQ-149, uc-11b).
 
-const { loginLockout } = authentication;
+const { loginLockout, refreshToken: refreshPolicy } = authentication;
 const MINUTE_MS = 60_000;
+const SECOND_MS = 1_000;
 
 /** The password step's input (OQ-145). */
 export interface Credentials {
@@ -245,6 +246,43 @@ const createSignIn = (deps: IdentityDeps) => {
       .warn('Refresh token replayed — session ended', { sessionId: replayed.id });
   };
 
+  /**
+   * Trades a refresh token for a new one. The current token rotates; the one
+   * a rotation replaced moments ago is reissued instead of treated as a replay
+   * — a page reloaded mid-refresh never stored the new token (OQ-162).
+   *
+   * @param context - The request.
+   * @param presentedHash - Hash of the token presented.
+   * @param newHash - Hash of the replacement token.
+   * @param now - Current time.
+   * @returns `rotated` with the session, or `stale`.
+   */
+  const exchangeRefreshToken = async (
+    context: RequestContext,
+    presentedHash: string,
+    newHash: string,
+    now: Date,
+  ) => {
+    const expiresAt = refreshTokenExpiry(now);
+    const rotated = await sessions.rotate(presentedHash, newHash, expiresAt, now);
+    if (rotated.status === 'rotated') return rotated;
+    const rotatedSince = new Date(now.getTime() - refreshPolicy.reuseGraceSeconds * SECOND_MS);
+    const reissued = await sessions.reissueReplaced(
+      presentedHash,
+      newHash,
+      expiresAt,
+      rotatedSince,
+      now,
+    );
+    if (reissued.status === 'rotated') {
+      loggerFor(context, reissued.session.userId)
+        .info('Replaced refresh token reused within the grace window', {
+          sessionId: reissued.session.id,
+        });
+    }
+    return reissued;
+  };
+
   return {
     /**
      * The password step of sign-in (uc-14, OQ-145): refuses a locked address,
@@ -352,7 +390,8 @@ const createSignIn = (deps: IdentityDeps) => {
 
     /**
      * Exchanges a refresh token for a new pair; the old one is used up (uc-14b,
-     * OQ-100). A replayed token ends its session.
+     * OQ-100). A replayed token ends its session — unless its rotation was
+     * moments ago, when it is reissued instead (OQ-162).
      *
      * @param context - The request.
      * @param refreshToken - The token the client holds.
@@ -363,8 +402,7 @@ const createSignIn = (deps: IdentityDeps) => {
       const now = deps.now();
       const presentedHash = auth.hashOpaqueToken(refreshToken);
       const next = auth.issueOpaqueToken();
-      const expiresAt = refreshTokenExpiry(now);
-      const result = await sessions.rotate(presentedHash, next.tokenHash, expiresAt, now);
+      const result = await exchangeRefreshToken(context, presentedHash, next.tokenHash, now);
       if (result.status === 'stale') {
         await endReplayedSession(context, presentedHash);
         throw refreshInvalid();

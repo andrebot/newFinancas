@@ -17,6 +17,12 @@ export const authentication = {
   refreshToken: {
     /** Lifetime of a refresh token; each one is single-use (rotated). */
     ttlDays: 30,
+    /**
+     * How long after a rotation the token it replaced still earns a new pair
+     * instead of ending the session as a replay: a page reloaded mid-refresh
+     * never stored the new token and presents the old one again (OQ-162).
+     */
+    reuseGraceSeconds: 10,
   },
   /**
    * The MFA challenge (OQ-145): a correct password earns this short-lived JWT,
