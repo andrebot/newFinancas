@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { z } from 'zod';
+import { z, type core } from 'zod';
 import { catalogs } from '@financas/i18n';
 import { formatFieldPath, toFieldDetail, valueAt } from '../../../src/http/fieldDetail';
 
@@ -62,11 +62,21 @@ describe('toFieldDetail', () => {
     [z.string().max(2), 'long', 'string.max', { max: 2 }],
     [z.array(z.int()).min(1), [], 'array.min', { min: 1 }],
     [z.array(z.int()).max(1), [1, 2], 'array.max', { max: 1 }],
+    [z.set(z.string()).min(2), new Set(['a']), 'array.min', { min: 2 }],
     [z.date().min(new Date(1000)), new Date(0), 'date.min', { min: 1000 }],
     [z.bigint().max(5n), 6n, 'number.max', { max: 5 }],
     [z.file().max(1), new File(['ab'], 'f'), 'value.max', { max: 1 }],
   ])('maps size limits to <kind>.<min|max> (%#)', (schema, input, code, params) => {
     expect(detailFor(schema, input)).toEqual({ field: '', code, params });
+  });
+
+  it('maps the int origin, which Zod documents but z.int() reports as number', () => {
+    const issue: core.$ZodIssue = {
+      code: 'too_big', origin: 'int', maximum: 5, inclusive: true, path: ['count'], message: '',
+    };
+
+    expect(toFieldDetail(issue, { count: 6 }))
+      .toEqual({ field: 'count', code: 'number.max', params: { max: 5 } });
   });
 
   it('maps a format failure to string.format', () => {

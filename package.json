@@ -36,13 +36,15 @@
     "check:contract": "pnpm --filter @financas/api-types lint:spec && pnpm generate:api && (git diff --quiet -- packages/api-types/src/generated && test -z \"$(git ls-files --others --exclude-standard -- packages/api-types/src/generated)\" || (echo 'Generated API code is stale: commit the regenerated packages/api-types/src/generated' && exit 1))",
     "generate:icons": "pnpm --filter @financas/icons generate",
     "check:icons": "pnpm generate:icons && (git diff --quiet -- apps/web/src/kit/icons/generated && test -z \"$(git ls-files --others --exclude-standard -- apps/web/src/kit/icons/generated)\" || (echo 'Icon registry is stale: commit the regenerated apps/web/src/kit/icons/generated' && exit 1))",
-    "check": "pnpm lint && pnpm typecheck && pnpm check:contract && pnpm check:icons && pnpm test:coverage"
+    "check:schema": "pnpm --filter @financas/api db:generate && (git diff --quiet -- apps/api/drizzle && test -z \"$(git ls-files --others --exclude-standard -- apps/api/drizzle)\" || (echo 'The Drizzle schema and the migrations differ: generate the migration (pnpm --filter @financas/api db:generate) and commit it' && exit 1))",
+    "check": "pnpm lint && pnpm typecheck && pnpm check:contract && pnpm check:icons && pnpm check:schema && pnpm test:coverage"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
     "@financas/api-types": "workspace:*",
     "@financas/i18n": "workspace:*",
     "@playwright/test": "^1.63.0",
+    "@stryker-mutator/core": "^10.0.0",
     "@types/node": "^24.19.1",
     "@types/pg": "^8.23.1",
     "@vitest/coverage-v8": "^5.0.3",

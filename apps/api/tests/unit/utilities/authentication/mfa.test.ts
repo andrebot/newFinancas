@@ -1,3 +1,4 @@
+import { Secret } from 'otpauth';
 import { describe, expect, it } from 'vitest';
 import { authentication } from '../../../../src/config/constants';
 import {
@@ -78,6 +79,21 @@ describe('enrollMfa', () => {
     expect(enrolment.recoveryCodes).toHaveLength(authentication.recoveryCodes.count);
     expect(new Set(enrolment.recoveryCodes).size).toBe(authentication.recoveryCodes.count);
     expect(enrolment.recoveryCodeHashes).toEqual(enrolment.recoveryCodes.map(hashRecoveryCode));
+  });
+
+  it('draws the secret from the injected randomness — its first request', () => {
+    const draws: Buffer[] = [];
+    const counting = countingBytes();
+    const recording = (size: number) => {
+      const bytes = counting(size);
+      draws.push(bytes);
+      return bytes;
+    };
+
+    const enrolment = enrollMfa('ana@example.com', recording);
+
+    expect(draws[0]).toHaveLength(authentication.totp.secretBytes);
+    expect(Buffer.from(Secret.fromBase32(enrolment.secret).bytes)).toEqual(draws[0]);
   });
 
   it('enrols a secret that the authenticator codes verify against', () => {

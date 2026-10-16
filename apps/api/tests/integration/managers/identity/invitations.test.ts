@@ -6,6 +6,7 @@ import { createIdentityManager } from '../../../../src/managers/identity';
 import {
   ANA, BEN_ID, fakeDeps, HOUSEHOLD, INVITATION, NOW, SESSION,
 } from './fakes';
+import { expectAudited } from './audit';
 
 const HOME = HOUSEHOLD.id;
 const ANA_ACTOR = { userId: ANA.id, sessionId: SESSION.id, systemRole: 'USER' as const };
@@ -48,7 +49,13 @@ describe('IdentityManager — Invite User (uc-03, FR-1.5/1.19)', () => {
         role: 'Member',
       },
     );
-    expect(logs.events).toContainEqual(expect.objectContaining({ message: 'InviteUser' }));
+    expectAudited(logs.events, {
+      action: 'InviteUser',
+      actorId: ANA.id,
+      entityType: 'Invitation',
+      entityId: INVITATION.id,
+      householdId: HOME,
+    });
   });
 
   it('answers 404 for an email with no account', async () => {
@@ -113,17 +120,30 @@ describe('IdentityManager — Invite User (uc-03, FR-1.5/1.19)', () => {
 describe('IdentityManager — Revoke (uc-06)', () => {
   it('revokes a pending invitation of this household, audited', async () => {
     const { deps, invitations } = fakeDeps();
+    const logs = captureLogs();
 
     await createIdentityManager(deps).revokeInvitation(ANA_CONTEXT, HOME, INVITATION.id);
+    logs.stop();
 
     expect(invitations.resolve).toHaveBeenCalledWith(INVITATION.id, 'revoked', NOW);
+    expectAudited(logs.events, {
+      action: 'RevokeInvitation',
+      actorId: ANA.id,
+      entityType: 'Invitation',
+      entityId: INVITATION.id,
+      householdId: HOME,
+    });
   });
 
-  it('answers 404 for another household\'s invitation, 409 once resolved', async () => {
+  it('answers 404 for an unknown or foreign invitation, 409 once resolved', async () => {
     const { deps, invitations } = fakeDeps();
     const identity = createIdentityManager(deps);
-    invitations.findById.mockResolvedValueOnce({ ...INVITATION, householdId: 'elsewhere' });
+    invitations.findById.mockResolvedValueOnce(undefined);
 
+    await expect(identity.revokeInvitation(ANA_CONTEXT, HOME, 'no-such-invitation'))
+      .rejects.toMatchObject(NOT_FOUND);
+
+    invitations.findById.mockResolvedValueOnce({ ...INVITATION, householdId: 'elsewhere' });
     await expect(identity.revokeInvitation(ANA_CONTEXT, HOME, INVITATION.id))
       .rejects.toMatchObject(NOT_FOUND);
 
@@ -136,14 +156,23 @@ describe('IdentityManager — Revoke (uc-06)', () => {
 describe('IdentityManager — Accept / Decline (uc-04/05, FR-1.10)', () => {
   it('accepts: resolves first, then joins with the invited role', async () => {
     const { deps, invitations, households } = fakeDeps();
+    const logs = captureLogs();
 
     const joined = await createIdentityManager(deps).acceptInvitation(BEN_CONTEXT, INVITATION.id);
+    logs.stop();
 
     expect(joined).toEqual({ householdId: INVITATION.householdId, role: 'Member' });
     expect(invitations.resolve).toHaveBeenCalledWith(INVITATION.id, 'accepted', NOW);
     expect(households.addMember).toHaveBeenCalledWith(INVITATION.householdId, BEN_ID, 'Member');
     expect(invitations.resolve.mock.invocationCallOrder[0]!)
       .toBeLessThan(households.addMember.mock.invocationCallOrder[0]!);
+    expectAudited(logs.events, {
+      action: 'AcceptInvitation',
+      actorId: BEN_ID,
+      entityType: 'Invitation',
+      entityId: INVITATION.id,
+      householdId: INVITATION.householdId,
+    });
   });
 
   it('never adds a member when the invitation was revoked meanwhile', async () => {

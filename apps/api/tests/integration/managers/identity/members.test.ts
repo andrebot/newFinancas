@@ -4,6 +4,7 @@ import { createIdentityManager } from '../../../../src/managers/identity';
 import {
   ANA, BEN_ID, fakeDeps, HOUSEHOLD, NOW, SESSION,
 } from './fakes';
+import { expectAudited } from './audit';
 
 const ACTOR = { userId: ANA.id, sessionId: SESSION.id, systemRole: 'USER' as const };
 const CONTEXT = { correlationId: 'c1', actor: ACTOR };
@@ -23,9 +24,13 @@ describe('IdentityManager — Remove Member (uc-07, FR-1.11)', () => {
     expect(authorization.authorize)
       .toHaveBeenCalledWith(ANA.id, HOME, { action: 'members.manage' });
     expect(households.removeMember).toHaveBeenCalledWith(HOME, BEN_ID);
-    expect(logs.events).toContainEqual(expect.objectContaining({
-      message: 'RemoveMember', entityId: BEN_ID, householdId: HOME,
-    }));
+    expectAudited(logs.events, {
+      action: 'RemoveMember',
+      actorId: ANA.id,
+      entityType: 'User',
+      entityId: BEN_ID,
+      householdId: HOME,
+    });
   });
 
   it('never removes the Owner (OQ-111)', async () => {
@@ -70,19 +75,34 @@ describe('IdentityManager — Leave Household (uc-08, FR-1.18, OQ-107)', () => {
 
     expect(authorization.authorize).not.toHaveBeenCalled();
     expect(households.removeMember).toHaveBeenCalledWith(HOME, ANA.id);
-    expect(logs.events).toContainEqual(expect.objectContaining({ message: 'LeaveHousehold' }));
+    expectAudited(logs.events, {
+      action: 'LeaveHousehold',
+      actorId: ANA.id,
+      entityType: 'Household',
+      entityId: HOME,
+      householdId: HOME,
+    });
   });
 
   it('hands the household to the successor before the Owner leaves', async () => {
     const { deps, households } = fakeDeps();
     households.findMembership.mockResolvedValueOnce(OWNER);
+    const logs = captureLogs();
 
     await leave(deps);
+    logs.stop();
 
     expect(households.findSuccessor).toHaveBeenCalledWith(HOME, ANA.id);
     expect(households.swapOwner).toHaveBeenCalledWith(HOME, ANA.id, BEN_ID);
     expect(households.removeMember).toHaveBeenCalledWith(HOME, ANA.id);
     expect(households.dissolve).not.toHaveBeenCalled();
+    expectAudited(logs.events, {
+      action: 'LeaveHousehold',
+      actorId: ANA.id,
+      entityType: 'Household',
+      entityId: HOME,
+      householdId: HOME,
+    });
   });
 
   it('dissolves the household when the Owner was the last member', async () => {
@@ -96,7 +116,13 @@ describe('IdentityManager — Leave Household (uc-08, FR-1.18, OQ-107)', () => {
 
     expect(households.dissolve).toHaveBeenCalledWith(HOME, ANA.id);
     expect(households.removeMember).not.toHaveBeenCalled();
-    expect(logs.events).toContainEqual(expect.objectContaining({ message: 'DissolveHousehold' }));
+    expectAudited(logs.events, {
+      action: 'DissolveHousehold',
+      actorId: ANA.id,
+      entityType: 'Household',
+      entityId: HOME,
+      householdId: HOME,
+    });
   });
 
   it('decides again from fresh facts when someone joined just before dissolving', async () => {
@@ -141,10 +167,19 @@ describe('IdentityManager — Leave Household (uc-08, FR-1.18, OQ-107)', () => {
 describe('IdentityManager — Change Member Role (uc-09, FR-1.12)', () => {
   it('sets an Admin/Member/Viewer role, audited', async () => {
     const { deps, households } = fakeDeps();
+    const logs = captureLogs();
 
     await createIdentityManager(deps).changeMemberRole(CONTEXT, HOME, BEN_ID, 'Admin');
+    logs.stop();
 
     expect(households.updateRole).toHaveBeenCalledWith(HOME, BEN_ID, 'Admin');
+    expectAudited(logs.events, {
+      action: 'ChangeMemberRole',
+      actorId: ANA.id,
+      entityType: 'User',
+      entityId: BEN_ID,
+      householdId: HOME,
+    });
   });
 
   it('never touches the Owner\'s role, and answers 409 when it changed meanwhile', async () => {
@@ -172,7 +207,13 @@ describe('IdentityManager — Transfer Ownership (uc-10, FR-1.20)', () => {
     expect(authorization.authorize)
       .toHaveBeenCalledWith(ANA.id, HOME, { action: 'household.transferOwnership' });
     expect(households.swapOwner).toHaveBeenCalledWith(HOME, ANA.id, BEN_ID);
-    expect(logs.events).toContainEqual(expect.objectContaining({ message: 'TransferOwnership' }));
+    expectAudited(logs.events, {
+      action: 'TransferOwnership',
+      actorId: ANA.id,
+      entityType: 'User',
+      entityId: BEN_ID,
+      householdId: HOME,
+    });
   });
 
   it('does nothing when transferring to oneself', async () => {

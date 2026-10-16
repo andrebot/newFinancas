@@ -4,6 +4,7 @@ import { createIdentityManager } from '../../../../src/managers/identity';
 import {
   ANA, fakeDeps, HOUSEHOLD, MEMBER, NOW, SESSION,
 } from './fakes';
+import { expectAudited } from './audit';
 
 const ACTOR = { userId: ANA.id, sessionId: SESSION.id, systemRole: 'USER' as const };
 const CORRELATION_ID = '0199c5a0-0000-7000-8000-0000000000cc';
@@ -28,9 +29,13 @@ describe('IdentityManager — Create Household (uc-01, FR-1.4)', () => {
       { householdId: HOUSEHOLD.id, createdByUserId: ANA.id, language: 'pt-BR' },
       CORRELATION_ID,
     );
-    expect(logs.events).toContainEqual(expect.objectContaining({
-      level: 'audit', message: 'CreateHousehold', householdId: HOUSEHOLD.id,
-    }));
+    expectAudited(logs.events, {
+      action: 'CreateHousehold',
+      actorId: ANA.id,
+      entityType: 'Household',
+      entityId: HOUSEHOLD.id,
+      householdId: HOUSEHOLD.id,
+    });
   });
 
   it('answers 401 when the creator\'s account is gone, creating nothing', async () => {
@@ -62,7 +67,13 @@ describe('IdentityManager — households', () => {
     expect(authorization.authorize)
       .toHaveBeenCalledWith(ANA.id, HOUSEHOLD.id, { action: 'household.delete' });
     expect(households.delete).toHaveBeenCalledWith(HOUSEHOLD.id);
-    expect(logs.events).toContainEqual(expect.objectContaining({ message: 'DeleteHousehold' }));
+    expectAudited(logs.events, {
+      action: 'DeleteHousehold',
+      actorId: ANA.id,
+      entityType: 'Household',
+      entityId: HOUSEHOLD.id,
+      householdId: HOUSEHOLD.id,
+    });
   });
 
   it.each([

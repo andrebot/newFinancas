@@ -72,6 +72,19 @@ describe('validate', () => {
     expect(await response.json()).toEqual(VALID_GOAL);
   });
 
+  it('never coerces a JSON body the way it coerces a query string', async () => {
+    const response = await buildApp().request('/goals', {
+      method: 'POST',
+      body: JSON.stringify({ ...VALID_GOAL, targetAmount: '500000' }),
+      headers: { 'content-type': 'application/json' },
+    });
+
+    expect(response.status).toBe(422);
+    expect(await response.json()).toMatchObject({
+      error: { details: [{ field: 'targetAmount', code: 'field.invalid_type' }] },
+    });
+  });
+
   it('rejects an invalid JSON body with the contract error envelope', async () => {
     const response = await buildApp().request('/goals', {
       method: 'POST',

@@ -45,6 +45,7 @@ describe('log files', () => {
   it('keeps only this process\'s daily files, oldest first', () => {
     const names = [
       'api-2026-10-09.log', 'seed-2026-10-09.log', 'api-2026-10-08.log', '.x-audit.json', 'api.txt',
+      'api-2026-10-07.log.gz',
     ];
 
     expect(logFilesFor(names, 'api'))

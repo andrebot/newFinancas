@@ -4,6 +4,7 @@ import { createIdentityManager } from '../../../../src/managers/identity';
 import {
   ANA, fakeDeps, HOUSEHOLD, RECEIVED, SESSION,
 } from './fakes';
+import { expectAudited } from './audit';
 
 const ACTOR = { userId: ANA.id, sessionId: SESSION.id, systemRole: 'USER' as const };
 const CONTEXT = { correlationId: 'c1', actor: ACTOR };
@@ -26,13 +27,17 @@ describe('IdentityManager — View / Edit User (uc-13, FR-1.21)', () => {
     const logs = captureLogs();
 
     await createIdentityManager(deps)
-      .editProfile(CONTEXT, { firstName: ' Ana Paula ', preferences: { theme: 'light' } });
+      .editProfile(CONTEXT, {
+        firstName: ' Ana Paula ', lastName: ' Lima ', preferences: { theme: 'light' },
+      });
     logs.stop();
 
-    expect(users.update).toHaveBeenCalledWith(ANA.id, { firstName: 'Ana Paula', theme: 'light' });
-    expect(logs.events).toContainEqual(expect.objectContaining({
-      level: 'audit', message: 'EditUser', entityId: ANA.id,
-    }));
+    expect(users.update).toHaveBeenCalledWith(ANA.id, {
+      firstName: 'Ana Paula', lastName: 'Lima', theme: 'light',
+    });
+    expectAudited(logs.events, {
+      action: 'EditUser', actorId: ANA.id, entityType: 'User', entityId: ANA.id, householdId: null,
+    });
   });
 
   it('treats an empty edit as a read, and answers 401 when the account is gone', async () => {

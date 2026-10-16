@@ -81,12 +81,18 @@ describe('createAuditSink', () => {
    *
    * @param insert - The audit insert.
    * @param onGiveUp - Give-up callback.
+   * @param level - The logger's own level (as LOG_LEVEL sets it).
    * @returns The logger.
    */
-  const loggerWith = (insert: () => Promise<unknown>, onGiveUp = vi.fn()) => winston.createLogger({
+  const loggerWith = (
+    insert: () => Promise<unknown>,
+    onGiveUp = vi.fn(),
+    level = 'info',
+  ) => winston.createLogger({
     levels: {
       error: 0, warn: 1, audit: 2, info: 3,
     },
+    level,
     transports: [createAuditSink({
       insert, delaysMs: [], sleep: async () => {}, onGiveUp,
     })],
@@ -110,5 +116,42 @@ describe('createAuditSink', () => {
     loggerWith(failing, onGiveUp).log(EVENT);
 
     await vi.waitFor(() => expect(onGiveUp).toHaveBeenCalledWith(RECORD));
+  });
+
+  it('stores every audit event it receives, not only the first', async () => {
+    const insert = vi.fn().mockResolvedValue(true);
+    const logger = loggerWith(insert);
+    const second = { ...EVENT, auditId: '0199c5a0-0000-7000-8000-0000000000a2', entityId: 'b2' };
+
+    logger.log(EVENT);
+    logger.log({ level: 'info', message: 'plain event' });
+    logger.log(second);
+    await vi.waitFor(() => expect(insert).toHaveBeenCalledTimes(2));
+
+    expect(insert.mock.calls).toEqual([
+      [RECORD],
+      [{ ...RECORD, id: second.auditId, entityId: 'b2' }],
+    ]);
+  });
+
+  it('reports nothing for a record it stored', async () => {
+    const insert = vi.fn().mockResolvedValue(true);
+    const onGiveUp = vi.fn();
+
+    loggerWith(insert, onGiveUp).log(EVENT);
+    await vi.waitFor(() => expect(insert).toHaveBeenCalled());
+    await new Promise((resolve) => {
+      setImmediate(resolve);
+    });
+
+    expect(onGiveUp).not.toHaveBeenCalled();
+  });
+
+  it('stores audit events whatever level the logger runs at (LOG_LEVEL=warn)', async () => {
+    const insert = vi.fn().mockResolvedValue(true);
+
+    loggerWith(insert, vi.fn(), 'warn').log(EVENT);
+
+    await vi.waitFor(() => expect(insert).toHaveBeenCalledWith(RECORD));
   });
 });

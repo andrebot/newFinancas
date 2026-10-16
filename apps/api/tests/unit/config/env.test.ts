@@ -58,6 +58,8 @@ describe('loadEnv', () => {
 
   it.each([
     ['a non-postgres URL', 'mysql://u:p@localhost/db'],
+    ['a scheme ending in postgres', 'xpostgres://u:p@localhost/db'],
+    ['a scheme starting with postgres', 'postgresx://u:p@localhost/db'],
     ['a non-URL value', 'not a url'],
   ])('rejects %s as DATABASE_URL', (_case, value) => {
     expect(() => loadEnv({ DATABASE_URL: value, ...SECRETS })).toThrow(/DATABASE_URL/);
@@ -67,7 +69,16 @@ describe('loadEnv', () => {
     expect(() => loadEnv({ PORT: port, DATABASE_URL, ...SECRETS })).toThrow(/PORT/);
   });
 
-  it.each(['not a url', 'ftp://example.com'])('rejects WEB_APP_URL=%s', (url) => {
+  it.each([
+    ['plain http', 'http://web.local:8080', 'http://web.local:8080'],
+    ['trailing slashes, all removed', 'https://example.com///', 'https://example.com'],
+  ])('accepts WEB_APP_URL with %s', (_case, url, expected) => {
+    expect(loadEnv({ DATABASE_URL, WEB_APP_URL: url, ...SECRETS }).webAppUrl).toBe(expected);
+  });
+
+  it.each([
+    'not a url', 'ftp://example.com', 'xhttps://example.com', 'httpsx://example.com',
+  ])('rejects WEB_APP_URL=%s', (url) => {
     expect(() => loadEnv({ DATABASE_URL, WEB_APP_URL: url, ...SECRETS })).toThrow(/WEB_APP_URL/);
   });
 

@@ -12,6 +12,21 @@ const T0 = new Date('2026-10-08T12:00:00Z');
 const CLAIMS = { userId: 'user-1', sessionId: 'session-1', systemRole: 'USER' } as const;
 const after = (seconds: number) => new Date(T0.getTime() + seconds * 1000);
 
+/**
+ * Signs an arbitrary payload with the real key, issuer and algorithm — a token
+ * that passes every signature check but may carry the wrong claim types.
+ *
+ * @param payload - The claims, as-is.
+ * @param audience - The audience to issue it for.
+ * @returns The signed token.
+ */
+const signRaw = (payload: Record<string, unknown>, audience: string) => new SignJWT(payload)
+  .setProtectedHeader({ alg: 'HS256' })
+  .setIssuer(authentication.accessToken.issuer)
+  .setAudience(audience)
+  .setExpirationTime(Math.floor(T0.getTime() / 1000) + 60)
+  .sign(KEY);
+
 describe('access tokens (JWT, HS256)', () => {
   it('verify within 15 minutes and return the user, session and system role', async () => {
     const token = await signAccessToken(KEY, CLAIMS, T0);
@@ -69,6 +84,15 @@ describe('access tokens (JWT, HS256)', () => {
     expect(await verifyAccessToken(KEY, unsigned, T0)).toBeUndefined();
     expect(await verifyAccessToken(KEY, 'garbage', T0)).toBeUndefined();
   });
+
+  it('are rejected when validly signed but with a non-string user id', async () => {
+    const token = await signRaw(
+      { sub: 42, sid: 'session-1', role: 'USER' },
+      authentication.accessToken.audience,
+    );
+
+    expect(await verifyAccessToken(KEY, token, T0)).toBeUndefined();
+  });
 });
 
 describe('MFA challenge tokens (JWT, HS256, OQ-145)', () => {
@@ -108,6 +132,12 @@ describe('MFA challenge tokens (JWT, HS256, OQ-145)', () => {
     expect(await verifyChallengeToken(OTHER_KEY, token, T0)).toBeUndefined();
     expect(await verifyChallengeToken(KEY, noEmail, T0)).toBeUndefined();
     expect(await verifyChallengeToken(KEY, 'garbage', T0)).toBeUndefined();
+  });
+
+  it('are rejected when validly signed but with a non-string user id', async () => {
+    const token = await signRaw({ sub: 42, email: 'ana@example.com' }, 'financas-mfa-challenge');
+
+    expect(await verifyChallengeToken(KEY, token, T0)).toBeUndefined();
   });
 });
 
