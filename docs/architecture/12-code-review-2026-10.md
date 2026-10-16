@@ -4,8 +4,8 @@ A review of everything built so far (slice 1: identity backend, the web
 kit, Flows, Experiences and App Shell, the shared packages), asked for by
 the stakeholder after task 66 (`I7`). Coverage stays at 100%; the question
 is whether the tests actually check the logic and its edge cases.
-**Status: in progress — phase 1, step 1 (backend) fixed (PR #72); step 2
-(web app and packages) run and triaged, fixes pending.** Work happens on the `review/slice-1` branch, cut from
+**Status: in progress — phase 1 done: backend fixed (PR #72), web app and
+packages fixed and verified; phase 2 (Playwright) next.** Work happens on the `review/slice-1` branch, cut from
 `task/66-frontend-backend-identity`.
 
 ## Plan
@@ -235,7 +235,7 @@ mostly styling.
 
 | # | Where | Survivors | Severity | What is untested / proposed fix |
 |---|---|---|---|---|
-| W1 | `manageProfile/api.ts`, `manageHousehold/api.ts` — RTK Query `providesTags` / `invalidatesTags` | 14 | **High** | Cache refreshes are never checked: accepting an invitation could leave the household list stale, a member change could leave the members list stale. Fix: Experience tests that perform the mutation and assert the dependent query is refetched. |
+| W1 | `manageProfile/api.ts:115` — `declineInvitation`'s `invalidatesTags` | 2 | **High** | Declining an invitation is never tested at the Experience, so the invitations list could stay stale. (On a closer look the other 12 tag mutants are equivalent: `addTagTypes` doesn't affect invalidation at runtime, nothing invalidates `'Me'`, and `membersTag` builds both the provided and the invalidated tag, so emptying it keeps them matching. Accept and the member changes are already asserted to refetch.) Fix: decline through the Experience and assert the refetch. |
 | W2 | `ManageProfileExperience.tsx:178,188` | 2 | **High** | Picking a language could send `{ preferences: {} }`, and the "couldn't save" toast could show on success. Fix: assert the request body for language (theme is covered) and no toast on success. |
 | W3 | `HouseholdSwitcher.tsx:79,94,143`, `ManageProfileExperience.tsx:95`, `respondToInvitation.ts:53` | 7 | Medium | Tests have one household / one invitation, so "the active one" is never told apart: every row could get `aria-current` and the check mark; the profile header and the accept toast could name the first household. Fix: two households / two invitations. |
 | W4 | `Button.tsx:188`, `SelectPanel.tsx:130,175–177`, `useSelectList.ts:126,128`, `useMenuList.ts:96`, `MenuRows.tsx:104,137`, `entries.ts:158` | 22 | Medium | Accessibility state: a plain button could be `aria-disabled`, every option `aria-disabled`; the roving `tabIndex` / active option after arrow keys and the radio grouping of menu rows are unasserted. Fix: assert `aria-disabled` absent, the active option's `tabIndex`/`aria-selected` after ArrowDown, and the radio `group`. |
@@ -244,7 +244,7 @@ mostly styling.
 | W7 | `membershipState.ts:307,341`, `alerts.ts:73`, `Select.tsx:132`, `PendingInvitations.tsx:80` | 7 | Low–medium | List edge cases: revoking one invitation must keep the others; the invite form resets only after an invite; a toast queue that changes but keeps its length must notify; "no results" only when nothing matches; other rows stay usable while one is revoking. |
 | W8 | `utilities/theme.ts:112,113` | 2 | Low–medium | With the `system` theme, an OS theme change while the page is open isn't followed (and the listener isn't removed) — untested. |
 | W9 | `useMaskedInput.ts:88,129` | 4 | Low | Masked-input caret: deleting a separator, and a rejected keystroke keeping the caret. |
-| W10 | Email/name trimming in `RecoveryRequest`, `CredentialEntry`, `InviteMember`, `RegistrationFormEntry` | 7 | Low | Padded input is never typed. The backend trims too, but the client validates and sends. |
+| W10 | Email trimming in `RecoveryRequest`, `CredentialEntry`, `InviteMember`, `RegistrationFormEntry` | 7 | Equivalent (corrected) | The tests do type padded emails; the trims are redundant because an `<input type="email">` already strips surrounding spaces (browser and jsdom alike). The names' trims feed only the password-strength hints. No fix. |
 | W11 | `AuthenticateExperience.tsx:170` | 2 | Low–medium (security) | The reset token is dropped from the URL with `replace: true`, so it doesn't stay in the back history — untested. |
 | W12 | `RespondToInvitation.tsx:42`, `refresh.ts:44`, `baseQuery.ts:117` | 8 | Low | Inviter with only a last name; a refresh answer without an access token; which failures are logged as errors. |
 | P1 | `packages/logging/src/redact.ts:4` | 1 | Low (security) | Keys with `pass` but not `password` (`passphrase`, `newPass`) aren't covered. |
@@ -256,6 +256,28 @@ mostly styling.
 By priority: W1 and W2 (real user-visible bugs would pass), then W3–W6
 (which item is active, accessibility state, route gates, page reloads),
 then the rest.
+
+### Phase 1, step 2 — fixes
+
+All gaps fixed on `review/slice-1-web`, one commit per group; only tests
+changed.
+
+| Commit | Findings |
+|---|---|
+| Review W1–W3 | Decline refetches the invitations; a picked language is sent and saved with no failure toast; the profile header, the switcher's current row and the accept toast follow the active household / answered invitation among several. |
+| Review W4–W6 | No `aria-disabled` on a plain button or an enabled option; roving `tabIndex` in Select and Menu; only radio rows grouped; the household-gated route list pinned; `submitForm` (shared helper in `tests/support`) checks every form prevents the browser's own submit. |
+| Review W7–W12 | Revoke keeps the other invitations; only an invite resets the invite form; the toast queue notifies when only its last shown toast changes; the busy revoke stays enabled; no-results only when empty; the fake colour-scheme query fires only `change`; masked-input edits and repeated rejected keys; the reset token leaves the URL with `REPLACE`; inviter without a first name; refresh answer without an access token; failure log levels. |
+| Review P1–P5 | `passphrase` redacted; a file only containing a backup's name is never pruned; `BACKUP_KEEP=1`; exact docker/psql commands; daily log file name and retention; `LOG_FILE_PREFIX` path parts refused. |
+
+**Verified by a second run (2026-10-16):** 91.3% (5,510 killed, 8 timed
+out, 527 survived), 49 minutes. 69 survivors from the first run are now
+killed and no new survivor appeared. Of the targeted lines, 18 mutants
+remain, all styling or equivalent: the row *highlight* in Menu and Select
+(`active`/`highlighted` props; the keyboard state itself, focus,
+`tabIndex` and `aria-selected`, is now asserted), `count - 1` in the
+masked input (still a change, so equivalent), the `?.` guard in the
+refresh-answer check (a `null` body fails either way) and one row index
+in `SelectPanel.tsx:175` (low; noted, not fixed).
 
 ## Phase 2 — Playwright
 
