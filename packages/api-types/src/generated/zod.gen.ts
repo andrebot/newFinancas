@@ -62,11 +62,11 @@ export const zAuthTokens = z.object({
 });
 
 export const zSession = z.object({
-    id: z.uuid().optional(),
-    deviceInfo: z.string().nullish(),
-    createdAt: z.iso.datetime().optional(),
-    lastUsedAt: z.iso.datetime().optional(),
-    current: z.boolean().optional()
+    id: z.uuid(),
+    deviceInfo: z.string().nullable(),
+    createdAt: z.iso.datetime(),
+    lastUsedAt: z.iso.datetime(),
+    current: z.boolean()
 });
 
 export const zHousehold = z.object({
@@ -84,7 +84,7 @@ export const zMyHousehold = zHousehold.and(z.object({
         'Admin',
         'Member',
         'Viewer'
-    ]).optional()
+    ])
 }));
 
 /**
@@ -92,18 +92,18 @@ export const zMyHousehold = zHousehold.and(z.object({
  *
  */
 export const zReceivedInvitation = z.object({
-    id: z.uuid().optional(),
-    householdId: z.uuid().optional(),
-    householdName: z.string().optional(),
+    id: z.uuid(),
+    householdId: z.uuid(),
+    householdName: z.string(),
     role: z.enum([
         'Admin',
         'Member',
         'Viewer'
-    ]).optional(),
-    invitedByUserId: z.uuid().nullish(),
-    inviterFirstName: z.string().nullish(),
-    inviterLastName: z.string().nullish(),
-    createdAt: z.iso.datetime().optional()
+    ]),
+    invitedByUserId: z.uuid().nullable(),
+    inviterFirstName: z.string().nullable(),
+    inviterLastName: z.string().nullable(),
+    createdAt: z.iso.datetime()
 });
 
 export const zHouseholdMembership = z.object({
@@ -527,12 +527,12 @@ export const zUserPreferences = z.object({
 });
 
 export const zUser = z.object({
-    id: z.uuid().optional(),
-    email: z.email().optional(),
-    firstName: z.string().optional(),
-    lastName: z.string().optional(),
-    createdAt: z.iso.datetime().optional(),
-    preferences: zUserPreferences.optional()
+    id: z.uuid(),
+    email: z.email(),
+    firstName: z.string(),
+    lastName: z.string(),
+    createdAt: z.iso.datetime(),
+    preferences: zUserPreferences
 });
 
 export const zValuationSnapshotInput = z.object({

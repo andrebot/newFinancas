@@ -3531,6 +3531,85 @@ not a hardcoded assumption.
 
 **Task 62 (`X2`) is complete.**
 
+### OQ-159: The Manage Profile Experience (task X3)
+**Confirmed with the stakeholder (Oct 2026):**
+- **One page, as mockup 70 lays it out** (`experiences/manageProfile/
+  ManageProfileExperience.tsx`, route `/profile`): the header (avatar, name,
+  "email · Role of Household" for the active household), Personal info and
+  Preferences, the Security Flow, the invitations, then the Delete Account
+  Flow. A skeleton shows while the profile loads, and a failed load offers a
+  retry. Its endpoints are in `experiences/manageProfile/api.ts`.
+- **Manage Household's households list comes in now, ahead of X4.** The
+  household gate needs it before any household page can open, and Manage
+  Profile needs it for the role and the households owned.
+  `experiences/manageHousehold/api.ts` holds `GET /households` and the
+  shell's `useHouseholds`, and Manage Profile reads it from there. This is the
+  same kind of cross-Experience import as OQ-158's enrollment step. X4 adds
+  the rest to that file.
+- **Manage Profile hands the App Shell** `useIdentity` (`GET /users/me`) and
+  `usePendingInvitationCount` (`GET /users/me/invitations`) through
+  `shellSources.ts`. The profile page reads the same cache, so a saved name
+  shows in the drawer at once. With all three sources provided,
+  `placeholderSources` is gone. `api/sourceState.ts` turns a query hook's
+  flags into a `SourceState`.
+- **Edit Personal Info:** first and last name, neither blank, sent trimmed.
+  The email is shown locked with its note. Save stays off until a name
+  differs from the saved one. A refused save shows in the panel's banner and
+  keeps what was typed. A done save toasts "Profile saved." and the panel
+  starts again from the saved names.
+- **Edit Preferences has no Save.** Each pick is sent at once
+  (`PATCH /users/me {preferences: {theme} | {language}}`). The pick is written
+  into the cached user before the answer arrives, so the shell's
+  `useSavedPreferences` applies it at once, through the same controller as on
+  load. If the API refuses it, the change is undone and an error toast says
+  so. Names are not written early, so a refused save never resets the form.
+  - The theme is the kit's option-card tiles (K14) with thumbnails. Each
+    thumbnail draws its theme in that theme's own tokens: `data-theme` now
+    scopes either theme on any element (`[data-theme='dark']` joins `:root`
+    in `theme.css`).
+  - The language is the kit's segmented control (K13) rather than the
+    mockup's bordered chips. Language names are in their own language, the
+    same in both catalogs, with the mockup's flags. English is listed first.
+- **Respond to Invitation is one thunk with two entry points**
+  (`respondToInvitation.ts`): the profile's panel, and the bell, through the
+  shell's `invitation.received` route (`invitationRoute`, which reads
+  `params.invitationId`). It accepts or declines, toasts the outcome ("You
+  joined {household}." / "You declined the invitation to {household}.", named
+  from the cached list, with a plain fallback), and reports `done` or
+  `failed`. A 404 or 409 is toasted from the catalog. Either answer fetches
+  the invitations again, and an accept also fetches the households.
+  **Accepting doesn't switch households**: the new one appears in the
+  switcher. The panel is hidden when no invitation is waiting. The inviter is
+  "Someone" once their account is gone (OQ-82). While one answer is out, every
+  other answer waits.
+  - The composition root takes the page's toasts and translator from its
+    providers and hands them to the route (`shellConfigFor`'s third
+    argument).
+- **Delete Account:** the Flow gets the email and the names of the households
+  the user owns. After a done delete, the Experience toasts "Your account was
+  deleted." and dispatches `api/sessionEnded`. The shell's guard then opens
+  Sign In.
+  - **The API's `DELETE /users/me` arrives with task 136 (`M1D`, the
+    Delete User cascade).** Until then the API has no route for it and
+    answers 404 `route.not_found`, which the Flow shows in its banner as
+    "Not found.", the email kept, as OQ-151 places a failure. Task 142
+    (`I13`) checks the deletion end to end.
+- **Contract fix:** `User`, `Session`, `ReceivedInvitation` and
+  `MyHousehold.role` now list the fields the API always sends as required.
+  The generated types had them all optional.
+- **Tests (BDT):** the Experience runs on the real store, with its Flows and
+  standalone Interactions stubbed and only `fetch` faked. The tests' flush
+  waits for an animation frame: the store's default auto-batching tells React
+  about RTK Query's answers on the next frame. Each Interaction, the shell
+  sources, the thunk and the route each have unit tests.
+- **Texts** are in a new `profile` catalog section, in both locales.
+- Two new EBD sequences, Manage Profile Personal Info & Preferences and
+  Respond to Invitation. The notification-routing sequence and the Manage
+  Profile and Manage Household tier diagrams are redrawn through their
+  generator.
+
+**Task 63 (`X3`) is complete.**
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.

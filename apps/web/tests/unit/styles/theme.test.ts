@@ -73,7 +73,10 @@ const categoryTokens = (tokens: Record<string, string>) => Object.keys(tokens)
   .filter((name) => name.startsWith('cat-'))
   .map((name) => name.slice('cat-'.length));
 
-const themes = { dark: tokensOf(':root'), light: tokensOf("[data-theme='light']") };
+const themes = {
+  dark: tokensOf(":root,\n[data-theme='dark']"),
+  light: tokensOf("[data-theme='light']"),
+};
 
 describe('theme.css tokens', () => {
   it('declares the same tokens in the dark and the light theme', () => {

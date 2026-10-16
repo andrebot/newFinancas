@@ -52,12 +52,12 @@ EXPERIENCES = [
      [("Security", ["Password Change", "Session List", "Sign Out All Others"], "security"),
       ("Delete Account", ["Consequences Review", "Type-to-Confirm"], "delete-account")],
      ["Edit Personal Info", "Edit Preferences", "Respond to Invitation"], ["ValidationUtility", "PasswordStrengthUtility", "AlertUtility", "ThemeUtility", "I18nUtility", "FormattingUtility"],
-     "New Experience (Q1): split out of Authenticate (Security) and Manage Household (Edit Profile, Delete Account)."),
+     "New Experience (Q1): split out of Authenticate (Security) and Manage Household (Edit Profile, Delete Account). Hands the App Shell the signed-in user and the pending-invitation count, and owns the invitation.received route (OQ-159). Reads Manage Household's households list for the role and the households owned."),
     ("Manage Household", "manage-household", "Run the household",
      [("Membership Management", ["Member List", "Role Menu", "Invite Member", "Pending Invitations", "Remove Member Confirm", "Transfer Ownership"], "membership-management"),
       ("Household Deletion", ["Consequences Review", "Type-to-Confirm"], "household-deletion")],
      ["Leave Household"], ["ValidationUtility", "AlertUtility", "I18nUtility"],
-     "Switch Household is the App Shell's own — its household switcher sets the active household and resets the API cache, no endpoint (OQ-156); 'Create household' there starts Onboard (Q3)."),
+     "Switch Household is the App Shell's own — its household switcher sets the active household and resets the API cache, no endpoint (OQ-156); 'Create household' there starts Onboard (Q3). Its households list (GET /households) feeds the shell's gate and switcher, brought in with X3 (OQ-159)."),
     ("Account Setup", "account-setup", "Configure the containers and rules everything else runs on",
      [("Account & Card Management", ["Account Form", "Card Entry with Live Preview", "Archive Confirm"], "account-card-management"),
       ("Category Management", ["Category Card", "Icon & Colour Picker", "Inline Subcategory Entry", "Archive Confirm"], "category-management"),
@@ -476,6 +476,64 @@ end
 """, ["Moved from Manage Household (Q1).",
         "Ownership Check folded into Consequences Review as a note (mockup 70): nothing blocks the deletion — FR-1.18's succession runs server-side (OQ-151).",
         "The danger zone is the kit's DangerZone (K34 family), shared with Household Deletion; the type-to-confirm is K27 (OQ-143)."]),
+    ("manage-profile-personal-info-preferences", "Manage Profile — Personal Info & Preferences", f"{R('GET /users/me')}, {R('PATCH /users/me')}. Standalone Edit Personal Info and Edit Preferences, mockup 70 (OQ-159).",
+     [("PI", "Edit Personal Info"), ("EP", "Edit Preferences"), EXP("Manage Profile"), ("SHELL", "App Shell"), API],
+     """
+EXP->>API: GET /users/me (cached — the shell's drawer reads the same cache)
+API-->>EXP: user + preferences
+EXP-->>PI: render saved names + locked email (Save off until a name changes)
+EXP-->>EP: render theme tiles + language switch
+alt edit names
+    User->>PI: type, Save
+    PI->>EXP: emit save {firstName, lastName} (trimmed, neither blank)
+    EXP->>API: PATCH /users/me {firstName, lastName}
+    alt failure (network, 422)
+        API-->>EXP: error code
+        EXP-->>PI: banner, typing kept
+    else ok
+        API-->>EXP: user
+        EXP-->>PI: cache replaced → panel starts again from the saved names, toast 'Profile saved.'
+    end
+else pick a theme or language (no Save)
+    User->>EP: pick
+    EP->>EXP: emit theme / language
+    EXP-->>SHELL: cached user changed at once → ThemeUtility / I18nUtility apply it
+    EXP->>API: PATCH /users/me {preferences: {theme} or {language}}
+    alt failure
+        API-->>EXP: error code
+        EXP-->>SHELL: change undone → previous theme / language back, error toast
+    else ok
+        API-->>EXP: user (replaces the cache)
+    end
+end
+""", ["The shell applies saved preferences through the page's one theme and locale controller (useSavedPreferences, OQ-156); Manage Profile never calls ThemeUtility itself.",
+        "Names wait for the answer, so a refused save keeps what is typed (OQ-159)."]),
+    ("manage-profile-respond-to-invitation", "Manage Profile — Respond to Invitation", f"{R('GET /users/me/invitations')}, {R('POST /invitations/:invitationId/accept|decline')}. From the profile's panel or the bell (OQ-159).",
+     [("RI", "Respond to Invitation"), EXP("Manage Profile"), ("SHELL", "App Shell"), API],
+     """
+EXP->>API: GET /users/me/invitations (cached — the shell's switcher counts it)
+API-->>EXP: pending invitations (household, inviter or 'Someone', role)
+opt one or more pending
+    EXP-->>RI: render the panel
+end
+alt from the profile
+    User->>RI: Accept / Decline
+    RI->>EXP: emit answer {invitationId, accept|decline}
+    EXP-->>RI: that button spins, every other answer waits
+else from the bell
+    SHELL->>EXP: route invitation.received {invitationId, accept|decline}
+end
+EXP->>API: POST /invitations/:invitationId/accept (or /decline)
+alt failure (404 invitation.not_found, 409 invitation.not_pending, network)
+    API-->>EXP: error code
+    EXP-->>SHELL: outcome failed — error toast, the bell keeps the notification
+else ok
+    API-->>EXP: 200
+    EXP-->>SHELL: outcome done — toast 'You joined …' / '… declined', the bell dismisses it
+end
+EXP->>API: GET /users/me/invitations again (+ GET /households after an accept: the new one shows in the switcher)
+""", ["One thunk serves both entry points, so the request and its toast live in one place.",
+        "Accepting never switches households; the user switches when they want to (OQ-159)."]),
     ("manage-household-membership-management", "Manage Household — Membership Management", f"{R('GET /households/:id/members')}, {R('GET/POST/DELETE /households/:id/invitations…')}, {R('PATCH /households/:id/members/:userId/role')}, {R('DELETE /households/:id/members/:userId')}, {R('POST /households/:id/transfer-ownership')}. Mockup 60 (OQ-155).",
      [("ML", "Member List"), ("RM", "Role Menu"), ("RC", "Remove Member Confirm"), ("TO", "Transfer Ownership"), ("IM", "Invite Member"), ("PI", "Pending Invitations"), FLOW("Membership Management"), EXP("Manage Household"), API],
      """
@@ -831,8 +889,9 @@ SHELL->>API: POST /notifications/seen {ids shown} (OQ-105)
 alt invitation.received — Accept
     User->>BELL: Accept
     BELL->>SHELL: emit action {type: invitation.received, accept, params}
-    SHELL->>MP: route (routing config) → Respond to Invitation
+    SHELL->>MP: route (routing config) → Respond to Invitation (OQ-159)
     MP->>API: POST /invitations/:invitationId/accept
+    MP-->>SHELL: done / failed (Manage Profile toasts either)
 else holding.matured — Archive holding
     User->>BELL: Archive holding
     BELL->>SHELL: emit action {type: holding.matured, archive, params}

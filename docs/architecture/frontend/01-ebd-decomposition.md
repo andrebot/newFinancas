@@ -83,19 +83,20 @@ Diagram: `docs/design/diagrams/ebd-tiers/app-shell.html`; sequence:
 
 ### Manage Profile
 
-**Purpose:** Look after my own account. New Experience (Q1): split out of Authenticate (Security) and Manage Household (Edit Profile, Delete Account).
+**Purpose:** Look after my own account. New Experience (Q1): split out of Authenticate (Security) and Manage Household (Edit Profile, Delete Account). Built in X3 (OQ-159): `experiences/manageProfile/`. It hands the App Shell the signed-in user and the pending-invitation count, owns the `invitation.received` route, and reads Manage Household's households list for the user's role and the households they own. A picked theme or language shows at once through the shell and is undone if the save fails.
 
 | Flow | Interactions | Sequence |
 |---|---|---|
 | Security | Password Change, Session List, Sign Out All Others (OQ-154) | `docs/design/diagrams/ebd-sequences/manage-profile-security.html` |
 | Delete Account | Consequences Review (with the ownership note — OQ-151), Type-to-Confirm | `docs/design/diagrams/ebd-sequences/manage-profile-delete-account.html` |
-| *(standalone)* | Edit Personal Info, Edit Preferences, Respond to Invitation | — |
+| *(standalone)* | Edit Personal Info, Edit Preferences (OQ-159) | `docs/design/diagrams/ebd-sequences/manage-profile-personal-info-preferences.html` |
+| *(standalone)* | Respond to Invitation — from the profile or the bell (OQ-159) | `docs/design/diagrams/ebd-sequences/manage-profile-respond-to-invitation.html` |
 
 **Utilities:** ValidationUtility, PasswordStrengthUtility, AlertUtility, ThemeUtility, I18nUtility, FormattingUtility (device names — OQ-154). Tier diagram: `docs/design/diagrams/ebd-tiers/manage-profile.html`.
 
 ### Manage Household
 
-**Purpose:** Run the household. Switch Household is the App Shell's own — its household switcher sets the active household and resets the API cache, no endpoint (OQ-156); 'Create household' there starts Onboard (Q3).
+**Purpose:** Run the household. Its households list (`GET /households`, `experiences/manageHousehold/api.ts`) feeds the App Shell's gate and switcher; it was brought in with X3 (OQ-159). Switch Household is the App Shell's own — its household switcher sets the active household and resets the API cache, no endpoint (OQ-156); 'Create household' there starts Onboard (Q3).
 
 | Flow | Interactions | Sequence |
 |---|---|---|

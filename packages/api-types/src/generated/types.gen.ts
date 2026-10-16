@@ -104,23 +104,23 @@ export type AuthTokens = {
 };
 
 export type User = {
-    id?: string;
-    email?: string;
-    firstName?: string;
-    lastName?: string;
-    createdAt?: string;
-    preferences?: UserPreferences;
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    createdAt: string;
+    preferences: UserPreferences;
 };
 
 export type Session = {
-    id?: string;
-    deviceInfo?: string | null;
-    createdAt?: string;
-    lastUsedAt?: string;
+    id: string;
+    deviceInfo: string | null;
+    createdAt: string;
+    lastUsedAt: string;
     /**
      * True for the session making this request (OQ-106) — the device the user is on
      */
-    current?: boolean;
+    current: boolean;
 };
 
 export type Household = {
@@ -142,7 +142,7 @@ export type HouseholdInvitation = Invitation & {
  * A household the current user belongs to, with their role in it (OQ-116).
  */
 export type MyHousehold = Household & {
-    role?: 'Owner' | 'Admin' | 'Member' | 'Viewer';
+    role: 'Owner' | 'Admin' | 'Member' | 'Viewer';
 };
 
 /**
@@ -150,14 +150,14 @@ export type MyHousehold = Household & {
  *
  */
 export type ReceivedInvitation = {
-    id?: string;
-    householdId?: string;
-    householdName?: string;
-    role?: 'Admin' | 'Member' | 'Viewer';
-    invitedByUserId?: string | null;
-    inviterFirstName?: string | null;
-    inviterLastName?: string | null;
-    createdAt?: string;
+    id: string;
+    householdId: string;
+    householdName: string;
+    role: 'Admin' | 'Member' | 'Viewer';
+    invitedByUserId: string | null;
+    inviterFirstName: string | null;
+    inviterLastName: string | null;
+    createdAt: string;
 };
 
 export type HouseholdMembership = {

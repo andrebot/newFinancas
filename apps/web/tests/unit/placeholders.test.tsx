@@ -1,7 +1,7 @@
 import { screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import {
-  ComingSoon, placeholderActions, placeholderPages, placeholderSources,
+  ComingSoon, placeholderActions, placeholderPages,
 } from '../../src/placeholders';
 import { ROUTES } from '../../src/shell/routes';
 import { renderInLocale } from '../support/renderInLocale';
@@ -20,12 +20,6 @@ describe('ComingSoon', () => {
 describe('placeholders', () => {
   it('stand in for every page', () => {
     expect(Object.keys(placeholderPages).sort()).toEqual(ROUTES.map((route) => route.id).sort());
-  });
-
-  it('never load data', () => {
-    expect(placeholderSources.useIdentity()).toEqual({ status: 'loading' });
-    expect(placeholderSources.useHouseholds()).toEqual({ status: 'loading' });
-    expect(placeholderSources.usePendingInvitationCount()).toBe(0);
   });
 
   it('export nothing', () => {

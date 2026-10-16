@@ -3,7 +3,8 @@
  *
  * Every colour in the app is a token. `:root` holds the dark theme (the
  * default); `[data-theme="light"]` on <html> swaps in the light one, so no
- * component styles per theme. Tailwind's default palette is removed: only
+ * component styles per theme. Either attribute also works on any element, to
+ * draw one theme inside the other (Edit Preferences' thumbnails, OQ-159). Tailwind's default palette is removed: only
  * the utilities mapped below exist (`bg-card`, `text-ink`, `bg-mint/15`,
  * `text-cat-teal`, …), so a non-token colour fails to compile.
  *
@@ -17,7 +18,8 @@
 @import 'tailwindcss';
 @import './typography.css';
 
-:root {
+:root,
+[data-theme='dark'] {
   color-scheme: dark;
 
   --c-bg: #0C100F;
