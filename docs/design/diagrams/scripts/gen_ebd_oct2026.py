@@ -39,7 +39,7 @@ EXPERIENCES = [
      [("Sign In", ["Credential Entry", "MFA Code Entry", "Backup Code Entry"], "sign-in"),
       ("Account Recovery", ["Recovery Request", "New Password Entry", "Reset Complete"], "account-recovery")],
      ["Sign Out"], ["ValidationUtility", "PasswordStrengthUtility", "AlertUtility", "I18nUtility"],
-     "Security Maintenance moved to Manage Profile (Q1). 'Remember me' removed (OQ-62). Sign In resumes an unconfirmed MFA enrollment by hosting Onboard's MFA Enrollment Flow (OQ-157). Sign Out is the App Shell drawer's button, handed Authenticate's handler (OQ-156)."),
+     "Security Maintenance moved to Manage Profile (Q1). 'Remember me' removed (OQ-62). Sign In resumes an unconfirmed MFA enrollment by hosting Onboard's MFA enrollment step (OQ-157, OQ-158). Sign Out is the App Shell drawer's button, handed Authenticate's handler (OQ-156)."),
     ("Onboard", "onboard", "Set up a household from nothing",
      [("Registration", ["Registration Form Entry"], "registration"),
       ("MFA Enrollment", ["MFA Method Selection", "MFA Setup Verification", "Backup Codes Acknowledgement"], "mfa-enrollment"),
@@ -47,7 +47,7 @@ EXPERIENCES = [
       ("Guided Setup", ["Wizard Navigation", "Setup Complete Summary"], "guided-setup")],
      [], ["ValidationUtility", "PasswordStrengthUtility", "AlertUtility", "I18nUtility", "FormattingUtility",
           "ClipboardUtility", "DownloadUtility"],
-     "Guided Setup composes Account Setup's Account & Card (mandatory, no Skip — FR-1.22), Category and Budget Flows. Registration + MFA Enrollment are skipped by configuration when the user is already signed in (additional household, OQ-81)."),
+     "Guided Setup composes Account Setup's Account & Card (mandatory, no Skip — FR-1.22), Category and Budget Flows. Each route opens one stretch: /register runs Registration + MFA Enrollment; /setup (the household gate's) and /households/new (an additional household, OQ-81) run Household Setup, with Cancel only on the latter. The server's state is the progression (OQ-158)."),
     ("Manage Profile", "manage-profile", "Look after my own account",
      [("Security", ["Password Change", "Session List", "Sign Out All Others"], "security"),
       ("Delete Account", ["Consequences Review", "Type-to-Confirm"], "delete-account")],
@@ -213,7 +213,7 @@ API = ("API", "Backend API")
 
 SEQUENCES = [
     ("authenticate-sign-in", "Authenticate — Sign In", f"{R('POST /auth/login')} then {R('POST /auth/mfa/verify')} (or {R('POST /auth/mfa/recover')}); an unconfirmed enrollment resumes through {R('POST /auth/mfa/enrollment/confirm')}. Credentials, then MFA code or backup code (OQ-145, OQ-157).",
-     [("CE", "Credential Entry"), ("MFA", "MFA Code Entry"), ("BC", "Backup Code Entry"), FLOW("Sign In"), ("ENR", "MFA Enrollment<br/>Flow (Onboard's)"), EXP("Authenticate"), ("SHELL", "App Shell"), API],
+     [("CE", "Credential Entry"), ("MFA", "MFA Code Entry"), ("BC", "Backup Code Entry"), FLOW("Sign In"), ("ENR", "MFA Enrollment<br/>step (Onboard's)"), EXP("Authenticate"), ("SHELL", "App Shell"), API],
      """
 User->>CE: email + password, submit
 CE->>FLOW: emit credentialsEntered
@@ -224,20 +224,16 @@ alt 401 auth.invalid_credentials / 429
     EXP-->>FLOW: outcome: failed(code) — I18nUtility renders it
 else step: enroll (MFA never confirmed, OQ-149)
     API-->>EXP: enrollment token, secret, otpauth URI, recovery codes (kept by the Experience)
-    EXP-->>ENR: render in place of Sign In (Onboard's Flow, hosted here — OQ-157)
-    ENR->>EXP: request confirm(code)
-    EXP->>API: POST /auth/mfa/enrollment/confirm
+    EXP-->>ENR: render in place of Sign In (Onboard's step, hosted here — OQ-157, OQ-158)
+    ENR->>API: POST /auth/mfa/enrollment/confirm (the step's own call)
     alt 401 auth.mfa_invalid
-        API-->>EXP: error code
-        EXP-->>ENR: outcome: failed(code) — boxes cleared, retried
+        API-->>ENR: error code — its Flow clears the boxes, retried
     else 401 auth.enrollment_expired
-        API-->>EXP: error code
-        EXP-->>FLOW: toast (AlertUtility), back to Sign In — the password step issues a fresh enrollment
+        API-->>ENR: error code
+        ENR->>EXP: toast (AlertUtility), emit expired → back to Sign In — the password step issues a fresh enrollment
     else ok
-        API-->>EXP: tokens (held, not yet a session)
-        EXP-->>ENR: outcome: ok
-        ENR->>EXP: emit complete (backup codes saved)
-        EXP->>SHELL: startSession(tokens)
+        API-->>ENR: tokens (held, not yet a session)
+        ENR->>SHELL: backup codes saved → startSession(tokens)
     end
 else step: mfa
     API-->>EXP: challengeToken (kept by the Experience)
@@ -303,7 +299,7 @@ else ok
     FLOW->>EXP: emit backToSignIn → Sign In
 end
 """, ["Password ≥ 12 characters (NFR-SEC-4); the confirmation must match (`password.mismatch`, a client-only field code, OQ-147).", "The token lives in the Flow's state from mount until the reset is sent; the Experience reads it from the URL.", "Every session ends, so Reset Complete leads to Sign In rather than signing in."]),
-    ("onboard-registration", "Onboard — Registration", f"{R('POST /auth/register')}. Skipped by configuration when already signed in (OQ-81). One form, one request (OQ-148).",
+    ("onboard-registration", "Onboard — Registration", f"{R('POST /auth/register')} on /register, signed out. One form, one request (OQ-148, OQ-158).",
      [("RF", "Registration Form Entry"), FLOW("Registration"), EXP("Onboard"), API],
      """
 User->>RF: first + last name, email, password + confirm (strength meter, advisory)
@@ -321,10 +317,10 @@ else 201 created
 end
 User->>RF: Sign in instead
 RF->>FLOW: emit signIn
-FLOW->>EXP: emit signIn → Sign In
+FLOW->>EXP: emit signIn → Sign In (keeping where to go back to)
 """, ["First/last name split (OQ-29); names and email are trimmed before sending.", "No terms box: mockup 02's \"I agree to the Terms\" is dropped for v1 (OQ-148).", "The TOTP secret and recovery codes never pass through this Flow; the Experience hands them to MFA Enrollment.", "The strength meter rates the password against the name and email typed."]),
-    ("onboard-mfa-enrollment", "Onboard — MFA Enrollment", "Mandatory, no skip (FR-1.15).",
-     [("MS", "MFA Method Selection"), ("SV", "MFA Setup Verification"), ("BA", "Backup Codes Acknowledgement"), FLOW("MFA Enrollment"), EXP("Onboard"), API],
+    ("onboard-mfa-enrollment", "Onboard — MFA Enrollment", "Mandatory, no skip (FR-1.15). Onboard's MFA enrollment step — also hosted by Authenticate (OQ-157, OQ-158).",
+     [("MS", "MFA Method Selection"), ("SV", "MFA Setup Verification"), ("BA", "Backup Codes Acknowledgement"), FLOW("MFA Enrollment"), EXP("Onboard"), ("SHELL", "App Shell"), API],
      """
 EXP-->>FLOW: state: enrollment (otpauth URI, secret, recovery codes, account email)
 User->>MS: Authenticator app, continue
@@ -338,22 +334,26 @@ alt 401 auth.mfa_invalid / 429 / another failure
     API-->>EXP: error code
     EXP-->>FLOW: outcome: failed(code)
     FLOW-->>SV: remount (code cleared), reason in the banner
-else 200 tokens (signed in)
-    API-->>EXP: access + refresh tokens (kept by the Experience)
+else 401 auth.enrollment_expired
+    API-->>EXP: error code
+    EXP->>EXP: toast (AlertUtility) → Sign In, whose password step issues a fresh enrollment
+else 200 tokens
+    API-->>EXP: access + refresh tokens (held, not yet a session)
     EXP-->>FLOW: outcome: ok
     FLOW-->>BA: render every recovery code (download / copy all)
     User->>BA: tick 'I've saved these', Continue
     BA->>FLOW: emit acknowledge
-    FLOW->>EXP: emit complete → Household Setup
+    FLOW->>EXP: emit complete
+    EXP->>SHELL: startSession(tokens) — guard → Dashboard, no household → gate → /setup
 end
 User->>SV: back
 SV->>FLOW: emit back → method step (choice kept)
 """, ["Method list is configuration (`mfa.methods`; only the authenticator app in v1).",
         "The enrollment comes from POST /auth/register — or from POST /auth/login when the enrollment was never confirmed (`step: enroll`); the Experience mounts the Flow with it (OQ-149).",
-        "`auth.enrollment_expired` (token past its 15 minutes) is the Experience's to handle: it signs in again for a fresh enrollment and remounts the Flow.",
+        "The session starts only once the codes are saved, so the signed-out guard doesn't take the user away from them (OQ-157, OQ-158).",
         "The QR stays black on white in both themes; the codes are shown this once (FR-1.15)."]),
-    ("onboard-household-setup", "Onboard — Household Setup", f"{R('POST /households')}. Also the entry for an additional household from the switcher.",
-     [("HN", "Household Name Entry"), FLOW("Household Setup"), EXP("Onboard"), API],
+    ("onboard-household-setup", "Onboard — Household Setup", f"{R('POST /households')} on /setup (no household yet) or /households/new (another one, from the switcher) — OQ-158.",
+     [("HN", "Household Name Entry"), FLOW("Household Setup"), EXP("Onboard"), ("SHELL", "App Shell"), API],
      """
 User->>HN: household name, Continue
 HN->>HN: blank → 'Required.' under the field (nothing sent)
@@ -367,16 +367,17 @@ alt 422 / another failure
 else 201 MyHousehold
     API-->>EXP: household + role Owner (default categories seeded via household.created)
     EXP-->>FLOW: outcome: ok (Flow stays busy)
-    EXP->>EXP: advance to Guided Setup (or back to the shell)
+    EXP->>SHELL: switchHousehold(id) — active, remembered, API cache reset
+    EXP->>EXP: open the Dashboard (Guided Setup comes in between with X2G)
 end
-opt reached from the shell (onCancel given)
+opt /households/new (onCancel given)
     User->>HN: Cancel
     HN->>FLOW: emit cancel
-    FLOW->>EXP: emit cancel → back to the shell
+    FLOW->>EXP: emit cancel → Dashboard
 end
 """, ["Default categories arrive with preset icons and colours (OQ-85).",
         "No \"Ideas\" chips: mockup 10's suggestions are dropped; the field starts empty (OQ-150).",
-        "Onboard gives no way out — a new user must create a household; Cancel appears only when the shell mounts the Flow with `onCancel`."]),
+        "/setup gives no way out — a new user must create a household; Cancel appears only on /households/new."]),
     ("onboard-guided-setup", "Onboard — Guided Setup", "Composes Account Setup's Flows as wizard steps; the account step is mandatory.",
      [("WN", "Wizard Navigation"), ("ACF", "Account & Card<br/>Management Flow"), ("CF", "Category<br/>Management Flow"), ("BF", "Budget<br/>Management Flow"), ("SC", "Setup Complete<br/>Summary"), FLOW("Guided Setup"), EXP("Onboard"), API],
      """

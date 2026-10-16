@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Onboard — Household Setup</h1>
-  <p class="subtitle"><span class="route">POST /households</span>. Also the entry for an additional household from the switcher.</p>
+  <p class="subtitle"><span class="route">POST /households</span> on /setup (no household yet) or /households/new (another one, from the switcher) — OQ-158.</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -63,6 +63,7 @@ sequenceDiagram
     participant HN as Household Name Entry
     participant FLOW as Household Setup<br/>Flow
     participant EXP as Onboard<br/>Experience
+    participant SHELL as App Shell
     participant API as Backend API
     User->>HN: household name, Continue
     HN->>HN: blank → 'Required.' under the field (nothing sent)
@@ -76,17 +77,18 @@ sequenceDiagram
     else 201 MyHousehold
         API-->>EXP: household + role Owner (default categories seeded via household.created)
         EXP-->>FLOW: outcome: ok (Flow stays busy)
-        EXP->>EXP: advance to Guided Setup (or back to the shell)
+        EXP->>SHELL: switchHousehold(id) — active, remembered, API cache reset
+        EXP->>EXP: open the Dashboard (Guided Setup comes in between with X2G)
     end
-    opt reached from the shell (onCancel given)
+    opt /households/new (onCancel given)
         User->>HN: Cancel
         HN->>FLOW: emit cancel
-        FLOW->>EXP: emit cancel → back to the shell
+        FLOW->>EXP: emit cancel → Dashboard
     end
     </pre>
   </div>
   <div class="notes">
-<ul><li>Default categories arrive with preset icons and colours (OQ-85).</li><li>No "Ideas" chips: mockup 10's suggestions are dropped; the field starts empty (OQ-150).</li><li>Onboard gives no way out — a new user must create a household; Cancel appears only when the shell mounts the Flow with `onCancel`.</li></ul>
+<ul><li>Default categories arrive with preset icons and colours (OQ-85).</li><li>No "Ideas" chips: mockup 10's suggestions are dropped; the field starts empty (OQ-150).</li><li>/setup gives no way out — a new user must create a household; Cancel appears only on /households/new.</li></ul>
   </div>
   <script>
     mermaid.initialize({

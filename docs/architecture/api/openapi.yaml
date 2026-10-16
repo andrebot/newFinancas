@@ -2399,6 +2399,7 @@ components:
 
     Household:
       type: object
+      required: [id, name, createdAt]
       properties:
         id: { type: string, format: uuid }
         name: { type: string }

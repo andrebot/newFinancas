@@ -15,7 +15,8 @@ import { useMfaEnrollmentText } from './mfaEnrollmentText';
 // the account it is for, and the six digits that confirm the app holds it.
 // The code submits by itself on its last digit, or with "Verify & continue".
 // The Flow remounts it after a wrong code, so the boxes start empty. The QR
-// stays black on white in both themes: scanners need the contrast.
+// stays black on white in both themes, and draws its own white quiet zone:
+// scanners need both, and the theme has no white of its own to frame it.
 
 const QR_DARK = '#000000';
 const QR_LIGHT = '#ffffff';
@@ -93,10 +94,11 @@ export function MfaSetupVerification({
       <StepHeading title={text('setup.title')} subtitle={text('setup.subtitle')} />
       <StepAlert message={alert} />
       <div className="flex flex-col items-center gap-5 sm:flex-row">
-        <div className="shrink-0 rounded-2xl bg-white p-3">
+        <div className="shrink-0 overflow-hidden rounded-2xl">
           <QRCodeSVG
             value={otpauthUri}
             size={mfa.qrSizePx}
+            marginSize={mfa.qrQuietZoneModules}
             fgColor={QR_DARK}
             bgColor={QR_LIGHT}
             title={text('setup.qr')}

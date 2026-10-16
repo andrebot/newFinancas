@@ -4,6 +4,7 @@ import {
 } from 'vitest';
 import App, { shellConfigFor } from '../../src/App';
 import { AuthenticateExperience } from '../../src/experiences/authenticate/AuthenticateExperience';
+import { OnboardExperience } from '../../src/experiences/onboard/OnboardExperience';
 import { ComingSoon } from '../../src/placeholders';
 import { selectSession } from '../../src/shell/shellState';
 import { renderInLocale } from '../support/renderInLocale';
@@ -41,6 +42,11 @@ describe('shellConfigFor', () => {
     expect(config.pages.signIn).toEqual(<AuthenticateExperience entry="signIn" />);
     expect(config.pages.forgotPassword).toEqual(<AuthenticateExperience entry="recovery" />);
     expect(config.pages.resetPassword).toEqual(<AuthenticateExperience entry="recovery" />);
+    expect(config.pages.register).toEqual(<OnboardExperience entry="registration" />);
+    expect(config.pages.onboard).toEqual(<OnboardExperience entry="household" />);
+    expect(config.pages.createHousehold).toEqual(
+      <OnboardExperience entry="additionalHousehold" />,
+    );
   });
 
   it('signs out through Authenticate: the server first, then this browser', async () => {

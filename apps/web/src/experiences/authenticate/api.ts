@@ -1,6 +1,5 @@
 import type {
   AuthTokens,
-  ConfirmMfaEnrollmentData,
   ConfirmPasswordResetData,
   LoginData,
   LoginResponse,
@@ -11,9 +10,10 @@ import type {
 import backendApi from '../../api/backendApi';
 
 // The Authenticate Experience's endpoints (X1, OQ-157): two-step sign-in
-// (OQ-145), resuming an unconfirmed MFA enrollment (OQ-149), sign-out and
-// password reset (OQ-147). Every one is a mutation: nothing here is cached,
-// and the session's start or end resets the API cache anyway.
+// (OQ-145), sign-out and password reset (OQ-147). Confirming an MFA
+// enrollment is Onboard's endpoint, used by the step Authenticate hosts
+// (OQ-158). Every one is a mutation: nothing here is cached, and the
+// session's start or end resets the API cache anyway.
 
 /** A token pair; the contract always answers both on these endpoints. */
 type SessionTokens = Required<AuthTokens>;
@@ -38,9 +38,6 @@ export const authenticateApi = backendApi.injectEndpoints({
     recoverWithMfaCode: build.mutation<SessionTokens, RecoverWithMfaCodeData['body']>({
       query: post('/auth/mfa/recover'),
     }),
-    confirmMfaEnrollment: build.mutation<SessionTokens, ConfirmMfaEnrollmentData['body']>({
-      query: post('/auth/mfa/enrollment/confirm'),
-    }),
     logout: build.mutation<void, void>({
       query: () => post('/auth/logout')(),
     }),
@@ -57,7 +54,6 @@ export const {
   useLoginMutation,
   useVerifyMfaMutation,
   useRecoverWithMfaCodeMutation,
-  useConfirmMfaEnrollmentMutation,
   useRequestPasswordResetMutation,
   useConfirmPasswordResetMutation,
 } = authenticateApi;

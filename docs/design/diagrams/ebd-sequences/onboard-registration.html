@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Onboard — Registration</h1>
-  <p class="subtitle"><span class="route">POST /auth/register</span>. Skipped by configuration when already signed in (OQ-81). One form, one request (OQ-148).</p>
+  <p class="subtitle"><span class="route">POST /auth/register</span> on /register, signed out. One form, one request (OQ-148, OQ-158).</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -79,7 +79,7 @@ sequenceDiagram
     end
     User->>RF: Sign in instead
     RF->>FLOW: emit signIn
-    FLOW->>EXP: emit signIn → Sign In
+    FLOW->>EXP: emit signIn → Sign In (keeping where to go back to)
     </pre>
   </div>
   <div class="notes">

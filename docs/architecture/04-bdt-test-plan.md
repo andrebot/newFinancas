@@ -332,7 +332,7 @@ failure). Highest-risk slices:
 | Experience | Integration scenarios |
 |---|---|
 | Authenticate | Sign In success → `startSession`, shell takes over; the challenge token carried to the second factor; each 401/429 code handed to the Flow; `step: 'enroll'` → hosted MFA Enrollment, session only after the codes are saved, `auth.enrollment_expired` → toast + Sign In; reset token read once and stripped from the URL; recovery 400/422; Sign Out ends the session even when the logout fails (OQ-157) |
-| Onboard | full order Registration → MFA → Household → Guided Setup; **signed-in entry skips Registration + MFA by configuration** (additional household); composed Account Setup Flows' calls go through Onboard |
+| Onboard | `/register`: Registration → MFA Enrollment, session started only once the codes are saved, `enrollment_expired` → toast + Sign In; `/setup` and `/households/new`: Household Setup → the new household active (`switchHousehold`) → Dashboard, Cancel only on `/households/new`; every documented answer (201, 409, 422, 401, no answer) (OQ-158); Guided Setup (X2G): composed Account Setup Flows' calls go through Onboard |
 | Manage Profile | sessions list + revoke one / all others; preferences change applies ThemeUtility + I18nUtility immediately; Respond to Invitation (accept/decline) reached from the shell |
 | Manage Household | unified member + invitation list; role menu; Leave Household (Switch Household is the shell's — OQ-156) |
 | Account Setup | section switch keeps state; categories written are visible to Budget Management in the same session; Guided Setup can host its Flows |

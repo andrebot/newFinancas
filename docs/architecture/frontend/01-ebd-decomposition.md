@@ -58,7 +58,7 @@ Diagram: `docs/design/diagrams/ebd-tiers/app-shell.html`; sequence:
 
 ### Authenticate
 
-**Purpose:** Get in, get out — the entry gate. Security Maintenance moved to Manage Profile (Q1). 'Remember me' removed (OQ-62). Sign In resumes an unconfirmed MFA enrollment by hosting Onboard's MFA Enrollment Flow (OQ-157). Sign Out is the App Shell drawer's button, handed Authenticate's handler (OQ-156).
+**Purpose:** Get in, get out — the entry gate. Security Maintenance moved to Manage Profile (Q1). 'Remember me' removed (OQ-62). Sign In resumes an unconfirmed MFA enrollment by hosting Onboard's MFA enrollment step (OQ-157, OQ-158). Sign Out is the App Shell drawer's button, handed Authenticate's handler (OQ-156).
 
 | Flow | Interactions | Sequence |
 |---|---|---|
@@ -70,7 +70,7 @@ Diagram: `docs/design/diagrams/ebd-tiers/app-shell.html`; sequence:
 
 ### Onboard
 
-**Purpose:** Set up a household from nothing. Guided Setup composes Account Setup's Account & Card (mandatory, no Skip — FR-1.22), Category and Budget Flows. Registration + MFA Enrollment are skipped by configuration when the user is already signed in (additional household, OQ-81).
+**Purpose:** Set up a household from nothing. Guided Setup composes Account Setup's Account & Card (mandatory, no Skip — FR-1.22), Category and Budget Flows. Each route opens one stretch: /register runs Registration + MFA Enrollment; /setup (the household gate's) and /households/new (an additional household, OQ-81) run Household Setup, with Cancel only on the latter. The server's state is the progression (OQ-158).
 
 | Flow | Interactions | Sequence |
 |---|---|---|
@@ -182,8 +182,9 @@ Diagram: `docs/design/diagrams/ebd-tiers/app-shell.html`; sequence:
 
 ## Configuration points
 
-Onboard's step list and skip rules (Registration/MFA skipped when signed
-in; account step not skippable); the shell's notification routing table;
+Onboard's step list and skip rules (the route picks the stretch —
+Registration/MFA signed out, Household Setup signed in, OQ-158; account step
+not skippable); the shell's notification routing table;
 the MFA method list; transaction kind groups; the category palette and
 icon set; report types; the payout chart's top-N.
 
@@ -195,8 +196,8 @@ icon set; report types; the payout chart's top-N.
 - *Accept an invitation from the bell* — the inbox emits; the shell
   routes; Manage Profile calls the backend.
 - *New notification string* — catalog only (NFR-I18N-3).
-- *Second household* — Onboard runs with Registration/MFA skipped by
-  configuration; no new Flow.
+- *Second household* — Onboard opens on `/households/new` at Household
+  Setup, with a Cancel; no new Flow (OQ-158).
 
 ---
 

@@ -107,8 +107,13 @@ export const mfa = {
   methods: ['authenticator'],
   /** The setup key (base32 secret) shown in groups of this many characters, for typing by hand. */
   setupKeyGroupSize: 4,
-  /** The QR code's side, in CSS pixels, inside its white tile (mockup 06). */
-  qrSizePx: 126,
+  /** The QR code's side, in CSS pixels, quiet zone included — mockup 06's white tile. */
+  qrSizePx: 150,
+  /**
+   * The white margin the QR code draws around itself, in modules (the QR
+   * standard's quiet zone): scanners need it, whatever the card behind it.
+   */
+  qrQuietZoneModules: 4,
 } as const;
 
 /** Copy buttons (OQ-149): how long "Copied" shows after a copy, in ms. */
