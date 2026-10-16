@@ -6,6 +6,7 @@ import {
   RecoveryRequest, type RecoveryRequestProps,
 } from '../../../../../../../src/experiences/authenticate/flows/accountRecovery/interactions/RecoveryRequest';
 import { renderInLocale } from '../../../../../../support/renderInLocale';
+import submitForm from '../../../../../../support/submitForm';
 
 // Interaction (BDT: unit, display state in, events out): the real kit and
 // translator render; only the Flow's handlers are stand-ins.
@@ -84,7 +85,7 @@ describe('RecoveryRequest', () => {
     const { onSubmit } = renderEntry({ busy: true });
     typeEmail('ana@example.com');
 
-    fireEvent.submit(send().closest('form') as HTMLFormElement);
+    submitForm(send());
 
     expect(send().getAttribute('aria-busy')).toBe('true');
     expect(onSubmit).not.toHaveBeenCalled();

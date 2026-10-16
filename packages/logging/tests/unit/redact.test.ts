@@ -15,6 +15,7 @@ describe('redact', () => {
         mfaCode: '123456', recoveryCode: 'X', apiSecret: 's', ok: 1,
       },
       list: [{ cookie: 'c', keep: true }],
+      passphrase: 'p',
       at,
     })).toEqual({
       email: 'ana@example.com',
@@ -26,6 +27,7 @@ describe('redact', () => {
         mfaCode: REDACTED, recoveryCode: REDACTED, apiSecret: REDACTED, ok: 1,
       },
       list: [{ cookie: REDACTED, keep: true }],
+      passphrase: REDACTED,
       at,
     });
   });

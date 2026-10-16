@@ -28,6 +28,7 @@ describe('readLoggingEnv', () => {
   it.each([
     [{ LOG_LEVEL: 'loud' }, /LOG_LEVEL/],
     [{ LOG_FILE_PREFIX: '../etc' }, /LOG_FILE_PREFIX/],
+    [{ LOG_FILE_PREFIX: 'api/../etc' }, /LOG_FILE_PREFIX/],
   ])('rejects %j', (env, message) => {
     expect(() => readLoggingEnv(env, '/h')).toThrow(message);
   });

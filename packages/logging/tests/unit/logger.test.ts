@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildTransports, captureLogs, createLogger, logger,
 } from '../../src/logger';
+import loggingSettings from '../../src/settings';
 
 describe('the logger', () => {
   it('is silent under Vitest until a test captures it', () => {
@@ -65,6 +66,13 @@ describe('buildTransports', () => {
 
     expect(transports[0]).toBeInstanceOf(winston.transports.Console);
     expect(transports[1]).toBeInstanceOf(DailyRotateFile);
+    // Reconcile finds the daily files by this name; retention keeps them that long.
+    expect((transports[1] as unknown as { options: Record<string, unknown> }).options)
+      .toMatchObject({
+        dirname: logDir,
+        filename: 'api-%DATE%.log',
+        maxFiles: `${loggingSettings.retentionDays}d`,
+      });
     const line = transports[0]?.format?.transform({ level: 'warn', message: 'hi', label: 'x' });
     expect((line as Record<symbol, unknown>)[Symbol.for('message')])
       .toBe(' WARN  [--------] - x: hi');

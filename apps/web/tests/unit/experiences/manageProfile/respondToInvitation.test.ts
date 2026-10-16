@@ -27,6 +27,10 @@ const RIVERA = {
   createdAt: '2026-10-01T12:00:00Z',
 };
 
+const SMITH = {
+  ...RIVERA, id: 'inv-smith', householdId: 'smith', householdName: 'The Smith Household',
+};
+
 /**
  * Toasts that only record what they were asked to show.
  *
@@ -86,7 +90,7 @@ describe('answeredText', () => {
 describe('respondToInvitation', () => {
   it('accepts, toasts the household it joined and fetches the invitations again', async () => {
     const { store, fetchFn, feedback } = setUp({
-      '/users/me/invitations': () => jsonResponse(200, { data: [RIVERA] }),
+      '/users/me/invitations': () => jsonResponse(200, { data: [SMITH, RIVERA] }),
       '/invitations/inv-rivera/accept': () => jsonResponse(200, {
         householdId: 'rivera', role: 'Member',
       }),

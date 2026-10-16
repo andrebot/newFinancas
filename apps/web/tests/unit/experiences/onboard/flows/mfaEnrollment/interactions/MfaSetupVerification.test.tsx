@@ -6,6 +6,7 @@ import {
   groupSetupKey, MfaSetupVerification, type MfaSetupVerificationProps,
 } from '../../../../../../../src/experiences/onboard/flows/mfaEnrollment/interactions/MfaSetupVerification';
 import { renderInLocale } from '../../../../../../support/renderInLocale';
+import submitForm from '../../../../../../support/submitForm';
 
 // Interaction (BDT: unit, display state in, events out): the real kit,
 // translator and QR encoder render; only the Flow's handlers and the
@@ -127,7 +128,7 @@ describe('MfaSetupVerification', () => {
     const { onSubmit } = renderStep();
 
     typeCode('482');
-    fireEvent.submit(verify().closest('form')!);
+    submitForm(verify());
 
     expect(onSubmit).not.toHaveBeenCalled();
   });

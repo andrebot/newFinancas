@@ -149,6 +149,8 @@ describe('Menu', () => {
     await click(trigger());
 
     expect(screen.getByRole('group', { name: 'Papel' }).children).toHaveLength(3);
+    // Only the radio rows are grouped; the actions stand alone.
+    expect(screen.getAllByRole('group')).toHaveLength(1);
     expect(screen.getAllByRole('menuitemradio')).toHaveLength(3);
     expect(screen.getByRole('separator')).toBeDefined();
     expect(screen.getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
@@ -220,6 +222,10 @@ describe('Menu', () => {
 
     await press('ArrowDown');
     await expectFocusOn(() => screen.getByRole('menuitemradio', { name: 'Membro' }));
+    // Roving focus: only the active row is in the tab order.
+    const rows = [...screen.getAllByRole('menuitemradio'), ...screen.getAllByRole('menuitem')];
+    expect(rows.filter((row) => row.tabIndex === 0).map((row) => row.textContent))
+      .toEqual([document.activeElement!.textContent]);
 
     await press('ArrowDown');
     await expectFocusOn(() => screen.getByRole('menuitem', { name: 'Arquivar' }));

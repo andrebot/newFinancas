@@ -185,6 +185,8 @@ describe('membershipState — what a success changes', () => {
     expect(viewOf(next).members.map(({ userId, role }) => `${userId}:${role}`))
       .toEqual(['jane:Owner', 'alex:Admin', 'priya:Admin', 'sam:Member']);
     expect(next.out).toBeUndefined();
+    // Only an invite empties the invite form; a half-typed email survives.
+    expect(next.inviteForm).toBe(0);
   });
 
   it('drops a removed member and closes the confirm', () => {
@@ -203,10 +205,12 @@ describe('membershipState — what a success changes', () => {
       .toEqual(['sam:Owner', 'jane:Admin', 'alex:Admin', 'priya:Viewer']);
   });
 
-  it('drops a revoked invitation', () => {
-    const revoking = started(loaded(), { kind: 'revoke', invitationId: 'morgan' });
+  it('drops the revoked invitation alone', () => {
+    const lee = { ...MORGAN, id: 'lee', email: 'lee@example.com' };
+    const state = loaded({ view: { ...viewOf(loaded()), invitations: [lee, MORGAN] } });
+    const revoking = started(state, { kind: 'revoke', invitationId: 'morgan' });
     const next = afterAction(revoking, { ok: true });
-    expect(viewOf(next).invitations).toEqual([]);
+    expect(viewOf(next).invitations).toEqual([lee]);
   });
 
   it('adds a sent invitation first with the typed email, and empties the form', () => {

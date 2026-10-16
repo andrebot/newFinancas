@@ -26,7 +26,9 @@ describe('routesFor', () => {
       ['signIn', 'register', 'forgotPassword', 'resetPassword'],
     );
     expect(routesFor('signedIn').map((route) => route.id)).toEqual(['onboard', 'createHousehold']);
-    expect(routesFor('household').map((route) => route.id)).toContain('profile');
+    expect(routesFor('household').map((route) => route.id)).toEqual([
+      'dashboard', 'transactions', 'accountSetup', 'investments', 'household', 'profile',
+    ]);
   });
 });
 

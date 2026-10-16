@@ -58,6 +58,8 @@ describe('PendingInvitations', () => {
     renderPanel({ revokingId: 'morgan', locked: true });
     expect(revokeOf('lee@example.com').disabled).toBe(true);
     expect(revokeOf('morgan@example.com').getAttribute('aria-busy')).toBe('true');
+    // The busy one stays focusable (busy, not disabled) so focus isn't lost.
+    expect(revokeOf('morgan@example.com').disabled).toBe(false);
   });
 
   it('shows the last failure and, when there are none, a quiet note without a count', () => {

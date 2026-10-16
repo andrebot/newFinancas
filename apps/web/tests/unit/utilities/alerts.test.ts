@@ -60,6 +60,20 @@ describe('createAlertQueue', () => {
     expect(listener).toHaveBeenCalledOnce();
   });
 
+  it('tells listeners when only the last shown toast changes', () => {
+    const queue = createAlertQueue(2);
+    queue.show({ tone: 'error', message: 'A' });
+    const second = queue.show({ tone: 'error', message: 'B' });
+    queue.show({ tone: 'error', message: 'C' });
+    const listener = vi.fn();
+    queue.subscribe(listener);
+
+    queue.dismiss(second);
+
+    expect(queue.visible().map((alert) => alert.message)).toEqual(['A', 'C']);
+    expect(listener).toHaveBeenCalledOnce();
+  });
+
   it('closes a waiting toast without disturbing the shown ones', () => {
     const queue = createAlertQueue(1);
     queue.show({ tone: 'error', message: 'A' });

@@ -6,6 +6,7 @@ import {
   PasswordChange, type PasswordChangeProps,
 } from '../../../../../../../src/experiences/manageProfile/flows/security/interactions/PasswordChange';
 import { renderInLocale } from '../../../../../../support/renderInLocale';
+import submitForm from '../../../../../../support/submitForm';
 
 // Interaction (BDT: unit, display state in, events out): the real kit,
 // translator and strength estimator (a Utility, not a boundary); only the
@@ -98,7 +99,7 @@ describe('PasswordChange', () => {
     const onSubmit = renderForm({ busy: true });
     typeAll('old-password-1', STRONG, STRONG);
 
-    fireEvent.submit(submitButton().closest('form') as HTMLFormElement);
+    submitForm(submitButton());
 
     expect(onSubmit).not.toHaveBeenCalled();
     expect(submitButton().getAttribute('aria-busy')).toBe('true');

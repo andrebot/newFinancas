@@ -6,6 +6,7 @@ import {
   BackupCodeEntry, type BackupCodeEntryProps,
 } from '../../../../../../../src/experiences/authenticate/flows/signIn/interactions/BackupCodeEntry';
 import { renderInLocale } from '../../../../../../support/renderInLocale';
+import submitForm from '../../../../../../support/submitForm';
 
 // Interaction (BDT: unit, display state in, events out): the real kit and
 // translator render; only the Flow's handlers are stand-ins.
@@ -50,9 +51,9 @@ describe('BackupCodeEntry', () => {
     const { onSubmit } = renderEntry({ busy: true });
     const form = verify().closest('form') as HTMLFormElement;
 
-    fireEvent.submit(form);
+    submitForm(form);
     fireEvent.change(codeInput(), { target: { value: '7HJX21NAQ4KD9WTE' } });
-    fireEvent.submit(form);
+    submitForm(form);
 
     expect(onSubmit).not.toHaveBeenCalled();
   });

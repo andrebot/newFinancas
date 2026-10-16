@@ -106,6 +106,7 @@ describe('Button', () => {
     expect(button.type).toBe('button');
     expect(button.className).toBe(buttonClasses());
     expect(button.hasAttribute('aria-busy')).toBe(false);
+    expect(button.hasAttribute('aria-disabled')).toBe(false);
   });
 
   it('calls the click handler', () => {

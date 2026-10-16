@@ -6,6 +6,7 @@ import {
   HouseholdNameEntry, type HouseholdNameEntryProps,
 } from '../../../../../../../src/experiences/onboard/flows/householdSetup/interactions/HouseholdNameEntry';
 import { renderInLocale } from '../../../../../../support/renderInLocale';
+import submitForm from '../../../../../../support/submitForm';
 
 // Interaction (BDT: unit, display state in, events out): the real kit and
 // translator; only the Flow's handlers are stand-ins.
@@ -76,7 +77,7 @@ describe('HouseholdNameEntry', () => {
     const { onSubmit } = renderEntry({ busy: true });
     typeName('Casa da Praia');
 
-    fireEvent.submit(nameInput().form as HTMLFormElement);
+    submitForm(nameInput());
 
     expect(onSubmit).not.toHaveBeenCalled();
   });

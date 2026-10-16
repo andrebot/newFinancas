@@ -194,12 +194,23 @@ describe('apiBaseQuery', () => {
   it.each([
     ['a server error', jsonResponse(500, envelope('internal.unexpected'))],
     ['an answer that isn’t the envelope', new Response('<html>', { status: 502 })],
+    ['a 4xx that isn’t the envelope', new Response('<html>', { status: 404 })],
   ])('logs %s as an error', async (_, response) => {
     const { queryApi } = harness([response]);
 
     const result = await apiBaseQuery('/things', queryApi, {});
 
     expect(result.error?.code).toBe('internal.unexpected');
+    expect(logs.events)
+      .toEqual([expect.objectContaining({ level: 'error', endpoint: 'getThing' })]);
+  });
+
+  it('logs any 500 as an error, even one carrying a domain code', async () => {
+    const { queryApi } = harness([jsonResponse(500, envelope('household.changed'))]);
+
+    const result = await apiBaseQuery('/things', queryApi, {});
+
+    expect(result.error?.code).toBe('household.changed');
     expect(logs.events)
       .toEqual([expect.objectContaining({ level: 'error', endpoint: 'getThing' })]);
   });

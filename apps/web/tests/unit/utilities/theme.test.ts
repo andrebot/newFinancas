@@ -34,14 +34,15 @@ interface FakeDevice extends ColorSchemeQuery {
  * @returns The fake query.
  */
 const fakeDevice = (light: boolean): FakeDevice => {
+  // A media query only ever fires `change`; a listener on any other event never runs.
   const listeners = new Set<EventListenerOrEventListenerObject>();
   const device = {
     matches: light,
-    addEventListener: (_: string, listener: EventListenerOrEventListenerObject) => {
-      listeners.add(listener);
+    addEventListener: (type: string, listener: EventListenerOrEventListenerObject) => {
+      if (type === 'change') listeners.add(listener);
     },
-    removeEventListener: (_: string, listener: EventListenerOrEventListenerObject) => {
-      listeners.delete(listener);
+    removeEventListener: (type: string, listener: EventListenerOrEventListenerObject) => {
+      if (type === 'change') listeners.delete(listener);
     },
     setLight: (next: boolean) => {
       device.matches = next;

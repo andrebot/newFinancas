@@ -17,6 +17,10 @@ describe('resolveBackupConfig', () => {
       .toEqual({ dir: '/mnt/bk', keep: 7 });
   });
 
+  it('accepts keeping a single backup', () => {
+    expect(resolveBackupConfig({ BACKUP_KEEP: '1' }, '/home/me').keep).toBe(1);
+  });
+
   it.each(['0', '-1', '2.5', 'many'])('rejects BACKUP_KEEP=%s', (keep) => {
     expect(() => resolveBackupConfig({ BACKUP_KEEP: keep }, '/home/me')).toThrow(/BACKUP_KEEP/);
   });

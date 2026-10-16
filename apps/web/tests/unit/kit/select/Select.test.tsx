@@ -148,6 +148,8 @@ describe('Select', () => {
 
     const option = screen.getByRole('option', { name: /Emergency Fund/ });
     expect(option.getAttribute('aria-disabled')).toBe('true');
+    const enabled = screen.getByRole('option', { name: /Nubank/ });
+    expect(enabled.hasAttribute('aria-disabled')).toBe(false);
     const reason = document.getElementById(option.getAttribute('aria-describedby')!);
     expect(reason?.textContent).toBe('Arquivada');
 
@@ -165,6 +167,11 @@ describe('Select', () => {
 
     // From the chosen Main Checking, past the disabled Emergency Fund.
     await press('ArrowDown', screen.getByRole('listbox').parentElement!);
+    // Roving focus: only the active option is in the tab order.
+    const nubank = screen.getByRole('option', { name: /Nubank/ });
+    expect(document.activeElement).toBe(nubank);
+    expect(screen.getAllByRole('option').map((option) => option.tabIndex))
+      .toEqual(screen.getAllByRole('option').map((option) => (option === nubank ? 0 : -1)));
     await press('Enter');
 
     expect(onChange).toHaveBeenCalledExactlyOnceWith('nubank');
@@ -233,6 +240,7 @@ describe('Select', () => {
   it('says so when the search matches nothing', async () => {
     renderSelect({ search: { label: 'Buscar conta', noResults: 'Nada encontrado' } });
     await openList();
+    expect(screen.queryByText('Nada encontrado')).toBeNull();
 
     fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'viagem' } });
 

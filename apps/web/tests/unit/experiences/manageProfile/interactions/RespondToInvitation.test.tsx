@@ -70,6 +70,7 @@ describe('inviterName', () => {
   it('says "Someone" once the inviter’s account is gone', () => {
     expect(inviterName(GONE, translator)).toBe('Someone');
     expect(inviterName({ ...RIVERA, inviterLastName: null }, translator)).toBe('Someone');
+    expect(inviterName({ ...RIVERA, inviterFirstName: null }, translator)).toBe('Someone');
   });
 });
 
