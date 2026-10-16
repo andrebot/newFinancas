@@ -125,3 +125,24 @@ export const toast = {
   /** How many show at once (FU3 AlertUtility, OQ-152); the rest wait their turn. */
   maxVisible: 3,
 } as const;
+
+/** The App Shell (S1, OQ-156): the page addresses and what the shell remembers. */
+export const shell = {
+  /** Where the last active household is remembered, so a reload returns to it. */
+  householdStorageKey: 'financas.household',
+  /** Every page's address. `resetPassword` mirrors the API's `passwordReset.path` (OQ-147). */
+  paths: {
+    signIn: '/sign-in',
+    register: '/register',
+    forgotPassword: '/forgot-password',
+    resetPassword: '/reset-password',
+    onboard: '/setup',
+    createHousehold: '/households/new',
+    dashboard: '/',
+    transactions: '/transactions',
+    accountSetup: '/account-setup',
+    investments: '/investments',
+    household: '/household',
+    profile: '/profile',
+  },
+} as const;

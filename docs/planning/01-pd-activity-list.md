@@ -218,7 +218,7 @@ Log, Notification Inbox.
 X1 Authenticate · X2 Onboard · X3 Manage Profile · X4 Manage Household ·
 X5 Account Setup · X6 Manage Finances · X7 Track Investments ·
 X8 Review Insights · **S1 App Shell** (layout, header + bell, nav drawer +
-switcher, routing table, auth guard, responsive breakpoints).
+switcher, routing table, auth guard, responsive breakpoints — OQ-156).
 
 ## 5. Integration (I) — one per seam that crosses a work-package boundary
 

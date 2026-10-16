@@ -311,7 +311,7 @@ Rendering given props + events emitted on user action, nothing else.
 - **Authenticate** — Credential Entry, MFA Code Entry, Backup Code Entry, Recovery Request, New Password Entry, **Sign Out** (standalone)
 - **Onboard** — Registration Form Entry, MFA Method Selection, MFA Setup Verification, Backup Codes Acknowledgement, Household Name Entry, Wizard Navigation, Setup Complete Summary
 - **Manage Profile** — Password Change, Session List, Sign Out All Others, Ownership Check, Consequences Review, Type-to-Confirm, **Edit Personal Info** (standalone), **Edit Preferences** (standalone), **Respond to Invitation** (standalone)
-- **Manage Household** — Member List, Role Menu, Invite Member, Pending Invitations, Remove Member Confirm, Transfer Ownership, Consequences Review, Type-to-Confirm, **Leave Household** (standalone), **Switch Household** (standalone)
+- **Manage Household** — Member List, Role Menu, Invite Member, Pending Invitations, Remove Member Confirm, Transfer Ownership, Consequences Review, Type-to-Confirm, **Leave Household** (standalone)
 - **Account Setup** — Account Form, Card Entry with Live Preview, Archive Confirm, Category Card, Icon & Colour Picker, Inline Subcategory Entry, Archive Confirm, Budget Form, Claim-Aware Category Picker, Delete Confirm, Goal Form, Goal Progress Card, Exchange-Rate Calculator, Complete / Reopen Confirm
 - **Manage Finances** — Kind Group & Kind Selection, Transaction Entry, Investment Buy Entry, Goal Allocation Entry, Filter Panel, Ledger (lazy, grouped by month/day), Expanded Row, Delete Confirm, Period Bar, Currency Switch, Balance Rail, Budget Rail, Goal Rail
 - **Track Investments** — Net Worth Cards, Payout This Month, Payout Holding Selector, Payout Chart, Allocation Cards, Coming Due, Account Picker, Holdings Table, Goal Allocation Editor, Market Value Entry, Value History Editor, Rate Card, Rate Update Entry, Rate History Editor, **Archive Matured Holding** (standalone)
@@ -334,7 +334,7 @@ failure). Highest-risk slices:
 | Authenticate | Sign In success → shell takes over; each 401 code mapped to the right Interaction; recovery token invalid |
 | Onboard | full order Registration → MFA → Household → Guided Setup; **signed-in entry skips Registration + MFA by configuration** (additional household); composed Account Setup Flows' calls go through Onboard |
 | Manage Profile | sessions list + revoke one / all others; preferences change applies ThemeUtility + I18nUtility immediately; Respond to Invitation (accept/decline) reached from the shell |
-| Manage Household | unified member + invitation list; role menu; Switch Household updates the shell's active household and every Experience re-fetches |
+| Manage Household | unified member + invitation list; role menu; Leave Household (Switch Household is the shell's — OQ-156) |
 | Account Setup | section switch keeps state; categories written are visible to Budget Management in the same session; Guided Setup can host its Flows |
 | Manage Finances | after Record Transaction completes the **Experience** refreshes Browse + Month Overview (no Flow-to-Flow); edit from a ledger row opens Record Transaction pre-filled; 'See in Transactions' arrives with `holdingId` and pre-filters |
 | Track Investments | payout selector refetches only `/reports/payouts`; holdings for the chosen account include projections; Archive Matured Holding from a routed notification |
@@ -347,8 +347,13 @@ real logic: for each notification type (`invitation.received`,
 `holding.matured`) assert the action reaches the owning Experience with
 the notification's params and that the notification is deleted only
 after that Experience reports success; an **unknown type** renders the
-generic fallback and routes nowhere; Switch Household propagates the
-active household; Create household starts Onboard in signed-in mode.
+generic fallback and routes nowhere; Switch Household sets and
+remembers the active household and resets the API cache, so every
+Experience re-fetches (OQ-156); Create household starts Onboard in
+signed-in mode. The guards: a signed-out user reaches only signed-out
+pages and is sent to Sign In with the return path; a signed-in user
+leaves the signed-out pages for that path; no household → Onboard. The
+store is real, the Experiences are stand-ins in the `ShellConfig`.
 
 ### Frontend Utilities
 

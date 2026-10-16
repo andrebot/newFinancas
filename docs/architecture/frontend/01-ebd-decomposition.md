@@ -40,9 +40,17 @@ Hosts the header (logo, **notification bell**), the nav drawer (identity,
 Profile / Sign out) and the active household. It holds no journey state.
 Chrome events are **routed by configuration** to the Experience that owns
 them: `invitation.received` → Manage Profile (Respond to Invitation),
-`holding.matured` → Track Investments (Archive Matured Holding), Switch
-Household → Manage Household, Create household → Onboard. A new
+`holding.matured` → Track Investments (Archive Matured Holding), Pending
+invitations → Manage Profile, Create household → Onboard. Switch Household
+is the shell's own: it sets and remembers the active household and resets
+the API cache, so every Experience fetches again (OQ-156). A new
 notification type needs one routing entry and one catalog string.
+
+Built in S1 (OQ-156, `apps/web/src/shell/`): a routing table with three
+guards (signed-out pages, signed-in pages without chrome, household
+pages inside the chrome), a household gate (no household → Onboard), and a
+`ShellConfig` through which the owning Experiences hand the chrome its data
+as hooks — the shell never calls the backend.
 Diagram: `docs/design/diagrams/ebd-tiers/app-shell.html`; sequence:
 `docs/design/diagrams/ebd-sequences/app-shell-notification-routing.html`.
 
@@ -87,13 +95,13 @@ Diagram: `docs/design/diagrams/ebd-tiers/app-shell.html`; sequence:
 
 ### Manage Household
 
-**Purpose:** Run the household. Switch Household is hosted by the App Shell's household switcher; 'Create household' there starts Onboard (Q3).
+**Purpose:** Run the household. Switch Household is the App Shell's own — its household switcher sets the active household and resets the API cache, no endpoint (OQ-156); 'Create household' there starts Onboard (Q3).
 
 | Flow | Interactions | Sequence |
 |---|---|---|
 | Membership Management | Member List, Role Menu, Invite Member, Pending Invitations, Remove Member Confirm, Transfer Ownership (OQ-155) | `docs/design/diagrams/ebd-sequences/manage-household-membership-management.html` |
 | Household Deletion | Consequences Review, Type-to-Confirm | `docs/design/diagrams/ebd-sequences/manage-household-household-deletion.html` |
-| *(standalone)* | Leave Household, Switch Household | — |
+| *(standalone)* | Leave Household | — |
 
 **Utilities:** ValidationUtility, AlertUtility, I18nUtility. Tier diagram: `docs/design/diagrams/ebd-tiers/manage-household.html`.
 

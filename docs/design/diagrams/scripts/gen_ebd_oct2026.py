@@ -56,8 +56,8 @@ EXPERIENCES = [
     ("Manage Household", "manage-household", "Run the household",
      [("Membership Management", ["Member List", "Role Menu", "Invite Member", "Pending Invitations", "Remove Member Confirm", "Transfer Ownership"], "membership-management"),
       ("Household Deletion", ["Consequences Review", "Type-to-Confirm"], "household-deletion")],
-     ["Leave Household", "Switch Household"], ["ValidationUtility", "AlertUtility", "I18nUtility"],
-     "Switch Household is hosted by the App Shell's household switcher; 'Create household' there starts Onboard (Q3)."),
+     ["Leave Household"], ["ValidationUtility", "AlertUtility", "I18nUtility"],
+     "Switch Household is the App Shell's own — its household switcher sets the active household and resets the API cache, no endpoint (OQ-156); 'Create household' there starts Onboard (Q3)."),
     ("Account Setup", "account-setup", "Configure the containers and rules everything else runs on",
      [("Account & Card Management", ["Account Form", "Card Entry with Live Preview", "Archive Confirm"], "account-card-management"),
       ("Category Management", ["Category Card", "Icon & Colour Picker", "Inline Subcategory Entry", "Archive Confirm"], "category-management"),
@@ -146,7 +146,7 @@ def tier_page(name, slug, purpose, flows, standalone, utils, note):
 def shell_page():
     """App Shell: a layout, not an Experience — hosts chrome and routes events."""
     rows = [("Header", ["Logo", "Notification Bell → Review Insights' Notification Inbox"]),
-            ("Nav drawer", ["Identity", "Household Switcher → Manage Household's Switch Household", "Create household → Onboard", "Main nav (one entry per Experience)", "Export audit log → Review Insights", "Profile / Sign out"]),
+            ("Nav drawer", ["Identity", "Household Switcher (the shell's own switch — OQ-156)", "Pending invitations → Manage Profile", "Create household → Onboard", "Main nav (one entry per Experience)", "Export audit log → Review Insights", "Profile / Sign out"]),
             ("Routing config", ["invitation.received → Manage Profile (Respond to Invitation)", "holding.matured → Track Investments (Archive Matured Holding)", "active household → every Experience (read-only context)"])]
     cols = len(rows)
     grid = f'style="grid-template-columns: repeat({cols}, 1fr);"'
