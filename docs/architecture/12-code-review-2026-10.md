@@ -4,8 +4,10 @@ A review of everything built so far (slice 1: identity backend, the web
 kit, Flows, Experiences and App Shell, the shared packages), asked for by
 the stakeholder after task 66 (`I7`). Coverage stays at 100%; the question
 is whether the tests actually check the logic and its edge cases.
-**Status: complete — phase 1 (PRs #72, #73), phase 2 (PR #74) and phase 3
-fixed. Open: a password-reset journey (needs a test email sink).** Work happens on the `review/slice-1` branch, cut from
+**Status: closed — phase 1 (PRs #72, #73), phase 2 (PR #74), phase 3
+(PR #75). The one open item, a password-reset journey (needs a test email
+sink), is planned in `V3` (task 147). This review is now the gate at the end
+of every slice (OQ-164, `13-slice-review.md`).** Work happens on the `review/slice-1` branch, cut from
 `task/66-frontend-backend-identity`.
 
 ## Plan
@@ -365,3 +367,15 @@ recorded in OQ-163.
 | Review A3 | `Role` / `AssignableRole` move to `db/schema/values.ts`; routes take the Manager's result types. |
 | Review A4 | `fullName` → `utilities/personName.ts`; `sortMembers` → `experiences/manageHousehold/memberOrder.ts`. |
 | Review E9 | `users.mfa_last_totp_step` (migration `0008`), `UserAccessor.consumeTotpStep` (guarded), `verifyTotp` answers the time step; a reused code is refused like a wrong one. E2E helpers track the last step. Sequences and call chains for login step 2 and enrollment confirmation redrawn. |
+
+## Closing (OQ-164)
+
+The review is closed. What it changed beyond the fixes:
+
+- **Every slice now ends with this review**, as gate `R<n>` in the plan.
+  The method is in `13-slice-review.md`.
+- **The tooling is committed:** `pnpm mutation:api`, `pnpm mutation:web`
+  (`scripts/mutation.sh`, with its memory watchdog), and the
+  contract-routes test.
+- **Planned, not done:** the password-reset E2E journey, in `V3` (task
+  147), once a test email sink is chosen.

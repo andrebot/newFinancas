@@ -13,6 +13,11 @@ code) → implementation → unit tests (100% coverage) / integration tests
 per BDT → every function documented → cyclomatic complexity ≤ 7, ≤ 7
 parameters → tick it here.
 
+**Slice gate (OQ-164):** a slice ends with its review, `R<n>` — mutation
+testing, the Playwright suite, then code and architecture, one phase at a
+time, findings before fixes (`docs/architecture/13-slice-review.md`). The
+next slice starts only once it is ticked.
+
 **Three splits made for slicing** (148 activities, up from 145; 149 with
 `N14`, the component library, added during slice 1 — OQ-128):
 Delete User's cascade (`M1D`) needs every owned-data Accessor, so it moved
@@ -99,6 +104,7 @@ identity screens, the rest as later slices use them.
 - [x] **64.** `X4` Manage Household (OQ-160: Leave Household is its own card; leaving or deleting lands on the next household's Dashboard, or Onboard)
 - [x] **65.** `I1` IdentityManager seam suite (the M1 suites already cover 100% of the Manager; I1 adds the permission matrix — Delete User's scenarios wait for `M1D`)
 - [x] **66.** `I7` Frontend ↔ backend: identity (OQ-161: journeys tagged by BDT tier, arranged through the API; a new account starts in the language it registered in)
+- [x] **R1.** Slice 1 review (`docs/architecture/12-code-review-2026-10.md`, PRs #72–#75; OQ-162, OQ-163, OQ-164)
 
 ## Slice 2 — Account setup
 
@@ -136,6 +142,7 @@ identity screens, the rest as later slices use them.
 - [ ] **96.** `I2` AccountManager seam suite
 - [ ] **97.** `I5` Manager pub/sub (household.created, holding.matured)
 - [ ] **98.** `I8` Frontend ↔ backend: account setup
+- [ ] **R2.** Slice 2 review (gate — `docs/architecture/13-slice-review.md`)
 
 ## Slice 3 — Day-to-day finances
 
@@ -165,6 +172,7 @@ identity screens, the rest as later slices use them.
 - [ ] **120.** `I3` TransactionManager seam suite
 - [ ] **121.** `I4` InsightsManager seam suite
 - [ ] **122.** `I9` Frontend ↔ backend: finances
+- [ ] **R3.** Slice 3 review (gate)
 
 ## Slice 4 — Investments
 
@@ -183,6 +191,7 @@ identity screens, the rest as later slices use them.
 - [ ] **133.** `X7` Track Investments
 - [ ] **134.** `I6` investmentsDaily trigger end to end
 - [ ] **135.** `I10` Frontend ↔ backend: investments
+- [ ] **R4.** Slice 4 review (gate)
 
 ## Slice 5 — Insights & notifications
 
@@ -195,6 +204,7 @@ identity screens, the rest as later slices use them.
 - [ ] **140.** `I11` Frontend ↔ backend: insights
 - [ ] **141.** `I12` Shell notification routing
 - [ ] **142.** `I13` Delete account end to end
+- [ ] **R5.** Slice 5 review (gate)
 
 ## Slice 6 — Hardening & first use
 
@@ -204,6 +214,7 @@ identity screens, the rest as later slices use them.
 - [ ] **144.** `N11` Accessibility audit
 - [ ] **145.** `V1` Smoke suite
 - [ ] **146.** `V2` Core E2E (14 journeys)
-- [ ] **147.** `V3` Full E2E
+- [ ] **147.** `V3` Full E2E (incl. the password-reset journey, once a test email sink is chosen — OQ-164)
 - [ ] **148.** `N13` First real use + stabilization
 - [ ] **149.** `V4` Load tests (k6)
+- [ ] **R6.** Slice 6 review (gate — before the release)

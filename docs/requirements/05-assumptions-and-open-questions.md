@@ -3837,6 +3837,33 @@ not a hardcoded assumption.
 
 **Phase 3 of the code review is complete.**
 
+### OQ-164: A review closes every slice (code review, wrap-up)
+**Confirmed with the stakeholder (Oct 2026):**
+- **The slice-1 review is closed.** Three phases, each found, decided and
+  fixed in its own PRs:
+  - tests (mutation testing): #72 (backend), #73 (web and packages);
+  - the Playwright suite: #74 (incl. OQ-162);
+  - code and architecture: #75 (OQ-163).
+
+  The record is `docs/architecture/12-code-review-2026-10.md`.
+- **Every slice now ends with the same review, as a gate.** The plan gets
+  `R<n>` items: R1, done, after task 66, and R2–R6 at the end of slices
+  2–6. The next slice starts only once its gate is ticked.
+- **The method is written down** (`docs/architecture/13-slice-review.md`):
+  three phases, one at a time; findings before fixes; one PR per phase,
+  each verified the way its findings were found. Each review gets its own
+  `<nn>-slice-<n>-review.md`.
+- **The tooling stays in the repo:**
+  - `pnpm mutation:api` and `pnpm mutation:web` (`scripts/mutation.sh`),
+    with `stryker.api.config.json` and `stryker.web.config.json`;
+  - the memory watchdog;
+  - the command runner (the Vitest runner reports false survivors under
+    Vitest 5);
+  - the web run's per-file `vitest related` scope.
+- **Left open, and planned:** a password-reset E2E journey needs a test
+  email sink (the provider is `console` only). It is part of `V3` (Full
+  E2E, task 147); which sink is a decision for then.
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.
