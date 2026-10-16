@@ -18,28 +18,33 @@ describe('container commands', () => {
   });
 
   it('drop forcefully and only if present; create owned by the owner role', () => {
-    expect(dropDatabaseCommand('financas_restore')).toContain('--force');
-    expect(dropDatabaseCommand('financas_restore')).toContain('--if-exists');
-    expect(createDatabaseCommand('financas_restore').slice(-3))
-      .toEqual(['--owner', 'financas', 'financas_restore']);
+    expect(dropDatabaseCommand('financas_restore').slice(4)).toEqual([
+      'dropdb', '--username', 'financas', '--if-exists', '--force', 'financas_restore',
+    ]);
+    expect(createDatabaseCommand('financas_restore').slice(4)).toEqual([
+      'createdb', '--username', 'financas', '--owner', 'financas', 'financas_restore',
+    ]);
   });
 
-  it('restore into the named database and stop on the first error', () => {
-    expect(restoreCommand('financas_restore')).toEqual(expect.arrayContaining([
-      'pg_restore', '--dbname', 'financas_restore', '--exit-on-error',
-    ]));
+  it('restore into the named database as the owner and stop on the first error', () => {
+    expect(restoreCommand('financas_restore').slice(4)).toEqual([
+      'pg_restore', '--username', 'financas', '--dbname', 'financas_restore', '--exit-on-error',
+    ]);
   });
 
-  it('count rows with unaligned, tuple-only psql output', () => {
-    expect(rowCountsCommand('financas')).toEqual(expect.arrayContaining([
-      'psql', '--dbname', 'financas', '--no-align', '--tuples-only',
-    ]));
+  it('count every public table\'s rows with unaligned, tuple-only psql output', () => {
+    expect(rowCountsCommand('financas').slice(4)).toEqual([
+      'psql', '--username', 'financas', '--dbname', 'financas',
+      '--no-align', '--tuples-only', '--command',
+      expect.stringMatching(/count\(\*\)[\s\S]*information_schema\.tables[\s\S]*'public'/),
+    ]);
   });
 });
 
 describe('parseRowCounts', () => {
   it('reads table|count lines and skips blanks', () => {
     expect(parseRowCounts('accounts|3\nusers|12\n\n')).toEqual({ accounts: 3, users: 12 });
+    expect(parseRowCounts(' accounts |3')).toEqual({ accounts: 3 });
   });
 });
 

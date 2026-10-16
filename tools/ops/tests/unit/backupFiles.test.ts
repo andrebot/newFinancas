@@ -29,6 +29,8 @@ describe('isBackupFile', () => {
 describe('newestFirst / latestBackup', () => {
   it('orders backups newest first and ignores other files', () => {
     expect(newestFirst([MID, 'notes.txt', NEW, OLD])).toEqual([NEW, MID, OLD]);
+    // A file that merely contains a backup's name is not a backup — never pruned.
+    expect(newestFirst([`copy-of-${NEW}`, OLD])).toEqual([OLD]);
     expect(latestBackup([MID, NEW, OLD])).toBe(NEW);
   });
 
