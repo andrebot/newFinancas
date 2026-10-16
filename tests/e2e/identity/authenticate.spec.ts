@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
-import { createHousehold, registerUser, type TestUser } from '../support/identityApi';
+import {
+  createHousehold, refreshStatus, registerUser, type TestUser,
+} from '../support/identityApi';
 import { signInThroughUi, signOut, submitCredentials } from '../support/signIn';
 import text from '../support/text';
 
@@ -14,11 +16,19 @@ test.beforeEach(async ({ request }) => {
   await createHousehold(request, user, 'Signin Home');
 });
 
-test('a user signs in with their authenticator code and signs out again', async ({ page }) => {
+test('a user signs in with their authenticator code and signs out again', async ({
+  page, request,
+}) => {
   await signInThroughUi(page, user);
   await expect(page).toHaveURL(/\/$/);
+  // The refresh token this browser holds (apps/web config `api.refreshTokenStorageKey`).
+  const refreshToken = await page.evaluate(() => localStorage.getItem('financas.refreshToken'));
+  expect(refreshToken).toBeTruthy();
 
   await signOut(page);
+
+  // Ended at the API too, not only forgotten by the page.
+  expect(await refreshStatus(request, refreshToken!)).toBe(401);
 
   // The session is over: the Dashboard sends them back to Sign In.
   await page.goto('/');

@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test';
-import { createHousehold, registerUser, type TestUser } from '../support/identityApi';
-import { signInThroughUi, signOut } from '../support/signIn';
+import {
+  createHousehold, refreshStatus, registerUser, signInThroughApi, type TestUser,
+} from '../support/identityApi';
+import { signInThroughUi, signOut, submitCredentials } from '../support/signIn';
 import text from '../support/text';
 
 // I7 — Manage Profile (X3) against the real API: personal info and
@@ -44,8 +46,38 @@ test('theme and language preferences apply at once and are kept', async ({ page 
   await expect(html).toHaveAttribute('lang', 'pt-BR');
 });
 
-test('a changed password is the one Sign In accepts', async ({ page }) => {
+test('the user revokes another device, then signs out all the others', async ({
+  page, request,
+}) => {
+  const tablet = await signInThroughApi(request, user);
+  await page.reload();
+  // This device, the API sign-in above and the one registration opened.
+  const revokeButtons = page.getByRole('button', {
+    name: new RegExp(`^${text('security', 'sessions.revoke')} `),
+  });
+  await expect(revokeButtons).toHaveCount(2);
+
+  await revokeButtons.first().click();
+  await expect(page.getByText(text('security', 'sessions.revoked'))).toBeVisible();
+  await expect(revokeButtons).toHaveCount(1);
+
+  await page.getByRole('button', { name: text('security', 'others.open') }).click();
+  await page.getByRole('group', { name: text('security', 'others.message') })
+    .getByRole('button', { name: text('security', 'others.confirm') }).click();
+  await expect(page.getByText(text('security', 'others.done'))).toBeVisible();
+
+  // Only this device is left, at the API too.
+  await expect(revokeButtons).toHaveCount(0);
+  expect(await refreshStatus(request, tablet.refreshToken!)).toBe(401);
+  await page.reload();
+  await expect(page.getByText(text('security', 'sessions.thisDevice'))).toBeVisible();
+});
+
+test('a changed password is the one Sign In accepts, and other devices are signed out', async ({
+  page, request,
+}) => {
   const newPassword = `${user.password}-changed`;
+  const otherDevice = await signInThroughApi(request, user);
   await expect(page.getByText(text('security', 'sessions.thisDevice'))).toBeVisible();
 
   await page.getByLabel(text('security', 'password.current'), { exact: true }).fill(user.password);
@@ -54,7 +86,12 @@ test('a changed password is the one Sign In accepts', async ({ page }) => {
   await page.getByRole('button', { name: text('security', 'password.submit') }).click();
   await expect(page.getByText(text('security', 'password.changed'))).toBeVisible();
 
+  // Every other session ended (FR-1.14); this one goes on.
+  expect(await refreshStatus(request, otherDevice.refreshToken!)).toBe(401);
+
   await signOut(page);
+  await submitCredentials(page, user);
+  await expect(page.getByText(text('errors', 'auth.invalid_credentials'))).toBeVisible();
   await signInThroughUi(page, { ...user, password: newPassword });
   await expect(page).toHaveURL(/\/profile$/);
 });

@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { APIRequestContext } from '@playwright/test';
 import type {
   AuthTokens, HouseholdMembership, Invitation, MfaEnrollmentStart, MyHousehold,
-  ReceivedInvitation,
+  ReceivedInvitation, User,
 } from '@financas/api-types';
 import totpCode from './totp';
 
@@ -113,7 +113,7 @@ export const registerUser = async (
  */
 export const signInThroughApi = async (
   request: APIRequestContext,
-  user: TestUser,
+  user: Pick<TestUser, 'email' | 'password' | 'totpSecret'>,
 ): Promise<AuthTokens> => {
   const challenge = await send<{ step: string; challengeToken: string }>(
     request,
@@ -124,6 +124,69 @@ export const signInThroughApi = async (
   return send<AuthTokens>(request, 'POST', '/auth/mfa/verify', {
     data: { challengeToken: challenge.challengeToken, mfaCode: totpCode(user.totpSecret) },
   });
+};
+
+/**
+ * Tries to exchange a refresh token, without failing the test on a refusal.
+ *
+ * @param request - Playwright's API client.
+ * @param refreshToken - The token to present.
+ * @returns The HTTP status the API answered.
+ */
+export const refreshStatus = async (
+  request: APIRequestContext,
+  refreshToken: string,
+): Promise<number> => (
+  (await request.post(`${API_URL}/auth/refresh`, { data: { refreshToken } })).status()
+);
+
+/**
+ * Reads the signed-in user's own account.
+ *
+ * @param request - Playwright's API client.
+ * @param accessToken - The user's access token.
+ * @returns The account, preferences included.
+ */
+export const currentUser = (
+  request: APIRequestContext,
+  accessToken: string,
+): Promise<User> => send(request, 'GET', '/users/me', { accessToken });
+
+/**
+ * Lists the invitations waiting for a user's answer.
+ *
+ * @param request - Playwright's API client.
+ * @param user - The invitee.
+ * @returns Their pending invitations.
+ */
+export const pendingInvitations = async (
+  request: APIRequestContext,
+  user: TestUser,
+): Promise<readonly ReceivedInvitation[]> => {
+  const received = await send<{ data?: ReceivedInvitation[] }>(
+    request,
+    'GET',
+    '/users/me/invitations',
+    { accessToken: user.accessToken },
+  );
+  return received.data ?? [];
+};
+
+/**
+ * Lists the households a user belongs to.
+ *
+ * @param request - Playwright's API client.
+ * @param user - The member.
+ * @returns Their households.
+ */
+export const listHouseholds = async (
+  request: APIRequestContext,
+  user: TestUser,
+): Promise<readonly MyHousehold[]> => {
+  const households = await send<{ data?: MyHousehold[] }>(request, 'GET', '/households', {
+    accessToken: user.accessToken,
+  });
+  return households.data ?? [];
 };
 
 /**
