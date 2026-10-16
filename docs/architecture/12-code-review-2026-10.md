@@ -321,4 +321,34 @@ reuse within the window) goes to phase 3.
 
 ## Phase 3 — code and architecture
 
-*(Pending.)*
+A Harmonic Design pass over the whole codebase: VBD call rules (backend),
+EBD tiers (web), BDT test placement and mocks, and the PD checklist against
+what's built. Import graphs were extracted per layer and every
+cross-boundary edge read.
+
+**What holds.**
+- **Backend.** No Engine calls another Engine. No Accessor calls another
+  Accessor at runtime. Routes call only the Manager. The Notification
+  Engine is reached only from IdentityManager, through injected
+  dependencies. Composition happens only in `server.ts`.
+- **Web.** Only Experiences call the backend: no Flow, Interaction or kit
+  module imports the API or the store. No Flow imports a sibling Flow.
+- **Tests.** Every test mocks only the tier directly beneath it
+  (Experiences → their Flows and standalone Interactions, Flows → their
+  Interactions); the backend uses injected fakes, no module mocks.
+- **Plan.** Slice 1's checklist is complete.
+
+| # | Finding (symptom → cause → where else to look) | Severity | Proposed fix |
+|---|---|---|---|
+| A1 | **Delete Account is live, but its endpoint doesn't exist.** Manage Profile ships the Delete Account Flow (task 55, `FL8`), wired to `DELETE /users/me`. The API has no such route: the cascade is `M1D`, task 136, slice 5, because it needs every owned-data Accessor. In the real app the danger zone shows, and deleting fails. *Cause (PD):* the Flow's work package was sequenced without its dependency edge to `M1D`. *Counterpart (BDT):* the Experience test fakes `fetch`, and no journey or contract check asks whether a spec'd route is implemented, so nothing could notice. *Look next:* every slice that builds a Flow before its Manager use case (Onboard's Guided Setup, slice 2). | **Medium** | Hide the danger zone until `M1D` behind a fixed setting (`config/constants.ts`), with an Experience test for both states. Add a check that every route the web client calls is routed by the API (a route-table test against the OpenAPI paths in use), so a Flow can't ship ahead of its endpoint again. |
+| A2 | **Experiences import each other's pieces, and it is spreading.** OQ-158 called Authenticate hosting Onboard's enrollment step "the one place" one Experience imports another's. There are now three: OQ-159 added Manage Profile reading `useHouseholds` from Manage Household's API, and Manage Household reads `useGetCurrentUserQuery` from Manage Profile's API, which is undocumented. *Cause (EBD):* server data that several Experiences and the App Shell share (the current user, the households) is owned by one Experience's API slice. *Counterpart:* none on the backend (one IdentityManager serves both); the tests fake `fetch`, so they are unaffected. | Medium–low | Move the shared reads (`GET /users/me`, `GET /households`) into one shared slice the Shell already depends on (e.g. `api/identity.ts`, next to `shellSources`), and have Experiences import from there. The enrollment step stays an OQ-158 hosting decision. Record it in the OQ list. |
+| A3 | **Domain vocabulary is defined in the storage layer.** `Role`, `Member` and `UserHousehold` are exported by `householdAccessor.ts`; AuthorizationUtility, the HTTP JSON mapping and `invitationAccessor.ts` import them (type-only, so no call rule is broken). *Cause (VBD):* the household-role vocabulary has no home of its own; a storage refactor would ripple into authorization and the API mapping. | Low | Move the vocabulary types next to the value lists in `db/schema/values.ts` (where `SystemRole` already lives), or a small `domain/` types module; Accessors re-export. |
+| A4 | **Interactions import a helper from their Flow's state module.** `MemberList` and `TransferOwnership` import `fullName` (runtime) from `membershipState.ts`; three other Interactions import types from their Flow's state. Prop types are fine, but a display-name formatter living in one Flow's state is cross-cutting formatting. | Low | Move `fullName` to the formatting utility (FU6) or `utilities/`; keep only prop types in the Flow. |
+| A5 | **`api/` and `shell/` depend on each other.** `api/sourceState.ts` imports `SourceState` from `shell/shellConfig.ts`, while `shell/shellState.ts` imports the API slice and `sessionEnded`. | Low | Move `SourceState` into `api/` (it describes a query's state). |
+| A6 | **The Manager answers with HTTP statuses** (`managers/identity/errors.ts` imports `http/apiError`). | Accepted (OQ-114) | Recorded on purpose: picking 401 vs 404 is part of the Manager's anti-enumeration rules. Cost to remember: a non-HTTP caller (a scheduled job, a CLI) would get HTTP-shaped errors. |
+| A7 | `household.created` is published with no subscriber. | Note | Expected until AccountManager seeds Categories (slice 2); Core E2E #1 then proves the pub/sub effect. |
+
+**E9, carried over from phase 2: TOTP codes are reusable within their
+window.** A code accepted once is accepted again for up to about 90 s
+(the 30 s step plus one step of drift each way). RFC 6238 §5.2 recommends
+refusing a second use. It needs a decision: see the review notes.
