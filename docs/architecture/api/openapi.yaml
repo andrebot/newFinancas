@@ -2379,6 +2379,7 @@ components:
     # ---------------------------------------------------- identity & household
     User:
       type: object
+      required: [id, email, firstName, lastName, createdAt, preferences]
       properties:
         id: { type: string, format: uuid }
         email: { type: string, format: email }
@@ -2390,6 +2391,7 @@ components:
 
     Session:
       type: object
+      required: [id, deviceInfo, createdAt, lastUsedAt, current]
       properties:
         id: { type: string, format: uuid }
         deviceInfo: { type: [string, "null"] }
@@ -2420,6 +2422,7 @@ components:
       allOf:
         - $ref: '#/components/schemas/Household'
         - type: object
+          required: [role]
           properties:
             role: { type: string, enum: [Owner, Admin, Member, Viewer] }
 
@@ -2429,6 +2432,7 @@ components:
         A pending invitation addressed to the current user, with the names
         they can't look up yet (OQ-116). The inviter's names are null when
         that account was deleted — shown as "Someone" (OQ-82).
+      required: [id, householdId, householdName, role, invitedByUserId, inviterFirstName, inviterLastName, createdAt]
       properties:
         id: { type: string, format: uuid }
         householdId: { type: string, format: uuid }

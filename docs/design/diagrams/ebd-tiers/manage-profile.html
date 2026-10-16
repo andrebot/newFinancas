@@ -167,7 +167,7 @@
   <p class="subtitle">
     Look after my own account. Static structure only — no state/event wiring. Oct 2026 re-decomposition
     (<code>docs/architecture/11-ebd-review-2026-10.md</code>); full reasoning in
-    <code>docs/architecture/frontend/01-ebd-decomposition.md</code>. New Experience (Q1): split out of Authenticate (Security) and Manage Household (Edit Profile, Delete Account).
+    <code>docs/architecture/frontend/01-ebd-decomposition.md</code>. New Experience (Q1): split out of Authenticate (Security) and Manage Household (Edit Profile, Delete Account). Hands the App Shell the signed-in user and the pending-invitation count, and owns the invitation.received route (OQ-159). Reads Manage Household's households list for the role and the households owned.
   </p>
 
   <div class="architecture">

@@ -75,8 +75,9 @@ sequenceDiagram
     alt invitation.received — Accept
         User->>BELL: Accept
         BELL->>SHELL: emit action {type: invitation.received, accept, params}
-        SHELL->>MP: route (routing config) → Respond to Invitation
+        SHELL->>MP: route (routing config) → Respond to Invitation (OQ-159)
         MP->>API: POST /invitations/:invitationId/accept
+        MP-->>SHELL: done / failed (Manage Profile toasts either)
     else holding.matured — Archive holding
         User->>BELL: Archive holding
         BELL->>SHELL: emit action {type: holding.matured, archive, params}

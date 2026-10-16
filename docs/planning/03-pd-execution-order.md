@@ -95,7 +95,7 @@ identity screens, the rest as later slices use them.
 - [x] **60.** `S1` App Shell (OQ-156: React Router v7; chrome data injected by its owners)
 - [x] **61.** `X1` Authenticate (OQ-157: hosts the resumed MFA enrollment; Sign Out ends locally even if the logout fails)
 - [x] **62.** `X2` Onboard (Registration, MFA, Household Setup) (OQ-158: the route picks the stretch; the server's state is the progression)
-- [ ] **63.** `X3` Manage Profile
+- [x] **63.** `X3` Manage Profile (OQ-159: brings in Manage Household's households list; preferences apply at once, undone if refused)
 - [ ] **64.** `X4` Manage Household
 - [ ] **65.** `I1` IdentityManager seam suite
 - [ ] **66.** `I7` Frontend ↔ backend: identity
