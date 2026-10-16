@@ -98,6 +98,8 @@ and carry the document's current default assumption.
 - **FR-1.21** A user can set personal **preferences**: theme (**dark,
   light, or system** — following the device setting) and language (pt-BR
   or en-US). Preferences are per user, not per household (see OQ-62).
+  A new account starts in the dark theme and in the language it
+  registered in (OQ-161).
 - **FR-1.22** Right after creating a household (FR-1.4) — the first one
   or any additional one (OQ-81) — the user goes through a **guided
   setup**: adding a first financial account

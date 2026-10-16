@@ -411,6 +411,8 @@ added) — 14 in total:
 13. **`investmentsDaily` run** (trigger invoked directly, clock fixed) → a due fixed-term interest/redemption transaction is recorded once (re-running the same day records nothing new); a matured Holding with a position produces exactly one `holding.matured` notification; accepting its "Archive holding" action through the bell archives it (`user`).
 14. **Invite → bell → accept** in the browser: the invitee sees the localized notification with the inviter's *current* name, the accept is performed by Manage Profile, and the notification disappears.
 
+**Written so far (I7, OQ-161):** the identity seam, in `tests/e2e/identity/` — #1 (until Categories exist, without its Categories check), #2, #3 and #4 are tagged `@core`; Authenticate, Manage Profile and the rest of Manage Household are Full E2E journeys, untagged. Preconditions are arranged through the API; the browser does only the journey.
+
 ### Full E2E — nightly / pre-release gate, the remaining coverage
 
 Not a fresh list — a **coverage-completion policy** applied to inventory

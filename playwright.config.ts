@@ -19,6 +19,8 @@ export default defineConfig({
   globalSetup: './tests/e2e/global-setup.ts',
   use: {
     baseURL: WEB_URL,
+    // Journeys find elements by their en-US catalog text (tests/e2e/support/text.ts).
+    locale: 'en-US',
     ...(chromiumPath ? { launchOptions: { executablePath: chromiumPath } } : {}),
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],

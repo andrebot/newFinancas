@@ -583,7 +583,7 @@ sequenceDiagram
     participant AN as AuthenticationUtility
     participant LOG as LoggingUtility
 
-    User->>API: POST /auth/register {email, password, firstName, lastName}
+    User->>API: POST /auth/register {email, password, firstName, lastName, language?}
     Note over API: validated against the contract (OQ-93): a well-formed email,<br/>names trimmed and non-blank (OQ-116)
     alt request invalid
         API-->>User: 422 validation.failed {details}
@@ -599,7 +599,8 @@ sequenceDiagram
             AN-->>IM: {secret, encryptedSecret, recoveryCodes[], recoveryCodeHashes[]}
             IM->>AN: hashPassword(password)
             AN-->>IM: passwordHash
-            IM->>UA: insert({email, names, passwordHash, encryptedMfaSecret, recoveryCodeHashes})
+            IM->>UA: insert({email, names, language, passwordHash, encryptedMfaSecret, recoveryCodeHashes})
+            Note over UA: language = the locale registered in (OQ-161) —<br/>absent → the column default, pt-BR
             Note over UA: one transaction, the unique index on lower(email)<br/>decides a duplicate &mdash; no separate lookup to race (OQ-103)
             alt email already registered
                 UA-->>IM: {ok: false, reason: email_taken}
@@ -622,6 +623,7 @@ sequenceDiagram
       <li><strong>MFA enrollment is not optional or deferred</strong> — FR-1.15 requires it complete before the account can log in at all, so it happens inline in registration, not as a follow-up step.</li>
       <li><strong>Confirmed by its first code (OQ-149).</strong> The enrollment stays unconfirmed until <code>POST /auth/mfa/enrollment/confirm</code> (UC-11b) receives a code from the app, with the <code>enrollmentToken</code> answered here; that confirmation opens the first session. Signing in before then answers a fresh enrollment instead of a challenge (UC-14), so a user who closed the tab before scanning is never locked out.</li>
       <li><code>otpauthUri</code> carries the issuer and TOTP settings (<code>config/constants.ts</code>), so the web app draws the QR without repeating them.</li>
+      <li><strong>The account starts in the language it registered in (OQ-161).</strong> The web app sends the locale it shows; without it the account is pt-BR. Otherwise the app would switch language once the user signs in and their saved preference applies.</li>
       <li>The recovery codes are returned exactly once, at creation — the backend stores only their hashes (<code>mfa_recovery_codes.code_hash</code>), never the plaintext codes themselves after this response.</li>
       <li><strong>Redrawn to the implementation (M1):</strong> the route is <code>POST /auth/register</code> (was shown as <code>POST /users</code>); request shape is checked at the route against the contract, not by a <code>ValidationUtility</code>; a duplicate email is the insert&#39;s typed result, not a prior lookup that two simultaneous registrations could both pass.</li>
       <li>See FR-1.1, FR-1.15, OQ-29 (first_name/last_name resolved during data modeling), OQ-114, OQ-116, OQ-149.</li>

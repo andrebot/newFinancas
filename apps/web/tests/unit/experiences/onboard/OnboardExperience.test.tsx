@@ -241,7 +241,12 @@ describe('OnboardExperience — registration', () => {
     expect(await sent(fetchFn, 0)).toEqual({
       path: '/api/v1/auth/register',
       body: {
-        firstName: 'Jane', lastName: 'Doe', email: 'jane@example.com', password: 'a-long-password',
+        firstName: 'Jane',
+        lastName: 'Doe',
+        email: 'jane@example.com',
+        password: 'a-long-password',
+        // The locale the page shows: the account starts in it (OQ-161).
+        language: 'en-US',
       },
     });
     expect(shownBy('enrollment')).toEqual({

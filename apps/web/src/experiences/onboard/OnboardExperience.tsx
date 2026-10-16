@@ -6,6 +6,7 @@ import { AuthLayout } from '../../kit/layouts/AuthLayout';
 import { WizardLayout } from '../../kit/layouts/WizardLayout';
 import { switchHousehold } from '../../shell/shellState';
 import { useAppDispatch } from '../../store';
+import { useLocaleController } from '../../utilities/I18nProvider';
 import type { RequestOutcome } from '../../utilities/requestOutcome';
 import { useCreateHouseholdMutation, useRegisterUserMutation } from './api';
 import { HouseholdSetupFlow } from './flows/householdSetup/HouseholdSetupFlow';
@@ -49,6 +50,7 @@ function RegistrationJourney() {
   const location = useLocation();
   const [pending, setPending] = useState<PendingEnrollment>();
   const [registerUser] = useRegisterUserMutation();
+  const localeController = useLocaleController();
 
   /**
    * Opens Sign In, carrying where it should send the user back to.
@@ -57,12 +59,13 @@ function RegistrationJourney() {
 
   /**
    * Registers the user and, once registered, moves on to their enrollment.
+   * The account starts in the language the user registered in (OQ-161).
    *
    * @param registration - What the user registers with.
    * @returns The Flow's outcome.
    */
   const register = async (registration: Registration): Promise<RequestOutcome> => {
-    const result = await registerUser(registration);
+    const result = await registerUser({ ...registration, language: localeController.current() });
     if (result.error === undefined) {
       const {
         enrollmentToken, otpauthUri, totpSecret, recoveryCodes,
