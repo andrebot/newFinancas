@@ -57,7 +57,7 @@ EXPERIENCES = [
      [("Membership Management", ["Member List", "Role Menu", "Invite Member", "Pending Invitations", "Remove Member Confirm", "Transfer Ownership"], "membership-management"),
       ("Household Deletion", ["Consequences Review", "Type-to-Confirm"], "household-deletion")],
      ["Leave Household"], ["ValidationUtility", "AlertUtility", "I18nUtility"],
-     "Switch Household is the App Shell's own — its household switcher sets the active household and resets the API cache, no endpoint (OQ-156); 'Create household' there starts Onboard (Q3). Its households list (GET /households) feeds the shell's gate and switcher, brought in with X3 (OQ-159)."),
+     "Switch Household is the App Shell's own — its household switcher sets the active household and resets the API cache, no endpoint (OQ-156); 'Create household' there starts Onboard (Q3). Its households list (GET /households) feeds the shell's gate and switcher, brought in with X3 (OQ-159). Built in X4 (OQ-160): the header counts the cached members; Leave Household is its own card above the danger zone; once the household is left or deleted, the shell switches to the next household's Dashboard, or Onboard when none is left."),
     ("Account Setup", "account-setup", "Configure the containers and rules everything else runs on",
      [("Account & Card Management", ["Account Form", "Card Entry with Live Preview", "Archive Confirm"], "account-card-management"),
       ("Category Management", ["Category Card", "Icon & Colour Picker", "Inline Subcategory Entry", "Archive Confirm"], "category-management"),
@@ -538,7 +538,7 @@ EXP->>API: GET /users/me/invitations again (+ GET /households after an accept: t
      [("ML", "Member List"), ("RM", "Role Menu"), ("RC", "Remove Member Confirm"), ("TO", "Transfer Ownership"), ("IM", "Invite Member"), ("PI", "Pending Invitations"), FLOW("Membership Management"), EXP("Manage Household"), API],
      """
 FLOW->>EXP: request load() (on mount)
-EXP->>API: GET /households/:id/members (+ GET /households/:id/invitations for an Owner/Admin)
+EXP->>API: GET /households/:id/members + GET /households/:id/invitations, together (403 for a Member/Viewer → no invitations)
 alt failure
     API-->>EXP: error code
     EXP-->>FLOW: outcome: failed(code)
@@ -546,7 +546,7 @@ alt failure
 else ok
     API-->>EXP: members, invitations
     EXP-->>FLOW: outcome: ok(members, invitations)
-    FLOW-->>ML: render Owner first, then by role — the user's row tagged You (+ Leave, from the Experience)
+    FLOW-->>ML: render Owner first, then by role — the user's row tagged You
     FLOW-->>PI: render pending only, newest first (Owner/Admin only, with Invite Member)
 end
 alt change a role (no confirm — never the Owner's, never their own)
@@ -557,15 +557,15 @@ alt change a role (no confirm — never the Owner's, never their own)
 else remove a member
     User->>ML: Remove
     ML->>FLOW: emit remove {userId}
-    FLOW-->>RC: render the inline confirm under the header
-    User->>RC: Remove (or Cancel / Escape: closed)
+    FLOW-->>RC: render the inline confirm in that member's row (OQ-160)
+    User->>RC: Remove (or Cancel / Escape: the row again, focus on its Remove)
     RC->>FLOW: emit confirm
     FLOW->>EXP: request removeMember(userId)
     EXP->>API: DELETE /households/:id/members/:userId
 else transfer ownership (the Owner, to any member — FR-1.20)
     User->>TO: swap button on their row, pick a member
     TO->>FLOW: emit pick {userId}
-    FLOW-->>TO: render the inline confirm under the header ("you become an Admin")
+    FLOW-->>TO: render the inline confirm in the picked member's row ("you become an Admin")
     User->>TO: Transfer ownership (or Cancel)
     TO->>FLOW: emit confirm
     FLOW->>EXP: request transferOwnership(userId)
@@ -591,13 +591,14 @@ else other failure
 else ok
     API-->>EXP: 200 / 201 / 204
     EXP-->>FLOW: outcome: ok — lists changed as the API did (no refetch), confirm closed, success toast
+    Note over EXP: a role change, remove or transfer refetches the Experience's cached members (header count, Leave's successor) — a transfer also GET /households (the role changed)
 end
 """, ["Only an Owner/Admin sees the role menus, Remove, Invite Member and Pending Invitations; a Member or Viewer sees the members.",
         "Transfer goes to any member, not only an Admin (FR-1.20, OQ-155); the old Owner becomes an Admin and the list re-sorts.",
         "Revoking an invitation asks nothing — it can be sent again; removing a member asks first (OQ-155).",
         "Every control waits while one request is out."]),
     ("manage-household-household-deletion", "Manage Household — Household Deletion", f"{R('DELETE /households/:householdId')} (Owner only). Consequences, then the household's name typed to confirm (OQ-146).",
-     [("CR", "Consequences Review"), ("TC", "Type-to-Confirm"), FLOW("Household Deletion"), EXP("Manage Household"), API],
+     [("CR", "Consequences Review"), ("TC", "Type-to-Confirm"), FLOW("Household Deletion"), EXP("Manage Household"), ("SHELL", "App Shell"), API],
      """
 EXP-->>FLOW: mount for the Owner only, with householdName
 FLOW-->>CR: render danger zone (every member loses access, shared data removed)
@@ -618,10 +619,50 @@ else confirm
         EXP-->>FLOW: outcome: failed(code) — banner under the confirm, name kept
     else ok
         API-->>EXP: 204
-        EXP-->>FLOW: outcome: ok — Flow stays busy, App Shell switches to another household or Onboard
+        EXP-->>FLOW: outcome: ok — Flow stays busy
+        Note over EXP: toast "{household} was deleted."
+        EXP->>API: GET /households (fetched again)
+        alt another household left
+            EXP->>SHELL: switchHousehold(next) — API cache reset → Dashboard
+        else none left
+            EXP->>SHELL: navigate → Onboard (/setup)
+        end
     end
 end
 """, ["The type-to-confirm is the kit's K27 (OQ-143); matching the name is UI-only — the DELETE takes no phrase."]),
+    ("manage-household-leave-household", "Manage Household — Leave Household", f"{R('DELETE /households/:id/members/:userId')} with the caller's own id (FR-1.11, FR-1.18). Its own card above the danger zone (OQ-160).",
+     [("LH", "Leave Household"), EXP("Manage Household"), ("SHELL", "App Shell"), API],
+     """
+EXP->>API: GET /households/:id/members (cached — shared with the header's count)
+API-->>EXP: members
+EXP-->>LH: mount with householdName + consequence (member: loses access / Owner: successor by FR-1.18 / Owner alone: household deleted)
+User->>LH: 'Leave household'
+LH-->>LH: render the inline confirm in the button's place
+alt cancel (button or Escape)
+    User->>LH: Cancel
+    LH-->>LH: the button again, focused
+else confirm
+    User->>LH: Leave
+    LH->>EXP: emit leave
+    EXP-->>LH: busy
+    EXP->>API: DELETE /households/:id/members/:selfUserId
+    alt 409 household.changed / other failure
+        API-->>EXP: error code
+        EXP-->>LH: alert(code) — banner in the card, not busy
+    else ok
+        API-->>EXP: 204 (an Owner's succession, or the household's deletion when alone, ran server-side)
+        Note over EXP: toast "You left {household}."
+        EXP->>API: GET /households (fetched again)
+        alt another household left
+            EXP->>SHELL: switchHousehold(next) — API cache reset → Dashboard
+        else none left
+            EXP->>SHELL: navigate → Onboard (/setup)
+        end
+    end
+end
+""", ["A standalone Interaction, no Flow (EBD): the confirm's open state is the Interaction's own; the request and its failure are the Experience's.",
+        "The successor shown is a preview in FR-1.18's order (the longest-tenured Admin, else Member, else Viewer); the API decides.",
+        "The leave doesn't refetch the members: the household is no longer the user's."]),
     ("account-setup-account-card-management", "Account Setup — Account & Card Management", f"{R('POST/PATCH /accounts')}, {R('POST /accounts/:id/archive')}.",
      [("AF", "Account Form"), ("CE", "Card Entry with<br/>Live Preview"), ("AC", "Archive Confirm"), FLOW("Account & Card Management"), EXP("Account Setup"), API],
      """

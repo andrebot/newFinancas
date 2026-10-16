@@ -2412,6 +2412,7 @@ components:
       allOf:
         - $ref: '#/components/schemas/Invitation'
         - type: object
+          required: [inviteeFirstName, inviteeLastName, inviteeEmail]
           properties:
             inviteeFirstName: { type: string }
             inviteeLastName: { type: string }
@@ -2445,6 +2446,7 @@ components:
 
     HouseholdMembership:
       type: object
+      required: [userId, householdId, firstName, lastName, email, role, joinedAt]
       properties:
         userId: { type: string, format: uuid }
         householdId: { type: string, format: uuid }
@@ -2456,6 +2458,7 @@ components:
 
     Invitation:
       type: object
+      required: [id, householdId, invitedUserId, invitedByUserId, role, status, createdAt, resolvedAt]
       properties:
         id: { type: string, format: uuid }
         householdId: { type: string, format: uuid }

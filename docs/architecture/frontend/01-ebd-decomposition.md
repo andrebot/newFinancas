@@ -96,13 +96,13 @@ Diagram: `docs/design/diagrams/ebd-tiers/app-shell.html`; sequence:
 
 ### Manage Household
 
-**Purpose:** Run the household. Its households list (`GET /households`, `experiences/manageHousehold/api.ts`) feeds the App Shell's gate and switcher; it was brought in with X3 (OQ-159). Switch Household is the App Shell's own — its household switcher sets the active household and resets the API cache, no endpoint (OQ-156); 'Create household' there starts Onboard (Q3).
+**Purpose:** Run the household. Its households list (`GET /households`, `experiences/manageHousehold/api.ts`) feeds the App Shell's gate and switcher; it was brought in with X3 (OQ-159). Switch Household is the App Shell's own — its household switcher sets the active household and resets the API cache, no endpoint (OQ-156); 'Create household' there starts Onboard (Q3). Built in X4 (OQ-160): `experiences/manageHousehold/ManageHouseholdExperience.tsx` on `/household`, keyed on the active household. The header counts the cached members; Leave Household is its own card above the danger zone. Once the household is left or deleted, a toast says so and the shell switches to the next household's Dashboard, or Onboard when none is left (`householdExit.ts`).
 
 | Flow | Interactions | Sequence |
 |---|---|---|
 | Membership Management | Member List, Role Menu, Invite Member, Pending Invitations, Remove Member Confirm, Transfer Ownership (OQ-155) | `docs/design/diagrams/ebd-sequences/manage-household-membership-management.html` |
 | Household Deletion | Consequences Review, Type-to-Confirm | `docs/design/diagrams/ebd-sequences/manage-household-household-deletion.html` |
-| *(standalone)* | Leave Household | — |
+| *(standalone)* | Leave Household — its own card; the confirm names the Owner's successor (OQ-160) | `docs/design/diagrams/ebd-sequences/manage-household-leave-household.html` |
 
 **Utilities:** ValidationUtility, AlertUtility, I18nUtility. Tier diagram: `docs/design/diagrams/ebd-tiers/manage-household.html`.
 

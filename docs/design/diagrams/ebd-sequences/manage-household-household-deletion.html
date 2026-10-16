@@ -64,6 +64,7 @@ sequenceDiagram
     participant TC as Type-to-Confirm
     participant FLOW as Household Deletion<br/>Flow
     participant EXP as Manage Household<br/>Experience
+    participant SHELL as App Shell
     participant API as Backend API
     EXP-->>FLOW: mount for the Owner only, with householdName
     FLOW-->>CR: render danger zone (every member loses access, shared data removed)
@@ -84,7 +85,14 @@ sequenceDiagram
             EXP-->>FLOW: outcome: failed(code) — banner under the confirm, name kept
         else ok
             API-->>EXP: 204
-            EXP-->>FLOW: outcome: ok — Flow stays busy, App Shell switches to another household or Onboard
+            EXP-->>FLOW: outcome: ok — Flow stays busy
+            Note over EXP: toast "{household} was deleted."
+            EXP->>API: GET /households (fetched again)
+            alt another household left
+                EXP->>SHELL: switchHousehold(next) — API cache reset → Dashboard
+            else none left
+                EXP->>SHELL: navigate → Onboard (/setup)
+            end
         end
     end
     </pre>

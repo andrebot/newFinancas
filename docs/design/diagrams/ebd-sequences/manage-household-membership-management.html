@@ -70,7 +70,7 @@ sequenceDiagram
     participant EXP as Manage Household<br/>Experience
     participant API as Backend API
     FLOW->>EXP: request load() (on mount)
-    EXP->>API: GET /households/:id/members (+ GET /households/:id/invitations for an Owner/Admin)
+    EXP->>API: GET /households/:id/members + GET /households/:id/invitations, together (403 for a Member/Viewer → no invitations)
     alt failure
         API-->>EXP: error code
         EXP-->>FLOW: outcome: failed(code)
@@ -78,7 +78,7 @@ sequenceDiagram
     else ok
         API-->>EXP: members, invitations
         EXP-->>FLOW: outcome: ok(members, invitations)
-        FLOW-->>ML: render Owner first, then by role — the user's row tagged You (+ Leave, from the Experience)
+        FLOW-->>ML: render Owner first, then by role — the user's row tagged You
         FLOW-->>PI: render pending only, newest first (Owner/Admin only, with Invite Member)
     end
     alt change a role (no confirm — never the Owner's, never their own)
@@ -89,15 +89,15 @@ sequenceDiagram
     else remove a member
         User->>ML: Remove
         ML->>FLOW: emit remove {userId}
-        FLOW-->>RC: render the inline confirm under the header
-        User->>RC: Remove (or Cancel / Escape: closed)
+        FLOW-->>RC: render the inline confirm in that member's row (OQ-160)
+        User->>RC: Remove (or Cancel / Escape: the row again, focus on its Remove)
         RC->>FLOW: emit confirm
         FLOW->>EXP: request removeMember(userId)
         EXP->>API: DELETE /households/:id/members/:userId
     else transfer ownership (the Owner, to any member — FR-1.20)
         User->>TO: swap button on their row, pick a member
         TO->>FLOW: emit pick {userId}
-        FLOW-->>TO: render the inline confirm under the header ("you become an Admin")
+        FLOW-->>TO: render the inline confirm in the picked member's row ("you become an Admin")
         User->>TO: Transfer ownership (or Cancel)
         TO->>FLOW: emit confirm
         FLOW->>EXP: request transferOwnership(userId)
@@ -123,6 +123,7 @@ sequenceDiagram
     else ok
         API-->>EXP: 200 / 201 / 204
         EXP-->>FLOW: outcome: ok — lists changed as the API did (no refetch), confirm closed, success toast
+        Note over EXP: a role change, remove or transfer refetches the Experience's cached members (header count, Leave's successor) — a transfer also GET /households (the role changed)
     end
     </pre>
   </div>
