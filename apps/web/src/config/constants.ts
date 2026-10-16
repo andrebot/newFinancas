@@ -57,6 +57,12 @@ export const overlay = {
   viewportPadding: 16,
 } as const;
 
+/** The kit's tooltip (K24, OQ-160). */
+export const tooltip = {
+  /** How long the pointer rests on a trigger before the tooltip shows, in ms (focus: at once). */
+  openDelayMs: 400,
+} as const;
+
 /** Count badges, e.g. the bell's unseen notifications (K30, OQ-133). */
 export const badge = {
   /** The highest count shown as is; above it the badge reads "9+", so it stays a 16px circle. */

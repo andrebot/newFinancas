@@ -5,6 +5,9 @@ import {
 import App, { shellConfigFor } from '../../src/App';
 import { AuthenticateExperience } from '../../src/experiences/authenticate/AuthenticateExperience';
 import { useHouseholds } from '../../src/experiences/manageHousehold/api';
+import {
+  ManageHouseholdExperience,
+} from '../../src/experiences/manageHousehold/ManageHouseholdExperience';
 import { ManageProfileExperience } from '../../src/experiences/manageProfile/ManageProfileExperience';
 import {
   useIdentity, usePendingInvitationCount,
@@ -63,6 +66,7 @@ describe('shellConfigFor', () => {
     expect(Object.keys(config.notificationRoutes)).toEqual(['invitation.received']);
     expect(config.inbox).toBeUndefined();
     expect(config.pages.profile).toEqual(<ManageProfileExperience />);
+    expect(config.pages.household).toEqual(<ManageHouseholdExperience />);
     expect(config.pages.dashboard).toEqual(<ComingSoon key="dashboard" />);
     expect(config.pages.signIn).toEqual(<AuthenticateExperience entry="signIn" />);
     expect(config.pages.forgotPassword).toEqual(<AuthenticateExperience entry="recovery" />);

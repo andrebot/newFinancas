@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router';
 import { AuthenticateExperience } from './experiences/authenticate/AuthenticateExperience';
 import signOut from './experiences/authenticate/signOut';
 import { useHouseholds } from './experiences/manageHousehold/api';
+import { ManageHouseholdExperience } from './experiences/manageHousehold/ManageHouseholdExperience';
 import { ManageProfileExperience } from './experiences/manageProfile/ManageProfileExperience';
 import {
   invitationRoute, type InvitationFeedback,
@@ -52,6 +53,7 @@ export const shellConfigFor = (
     register: <OnboardExperience entry="registration" />,
     onboard: <OnboardExperience entry="household" />,
     createHousehold: <OnboardExperience entry="additionalHousehold" />,
+    household: <ManageHouseholdExperience />,
     profile: <ManageProfileExperience />,
   },
   sources: { useIdentity, useHouseholds, usePendingInvitationCount },

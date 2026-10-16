@@ -3288,9 +3288,10 @@ not a hardcoded assumption.
   and the API both allow it, so the EBD note "pick from current Admins" is
   corrected. The swap button on the Owner's row opens a menu of the other
   members; a pick opens a destructive `InlineConfirm` under the Members
-  header ("you will become an Admin").
+  header ("you will become an Admin"). *(Since OQ-160: in the picked
+  member's row.)*
 - **Only Remove asks first.** Removing a member opens a destructive
-  `InlineConfirm` under the header. Revoking an invitation happens at once
+  `InlineConfirm` under the header *(since OQ-160: in that member's row)*. Revoking an invitation happens at once
   — it can simply be sent again — so the EBD's single "Remove/Revoke
   (confirmed)" Interaction is split: Remove Member Confirm is its own
   Interaction, revoke lives in Pending Invitations. A role change applies
@@ -3609,6 +3610,96 @@ not a hardcoded assumption.
   generator.
 
 **Task 63 (`X3`) is complete.**
+
+### OQ-160: The Manage Household Experience (task X4)
+**Confirmed with the stakeholder (Oct 2026):**
+- **One page, as mockup 60 lays it out** (`experiences/manageHousehold/
+  ManageHouseholdExperience.tsx`, route `/household`): the header, the
+  Membership Management Flow (FL9), Leave Household, then the Household
+  Deletion Flow (FL10), which only the Owner sees (OQ-146). A skeleton shows
+  until the user and the active household are known; a failed user load
+  offers a retry. The page is keyed on the active household, so a switch
+  starts it afresh. Its endpoints are in `experiences/manageHousehold/api.ts`.
+- **The header** names the household and counts its members ("4 members ·
+  shared accounts, budgets, and goals are visible to everyone here."). The
+  count comes from the members list, which the Experience caches per
+  household (`GET /households/:id/members`); it shows once the members load.
+  - The Flow still owns its own lists (OQ-155). A role change, remove or
+    transfer also fetches the cached members again, so the header and Leave
+    Household stay right. A transfer fetches the households too: the user is
+    now an Admin there, so the danger zone goes.
+- **The Flow's load** asks for the members and the invitations together. A
+  403 on the invitations (a Member or Viewer) means none; any other failure of
+  either is handed to the Flow. The invitee's email (`inviteeEmail`) is the
+  Flow's `email`. The created invitation is answered as `{id, role,
+  createdAt}`.
+- **Leave Household is its own card above the danger zone**, not an action
+  on the user's row: mockup 60 has no place for it. FL9's `selfActions` slot
+  stays, unused. The card says what leaving does for this user, then "Leave
+  household" opens a destructive `InlineConfirm` in the button's place.
+  Cancel or Escape brings the button back, focused. A failure shows in a
+  banner in the card. The confirm's open state is the Interaction's own;
+  the request and its failure are the Experience's.
+  - **What leaving does** (`interactions/leaveConsequence.ts`): anyone but
+    the Owner loses access. For the Owner, the successor is named in
+    FR-1.18's order: the longest-tenured Admin, else Member, else Viewer.
+    That is the members list's own order. The API decides; this is a preview.
+  - **An Owner who is alone may leave.** The card warns that leaving deletes
+    the household, as the API does (FR-1.18).
+  - Leaving is `DELETE /households/:id/members/:userId` with the user's own
+    id (OQ-27). It fetches nothing for the household, which is no longer the
+    user's.
+- **Once the household is left or deleted** (`householdExit.ts`): a toast
+  says so ("You left {household}." / "{household} was deleted."). The
+  households are fetched again. The App Shell's `switchHousehold` moves to
+  the next one, resetting the API cache, and the user lands on its Dashboard.
+  With none left, the user goes to Onboard (`/setup`). When the list can't
+  be fetched, the cache is reset anyway, so the shell's gate asks again and
+  offers its retry.
+- **Two corrections to FL9 (OQ-155), from the stakeholder's review:**
+  - **No "You're the Owner" beside the Members heading.** It repeated what
+    the user's own row already shows, so it is gone, though mockup 60
+    draws it. Member List no longer takes `selfRole`.
+  - **A confirm opens in place of the row it is about**, not under the
+    header. Removing a member turns that member's row into the destructive
+    `InlineConfirm`; a transfer does the same in the picked member's row.
+    Nothing above the list moves. Member List takes `confirm` as
+    `{userId, element}`. The remove button went with its row, so once the
+    row is back after a cancel, its Remove takes the focus again, unless
+    something else already holds it.
+- **The kit's Tooltip (K24, task 124) comes in now, ahead of order:** the
+  members list's icon buttons (Remove, Transfer ownership) had nothing
+  saying what they do. `kit/tooltip/Tooltip.tsx`, with its story:
+  - **Opt-in**, a `<Tooltip content>` around the trigger. `IconButton` doesn't
+    add one by itself.
+  - **An inverted chip:** ink background, the page's colour for the text,
+    caption size, no arrow, on top (it flips when out of room).
+  - It shows after the pointer rests for `tooltip.openDelayMs` (400ms,
+    `config/constants.ts`), or at once on keyboard focus. It goes on leave,
+    blur, Escape or a press. Touch never shows it.
+  - **Two ways to attach it.** A render function gets the props for an
+    enabled trigger. `triggerProps` merges another floating trigger's, so a
+    Menu's button carries one too. Any other content is wrapped in a
+    focusable span, for a disabled control's reason (K24's "disabled
+    reasons").
+  - The tooltip describes its trigger (`aria-describedby`). With
+    `repeatsName` (an icon button whose `label` it repeats), it is hidden
+    from assistive tech instead, so the name isn't read twice.
+  - Chart-point tooltips belong to the charts (K38), not here.
+- **Contract fix:** `HouseholdMembership`, `Invitation` and
+  `HouseholdInvitation` now list the fields the API always sends as required.
+- **Tests (BDT):** the Experience runs on the real store, with both Flows and
+  Leave Household stubbed and only `fetch` faked. The Experience tests'
+  stub, fake `fetch` and waits moved to `tests/unit/experiences/
+  experienceFakes.tsx`, shared with Manage Profile's. Leave Household, its
+  consequence, the exit thunk and the endpoints' translation each have unit
+  tests.
+- **Texts** are in a new `household` catalog section, in both locales.
+- A new EBD sequence, Manage Household — Leave Household. The Membership
+  Management and Household Deletion sequences and the Manage Household tier
+  diagram are redrawn through their generator.
+
+**Task 64 (`X4`) is complete.**
 
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every

@@ -133,9 +133,9 @@ export type Household = {
  * One of a household's invitations, as its Owner/Admin sees it (OQ-118).
  */
 export type HouseholdInvitation = Invitation & {
-    inviteeFirstName?: string;
-    inviteeLastName?: string;
-    inviteeEmail?: string;
+    inviteeFirstName: string;
+    inviteeLastName: string;
+    inviteeEmail: string;
 };
 
 /**
@@ -161,33 +161,33 @@ export type ReceivedInvitation = {
 };
 
 export type HouseholdMembership = {
-    userId?: string;
-    householdId?: string;
+    userId: string;
+    householdId: string;
     /**
      * For the members screen (OQ-117)
      */
-    firstName?: string;
-    lastName?: string;
-    email?: string;
+    firstName: string;
+    lastName: string;
+    email: string;
     /**
      * FR-1.6 — exactly one of four, fixed set
      */
-    role?: 'Owner' | 'Admin' | 'Member' | 'Viewer';
+    role: 'Owner' | 'Admin' | 'Member' | 'Viewer';
     /**
      * Read directly by FR-1.18's succession rule
      */
-    joinedAt?: string;
+    joinedAt: string;
 };
 
 export type Invitation = {
-    id?: string;
-    householdId?: string;
-    invitedUserId?: string;
-    invitedByUserId?: string;
-    role?: 'Admin' | 'Member' | 'Viewer';
-    status?: 'pending' | 'accepted' | 'declined' | 'revoked';
-    createdAt?: string;
-    resolvedAt?: string | null;
+    id: string;
+    householdId: string;
+    invitedUserId: string;
+    invitedByUserId: string;
+    role: 'Admin' | 'Member' | 'Viewer';
+    status: 'pending' | 'accepted' | 'declined' | 'revoked';
+    createdAt: string;
+    resolvedAt: string | null;
 };
 
 export type Account = {

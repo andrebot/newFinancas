@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Sequence — Manage Household — Leave Household — New Finance App</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1420;
+    --panel: #1a2236;
+    --panel-border: #2f3b56;
+    --text: #eef1f8;
+    --muted: #9aa4bb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px 0; }
+  p.subtitle { margin: 0 0 16px 0; color: var(--muted); font-size: 14px; max-width: 980px; line-height: 1.6; }
+  .diagram-card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 20px;
+    overflow-x: auto;
+    max-width: 100%;
+  }
+  .notes {
+    max-width: 980px;
+    margin: 16px 0 0 0;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.65;
+  }
+  .notes code { color: var(--text); }
+  .notes ul { padding-left: 20px; }
+  .notes li { margin-bottom: 6px; }
+  a { color: #7db4f0; }
+  .route {
+    display: inline-block;
+    background: #1f2b45;
+    border: 1px solid #3a4a70;
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    color: #a9c6f5;
+  }
+</style>
+</head>
+<body>
+  <h1>Manage Household — Leave Household</h1>
+  <p class="subtitle"><span class="route">DELETE /households/:id/members/:userId</span> with the caller's own id (FR-1.11, FR-1.18). Its own card above the danger zone (OQ-160).</p>
+  <div class="diagram-card">
+    <pre class="mermaid">
+sequenceDiagram
+    actor User
+    participant LH as Leave Household
+    participant EXP as Manage Household<br/>Experience
+    participant SHELL as App Shell
+    participant API as Backend API
+    EXP->>API: GET /households/:id/members (cached — shared with the header's count)
+    API-->>EXP: members
+    EXP-->>LH: mount with householdName + consequence (member: loses access / Owner: successor by FR-1.18 / Owner alone: household deleted)
+    User->>LH: 'Leave household'
+    LH-->>LH: render the inline confirm in the button's place
+    alt cancel (button or Escape)
+        User->>LH: Cancel
+        LH-->>LH: the button again, focused
+    else confirm
+        User->>LH: Leave
+        LH->>EXP: emit leave
+        EXP-->>LH: busy
+        EXP->>API: DELETE /households/:id/members/:selfUserId
+        alt 409 household.changed / other failure
+            API-->>EXP: error code
+            EXP-->>LH: alert(code) — banner in the card, not busy
+        else ok
+            API-->>EXP: 204 (an Owner's succession, or the household's deletion when alone, ran server-side)
+            Note over EXP: toast "You left {household}."
+            EXP->>API: GET /households (fetched again)
+            alt another household left
+                EXP->>SHELL: switchHousehold(next) — API cache reset → Dashboard
+            else none left
+                EXP->>SHELL: navigate → Onboard (/setup)
+            end
+        end
+    end
+    </pre>
+  </div>
+  <div class="notes">
+<ul><li>A standalone Interaction, no Flow (EBD): the confirm's open state is the Interaction's own; the request and its failure are the Experience's.</li><li>The successor shown is a preview in FR-1.18's order (the longest-tenured Admin, else Member, else Viewer); the API decides.</li><li>The leave doesn't refetch the members: the household is no longer the user's.</li></ul>
+  </div>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'dark',
+      securityLevel: 'loose'
+    });
+  </script>
+</body>
+</html>

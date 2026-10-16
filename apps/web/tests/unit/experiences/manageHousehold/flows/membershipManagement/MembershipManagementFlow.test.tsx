@@ -34,19 +34,19 @@ vi.mock('../../../../../../src/experiences/manageHousehold/flows/membershipManag
    * @returns The stub.
    */
   MemberList: ({
-    view, selfRole, canManage, locked, alert, confirm, selfActions, onRoleChange, onRemove, onRetry,
+    view, canManage, locked, alert, confirm, selfActions, onRoleChange, onRemove, onRetry,
   }: MemberListProps) => (
     <div
       data-testid="members"
       data-status={view.status}
       data-members={view.status === 'loaded'
         ? view.members.map(({ userId, role }) => `${userId}:${role}`).join('|') : ''}
-      data-self-role={selfRole ?? ''}
       data-can-manage={String(canManage)}
       data-locked={String(locked)}
       data-alert={alert ?? ''}
+      data-confirm-for={confirm?.userId ?? ''}
     >
-      {confirm}
+      {confirm?.element}
       {selfActions}
       <button type="button" onClick={() => onRoleChange('sam', 'Admin')}>sam to admin</button>
       <button type="button" onClick={() => onRoleChange('sam', 'Member')}>sam stays member</button>
@@ -276,7 +276,6 @@ describe('MembershipManagementFlow — loading', () => {
     expect(membersPanel().dataset).toMatchObject({
       status: 'loaded',
       members: 'jane:Owner|alex:Admin|sam:Member',
-      selfRole: 'Owner',
       canManage: 'true',
       locked: 'false',
     });
@@ -285,7 +284,7 @@ describe('MembershipManagementFlow — loading', () => {
 
   it('shows a Member the members only, with no transfer', async () => {
     await renderFlow({ selfUserId: 'sam', selfActions: <span>leave</span> });
-    expect(membersPanel().dataset).toMatchObject({ selfRole: 'Member', canManage: 'false' });
+    expect(membersPanel().dataset).toMatchObject({ canManage: 'false' });
     expect(screen.queryByTestId('invite')).toBeNull();
     expect(screen.queryByTestId('invitations')).toBeNull();
     expect(screen.queryByTestId('transfer')).toBeNull();
@@ -380,7 +379,7 @@ describe('MembershipManagementFlow — ownership', () => {
 
     expect(requests.onTransferOwnership).toHaveBeenCalledWith('sam');
     expect(membersPanel().dataset).toMatchObject({
-      members: 'sam:Owner|jane:Admin|alex:Admin', selfRole: 'Admin',
+      members: 'sam:Owner|jane:Admin|alex:Admin',
     });
     expect(screen.queryByTestId('transfer')).toBeNull();
     expect(toasts(queue)).toEqual(['Sam Doe is now the Owner. You are an Admin.']);

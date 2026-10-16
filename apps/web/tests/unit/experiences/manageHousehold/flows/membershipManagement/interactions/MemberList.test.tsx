@@ -53,7 +53,6 @@ const renderList = (props: Partial<MemberListProps> = {}) => {
     <MemberList
       view={LOADED}
       selfUserId="alex"
-      selfRole="Admin"
       canManage
       locked={false}
       {...handlers}
@@ -64,10 +63,9 @@ const renderList = (props: Partial<MemberListProps> = {}) => {
 };
 
 describe('MemberList — the rows', () => {
-  it("tags the user's own row, shows their role in the header and their own actions", () => {
+  it("tags the user's own row and shows their own actions", () => {
     renderList({ selfActions: <button type="button">leave</button> });
 
-    expect(screen.getByText("You're an Admin")).toBeTruthy();
     expect(screen.getByText('You')).toBeTruthy();
     expect(screen.getByText('alex@example.com · since 03/2024')).toBeTruthy();
     expect(screen.getAllByRole('button', { name: 'leave' })).toHaveLength(1);
@@ -92,9 +90,17 @@ describe('MemberList — the rows', () => {
   });
 
   it('shows a Member or Viewer the roles only', () => {
-    renderList({ selfUserId: 'sam', selfRole: 'Member', canManage: false });
+    renderList({ selfUserId: 'sam', canManage: false });
     expect(screen.queryByRole('button')).toBeNull();
     expect(screen.getByText('Admin')).toBeTruthy();
+  });
+
+  it('names Remove in a tooltip on focus', async () => {
+    renderList();
+
+    await act(async () => screen.getByRole('button', { name: 'Remove Sam Doe' }).focus());
+
+    expect(screen.getByText('Remove Sam Doe', { selector: '[aria-hidden]' })).toBeTruthy();
   });
 
   it('locks every control while a request is out', () => {
@@ -104,18 +110,85 @@ describe('MemberList — the rows', () => {
     expect(button("Sam Doe's role: Member").disabled).toBe(true);
   });
 
-  it('shows the open confirm and the last failure under the header', () => {
-    renderList({ confirm: <p>confirm here</p>, alert: 'Something failed' });
-    expect(screen.getByText('confirm here')).toBeTruthy();
+  it('shows the open confirm in place of its member’s row, and the last failure', () => {
+    renderList({
+      confirm: { userId: 'sam', element: <p>confirm here</p> },
+      alert: 'Something failed',
+    });
+    expect(screen.getByText('confirm here').closest('li')).toBeTruthy();
+    expect(screen.queryByText('Sam Doe')).toBeNull();
+    expect(screen.getByText('Alex Doe')).toBeTruthy();
     expect(screen.getByText('Something failed')).toBeTruthy();
   });
 });
 
+/**
+ * Renders the list as the Flow does with a confirm open on Sam's row.
+ *
+ * @param confirm - The open confirm, if any.
+ * @returns The list.
+ */
+const listWith = (confirm?: MemberListProps['confirm']) => (
+  <MemberList
+    view={LOADED}
+    selfUserId="alex"
+    canManage
+    locked={false}
+    confirm={confirm}
+    onRoleChange={vi.fn()}
+    onRemove={vi.fn()}
+    onRetry={vi.fn()}
+  />
+);
+
+describe('MemberList — focus after a confirm', () => {
+  const open = { userId: 'sam', element: <button type="button">cancel</button> };
+  const removeSam = () => screen.getByRole('button', { name: 'Remove Sam Doe' });
+
+  it('gives the row’s Remove button the focus once its confirm closes', () => {
+    const { rerenderInLocale } = renderInLocale(listWith(open));
+    screen.getByRole<HTMLButtonElement>('button', { name: 'cancel' }).focus();
+
+    rerenderInLocale(listWith());
+
+    expect(document.activeElement).toBe(removeSam());
+  });
+
+  it('leaves the focus alone when something still holds it', () => {
+    const { rerenderInLocale } = renderInLocale(listWith(open));
+    const outside = document.createElement('button');
+    document.body.append(outside);
+    outside.focus();
+
+    rerenderInLocale(listWith());
+
+    expect(document.activeElement).toBe(outside);
+    outside.remove();
+  });
+
+  it('focuses nothing when the member went with the confirm', () => {
+    const { rerenderInLocale } = renderInLocale(listWith(open));
+
+    rerenderInLocale(
+      <MemberList
+        view={{ ...LOADED, members: [JANE, ALEX] }}
+        selfUserId="alex"
+        canManage
+        locked={false}
+        onRoleChange={vi.fn()}
+        onRemove={vi.fn()}
+        onRetry={vi.fn()}
+      />,
+    );
+
+    expect(document.activeElement).toBe(document.body);
+  });
+});
+
 describe('MemberList — loading and failing', () => {
-  it('shows skeleton rows while the list loads, with no role yet', () => {
-    renderList({ view: { status: 'loading' }, selfRole: undefined });
+  it('shows skeleton rows while the list loads', () => {
+    renderList({ view: { status: 'loading' } });
     expect(screen.getByLabelText('Loading members')).toBeTruthy();
-    expect(screen.queryByText(/You're/)).toBeNull();
   });
 
   it('shows a failed load with a retry', () => {
@@ -132,7 +205,6 @@ describe('MemberList — loading and failing', () => {
       <MemberList
         view={LOADED}
         selfUserId="jane"
-        selfRole="Owner"
         canManage
         locked={false}
         onRoleChange={vi.fn()}
@@ -141,7 +213,7 @@ describe('MemberList — loading and failing', () => {
       />,
       'pt-BR',
     );
-    expect(screen.getByText('Você é o proprietário')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Membros' })).toBeTruthy();
     expect(screen.getByText('jane@example.com · desde 03/2024')).toBeTruthy();
   });
 });

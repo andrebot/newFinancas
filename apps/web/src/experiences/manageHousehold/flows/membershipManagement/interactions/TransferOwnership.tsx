@@ -1,6 +1,7 @@
 import { IconButton } from '../../../../../kit/button/IconButton';
 import { InlineConfirm } from '../../../../../kit/confirm/InlineConfirm';
 import { Menu, type MenuEntry, type MenuTriggerProps } from '../../../../../kit/menu/Menu';
+import { Tooltip } from '../../../../../kit/tooltip/Tooltip';
 import { useI18n } from '../../../../../utilities/I18nProvider';
 import { fullName, type HouseholdMember } from '../membershipState';
 
@@ -21,7 +22,8 @@ export interface TransferOwnershipButtonProps {
 }
 
 /**
- * Builds the trigger of the transfer menu: the round swap button.
+ * Builds the trigger of the transfer menu: the round swap button, named in a
+ * tooltip too (K24).
  *
  * @param label - Its name, already translated.
  * @param disabled - Whether a request is out.
@@ -30,7 +32,11 @@ export interface TransferOwnershipButtonProps {
 const swapButton = (label: string, disabled: boolean) => function SwapButton(
   props: MenuTriggerProps,
 ) {
-  return <IconButton {...props} icon="swap-horiz" label={label} disabled={disabled} />;
+  return (
+    <Tooltip content={label} repeatsName triggerProps={props}>
+      {(tip) => <IconButton {...tip} icon="swap-horiz" label={label} disabled={disabled} />}
+    </Tooltip>
+  );
 };
 
 /**

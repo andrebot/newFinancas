@@ -285,19 +285,21 @@ export function MembershipManagementFlow({
       <MemberList
         view={view}
         selfUserId={selfUserId}
-        selfRole={role}
         canManage={managesMembers(role)}
         locked={locked}
         alert={failure('members')}
-        confirm={confirm && (
-          <MembershipConfirm
-            confirm={confirm}
-            members={members}
-            busy={locked}
-            onConfirm={() => confirmed(confirm)}
-            onCancel={() => setState(confirmCancelled)}
-          />
-        )}
+        confirm={confirm && {
+          userId: confirm.userId,
+          element: (
+            <MembershipConfirm
+              confirm={confirm}
+              members={members}
+              busy={locked}
+              onConfirm={() => confirmed(confirm)}
+              onCancel={() => setState(confirmCancelled)}
+            />
+          ),
+        }}
         selfActions={(
           <>
             <OwnerTransfer

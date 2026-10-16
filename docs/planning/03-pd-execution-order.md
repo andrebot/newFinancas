@@ -96,7 +96,7 @@ identity screens, the rest as later slices use them.
 - [x] **61.** `X1` Authenticate (OQ-157: hosts the resumed MFA enrollment; Sign Out ends locally even if the logout fails)
 - [x] **62.** `X2` Onboard (Registration, MFA, Household Setup) (OQ-158: the route picks the stretch; the server's state is the progression)
 - [x] **63.** `X3` Manage Profile (OQ-159: brings in Manage Household's households list; preferences apply at once, undone if refused)
-- [ ] **64.** `X4` Manage Household
+- [x] **64.** `X4` Manage Household (OQ-160: Leave Household is its own card; leaving or deleting lands on the next household's Dashboard, or Onboard)
 - [ ] **65.** `I1` IdentityManager seam suite
 - [ ] **66.** `I7` Frontend ↔ backend: identity
 
@@ -171,7 +171,7 @@ identity screens, the rest as later slices use them.
 *Done when:* holdings, market values, rates, payouts; the daily job.
 
 - [ ] **123.** `N9` Local scheduler for investmentsDaily
-- [ ] **124.** `K24` Tooltip
+- [x] **124.** `K24` Tooltip (built early with task 64, OQ-160; chart-point tooltips stay with the charts)
 - [ ] **125.** `K43` Table
 - [ ] **126.** `K38` Line chart / sparkline
 - [ ] **127.** `K39` Stacked bar chart + legend

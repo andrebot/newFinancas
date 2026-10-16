@@ -107,47 +107,47 @@ export const zReceivedInvitation = z.object({
 });
 
 export const zHouseholdMembership = z.object({
-    userId: z.uuid().optional(),
-    householdId: z.uuid().optional(),
-    firstName: z.string().optional(),
-    lastName: z.string().optional(),
-    email: z.email().optional(),
+    userId: z.uuid(),
+    householdId: z.uuid(),
+    firstName: z.string(),
+    lastName: z.string(),
+    email: z.email(),
     role: z.enum([
         'Owner',
         'Admin',
         'Member',
         'Viewer'
-    ]).optional(),
-    joinedAt: z.iso.datetime().optional()
+    ]),
+    joinedAt: z.iso.datetime()
 });
 
 export const zInvitation = z.object({
-    id: z.uuid().optional(),
-    householdId: z.uuid().optional(),
-    invitedUserId: z.uuid().optional(),
-    invitedByUserId: z.uuid().optional(),
+    id: z.uuid(),
+    householdId: z.uuid(),
+    invitedUserId: z.uuid(),
+    invitedByUserId: z.uuid(),
     role: z.enum([
         'Admin',
         'Member',
         'Viewer'
-    ]).optional(),
+    ]),
     status: z.enum([
         'pending',
         'accepted',
         'declined',
         'revoked'
-    ]).optional(),
-    createdAt: z.iso.datetime().optional(),
-    resolvedAt: z.iso.datetime().nullish()
+    ]),
+    createdAt: z.iso.datetime(),
+    resolvedAt: z.iso.datetime().nullable()
 });
 
 /**
  * One of a household's invitations, as its Owner/Admin sees it (OQ-118).
  */
 export const zHouseholdInvitation = zInvitation.and(z.object({
-    inviteeFirstName: z.string().optional(),
-    inviteeLastName: z.string().optional(),
-    inviteeEmail: z.email().optional()
+    inviteeFirstName: z.string(),
+    inviteeLastName: z.string(),
+    inviteeEmail: z.email()
 }));
 
 export const zAccount = z.object({

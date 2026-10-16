@@ -42,6 +42,18 @@ describe('TransferOwnershipButton', () => {
     expect(onPick).toHaveBeenCalledWith('priya');
   });
 
+  it('names itself in a tooltip on focus, still opening its menu', async () => {
+    renderInLocale(
+      <TransferOwnershipButton candidates={[ALEX]} disabled={false} onPick={vi.fn()} />,
+    );
+    const button = screen.getByRole('button', { name: 'Transfer ownership' });
+
+    await act(async () => button.focus());
+
+    expect(screen.getByText('Transfer ownership', { selector: '[aria-hidden]' })).toBeTruthy();
+    expect(button.getAttribute('aria-haspopup')).toBe('menu');
+  });
+
   it('waits while a request is out', () => {
     renderInLocale(<TransferOwnershipButton candidates={[ALEX]} disabled onPick={vi.fn()} />);
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Transfer ownership' }).disabled)

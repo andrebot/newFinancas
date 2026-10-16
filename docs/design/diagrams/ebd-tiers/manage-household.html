@@ -167,7 +167,7 @@
   <p class="subtitle">
     Run the household. Static structure only — no state/event wiring. Oct 2026 re-decomposition
     (<code>docs/architecture/11-ebd-review-2026-10.md</code>); full reasoning in
-    <code>docs/architecture/frontend/01-ebd-decomposition.md</code>. Switch Household is the App Shell's own — its household switcher sets the active household and resets the API cache, no endpoint (OQ-156); 'Create household' there starts Onboard (Q3). Its households list (GET /households) feeds the shell's gate and switcher, brought in with X3 (OQ-159).
+    <code>docs/architecture/frontend/01-ebd-decomposition.md</code>. Switch Household is the App Shell's own — its household switcher sets the active household and resets the API cache, no endpoint (OQ-156); 'Create household' there starts Onboard (Q3). Its households list (GET /households) feeds the shell's gate and switcher, brought in with X3 (OQ-159). Built in X4 (OQ-160): the header counts the cached members; Leave Household is its own card above the danger zone; once the household is left or deleted, the shell switches to the next household's Dashboard, or Onboard when none is left.
   </p>
 
   <div class="architecture">
