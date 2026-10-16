@@ -95,6 +95,12 @@ describe('theme.css tokens', () => {
     expect(css).toContain('--color-*: initial;');
   });
 
+  it('gives every enabled button the pointer cursor', () => {
+    const enabled = String.raw`button:not\(:disabled\),\s*\[role='button'\]`
+      + String.raw`:not\(\[aria-disabled='true'\]\) \{\s*cursor: pointer;`;
+    expect(css).toMatch(new RegExp(enabled));
+  });
+
   it('gives each theme its own overlay shadow, read at runtime', () => {
     const shadows = [...css.matchAll(/--s-overlay:\s*([^;]+);/g)].map((match) => match[1]);
     expect(shadows).toHaveLength(2);

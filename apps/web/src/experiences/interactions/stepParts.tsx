@@ -90,20 +90,22 @@ export interface BackButtonProps {
 
 /**
  * Renders the back arrow in the page's top-left corner, as the challenge
- * mockups place it.
+ * mockups place it. The corner is held by a wrapper: the icon button is
+ * `relative` itself, which would beat an `absolute` passed to it.
  *
  * @param props - The name and the click handler.
  * @returns The button.
  */
 export function BackButton({ label, onBack }: BackButtonProps) {
   return (
-    <IconButton
-      icon="arrow-back"
-      label={label}
-      tone="outline"
-      size="md"
-      className="absolute top-6 left-6 sm:top-8 sm:left-8"
-      onClick={onBack}
-    />
+    <div className="absolute top-6 left-6 sm:top-8 sm:left-8">
+      <IconButton
+        icon="arrow-back"
+        label={label}
+        tone="outline"
+        size="md"
+        onClick={onBack}
+      />
+    </div>
   );
 }

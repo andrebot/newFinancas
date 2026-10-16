@@ -209,4 +209,11 @@
     background-color: var(--color-bg);
     color: var(--color-ink);
   }
+
+  /* Tailwind 4 leaves buttons with the arrow cursor; anything clickable gets
+     the hand. A disabled control keeps its own (not-allowed) cursor. */
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']) {
+    cursor: pointer;
+  }
 }
