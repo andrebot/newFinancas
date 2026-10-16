@@ -281,7 +281,25 @@ in `SelectPanel.tsx:175` (low; noted, not fixed).
 
 ## Phase 2 — Playwright
 
-*(Pending.)*
+The suite (`tests/e2e/`): 2 smoke tests and 12 identity journeys (4
+tagged `@core`). Preconditions are arranged through the API and elements
+are found by role and catalog text, as the BDT plan asks. The journeys
+assert real end states, and most check the API afterwards (roles after a
+transfer, exactly one Owner). Run locally (2026-10-16) 3× in a row: 42/42
+passed in 15 s. Run 10× in a row: 139/140; the failure was a real product
+bug (E1), not a flaky test.
+
+| # | Finding | Severity | Proposed fix |
+|---|---|---|---|
+| E1 | **A reload while the page is rotating its refresh token signs the user out.** Every page load exchanges the refresh token (the access token lives in memory only). If the page is reloaded after the API rotated the token but before the browser stored the new one, the next load presents the old token. The API reads that as a replayed, likely stolen token (OQ-100/107) and ends the session. Reproduced: under load, about 1 in 200 quick reloads lost the session, with "Refresh token replayed — session ended" in the API log. This is what failed one of the 140 runs (the role-change journey's `page.reload()`). | **Medium — product** | A decision, not a test fix. Options: (a) a short reuse grace: within a few seconds of a rotation, the previous token gets the *same* new pair instead of ending the session; (b) keep the access token in `sessionStorage`, so a reload doesn't refresh while it's valid (rarer, not gone); (c) accept it. |
+| E2 | **Full E2E never runs.** CI runs `@smoke` on every PR and `@core` after merge. The 8 untagged journeys (Authenticate ×3, Manage Profile ×3, role change, household deletion) run only by hand; the BDT plan puts them nightly / pre-release. | Medium | A scheduled nightly workflow running `pnpm test:e2e`, report uploaded on failure. |
+| E3 | **Smoke doesn't match the plan's smoke tier.** It checks the redirect and `/health`. Of the plan's six smoke checks, three apply to slice 1 and are missing: register → confirm MFA → tokens (API), login → verify MFA → tokens (API), and the app loading in both themes and both locales without a missing catalog key. | Medium | Add those three as `@smoke`. |
+| E4 | **Some end states are only half proven.** Deleting the household checks the URL, not that the household is gone. Sign out checks the redirect, not that the session ended at the API. Changing the password checks the new one works, not that the old one is refused or that other sessions ended (FR-1.14). Onboard's "still in the language they registered in" can't fail: the browser and the registration are both en-US. | Medium–low | Check each through the API (`GET /households`, the old refresh token refused, the old password refused, a second session ended), and run the language check in pt-BR. |
+| E5 | **Slice-1 journeys with no E2E yet** (Full E2E's "every use case once"): remove a member, revoke an invitation, decline an invitation, list/revoke sessions and sign out all others, another household from the switcher, and password reset. Reset needs the email sink the plan mentions; the provider is `console` only. | Medium–low | Add the five that need nothing new. Password reset waits for a test email sink, a small decision of its own. |
+| E6 | **Config gaps.** No `forbidOnly` (a stray `test.only` would quietly shrink CI to one test); no trace or screenshot on failure (CI uploads a report with nothing to replay); `workers` and `retries` left implicit. | Low | `forbidOnly: !!process.env.CI`, `trace: 'retain-on-failure'`, `retries: 0` stated on purpose (a flake should be seen, not retried away). |
+| E7 | **Fragile selectors.** The setup key is read with `locator('code').first()`; the transfer confirm with `.last()` among two same-named buttons; the "I saved my codes" checkbox is clicked by its text. | Low | The key by its label, the confirm inside its dialog / confirm region, the checkbox with `getByLabel`. |
+| E8 | **Small helper issues.** `registerUser` turns a missing access token into `''`, so a broken registration fails later and far away; the household and profile specs share module-level `let` state, fine only while tests in a file run serially. | Low | Throw on a missing token; keep the state in a fixture. |
+| E9 | **TOTP codes can be reused within their 30-second window.** Nothing records the last accepted time step, and the suite relies on it: `registerUser` confirms the enrollment with a code, and `signInThroughUi` signs in with the same code moments later. RFC 6238 §5.2 recommends refusing a code that was already accepted. | Note — security, for phase 3 | A decision (store the last accepted step per user and refuse reuse); then the E2E helpers wait for the next window or use a backup code. |
 
 ## Phase 3 — code and architecture
 
