@@ -4,8 +4,8 @@ A review of everything built so far (slice 1: identity backend, the web
 kit, Flows, Experiences and App Shell, the shared packages), asked for by
 the stakeholder after task 66 (`I7`). Coverage stays at 100%; the question
 is whether the tests actually check the logic and its edge cases.
-**Status: in progress — phase 1 done: backend fixed (PR #72), web app and
-packages fixed and verified; phase 2 (Playwright) next.** Work happens on the `review/slice-1` branch, cut from
+**Status: in progress — phases 1 and 2 done (PRs #72, #73 and the phase-2
+PR); phase 3 (code and architecture) next.** Work happens on the `review/slice-1` branch, cut from
 `task/66-frontend-backend-identity`.
 
 ## Plan
@@ -300,6 +300,24 @@ bug (E1), not a flaky test.
 | E7 | **Fragile selectors.** The setup key is read with `locator('code').first()`; the transfer confirm with `.last()` among two same-named buttons; the "I saved my codes" checkbox is clicked by its text. | Low | The key by its label, the confirm inside its dialog / confirm region, the checkbox with `getByLabel`. |
 | E8 | **Small helper issues.** `registerUser` turns a missing access token into `''`, so a broken registration fails later and far away; the household and profile specs share module-level `let` state, fine only while tests in a file run serially. | Low | Throw on a missing token; keep the state in a fixture. |
 | E9 | **TOTP codes can be reused within their 30-second window.** Nothing records the last accepted time step, and the suite relies on it: `registerUser` confirms the enrollment with a code, and `signInThroughUi` signs in with the same code moments later. RFC 6238 §5.2 recommends refusing a code that was already accepted. | Note — security, for phase 3 | A decision (store the last accepted step per user and refuse reuse); then the E2E helpers wait for the next window or use a backup code. |
+
+### Phase 2 — fixes
+
+Decisions: E1 gets a short reuse grace (OQ-162); E9 stays for phase 3.
+
+| Commit | Findings |
+|---|---|
+| Review E1 | OQ-162: within 10 s of a rotation, the replaced refresh token earns a new pair (`SessionAccessor.reissueReplaced`, a guarded write); the token in between becomes the replaced one, the window stays anchored. A journey drops a refresh answer after the API rotated and reloads: it fails with the grace off, passes with it. uc-14b redrawn. |
+| Review E2, E6 | `nightly.yml` runs the whole suite nightly and on demand. `forbidOnly` in CI, `retries: 0` on purpose, trace and screenshot kept on failure and uploaded. |
+| Review E3, E8 | Smoke adds registration → first code → session and login → code → session (API), and the signed-out pages in both locales × both themes with no missing catalog text (proven to fail on a renamed key). `registerUser` fails on a missing access token. |
+| Review E4, E5, E7 | End states at the API (household gone, session ended, old password refused, other devices signed out, registration language stored). New journeys: remove member, revoke invitation, decline invitation, switch household, revoke a device and sign out all others. Selectors made robust. |
+
+The suite is now 26 tests (7 smoke, 4 core, 15 full); 3× in a row at 4
+workers: 78/78.
+
+**Still open:** password reset has no journey; it needs a test email sink
+(the provider is `console` only), a small decision of its own. E9 (TOTP
+reuse within the window) goes to phase 3.
 
 ## Phase 3 — code and architecture
 
