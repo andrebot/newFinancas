@@ -4,8 +4,8 @@ A review of everything built so far (slice 1: identity backend, the web
 kit, Flows, Experiences and App Shell, the shared packages), asked for by
 the stakeholder after task 66 (`I7`). Coverage stays at 100%; the question
 is whether the tests actually check the logic and its edge cases.
-**Status: in progress — phase 1, step 1 (backend mutation testing) done and
-triaged; step 2 (web app and packages) next.** Work happens on the `review/slice-1` branch, cut from
+**Status: in progress — phase 1, step 1 (backend mutation testing) done,
+triaged and fixed; step 2 (web app and packages) next.** Work happens on the `review/slice-1` branch, cut from
 `task/66-frontend-backend-identity`.
 
 ## Plan
@@ -163,7 +163,7 @@ the run, so it was detected.
 
 ### Phase 1, step 1 — summary
 
-288 survivors: **52 are real test gaps** (M1–M6, H1, U1–U12), plus one
+288 survivors: **51 are real test gaps** (M1–M6, H1, U1–U12), plus one
 tooling gap behind ~120 schema survivors (S1). The rest are equivalent,
 defensive, deferred or not worth a test. Counting only mutants that can
 change runtime behaviour, the score is about 97%.
@@ -182,6 +182,27 @@ By priority:
    unknown invitation, permission matrix, body coercion.
 5. **Tooling (S1)** — schema-vs-migrations drift check in `pnpm check`.
 6. **Low (M4, M6, U7–U9, U11, T2)** — small, cheap additions.
+
+### Phase 1, step 1 — fixes
+
+All gaps above are fixed on `review/slice-1`, one commit per group. Only
+tests and tooling changed; no production code needed a fix.
+
+| Commit | Findings |
+|---|---|
+| Review H1 | `withRollback` ends the test with a private sentinel and rethrows anything else, including a `TransactionRollbackError` from the code under test; the harness has its own tests (`tests/db/support.test.ts`). |
+| Review U1–U3 | Audit sink: a second entry is stored, a stored entry is never reported lost, entries are stored at `LOG_LEVEL=warn`. |
+| Review M1–M6, T2 | `expectAudited` asserts the full FR-7.1 entry for every audited identity action; lock ending exactly now; 12/11-character passwords; unknown invitation; last-name trim; silent unknown reset address; enrollment for an address now owned by another account. |
+| Review U4–U12 | Correlation-ID prefix, full shared-data permission matrix, no coercion of JSON bodies, bus with no subscribers, anchored URL schemes and trailing slashes, `.log`-only reconcile, token claim types, MFA secret from the injected randomness, `set`/`int` size mappings. |
+| Review S1 | `pnpm check:schema` (in `pnpm check`, so in CI): fails when `drizzle-kit generate` would write a migration. Proven by changing a default. |
+
+T3 (`Logout` log line) stays accepted as low value (M7).
+
+**Verified by a second full run (2026-10-16):** 89.5% (2,007 killed,
+5 timed out, 237 survived), 28 minutes. The 51 mutants behind the gaps
+are now killed, none of the targeted lines has a survivor left, and no
+new survivor appeared. The 237 remaining are the ones triaged above as
+equivalent, deferred or not worth a test.
 
 ## Phase 2 — Playwright
 
