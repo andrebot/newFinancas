@@ -1,0 +1,23 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "testRunner": "command",
+  "commandRunner": { "command": "cd apps/api && npx vitest run --maxWorkers=2 --bail=1 --reporter=dot" },
+  "mutate": [
+    "apps/api/src/**/*.ts",
+    "!apps/api/src/server.ts",
+    "!apps/api/src/db/seed/main.ts",
+    "!apps/api/src/db/seed/mfaCodeMain.ts",
+    "!apps/api/src/utilities/logging/reconcileMain.ts"
+  ],
+  "ignorePatterns": [
+    "docs", "apps/web", ".superdesign", "storybook-static", "coverage", "reports", "test-results", "tools/icons", "infra"
+  ],
+  "coverageAnalysis": "off",
+  "concurrency": 4,
+  "timeoutMS": 30000,
+  "reporters": ["html", "json", "clear-text", "progress"],
+  "htmlReporter": { "fileName": "reports/mutation/api/index.html" },
+  "jsonReporter": { "fileName": "reports/mutation/api/mutation.json" },
+  "tempDirName": ".stryker-tmp",
+  "cleanTempDir": "always"
+}

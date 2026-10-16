@@ -43,6 +43,7 @@
     "@financas/api-types": "workspace:*",
     "@financas/i18n": "workspace:*",
     "@playwright/test": "^1.63.0",
+    "@stryker-mutator/core": "^10.0.0",
     "@types/node": "^24.19.1",
     "@types/pg": "^8.23.1",
     "@vitest/coverage-v8": "^5.0.3",

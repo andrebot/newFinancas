@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { PGlite, type Transaction } from '@electric-sql/pglite';
-import { sql, TransactionRollbackError } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/pglite';
 import { migrate } from 'drizzle-orm/pglite/migrator';
 import type { Database } from '../../../src/db/database';
@@ -101,6 +101,11 @@ export const insertUser = (
   [email],
 );
 
+// Thrown only by `withRollback` to undo a test's writes. A private sentinel, not
+// Drizzle's `TransactionRollbackError`: one of those escaping from the code under
+// test must fail the test, not end it early as if it had passed.
+const UNDO_TEST_WRITES = new Error('withRollback: undo the test writes');
+
 /**
  * Runs an Accessor test against the migrated database, as the application role,
  * inside a transaction that is always rolled back (OQ-103): tests never see each
@@ -109,6 +114,7 @@ export const insertUser = (
  * @param pglite - A migrated database.
  * @param work - The test, given a Drizzle database to build the Accessor with.
  * @returns Resolves once the test ran and its writes were undone.
+ * @throws Whatever `work` throws — including a `TransactionRollbackError`.
  */
 export const withRollback = async (
   pglite: PGlite,
@@ -118,9 +124,9 @@ export const withRollback = async (
     await drizzle(pglite).transaction(async (tx) => {
       await tx.execute(sql`SET LOCAL ROLE financas_app`);
       await work(tx);
-      tx.rollback();
+      throw UNDO_TEST_WRITES;
     });
   } catch (error) {
-    if (!(error instanceof TransactionRollbackError)) throw error;
+    if (error !== UNDO_TEST_WRITES) throw error;
   }
 };

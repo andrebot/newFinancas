@@ -14,3 +14,7 @@ storybook-static/
 
 # Codegen failure logs (@hey-api/openapi-ts)
 openapi-ts-error-*.log
+
+# Mutation testing (StrykerJS)
+reports/
+.stryker-tmp/
