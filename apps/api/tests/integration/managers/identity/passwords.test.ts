@@ -6,6 +6,7 @@ import { createIdentityManager } from '../../../../src/managers/identity';
 import {
   ANA, fakeDeps, minutes, NOW, SESSION,
 } from './fakes';
+import { expectAudited } from './audit';
 
 const ACTOR = { userId: ANA.id, sessionId: SESSION.id, systemRole: 'USER' as const };
 const SIGNED_IN = { correlationId: 'c1', actor: ACTOR };
@@ -24,9 +25,9 @@ describe('IdentityManager — Change Password (uc-19, FR-1.14)', () => {
 
     expect(users.updatePasswordHash).toHaveBeenCalledWith(ANA.id, `hash(${LONG})`);
     expect(sessions.deleteAllExceptCurrent).toHaveBeenCalledWith(ANA.id, SESSION.id);
-    expect(logs.events).toContainEqual(expect.objectContaining({
-      level: 'audit', message: 'ChangePassword', entityId: ANA.id,
-    }));
+    expectAudited(logs.events, {
+      action: 'ChangePassword', actorId: ANA.id, entityType: 'User', entityId: ANA.id, householdId: null,
+    });
   });
 
   it('answers 422 password.current_incorrect — not 401 — for a wrong current one', async () => {
@@ -52,6 +53,17 @@ describe('IdentityManager — Change Password (uc-19, FR-1.14)', () => {
     await expect(identity.changePassword(SIGNED_IN, { currentPassword: 'old', newPassword: LONG }))
       .rejects.toMatchObject({ apiError: { status: 401, code: 'auth.unauthenticated' } });
   });
+
+  it('accepts a new password of exactly 12 characters, refuses 11', async () => {
+    const { deps, users } = fakeDeps();
+    const identity = createIdentityManager(deps);
+
+    await expect(identity.changePassword(SIGNED_IN, { currentPassword: 'old', newPassword: 'x'.repeat(11) }))
+      .rejects.toMatchObject(TOO_SHORT);
+    await identity.changePassword(SIGNED_IN, { currentPassword: 'old', newPassword: 'x'.repeat(12) });
+
+    expect(users.updatePasswordHash).toHaveBeenCalledWith(ANA.id, `hash(${'x'.repeat(12)})`);
+  });
 });
 
 describe('IdentityManager — Reset Password, step 1 (uc-18, OQ-115)', () => {
@@ -76,16 +88,20 @@ describe('IdentityManager — Reset Password, step 1 (uc-18, OQ-115)', () => {
     );
   });
 
-  it('does nothing for an unknown address, answering the same', async () => {
+  it('does nothing for an unknown address, answering the same — and logs no failure', async () => {
     const { deps, users, notifications } = fakeDeps();
     users.findByEmail.mockResolvedValueOnce(undefined);
+    const logs = captureLogs();
 
     await expect(createIdentityManager(deps).requestPasswordReset(PUBLIC, 'nobody@example.com'))
       .resolves.toBeUndefined();
 
     await vi.waitFor(() => expect(users.findByEmail).toHaveBeenCalled());
+    await new Promise((resolve) => { setImmediate(resolve); });
+    logs.stop();
     expect(users.storeResetToken).not.toHaveBeenCalled();
     expect(notifications.notify).not.toHaveBeenCalled();
+    expect(logs.events).toEqual([]);
   });
 
   it('logs a failure to send instead of returning it', async () => {
@@ -114,9 +130,9 @@ describe('IdentityManager — Reset Password, step 2 (uc-18)', () => {
     expect(users.updatePasswordHash).toHaveBeenCalledWith(ANA.id, `hash(${LONG})`);
     expect(sessions.deleteAllForUser).toHaveBeenCalledWith(ANA.id);
     expect(users.clearLoginFailures).toHaveBeenCalledWith('ana@example.com');
-    expect(logs.events).toContainEqual(expect.objectContaining({
-      level: 'audit', message: 'ResetPassword', actor: `user:${ANA.id}`,
-    }));
+    expectAudited(logs.events, {
+      action: 'ResetPassword', actorId: ANA.id, entityType: 'User', entityId: ANA.id, householdId: null,
+    });
   });
 
   it('checks the length before using up the link (OQ-103)', async () => {

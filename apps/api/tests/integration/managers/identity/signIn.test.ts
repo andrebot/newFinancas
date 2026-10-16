@@ -72,9 +72,12 @@ describe('IdentityManager — Login, password step (uc-14, OQ-114, OQ-145)', () 
     expect(authentication.verifyPassword).not.toHaveBeenCalled();
   });
 
-  it('lets a lock that has ended pass', async () => {
+  it.each([
+    ['ended a minute ago', minutes(-1)],
+    ['ends this very moment', NOW],
+  ])('lets a lock that %s pass', async (_case, lockedUntil) => {
     const { deps, users } = fakeDeps();
-    users.findLoginLock.mockResolvedValueOnce(minutes(-1));
+    users.findLoginLock.mockResolvedValueOnce(lockedUntil);
 
     await expect(loginWith(deps)).resolves.toBeDefined();
   });
@@ -226,11 +229,16 @@ describe('IdentityManager — Confirm MFA Enrollment (uc-11b, OQ-149)', () => {
     expect(users.recordLoginFailure).not.toHaveBeenCalled();
   });
 
-  it('answers enrollment_expired when the user is gone', async () => {
-    const { deps, users } = fakeDeps();
-    users.findByEmail.mockResolvedValueOnce(undefined);
+  it.each([
+    ['is gone', undefined],
+    ['now has another account', { ...ANA, id: 'someone-else' }],
+  ])('answers enrollment_expired when the enrolling address %s', async (_case, found) => {
+    const { deps, users, authentication } = fakeDeps();
+    users.findByEmail.mockResolvedValueOnce(found as typeof ANA | undefined);
 
     await expect(confirmWith(deps)).rejects.toMatchObject(ENROLLMENT_EXPIRED);
+    expect(authentication.verifyTotp).not.toHaveBeenCalled();
+    expect(users.confirmMfaEnrollment).not.toHaveBeenCalled();
   });
 
   it('answers enrollment_expired once already confirmed, opening no session', async () => {

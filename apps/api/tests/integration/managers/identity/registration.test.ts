@@ -64,6 +64,17 @@ describe('IdentityManager — Register (uc-11)', () => {
     expect(users.insert).not.toHaveBeenCalled();
   });
 
+  it('accepts a password of exactly 12 characters, refuses 11', async () => {
+    const { deps, users } = fakeDeps();
+    const identity = createIdentityManager(deps);
+
+    await expect(identity.register(CONTEXT, { ...INPUT, password: 'x'.repeat(11) }))
+      .rejects.toMatchObject({ apiError: { code: 'password.too_short' } });
+    await identity.register(CONTEXT, { ...INPUT, password: 'x'.repeat(12) });
+
+    expect(users.insert).toHaveBeenCalledTimes(1);
+  });
+
   it('answers 409 user.email_taken for a registered email', async () => {
     const { deps, users } = fakeDeps();
     users.insert.mockResolvedValueOnce({ ok: false, reason: 'email_taken' } as never);
