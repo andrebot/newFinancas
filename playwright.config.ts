@@ -17,8 +17,15 @@ const chromiumPath = process.env.PLAYWRIGHT_CHROMIUM_PATH;
 export default defineConfig({
   testDir: 'tests/e2e',
   globalSetup: './tests/e2e/global-setup.ts',
+  // A stray test.only must fail CI, not quietly shrink it to one test.
+  forbidOnly: Boolean(process.env.CI),
+  // No retries: a flaky journey should show, not be retried away (it found a real bug once).
+  retries: 0,
   use: {
     baseURL: WEB_URL,
+    // Something to replay when a journey fails (uploaded by CI with the report).
+    trace: 'retain-on-failure',
+    screenshot: 'only-on-failure',
     // Journeys find elements by their en-US catalog text (tests/e2e/support/text.ts).
     locale: 'en-US',
     ...(chromiumPath ? { launchOptions: { executablePath: chromiumPath } } : {}),

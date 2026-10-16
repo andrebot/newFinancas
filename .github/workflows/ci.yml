@@ -1,7 +1,7 @@
 # Hosted twin of the local hooks (BDT cadence, docs/architecture/04-bdt-test-plan.md):
 #   every PR      -> check (lint, typecheck, unit + integration, 100% coverage) + smoke
 #   push to main  -> the same, plus Core E2E (post-merge, never blocks a merge)
-# Full E2E and load stay on demand.
+#   nightly       -> Full E2E (nightly.yml); load stays on demand.
 name: CI
 
 on:
@@ -49,7 +49,9 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: smoke-report
-          path: playwright-report/
+          path: |
+            playwright-report/
+            test-results/
 
   core-e2e:
     if: github.event_name == 'push'
@@ -71,4 +73,6 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: core-e2e-report
-          path: playwright-report/
+          path: |
+            playwright-report/
+            test-results/

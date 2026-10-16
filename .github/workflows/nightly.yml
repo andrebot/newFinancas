@@ -1,0 +1,39 @@
+# Full E2E (BDT cadence, docs/architecture/04-bdt-test-plan.md, OQ-161): every
+# journey, the untagged ones included, against the real API and database —
+# nightly on main, and on demand. A release gate, never a merge gate.
+name: Nightly
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: nightly
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  full-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: cp .env.example .env
+      - run: docker compose up --detach --wait db
+      - run: pnpm test:e2e
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: full-e2e-report
+          path: |
+            playwright-report/
+            test-results/
