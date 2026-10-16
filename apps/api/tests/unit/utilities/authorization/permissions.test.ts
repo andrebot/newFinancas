@@ -39,6 +39,20 @@ describe('decide — personal data (FR-2.3, OQ-111)', () => {
   });
 });
 
+describe('decide — shared data, the whole role matrix (FR-1.7)', () => {
+  it.each([
+    ['data.view', ['Owner', 'Admin', 'Member', 'Viewer'], []],
+    ['data.create', ['Owner', 'Admin', 'Member'], ['Viewer']],
+    ['data.edit', ['Owner', 'Admin'], ['Member', 'Viewer']],
+    ['data.delete', ['Owner', 'Admin'], ['Member', 'Viewer']],
+  ] as const)('%s on another\'s: allowed for %j, forbidden for %j', (action, allowed, denied) => {
+    const target = { action, visibility: 'shared', ownerUserId: OTHER } as const;
+
+    allowed.forEach((role) => expect(decide(role, ME, target)).toBe('allowed'));
+    denied.forEach((role) => expect(decide(role, ME, target)).toBe('forbidden'));
+  });
+});
+
 describe('decide — shared data (FR-1.7)', () => {
   it.each([
     ['data.view', 'Viewer', OTHER, 'allowed'],

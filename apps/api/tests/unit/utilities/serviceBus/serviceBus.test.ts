@@ -54,7 +54,7 @@ describe('ServiceBusUtility', () => {
   });
 
   it('keeps topics apart, and publishing with no subscribers is harmless', async () => {
-    const { bus } = setup();
+    const { bus, onHandlerError } = setup();
     const handler = vi.fn();
     bus.subscribe('holding.matured', handler);
 
@@ -62,6 +62,7 @@ describe('ServiceBusUtility', () => {
     await bus.drain();
 
     expect(handler).not.toHaveBeenCalled();
+    expect(onHandlerError).not.toHaveBeenCalled();
   });
 
   it('stops delivering after unsubscribe, leaving other subscribers in place', async () => {

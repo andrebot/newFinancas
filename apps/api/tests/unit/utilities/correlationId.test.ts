@@ -16,6 +16,7 @@ describe('isValidCorrelationId', () => {
     ['empty', ''],
     ['not a UUID', 'req-123'],
     ['a log-injection attempt', `${V4}\nFAKE LOG LINE`],
+    ['a UUID after injected text', `FAKE LOG LINE\n${V4}`],
     ['an invalid variant', '3f2504e0-4f89-41d3-7a0c-0305e82c3301'],
     ['version 0', '3f2504e0-4f89-01d3-9a0c-0305e82c3301'],
     ['too long', `${V4}0`],
