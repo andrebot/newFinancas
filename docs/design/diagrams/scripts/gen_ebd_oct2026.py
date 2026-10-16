@@ -39,7 +39,7 @@ EXPERIENCES = [
      [("Sign In", ["Credential Entry", "MFA Code Entry", "Backup Code Entry"], "sign-in"),
       ("Account Recovery", ["Recovery Request", "New Password Entry", "Reset Complete"], "account-recovery")],
      ["Sign Out"], ["ValidationUtility", "PasswordStrengthUtility", "AlertUtility", "I18nUtility"],
-     "Security Maintenance moved to Manage Profile (Q1). 'Remember me' removed (OQ-62)."),
+     "Security Maintenance moved to Manage Profile (Q1). 'Remember me' removed (OQ-62). Sign In resumes an unconfirmed MFA enrollment by hosting Onboard's MFA Enrollment Flow (OQ-157). Sign Out is the App Shell drawer's button, handed Authenticate's handler (OQ-156)."),
     ("Onboard", "onboard", "Set up a household from nothing",
      [("Registration", ["Registration Form Entry"], "registration"),
       ("MFA Enrollment", ["MFA Method Selection", "MFA Setup Verification", "Backup Codes Acknowledgement"], "mfa-enrollment"),
@@ -212,8 +212,8 @@ EXP = lambda n: ("EXP", f"{n}<br/>Experience")
 API = ("API", "Backend API")
 
 SEQUENCES = [
-    ("authenticate-sign-in", "Authenticate — Sign In", f"{R('POST /auth/login')} then {R('POST /auth/mfa/verify')} (or {R('POST /auth/mfa/recover')}). Credentials, then MFA code or backup code (OQ-145).",
-     [("CE", "Credential Entry"), ("MFA", "MFA Code Entry"), ("BC", "Backup Code Entry"), FLOW("Sign In"), EXP("Authenticate"), API],
+    ("authenticate-sign-in", "Authenticate — Sign In", f"{R('POST /auth/login')} then {R('POST /auth/mfa/verify')} (or {R('POST /auth/mfa/recover')}); an unconfirmed enrollment resumes through {R('POST /auth/mfa/enrollment/confirm')}. Credentials, then MFA code or backup code (OQ-145, OQ-157).",
+     [("CE", "Credential Entry"), ("MFA", "MFA Code Entry"), ("BC", "Backup Code Entry"), FLOW("Sign In"), ("ENR", "MFA Enrollment<br/>Flow (Onboard's)"), EXP("Authenticate"), ("SHELL", "App Shell"), API],
      """
 User->>CE: email + password, submit
 CE->>FLOW: emit credentialsEntered
@@ -222,7 +222,24 @@ EXP->>API: POST /auth/login
 alt 401 auth.invalid_credentials / 429
     API-->>EXP: error code
     EXP-->>FLOW: outcome: failed(code) — I18nUtility renders it
-else ok
+else step: enroll (MFA never confirmed, OQ-149)
+    API-->>EXP: enrollment token, secret, otpauth URI, recovery codes (kept by the Experience)
+    EXP-->>ENR: render in place of Sign In (Onboard's Flow, hosted here — OQ-157)
+    ENR->>EXP: request confirm(code)
+    EXP->>API: POST /auth/mfa/enrollment/confirm
+    alt 401 auth.mfa_invalid
+        API-->>EXP: error code
+        EXP-->>ENR: outcome: failed(code) — boxes cleared, retried
+    else 401 auth.enrollment_expired
+        API-->>EXP: error code
+        EXP-->>FLOW: toast (AlertUtility), back to Sign In — the password step issues a fresh enrollment
+    else ok
+        API-->>EXP: tokens (held, not yet a session)
+        EXP-->>ENR: outcome: ok
+        ENR->>EXP: emit complete (backup codes saved)
+        EXP->>SHELL: startSession(tokens)
+    end
+else step: mfa
     API-->>EXP: challengeToken (kept by the Experience)
     EXP-->>FLOW: outcome: ok
     FLOW-->>MFA: render (challenge step)
@@ -249,9 +266,10 @@ else 401 auth.challenge_expired / 429
     EXP-->>FLOW: outcome: failed(code) — back to credentials, email kept
 else ok
     API-->>EXP: tokens
-    EXP-->>FLOW: outcome: ok — App Shell takes over
+    EXP->>SHELL: startSession(tokens) — the signed-out guard takes the user on
+    EXP-->>FLOW: outcome: ok
 end
-""", ["Same error code for unknown user and wrong password (no enumeration); a wrong code is named, since the password is already proven (OQ-145).", "The challenge token never reaches the Flow: the Experience holds it between the two calls.", "No 'Remember me' (OQ-62)."]),
+""", ["Same error code for unknown user and wrong password (no enumeration); a wrong code is named, since the password is already proven (OQ-145).", "The challenge and enrollment tokens never reach a Flow: the Experience holds them between the calls.", "A resumed enrollment starts the session only once the backup codes are saved, so the guard doesn't leave them unseen (OQ-157); no household → the shell's gate sends the user to Onboard.", "Sign Out (the shell drawer's button, Authenticate's handler): POST /auth/logout, then the session ends here — even when the logout fails (OQ-157).", "No 'Remember me' (OQ-62)."]),
     ("authenticate-account-recovery", "Authenticate — Account Recovery", f"{R('POST /auth/password-reset/request')} then {R('POST /auth/password-reset/confirm')}. Ask for a link; from the link, a new password (OQ-147).",
      [("RR", "Recovery Request"), ("NP", "New Password Entry"), ("RC", "Reset Complete"), FLOW("Account Recovery"), EXP("Authenticate"), API],
      """

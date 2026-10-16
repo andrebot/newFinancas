@@ -58,7 +58,7 @@ Diagram: `docs/design/diagrams/ebd-tiers/app-shell.html`; sequence:
 
 ### Authenticate
 
-**Purpose:** Get in, get out — the entry gate. Security Maintenance moved to Manage Profile (Q1). 'Remember me' removed (OQ-62).
+**Purpose:** Get in, get out — the entry gate. Security Maintenance moved to Manage Profile (Q1). 'Remember me' removed (OQ-62). Sign In resumes an unconfirmed MFA enrollment by hosting Onboard's MFA Enrollment Flow (OQ-157). Sign Out is the App Shell drawer's button, handed Authenticate's handler (OQ-156).
 
 | Flow | Interactions | Sequence |
 |---|---|---|
@@ -353,6 +353,11 @@ Experience hosts directly, not nested in any Flow.
 
 **Authenticate Experience** owns: current auth state (unauthenticated →
 authenticated), which Flow is active. Only tier that calls the backend.
+*Built per OQ-157:* one Experience with an `entry` per route (Sign In,
+recovery). It holds the challenge token between the two sign-in calls and
+starts the session with the shell's `startSession`. On an unconfirmed
+enrollment (`step: 'enroll'`) it hosts Onboard's MFA Enrollment Flow and
+starts the session only once the backup codes are saved.
 
 - **Sign In Flow** — state: entered credentials, current step (credential
   entry vs. challenge), which challenge method is active. Exit: session
@@ -379,7 +384,10 @@ authenticated), which Flow is active. Only tier that calls the backend.
     specific one (merged into one — selecting a row to revoke isn't a
     meaningfully separate atomic action from viewing the list)
 - **Sign Out** — standalone Interaction, hosted directly by the
-  Experience, no Flow wrapper.
+  Experience, no Flow wrapper. *Built per OQ-156/157:* the button lives in
+  the App Shell's drawer, and Authenticate's `signOut` handler sends
+  `POST /auth/logout`, then ends the session here, even when the logout
+  fails.
 
 **Utilities** (cross-cutting, shared beyond this Experience too):
 Validation (email/password format — also used by Onboard's Registration

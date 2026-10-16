@@ -5,7 +5,7 @@ import backendApi from '../../../src/api/backendApi';
 import { sessionEnded } from '../../../src/api/baseQuery';
 import {
   chooseActiveHousehold, householdChosen, initialShellState, selectActiveHouseholdId,
-  selectSession, sessionStarted, settleActiveHousehold, shellReducer, switchHousehold,
+  selectSession, sessionStarted, settleActiveHousehold, shellReducer, startSession, switchHousehold,
 } from '../../../src/shell/shellState';
 import { jsonResponse } from '../api/fakes';
 import {
@@ -39,6 +39,18 @@ describe('shellReducer', () => {
     const state = { shell: { session: 'signedIn' as const, activeHouseholdId: 'doe' } };
     expect(selectSession(state)).toBe('signedIn');
     expect(selectActiveHouseholdId(state)).toBe('doe');
+  });
+});
+
+describe('startSession', () => {
+  it('keeps the tokens, then signs the user in', () => {
+    const { store, api, tokenStorage } = fakeStore();
+
+    store.dispatch(startSession({ accessToken: 'access-1', refreshToken: 'refresh-1' }));
+
+    expect(api.tokens.accessToken()).toBe('access-1');
+    expect(tokenStorage.value).toBe('refresh-1');
+    expect(selectSession(store.getState())).toBe('signedIn');
   });
 });
 

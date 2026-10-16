@@ -93,7 +93,7 @@ identity screens, the rest as later slices use them.
 - [x] **58.** `FL7` Security (OQ-154)
 - [x] **59.** `FL9` Membership Management (OQ-155)
 - [x] **60.** `S1` App Shell (OQ-156: React Router v7; chrome data injected by its owners)
-- [ ] **61.** `X1` Authenticate
+- [x] **61.** `X1` Authenticate (OQ-157: hosts the resumed MFA enrollment; Sign Out ends locally even if the logout fails)
 - [ ] **62.** `X2` Onboard (Registration, MFA, Household Setup)
 - [ ] **63.** `X3` Manage Profile
 - [ ] **64.** `X4` Manage Household

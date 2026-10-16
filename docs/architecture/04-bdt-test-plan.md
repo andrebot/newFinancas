@@ -331,7 +331,7 @@ failure). Highest-risk slices:
 
 | Experience | Integration scenarios |
 |---|---|
-| Authenticate | Sign In success → shell takes over; each 401 code mapped to the right Interaction; recovery token invalid |
+| Authenticate | Sign In success → `startSession`, shell takes over; the challenge token carried to the second factor; each 401/429 code handed to the Flow; `step: 'enroll'` → hosted MFA Enrollment, session only after the codes are saved, `auth.enrollment_expired` → toast + Sign In; reset token read once and stripped from the URL; recovery 400/422; Sign Out ends the session even when the logout fails (OQ-157) |
 | Onboard | full order Registration → MFA → Household → Guided Setup; **signed-in entry skips Registration + MFA by configuration** (additional household); composed Account Setup Flows' calls go through Onboard |
 | Manage Profile | sessions list + revoke one / all others; preferences change applies ThemeUtility + I18nUtility immediately; Respond to Invitation (accept/decline) reached from the shell |
 | Manage Household | unified member + invitation list; role menu; Leave Household (Switch Household is the shell's — OQ-156) |

@@ -1573,7 +1573,8 @@ OQ-112:** `NotificationDeliveryUtility` was misclassified.
 - **Demo users get real dev credentials:** `pnpm db:seed:demo` gives Ana
   and Ben the password and TOTP secret in `config/constants.ts`
   (`demoSeed`), shown once in the seed's terminal output; a rerun
-  refreshes them.
+  refreshes them. `pnpm generate:mfacode` prints their current TOTP code,
+  so local sign-in needs no authenticator app.
 
 **Design decisions (PR 1):**
 - **Request authentication:** `requireSystemRole(verify, 'USER')` on every
@@ -3401,6 +3402,64 @@ not a hardcoded assumption.
   reuse `membership`.
 
 **Task 60 (`S1`) is complete.**
+
+### OQ-157: The Authenticate Experience (task X1)
+**Confirmed with the stakeholder (Oct 2026):**
+- **One Experience, two journeys** (`experiences/authenticate/
+  AuthenticateExperience.tsx`). Each route gives the Experience an `entry`:
+  `signIn` (`/sign-in`) or `recovery` (`/forgot-password` and
+  `/reset-password`). It draws the active Flow on the kit's auth layout. It
+  is the only tier here that calls the backend: its endpoints are in
+  `experiences/authenticate/api.ts`, and all of them are mutations.
+  - **The challenge token stays in the Experience** (a ref) between the two
+    sign-in requests (OQ-145). It never reaches the Flow.
+  - Forgot password, Create account and Back to Sign In navigate with the
+    current navigation state. That keeps `{ from }`, so Sign In still
+    returns the user where they were going.
+  - **The reset link's token is read once and then taken out of the address
+    bar** (`replace`), so it doesn't stay in the history. The Flow already
+    holds it from mount (OQ-147).
+- **A session starts through `startSession(tokens)`**, a new thunk in
+  `shell/shellState.ts` that Onboard (X2) will reuse. It stores the tokens,
+  then dispatches `sessionStarted`. After that, the signed-out guard takes
+  the user on (OQ-156).
+- **An unconfirmed enrollment is resumed inside Authenticate.** When the
+  password step answers `step: 'enroll'` (OQ-149), the Experience shows
+  Onboard's MFA Enrollment Flow in place of Sign In. This follows the way
+  Onboard hosts Account Setup's Flows. The enrollment comes from the
+  answer, and the account email from what was typed.
+  - The confirmed tokens are held, and **the session starts only once the
+    backup codes are saved.** Starting it at confirm would let the guard
+    take the user away before they have seen the codes.
+  - A wrong code is left to the Flow. `auth.enrollment_expired` shows a
+    toast (AlertUtility) and returns to Sign In, whose password step issues
+    a fresh enrollment.
+  - A user with no household then reaches Onboard through the shell's
+    household gate. No new route is needed, and nothing depends on X2.
+- **Sign Out** (`experiences/authenticate/signOut.ts`) is the thunk behind
+  the drawer's button (`ShellActions.signOut`). It sends `POST /auth/logout`,
+  then `sessionEnded`. The order matters, because the logout needs the
+  access token.
+  - **A logout that fails (no answer, server error) still signs the user
+    out here.** The user asked to leave. The API client logs the failure,
+    and the server session lapses, or the user revokes it from Security.
+  - `placeholders.tsx` no longer stands in for Sign Out or the three auth
+    pages.
+- **`toRequestOutcome` (`api/outcome.ts`)** turns an endpoint's result into
+  the shared `RequestOutcome`. A failure keeps only the `code` and `params`.
+  An exception thrown while sending (an RTK Query `SerializedError`) becomes
+  `internal.unexpected`. Every Experience uses it.
+- **Tests (BDT):** the Experience runs on the real store with its Flows
+  stubbed, and only `fetch` is faked. The tests cover every documented
+  answer: 200 mfa / enroll, 401 `invalid_credentials` / `mfa_invalid` /
+  `challenge_expired` / `enrollment_expired`, 429, 202, 400
+  `token_invalid`, 422, and no answer. Sign Out is tested both answered and
+  unanswered.
+- The EBD Sign In sequence (the enroll branch, `startSession`, Sign Out) and
+  the Authenticate tier diagram are redrawn through their generator. No new
+  texts.
+
+**Task 61 (`X1`) is complete.**
 
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every

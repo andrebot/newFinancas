@@ -18,6 +18,7 @@
     "db:psql": "docker compose exec db psql --username financas --dbname financas",
     "db:migrate": "pnpm --filter @financas/api db:migrate",
     "db:seed:demo": "pnpm --filter @financas/api db:seed:demo",
+    "generate:mfacode": "pnpm --silent --filter @financas/api generate:mfacode",
     "db:backup": "pnpm --filter @financas/ops ops backup",
     "db:restore": "pnpm --filter @financas/ops ops restore",
     "db:restore-drill": "pnpm --filter @financas/ops ops restore-drill",
