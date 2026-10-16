@@ -2,7 +2,9 @@ import type { Locale } from '@financas/i18n';
 import { render } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import { Provider } from 'react-redux';
-import { MemoryRouter, parsePath, useLocation } from 'react-router';
+import {
+  MemoryRouter, parsePath, useLocation, useNavigationType,
+} from 'react-router';
 import { vi } from 'vitest';
 import type { ApiEnvironment } from '../../../src/api/baseQuery';
 import { createTokenStore } from '../../../src/api/tokens';
@@ -95,14 +97,20 @@ export const fakeConfig = (overrides: Partial<ShellConfig> = {}): ShellConfig =>
 });
 
 /**
- * Shows the router's current address and state, for assertions.
+ * Shows the router's current address, its state and how it was reached
+ * (`POP`, `PUSH` or `REPLACE`), for assertions.
  *
  * @returns The probe.
  */
 export function LocationProbe() {
   const location = useLocation();
+  const navigation = useNavigationType();
   return (
-    <output data-testid="location" data-state={JSON.stringify(location.state)}>
+    <output
+      data-testid="location"
+      data-state={JSON.stringify(location.state)}
+      data-navigation={navigation}
+    >
       {`${location.pathname}${location.search}`}
     </output>
   );

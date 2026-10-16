@@ -390,6 +390,8 @@ describe('AuthenticateExperience — Account Recovery', () => {
 
     expect(shownBy('recovery')).toEqual({ token: 'reset-1' });
     expect(screen.getByTestId('location').textContent).toBe('/reset-password');
+    // Replaced, not pushed: Back must not bring the token into the address bar again.
+    expect(screen.getByTestId('location').dataset.navigation).toBe('REPLACE');
     await press('confirm');
 
     expect(lastOutcome()).toEqual({ ok: true });

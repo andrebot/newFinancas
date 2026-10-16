@@ -99,6 +99,20 @@ describe('readMaskedEdit', () => {
     });
   });
 
+  it('reads a deleted digit as itself, not as a separator removal', () => {
+    expect(readMaskedEdit(digitsMask, '123.4', '13.4', 1)).toEqual({
+      clean: '134',
+      cleanBeforeCaret: 1,
+    });
+  });
+
+  it('reads a separator replaced by a rejected character as no removal', () => {
+    expect(readMaskedEdit(digitsMask, '123.4', '123x4', 4)).toEqual({
+      clean: '1234',
+      cleanBeforeCaret: 3,
+    });
+  });
+
   it('leaves the value alone when a leading separator goes with nothing before it', () => {
     const leading: Mask = { format: (clean) => `.${clean}`, parse: digitsMask.parse };
 
@@ -148,6 +162,13 @@ describe('useMaskedInput', () => {
     expect(onChange).not.toHaveBeenCalled();
     expect(input.value).toBe('123.4');
     expect(input.selectionStart).toBe(1);
+
+    // A second rejected character in a row is handled the same way.
+    editTo(input, '12x3.4', 3);
+
+    expect(onChange).not.toHaveBeenCalled();
+    expect(input.value).toBe('123.4');
+    expect(input.selectionStart).toBe(2);
   });
 
   it('falls back to the end of the text when the input has no caret', () => {

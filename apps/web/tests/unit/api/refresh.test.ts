@@ -100,6 +100,7 @@ describe('createRefresher', () => {
     }],
     ['the server errors', async () => jsonResponse(503, {})],
     ['the body is incomplete', async () => jsonResponse(200, { accessToken: 'access-2' })],
+    ['the body has no access token', async () => jsonResponse(200, { refreshToken: 'refresh-2' })],
     ['the body isn’t JSON', async () => new Response('<html>', { status: 200 })],
   ])('fails but keeps the tokens when %s', async (_, answer) => {
     const setup = setUp(answer);
