@@ -58,8 +58,13 @@ describe('HouseholdSwitcher', () => {
       'The Doe Household Owner', 'The Rivera Household Member',
     ]);
     const doe = screen.getByRole('button', { name: 'The Doe Household Owner' });
+    const rivera = screen.getByRole('button', { name: 'The Rivera Household Member' });
     expect(doe.getAttribute('aria-current')).toBe('true');
-    fireEvent.click(screen.getByRole('button', { name: 'The Rivera Household Member' }));
+    expect(rivera.hasAttribute('aria-current')).toBe(false);
+    // The active row alone carries the check mark beside its glyph.
+    expect(doe.querySelectorAll('svg')).toHaveLength(2);
+    expect(rivera.querySelectorAll('svg')).toHaveLength(1);
+    fireEvent.click(rivera);
     expect(onSwitch).toHaveBeenCalledWith('rivera');
   });
 

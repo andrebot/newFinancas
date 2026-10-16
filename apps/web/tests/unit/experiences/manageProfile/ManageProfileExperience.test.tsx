@@ -119,7 +119,10 @@ vi.mock('../../../../src/experiences/manageProfile/interactions/RespondToInvitat
     <Stub
       name="invitations"
       shows={{ ids: invitations.map((invitation) => invitation.id), answering }}
-      events={{ accept: () => onAnswer('inv-rivera', 'accept') }}
+      events={{
+        accept: () => onAnswer('inv-rivera', 'accept'),
+        decline: () => onAnswer('inv-rivera', 'decline'),
+      }}
     />
   ),
 }));
@@ -176,12 +179,13 @@ const LOADED: Answers = {
  *
  * @param answers - The API's answers, over the loaded page's.
  * @param loads - Whether to wait for the profile to show.
+ * @param activeId - The household the shell has active.
  * @returns The store and the fake `fetch`.
  */
-const renderExperience = async (answers: Answers = {}, loads = true) => {
+const renderExperience = async (answers: Answers = {}, loads = true, activeId = 'doe') => {
   const fetchFn = fakeFetch({ ...LOADED, ...answers });
   const { store } = fakeStore({ fetchFn, refreshToken: 'r-0' });
-  store.dispatch(householdChosen('doe'));
+  store.dispatch(householdChosen(activeId));
   renderWithShell(
     <AlertProvider queue={createAlertQueue(3)}>
       <ManageProfileExperience />
@@ -211,6 +215,12 @@ describe('ManageProfileExperience — the page', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Jane Doe' })).toBeTruthy();
     expect(screen.getByText('jane.doe@example.com · Owner of The Doe Household')).toBeTruthy();
     expect(screen.getByText('JD')).toBeTruthy();
+  });
+
+  it('names the role in the active household, not the first one listed', async () => {
+    await renderExperience({}, true, 'rivera');
+
+    expect(screen.getByText('jane.doe@example.com · Member of The Rivera Household')).toBeTruthy();
   });
 
   it('shows the email alone until the households load', async () => {
@@ -295,6 +305,23 @@ describe('ManageProfileExperience — preferences', () => {
       ...USER, preferences: { theme: 'light', language: 'en-US' },
     }));
     expect(shownBy('preferences')).toEqual({ theme: 'light', language: 'en-US' });
+  });
+
+  it('saves a picked language, without a failure toast', async () => {
+    const { fetchFn } = await renderExperience({
+      'PATCH /users/me': () => jsonResponse(200, {
+        ...USER, preferences: { theme: 'dark', language: 'pt-BR' },
+      }),
+    });
+
+    await press('portuguese');
+
+    expect((await sent(fetchFn)).at(-1)).toEqual({
+      route: 'PATCH /api/v1/users/me', body: { preferences: { language: 'pt-BR' } },
+    });
+    expect(shownBy('preferences')).toMatchObject({ language: 'pt-BR' });
+    expect(screen.queryByText("Your preference wasn't saved. Please try again.")).toBeNull();
+    expect(screen.queryByText('Sua preferência não foi salva. Tente de novo.')).toBeNull();
   });
 
   it('undoes a pick the API refuses, and toasts it', async () => {
@@ -439,6 +466,25 @@ describe('ManageProfileExperience — invitations', () => {
     expect(screen.queryByTestId('invitations')).toBeNull();
     const routes = (await sent(fetchFn)).map((call) => call.route);
     expect(routes.filter((route) => route === 'GET /api/v1/households')).toHaveLength(2);
+  });
+
+  it('declines one: toasted and the invitations fetched again', async () => {
+    let invitations = [INVITATION];
+    const { fetchFn } = await renderExperience({
+      'GET /users/me/invitations': () => jsonResponse(200, { data: invitations }),
+      'POST /invitations/inv-rivera/decline': () => {
+        invitations = [];
+        return jsonResponse(204);
+      },
+    });
+
+    await press('decline');
+    await settle();
+
+    expect(screen.getByText('You declined the invitation to The Rivera Household.')).toBeTruthy();
+    expect(screen.queryByTestId('invitations')).toBeNull();
+    const routes = (await sent(fetchFn)).map((call) => call.route);
+    expect(routes.filter((route) => route === 'GET /api/v1/users/me/invitations')).toHaveLength(2);
   });
 
   it('toasts an invitation no longer pending, and lets the user answer again', async () => {
