@@ -3701,6 +3701,50 @@ not a hardcoded assumption.
 
 **Task 64 (`X4`) is complete.**
 
+### OQ-161: The identity seam, end to end (task I7)
+**Confirmed with the stakeholder (Oct 2026):**
+- **I7 drives the real web app against the real API** — Playwright, the
+  test database, nothing mocked (`tests/e2e/identity/`). It covers X1–X4:
+  - **Authenticate:** the two-step sign-in with a real authenticator code
+    and signing out; a wrong password's localized message; a backup code
+    that works once, and only once.
+  - **Onboard:** registration → MFA enrollment (the code computed from the
+    setup key on screen) → backup codes → first household → the Dashboard.
+  - **Manage Profile:** personal info saved; theme and language applied at
+    once and restored from the server; a changed password is the one Sign
+    In accepts.
+  - **Manage Household:** invite → accept (in a second browser session);
+    a role change; Transfer Ownership; Leave as Owner with a successor;
+    deleting the household.
+  - **Not here:** password reset (the console email provider has no test
+    sink), Delete Account (`DELETE /users/me` comes with `M1D`; I13 covers
+    it), the bell (notifications aren't built).
+- **Cadence by BDT tier.** The journeys that are Core E2E journeys (#1
+  without its Categories check, #2, #3, #4) are tagged `@core` and run
+  after merge; the rest are Full E2E (untagged, nightly).
+- **Preconditions are arranged through the API** (`tests/e2e/support/
+  identityApi.ts`): other users, households and memberships are created
+  with direct requests, so only the behaviour under test goes through the
+  browser. Each test registers its own users (unique emails), so tests never
+  share state or a login-lockout bucket.
+- **Elements are found by what the user reads**, in en-US: the config runs
+  the browser in en-US and `tests/e2e/support/text.ts` renders the shared
+  catalog's messages. A reworded string can't break a journey; a removed key
+  fails typecheck. The authenticator's codes come from `otpauth`
+  (`support/totp.ts`). The support helpers are E2E code, like
+  `global-setup.ts`: documented, not unit-tested.
+- **Fix found by I7 — a new account starts in the language it registered
+  in.** Registration sent no language, so every account was pt-BR (the
+  column default), and an en-US user's app switched to Portuguese as soon as
+  their saved preference loaded, mid-onboarding. `POST /auth/register` now
+  takes an optional `language` (pt-BR when absent); Onboard sends the locale
+  the page shows; IdentityManager stores it. FR-1.21 says so; the uc-11
+  sequence and the Onboard — Registration EBD sequence are redrawn.
+- **Running E2E locally** needs the database (`pnpm db:up`) and Playwright's
+  Chromium; `PLAYWRIGHT_CHROMIUM_PATH` points at a system one instead.
+
+**Task 66 (`I7`) is complete.**
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.

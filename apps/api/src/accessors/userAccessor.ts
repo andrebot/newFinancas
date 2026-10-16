@@ -50,7 +50,8 @@ export interface NewUser {
   readonly passwordHash: string;
   readonly encryptedMfaSecret: string;
   readonly recoveryCodeHashes: readonly string[];
-  readonly language?: Language;
+  /** The starting language; the column default (pt-BR) when absent. */
+  readonly language?: Language | undefined;
   readonly theme?: Theme;
 }
 

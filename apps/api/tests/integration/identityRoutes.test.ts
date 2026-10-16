@@ -259,6 +259,26 @@ describe('identity routes — profile and lists (OQ-116)', () => {
     expect(identity.editProfile).toHaveBeenCalledTimes(1);
   });
 
+  it('POST /auth/register passes the registering locale on (OQ-161)', async () => {
+    const { app, identity } = setup();
+
+    await send(app, 'POST', '/auth/register', { body: { ...REGISTRATION, language: 'en-US' } });
+
+    expect(identity.register)
+      .toHaveBeenCalledWith(expect.anything(), { ...REGISTRATION, language: 'en-US' });
+  });
+
+  it('POST /auth/register refuses an unsupported language', async () => {
+    const { app, identity } = setup();
+
+    const response = await send(app, 'POST', '/auth/register', {
+      body: { ...REGISTRATION, language: 'fr-FR' },
+    });
+
+    expect(response.status).toBe(422);
+    expect(identity.register).not.toHaveBeenCalled();
+  });
+
   it('POST /auth/register refuses a blank name', async () => {
     const { app, identity } = setup();
 

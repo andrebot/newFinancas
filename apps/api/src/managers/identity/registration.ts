@@ -1,4 +1,5 @@
 import { authentication } from '../../config/constants';
+import type { Language } from '../../db/schema/values';
 import {
   enrollmentStart, loggerFor,
   type EnrollmentStart, type IdentityDeps, type RequestContext,
@@ -15,6 +16,8 @@ export interface Registration {
   readonly password: string;
   readonly firstName: string;
   readonly lastName: string;
+  /** The locale they registered in — the account's starting language (OQ-161). */
+  readonly language?: Language | undefined;
 }
 
 /** What registration returns, once: the enrollment to confirm (OQ-149). */
@@ -34,7 +37,8 @@ const createRegistration = (deps: IdentityDeps) => ({
    * recovery codes. The plain secret and codes are returned once, never stored.
    *
    * @param context - The request.
-   * @param input - Email, password and name; text is trimmed here (OQ-108).
+   * @param input - Email, password, name and the registering locale; text is
+   *   trimmed here (OQ-108).
    * @returns The new user's id, TOTP secret, QR URI, recovery codes and the
    *   token that confirms the enrollment.
    * @throws {ApiError} 422 `password.too_short`; 409 `user.email_taken`.
@@ -47,6 +51,7 @@ const createRegistration = (deps: IdentityDeps) => ({
       email,
       firstName: input.firstName.trim(),
       lastName: input.lastName.trim(),
+      language: input.language,
       passwordHash: await deps.authentication.hashPassword(input.password),
       encryptedMfaSecret: mfa.encryptedSecret,
       recoveryCodeHashes: mfa.recoveryCodeHashes,

@@ -98,7 +98,7 @@ identity screens, the rest as later slices use them.
 - [x] **63.** `X3` Manage Profile (OQ-159: brings in Manage Household's households list; preferences apply at once, undone if refused)
 - [x] **64.** `X4` Manage Household (OQ-160: Leave Household is its own card; leaving or deleting lands on the next household's Dashboard, or Onboard)
 - [x] **65.** `I1` IdentityManager seam suite (the M1 suites already cover 100% of the Manager; I1 adds the permission matrix — Delete User's scenarios wait for `M1D`)
-- [ ] **66.** `I7` Frontend ↔ backend: identity
+- [x] **66.** `I7` Frontend ↔ backend: identity (OQ-161: journeys tagged by BDT tier, arranged through the API; a new account starts in the language it registered in)
 
 ## Slice 2 — Account setup
 

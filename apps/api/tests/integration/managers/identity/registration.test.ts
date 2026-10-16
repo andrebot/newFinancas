@@ -45,6 +45,14 @@ describe('IdentityManager — Register (uc-11)', () => {
     }));
   });
 
+  it('starts the account in the locale the user registered in (OQ-161)', async () => {
+    const { deps, users } = fakeDeps();
+
+    await createIdentityManager(deps).register(CONTEXT, { ...INPUT, language: 'en-US' });
+
+    expect(users.insert).toHaveBeenCalledWith(expect.objectContaining({ language: 'en-US' }));
+  });
+
   it('rejects a password under 12 characters before doing any work', async () => {
     const { deps, users, authentication } = fakeDeps();
 

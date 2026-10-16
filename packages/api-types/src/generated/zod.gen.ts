@@ -821,7 +821,8 @@ export const zRegisterUserBody = z.object({
     email: z.email(),
     password: z.string().min(12),
     firstName: z.string().min(1),
-    lastName: z.string().min(1)
+    lastName: z.string().min(1),
+    language: z.enum(['pt-BR', 'en-US']).optional()
 });
 
 /**

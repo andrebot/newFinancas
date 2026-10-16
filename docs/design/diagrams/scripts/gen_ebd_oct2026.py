@@ -305,7 +305,7 @@ end
 User->>RF: first + last name, email, password + confirm (strength meter, advisory)
 RF->>FLOW: emit submit(registration) — names not blank, valid email, ≥ 12 characters, confirmation matches
 FLOW->>EXP: request register(registration)
-EXP->>API: POST /auth/register
+EXP->>API: POST /auth/register (+ language: the locale shown, OQ-161)
 alt 409 user.email_taken / 422 password.too_short (or another failure)
     API-->>EXP: error code
     EXP-->>FLOW: outcome: failed(code)

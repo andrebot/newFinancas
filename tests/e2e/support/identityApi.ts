@@ -1,0 +1,188 @@
+import { randomUUID } from 'node:crypto';
+import type { APIRequestContext } from '@playwright/test';
+import type {
+  AuthTokens, HouseholdMembership, Invitation, MfaEnrollmentStart, MyHousehold,
+  ReceivedInvitation,
+} from '@financas/api-types';
+import totpCode from './totp';
+
+// Arranging through the API (I7): a journey's preconditions — another user, a
+// household, a membership — are created by calling the backend directly, so
+// only the behaviour under test goes through the browser.
+
+export const API_URL = 'http://localhost:3000/api/v1';
+
+/** A household role an invitation can grant. */
+export type InvitedRole = 'Admin' | 'Member' | 'Viewer';
+
+/** A registered user with confirmed MFA, and what a test needs to act as them. */
+export interface TestUser {
+  readonly email: string;
+  readonly password: string;
+  readonly firstName: string;
+  readonly lastName: string;
+  readonly totpSecret: string;
+  readonly recoveryCodes: readonly string[];
+  readonly accessToken: string;
+}
+
+/** The name a test user starts with. */
+export interface TestUserName {
+  readonly firstName: string;
+  readonly lastName: string;
+}
+
+/**
+ * A new user's credentials, unique per call so journeys never collide (and
+ * never share a login-lockout bucket).
+ *
+ * @param name - The user's first and last name.
+ * @returns Email, password and name.
+ */
+export const newCredentials = (name: TestUserName) => ({
+  ...name,
+  email: `${name.firstName.toLowerCase()}.${randomUUID()}@e2e.financas.local`,
+  password: `Pw-${randomUUID()}`,
+});
+
+/**
+ * Sends a JSON request and returns the parsed body, failing the test on any
+ * non-2xx status.
+ *
+ * @param request - Playwright's API client.
+ * @param method - The HTTP method.
+ * @param path - The path under `/api/v1`.
+ * @param options - The JSON body and the access token, when needed.
+ * @returns The response body (`undefined` for an empty one).
+ */
+const send = async <Body>(
+  request: APIRequestContext,
+  method: string,
+  path: string,
+  options: { readonly data?: object; readonly accessToken?: string } = {},
+): Promise<Body> => {
+  const response = await request.fetch(`${API_URL}${path}`, {
+    method,
+    data: options.data,
+    headers: options.accessToken ? { Authorization: `Bearer ${options.accessToken}` } : {},
+  });
+  if (!response.ok()) {
+    throw new Error(`${method} ${path} → ${response.status()}: ${await response.text()}`);
+  }
+  const body = await response.text();
+  return (body ? JSON.parse(body) : undefined) as Body;
+};
+
+/**
+ * Registers a user and confirms their MFA enrollment, as Onboard would.
+ *
+ * @param request - Playwright's API client.
+ * @param name - The user's first and last name.
+ * @returns The signed-in user.
+ */
+export const registerUser = async (
+  request: APIRequestContext,
+  name: TestUserName,
+): Promise<TestUser> => {
+  const credentials = newCredentials(name);
+  // In the locale the journeys run in, as Onboard would send it (OQ-161).
+  const enrollment = await send<MfaEnrollmentStart>(request, 'POST', '/auth/register', {
+    data: { ...credentials, language: 'en-US' },
+  });
+  const tokens = await send<AuthTokens>(request, 'POST', '/auth/mfa/enrollment/confirm', {
+    data: { enrollmentToken: enrollment.enrollmentToken, mfaCode: totpCode(enrollment.totpSecret) },
+  });
+  return {
+    ...credentials,
+    totpSecret: enrollment.totpSecret,
+    recoveryCodes: enrollment.recoveryCodes,
+    accessToken: tokens.accessToken ?? '',
+  };
+};
+
+/**
+ * Creates a household owned by the user.
+ *
+ * @param request - Playwright's API client.
+ * @param owner - The user who creates it.
+ * @param name - The household's name.
+ * @returns The new household.
+ */
+export const createHousehold = (
+  request: APIRequestContext,
+  owner: TestUser,
+  name: string,
+): Promise<MyHousehold> => send(request, 'POST', '/households', {
+  data: { name },
+  accessToken: owner.accessToken,
+});
+
+/**
+ * Invites a registered user into a household.
+ *
+ * @param request - Playwright's API client.
+ * @param inviter - An Owner or Admin of the household.
+ * @param householdId - The household.
+ * @param invitee - Who is invited, and with which role.
+ * @returns The invitation.
+ */
+export const inviteUser = (
+  request: APIRequestContext,
+  inviter: TestUser,
+  householdId: string,
+  invitee: { readonly email: string; readonly role: InvitedRole },
+): Promise<Invitation> => send(request, 'POST', `/households/${householdId}/invitations`, {
+  data: invitee,
+  accessToken: inviter.accessToken,
+});
+
+/**
+ * Adds a user to a household: invited by the Owner, then accepted.
+ *
+ * @param request - Playwright's API client.
+ * @param owner - The household's Owner (or an Admin).
+ * @param householdId - The household.
+ * @param member - The user who joins, and their role.
+ * @returns Resolves once the user is a member.
+ */
+export const addMember = async (
+  request: APIRequestContext,
+  owner: TestUser,
+  householdId: string,
+  member: { readonly user: TestUser; readonly role: InvitedRole },
+): Promise<void> => {
+  await inviteUser(request, owner, householdId, { email: member.user.email, role: member.role });
+  const received = await send<{ data?: ReceivedInvitation[] }>(
+    request,
+    'GET',
+    '/users/me/invitations',
+    { accessToken: member.user.accessToken },
+  );
+  const invitation = received.data?.find((pending) => pending.householdId === householdId);
+  if (!invitation) throw new Error(`No invitation to ${householdId} for ${member.user.email}`);
+  await send(request, 'POST', `/invitations/${invitation.id}/accept`, {
+    accessToken: member.user.accessToken,
+  });
+};
+
+/**
+ * Lists a household's members, as one of them sees it.
+ *
+ * @param request - Playwright's API client.
+ * @param viewer - A member of the household.
+ * @param householdId - The household.
+ * @returns Its members, with their roles.
+ */
+export const listMembers = async (
+  request: APIRequestContext,
+  viewer: TestUser,
+  householdId: string,
+): Promise<readonly HouseholdMembership[]> => {
+  const members = await send<{ data?: HouseholdMembership[] }>(
+    request,
+    'GET',
+    `/households/${householdId}/members`,
+    { accessToken: viewer.accessToken },
+  );
+  return members.data ?? [];
+};

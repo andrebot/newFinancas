@@ -902,6 +902,11 @@ export type RegisterUserData = {
          * Trimmed — must not be blank
          */
         lastName: string;
+        /**
+         * The locale the user registered in — the account's starting `preferences.language`, so the app doesn't switch language once they sign in (OQ-161). pt-BR when absent.
+         *
+         */
+        language?: 'pt-BR' | 'en-US';
     };
     path?: never;
     query?: never;

@@ -68,6 +68,13 @@ paths:
                 password: { type: string, minLength: 12 }
                 firstName: { type: string, minLength: 1, description: "Trimmed — must not be blank" }
                 lastName: { type: string, minLength: 1, description: "Trimmed — must not be blank" }
+                language:
+                  type: string
+                  enum: [pt-BR, en-US]
+                  description: >
+                    The locale the user registered in — the account's starting
+                    `preferences.language`, so the app doesn't switch language
+                    once they sign in (OQ-161). pt-BR when absent.
       responses:
         "201":
           description: Created. Recovery codes are returned exactly once and never again.
