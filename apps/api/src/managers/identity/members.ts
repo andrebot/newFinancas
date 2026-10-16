@@ -1,4 +1,4 @@
-import type { AssignableRole } from '../../accessors/householdAccessor';
+import type { AssignableRole } from '../../db/schema/values';
 import { households as householdSettings } from '../../config/constants';
 import { loggerFor, type IdentityDeps, type SignedInContext } from './context';
 import {

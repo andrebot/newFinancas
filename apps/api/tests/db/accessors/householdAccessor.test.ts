@@ -3,7 +3,8 @@ import { eq } from 'drizzle-orm';
 import {
   afterAll, beforeAll, describe, expect, it,
 } from 'vitest';
-import createHouseholdAccessor, { type Role } from '../../../src/accessors/householdAccessor';
+import createHouseholdAccessor from '../../../src/accessors/householdAccessor';
+import type { Role } from '../../../src/db/schema/values';
 import type { Database } from '../../../src/db/database';
 import { householdMemberships, users } from '../../../src/db/schema';
 import { createMigratedDatabase, withRollback } from '../support/database';

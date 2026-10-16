@@ -23,3 +23,7 @@ export const TRANSACTION_SOURCES = ['manual', 'schedule'] as const;
 export type Theme = (typeof THEMES)[number];
 export type Language = (typeof LANGUAGES)[number];
 export type SystemRole = (typeof SYSTEM_ROLES)[number];
+/** A household role (FR-1.6): the vocabulary authorization, the Manager and the Accessors share. */
+export type Role = (typeof ROLES)[number];
+/** The roles a role change or an invite can give; the Owner role moves only by a transfer. */
+export type AssignableRole = Exclude<Role, 'Owner'>;

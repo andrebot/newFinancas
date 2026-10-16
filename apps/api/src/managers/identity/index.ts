@@ -20,6 +20,13 @@ export type { SessionView } from './sessions';
 export type { InvitationRequest } from './invitations';
 export type { PasswordChange, PasswordResetConfirmation } from './passwords';
 export type { ProfileEdit } from './profile';
+// What the use cases answer with, as the routes map them to JSON: the routes
+// see the Manager's results, never an Accessor (code review A3, OQ-163).
+export type { Member, UserHousehold } from '../../accessors/householdAccessor';
+export type {
+  HouseholdInvitation, Invitation, ReceivedInvitation,
+} from '../../accessors/invitationAccessor';
+export type { User } from '../../accessors/userAccessor';
 export type {
   Challenge, Credentials, EnrollmentConfirmation, EnrollmentStep, LoginStep, MfaVerification,
   RecoveryVerification,

@@ -3803,6 +3803,13 @@ not a hardcoded assumption.
   shell's configuration to `utilities/sourceState.ts`: a display type the
   shell's Interactions take, and that `api/sourceState.ts` builds from a
   query. `api/` and `shell/` no longer import each other's types.
+- **The household-role vocabulary lives with the other value lists.**
+  `Role` and `AssignableRole` move from `householdAccessor.ts` to
+  `db/schema/values.ts`, beside `ROLES` and `SystemRole`; authorization,
+  the Manager and the Accessors import them from there. The routes map the
+  Manager's results (`Member`, `UserHousehold`, the invitations, `User`),
+  re-exported by `managers/identity`, and no longer import an Accessor.
+  The audit sink keeps `NewAuditEntry`: producing that record is its job.
 
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
