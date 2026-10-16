@@ -135,7 +135,7 @@ describe('IdentityManager — Revoke (uc-06)', () => {
     });
   });
 
-  it('answers 404 for an unknown or another household\'s invitation, 409 once resolved', async () => {
+  it('answers 404 for an unknown or foreign invitation, 409 once resolved', async () => {
     const { deps, invitations } = fakeDeps();
     const identity = createIdentityManager(deps);
     invitations.findById.mockResolvedValueOnce(undefined);

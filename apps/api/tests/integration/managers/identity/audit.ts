@@ -23,7 +23,9 @@ export interface ExpectedAudit {
  * @param expected - The entry the action must have produced.
  */
 export const expectAudited = (events: readonly LogEvent[], expected: ExpectedAudit): void => {
-  const entries = events.filter((event) => event.level === 'audit' && event.message === expected.action);
+  const entries = events.filter(
+    (event) => event.level === 'audit' && event.message === expected.action,
+  );
 
   expect(entries).toHaveLength(1);
   expect(entries[0]).toMatchObject({

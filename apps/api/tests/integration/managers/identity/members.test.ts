@@ -25,7 +25,11 @@ describe('IdentityManager — Remove Member (uc-07, FR-1.11)', () => {
       .toHaveBeenCalledWith(ANA.id, HOME, { action: 'members.manage' });
     expect(households.removeMember).toHaveBeenCalledWith(HOME, BEN_ID);
     expectAudited(logs.events, {
-      action: 'RemoveMember', actorId: ANA.id, entityType: 'User', entityId: BEN_ID, householdId: HOME,
+      action: 'RemoveMember',
+      actorId: ANA.id,
+      entityType: 'User',
+      entityId: BEN_ID,
+      householdId: HOME,
     });
   });
 
@@ -72,7 +76,11 @@ describe('IdentityManager — Leave Household (uc-08, FR-1.18, OQ-107)', () => {
     expect(authorization.authorize).not.toHaveBeenCalled();
     expect(households.removeMember).toHaveBeenCalledWith(HOME, ANA.id);
     expectAudited(logs.events, {
-      action: 'LeaveHousehold', actorId: ANA.id, entityType: 'Household', entityId: HOME, householdId: HOME,
+      action: 'LeaveHousehold',
+      actorId: ANA.id,
+      entityType: 'Household',
+      entityId: HOME,
+      householdId: HOME,
     });
   });
 
@@ -89,7 +97,11 @@ describe('IdentityManager — Leave Household (uc-08, FR-1.18, OQ-107)', () => {
     expect(households.removeMember).toHaveBeenCalledWith(HOME, ANA.id);
     expect(households.dissolve).not.toHaveBeenCalled();
     expectAudited(logs.events, {
-      action: 'LeaveHousehold', actorId: ANA.id, entityType: 'Household', entityId: HOME, householdId: HOME,
+      action: 'LeaveHousehold',
+      actorId: ANA.id,
+      entityType: 'Household',
+      entityId: HOME,
+      householdId: HOME,
     });
   });
 
@@ -105,7 +117,11 @@ describe('IdentityManager — Leave Household (uc-08, FR-1.18, OQ-107)', () => {
     expect(households.dissolve).toHaveBeenCalledWith(HOME, ANA.id);
     expect(households.removeMember).not.toHaveBeenCalled();
     expectAudited(logs.events, {
-      action: 'DissolveHousehold', actorId: ANA.id, entityType: 'Household', entityId: HOME, householdId: HOME,
+      action: 'DissolveHousehold',
+      actorId: ANA.id,
+      entityType: 'Household',
+      entityId: HOME,
+      householdId: HOME,
     });
   });
 
@@ -158,7 +174,11 @@ describe('IdentityManager — Change Member Role (uc-09, FR-1.12)', () => {
 
     expect(households.updateRole).toHaveBeenCalledWith(HOME, BEN_ID, 'Admin');
     expectAudited(logs.events, {
-      action: 'ChangeMemberRole', actorId: ANA.id, entityType: 'User', entityId: BEN_ID, householdId: HOME,
+      action: 'ChangeMemberRole',
+      actorId: ANA.id,
+      entityType: 'User',
+      entityId: BEN_ID,
+      householdId: HOME,
     });
   });
 
@@ -188,7 +208,11 @@ describe('IdentityManager — Transfer Ownership (uc-10, FR-1.20)', () => {
       .toHaveBeenCalledWith(ANA.id, HOME, { action: 'household.transferOwnership' });
     expect(households.swapOwner).toHaveBeenCalledWith(HOME, ANA.id, BEN_ID);
     expectAudited(logs.events, {
-      action: 'TransferOwnership', actorId: ANA.id, entityType: 'User', entityId: BEN_ID, householdId: HOME,
+      action: 'TransferOwnership',
+      actorId: ANA.id,
+      entityType: 'User',
+      entityId: BEN_ID,
+      householdId: HOME,
     });
   });
 

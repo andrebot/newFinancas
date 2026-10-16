@@ -26,7 +26,11 @@ describe('IdentityManager — Change Password (uc-19, FR-1.14)', () => {
     expect(users.updatePasswordHash).toHaveBeenCalledWith(ANA.id, `hash(${LONG})`);
     expect(sessions.deleteAllExceptCurrent).toHaveBeenCalledWith(ANA.id, SESSION.id);
     expectAudited(logs.events, {
-      action: 'ChangePassword', actorId: ANA.id, entityType: 'User', entityId: ANA.id, householdId: null,
+      action: 'ChangePassword',
+      actorId: ANA.id,
+      entityType: 'User',
+      entityId: ANA.id,
+      householdId: null,
     });
   });
 
@@ -58,9 +62,11 @@ describe('IdentityManager — Change Password (uc-19, FR-1.14)', () => {
     const { deps, users } = fakeDeps();
     const identity = createIdentityManager(deps);
 
-    await expect(identity.changePassword(SIGNED_IN, { currentPassword: 'old', newPassword: 'x'.repeat(11) }))
+    const withNew = (newPassword: string) => ({ currentPassword: 'old', newPassword });
+
+    await expect(identity.changePassword(SIGNED_IN, withNew('x'.repeat(11))))
       .rejects.toMatchObject(TOO_SHORT);
-    await identity.changePassword(SIGNED_IN, { currentPassword: 'old', newPassword: 'x'.repeat(12) });
+    await identity.changePassword(SIGNED_IN, withNew('x'.repeat(12)));
 
     expect(users.updatePasswordHash).toHaveBeenCalledWith(ANA.id, `hash(${'x'.repeat(12)})`);
   });
@@ -97,7 +103,9 @@ describe('IdentityManager — Reset Password, step 1 (uc-18, OQ-115)', () => {
       .resolves.toBeUndefined();
 
     await vi.waitFor(() => expect(users.findByEmail).toHaveBeenCalled());
-    await new Promise((resolve) => { setImmediate(resolve); });
+    await new Promise((resolve) => {
+      setImmediate(resolve);
+    });
     logs.stop();
     expect(users.storeResetToken).not.toHaveBeenCalled();
     expect(notifications.notify).not.toHaveBeenCalled();
@@ -131,7 +139,11 @@ describe('IdentityManager — Reset Password, step 2 (uc-18)', () => {
     expect(sessions.deleteAllForUser).toHaveBeenCalledWith(ANA.id);
     expect(users.clearLoginFailures).toHaveBeenCalledWith('ana@example.com');
     expectAudited(logs.events, {
-      action: 'ResetPassword', actorId: ANA.id, entityType: 'User', entityId: ANA.id, householdId: null,
+      action: 'ResetPassword',
+      actorId: ANA.id,
+      entityType: 'User',
+      entityId: ANA.id,
+      householdId: null,
     });
   });
 
