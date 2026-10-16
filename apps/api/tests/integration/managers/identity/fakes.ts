@@ -127,6 +127,11 @@ export const fakeDeps = () => {
   const sessions = {
     insert: vi.fn(async () => SESSION),
     rotate: vi.fn(async () => ({ status: 'rotated' as const, session: SESSION })),
+    reissueReplaced: vi.fn(
+      async (): Promise<{ status: 'rotated'; session: typeof SESSION } | { status: 'stale' }> => (
+        { status: 'stale' }
+      ),
+    ),
     findByReplacedToken: vi.fn(
       async (): Promise<{ id: string; userId: string } | undefined> => undefined,
     ),

@@ -97,6 +97,66 @@ describe('SessionAccessor', () => {
     }));
   });
 
+  describe('reissueReplaced (OQ-162)', () => {
+    const seconds = (date: Date, count: number) => new Date(date.getTime() + count * 1000);
+
+    it('trades the replaced token for a new one, dropping the token in between', test(async (
+      sessions,
+      { ana },
+    ) => {
+      const session = await sessions.insert(ana, hash('a'), null, days(30), NOW);
+      await sessions.rotate(hash('a'), hash('b'), days(31), days(1));
+
+      const result = await sessions.reissueReplaced(
+        hash('a'),
+        hash('c'),
+        days(32),
+        seconds(days(1), -10),
+        seconds(days(1), 5),
+      );
+
+      // The last use stays at the rotation: the window can't be stretched.
+      expect(result).toMatchObject({
+        status: 'rotated', session: { id: session.id, expiresAt: days(32), lastUsedAt: days(1) },
+      });
+      expect(await sessions.findByReplacedToken(hash('b')))
+        .toEqual({ id: session.id, userId: ana });
+      expect(await sessions.findByReplacedToken(hash('a'))).toBeUndefined();
+      expect((await sessions.rotate(hash('c'), hash('d'), days(33), days(2))).status)
+        .toBe('rotated');
+    }));
+
+    it('is stale once the window has passed, changing nothing', test(async (sessions, { ana }) => {
+      await sessions.insert(ana, hash('a'), null, days(30), NOW);
+      await sessions.rotate(hash('a'), hash('b'), days(31), days(1));
+
+      const late = await sessions.reissueReplaced(
+        hash('a'),
+        hash('c'),
+        days(32),
+        seconds(days(1), 1),
+        seconds(days(1), 11),
+      );
+
+      expect(late.status).toBe('stale');
+      expect((await sessions.rotate(hash('b'), hash('d'), days(33), days(2))).status)
+        .toBe('rotated');
+    }));
+
+    it('is stale for a current, unknown or expired token', test(async (sessions, { ana }) => {
+      await sessions.insert(ana, hash('a'), null, days(30), NOW);
+      await sessions.rotate(hash('a'), hash('b'), days(31), days(1));
+      const since = seconds(days(1), -10);
+      const reissue = (presented: string, now: Date) => (
+        sessions.reissueReplaced(hash(presented), hash('c'), days(32), since, now)
+      );
+
+      expect((await reissue('b', days(1))).status).toBe('stale');
+      expect((await reissue('z', days(1))).status).toBe('stale');
+      expect((await reissue('a', days(31))).status).toBe('stale');
+    }));
+  });
+
   describe('findByReplacedToken', () => {
     it('finds the session a replayed token belongs to', test(async (sessions, { ana }) => {
       const session = await sessions.insert(ana, hash('a'), null, days(30), NOW);

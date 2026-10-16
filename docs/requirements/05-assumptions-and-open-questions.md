@@ -3745,6 +3745,35 @@ not a hardcoded assumption.
 
 **Task 66 (`I7`) is complete.**
 
+### OQ-162: Refresh-token reuse grace (code review, phase 2)
+**Confirmed with the stakeholder (Oct 2026):**
+- **The problem, found by the E2E suite.** The access token lives in memory
+  only (OQ-30), so every page load exchanges the refresh token. A page
+  reloaded after the API rotated the token, but before the browser stored
+  the new one, presents the old token on its next load. That token is
+  "replaced", so replay detection (OQ-100/106) ended the session: a quick
+  double reload could sign the user out. Reproduced under load in about 1
+  reload in 200.
+- **The decision: a short reuse grace.** Within
+  `authentication.refreshToken.reuseGraceSeconds` (10 s) of a rotation, the
+  token that rotation replaced earns a new pair instead of ending the
+  session. After the window, the replay rule applies as before.
+  - IdentityManager decides; `SessionAccessor.reissueReplaced` applies it
+    as a guarded write: only while the presented token is the session's
+    replaced one, the rotation happened at or after the window's start, and
+    the session is unexpired.
+  - The token issued in between, which the reloaded page never stored,
+    becomes the remembered replaced one. Whoever still holds it is caught
+    as a replay later, so theft detection survives the grace.
+  - The last use is not updated, so the window stays anchored to the
+    rotation and can't be stretched by reusing the token again and again.
+  - No schema change: `last_used_at` already marks the last rotation.
+  - A reuse is logged (`info`), a replay still warns.
+- **Rejected:** keeping the access token in `sessionStorage` (makes the
+  race rarer, doesn't remove it, and widens the token's exposure); leaving
+  it as a known issue.
+- The uc-14b sequence is redrawn.
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.

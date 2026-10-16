@@ -25,6 +25,31 @@ test('a user signs in with their authenticator code and signs out again', async 
   await expect(page).toHaveURL(/\/sign-in$/);
 });
 
+test('a reload that lost a token refresh answer keeps the session (OQ-162)', async ({ page }) => {
+  await signInThroughUi(page, user);
+  await expect(page).toHaveURL(/\/$/);
+
+  // The next refresh reaches the API — the token rotates there — but its
+  // answer never reaches the page, as when the page reloads mid-refresh.
+  let dropped = false;
+  await page.route('**/api/v1/auth/refresh', async (route) => {
+    if (dropped) {
+      await route.continue();
+      return;
+    }
+    dropped = true;
+    await route.fetch();
+    await route.abort();
+  });
+  await page.reload();
+  await expect.poll(() => dropped).toBe(true);
+
+  // The page still holds the replaced token; a reload presents it again.
+  await page.reload();
+  await expect(page.getByRole('button', { name: text('shell', 'header.openMenu') })).toBeVisible();
+  await expect(page).not.toHaveURL(/\/sign-in$/);
+});
+
 test('a wrong password is refused with the localized message', async ({ page }) => {
   await page.goto('/sign-in');
   await submitCredentials(page, { email: user.email, password: 'not-the-password' });

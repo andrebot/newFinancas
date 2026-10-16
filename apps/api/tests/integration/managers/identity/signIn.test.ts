@@ -392,6 +392,28 @@ describe('IdentityManager — Refresh Tokens (uc-14b)', () => {
     expect(tokens).toEqual({ accessToken: 'access-token', refreshToken: 'refresh-token' });
   });
 
+  it('reissues a token replaced in the last 10 s instead of ending its session', async () => {
+    const { deps, sessions } = fakeDeps();
+    sessions.rotate.mockResolvedValueOnce({ status: 'stale' } as never);
+    sessions.reissueReplaced.mockResolvedValueOnce({ status: 'rotated', session: SESSION });
+    const logs = captureLogs();
+
+    const tokens = await createIdentityManager(deps).refresh(CONTEXT, 'old-token');
+    logs.stop();
+
+    const graceStart = new Date(NOW.getTime() - 10_000);
+    expect(sessions.reissueReplaced)
+      .toHaveBeenCalledWith('hash(old-token)', 'refresh-hash', THIRTY_DAYS, graceStart, NOW);
+    expect(tokens).toEqual({ accessToken: 'access-token', refreshToken: 'refresh-token' });
+    expect(sessions.findByReplacedToken).not.toHaveBeenCalled();
+    expect(sessions.deleteForUser).not.toHaveBeenCalled();
+    expect(logs.events).toContainEqual(expect.objectContaining({
+      level: 'info',
+      message: 'Replaced refresh token reused within the grace window',
+      sessionId: SESSION.id,
+    }));
+  });
+
   it('ends only the session of a replayed token, and says so in the log', async () => {
     const { deps, sessions } = fakeDeps();
     sessions.rotate.mockResolvedValueOnce({ status: 'stale' } as never);
@@ -402,6 +424,7 @@ describe('IdentityManager — Refresh Tokens (uc-14b)', () => {
       .rejects.toMatchObject(REFRESH_INVALID);
     logs.stop();
 
+    expect(sessions.reissueReplaced).toHaveBeenCalled();
     expect(sessions.deleteForUser).toHaveBeenCalledWith(ANA.id, SESSION.id);
     expect(sessions.deleteAllExceptCurrent).not.toHaveBeenCalled();
     expect(logs.events)
