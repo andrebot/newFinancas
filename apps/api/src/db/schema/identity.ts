@@ -21,6 +21,9 @@ export const users = pgTable('users', {
   // Set by the first authenticator code after enrolling (OQ-149); until then
   // signing in answers a fresh enrollment instead of an MFA challenge.
   mfaConfirmedAt: instant('mfa_confirmed_at'),
+  // The time step of the last authenticator code accepted: a code works once,
+  // so one at or before it is refused (RFC 6238 §5.2, OQ-163).
+  mfaLastTotpStep: integer('mfa_last_totp_step'),
   theme: text('theme').notNull().default('dark'),
   language: text('language').notNull().default('pt-BR'),
   // Platform role, not a household role (OQ-111).

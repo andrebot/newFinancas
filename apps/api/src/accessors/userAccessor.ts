@@ -1,5 +1,5 @@
 import {
-  and, eq, gt, isNull, sql,
+  and, eq, gt, isNull, lt, or, sql,
 } from 'drizzle-orm';
 import type { Database } from '../db/database';
 import { PG_FOREIGN_KEY_VIOLATION, PG_UNIQUE_VIOLATION, pgErrorCode } from '../db/errors';
@@ -219,7 +219,9 @@ const createUserAccessor = (db: Database) => ({
     userId: string,
     enrollment: MfaEnrollment,
   ): Promise<'replaced' | 'stale'> => db.transaction(async (tx) => {
-    const updated = await tx.update(users).set({ mfaSecret: enrollment.encryptedMfaSecret })
+    // A new secret: no code of it has been used yet.
+    const updated = await tx.update(users)
+      .set({ mfaSecret: enrollment.encryptedMfaSecret, mfaLastTotpStep: null })
       .where(and(eq(users.id, userId), isNull(users.mfaConfirmedAt)))
       .returning({ id: users.id });
     if (updated.length === 0) return 'stale';
@@ -264,6 +266,26 @@ const createUserAccessor = (db: Database) => ({
         isNull(mfaRecoveryCodes.usedAt),
       ))
       .returning({ id: mfaRecoveryCodes.id });
+    return consumed.length > 0;
+  },
+
+  /**
+   * Uses up an authenticator code's time step: one atomic statement, guarded on
+   * the step being later than the last one accepted, so a code works once —
+   * even for two simultaneous requests (RFC 6238 §5.2, OQ-163).
+   *
+   * @param userId - Whose code.
+   * @param step - The code's time step (AuthenticationUtility.verifyTotp).
+   * @returns `true` when the step was recorded; `false` when it, or a later one,
+   *   was already used (or the user is gone).
+   */
+  consumeTotpStep: async (userId: string, step: number): Promise<boolean> => {
+    const consumed = await db.update(users).set({ mfaLastTotpStep: step })
+      .where(and(
+        eq(users.id, userId),
+        or(isNull(users.mfaLastTotpStep), lt(users.mfaLastTotpStep, step)),
+      ))
+      .returning({ id: users.id });
     return consumed.length > 0;
   },
 

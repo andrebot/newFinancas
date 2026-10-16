@@ -31,7 +31,7 @@ export const submitCredentials = async (
 export const signInThroughUi = async (page: Page, user: TestUser): Promise<void> => {
   await page.goto('/sign-in');
   await submitCredentials(page, user);
-  await page.getByLabel(text('signIn', 'code.label')).fill(totpCode(user.totpSecret));
+  await page.getByLabel(text('signIn', 'code.label')).fill(await totpCode(user.totpSecret));
   await expect(page).not.toHaveURL(/\/sign-in$/);
 };
 

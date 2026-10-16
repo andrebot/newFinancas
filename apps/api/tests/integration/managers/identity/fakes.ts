@@ -34,6 +34,9 @@ export const HOUSEHOLD = {
   id: '0199c5a0-0000-7000-8000-0000000000bb', name: 'Casa', createdAt: NOW, role: 'Owner' as const,
 };
 
+/** The time step every valid authenticator code in these tests belongs to. */
+export const TOTP_STEP = 59_000_000;
+
 export const BEN_ID = '0199c5a0-0000-7000-8000-000000000002';
 
 export const MEMBER = {
@@ -83,6 +86,7 @@ export const fakeDeps = () => {
     lockLogin: vi.fn(async () => undefined),
     clearLoginFailures: vi.fn(async () => undefined),
     consumeRecoveryCode: vi.fn(async () => true),
+    consumeTotpStep: vi.fn(async () => true),
     replaceMfaEnrollment: vi.fn(async (): Promise<'replaced' | 'stale'> => 'replaced'),
     confirmMfaEnrollment: vi.fn(async (): Promise<'confirmed' | 'stale'> => 'confirmed'),
     findPasswordHash: vi.fn(async (): Promise<string | undefined> => ANA.passwordHash),
@@ -143,7 +147,7 @@ export const fakeDeps = () => {
   const authentication = {
     hashPassword: vi.fn(async (password: string) => `hash(${password})`),
     verifyPassword: vi.fn(async () => true),
-    verifyTotp: vi.fn(() => true),
+    verifyTotp: vi.fn((): number | undefined => TOTP_STEP),
     enrollMfa: vi.fn(() => ({
       secret: 'TOTPSECRET',
       otpauthUri: 'otpauth://totp/x',

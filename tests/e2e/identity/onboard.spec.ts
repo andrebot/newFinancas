@@ -23,7 +23,7 @@ test('a new user registers, enrolls MFA and creates their first household', {
   await page.getByRole('button', { name: text('mfaEnrollment', 'method.continue') }).click();
   // The setup key, as the screen shows it: base32 in groups of four.
   const setupKey = await page.locator('code', { hasText: /^[A-Z2-7 ]+$/ }).innerText();
-  await page.getByLabel(text('mfaEnrollment', 'setup.code')).fill(totpCode(setupKey));
+  await page.getByLabel(text('mfaEnrollment', 'setup.code')).fill(await totpCode(setupKey));
 
   const codesHeading = page.getByRole('heading', { name: text('mfaEnrollment', 'codes.title') });
   await expect(codesHeading).toBeVisible();

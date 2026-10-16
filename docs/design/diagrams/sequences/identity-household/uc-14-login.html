@@ -124,8 +124,11 @@ sequenceDiagram
         UA-->>IM: lockedUntil, user with encryptedMfaSecret, systemRole
         Note over IM: locked &rarr; 429 &mdash; user gone or not the one challenged &rarr; challenge_expired
         IM->>AN: verifyTotp(encryptedMfaSecret, mfaCode)
-        AN-->>IM: valid / invalid
-        alt wrong code
+        AN-->>IM: the code's time step (or none)
+        IM->>UA: consumeTotpStep(userId, step)
+        Note over UA: guarded: only a step later than the last accepted &mdash;<br/>a code works once (OQ-163)
+        UA-->>IM: used / already used
+        alt wrong code, or already used
             IM->>UA: recordLoginFailure(emailKey, &hellip;) (+ lockLogin at 5)
             IM-->>API: Unauthorized
             API-->>User: 401 auth.mfa_invalid (retry the code)

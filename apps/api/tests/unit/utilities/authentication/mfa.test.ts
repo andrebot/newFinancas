@@ -26,19 +26,20 @@ const countingBytes = () => {
 describe('verifyTotp / currentTotp (RFC 6238)', () => {
   it('matches the RFC test vector', () => {
     expect(currentTotp(RFC_SECRET, AT_59S)).toBe('287082');
-    expect(verifyTotp(RFC_SECRET, '287082', AT_59S)).toBe(true);
+    // 59 s is time step 1 (30-second steps from the epoch).
+    expect(verifyTotp(RFC_SECRET, '287082', AT_59S)).toBe(1);
   });
 
-  it('allows one 30-second step of drift either way, not two', () => {
+  it('allows one step of drift either way, not two, and names the code\'s own step', () => {
     const code = currentTotp(RFC_SECRET, AT_59S);
 
-    expect(verifyTotp(RFC_SECRET, code, new Date(59_000 + 30_000))).toBe(true);
-    expect(verifyTotp(RFC_SECRET, code, new Date(59_000 - 30_000))).toBe(true);
-    expect(verifyTotp(RFC_SECRET, code, new Date(59_000 + 60_000))).toBe(false);
+    expect(verifyTotp(RFC_SECRET, code, new Date(59_000 + 30_000))).toBe(1);
+    expect(verifyTotp(RFC_SECRET, code, new Date(59_000 - 30_000))).toBe(1);
+    expect(verifyTotp(RFC_SECRET, code, new Date(59_000 + 60_000))).toBeUndefined();
   });
 
   it.each(['', '28708', '2870820', 'abcdef', '000000'])('rejects %j', (code) => {
-    expect(verifyTotp(RFC_SECRET, code, AT_59S)).toBe(false);
+    expect(verifyTotp(RFC_SECRET, code, AT_59S)).toBeUndefined();
   });
 });
 
@@ -100,6 +101,6 @@ describe('enrollMfa', () => {
     const { secret } = enrollMfa('ana@example.com', countingBytes());
     const now = new Date('2026-10-08T12:00:00Z');
 
-    expect(verifyTotp(secret, currentTotp(secret, now), now)).toBe(true);
+    expect(verifyTotp(secret, currentTotp(secret, now), now)).toBe(now.getTime() / 30_000);
   });
 });

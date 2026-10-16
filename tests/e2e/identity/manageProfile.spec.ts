@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import {
-  createHousehold, refreshStatus, registerUser, signInThroughApi, type TestUser,
+  createHousehold, refreshStatus, registerUser, signInWithRecoveryCode, type TestUser,
 } from '../support/identityApi';
 import { signInThroughUi, signOut, submitCredentials } from '../support/signIn';
 import text from '../support/text';
@@ -49,7 +49,7 @@ test('theme and language preferences apply at once and are kept', async ({ page 
 test('the user revokes another device, then signs out all the others', async ({
   page, request,
 }) => {
-  const tablet = await signInThroughApi(request, user);
+  const tablet = await signInWithRecoveryCode(request, user);
   await page.reload();
   // This device, the API sign-in above and the one registration opened.
   const revokeButtons = page.getByRole('button', {
@@ -77,7 +77,7 @@ test('a changed password is the one Sign In accepts, and other devices are signe
   page, request,
 }) => {
   const newPassword = `${user.password}-changed`;
-  const otherDevice = await signInThroughApi(request, user);
+  const otherDevice = await signInWithRecoveryCode(request, user);
   await expect(page.getByText(text('security', 'sessions.thisDevice'))).toBeVisible();
 
   await page.getByLabel(text('security', 'password.current'), { exact: true }).fill(user.password);

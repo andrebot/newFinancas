@@ -4,8 +4,8 @@ A review of everything built so far (slice 1: identity backend, the web
 kit, Flows, Experiences and App Shell, the shared packages), asked for by
 the stakeholder after task 66 (`I7`). Coverage stays at 100%; the question
 is whether the tests actually check the logic and its edge cases.
-**Status: in progress — phases 1 and 2 done (PRs #72, #73 and the phase-2
-PR); phase 3 (code and architecture) next.** Work happens on the `review/slice-1` branch, cut from
+**Status: complete — phase 1 (PRs #72, #73), phase 2 (PR #74) and phase 3
+fixed. Open: a password-reset journey (needs a test email sink).** Work happens on the `review/slice-1` branch, cut from
 `task/66-frontend-backend-identity`.
 
 ## Plan
@@ -351,4 +351,17 @@ cross-boundary edge read.
 **E9, carried over from phase 2: TOTP codes are reusable within their
 window.** A code accepted once is accepted again for up to about 90 s
 (the 30 s step plus one step of drift each way). RFC 6238 §5.2 recommends
-refusing a second use. It needs a decision: see the review notes.
+refusing a second use.
+
+### Phase 3 — fixes
+
+Decisions: fix A1–A5; make authenticator codes single-use (E9). All
+recorded in OQ-163.
+
+| Commit | Findings |
+|---|---|
+| Review A1 | Manage Profile offers Delete Account only when `profile.deleteAccount` is on (off until task 136). A contract-routes test checks `openapi.yaml` against the mounted routes, with the not-yet-built operations listed by slice or task. |
+| Review A2, A5 | `GET /users/me` and `GET /households` move to `api/identityApi.ts`; `SourceState` moves to `utilities/sourceState.ts`. |
+| Review A3 | `Role` / `AssignableRole` move to `db/schema/values.ts`; routes take the Manager's result types. |
+| Review A4 | `fullName` → `utilities/personName.ts`; `sortMembers` → `experiences/manageHousehold/memberOrder.ts`. |
+| Review E9 | `users.mfa_last_totp_step` (migration `0008`), `UserAccessor.consumeTotpStep` (guarded), `verifyTotp` answers the time step; a reused code is refused like a wrong one. E2E helpers track the last step. Sequences and call chains for login step 2 and enrollment confirmation redrawn. |

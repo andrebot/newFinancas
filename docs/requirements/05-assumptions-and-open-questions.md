@@ -3817,6 +3817,25 @@ not a hardcoded assumption.
   generic over anything with a role and a join date: the Flow lists members
   by it and Leave Household names the successor from it. Interactions still
   take their Flow's prop types.
+- **Authenticator codes work once (E9, RFC 6238 §5.2).** A code used to be
+  accepted again for as long as it was valid (about 90 s with one step of
+  drift each way).
+  - `AuthenticationUtility.verifyTotp` now answers the code's time step
+    (or nothing).
+  - `UserAccessor.consumeTotpStep(userId, step)` is a guarded write: it
+    records the step only when later than `users.mfa_last_totp_step`, so
+    two simultaneous uses can't both pass. Migration `0008` adds the
+    column; restarting an enrollment clears it.
+  - IdentityManager's MFA step and enrollment confirmation accept a code
+    only when its step was used up; a reused code is answered like a wrong
+    one (401 `auth.mfa_invalid`, counted against the lockout).
+  - E2E: the TOTP helper remembers each secret's last step and uses the
+    next step's code (accepted as drift) or waits for the clock; sessions
+    for "another device" sign in with a backup code; the test timeout is
+    60 s. The login and enrollment-confirm sequences and call chains are
+    updated.
+
+**Phase 3 of the code review is complete.**
 
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every

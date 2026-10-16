@@ -21,6 +21,9 @@ export default defineConfig({
   forbidOnly: Boolean(process.env.CI),
   // No retries: a flaky journey should show, not be retried away (it found a real bug once).
   retries: 0,
+  // Authenticator codes work once (OQ-163): a journey that signs the same user
+  // in again may wait up to one 30-second step for a fresh code.
+  timeout: 60_000,
   use: {
     baseURL: WEB_URL,
     // Something to replay when a journey fails (uploaded by CI with the report).
