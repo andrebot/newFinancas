@@ -5,6 +5,7 @@ import {
 import {
   matchesPhrase, TypeToConfirm, type TypeToConfirmProps,
 } from '../../../../src/kit/confirm/TypeToConfirm';
+import submitForm from '../../../support/submitForm';
 
 // Kit component (BDT: Interaction tier → unit): nothing mocked; the real
 // TextField, Button and Icon draw the field, the buttons and the glyph.
@@ -85,7 +86,7 @@ describe('TypeToConfirm', () => {
     const { onConfirm } = renderConfirm({ value: 'casa silva' });
 
     expect(confirmButton().disabled).toBe(true);
-    fireEvent.submit(screen.getByRole('form'));
+    submitForm(screen.getByRole('form'));
     expect(onConfirm).not.toHaveBeenCalled();
   });
 
@@ -101,7 +102,7 @@ describe('TypeToConfirm', () => {
   it('runs the confirm on Enter in the field once the phrase matches', () => {
     const { onConfirm } = renderConfirm({ value: 'Casa Silva ' });
 
-    fireEvent.submit(screen.getByRole('textbox'));
+    submitForm(screen.getByRole('textbox'));
     expect(onConfirm).toHaveBeenCalledOnce();
   });
 
@@ -133,7 +134,7 @@ describe('TypeToConfirm', () => {
     const { onConfirm, onCancel } = renderConfirm({ value: 'Casa Silva', busy: true });
 
     expect(confirmButton().getAttribute('aria-busy')).toBe('true');
-    fireEvent.submit(screen.getByRole('form'));
+    submitForm(screen.getByRole('form'));
     expect(onConfirm).not.toHaveBeenCalled();
     expect(screen.getByRole<HTMLInputElement>('textbox').disabled).toBe(true);
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Cancelar' }).disabled).toBe(true);

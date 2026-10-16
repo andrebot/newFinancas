@@ -6,6 +6,7 @@ import {
   EditPersonalInfo, isChanged, trimmed, type EditPersonalInfoProps,
 } from '../../../../../src/experiences/manageProfile/interactions/EditPersonalInfo';
 import { renderInLocale } from '../../../../support/renderInLocale';
+import submitForm from '../../../../support/submitForm';
 
 // Interaction (BDT: unit, display state in, events out): the real kit and
 // translator; only the Experience's handler is a stand-in.
@@ -102,7 +103,7 @@ describe('EditPersonalInfo', () => {
     const onSave = renderPanel({ busy: true });
     fireEvent.change(firstInput(), { target: { value: 'Janet' } });
 
-    fireEvent.submit(saveButton());
+    submitForm(saveButton());
 
     expect(onSave).not.toHaveBeenCalled();
     expect(saveButton().getAttribute('aria-busy')).toBe('true');

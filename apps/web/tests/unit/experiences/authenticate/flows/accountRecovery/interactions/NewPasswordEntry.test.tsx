@@ -7,6 +7,7 @@ import {
 } from '../../../../../../../src/experiences/authenticate/flows/accountRecovery/interactions/NewPasswordEntry';
 import { loadPasswordStrengthEstimator } from '../../../../../../../src/utilities/passwordStrength';
 import { renderInLocale } from '../../../../../../support/renderInLocale';
+import submitForm from '../../../../../../support/submitForm';
 
 // Interaction (BDT: unit, display state in, events out): the real kit,
 // translator and strength estimator (a Utility, not a boundary); only the
@@ -118,7 +119,7 @@ describe('NewPasswordEntry', () => {
     const { onSubmit } = renderEntry({ busy: true });
     typePasswords(STRONG, STRONG);
 
-    fireEvent.submit(reset().closest('form') as HTMLFormElement);
+    submitForm(reset());
 
     expect(reset().getAttribute('aria-busy')).toBe('true');
     expect(onSubmit).not.toHaveBeenCalled();

@@ -6,6 +6,7 @@ import {
   InviteMember, type InviteMemberProps,
 } from '../../../../../../../src/experiences/manageHousehold/flows/membershipManagement/interactions/InviteMember';
 import { renderInLocale } from '../../../../../../support/renderInLocale';
+import submitForm from '../../../../../../support/submitForm';
 
 // Interaction (BDT: unit, display state in, events out): the real kit,
 // translator and ValidationUtility; only the Flow's handler is a stand-in.
@@ -62,7 +63,7 @@ describe('InviteMember', () => {
   it('ignores a submit while an invite or another request is out', () => {
     const busy = renderForm({ busy: true });
     fireEvent.change(emailField(), { target: { value: 'morgan@example.com' } });
-    fireEvent.submit(emailField().closest('form')!);
+    submitForm(emailField());
     expect(busy).not.toHaveBeenCalled();
   });
 
@@ -70,7 +71,7 @@ describe('InviteMember', () => {
     const onSubmit = renderForm({ disabled: true });
     expect(sendButton().disabled).toBe(true);
     fireEvent.change(emailField(), { target: { value: 'morgan@example.com' } });
-    fireEvent.submit(emailField().closest('form')!);
+    submitForm(emailField());
     expect(onSubmit).not.toHaveBeenCalled();
   });
 });

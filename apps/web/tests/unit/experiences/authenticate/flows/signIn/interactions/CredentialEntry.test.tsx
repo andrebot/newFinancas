@@ -6,6 +6,7 @@ import {
   CredentialEntry, type CredentialEntryProps,
 } from '../../../../../../../src/experiences/authenticate/flows/signIn/interactions/CredentialEntry';
 import { renderInLocale } from '../../../../../../support/renderInLocale';
+import submitForm from '../../../../../../support/submitForm';
 
 // Interaction (BDT: unit, display state in, events out): the real kit and
 // translator render; only the Flow's handlers are stand-ins.
@@ -101,7 +102,7 @@ describe('CredentialEntry', () => {
     typeCredentials('ana@example.com', 'correct horse');
 
     fireEvent.click(signIn());
-    fireEvent.submit(signIn().closest('form') as HTMLFormElement);
+    submitForm(signIn());
 
     expect(signIn().getAttribute('aria-busy')).toBe('true');
     expect(onSubmit).not.toHaveBeenCalled();

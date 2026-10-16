@@ -6,6 +6,7 @@ import {
   MfaCodeEntry, type MfaCodeEntryProps,
 } from '../../../../../../../src/experiences/authenticate/flows/signIn/interactions/MfaCodeEntry';
 import { renderInLocale } from '../../../../../../support/renderInLocale';
+import submitForm from '../../../../../../support/submitForm';
 
 // Interaction (BDT: unit, display state in, events out): the real kit and
 // translator render; only the Flow's handlers are stand-ins.
@@ -71,7 +72,7 @@ describe('MfaCodeEntry', () => {
     const { onSubmit } = renderEntry();
     typeCode('482');
 
-    fireEvent.submit(verify().closest('form') as HTMLFormElement);
+    submitForm(verify());
 
     expect(onSubmit).not.toHaveBeenCalled();
   });

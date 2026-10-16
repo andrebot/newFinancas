@@ -63,10 +63,10 @@ describe('radioRows', () => {
   it('numbers the options from the offset and checks the current one', () => {
     const rows = radioRows(roles('member'), 2);
 
-    expect(rows.map((row) => [row.key, row.index, row.role, row.checked])).toEqual([
-      ['admin', 2, 'menuitemradio', false],
-      ['member', 3, 'menuitemradio', true],
-      ['viewer', 4, 'menuitemradio', false],
+    expect(rows.map((row) => [row.key, row.index, row.role, row.checked, row.danger])).toEqual([
+      ['admin', 2, 'menuitemradio', false, false],
+      ['member', 3, 'menuitemradio', true, false],
+      ['viewer', 4, 'menuitemradio', false, false],
     ]);
     expect(rows[0]!.description).toBe('Gerencia membros');
     expect(rows[2]!.disabledReason).toBe('Somente o dono');
@@ -88,6 +88,7 @@ describe('toMenuSections', () => {
     const sections = toMenuSections(entries);
 
     expect(sections).toHaveLength(1);
+    expect(sections[0]).toMatchObject({ kind: 'rows', radio: false });
     expect(rowsOf(sections).map((row) => row.index)).toEqual([0, 1]);
   });
 

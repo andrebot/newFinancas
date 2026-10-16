@@ -4,6 +4,7 @@ import {
 } from 'vitest';
 import { BackupCodesAcknowledgement } from '../../../../../../../src/experiences/onboard/flows/mfaEnrollment/interactions/BackupCodesAcknowledgement';
 import { renderInLocale } from '../../../../../../support/renderInLocale';
+import submitForm from '../../../../../../support/submitForm';
 
 // Interaction (BDT: unit, display state in, events out): the real kit and
 // translator render; only the Flow's handler and the browser's clipboard and
@@ -78,7 +79,7 @@ describe('BackupCodesAcknowledgement', () => {
   it('acknowledges only once the codes are ticked as saved', () => {
     const onAcknowledge = renderStep();
 
-    fireEvent.submit(continueButton().closest('form')!);
+    submitForm(continueButton());
     expect(onAcknowledge).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole('checkbox', { name: /saved these codes/ }));

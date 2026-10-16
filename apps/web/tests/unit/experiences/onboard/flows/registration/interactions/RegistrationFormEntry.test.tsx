@@ -6,6 +6,7 @@ import {
   RegistrationFormEntry, type RegistrationFormEntryProps,
 } from '../../../../../../../src/experiences/onboard/flows/registration/interactions/RegistrationFormEntry';
 import { renderInLocale } from '../../../../../../support/renderInLocale';
+import submitForm from '../../../../../../support/submitForm';
 
 // Interaction (BDT: unit, display state in, events out): the real kit,
 // translator and strength estimator (a Utility, not a boundary); only the
@@ -152,7 +153,7 @@ describe('RegistrationFormEntry', () => {
     const { onSubmit } = renderEntry({ busy: true });
     fillValid();
 
-    fireEvent.submit(createAccount().closest('form') as HTMLFormElement);
+    submitForm(createAccount());
 
     expect(createAccount().getAttribute('aria-busy')).toBe('true');
     expect(onSubmit).not.toHaveBeenCalled();

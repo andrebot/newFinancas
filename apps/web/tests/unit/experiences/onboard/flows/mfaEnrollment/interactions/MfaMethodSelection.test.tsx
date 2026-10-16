@@ -4,6 +4,7 @@ import {
 } from 'vitest';
 import { MfaMethodSelection } from '../../../../../../../src/experiences/onboard/flows/mfaEnrollment/interactions/MfaMethodSelection';
 import { renderInLocale } from '../../../../../../support/renderInLocale';
+import submitForm from '../../../../../../support/submitForm';
 
 // Interaction (BDT: unit, display state in, events out): the real kit and
 // translator render; only the Flow's handler is a stand-in.
@@ -17,6 +18,15 @@ describe('MfaMethodSelection', () => {
     const app = screen.getByRole<HTMLInputElement>('radio', { name: 'Authenticator app' });
     expect(app.checked).toBe(true);
     expect(screen.getByText(/generate a new code every 30 seconds/)).toBeTruthy();
+  });
+
+  it('emits the method when its form is submitted, keeping the page', () => {
+    const onChoose = vi.fn();
+    renderInLocale(<MfaMethodSelection defaultMethod="authenticator" onChoose={onChoose} />);
+
+    submitForm(screen.getByRole('button', { name: 'Continue' }));
+
+    expect(onChoose).toHaveBeenCalledWith('authenticator');
   });
 
   it('emits the method chosen on Continue', () => {
