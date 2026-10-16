@@ -167,7 +167,7 @@
   <p class="subtitle">
     Set up a household from nothing. Static structure only — no state/event wiring. Oct 2026 re-decomposition
     (<code>docs/architecture/11-ebd-review-2026-10.md</code>); full reasoning in
-    <code>docs/architecture/frontend/01-ebd-decomposition.md</code>. Guided Setup composes Account Setup's Account & Card (mandatory, no Skip — FR-1.22), Category and Budget Flows. Registration + MFA Enrollment are skipped by configuration when the user is already signed in (additional household, OQ-81).
+    <code>docs/architecture/frontend/01-ebd-decomposition.md</code>. Guided Setup composes Account Setup's Account & Card (mandatory, no Skip — FR-1.22), Category and Budget Flows. Each route opens one stretch: /register runs Registration + MFA Enrollment; /setup (the household gate's) and /households/new (an additional household, OQ-81) run Household Setup, with Cancel only on the latter. The server's state is the progression (OQ-158).
   </p>
 
   <div class="architecture">

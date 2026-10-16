@@ -70,9 +70,9 @@ export const zSession = z.object({
 });
 
 export const zHousehold = z.object({
-    id: z.uuid().optional(),
-    name: z.string().optional(),
-    createdAt: z.iso.datetime().optional()
+    id: z.uuid(),
+    name: z.string(),
+    createdAt: z.iso.datetime()
 });
 
 /**

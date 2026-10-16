@@ -3461,6 +3461,76 @@ not a hardcoded assumption.
 
 **Task 61 (`X1`) is complete.**
 
+### OQ-158: The Onboard Experience (task X2)
+**Confirmed with the stakeholder (Oct 2026):**
+- **One Experience, three routes** (`experiences/onboard/
+  OnboardExperience.tsx`). Each route gives it an `entry`, and each entry
+  opens one stretch of the journey:
+  - `registration` (`/register`, signed out): Registration, then MFA
+    Enrollment, on the auth layout;
+  - `household` (`/setup`, the household gate's target): Household Setup on
+    the wizard layout, with no way out;
+  - `additionalHousehold` (`/households/new`, the switcher's Create
+    household, OQ-81): Household Setup with a Cancel, which opens the
+    Dashboard.
+
+  Its endpoints are in `experiences/onboard/api.ts`, and all of them are
+  mutations.
+- **The server's state is the progression.** Nothing is kept on the client
+  to resume a drop-off. An enrollment never confirmed is resumed by Sign In
+  (OQ-157). A user with no household is sent to `/setup` by the household
+  gate. The EBD's "progression state" is the route.
+- **After registering, the household gate takes over.** The secret,
+  recovery codes and enrollment token stay in the Experience. The session
+  starts only once the backup codes are saved. The signed-out guard then
+  goes to the Dashboard, and the gate, finding no household, goes to
+  `/setup`. Onboard doesn't navigate there itself, because that would race
+  the guard's redirect.
+  - Until X4 supplies the households list (`useHouseholds`), the gate
+    shows its skeleton. The flow can't be completed in the browser before
+    then.
+- **A new household becomes the active one.** `switchHousehold(id)`
+  remembers it and resets the API cache, so the gate fetches the list
+  again. Then the Dashboard opens. Guided Setup is added in between with
+  X2G (task 95).
+- **The MFA enrollment step is Onboard's, and Authenticate hosts it.**
+  `experiences/onboard/MfaEnrollmentStep.tsx` holds the following, moved
+  out of Authenticate:
+  - the confirm call: `POST /auth/mfa/enrollment/confirm`, moved from
+    `authenticate/api.ts` to `onboard/api.ts`;
+  - the session held until the codes are saved;
+  - the `auth.enrollment_expired` toast, then `onExpired`.
+
+  Onboard leaves through `onExpired` to Sign In, keeping `{ from }`.
+  Authenticate goes back to its Sign In view. This is the one place where
+  one Experience imports another's piece, in the way Onboard will host
+  Account Setup's Flows.
+- **Contract fix:** `Household` now lists `id`, `name` and `createdAt` as
+  required. The API always sends them, and the generated type had them
+  optional.
+- **Fix found while testing: the enrollment QR code couldn't be scanned.**
+  The theme clears Tailwind's palette (`--color-*: initial`), so the
+  wrapper's `bg-white` produced no CSS. The QR then sat on the card with no
+  quiet zone, and neither Authy nor a phone camera found it. The QR now
+  draws its own white margin: `mfa.qrQuietZoneModules`, 4 modules, the QR
+  standard's quiet zone. `mfa.qrSizePx` grows to 150, mockup 06's whole
+  tile.
+  - **The nav drawer's scrim had the same cause**: its `bg-black/50`
+    produced no CSS either. It is now a theme token, `bg-scrim`
+    (`--s-scrim`): 55% black in the dark theme, as mockup 21 draws it, and
+    ink-tinted at 40% in the light one, as its overlay shadow is.
+- **Tests (BDT):** the Experience runs on the real store with its Flows
+  stubbed, and only `fetch` is faked. They cover 201, 409
+  `user.email_taken`, 422 `password.too_short`, no answer, 401
+  `mfa_invalid` / `enrollment_expired`, the household's 201 and 422, and
+  Cancel. Authenticate's enrollment tests still cover the step as it hosts
+  it.
+- The EBD Onboard Registration, MFA Enrollment and Household Setup
+  sequences, the Sign In sequence and both tier diagrams are redrawn
+  through their generator. No new texts.
+
+**Task 62 (`X2`) is complete.**
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.

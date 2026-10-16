@@ -128,7 +128,7 @@ export function NavDrawer({
 
   return (
     <FloatingPortal>
-      <FloatingOverlay lockScroll className="top-16 z-20 bg-black/50" />
+      <FloatingOverlay lockScroll className="top-16 z-20 bg-scrim" />
       <FloatingFocusManager context={context} modal={false}>
         <nav
           ref={setFloating}

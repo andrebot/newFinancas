@@ -73,6 +73,17 @@ describe('MfaSetupVerification', () => {
     expect(verify().disabled).toBe(true);
   });
 
+  it('draws the QR code inside its own white quiet zone, four modules wide', () => {
+    renderStep();
+
+    const qr = screen.getByRole('img', { name: 'QR code for your authenticator app' });
+    const [light, dark] = Array.from(qr.querySelectorAll('path'));
+    expect(light?.getAttribute('fill')).toBe('#ffffff');
+    expect(light?.getAttribute('d')).toMatch(/^M0,0 /);
+    expect(dark?.getAttribute('fill')).toBe('#000000');
+    expect(dark?.getAttribute('d')).toMatch(/^M4 4h/);
+  });
+
   it('copies the key without spaces and says so', async () => {
     renderStep();
 

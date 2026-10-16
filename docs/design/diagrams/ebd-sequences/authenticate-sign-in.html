@@ -64,7 +64,7 @@ sequenceDiagram
     participant MFA as MFA Code Entry
     participant BC as Backup Code Entry
     participant FLOW as Sign In<br/>Flow
-    participant ENR as MFA Enrollment<br/>Flow (Onboard's)
+    participant ENR as MFA Enrollment<br/>step (Onboard's)
     participant EXP as Authenticate<br/>Experience
     participant SHELL as App Shell
     participant API as Backend API
@@ -77,20 +77,16 @@ sequenceDiagram
         EXP-->>FLOW: outcome: failed(code) — I18nUtility renders it
     else step: enroll (MFA never confirmed, OQ-149)
         API-->>EXP: enrollment token, secret, otpauth URI, recovery codes (kept by the Experience)
-        EXP-->>ENR: render in place of Sign In (Onboard's Flow, hosted here — OQ-157)
-        ENR->>EXP: request confirm(code)
-        EXP->>API: POST /auth/mfa/enrollment/confirm
+        EXP-->>ENR: render in place of Sign In (Onboard's step, hosted here — OQ-157, OQ-158)
+        ENR->>API: POST /auth/mfa/enrollment/confirm (the step's own call)
         alt 401 auth.mfa_invalid
-            API-->>EXP: error code
-            EXP-->>ENR: outcome: failed(code) — boxes cleared, retried
+            API-->>ENR: error code — its Flow clears the boxes, retried
         else 401 auth.enrollment_expired
-            API-->>EXP: error code
-            EXP-->>FLOW: toast (AlertUtility), back to Sign In — the password step issues a fresh enrollment
+            API-->>ENR: error code
+            ENR->>EXP: toast (AlertUtility), emit expired → back to Sign In — the password step issues a fresh enrollment
         else ok
-            API-->>EXP: tokens (held, not yet a session)
-            EXP-->>ENR: outcome: ok
-            ENR->>EXP: emit complete (backup codes saved)
-            EXP->>SHELL: startSession(tokens)
+            API-->>ENR: tokens (held, not yet a session)
+            ENR->>SHELL: backup codes saved → startSession(tokens)
         end
     else step: mfa
         API-->>EXP: challengeToken (kept by the Experience)

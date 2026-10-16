@@ -107,6 +107,12 @@ describe('theme.css tokens', () => {
     expect(shadows[0]).not.toBe(shadows[1]);
     expect(css).toContain('--shadow-overlay: var(--s-overlay);');
   });
+
+  it('gives each theme its own drawer scrim, read at runtime', () => {
+    const scrims = [...css.matchAll(/--s-scrim:\s*([^;]+);/g)].map((match) => match[1]);
+    expect(scrims).toEqual(['rgb(0 0 0 / 0.55)', 'rgb(19 32 26 / 0.4)']);
+    expect(css).toContain('--color-scrim: var(--s-scrim);');
+  });
 });
 
 describe.each(Object.entries(themes))('%s theme contrast', (_, tokens) => {

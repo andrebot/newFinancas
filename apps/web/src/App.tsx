@@ -3,6 +3,7 @@ import { Provider } from 'react-redux';
 import { BrowserRouter } from 'react-router';
 import { AuthenticateExperience } from './experiences/authenticate/AuthenticateExperience';
 import signOut from './experiences/authenticate/signOut';
+import { OnboardExperience } from './experiences/onboard/OnboardExperience';
 import {
   placeholderActions, placeholderPages, placeholderSources,
 } from './placeholders';
@@ -35,6 +36,9 @@ export const shellConfigFor = (store: AppStore, themeController: ThemeController
     signIn: <AuthenticateExperience entry="signIn" />,
     forgotPassword: <AuthenticateExperience entry="recovery" />,
     resetPassword: <AuthenticateExperience entry="recovery" />,
+    register: <OnboardExperience entry="registration" />,
+    onboard: <OnboardExperience entry="household" />,
+    createHousehold: <OnboardExperience entry="additionalHousehold" />,
   },
   sources: placeholderSources,
   actions: {

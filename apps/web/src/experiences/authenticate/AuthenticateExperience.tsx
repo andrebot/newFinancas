@@ -6,14 +6,8 @@ import { shell } from '../../config/constants';
 import { AuthLayout } from '../../kit/layouts/AuthLayout';
 import { startSession } from '../../shell/shellState';
 import { useAppDispatch } from '../../store';
-import { useAlerts } from '../../utilities/AlertProvider';
-import { useI18n } from '../../utilities/I18nProvider';
-import type { RequestOutcome } from '../../utilities/requestOutcome';
+import { MfaEnrollmentStep, type PendingEnrollment } from '../onboard/MfaEnrollmentStep';
 import {
-  MfaEnrollmentFlow, type MfaEnrollmentSetup,
-} from '../onboard/flows/mfaEnrollment/MfaEnrollmentFlow';
-import {
-  useConfirmMfaEnrollmentMutation,
   useConfirmPasswordResetMutation,
   useLoginMutation,
   useRecoverWithMfaCodeMutation,
@@ -33,9 +27,9 @@ import { SignInFlow, type Credentials, type SignInFlowProps } from './flows/sign
 //
 // The right password for an account whose MFA was never confirmed answers an
 // enrollment instead of a challenge (OQ-149). Authenticate then hosts
-// Onboard's MFA Enrollment Flow, as Onboard hosts Account Setup's Flows: the
-// session starts only once the backup codes are saved, so the guard doesn't
-// take the user away from them. A user with no household goes on to Onboard
+// Onboard's MFA enrollment step (OQ-158), as Onboard hosts Account Setup's
+// Flows: the session starts only once the backup codes are saved, so the
+// guard doesn't take the user away from them. A user with no household goes on to Onboard
 // through the shell's household gate.
 
 /** Which journey the page opens: Sign In, or the forgotten-password one. */
@@ -49,14 +43,10 @@ export interface AuthenticateExperienceProps {
 /** The sign-in journey's active Flow; an enrollment carries what it resumes. */
 export type SignInView = { readonly flow: 'signIn' } | {
   readonly flow: 'enrollment';
-  readonly enrollment: MfaEnrollmentSetup;
-  readonly enrollmentToken: string;
+  readonly pending: PendingEnrollment;
 };
 
 const SIGN_IN: SignInView = { flow: 'signIn' };
-
-// The enrollment token lapsed: only a new sign-in issues another one.
-const ENROLLMENT_EXPIRED = 'auth.enrollment_expired';
 
 /**
  * Moves between the Experience's pages, carrying where Sign In should send
@@ -116,9 +106,11 @@ const useSignInRequests = (
     } = answer;
     onEnroll({
       flow: 'enrollment',
-      enrollmentToken,
-      enrollment: {
-        otpauthUri, totpSecret, recoveryCodes, accountEmail,
+      pending: {
+        enrollmentToken,
+        enrollment: {
+          otpauthUri, totpSecret, recoveryCodes, accountEmail,
+        },
       },
     });
   };
@@ -138,56 +130,6 @@ const useSignInRequests = (
   };
 };
 
-/** The resumed enrollment's props. */
-interface EnrollmentJourneyProps {
-  readonly view: Extract<SignInView, { flow: 'enrollment' }>;
-  /** The enrollment token lapsed: back to Sign In. */
-  readonly onExpired: () => void;
-}
-
-/**
- * Resumes an unconfirmed MFA enrollment. The confirmed session is held until
- * the backup codes are saved; a lapsed enrollment says so in a toast and goes
- * back to Sign In, whose password step issues a fresh one.
- *
- * @param props - The enrollment and the way back.
- * @returns The MFA Enrollment Flow.
- */
-function EnrollmentJourney({ view, onExpired }: EnrollmentJourneyProps) {
-  const dispatch = useAppDispatch();
-  const alerts = useAlerts();
-  const translator = useI18n();
-  const [confirmMfaEnrollment] = useConfirmMfaEnrollmentMutation();
-  const startHeldSession = useRef(() => {});
-
-  /**
-   * Confirms the enrollment with the app's code.
-   *
-   * @param mfaCode - The code the app shows.
-   * @returns The Flow's outcome.
-   */
-  const confirm = async (mfaCode: string): Promise<RequestOutcome> => {
-    const result = await confirmMfaEnrollment({ enrollmentToken: view.enrollmentToken, mfaCode });
-    const outcome = toRequestOutcome(result);
-    if (result.error === undefined) {
-      const tokens = result.data;
-      startHeldSession.current = () => dispatch(startSession(tokens));
-    } else if (!outcome.ok && outcome.error.code === ENROLLMENT_EXPIRED) {
-      alerts.error(translator.error(outcome.error.code, outcome.error.params));
-      onExpired();
-    }
-    return outcome;
-  };
-
-  return (
-    <MfaEnrollmentFlow
-      enrollment={view.enrollment}
-      onConfirm={confirm}
-      onComplete={() => startHeldSession.current()}
-    />
-  );
-}
-
 /**
  * The sign-in journey: Sign In, or a resumed enrollment.
  *
@@ -199,7 +141,7 @@ function SignInJourney() {
   const requests = useSignInRequests(setView);
 
   if (view.flow === 'enrollment') {
-    return <EnrollmentJourney view={view} onExpired={() => setView(SIGN_IN)} />;
+    return <MfaEnrollmentStep pending={view.pending} onExpired={() => setView(SIGN_IN)} />;
   }
   return (
     <SignInFlow
