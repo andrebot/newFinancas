@@ -11,8 +11,9 @@ import { Tag } from '../../../../../kit/tag/Tag';
 import { Tooltip } from '../../../../../kit/tooltip/Tooltip';
 import { useI18n } from '../../../../../utilities/I18nProvider';
 import {
-  fullName, type AssignableRole, type HouseholdMember, type MembershipView,
+  type AssignableRole, type HouseholdMember, type MembershipView,
 } from '../membershipState';
+import { fullName } from '../../../../../utilities/personName';
 import { RoleMenu } from './RoleMenu';
 
 // Member List (Membership Management, mockup 60): everyone in the household,

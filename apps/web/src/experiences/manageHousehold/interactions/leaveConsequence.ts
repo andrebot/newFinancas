@@ -1,6 +1,6 @@
-import {
-  fullName, sortMembers, type HouseholdMember,
-} from '../flows/membershipManagement/membershipState';
+import { fullName } from '../../../utilities/personName';
+import type { HouseholdMember } from '../flows/membershipManagement/membershipState';
+import { sortMembers } from '../memberOrder';
 
 // What leaving the household costs, as Leave Household says it (X4, OQ-160).
 // It depends only on who is leaving and who stays: anyone but the Owner just

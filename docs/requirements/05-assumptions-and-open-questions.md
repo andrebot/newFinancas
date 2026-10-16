@@ -3810,6 +3810,13 @@ not a hardcoded assumption.
   Manager's results (`Member`, `UserHousehold`, the invitations, `User`),
   re-exported by `managers/identity`, and no longer import an Accessor.
   The audit sink keeps `NewAuditEntry`: producing that record is its job.
+- **No Interaction or Experience reaches into a Flow's state for helpers.**
+  `fullName` moves to `utilities/personName.ts` (formatting; FormattingUtility,
+  FU6, can absorb it). `sortMembers` — the members' order, also FR-1.18's
+  succession — moves to `experiences/manageHousehold/memberOrder.ts`,
+  generic over anything with a role and a join date: the Flow lists members
+  by it and Leave Household names the successor from it. Interactions still
+  take their Flow's prop types.
 
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
