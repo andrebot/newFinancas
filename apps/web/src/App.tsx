@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
 import { Provider } from 'react-redux';
 import { BrowserRouter } from 'react-router';
+import { AuthenticateExperience } from './experiences/authenticate/AuthenticateExperience';
+import signOut from './experiences/authenticate/signOut';
 import {
   placeholderActions, placeholderPages, placeholderSources,
 } from './placeholders';
@@ -28,9 +30,19 @@ export interface AppProps {
  * @returns The configuration.
  */
 export const shellConfigFor = (store: AppStore, themeController: ThemeController): ShellConfig => ({
-  pages: placeholderPages,
+  pages: {
+    ...placeholderPages,
+    signIn: <AuthenticateExperience entry="signIn" />,
+    forgotPassword: <AuthenticateExperience entry="recovery" />,
+    resetPassword: <AuthenticateExperience entry="recovery" />,
+  },
   sources: placeholderSources,
-  actions: placeholderActions(store.dispatch),
+  actions: {
+    ...placeholderActions,
+    signOut: () => {
+      store.dispatch(signOut());
+    },
+  },
   notificationRoutes: {},
   themeController,
 });

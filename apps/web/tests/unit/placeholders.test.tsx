@@ -4,9 +4,7 @@ import {
   ComingSoon, placeholderActions, placeholderPages, placeholderSources,
 } from '../../src/placeholders';
 import { ROUTES } from '../../src/shell/routes';
-import { selectSession } from '../../src/shell/shellState';
 import { renderInLocale } from '../support/renderInLocale';
-import { fakeStore } from './shell/shellFakes';
 
 // The stand-ins for Experiences not built yet (BDT: unit, nothing mocked).
 
@@ -30,15 +28,7 @@ describe('placeholders', () => {
     expect(placeholderSources.usePendingInvitationCount()).toBe(0);
   });
 
-  it('sign out in this browser only, and export nothing', () => {
-    const { store, tokenStorage } = fakeStore({ refreshToken: 'refresh-1' });
-    const actions = placeholderActions(store.dispatch);
-
-    actions.exportAuditLog();
-    expect(selectSession(store.getState())).toBe('signedIn');
-    actions.signOut();
-
-    expect(selectSession(store.getState())).toBe('signedOut');
-    expect(tokenStorage.value).toBeNull();
+  it('export nothing', () => {
+    expect(placeholderActions.exportAuditLog()).toBeUndefined();
   });
 });

@@ -1,3 +1,4 @@
+import type { AuthTokens } from '@financas/api-types';
 import {
   createSlice, type PayloadAction, type ThunkAction, type UnknownAction,
 } from '@reduxjs/toolkit';
@@ -9,7 +10,7 @@ import type { ShellHousehold } from './shellConfig';
 
 // The App Shell's state (S1, OQ-156): whether there is a session and which
 // household is active. Nothing about a journey lives here. The session starts
-// when Authenticate or Onboard signs the user in (`sessionStarted`) and ends
+// when Authenticate or Onboard signs the user in (`startSession`) and ends
 // when the API client gives up on it, the user signs out or another tab does
 // (`api/sessionEnded`). The active household is remembered in browser storage,
 // so a reload returns to it; switching households resets the API cache, so
@@ -91,6 +92,21 @@ export const selectActiveHouseholdId = (state: WithShell) => state.shell.activeH
 
 /** A shell thunk. */
 type ShellThunk = ThunkAction<void, WithShell, ThunkExtra, UnknownAction>;
+
+/**
+ * Starts the session once Authenticate or Onboard holds its tokens: keeps
+ * them (the API client sends them from now on), then marks the user signed
+ * in — the signed-out guard takes them on from there.
+ *
+ * @param tokens - The new session's token pair.
+ * @returns The thunk.
+ */
+export const startSession = (tokens: Required<AuthTokens>): ShellThunk => (
+  (dispatch, _getState, { api }) => {
+    api.tokens.save(tokens);
+    dispatch(sessionStarted());
+  }
+);
 
 /**
  * Picks the household to work in: the preferred one while the user still

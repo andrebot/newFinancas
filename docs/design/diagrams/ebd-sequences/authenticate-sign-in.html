@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Authenticate — Sign In</h1>
-  <p class="subtitle"><span class="route">POST /auth/login</span> then <span class="route">POST /auth/mfa/verify</span> (or <span class="route">POST /auth/mfa/recover</span>). Credentials, then MFA code or backup code (OQ-145).</p>
+  <p class="subtitle"><span class="route">POST /auth/login</span> then <span class="route">POST /auth/mfa/verify</span> (or <span class="route">POST /auth/mfa/recover</span>); an unconfirmed enrollment resumes through <span class="route">POST /auth/mfa/enrollment/confirm</span>. Credentials, then MFA code or backup code (OQ-145, OQ-157).</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -64,7 +64,9 @@ sequenceDiagram
     participant MFA as MFA Code Entry
     participant BC as Backup Code Entry
     participant FLOW as Sign In<br/>Flow
+    participant ENR as MFA Enrollment<br/>Flow (Onboard's)
     participant EXP as Authenticate<br/>Experience
+    participant SHELL as App Shell
     participant API as Backend API
     User->>CE: email + password, submit
     CE->>FLOW: emit credentialsEntered
@@ -73,7 +75,24 @@ sequenceDiagram
     alt 401 auth.invalid_credentials / 429
         API-->>EXP: error code
         EXP-->>FLOW: outcome: failed(code) — I18nUtility renders it
-    else ok
+    else step: enroll (MFA never confirmed, OQ-149)
+        API-->>EXP: enrollment token, secret, otpauth URI, recovery codes (kept by the Experience)
+        EXP-->>ENR: render in place of Sign In (Onboard's Flow, hosted here — OQ-157)
+        ENR->>EXP: request confirm(code)
+        EXP->>API: POST /auth/mfa/enrollment/confirm
+        alt 401 auth.mfa_invalid
+            API-->>EXP: error code
+            EXP-->>ENR: outcome: failed(code) — boxes cleared, retried
+        else 401 auth.enrollment_expired
+            API-->>EXP: error code
+            EXP-->>FLOW: toast (AlertUtility), back to Sign In — the password step issues a fresh enrollment
+        else ok
+            API-->>EXP: tokens (held, not yet a session)
+            EXP-->>ENR: outcome: ok
+            ENR->>EXP: emit complete (backup codes saved)
+            EXP->>SHELL: startSession(tokens)
+        end
+    else step: mfa
         API-->>EXP: challengeToken (kept by the Experience)
         EXP-->>FLOW: outcome: ok
         FLOW-->>MFA: render (challenge step)
@@ -100,12 +119,13 @@ sequenceDiagram
         EXP-->>FLOW: outcome: failed(code) — back to credentials, email kept
     else ok
         API-->>EXP: tokens
-        EXP-->>FLOW: outcome: ok — App Shell takes over
+        EXP->>SHELL: startSession(tokens) — the signed-out guard takes the user on
+        EXP-->>FLOW: outcome: ok
     end
     </pre>
   </div>
   <div class="notes">
-<ul><li>Same error code for unknown user and wrong password (no enumeration); a wrong code is named, since the password is already proven (OQ-145).</li><li>The challenge token never reaches the Flow: the Experience holds it between the two calls.</li><li>No 'Remember me' (OQ-62).</li></ul>
+<ul><li>Same error code for unknown user and wrong password (no enumeration); a wrong code is named, since the password is already proven (OQ-145).</li><li>The challenge and enrollment tokens never reach a Flow: the Experience holds them between the calls.</li><li>A resumed enrollment starts the session only once the backup codes are saved, so the guard doesn't leave them unseen (OQ-157); no household → the shell's gate sends the user to Onboard.</li><li>Sign Out (the shell drawer's button, Authenticate's handler): POST /auth/logout, then the session ends here — even when the logout fails (OQ-157).</li><li>No 'Remember me' (OQ-62).</li></ul>
   </div>
   <script>
     mermaid.initialize({

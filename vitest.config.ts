@@ -17,6 +17,7 @@ export default defineConfig({
         'tools/ops/src/main.ts',
         'tools/icons/src/main.ts',
         'apps/api/src/db/seed/main.ts',
+        'apps/api/src/db/seed/mfaCodeMain.ts',
         'apps/api/src/utilities/logging/reconcileMain.ts',
         // Generated from openapi.yaml (N7): no hand-written logic to cover.
         'packages/api-types/src/**',

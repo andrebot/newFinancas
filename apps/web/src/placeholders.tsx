@@ -1,9 +1,7 @@
 import type { ReactNode } from 'react';
-import { sessionEnded } from './api/baseQuery';
 import { EmptyState } from './kit/emptyState/EmptyState';
 import { ROUTES, type RouteId } from './shell/routes';
 import type { ShellActions, ShellSources } from './shell/shellConfig';
-import type { AppDispatch } from './store';
 import { useI18n } from './utilities/I18nProvider';
 
 // Stand-ins for the Experiences not built yet (S1, OQ-156). Each X task
@@ -38,17 +36,7 @@ export const placeholderSources: ShellSources = {
   usePendingInvitationCount: () => 0,
 };
 
-/**
- * Chrome actions before their Experiences exist: signing out only ends the
- * session in this browser (Authenticate adds `POST /auth/logout`); the audit
- * export does nothing.
- *
- * @param dispatch - The store's dispatch.
- * @returns The actions.
- */
-export const placeholderActions = (dispatch: AppDispatch): ShellActions => ({
-  signOut: () => {
-    dispatch(sessionEnded());
-  },
+/** Chrome actions whose Experiences don't exist yet: the audit export does nothing. */
+export const placeholderActions: Omit<ShellActions, 'signOut'> = {
   exportAuditLog: () => {},
-});
+};

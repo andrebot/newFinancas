@@ -24,7 +24,7 @@ import {
 
 /**
  * Lets only a signed-out user through. Once a session starts — Sign In or
- * Registration dispatched `sessionStarted` — it takes the user on.
+ * Onboard started it (`startSession`) — it takes the user on.
  *
  * @returns The page, or a redirect.
  */

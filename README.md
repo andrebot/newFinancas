@@ -18,6 +18,7 @@ pnpm db:up          # Postgres 18 on 127.0.0.1:5432 (db:down, db:reset, db:psql)
 pnpm db:migrate      # apply migrations (pnpm --filter @financas/api db:generate after schema changes)
 pnpm db:seed:demo    # optional: a demo household (idempotent); sign in as ana@ or
                      # ben@demo.financas.local with the password and TOTP secret it prints
+pnpm generate:mfacode # the demo users' current MFA code (instead of an authenticator app)
 pnpm db:backup       # back up the database (restore + drill: docs/operations/backup-restore.md)
 pnpm audit:reconcile # restore audit entries missing from the database, from the log files
 pnpm dev            # api on :3000, web on :5173
