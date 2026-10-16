@@ -92,12 +92,38 @@ export const registerUser = async (
   const tokens = await send<AuthTokens>(request, 'POST', '/auth/mfa/enrollment/confirm', {
     data: { enrollmentToken: enrollment.enrollmentToken, mfaCode: totpCode(enrollment.totpSecret) },
   });
+  // Fail here, where it broke, rather than at the first call that needs the token.
+  if (!tokens.accessToken) {
+    throw new Error(`Enrollment for ${credentials.email} returned no access token`);
+  }
   return {
     ...credentials,
     totpSecret: enrollment.totpSecret,
     recoveryCodes: enrollment.recoveryCodes,
-    accessToken: tokens.accessToken ?? '',
+    accessToken: tokens.accessToken,
   };
+};
+
+/**
+ * Signs a user in through the API, both steps, as Sign In would.
+ *
+ * @param request - Playwright's API client.
+ * @param user - The user who signs in.
+ * @returns The new session's tokens.
+ */
+export const signInThroughApi = async (
+  request: APIRequestContext,
+  user: TestUser,
+): Promise<AuthTokens> => {
+  const challenge = await send<{ step: string; challengeToken: string }>(
+    request,
+    'POST',
+    '/auth/login',
+    { data: { email: user.email, password: user.password } },
+  );
+  return send<AuthTokens>(request, 'POST', '/auth/mfa/verify', {
+    data: { challengeToken: challenge.challengeToken, mfaCode: totpCode(user.totpSecret) },
+  });
 };
 
 /**
