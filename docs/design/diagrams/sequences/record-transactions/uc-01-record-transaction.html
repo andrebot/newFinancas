@@ -89,7 +89,7 @@ sequenceDiagram
         else charge or refund
             TM->>CCA: applyChargeOrRefund(cardId, amount, kind)
             CCA-->>TM: outstanding balance updated
-            TM->>BA: accrueIfClaimed(categoryId, subcategoryId, amount, date)
+            TM->>BA: accrueIfClaimed({accountScope, currency, categoryId, subcategoryId, amount, date})
             BA-->>TM: spend updated (no-op if unclaimed)
             TM->>CTA: insert(cardTransaction)
             CTA-->>TM: transactionId
@@ -150,7 +150,7 @@ sequenceDiagram
                 end
             end
         end
-        TM->>BA: accrueIfClaimed(categoryId, subcategoryId, amount, date)
+        TM->>BA: accrueIfClaimed({accountScope, currency, categoryId, subcategoryId, amount, date})
         BA-->>TM: spend updated
         TM->>ATA: insert(accountTransaction, effect)
         ATA-->>TM: transactionId

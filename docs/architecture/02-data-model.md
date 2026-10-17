@@ -432,7 +432,8 @@ name`/`last_name` closed OQ-29 earlier:
   its *parent Category* is already claimed elsewhere requires walking
   `subcategories.category_id` against other Budgets' claims — a
   cross-row hierarchy check no unique index can express. Executed inside
-  `BudgetAccessor.assignTarget(...)` before the insert.
+  `BudgetAccessor`'s target writes (`insert`/`replaceTargets`) before the
+  insert, holding the parent Category's row lock (OQ-166).
 - **Budget deletion is a hard delete of the live definition only; Budget
   Periods survive (FR-4.10/OQ-40)** → **real DB constraint**, and simpler
   than the parallel `accounts.owner_user_id` case: Budget deletion has no
@@ -445,10 +446,14 @@ name`/`last_name` closed OQ-29 earlier:
   history to protect.
 - **`budget_periods.target_amount` is immutable per period; editing a
   Budget's target only affects current/future periods (FR-4.9)** →
-  **application-level**, by omission rather than an active check: only
-  the currently-open period's row is ever written by `accrueIfClaimed`/
-  the edit path; nothing in the Accessor's write surface ever revisits a
-  past period's `target_amount`, so there's no code path to guard against.
+  **application-level**, by omission rather than an active check: the
+  edit path writes only the current month's period (opening it if
+  needed) and any later one already opened; `accrueIfClaimed` only adds
+  to `spend_amount`, and when it opens a missing month it copies the
+  target of the latest period at or before it, the one in effect then
+  (OQ-166). Nothing ever rewrites a past period's `target_amount`.
+  Periods are opened at Budget creation (the current month) and lazily
+  after that.
 - **Exactly one of `category_id`/`subcategory_id` set per `budget_targets`
   row** → **real DB constraint**: `CHECK ((category_id IS NULL) <>
   (subcategory_id IS NULL))`.

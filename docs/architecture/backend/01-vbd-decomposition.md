@@ -271,7 +271,7 @@ database constraint).
 | `CardTransactionAccessor` | Card Transaction ledger — stays a separate ledger from Account Transactions (OQ-16) even though both are now reached through one unified entry point (OQ-39) | — |
 | ~~`RecurringTransactionScheduleAccessor`~~ | **Removed, Round 9** — recurring transactions dropped (FR-3.5, OQ-55) | — |
 | `CategoryAccessor` | Categories, Subcategories | Enforces exactly-two-levels and cascades an archive to Subcategories (FR-10.2/10.4) as part of the write; `seedDefaults(householdId)` creates the predefined default set (FR-10.1), called from `AccountManager`'s subscription to `household.created` (§3.1b), not from a direct `IdentityManager` call |
-| `BudgetAccessor` | Budgets, Budget Periods | `assignTarget(...)` rejects a Category/Subcategory already claimed elsewhere in scope/period (FR-4.7 — a uniqueness constraint, not application logic); `accrueIfClaimed(categoryId, subcategoryId, amount, date)` resolves the rollup match (FR-4.6) and updates the Budget Period's spend — **Round 8: no longer returns a threshold-crossed signal**, since FR-4.4's alert threshold was removed (OQ-52); deletion (FR-4.10) is a hard delete releasing claimed targets — no archive, since Budget Periods are their own independent immutable record |
+| `BudgetAccessor` | Budgets, Budget Periods | `insert(budget, targets, month)` / `replaceTargets(...)` claim a whole target set atomically and reject a Category/Subcategory already claimed elsewhere in scope (FR-4.7 — the literal duplicate is a uniqueness constraint; the rollup half is checked under the parent Category's row lock — OQ-166); a spend accrues to the Budget in its Account's scope (OQ-166); `accrueIfClaimed(categoryId, subcategoryId, amount, date)` resolves the rollup match (FR-4.6) and updates the Budget Period's spend — **Round 8: no longer returns a threshold-crossed signal**, since FR-4.4's alert threshold was removed (OQ-52); deletion (FR-4.10) is a hard delete releasing claimed targets — no archive, since Budget Periods are their own independent immutable record |
 | `InvestmentHoldingAccessor` | Investment Holdings | `applyTrade(holdingId, quantityDelta, valuation, date)` — `TransactionManager` computes `quantityDelta` (positive for buy, negative for sell, `-currentQuantity` for redemption — its own workflow rule, FR-3.8) and this Accessor executes the write. **New, Round 7:** `applySchedule(holdingId, schedule)` persists `InvestmentProductEngine`'s FR-11 output; archiving is one-way (FR-5.8/OQ-43), not a hard delete, since Valuation Snapshot history and Goal allocations depend on the Holding existing. **Round 9:** `archive(holdingId, by)` records who archived (`system` at zero quantity via `applyTrade`, or `user` from the matured notification); `unarchiveIfSystemArchived(holdingId)` (OQ-80 — only system archives are undone); `findMaturedWithPosition(today)` + `markMaturedNotified(holdingId)` for the daily trigger (§3.2a) |
 | `ValuationSnapshotAccessor` | Valuation Snapshots | Two kinds, tagged by `source`: **automatic** (written by `TransactionManager` with each buy/sell/redemption; changes only through its transaction) and **manual** market values (`AccountManager`: `insertManual` / `updateManual` / `deleteManual` — Round 9, OQ-56; the "never overwrite" rule is gone, update/delete refuse automatic rows). Fixed-term Holdings have none (OQ-51) |
 | `GoalAccessor` | Goals, Goal Allocations | `allocate(holdingId, goalId, percentage)` rejects an allocation that would push the Holding's total past 100% (FR-8.3) — note allocation is written *from the Holding's edit flow*, not the Goal's (OQ-48); complete/reopen (FR-8.8/8.9, renamed from archive/unarchive — OQ-78) is the one reversible lifecycle transition in the whole system, distinct from delete (FR-8.6, hard, no history); written by two Managers (`AccountManager` on Edit Holding, `TransactionManager` on a bundled buy) — the ≤ 100% invariant lives here, so both paths get it |
@@ -387,7 +387,7 @@ TransactionManager.record(input)
  ├─ AuthorizationUtility.canWrite(actor, accountId)?
  ├─ if input targets a Credit Card directly (Card Transaction: charge/refund):
  │    1. CreditCardAccessor.applyChargeOrRefund(cardId, amount, kind)
- │    2. BudgetAccessor.accrueIfClaimed(categoryId, subcategoryId, amount, date)  [no-op if unclaimed]
+ │    2. BudgetAccessor.accrueIfClaimed({scope, currency, categoryId, subcategoryId, amount, date})  [no-op if unclaimed]
  │    3. CardTransactionAccessor.insert(...)
  │
  └─ else (Account Transaction):
@@ -415,7 +415,7 @@ TransactionManager.record(input)
                if allocations provided (OQ-54, investment-buy only):
                  for each {goalId, percentage}: GoalAccessor.allocate(holdingId, goalId, percentage)
                    if this Holding's total allocated percentage would exceed 100%: reject (FR-8.3) → 409 Conflict
-      3. BudgetAccessor.accrueIfClaimed(categoryId, subcategoryId, amount, date)
+      3. BudgetAccessor.accrueIfClaimed({scope, currency, categoryId, subcategoryId, amount, date})
       4. AccountTransactionAccessor.insert(transaction, effect)
 
  → fire-and-forget: LoggingUtility.logActivity (always) + LoggingUtility.recordAudit
@@ -590,7 +590,7 @@ mutations) while the other three do:
 | Manager | Calls (Engines) | Calls (Accessors, direct incl. validated writes) | Calls (Utilities) |
 |---|---|---|---|
 | `IdentityManager` | `NotificationEngine` (invitation received, password-reset email — OQ-113) | `UserAccessor` (incl. preferences, FR-1.21), `SessionAccessor` (incl. `deleteAllExceptCurrent`), `HouseholdAccessor` (incl. `listForUser`), `InvitationAccessor` (incl. `listPendingForUser` with inviter) | `AuthorizationUtility`, `AuthenticationUtility`, `LoggingUtility` (`logActivity` + `recordAudit`), `ServiceBusUtility` (publishes `household.created`, §3.1b) |
-| `AccountManager` | `NotificationEngine` (matured holding — OQ-113) | `AccountAccessor`, `CreditCardAccessor`, `OpenBankingConnectionAccessor` (parked), region provider Accessor (parked), `CategoryAccessor` (incl. `seedDefaults` on `household.created`, §3.1b), `BudgetAccessor` (`assignTarget`), `GoalAccessor` (goal lifecycle + `replaceAllocations` from Edit Holding), `InvestmentHoldingAccessor` (verify market-priced, `archive(by=user)`, `markMaturedNotified`), `ValuationSnapshotAccessor` (manual: insert/update/delete — Round 9), `IndexRateAccessor` *(new, Round 9)*, `PortfolioAccessor` (parked) | `AuthorizationUtility`, `ValidationUtility`, `LoggingUtility` (`logActivity` + `recordAudit`); subscribes to `household.created` and `holding.matured` via `ServiceBusUtility` |
+| `AccountManager` | `NotificationEngine` (matured holding — OQ-113) | `AccountAccessor`, `CreditCardAccessor`, `OpenBankingConnectionAccessor` (parked), region provider Accessor (parked), `CategoryAccessor` (incl. `seedDefaults` on `household.created`, §3.1b), `BudgetAccessor` (`insert`, `replaceTargets`), `GoalAccessor` (goal lifecycle + `replaceAllocations` from Edit Holding), `InvestmentHoldingAccessor` (verify market-priced, `archive(by=user)`, `markMaturedNotified`), `ValuationSnapshotAccessor` (manual: insert/update/delete — Round 9), `IndexRateAccessor` *(new, Round 9)*, `PortfolioAccessor` (parked) | `AuthorizationUtility`, `ValidationUtility`, `LoggingUtility` (`logActivity` + `recordAudit`); subscribes to `household.created` and `holding.matured` via `ServiceBusUtility` |
 | `TransactionManager` | `InvestmentProductEngine` (`schedule` — investment-buy against a defined FR-11 instrument type, inline within §3.1) | `AccountTransactionAccessor`, `CardTransactionAccessor` (incl. `list(filter, cursor)` for Browse & Filter — Round 9), `AccountAccessor`, `CreditCardAccessor`, `InvestmentHoldingAccessor` (`applyTrade` incl. auto-archive, `applySchedule`, `unarchiveIfSystemArchived`), `ValuationSnapshotAccessor` (automatic snapshots), `BudgetAccessor` (`accrueIfClaimed`), `GoalAccessor` (`allocate` — bundled with a buy, OQ-54) | `AuthorizationUtility`, `ValidationUtility`, `LoggingUtility` (`logActivity` + `recordAudit`); subscribes to `transaction.import.requested` — **no `NotificationDeliveryUtility` call** (OQ-52) |
 | `InsightsManager` | `ReportingEngine` (sole caller), `InvestmentProductEngine` (`project` — View Investments, Round 9) | `AuditLogAccessor` (export only, OQ-46), `NotificationInboxAccessor` (list, seen/unseen, delete), `DashboardAccessor` (parked, v3) — **Round 9: `SessionAccessor` removed** (View Sessions is `IdentityManager`'s, per the read-ownership rule — Manager review M2) | `AuthorizationUtility`, `LoggingUtility` (`logActivity` **only** — reads never trigger `recordAudit`) |
 
@@ -815,7 +815,7 @@ sequenceDiagram
             IHA-->>TM: schedule stored
         end
     end
-    TM->>BA: accrueIfClaimed(categoryId, subcategoryId, amount, date)
+    TM->>BA: accrueIfClaimed({scope, currency, categoryId, subcategoryId, amount, date})
     BA-->>TM: spend updated
     TM->>ATA: insert(transactionRecord, effect)
     ATA-->>TM: transactionId
@@ -906,8 +906,9 @@ introduced (FR-11, household lifecycle) that hadn't been traced before.
   currency and the frontend does the cross-currency blend. Two different
   concerns — write-time invariant vs. read-time computation — correctly
   live in two different tiers, not one overloaded Engine.
-- **CUC-5 (Budgets):** `AccountManager` → `BudgetAccessor.assignTarget(...)`
-  (overlap rejected as a uniqueness constraint at write time).
+- **CUC-5 (Budgets):** `AccountManager` → `BudgetAccessor.insert(...)` /
+  `replaceTargets(...)` (overlap rejected at write time, the whole target
+  set atomically — OQ-166).
   `TransactionManager` → `BudgetAccessor.accrueIfClaimed(...)` on every
   transaction (rollup match + spend update, all at the point of write —
   **Round 8: no threshold flag anymore**, FR-4.4/OQ-52 removed it).

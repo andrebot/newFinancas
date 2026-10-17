@@ -90,7 +90,7 @@ sequenceDiagram
         else was a card charge/refund
             TM->>CCA: applyChargeOrRefund(cardId, -amount, kind)
         end
-        TM->>BA: accrueIfClaimed(categoryId, subcategoryId, -amount, date)
+        TM->>BA: accrueIfClaimed({accountScope, currency, categoryId, subcategoryId, -amount, date})
         TM->>ATA: delete(transactionId)
         ATA-->>TM: deleted
         TM-->>LOG: logActivity(correlationId, actor, "DeleteTransaction")
