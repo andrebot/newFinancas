@@ -274,7 +274,7 @@ database constraint).
 | `BudgetAccessor` | Budgets, Budget Periods | `insert(budget, targets, month)` / `replaceTargets(...)` claim a whole target set atomically and reject a Category/Subcategory already claimed elsewhere in scope (FR-4.7 — the literal duplicate is a uniqueness constraint; the rollup half is checked under the parent Category's row lock — OQ-166); a spend accrues to the Budget in its Account's scope (OQ-166); `accrueIfClaimed(categoryId, subcategoryId, amount, date)` resolves the rollup match (FR-4.6) and updates the Budget Period's spend — **Round 8: no longer returns a threshold-crossed signal**, since FR-4.4's alert threshold was removed (OQ-52); deletion (FR-4.10) is a hard delete releasing claimed targets — no archive, since Budget Periods are their own independent immutable record |
 | `InvestmentHoldingAccessor` | Investment Holdings | `applyTrade(holdingId, quantityDelta, valuation, date)` — `TransactionManager` computes `quantityDelta` (positive for buy, negative for sell, `-currentQuantity` for redemption — its own workflow rule, FR-3.8) and this Accessor executes the write. **New, Round 7:** `applySchedule(holdingId, schedule)` persists `InvestmentProductEngine`'s FR-11 output; archiving is one-way (FR-5.8/OQ-43), not a hard delete, since Valuation Snapshot history and Goal allocations depend on the Holding existing. **Round 9:** `archive(holdingId, by)` records who archived (`system` at zero quantity via `applyTrade`, or `user` from the matured notification); `unarchiveIfSystemArchived(holdingId)` (OQ-80 — only system archives are undone); `findMaturedWithPosition(today)` + `markMaturedNotified(holdingId)` for the daily trigger (§3.2a) |
 | `ValuationSnapshotAccessor` | Valuation Snapshots | Two kinds, tagged by `source`: **automatic** (written by `TransactionManager` with each buy/sell/redemption; changes only through its transaction) and **manual** market values (`AccountManager`: `insertManual` / `updateManual` / `deleteManual` — Round 9, OQ-56; the "never overwrite" rule is gone, update/delete refuse automatic rows). Fixed-term Holdings have none (OQ-51) — the Managers check that. **OQ-167:** keyed by Holding only (the Manager's `InvestmentHoldingAccessor.get` is the household guard); automatic rows via `insertAutomatic` / `updateAutomatic` / `deleteAutomatic(transactionId)`; reads `list(holdingId, range)` and `latestAsOf(holdingIds, date)` |
-| `GoalAccessor` | Goals, Goal Allocations | `allocate(holdingId, goalId, percentage)` rejects an allocation that would push the Holding's total past 100% (FR-8.3) — note allocation is written *from the Holding's edit flow*, not the Goal's (OQ-48); complete/reopen (FR-8.8/8.9, renamed from archive/unarchive — OQ-78) is the one reversible lifecycle transition in the whole system, distinct from delete (FR-8.6, hard, no history); written by two Managers (`AccountManager` on Edit Holding, `TransactionManager` on a bundled buy) — the ≤ 100% invariant lives here, so both paths get it |
+| `GoalAccessor` | Goals, Goal Allocations | `replaceAllocations(householdId, holdingId, shares)` replaces a Holding's whole split, all or nothing, and rejects one whose total passes 100% (FR-8.3, OQ-168 — superseding the per-pair `allocate`); Goals stay in their household. Visibility and the completed-Goal rule (FR-8.9) are the Managers', checked before calling — note allocation is written *from the Holding's edit flow*, not the Goal's (OQ-48); complete/reopen (FR-8.8/8.9, renamed from archive/unarchive — OQ-78) is the one reversible lifecycle transition in the whole system, distinct from delete (FR-8.6, hard, no history); written by two Managers (`AccountManager` on Edit Holding, `TransactionManager` on a bundled buy) — the ≤ 100% invariant lives here, so both paths get it |
 | `IndexRateAccessor` *(new, Round 9)* | Household Index Reference Rates — dated history per index (Selic, CDI, IPCA, IGP-M; reference data, can grow) (FR-11.6, OQ-59) | Written by `AccountManager` (insert / update / delete); `latest(index)` read by `InvestmentProductEngine.project`; no automated feed in v1 |
 | `PortfolioAccessor` | A user's composed Portfolio Target list (FII/stock + target %, FR-5.5/5.6) — **parked, CUC-7 deferred whole** | Plain CRUD — the "builder" is a UI workflow (stakeholder's framing), not backend logic |
 | `DashboardAccessor` *(parked, v3 — OQ-67)* | Per-user Dashboard/Widget configuration — the v1 Dashboard is fixed and stores nothing | — |
@@ -413,8 +413,12 @@ TransactionManager.record(input)
                  InvestmentProductEngine.computeSchedule(dueDate, rate, purchaseDate)
                  InvestmentHoldingAccessor.applySchedule(holdingId, schedule)
                if allocations provided (OQ-54, investment-buy only):
-                 for each {goalId, percentage}: GoalAccessor.allocate(holdingId, goalId, percentage)
-                   if this Holding's total allocated percentage would exceed 100%: reject (FR-8.3) → 409 Conflict
+                 the buy's split applies to the purchase, not the Holding (OQ-168):
+                 re-weight the existing split by value (existing quantity × this
+                 buy's unit price), add the purchase's shares, round by largest
+                 remainder, drop a share that rounds to 0%
+                 GoalAccessor.replaceAllocations(householdId, holdingId, shares)
+                   if the purchase's own split passes 100%: reject (FR-8.3) → 409 Conflict
       3. BudgetAccessor.accrueIfClaimed({scope, currency, categoryId, subcategoryId, amount, date})
       4. AccountTransactionAccessor.insert(transaction, effect)
 
@@ -507,7 +511,7 @@ validated writes, not `IdentityManager`'s branching logic. Picking "who's
 next" (longest-tenured Admin, else Member, else Viewer) is a simple,
 enumerable Manager-level rule (§2.1) — but *enforcing* "never zero or two
 Owners" at the point of persistence is exactly what a validated write is
-for, the same pattern as `GoalAccessor.allocate`'s 100% cap (§2.3).
+for, the same pattern as `GoalAccessor.replaceAllocations`'s 100% cap (§2.3).
 This is also the concrete answer to a question Round 7's volatility
 reconciliation raised and then closed: Owner-succession isn't volatile
 (it's a stable, well-defined invariant, not a change axis) — but it does
@@ -889,7 +893,7 @@ introduced (FR-11, household lifecycle) that hadn't been traced before.
   reading the pre-computed schedule off `InvestmentHoldingAccessor`
   (never re-calling `InvestmentProductEngine`) and re-entering the same
   §3.1 pipeline via `ServiceBusUtility`.
-- **CUC-10 (Goals):** `GoalAccessor.allocate(...)` (validated
+- **CUC-10 (Goals):** `GoalAccessor.replaceAllocations(...)` (validated
   write, 100% cap enforced at the point of persistence) — issued from
   either `AccountManager`'s Edit Holding flow (post-creation adjustment)
   or `TransactionManager`'s investment-buy pipeline (bundled at creation,

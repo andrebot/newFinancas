@@ -329,7 +329,7 @@ net worth over time (see the CUC-6 note).
 - **Volatility: none identified.** The core rule — a holding's allocated
   percentages across all its Goals must never exceed 100% — is a
   stable invariant: a validated write on the Resource Accessor
-  (`GoalAccessor.allocate(...)` in the VBD decomposition), not an
+  (`GoalAccessor.replaceAllocations(...)` in the VBD decomposition, OQ-168), not an
   Engine and not UI validation. The Goal↔Holding allocation is
   modeled as its own join concept (not fields embedded directly on
   Investment Holding), which is good data-model hygiene, not evidence of

@@ -517,7 +517,11 @@ vice versa; only a Credit Card Bill Payment (FR-3.7) bridges the two.
   Holdings fund it (read-only), but editing an allocation always happens
   via the Holding — either **at creation**, bundled into the same
   investment-buy Account Transaction that creates the Holding (one call,
-  see OQ-54), or **later**, via editing the Holding directly.
+  see OQ-54), or **later**, via editing the Holding directly. A buy's
+  allocations split **the purchase**, not the whole Holding: buying into a
+  Holding that already funds Goals re-weights its split by value, at the
+  buy's own unit price, so every Goal keeps exactly its money (OQ-168). A
+  Goal stores only percentages, never amounts.
 - **FR-8.3** The sum of a single Investment Holding's allocated percentages
   across all of its Goals must never exceed 100%. The system rejects
   an allocation that would push the total over 100%. This check is

@@ -921,7 +921,7 @@ export type RegisterUserData = {
 
 export type RegisterUserErrors = {
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
      */
     409: Error;
     /**
@@ -1488,7 +1488,7 @@ export type RemoveMemberErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
      */
     409: Error;
 };
@@ -1526,7 +1526,7 @@ export type ChangeMemberRoleErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
      */
     409: Error;
     /**
@@ -1565,7 +1565,7 @@ export type TransferOwnershipErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
      */
     409: Error;
 };
@@ -2286,7 +2286,11 @@ export type EditHoldingData = {
 
 export type EditHoldingErrors = {
     /**
-     * This Holding's total allocated percentage would exceed 100% (FR-8.3).
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `invitation.invitee_not_registered`.
+     */
+    404: Error;
+    /**
+     * This Holding's total allocated percentage would exceed 100% (FR-8.3), or a completed Goal's share would grow (`goal.completed`, FR-8.9, OQ-168).
      */
     409: Error;
     /**
@@ -2368,7 +2372,7 @@ export type RecordMarketValueErrors = {
      */
     403: Error;
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
      */
     409: Error;
     /**
@@ -2465,7 +2469,7 @@ export type RecordTransactionErrors = {
      */
     403: Error;
     /**
-     * One of `allocations`' Holdings would exceed 100% total allocated (FR-8.3).
+     * The purchase's own split exceeds 100% (FR-8.3), or names a completed Goal (`goal.completed`). The split applies to the purchase; buying into a funded Holding re-weights its existing split by value (OQ-168).
      */
     409: Error;
     /**
@@ -2854,7 +2858,7 @@ export type DeleteMarketValueErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
      */
     409: Error;
 };
@@ -2893,7 +2897,7 @@ export type EditMarketValueErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
      */
     409: Error;
     /**
@@ -2950,7 +2954,7 @@ export type RecordIndexRateErrors = {
      */
     403: Error;
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
      */
     409: Error;
     /**

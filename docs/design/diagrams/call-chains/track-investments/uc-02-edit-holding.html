@@ -135,7 +135,7 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain:</strong> <code>AccountManager</code> ① <code>AuthorizationUtility</code> → ② <code>GoalAccessor.replaceAllocations(holdingId, [...])</code> (rejects &gt; 100%, FR-8.3) → ③ <code>LoggingUtility</code> (async).</p>
+    <p><strong>Chain:</strong> <code>AccountManager</code> ① <code>AuthorizationUtility</code> → ② <code>GoalAccessor.findByIds</code> + <code>listAllocations</code> (the Manager's visibility and completed-Goal checks, OQ-168), then <code>replaceAllocations(householdId, holdingId, [...])</code> (rejects &gt; 100%, FR-8.3) → ③ <code>LoggingUtility</code> (async).</p>
     <p><strong>Narrowed (Round 9):</strong> no snapshot write and no holding-field update any more — position is transaction-only, market value has its own use cases. Direction of control unchanged (OQ-48).</p>
   </div>
 

@@ -113,7 +113,7 @@ identity screens, the rest as later slices use them.
 - [x] **67.** `U3` ValidationUtility (OQ-165: only what the contract can't say; v1 currencies BRL/USD in the contract; slice 1's name checks moved onto it)
 - [x] **68.** `A10` BudgetAccessor (OQ-166: claims per scope, a spend accrues to its Account's scope; target sets written atomically; periods opened at creation, then lazily with the target in effect)
 - [x] **69.** `A12` ValuationSnapshotAccessor (OQ-167: keyed by Holding, the Manager guards the household; manual edits refuse automatic rows; `latestAsOf` for reporting, the later-written same-day snapshot wins)
-- [ ] **70.** `A13` GoalAccessor
+- [x] **70.** `A13` GoalAccessor (OQ-168: Goals store percentages only; one replace-all allocation write; a buy's split re-weights by value at the buy's price; visibility and the completed-Goal rule are the Managers')
 - [ ] **71.** `A5` AccountAccessor
 - [ ] **72.** `A6` CreditCardAccessor
 - [ ] **73.** `A11` InvestmentHoldingAccessor

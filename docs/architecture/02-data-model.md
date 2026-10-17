@@ -595,7 +595,8 @@ Backs `AccountManager`'s `InvestmentHoldingAccessor`,
 - **A single Holding's allocated percentages across all Goals never
   exceed 100% (FR-8.3)** → **application-level**: a cross-row `SUM`
   aggregate is not expressible as a plain `CHECK`, so `GoalAccessor
-  .allocate(...)` computes and rejects it directly. Contrast with
+  .replaceAllocations(...)` computes and rejects it directly, holding the
+  Holding's row lock (OQ-168). Contrast with
   `percentage` itself, which **is** a real constraint: `CHECK (percentage
   > 0 AND percentage <= 100)`, a single-row range check.
 - **`goal_allocations` unique on `(holding_id, goal_id)`** →
