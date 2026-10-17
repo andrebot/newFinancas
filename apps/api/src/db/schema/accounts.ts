@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
 import {
-  check, pgTable, smallint, text, uniqueIndex, uuid,
+  check, date, pgTable, smallint, text, uniqueIndex, uuid,
 } from 'drizzle-orm/pg-core';
 import {
   CASCADE, createdAt, id, instant, integerAmount, isOneOf,
@@ -20,6 +20,9 @@ export const accounts = pgTable('accounts', {
   type: text('type').notNull(),
   currency: text('currency').notNull(),
   visibility: text('visibility').notNull(),
+  // The day the FR-2.1 starting balance was true (OQ-169): a movement dated
+  // before it only rebuilds history; one on or after it moves the balance.
+  startingBalanceDate: date('starting_balance_date').notNull(),
   archivedAt: instant('archived_at'),
   createdAt: createdAt(),
 }, (table) => [

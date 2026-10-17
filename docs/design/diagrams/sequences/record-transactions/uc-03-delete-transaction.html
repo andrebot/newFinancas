@@ -81,7 +81,7 @@ sequenceDiagram
     else authorized
         AZ-->>TM: allowed
         alt was a balance movement or bill payment
-            TM->>AA: applyMovement(accountId, -amount, currency)
+            TM->>AA: applyMovement(accountId, {-amount, currency, date})
         else was an investment trade
             TM->>IHA: applyTrade(holdingId, -quantityDelta, date)
             TM->>VSA: deleteAutomatic(transactionId)

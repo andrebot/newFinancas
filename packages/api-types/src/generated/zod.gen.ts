@@ -169,6 +169,7 @@ export const zAccount = z.object({
     ]).optional(),
     currency: zCurrency.optional(),
     visibility: z.enum(['personal', 'shared']).optional(),
+    startingBalanceDate: z.iso.date().optional(),
     archivedAt: z.iso.datetime().nullish(),
     createdAt: z.iso.datetime().optional()
 });

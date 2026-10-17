@@ -2498,6 +2498,7 @@ components:
         type: { type: string, enum: [checking, savings, credit_card_only, investment], description: "Immutable once set, OQ-32. Four types since OQ-76." }
         currency: { $ref: "#/components/schemas/Currency", description: "Immutable once set, FR-2.2" }
         visibility: { type: string, enum: [personal, shared] }
+        startingBalanceDate: { type: string, format: date, description: "The day the starting balance was true — the creation day. Earlier transactions only rebuild history (OQ-169)" }
         archivedAt: { type: [string, "null"], format: date-time, description: "One-way, FR-2.4/OQ-34" }
         createdAt: { type: string, format: date-time }
 

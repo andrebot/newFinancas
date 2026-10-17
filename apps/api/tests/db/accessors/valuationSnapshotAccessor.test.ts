@@ -106,7 +106,12 @@ const scenario = (test: (setup: Setup) => Promise<void>) => () => withRollback(
       db.insert(households).values({ name: 'Casa' }).returning({ id: households.id }),
     );
     const accountId = await idOf(db.insert(accounts).values({
-      householdId, name: 'Broker', type: 'investment', currency: 'BRL', visibility: 'shared',
+      householdId,
+      name: 'Broker',
+      type: 'investment',
+      currency: 'BRL',
+      visibility: 'shared',
+      startingBalanceDate: '2026-01-01',
     }).returning({ id: accounts.id }));
     const snapshots = createValuationSnapshotAccessor(db);
     const stock = await addHolding(db, accountId, 'PETR4');

@@ -84,7 +84,12 @@ const addHousehold = (db: Database, name: string) => idOf(
  */
 const addHolding = async (db: Database, householdId: string) => {
   const accountId = await idOf(db.insert(accounts).values({
-    householdId, name: 'Broker', type: 'investment', currency: 'BRL', visibility: 'shared',
+    householdId,
+    name: 'Broker',
+    type: 'investment',
+    currency: 'BRL',
+    visibility: 'shared',
+    startingBalanceDate: '2026-01-01',
   }).returning({ id: accounts.id }));
   return idOf(db.insert(investmentHoldings).values({
     accountId, assetType: 'stock', ticker: 'PETR4', quantity: 100_000_000, costBasis: 5_000,

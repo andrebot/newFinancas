@@ -64,6 +64,13 @@
       "when": 1792193137756,
       "tag": "0008_single_use_totp",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792235513158,
+      "tag": "0009_starting_balance_date",
+      "breakpoints": true
     }
   ]
 }

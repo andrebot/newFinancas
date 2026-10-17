@@ -227,13 +227,16 @@ table.
   `users`, **nullable** — see below), `name`, `type` (`checking` | `savings` |
   `credit_card_only` | `investment` — OQ-76, Oct 2026; was six types incl.
   cash/other), `currency`, `visibility` (personal/
-  shared), `archived_at` (nullable — one-way, FR-2.4/OQ-34, so a plain
+  shared), **`starting_balance_date`** (date — the day FR-2.1's starting
+  balance was true, the account's creation day; OQ-169), `archived_at`
+  (nullable — one-way, FR-2.4/OQ-34, so a plain
   timestamp is enough, no unarchive path), `created_at`. **No
   `opening_balance` column — corrected this pass.** A single account-
   level value made no sense once balances are tracked per month below;
   keeping both invites the two copies to drift. FR-2.1's user-supplied
-  starting figure now lives in exactly one place: the `opening_balance`
-  of the account's *first* `account_month_balances` row.
+  starting figure is written once, as the opening and ending balance of
+  the `starting_balance_date` month's row at creation (OQ-169); movements
+  then move the chain around it.
 - **`credit_cards`** — `id` (PK), `account_id` (FK → `accounts`),
   `network` (plain varchar, in-code reference list), `last4`,
   `closing_day`, `due_day`, `expiration_month`, `expiration_year`,
@@ -270,6 +273,17 @@ table.
   **application-level** (no edit control exposed for these fields) —
   a DB trigger to block column updates felt like more machinery than the
   requirement calls for.
+- **The starting balance is an anchor (OQ-169)** → **application-level**,
+  inside `AccountAccessor.applyMovement`: a movement dated on or after
+  `starting_balance_date` moves its month's `ending_balance` and carries
+  forward; one dated before it was already in the starting balance, so it
+  lowers its month's `opening_balance` by its amount and shifts every
+  *earlier* month's opening and ending by the same amount, growing the
+  chain backward — the current balance never changes.
+- **The month chain has no gaps (OQ-169)** → **application-level**: a
+  movement in a month past either end of the chain first fills the
+  months between, opening and ending at the carried balance, so the rows
+  are a complete balance-by-month history.
 - **Credit Card can only attach to a checking/savings/credit_card-type
   account** (FR-2.7) → **application-level** (a cross-table condition on
   `accounts.type`, not expressible as a plain column constraint).
@@ -280,9 +294,9 @@ table.
   this pass)** → **application-level**: no `CHECK` can reference a
   different row, so this is maintained procedurally by whatever writes
   these rows, not declared. The one exception per account is its
-  first-ever month row, where `opening_balance` is the FR-2.1
-  user-supplied figure rather than a carried-forward value — every row
-  after that is mechanical. Credit Cards have no exception case at all:
+  first-ever month row, whose `opening_balance` has no earlier month to
+  carry from — at creation the FR-2.1 figure, lowered by every movement
+  later recorded before `starting_balance_date` in that month (OQ-169). Credit Cards have no exception case at all:
   every card's first row opens at `0`, so its whole chain is mechanical
   from the start.
 - **Backdated-transaction cascade (confirmed, real complexity worth
@@ -299,9 +313,11 @@ table.
   never needs to recompute a month's internal net movement, just carry
   one constant delta forward. This is unavoidably **application-level**
   (a forward walk across however many months separate the transaction's
-  date from today), executed inside the Accessor's validated write.
-  Editing or deleting a backdated transaction needs the same walk in
-  reverse (delta negated). Investment Holdings keep their own
+  date from today), executed inside the Accessor's validated write,
+  under the Account's row lock. Editing or deleting a backdated
+  transaction needs the same walk in reverse (delta negated). A movement
+  dated before the account's `starting_balance_date` walks **backward**
+  instead (OQ-169, see the anchor invariant above). Investment Holdings keep their own
   already-established `ValuationSnapshotAccessor` pattern (event-driven,
   per-update snapshot, FR-5.2) rather than this monthly shape, since a
   Holding's valuation changes from both transactions *and* manual edits,

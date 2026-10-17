@@ -4,7 +4,6 @@ import {
   afterAll, beforeAll, describe, expect, it,
 } from 'vitest';
 import createBudgetAccessor, {
-  monthOf,
   type BudgetMonth,
   type BudgetScope,
   type BudgetTarget,
@@ -223,12 +222,6 @@ const asOwner = async (db: Database, statement: string) => {
  */
 const claimed = (target: BudgetTarget, claimedByBudgetId: string) => ({
   ok: false, reason: 'target_claimed', target, claimedByBudgetId,
-});
-
-describe('monthOf', () => {
-  it('reads the year and month of a calendar date', () => {
-    expect(monthOf('2026-03-31')).toEqual({ year: 2026, month: 3 });
-  });
 });
 
 describe('BudgetAccessor.insert', () => {

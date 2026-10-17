@@ -4037,6 +4037,54 @@ not a hardcoded assumption.
 - **Deleting a user's Goals** (cascade personal, null `owner_user_id` on
   shared) ships with `M1D`.
 
+### OQ-169: AccountAccessor (task A5)
+**Confirmed with the stakeholder (Oct 2026):**
+- **Transactions older than the Account are allowed.** The day an Account
+  is added to the app is not the day the real account opened, so a user
+  may record a transaction dated before it.
+- **The starting balance is the balance on the day the Account is
+  created (an anchor).** That day is stored as
+  `accounts.starting_balance_date` (the Manager sets it to the creation
+  day). A movement dated **on or after** it moves the balance as usual,
+  from its month on. A movement dated **before** it was already in the
+  starting balance, so it only rebuilds the history behind it: its month
+  opens `amount` lower and every earlier month opens and ends `amount`
+  lower; the current balance never changes. E.g. R$1,000 entered on
+  17 Oct, then a R$200 expense dated 10 Aug: Aug opens at R$1,200, today
+  stays R$1,000. Weighed and rejected: refusing older transactions, and a
+  starting balance meaning "before the first recorded transaction" (it
+  would move today's balance and force the user to know an old balance).
+  The anchor is the **day**, not the month: an expense dated 3 Oct is in a
+  balance entered on 17 Oct.
+- **`applyMovement(accountId, { amount, currency, date })`** — the
+  diagrams' `applyMovement(accountId, amount, currency)` gains the date,
+  without which no month can be moved. Refused with `currency_mismatch`
+  (FR-2.2) or `account_not_found`, writing nothing. Undoing a movement
+  (edit, delete) is the same call with the amount negated. The Account row
+  is locked `FOR UPDATE`, so two movements on one Account run one after
+  the other. Keyed by Account — the Manager has already loaded it within
+  the household (OQ-167). Whether an archived Account still takes
+  movements is the Managers' call.
+- **The month chain has no gaps.** Months with no movement between the
+  chain's ends and a new movement's month are filled, opening and ending
+  at the carried balance, so `account_month_balances` is a complete
+  balance-by-month history (FR-5.4/FR-6.6). Reads: `listBalances(accountId,
+  { from?, to? })` by month, and `balancesAsOf(accountIds, month)` — each
+  Account's latest month at or before it (the current balance is the one
+  as of today's month; ReportingEngine reads month ends).
+- **Account writes:** `insert` (the Account plus its first month row at
+  the starting balance), `update` (name, visibility, and the owner the
+  Manager names when an Account turns personal — never type or currency,
+  OQ-32), `archive` (one way, keeps the first time, OQ-34). Reads:
+  `findById`, `list(householdId, viewerUserId, { visibility? })` — shared
+  Accounts plus the viewer's personal ones, open first then archived, by
+  name; unpaginated (a household has a handful), so `GET /accounts`'s
+  limit/offset is applied by the Manager.
+- `CalendarMonth`/`monthOf` moved out of BudgetAccessor into
+  `accessors/calendarMonth.ts`, shared by both month-row Accessors.
+- **Deleting a user's Accounts** (cascade personal, null `owner_user_id`
+  on shared — FR-1.17) ships with `M1D`.
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.

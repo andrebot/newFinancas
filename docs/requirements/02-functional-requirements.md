@@ -119,7 +119,11 @@ and carry the document's current default assumption.
   and opening balance. **Type is immutable once set** (see OQ-32) — the
   Credit Card and Investment Holding attachment rules (OQ-11, OQ-14) are
   keyed off it. Currency is likewise fixed at creation, already implied by
-  FR-2.2's no-conversion rule.
+  FR-2.2's no-conversion rule. The opening ("starting") balance is the
+  account's balance **on the day it is added**; a transaction may still be
+  dated earlier (the real account is older than its record here), and such
+  a transaction only rebuilds the balance history before that day — it
+  never changes the current balance (OQ-169).
 - **FR-2.2** Each account is denominated in exactly one currency; the
   system does not convert between currencies.
 - **FR-2.3** An account can be marked **personal** (visible only to its
