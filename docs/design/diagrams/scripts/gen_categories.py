@@ -32,16 +32,17 @@ sequenceDiagram
     participant LOG as LoggingUtility
 
     User->>API: POST /categories {name, icon, color}
-    API->>AM: createCategory(actor, householdId, name)
-    AM->>VU: check(name)
-    alt name missing/invalid
+    API->>AM: createCategory(actor, householdId, {name, icon, color})
+    AM->>VU: check(name, icon, color)
+    alt name missing, icon or colour unknown
         VU-->>AM: rejected
         AM-->>API: ValidationError
         API-->>User: 422 validation.failed {details}
     else valid
         VU-->>AM: ok
-        AM->>CA: insert(householdId, name)
-        CA-->>AM: categoryId
+        AM->>CA: insert(householdId, {name, icon, color})
+        Note over CA: refuses an icon/colour outside the in-code sets as a<br/>second line (invalid_icon / invalid_color, OQ-173)
+        CA-->>AM: Category (no Subcategories yet)
         AM-->>LOG: logActivity(correlationId, actor, "CreateCategory")
         AM-->>LOG: recordAudit(actor, "Category", categoryId)
         AM-->>API: categoryId
@@ -52,6 +53,7 @@ sequenceDiagram
     <ul>
       <li>No <code>visibility</code> field &mdash; Category is pure household-shared taxonomy, no personal/shared split exists for it (see <code>02-data-model.md</code>).</li>
       <li><strong>Oct 2026 review:</strong> icon + colour (fixed palette) on every category (FR-10.1, OQ-57).</li>
+      <li><strong>OQ-173:</strong> the Accessor re-checks icon and colour against <code>@financas/reference</code> and returns <code>invalid_icon</code>/<code>invalid_color</code>; the Manager&#39;s 422 normally fires first. Names need not be unique.</li>
       <li>See FR-10.1.</li>
     </ul>
 """,
@@ -78,12 +80,12 @@ sequenceDiagram
         API-->>User: 422 validation.failed {details}
     else valid
         VU-->>AM: ok
-        AM->>CA: update(categoryId, name)
-        CA-->>AM: updated
-        loop for each subcategory entry
-            AM->>CA: upsertSubcategory(categoryId, id, name)
-            Note over CA: a Subcategory can never itself take a parent-subcategory<br/>field &mdash; the two-level limit (FR-10.2) is structural,<br/>not a runtime check
-            CA-->>AM: applied
+        AM->>CA: update(householdId, categoryId, {name?, icon?, color?, subcategories?})
+        Note over CA: one transaction (OQ-173): renames each listed Subcategory<br/>with an id, creates those without, unlisted ones untouched.<br/>A Subcategory has no parent-subcategory field &mdash; the<br/>two-level limit (FR-10.2) is structural, not a runtime check
+        alt not this household's Category / an id under another Category
+            CA-->>AM: not_found / subcategory_not_found (nothing written)
+        else applied
+            CA-->>AM: Category with its Subcategories
         end
         AM-->>LOG: logActivity(correlationId, actor, "EditCategory")
         AM-->>LOG: recordAudit(actor, "Category", categoryId)
@@ -93,6 +95,7 @@ sequenceDiagram
 """,
     notes="""
     <ul>
+      <li><strong>One atomic call (OQ-173)</strong> &mdash; the earlier per-entry <code>upsertSubcategory</code> loop could leave an edit half-applied; the whole PATCH is now a single <code>update</code>. The 404/422 mapping of <code>not_found</code>/<code>subcategory_not_found</code> lands with <code>AccountManager</code> (M2).</li>
       <li><strong>No "exceeds two levels" alt-flow shown</strong> &mdash; there is no request shape that could even express a third level (no <code>subcategories</code> field exists on a Subcategory), so there is nothing to reject at runtime.</li>
       <li>See FR-10.2.</li>
     </ul>
@@ -113,13 +116,13 @@ sequenceDiagram
     alt target is a Category
         User->>API: POST /categories/:categoryId/archive
         API->>AM: archiveCategory(actor, categoryId)
-        AM->>CA: archive(categoryId)
-        Note over CA: stamps this Category's archived_at, then loops its<br/>live Subcategories stamping theirs too &mdash; one transaction<br/>(FR-10.4's cascade)
+        AM->>CA: archive(householdId, categoryId)
+        Note over CA: stamps this Category's archived_at, then its live<br/>Subcategories' with the same time &mdash; one transaction<br/>(FR-10.4's cascade) &mdash; already-archived ones keep theirs
         CA-->>AM: archived (Category + all Subcategories)
     else target is a Subcategory
         User->>API: POST /categories/:categoryId/subcategories/:subcategoryId/archive
-        API->>AM: archiveSubcategory(actor, subcategoryId)
-        AM->>CA: archive(subcategoryId)
+        API->>AM: archiveSubcategory(actor, categoryId, subcategoryId)
+        AM->>CA: archiveSubcategory(householdId, categoryId, subcategoryId)
         Note over CA: single-row update &mdash; parent Category and sibling<br/>Subcategories are untouched (FR-10.4)
         CA-->>AM: archived (this Subcategory only)
     end

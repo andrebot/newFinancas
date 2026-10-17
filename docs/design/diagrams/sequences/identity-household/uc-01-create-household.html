@@ -93,7 +93,8 @@ sequenceDiagram
     Note over SB: fire-and-forget &mdash; AccountManager seeds the default<br/>categories in the creator&#39;s language (OQ-117)
     SB-->>AM: subscribe("household.created")
     AM->>CA: seedDefaults(householdId, language)
-    CA-->>AM: default Categories created
+    Note over CA: once per household, under its row lock &mdash; one that<br/>already has a Category is left alone (OQ-173)
+    CA-->>AM: seeded (true) / skipped (false)
     IM-->>LOG: log.audit("CreateHousehold", Household householdId)
     IM-->>API: household + role Owner
     API-->>User: 201 Created MyHousehold
