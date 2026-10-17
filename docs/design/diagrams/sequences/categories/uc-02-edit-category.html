@@ -75,12 +75,12 @@ sequenceDiagram
         API-->>User: 422 validation.failed {details}
     else valid
         VU-->>AM: ok
-        AM->>CA: update(categoryId, name)
-        CA-->>AM: updated
-        loop for each subcategory entry
-            AM->>CA: upsertSubcategory(categoryId, id, name)
-            Note over CA: a Subcategory can never itself take a parent-subcategory<br/>field &mdash; the two-level limit (FR-10.2) is structural,<br/>not a runtime check
-            CA-->>AM: applied
+        AM->>CA: update(householdId, categoryId, {name?, icon?, color?, subcategories?})
+        Note over CA: one transaction (OQ-173): renames each listed Subcategory<br/>with an id, creates those without, unlisted ones untouched.<br/>A Subcategory has no parent-subcategory field &mdash; the<br/>two-level limit (FR-10.2) is structural, not a runtime check
+        alt not this household's Category / an id under another Category
+            CA-->>AM: not_found / subcategory_not_found (nothing written)
+        else applied
+            CA-->>AM: Category with its Subcategories
         end
         AM-->>LOG: logActivity(correlationId, actor, "EditCategory")
         AM-->>LOG: recordAudit(actor, "Category", categoryId)
@@ -91,6 +91,7 @@ sequenceDiagram
   </div>
   <div class="notes">
     <ul>
+      <li><strong>One atomic call (OQ-173)</strong> &mdash; the earlier per-entry <code>upsertSubcategory</code> loop could leave an edit half-applied; the whole PATCH is now a single <code>update</code>. The 404/422 mapping of <code>not_found</code>/<code>subcategory_not_found</code> lands with <code>AccountManager</code> (M2).</li>
       <li><strong>No "exceeds two levels" alt-flow shown</strong> &mdash; there is no request shape that could even express a third level (no <code>subcategories</code> field exists on a Subcategory), so there is nothing to reject at runtime.</li>
       <li>See FR-10.2.</li>
     </ul>

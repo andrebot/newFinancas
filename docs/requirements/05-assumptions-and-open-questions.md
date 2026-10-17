@@ -4264,6 +4264,44 @@ not a hardcoded assumption.
   `INDEX_CODES`. The View Investments sequence had placed the route under
   `InsightsManager`; fixed with this task.
 
+### OQ-173: CategoryAccessor (task A9)
+**Confirmed with the stakeholder (Oct 2026):**
+- **A Category edit is one atomic call.** `update(householdId, categoryId,
+  {name?, icon?, color?, subcategories?: [{id?, name}]})` runs in one
+  transaction: a listed Subcategory with an `id` is renamed, one without is
+  created, unlisted ones are untouched (archiving has its own route). An
+  `id` that isn't under this Category refuses the whole edit
+  (`subcategory_not_found`); another household's Category is `not_found`.
+  An empty change reads the Category back. Weighed and rejected: the UC-02
+  diagram's per-entry `upsertSubcategory` loop — a failure midway left the
+  edit half-applied. UC-02 updated. The 404/422 mapping of these refusals
+  lands with `AccountManager` (M2); the contract's `editCategory` and
+  archive routes have no 404 yet.
+- **The Accessor also refuses an unknown icon or colour.** `insert` and
+  `update` return `invalid_icon`/`invalid_color` for a value outside
+  `CATEGORY_ICONS`/`PALETTE_TOKENS` (`@financas/reference`), as a second
+  line behind `ValidationUtility`'s 422. No DB CHECK — the icon set and
+  palette are in-code lists that grow.
+- **Default seeding is guarded to once per household.** `seedDefaults
+  (householdId, language)` takes the household's row lock and inserts
+  nothing when the household already has a Category (or no longer exists),
+  returning `false`. The bus is at-most-once today (OQ-102), so this only
+  bites under a future at-least-once transport — cheap insurance.
+- **Names are not unique** — neither Categories in a household nor
+  Subcategories in a Category; the data model has no index.
+- **Archive keeps the first time.** `archive(householdId, categoryId)`
+  stamps the Category (`coalesce`) and its live Subcategories with the same
+  `now()`; already-archived ones keep theirs. `archiveSubcategory
+  (householdId, categoryId, subcategoryId)` touches only that row, scoped by
+  household and Category from the route. Both return `false` when not found.
+- **Reads:** `findById` returns every Subcategory, archived included;
+  `list(householdId, {includeArchived})` leaves archived Categories and
+  Subcategories out unless asked. Both sort open first, then by name.
+- **Raised, not resolved here:** FR-3's "a chosen Subcategory must belong
+  to the chosen Category" has no owner — `TransactionManager`'s Accessor
+  list doesn't include `CategoryAccessor`. To settle with the Record
+  Transaction work.
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.

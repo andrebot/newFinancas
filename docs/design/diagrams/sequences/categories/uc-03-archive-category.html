@@ -68,13 +68,13 @@ sequenceDiagram
     alt target is a Category
         User->>API: POST /categories/:categoryId/archive
         API->>AM: archiveCategory(actor, categoryId)
-        AM->>CA: archive(categoryId)
-        Note over CA: stamps this Category's archived_at, then loops its<br/>live Subcategories stamping theirs too &mdash; one transaction<br/>(FR-10.4's cascade)
+        AM->>CA: archive(householdId, categoryId)
+        Note over CA: stamps this Category's archived_at, then its live<br/>Subcategories' with the same time &mdash; one transaction<br/>(FR-10.4's cascade) &mdash; already-archived ones keep theirs
         CA-->>AM: archived (Category + all Subcategories)
     else target is a Subcategory
         User->>API: POST /categories/:categoryId/subcategories/:subcategoryId/archive
-        API->>AM: archiveSubcategory(actor, subcategoryId)
-        AM->>CA: archive(subcategoryId)
+        API->>AM: archiveSubcategory(actor, categoryId, subcategoryId)
+        AM->>CA: archiveSubcategory(householdId, categoryId, subcategoryId)
         Note over CA: single-row update &mdash; parent Category and sibling<br/>Subcategories are untouched (FR-10.4)
         CA-->>AM: archived (this Subcategory only)
     end

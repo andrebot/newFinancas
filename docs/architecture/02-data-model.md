@@ -369,10 +369,13 @@ under Financial Accounts) actually cashes out.
   siblings (FR-10.4)** → nothing to enforce; it's a single-row `UPDATE`,
   which is the default behavior once nothing cascades.
 - **Default Category set seeded per household (FR-10.1)** → not a
-  constraint; `CategoryAccessor.seedDefaults(householdId)` is a plain
-  multi-row `INSERT`, triggered by `AccountManager`'s subscription to
-  `household.created` (VBD doc §3.1b), not something modeled in the
-  schema itself.
+  constraint; `CategoryAccessor.seedDefaults(householdId, language)` is a
+  plain multi-row `INSERT`, skipped when the household already has a
+  Category (checked under its row lock — once per household, OQ-173),
+  triggered by `AccountManager`'s subscription to `household.created`
+  (VBD doc §3.1b), not something modeled in the schema itself.
+- **Names are not unique** (OQ-173) — no index; two live Categories (or
+  sibling Subcategories) may share a name.
 - No hard delete exists for either table — FR-10.3 only defines archive,
   the same shape as Accounts/Holdings, not Budget's hard-delete shape.
 
