@@ -95,7 +95,7 @@ sequenceDiagram
                 AM-->>API: ValidationError
                 API-->>User: 422 validation.failed {details}
             else account type allows cards
-                AM->>CA: insert/update/delete(cardDetails)
+                AM->>CA: insert(card, today) / update(accountId, cardId, changes) / remove(accountId, cardId)
                 CA-->>AM: applied
             end
         end

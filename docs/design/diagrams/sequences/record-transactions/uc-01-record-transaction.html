@@ -87,7 +87,8 @@ sequenceDiagram
             TM-->>API: ValidationError (FR-3.1 &mdash; a Credit Card target only offers charge/refund)
             API-->>User: 422 transaction.kind_not_allowed_for_target
         else charge or refund
-            TM->>CCA: applyChargeOrRefund(cardId, amount, kind)
+            TM->>CCA: applyMovement(cardId, {signedAmount, currency, date})
+            Note over CCA: positive for a charge, negative for a refund (the Manager signs it),<br/>lands in the billing cycle the date falls in (OQ-170)
             CCA-->>TM: outstanding balance updated
             TM->>BA: accrueIfClaimed({accountScope, currency, categoryId, subcategoryId, amount, date})
             BA-->>TM: spend updated (no-op if unclaimed)
@@ -107,7 +108,9 @@ sequenceDiagram
             TM->>AA: applyMovement(accountId, {amount, currency, date})
             AA-->>TM: new balance
         else effect = bill_payment
-            TM->>CCA: applyBillPayment(cardId, amount)
+            TM->>AA: applyMovement(accountId, {-amount, currency, date})
+            AA-->>TM: account debited (OQ-15)
+            TM->>CCA: applyMovement(cardId, {-amount, currency, date})
             CCA-->>TM: outstanding balance reduced
         else effect = investment_trade
             Note over TM: quantityDelta computed here (buy/sell/redemption rule, FR-3.8)

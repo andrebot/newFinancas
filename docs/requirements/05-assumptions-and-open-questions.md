@@ -4134,6 +4134,52 @@ not a hardcoded assumption.
 - **Deleting a user's Accounts** (cascade personal, null `owner_user_id`
   on shared — FR-1.17) ships with `M1D`.
 
+### OQ-170: CreditCardAccessor (task A6)
+**Confirmed with the stakeholder (Oct 2026):**
+- **A billing cycle is named by the month it closes in.** A day up to the
+  card's closing day is in the cycle closing that month; a later day is in
+  the next month's. A closing day past a short month's end closes on its
+  last day (31 → 28/29 Feb). `credit_card_month_balances.year/month` hold
+  that cycle, not a calendar month. Weighed and rejected: naming it by the
+  due month (how Brazilian banks name a bill) — every label would move
+  when the due day is edited; the UI can still say "due on …".
+- **Editing the closing day never changes the past.** The closing day in
+  force when a movement is written decides its cycle; past cycles stay as
+  they are. Undoing an old movement after an edit may land in another
+  cycle — the outstanding balance stays right, only how the past splits
+  across cycles can drift. Re-bucketing past transactions was rejected:
+  it rewrites history and would read CardTransactionAccessor's table.
+- **One `applyMovement(cardId, { amount, currency, date })`**, replacing
+  `applyChargeOrRefund` / `applyBillPayment`: the two differed only in
+  sign, and the sign is the Manager's decision (Manager decides, Accessor
+  applies) — a charge +, a refund or a bill payment −. Same shape as
+  `AccountAccessor.applyMovement` (OQ-169), runtime cost identical, less
+  code. Undo (edit, delete) is the same call negated. Refused with
+  `currency_mismatch` (the card takes its Account's currency, FR-2.2) or
+  `card_not_found`, writing nothing. The card row is locked `FOR UPDATE`.
+- **A bill payment moves both sides** (OQ-15): `AccountAccessor.applyMovement`
+  debits the paying Account and `CreditCardAccessor.applyMovement` lowers
+  the card. The Record/Edit/Delete Transaction diagrams showed only the
+  card side on record and only the Account side on undo; fixed with this
+  task.
+- **No starting-balance anchor for cards** (FR-2.10: no starting figure):
+  every movement carries forward. A charge dated before the chain's first
+  cycle (a card added mid-cycle) grows the chain backward, opening at 0.
+- **Writes:** `insert(card, today)` — the card plus its first cycle row at
+  0, in the cycle `today` falls in; `update(accountId, cardId, changes)`
+  and `remove(accountId, cardId)` — keyed by the Account being edited, so a
+  card id from another Account changes nothing (FR-2.9, OQ-35). Removing
+  is a hard delete taking the card's Card Transactions and balances; bill
+  payments keep the paying Account's history, unlinked (`SET NULL`).
+  Which Accounts take cards (FR-2.7) and whether a network is known are
+  AccountManager's checks. **For `M2`:** Budget spend accrued by a removed
+  card's charges stays counted unless AccountManager reverses it.
+- **Reads:** `findById(householdId, cardId)` (household guard through the
+  Account), `listByAccounts(accountIds)`, `listBalances(cardId, range)`,
+  `balancesAsOf(cardIds, month)`. `MonthRange` moved to `calendarMonth.ts`;
+  `cycleOf` lives in `accessors/billingCycle.ts`. The demo seed's card row
+  now sits in its billing cycle.
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.

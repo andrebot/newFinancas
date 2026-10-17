@@ -45,7 +45,8 @@ sequenceDiagram
         Note over AA: also creates the account's FIRST account_month_balances<br/>row, opening_balance = input, in the month of<br/>starting_balance_date = today (OQ-169), no opening_balance<br/>column on accounts itself, see 02-data-model.md
         AA-->>AM: accountId
         opt cards included in the request
-            AM->>CA: insert(accountId, cardDetails)
+            AM->>CA: insert({accountId, ...cardDetails}, today)
+            Note over CA: also creates the card's FIRST credit_card_month_balances<br/>row at 0, in the billing cycle today falls in (OQ-170)
             CA-->>AM: cardId
         end
         AM-->>LOG: logActivity(correlationId, actor, "CreateAccount")
@@ -104,7 +105,7 @@ sequenceDiagram
                 AM-->>API: ValidationError
                 API-->>User: 422 validation.failed {details}
             else account type allows cards
-                AM->>CA: insert/update/delete(cardDetails)
+                AM->>CA: insert(card, today) / update(accountId, cardId, changes) / remove(accountId, cardId)
                 CA-->>AM: applied
             end
         end

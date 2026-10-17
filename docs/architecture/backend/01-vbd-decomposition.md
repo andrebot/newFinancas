@@ -266,7 +266,7 @@ database constraint).
 | `HouseholdAccessor` | Households, Memberships, roles | **Revised (A3, OQ-107): applies data changes only — the membership *rules* (Owner may only leave by their own action, FR-1.11; FR-1.18 succession or dissolution; FR-1.12 never re-roling the Owner; FR-1.20 who may transfer) are `IdentityManager`'s decisions.** Operations: `insert` (household + Owner), `findMembership`, `listForUser`, `listMembers`, `findSuccessor` (FR-1.18 ordering), `addMember`, and **guarded writes** `updateRole` / `removeMember` (never the Owner) / `swapOwner` (atomic dual-role swap, OQ-28) returning `'stale'` when the facts the Manager decided on no longer hold; `delete` **`dissolve(householdId, lastMemberId)`** (OQ-117) deletes a household only while nobody else is a member — guarded like the rest. |
 | `InvitationAccessor` *(split out, Round 7)* | Invitations — own lifecycle (pending → accepted/declined/revoked), independent of Membership, which only exists post-acceptance | **Revised (A4, OQ-109): data only** — `insert` by invitee user ID (the Manager resolves the email and applies FR-1.19; the NOT NULL FK is the structural guarantee, `invitee_missing`), `findById`, `findPending`, `listPendingForUser` (household + inviter names), `listForHousehold`, and the guarded `resolve(id, accepted/declined/revoked)` (`stale` once not pending) **OQ-118:** `insert` returns `already_pending` when the partial unique index refuses a second pending invitation; `listForHousehold` joins the invitee's name and email. |
 | `AccountAccessor` | Financial Accounts | `applyMovement(accountId, {amount, currency, date})` rejects a currency mismatch (FR-2.2) before applying the signed delta to the month chain — forward from a date on or after the starting-balance date, backward (history only) before it (OQ-169) |
-| `CreditCardAccessor` | Credit Cards (incl. outstanding balance) | `applyChargeOrRefund` / `applyBillPayment` resolve which billing cycle a transaction falls in (closing-date boundary, FR-2.8) and update the right total — `TransactionManager` decides *that* a charge happened, this Accessor decides *which cycle bucket* |
+| `CreditCardAccessor` | Credit Cards (incl. outstanding balance) | `applyMovement(cardId, {amount, currency, date})` resolves which billing cycle the date falls in (closing-day boundary, FR-2.8; a cycle is named by the month it closes in) and moves that cycle's total, carrying it forward — `TransactionManager` decides *that* a charge, refund or bill payment happened and signs the amount, this Accessor decides *which cycle bucket* (OQ-170, replacing `applyChargeOrRefund` / `applyBillPayment`) |
 | `AccountTransactionAccessor` | Account Transaction ledger, including the persisted `effect` column (§3.1's reasoning — corrected cross-reference, Round 8; `EFFECT_BY_KIND` is now enumerated there explicitly) | — |
 | `CardTransactionAccessor` | Card Transaction ledger — stays a separate ledger from Account Transactions (OQ-16) even though both are now reached through one unified entry point (OQ-39) | — |
 | ~~`RecurringTransactionScheduleAccessor`~~ | **Removed, Round 9** — recurring transactions dropped (FR-3.5, OQ-55) | — |
@@ -386,7 +386,7 @@ before now:
 TransactionManager.record(input)
  ├─ AuthorizationUtility.canWrite(actor, accountId)?
  ├─ if input targets a Credit Card directly (Card Transaction: charge/refund):
- │    1. CreditCardAccessor.applyChargeOrRefund(cardId, amount, kind)
+ │    1. CreditCardAccessor.applyMovement(cardId, {±amount, currency, date})  [+charge, −refund — OQ-170]
  │    2. BudgetAccessor.accrueIfClaimed({scope, currency, categoryId, subcategoryId, amount, date})  [no-op if unclaimed]
  │    3. CardTransactionAccessor.insert(...)
  │
@@ -394,7 +394,8 @@ TransactionManager.record(input)
       1. effect = EFFECT_BY_KIND[kind]  [inline reference-data lookup]
       2. dispatch on effect — decide the parameters, call exactly one:
            AccountAccessor.applyMovement(accountId, {amount, currency, date})
-           CreditCardAccessor.applyBillPayment(cardId, amount)
+           bill_payment: AccountAccessor.applyMovement(accountId, {−amount, currency, date})
+             and CreditCardAccessor.applyMovement(cardId, {−amount, currency, date})  [both sides, OQ-15/OQ-170]
            InvestmentHoldingAccessor.applyTrade(holdingId, quantityDelta, valuation, date)
              [quantityDelta computed here: +qty buy, -qty sell, -currentQty redemption;
               Round 8/OQ-51 — the Valuation Snapshot this call records only
@@ -432,13 +433,13 @@ TransactionManager.record(input)
 `EFFECT_BY_KIND` [Round 8 — enumerated explicitly; previously only
 gestured at as "inline reference-data lookup"], covering the 14
 Account-Transaction kinds (Card Transactions never go through this
-lookup — `applyChargeOrRefund` takes `kind` directly, §2.3):
+lookup — the Manager signs a charge + and a refund − for `CreditCardAccessor.applyMovement`, OQ-170):
 
 | Effect | Kinds | Accessor call |
 |---|---|---|
 | `movement` | withdrawal, deposit, boleto payment, Pix payment/receipt, investment dividend, investment interest, investment tax | `AccountAccessor.applyMovement` — dividend/interest/tax are "pure cash events" (FR-3.8), same call as a plain deposit/withdrawal, just also carrying a `holding_id` |
 | `transfer` | transfer sent, transfer received | `AccountAccessor.applyMovement` — same call as `movement`, tagged separately so `ReportingEngine` can exclude it from income/expense (FR-3.6) |
-| `bill_payment` | credit card bill payment | `CreditCardAccessor.applyBillPayment` |
+| `bill_payment` | credit card bill payment | `AccountAccessor.applyMovement` (debits the paying account) **and** `CreditCardAccessor.applyMovement` (amount negated — lowers the outstanding balance); OQ-15, OQ-170 |
 | `investment_trade` | investment buy, investment sell, investment redemption | `InvestmentHoldingAccessor.applyTrade` — the only kinds that change quantity |
 
 **No Engine appears in this pipeline for most transactions.** The

@@ -255,7 +255,15 @@ table.
 - **`credit_card_month_balances`** *(same shape, same reasoning, extended
   the same way this pass)* — `id` (PK), `credit_card_id` (FK), `year`,
   `month`, **`opening_outstanding_balance`**, `ending_outstanding_balance`,
-  `updated_at`. Unique on `(credit_card_id, year, month)`.
+  `updated_at`. Unique on `(credit_card_id, year, month)`. **`year`/`month`
+  name a billing cycle, not a calendar month (OQ-170):** the month the
+  cycle closes in. A day up to the card's closing day falls in that
+  month's cycle, a later day in the next month's; a closing day past a
+  short month's end closes on its last day. The closing day in force when
+  a movement is written decides its cycle — editing it never moves past
+  cycles. No starting-balance anchor: every movement carries forward, and
+  a movement before the chain's first cycle grows it backward, opening at
+  `0`.
 
 ### Invariants — DB constraint vs. application-level
 
@@ -671,9 +679,9 @@ events only (recurring transactions dropped, OQ-55).
   extendable, per FR-3.1's explicit "not a hardcoded enum"), `date`,
   `amount`, `currency`, `category_id`/`subcategory_id` (nullable FKs),
   `description`, `created_at`. **No `effect` column** —
-  `CreditCardAccessor.applyChargeOrRefund(cardId, amount, kind)` takes
-  `kind` directly (VBD doc §2.3); with only two kinds an indirection
-  layer buys nothing. **No `source` column** — sync (FR-3.3, v2) is
+  `TransactionManager` signs the amount from `kind` (charge +, refund −)
+  for `CreditCardAccessor.applyMovement` (OQ-170); with only two kinds an
+  indirection layer buys nothing. **No `source` column** — sync (FR-3.3, v2) is
   Account-Transaction-only. **Index:** `(credit_card_id, date DESC, id)`
   for Browse & Filter.
 - ~~**`recurring_transaction_schedules`**~~ — **dropped, Oct 2026**
@@ -690,7 +698,8 @@ interest/tax stay `movement` since FR-3.8 calls them "pure cash events,"
 not quantity-changing), `transfer` (transfer sent/received — same
 Accessor call as `movement`, tagged separately so `ReportingEngine` can
 exclude it from income/expense, FR-3.6), `bill_payment` (→
-`CreditCardAccessor.applyBillPayment`), `investment_trade` (buy/sell/
+`AccountAccessor.applyMovement` on the paying account and
+`CreditCardAccessor.applyMovement` on the card, OQ-15/OQ-170), `investment_trade` (buy/sell/
 redemption → `InvestmentHoldingAccessor.applyTrade`).
 
 **It's persisted, not recomputed at read time** — same reasoning as

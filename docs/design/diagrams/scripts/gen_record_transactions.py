@@ -53,7 +53,8 @@ sequenceDiagram
             TM-->>API: ValidationError (FR-3.1 &mdash; a Credit Card target only offers charge/refund)
             API-->>User: 422 transaction.kind_not_allowed_for_target
         else charge or refund
-            TM->>CCA: applyChargeOrRefund(cardId, amount, kind)
+            TM->>CCA: applyMovement(cardId, {signedAmount, currency, date})
+            Note over CCA: positive for a charge, negative for a refund (the Manager signs it),<br/>lands in the billing cycle the date falls in (OQ-170)
             CCA-->>TM: outstanding balance updated
             TM->>BA: accrueIfClaimed({accountScope, currency, categoryId, subcategoryId, amount, date})
             BA-->>TM: spend updated (no-op if unclaimed)
@@ -73,7 +74,9 @@ sequenceDiagram
             TM->>AA: applyMovement(accountId, {amount, currency, date})
             AA-->>TM: new balance
         else effect = bill_payment
-            TM->>CCA: applyBillPayment(cardId, amount)
+            TM->>AA: applyMovement(accountId, {-amount, currency, date})
+            AA-->>TM: account debited (OQ-15)
+            TM->>CCA: applyMovement(cardId, {-amount, currency, date})
             CCA-->>TM: outstanding balance reduced
         else effect = investment_trade
             Note over TM: quantityDelta computed here (buy/sell/redemption rule, FR-3.8)
@@ -177,15 +180,21 @@ sequenceDiagram
         Note over TM: reverse the OLD effect first, using the transaction's<br/>current stored values
         alt was a balance movement or bill payment
             TM->>AA: applyMovement(accountId, {-oldAmount, currency, oldDate})
+            opt was a bill payment
+                TM->>CCA: applyMovement(cardId, {+oldAmount, currency, oldDate})
+            end
         else was an investment trade
             TM->>IHA: applyTrade(holdingId, -oldQuantityDelta, oldValuation, oldDate)
         else was a card charge/refund
-            TM->>CCA: applyChargeOrRefund(cardId, -oldAmount, oldKind)
+            TM->>CCA: applyMovement(cardId, {-oldSignedAmount, currency, oldDate})
         end
         TM->>BA: accrueIfClaimed({accountScope, currency, oldCategoryId, oldSubcategoryId, -oldAmount, oldDate})
         Note over TM: then reapply the NEW values &mdash; same dispatch as<br/>Record Transaction, on the new amount/date/category
         alt new effect is a balance movement or bill payment
             TM->>AA: applyMovement(accountId, {newAmount, currency, newDate})
+            opt is a bill payment
+                TM->>CCA: applyMovement(cardId, {-newAmount, currency, newDate})
+            end
         else new effect is an investment trade
             TM->>IHA: applyTrade(holdingId, newQuantityDelta, newDate)
             IHA-->>TM: {newQuantity}
@@ -197,7 +206,7 @@ sequenceDiagram
                 Note over IHA: undoes only a system-made archive (OQ-80)
             end
         else new effect is a card charge/refund
-            TM->>CCA: applyChargeOrRefund(cardId, newAmount, newKind)
+            TM->>CCA: applyMovement(cardId, {newSignedAmount, currency, newDate})
         end
         TM->>BA: accrueIfClaimed({accountScope, currency, newCategoryId, newSubcategoryId, newAmount, newDate})
         TM->>ATA: update(transactionId, input)
@@ -246,13 +255,16 @@ sequenceDiagram
         AZ-->>TM: allowed
         alt was a balance movement or bill payment
             TM->>AA: applyMovement(accountId, {-amount, currency, date})
+            opt was a bill payment
+                TM->>CCA: applyMovement(cardId, {+amount, currency, date})
+            end
         else was an investment trade
             TM->>IHA: applyTrade(holdingId, -quantityDelta, date)
             TM->>VSA: deleteAutomatic(transactionId)
             TM->>IHA: unarchiveIfSystemArchived(holdingId)
             Note over IHA: if this was the sell/redemption that zeroed the<br/>Holding, it comes back (OQ-80)
         else was a card charge/refund
-            TM->>CCA: applyChargeOrRefund(cardId, -amount, kind)
+            TM->>CCA: applyMovement(cardId, {-signedAmount, currency, date})
         end
         TM->>BA: accrueIfClaimed({accountScope, currency, categoryId, subcategoryId, -amount, date})
         TM->>ATA: delete(transactionId)
