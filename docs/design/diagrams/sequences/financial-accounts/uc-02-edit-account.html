@@ -76,8 +76,18 @@ sequenceDiagram
         API-->>User: 422 validation.failed {details}
     else no type/currency change requested
         VU-->>AM: ok
-        AM->>AA: update(accountId, {name, visibility})
-        AA-->>AM: updated
+        opt visibility changes
+            AM->>AA: findById(householdId, accountId)
+            AA-->>AM: account
+            Note over AM: only the creator (account.ownerUserId) may share it<br/>or remove the share, and personal goes back to them (OQ-169)
+        end
+        alt visibility changed by someone other than the creator
+            AM-->>API: Forbidden
+            API-->>User: 403 auth.forbidden
+        else creator, or no visibility change
+            AM->>AA: update(householdId, accountId, {name, visibility})
+            AA-->>AM: updated
+        end
         loop for each card change in the request
             AM->>AA: findById(accountId)
             alt account.type not in {checking, savings, credit_card}

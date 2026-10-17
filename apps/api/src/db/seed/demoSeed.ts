@@ -90,7 +90,7 @@ const demoUser = (
  * @param type - Account type.
  * @param currency - ISO currency code.
  * @param visibility - `personal` or `shared`.
- * @returns The account row.
+ * @returns The account row; its starting-balance date is the seeding day's.
  */
 const demoAccount = (
   id: string,
@@ -99,7 +99,7 @@ const demoAccount = (
   type: string,
   currency: string,
   visibility: string,
-): DemoSeed['accounts'][number] => ({
+): Omit<DemoSeed['accounts'][number], 'startingBalanceDate'> => ({
   id, householdId: HOUSEHOLD, ownerUserId, name, type, currency, visibility,
 });
 
@@ -164,7 +164,7 @@ export const buildDemoSeed = (today: Date, credentials: DemoCredentials): DemoSe
       demoAccount(CHECKING_USD, BEN, 'Main Checking', 'checking', 'USD', 'personal'),
       demoAccount(INVESTMENTS, ANA, 'Investimentos', 'investment', 'BRL', 'shared'),
       demoAccount(CARDS_ACCOUNT, ANA, 'Cartões', 'credit_card_only', 'BRL', 'personal'),
-    ],
+    ].map((account) => ({ ...account, startingBalanceDate: asOfDate })),
     creditCards: [{
       id: CARD,
       accountId: CARDS_ACCOUNT,

@@ -309,6 +309,7 @@ describe('UserAccessor', () => {
         type: 'checking',
         currency: 'BRL',
         visibility: 'personal',
+        startingBalanceDate: '2026-01-01',
       });
 
       expect(await users.delete(id)).toBe('still_referenced');

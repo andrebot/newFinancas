@@ -120,8 +120,9 @@ describe('migrated schema', () => {
       const household = await insertHousehold(connection);
       const account = await insertId(
         connection,
-        `INSERT INTO accounts (household_id, name, type, currency, visibility)
-         VALUES ($1, 'A', 'checking', 'BRL', 'shared') RETURNING id`,
+        `INSERT INTO accounts
+           (household_id, name, type, currency, visibility, starting_balance_date)
+         VALUES ($1, 'A', 'checking', 'BRL', 'shared', '2026-01-01') RETURNING id`,
         [household],
       );
       const insert = `INSERT INTO account_transactions

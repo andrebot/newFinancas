@@ -27,6 +27,8 @@ export type SystemRole = (typeof SYSTEM_ROLES)[number];
 export type Role = (typeof ROLES)[number];
 /** The roles a role change or an invite can give; the Owner role moves only by a transfer. */
 export type AssignableRole = Exclude<Role, 'Owner'>;
+/** What a Financial Account is (FR-2.1, OQ-76); immutable once set (OQ-32). */
+export type AccountType = (typeof ACCOUNT_TYPES)[number];
 /** Who sees a record: its owner only, or the whole household (FR-2.3/FR-4.2). */
 export type Visibility = (typeof VISIBILITIES)[number];
 /** How a Valuation Snapshot was written: by hand, or by a trade (OQ-56). */

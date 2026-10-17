@@ -70,7 +70,7 @@ sequenceDiagram
             TM-->>API: ValidationError (OQ-76 &mdash; investments live in checking, savings or investment accounts)
             API-->>User: 422 transaction.investment_not_allowed_on_account
         else effect = movement or transfer
-            TM->>AA: applyMovement(accountId, amount, currency)
+            TM->>AA: applyMovement(accountId, {amount, currency, date})
             AA-->>TM: new balance
         else effect = bill_payment
             TM->>CCA: applyBillPayment(cardId, amount)
@@ -176,7 +176,7 @@ sequenceDiagram
         AZ-->>TM: allowed
         Note over TM: reverse the OLD effect first, using the transaction's<br/>current stored values
         alt was a balance movement or bill payment
-            TM->>AA: applyMovement(accountId, -oldAmount, currency)
+            TM->>AA: applyMovement(accountId, {-oldAmount, currency, oldDate})
         else was an investment trade
             TM->>IHA: applyTrade(holdingId, -oldQuantityDelta, oldValuation, oldDate)
         else was a card charge/refund
@@ -185,7 +185,7 @@ sequenceDiagram
         TM->>BA: accrueIfClaimed({accountScope, currency, oldCategoryId, oldSubcategoryId, -oldAmount, oldDate})
         Note over TM: then reapply the NEW values &mdash; same dispatch as<br/>Record Transaction, on the new amount/date/category
         alt new effect is a balance movement or bill payment
-            TM->>AA: applyMovement(accountId, newAmount, currency)
+            TM->>AA: applyMovement(accountId, {newAmount, currency, newDate})
         else new effect is an investment trade
             TM->>IHA: applyTrade(holdingId, newQuantityDelta, newDate)
             IHA-->>TM: {newQuantity}
@@ -245,7 +245,7 @@ sequenceDiagram
     else authorized
         AZ-->>TM: allowed
         alt was a balance movement or bill payment
-            TM->>AA: applyMovement(accountId, -amount, currency)
+            TM->>AA: applyMovement(accountId, {-amount, currency, date})
         else was an investment trade
             TM->>IHA: applyTrade(holdingId, -quantityDelta, date)
             TM->>VSA: deleteAutomatic(transactionId)

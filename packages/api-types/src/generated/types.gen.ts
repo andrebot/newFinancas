@@ -214,6 +214,10 @@ export type Account = {
     currency?: Currency;
     visibility?: 'personal' | 'shared';
     /**
+     * The day the starting balance was true — the creation day. Earlier transactions only rebuild history (OQ-169)
+     */
+    startingBalanceDate?: string;
+    /**
      * One-way, FR-2.4/OQ-34
      */
     archivedAt?: string | null;

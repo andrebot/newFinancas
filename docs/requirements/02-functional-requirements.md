@@ -119,15 +119,22 @@ and carry the document's current default assumption.
   and opening balance. **Type is immutable once set** (see OQ-32) — the
   Credit Card and Investment Holding attachment rules (OQ-11, OQ-14) are
   keyed off it. Currency is likewise fixed at creation, already implied by
-  FR-2.2's no-conversion rule.
+  FR-2.2's no-conversion rule. The opening ("starting") balance is the
+  account's balance **on the day it is added**; a transaction may still be
+  dated earlier (the real account is older than its record here), and such
+  a transaction only rebuilds the balance history before that day — it
+  never changes the current balance (OQ-169).
 - **FR-2.2** Each account is denominated in exactly one currency; the
   system does not convert between currencies.
 - **FR-2.3** An account can be marked **personal** (visible only to its
   owner) or **shared** (visible to the household). Unlike type/currency,
-  this can be **changed later** via editing the account (see OQ-33).
+  this can be **changed later** via editing the account (see OQ-33) —
+  **only by the account's creator**; an account made personal again goes
+  back to its creator (OQ-169).
 - **FR-2.4** A user can archive/close an account without deleting its
   transaction history. **One-way — an archived account cannot be
-  reactivated** (see OQ-34), consistent with the Category/Subcategory
+  reactivated** (see OQ-34), and it **takes no new transactions**
+  (OQ-169), consistent with the Category/Subcategory
   archive pattern (FR-10.3). If the account has an active Open Banking
   connection (FR-2.5), archiving it **automatically disconnects** the
   sync (FR-2.6) — an archived account never keeps pulling in new

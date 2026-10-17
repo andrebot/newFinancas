@@ -104,7 +104,7 @@ sequenceDiagram
             TM-->>API: ValidationError (OQ-76 &mdash; investments live in checking, savings or investment accounts)
             API-->>User: 422 transaction.investment_not_allowed_on_account
         else effect = movement or transfer
-            TM->>AA: applyMovement(accountId, amount, currency)
+            TM->>AA: applyMovement(accountId, {amount, currency, date})
             AA-->>TM: new balance
         else effect = bill_payment
             TM->>CCA: applyBillPayment(cardId, amount)

@@ -42,7 +42,7 @@ sequenceDiagram
     else valid
         VU-->>AM: ok
         AM->>AA: insert(account, ownerId=actor)
-        Note over AA: also creates the account's FIRST account_month_balances<br/>row, opening_balance = input (no opening_balance column<br/>on accounts itself, see 02-data-model.md)
+        Note over AA: also creates the account's FIRST account_month_balances<br/>row, opening_balance = input, in the month of<br/>starting_balance_date = today (OQ-169), no opening_balance<br/>column on accounts itself, see 02-data-model.md
         AA-->>AM: accountId
         opt cards included in the request
             AM->>CA: insert(accountId, cardDetails)
@@ -85,8 +85,18 @@ sequenceDiagram
         API-->>User: 422 validation.failed {details}
     else no type/currency change requested
         VU-->>AM: ok
-        AM->>AA: update(accountId, {name, visibility})
-        AA-->>AM: updated
+        opt visibility changes
+            AM->>AA: findById(householdId, accountId)
+            AA-->>AM: account
+            Note over AM: only the creator (account.ownerUserId) may share it<br/>or remove the share, and personal goes back to them (OQ-169)
+        end
+        alt visibility changed by someone other than the creator
+            AM-->>API: Forbidden
+            API-->>User: 403 auth.forbidden
+        else creator, or no visibility change
+            AM->>AA: update(householdId, accountId, {name, visibility})
+            AA-->>AM: updated
+        end
         loop for each card change in the request
             AM->>AA: findById(accountId)
             alt account.type not in {checking, savings, credit_card}

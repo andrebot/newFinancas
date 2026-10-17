@@ -4037,6 +4037,103 @@ not a hardcoded assumption.
 - **Deleting a user's Goals** (cascade personal, null `owner_user_id` on
   shared) ships with `M1D`.
 
+### OQ-169: AccountAccessor (task A5)
+**Confirmed with the stakeholder (Oct 2026):**
+- **Transactions older than the Account are allowed.** The day an Account
+  is added to the app is not the day the real account opened, so a user
+  may record a transaction dated before it.
+- **The starting balance is the balance on the day the Account is
+  created (an anchor).** That day is stored as
+  `accounts.starting_balance_date` (the Manager sets it to the creation
+  day). A movement dated **on or after** it moves the balance as usual,
+  from its month on. A movement dated **before** it was already in the
+  starting balance, so it only rebuilds the history behind it: its month
+  opens `amount` lower and every earlier month opens and ends `amount`
+  lower; the current balance never changes. E.g. R$1,000 entered on
+  17 Oct, then a R$200 expense dated 10 Aug: Aug opens at R$1,200, today
+  stays R$1,000. Weighed and rejected: refusing older transactions, and a
+  starting balance meaning "before the first recorded transaction" (it
+  would move today's balance and force the user to know an old balance).
+  The anchor is the **day**, not the month: an expense dated 3 Oct is in a
+  balance entered on 17 Oct.
+- **Why the anchor (discussed and agreed with the stakeholder).** A
+  transaction has three independent effects — the Account balance, the
+  Budget, and the Holding (and through it the Goals) — and only the
+  balance follows the anchor. Compared against the old app (`financas`:
+  one row per month opened from the previous month's closing, no
+  propagation to later months, `initialBalance` stored but never used):
+  - *Forbidding transactions before the creation day* is simpler but
+    breaks onboarding: investments already owned could not be
+    registered (OQ-53 makes a past-dated investment buy the only way in,
+    and a fixed-term instrument needs its real purchase date for its
+    schedule), so Goals could not count money already saved; and the
+    first month's Budget would miss the spends before the user joined.
+  - *Carrying every movement forward* counts that history twice: a CDB
+    bought in 2024, or groceries bought on 3 Oct, would leave today's
+    balance even though the starting balance already excludes them.
+  - *The anchor* gets all three right: today's balance stays equal to
+    the bank's, Holdings and Goals are complete with their real dates,
+    and Budgets count the days before joining.
+- **Onboarding investments already owned.** Create the investment Account
+  with the starting balance = the **uninvested cash** in it today (not the
+  investments' value). Record one investment buy per position, dated when
+  it was bought (a market-priced position may be one buy at the average
+  price); fixed-term instruments take their rate, purchase and maturity
+  dates. The Goal split can be given on the same buy (OQ-54). Each buy
+  before the starting-balance date fills history only — cash stays — while
+  the Holding gets its real dates and schedule and funds its Goals at
+  once. Market-priced Holdings then take today's value as a manual
+  valuation (OQ-56); fixed-term ones need nothing more (OQ-51).
+- **Budgets follow the transaction's date only, never the anchor**
+  (OQ-166, unchanged). A Budget starts in the month it is created; a
+  spend counts in its own month in the Budget claiming its Category in
+  the Account's scope; spends dated before the Budget's first month are
+  not tracked. So spends recorded for the days of the joining month
+  before the account was created count toward that month's Budget
+  without moving the balance. Budget history for months before joining is
+  not offered (spending reports still show those months); a "start this
+  Budget in an earlier month" option was noted and left out.
+- **The UI must explain the starting balance** where an Account is
+  created — the onboarding wizard's Add Account step (mockup 11) and the
+  Accounts page's Add Account form (mockup 40): it is today's balance (for
+  an investment Account, the uninvested cash); anything dated earlier can
+  still be recorded, fills in history, Budgets and investments, and never
+  changes it. The mockups are revised for this before `FL11`/`X2G`.
+- **`applyMovement(accountId, { amount, currency, date })`** — the
+  diagrams' `applyMovement(accountId, amount, currency)` gains the date,
+  without which no month can be moved. Refused with `currency_mismatch`
+  (FR-2.2) or `account_not_found`, writing nothing. Undoing a movement
+  (edit, delete) is the same call with the amount negated. The Account row
+  is locked `FOR UPDATE`, so two movements on one Account run one after
+  the other. Keyed by Account — the Manager has already loaded it within
+  the household (OQ-167).
+- **An archived Account takes no transactions** — the TransactionManager
+  refuses them before calling (Manager decides, Accessor applies).
+- **Only an Account's creator may change its visibility** (share it or
+  remove the share), and an Account turned personal goes back to its
+  creator — `owner_user_id` already holds the creator (identity if
+  personal, provenance if shared), so an edit never changes the owner.
+  AccountManager checks the creator. A shared Account whose creator left
+  (owner nulled, FR-1.17) can no longer be made personal.
+- **The month chain has no gaps.** Months with no movement between the
+  chain's ends and a new movement's month are filled, opening and ending
+  at the carried balance, so `account_month_balances` is a complete
+  balance-by-month history (FR-5.4/FR-6.6). Reads: `listBalances(accountId,
+  { from?, to? })` by month, and `balancesAsOf(accountIds, month)` — each
+  Account's latest month at or before it (the current balance is the one
+  as of today's month; ReportingEngine reads month ends).
+- **Account writes:** `insert` (the Account plus its first month row at
+  the starting balance), `update` (name and visibility — never type,
+  currency or owner, OQ-32), `archive` (one way, keeps the first time, OQ-34). Reads:
+  `findById`, `list(householdId, viewerUserId, { visibility? })` — shared
+  Accounts plus the viewer's personal ones, open first then archived, by
+  name; unpaginated (a household has a handful), so `GET /accounts`'s
+  limit/offset is applied by the Manager.
+- `CalendarMonth`/`monthOf` moved out of BudgetAccessor into
+  `accessors/calendarMonth.ts`, shared by both month-row Accessors.
+- **Deleting a user's Accounts** (cascade personal, null `owner_user_id`
+  on shared — FR-1.17) ships with `M1D`.
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.

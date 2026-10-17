@@ -77,7 +77,7 @@ sequenceDiagram
     else valid
         VU-->>AM: ok
         AM->>AA: insert(account, ownerId=actor)
-        Note over AA: also creates the account's FIRST account_month_balances<br/>row, opening_balance = input (no opening_balance column<br/>on accounts itself, see 02-data-model.md)
+        Note over AA: also creates the account's FIRST account_month_balances<br/>row, opening_balance = input, in the month of<br/>starting_balance_date = today (OQ-169), no opening_balance<br/>column on accounts itself, see 02-data-model.md
         AA-->>AM: accountId
         opt cards included in the request
             AM->>CA: insert(accountId, cardDetails)

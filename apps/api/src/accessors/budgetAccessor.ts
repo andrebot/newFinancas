@@ -7,6 +7,7 @@ import {
   budgetPeriods, budgetTargets, budgets, categories, subcategories,
 } from '../db/schema';
 import type { Visibility } from '../db/schema/values';
+import { monthOf, type CalendarMonth } from './calendarMonth';
 
 // BudgetAccessor (A10, VBD): Budgets, their Category/Subcategory targets and their
 // monthly Budget Periods (FR-4, 02-data-model.md). It applies data changes only;
@@ -35,10 +36,7 @@ export interface BudgetScope {
 }
 
 /** A calendar month in the app's time zone — the Manager works it out (OQ-104). */
-export interface BudgetMonth {
-  readonly year: number;
-  readonly month: number;
-}
+export type BudgetMonth = CalendarMonth;
 
 export interface Budget extends BudgetScope {
   readonly id: string;
@@ -172,17 +170,6 @@ const periodValues = (budget: PeriodOwner, month: BudgetMonth, targetAmount: num
   year: month.year,
   month: month.month,
   targetAmount,
-});
-
-/**
- * Reads the month of a calendar date.
- *
- * @param date - `YYYY-MM-DD`.
- * @returns Its year and month.
- */
-export const monthOf = (date: string): BudgetMonth => ({
-  year: Number(date.slice(0, 4)),
-  month: Number(date.slice(5, 7)),
 });
 
 /**

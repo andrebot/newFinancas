@@ -265,7 +265,7 @@ database constraint).
 | `SessionAccessor` | Refresh tokens per device/login — *not* raw JWTs, which are stateless (OQ-30) | Revoking = invalidating the refresh token record; the JWT itself simply expires shortly after. **Round 9:** `deleteAllExceptCurrent(userId, currentSessionId)` for "sign out all others" (FR-1.3) **Implemented (A2, OQ-106):** refresh tokens rotate through a guarded write (`rotate` → rotated / stale) and `findByReplacedToken` reports a replay — ending that session is `IdentityManager`'s decision (OQ-108); **OQ-162:** `reissueReplaced` trades the replaced token for a new pair within a short grace after its rotation (a page reloaded mid-refresh), as a guarded write; `deleteForUser` (logout, revoke one), `deleteAllForUser`, `deleteAllExceptCurrent`; the current session is the access token's `sid` |
 | `HouseholdAccessor` | Households, Memberships, roles | **Revised (A3, OQ-107): applies data changes only — the membership *rules* (Owner may only leave by their own action, FR-1.11; FR-1.18 succession or dissolution; FR-1.12 never re-roling the Owner; FR-1.20 who may transfer) are `IdentityManager`'s decisions.** Operations: `insert` (household + Owner), `findMembership`, `listForUser`, `listMembers`, `findSuccessor` (FR-1.18 ordering), `addMember`, and **guarded writes** `updateRole` / `removeMember` (never the Owner) / `swapOwner` (atomic dual-role swap, OQ-28) returning `'stale'` when the facts the Manager decided on no longer hold; `delete` **`dissolve(householdId, lastMemberId)`** (OQ-117) deletes a household only while nobody else is a member — guarded like the rest. |
 | `InvitationAccessor` *(split out, Round 7)* | Invitations — own lifecycle (pending → accepted/declined/revoked), independent of Membership, which only exists post-acceptance | **Revised (A4, OQ-109): data only** — `insert` by invitee user ID (the Manager resolves the email and applies FR-1.19; the NOT NULL FK is the structural guarantee, `invitee_missing`), `findById`, `findPending`, `listPendingForUser` (household + inviter names), `listForHousehold`, and the guarded `resolve(id, accepted/declined/revoked)` (`stale` once not pending) **OQ-118:** `insert` returns `already_pending` when the partial unique index refuses a second pending invitation; `listForHousehold` joins the invitee's name and email. |
-| `AccountAccessor` | Financial Accounts | `applyMovement(accountId, amount, currency)` rejects a currency mismatch (FR-2.2) before applying the signed delta |
+| `AccountAccessor` | Financial Accounts | `applyMovement(accountId, {amount, currency, date})` rejects a currency mismatch (FR-2.2) before applying the signed delta to the month chain — forward from a date on or after the starting-balance date, backward (history only) before it (OQ-169) |
 | `CreditCardAccessor` | Credit Cards (incl. outstanding balance) | `applyChargeOrRefund` / `applyBillPayment` resolve which billing cycle a transaction falls in (closing-date boundary, FR-2.8) and update the right total — `TransactionManager` decides *that* a charge happened, this Accessor decides *which cycle bucket* |
 | `AccountTransactionAccessor` | Account Transaction ledger, including the persisted `effect` column (§3.1's reasoning — corrected cross-reference, Round 8; `EFFECT_BY_KIND` is now enumerated there explicitly) | — |
 | `CardTransactionAccessor` | Card Transaction ledger — stays a separate ledger from Account Transactions (OQ-16) even though both are now reached through one unified entry point (OQ-39) | — |
@@ -393,7 +393,7 @@ TransactionManager.record(input)
  └─ else (Account Transaction):
       1. effect = EFFECT_BY_KIND[kind]  [inline reference-data lookup]
       2. dispatch on effect — decide the parameters, call exactly one:
-           AccountAccessor.applyMovement(accountId, amount, currency)
+           AccountAccessor.applyMovement(accountId, {amount, currency, date})
            CreditCardAccessor.applyBillPayment(cardId, amount)
            InvestmentHoldingAccessor.applyTrade(holdingId, quantityDelta, valuation, date)
              [quantityDelta computed here: +qty buy, -qty sell, -currentQty redemption;
@@ -797,7 +797,7 @@ sequenceDiagram
     AZ-->>TM: allowed
     Note over TM: effect = EFFECT_BY_KIND[kind] — inline lookup (see §3.1's table)
     alt effect = simple movement / transfer / bill-payment debit
-        TM->>AA: applyMovement(accountId, amount, currency)
+        TM->>AA: applyMovement(accountId, {amount, currency, date})
         AA-->>TM: new balance (rejects on currency mismatch, FR-2.2)
     else effect = investment trade
         Note over TM: quantityDelta computed here (buy/sell/redemption rule)
