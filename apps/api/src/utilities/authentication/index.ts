@@ -81,7 +81,7 @@ export const createAuthenticationUtility = (
      *
      * @param encryptedSecret - As stored.
      * @param code - The code typed by the user.
-     * @returns `true` when valid now.
+     * @returns The code's time step when valid now, else `undefined` (OQ-163).
      */
     verifyTotp: (encryptedSecret: string, code: string) => (
       verifyTotp(decrypt(encryptedSecret), code, deps.now())

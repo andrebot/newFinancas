@@ -3,7 +3,7 @@ import { Provider } from 'react-redux';
 import { BrowserRouter } from 'react-router';
 import { AuthenticateExperience } from './experiences/authenticate/AuthenticateExperience';
 import signOut from './experiences/authenticate/signOut';
-import { useHouseholds } from './experiences/manageHousehold/api';
+import { useHouseholds } from './api/identityApi';
 import { ManageHouseholdExperience } from './experiences/manageHousehold/ManageHouseholdExperience';
 import { ManageProfileExperience } from './experiences/manageProfile/ManageProfileExperience';
 import {

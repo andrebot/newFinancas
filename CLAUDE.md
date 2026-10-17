@@ -19,6 +19,11 @@ in `docs/README.md`.
 
 - One task at a time, in checklist order; tick the task there when done.
   No effort estimates or schedules.
+- Every slice ends with its review gate (`R<n>` in the checklist, OQ-164):
+  mutation testing, the Playwright suite, then code and architecture — one
+  phase at a time, findings before fixes, one PR per phase. Method and
+  tooling: `docs/architecture/13-slice-review.md` (`pnpm mutation:api`,
+  `pnpm mutation:web`).
 - Each task: detail design first → ask only the questions that block it →
   implement → tests → tick. If a step raises no questions, continue
   without waiting for approval.

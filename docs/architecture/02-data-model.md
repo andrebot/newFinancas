@@ -135,6 +135,9 @@ Backs `IdentityManager`'s Accessors: `UserAccessor`, `SessionAccessor`,
   pass — see `05-assumptions-and-open-questions.md`), `mfa_secret`,
   **`mfa_confirmed_at`** (nullable — set by the first authenticator code;
   until then sign-in answers a fresh enrollment, OQ-149),
+  **`mfa_last_totp_step`** (nullable integer — the time step of the last
+  authenticator code accepted; a code at or before it is refused, so each
+  works once; cleared when an enrollment restarts, OQ-163),
   **`theme`** (`dark` | `light` | `system`, default `dark`) and
   **`language`** (`pt-BR` | `en-US`) — FR-1.21, columns not JSON (two
   known, always-set fields, Oct 2026), **`system_role`** (`USER` |

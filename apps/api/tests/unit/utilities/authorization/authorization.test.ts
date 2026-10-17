@@ -1,7 +1,7 @@
 import {
   describe, expect, it, vi,
 } from 'vitest';
-import type { Role } from '../../../../src/accessors/householdAccessor';
+import type { Role } from '../../../../src/db/schema/values';
 import { createAuthorizationUtility } from '../../../../src/utilities/authorization';
 
 /**

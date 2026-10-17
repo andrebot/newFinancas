@@ -160,6 +160,29 @@ describe('UserAccessor', () => {
     }));
   });
 
+  describe('consumeTotpStep (OQ-163)', () => {
+    it('accepts each step once, and never one at or before the last', test(async (users) => {
+      const id = await registerAna(users);
+
+      expect(await users.consumeTotpStep(id, 100)).toBe(true);
+      expect(await users.consumeTotpStep(id, 100)).toBe(false);
+      expect(await users.consumeTotpStep(id, 99)).toBe(false);
+      expect(await users.consumeTotpStep(id, 101)).toBe(true);
+    }));
+
+    it('is per user, and refuses a user who is gone', test(async (users) => {
+      const id = await registerAna(users);
+      const other = await users.insert({
+        ...ANA, email: 'bia@example.com', recoveryCodeHashes: [],
+      });
+      const otherId = other.ok ? other.user.id : '';
+      await users.consumeTotpStep(id, 100);
+
+      expect(await users.consumeTotpStep(otherId, 100)).toBe(true);
+      expect(await users.consumeTotpStep('01a14673-0000-7000-8000-000000000000', 1)).toBe(false);
+    }));
+  });
+
   describe('MFA enrollment (OQ-149)', () => {
     const FRESH = { encryptedMfaSecret: 'v1.fresh', recoveryCodeHashes: ['c'.repeat(64)] };
 
@@ -171,6 +194,15 @@ describe('UserAccessor', () => {
         .toMatchObject({ encryptedMfaSecret: 'v1.fresh', mfaConfirmedAt: null });
       expect(await users.consumeRecoveryCode(id, 'a'.repeat(64), NOW)).toBe(false);
       expect(await users.consumeRecoveryCode(id, 'c'.repeat(64), NOW)).toBe(true);
+    }));
+
+    it('forgets the last code step with the old secret', test(async (users) => {
+      const id = await registerAna(users);
+      await users.consumeTotpStep(id, 100);
+
+      await users.replaceMfaEnrollment(id, FRESH);
+
+      expect(await users.consumeTotpStep(id, 100)).toBe(true);
     }));
 
     it('stores no codes when the enrollment brings none', test(async (users) => {

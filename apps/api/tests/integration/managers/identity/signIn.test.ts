@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { createIdentityManager } from '../../../../src/managers/identity';
 import { emailKeyOf } from '../../../../src/managers/identity/context';
 import {
-  ANA, fakeDeps, minutes, NOW, SESSION,
+  ANA, fakeDeps, minutes, NOW, SESSION, TOTP_STEP,
 } from './fakes';
 
 const CONTEXT = { correlationId: 'c1' };
@@ -194,6 +194,7 @@ describe('IdentityManager — Confirm MFA Enrollment (uc-11b, OQ-149)', () => {
     expect(tokens).toEqual({ accessToken: 'access-token', refreshToken: 'refresh-token' });
     expect(authentication.verifyEnrollmentToken).toHaveBeenCalledWith('enrollment-token');
     expect(authentication.verifyTotp).toHaveBeenCalledWith('sealed-secret', '123456');
+    expect(users.consumeTotpStep).toHaveBeenCalledWith(ANA.id, TOTP_STEP);
     expect(users.confirmMfaEnrollment).toHaveBeenCalledWith(ANA.id, NOW);
     expect(users.clearLoginFailures).toHaveBeenCalledWith('ana@example.com');
     expect(sessions.insert)
@@ -203,9 +204,18 @@ describe('IdentityManager — Confirm MFA Enrollment (uc-11b, OQ-149)', () => {
     }));
   });
 
+  it('refuses a code already used, counting it, and confirms nothing (OQ-163)', async () => {
+    const { deps, users } = fakeDeps();
+    users.consumeTotpStep.mockResolvedValueOnce(false);
+
+    await expect(confirmWith(deps)).rejects.toMatchObject(MFA_INVALID);
+    expect(users.recordLoginFailure).toHaveBeenCalledWith('ana@example.com', NOW, minutes(-15));
+    expect(users.confirmMfaEnrollment).not.toHaveBeenCalled();
+  });
+
   it('names a wrong code, counts it, and confirms nothing', async () => {
     const { deps, users, authentication } = fakeDeps();
-    authentication.verifyTotp.mockReturnValueOnce(false);
+    authentication.verifyTotp.mockReturnValueOnce(undefined);
 
     await expect(confirmWith(deps)).rejects.toMatchObject(MFA_INVALID);
     expect(users.recordLoginFailure).toHaveBeenCalledWith('ana@example.com', NOW, minutes(-15));
@@ -264,6 +274,7 @@ describe('IdentityManager — Login, MFA step (uc-14, OQ-145)', () => {
     expect(authentication.verifyChallengeToken).toHaveBeenCalledWith('challenge-token');
     expect(users.findByEmail).toHaveBeenCalledWith(ANA.email);
     expect(authentication.verifyTotp).toHaveBeenCalledWith('sealed-secret', '123456');
+    expect(users.consumeTotpStep).toHaveBeenCalledWith(ANA.id, TOTP_STEP);
     expect(users.clearLoginFailures).toHaveBeenCalledWith('ana@example.com');
     expect(sessions.insert)
       .toHaveBeenCalledWith(ANA.id, 'refresh-hash', 'Firefox', THIRTY_DAYS, NOW);
@@ -277,16 +288,26 @@ describe('IdentityManager — Login, MFA step (uc-14, OQ-145)', () => {
 
   it('names a wrong code, counts it against the lockout, and clears nothing', async () => {
     const { deps, users, authentication } = fakeDeps();
-    authentication.verifyTotp.mockReturnValueOnce(false);
+    authentication.verifyTotp.mockReturnValueOnce(undefined);
 
     await expect(verifyWith(deps)).rejects.toMatchObject(MFA_INVALID);
+    expect(users.consumeTotpStep).not.toHaveBeenCalled();
     expect(users.recordLoginFailure).toHaveBeenCalledWith('ana@example.com', NOW, minutes(-15));
     expect(users.clearLoginFailures).not.toHaveBeenCalled();
   });
 
+  it('refuses a code already used, like a wrong one (OQ-163)', async () => {
+    const { deps, users, sessions } = fakeDeps();
+    users.consumeTotpStep.mockResolvedValueOnce(false);
+
+    await expect(verifyWith(deps)).rejects.toMatchObject(MFA_INVALID);
+    expect(users.recordLoginFailure).toHaveBeenCalledWith('ana@example.com', NOW, minutes(-15));
+    expect(sessions.insert).not.toHaveBeenCalled();
+  });
+
   it('locks the address at the fifth failure, code guesses included', async () => {
     const { deps, users, authentication } = fakeDeps();
-    authentication.verifyTotp.mockReturnValueOnce(false);
+    authentication.verifyTotp.mockReturnValueOnce(undefined);
     users.recordLoginFailure.mockResolvedValueOnce(5);
 
     await expect(verifyWith(deps)).rejects.toMatchObject(MFA_INVALID);

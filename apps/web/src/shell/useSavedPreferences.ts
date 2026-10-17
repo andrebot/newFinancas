@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
 import { useLocaleController } from '../utilities/I18nProvider';
 import type { ThemeController } from '../utilities/theme';
-import type { ShellIdentity, SourceState } from './shellConfig';
+import type { SourceState } from '../utilities/sourceState';
+import type { ShellIdentity } from './shellConfig';
 
 // The user's saved theme and language win once their profile loads (S1,
 // OQ-122, OQ-123): until then the page shows the remembered or browser

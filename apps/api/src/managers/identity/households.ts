@@ -1,4 +1,5 @@
-import type { Member, Role, UserHousehold } from '../../accessors/householdAccessor';
+import type { Member, UserHousehold } from '../../accessors/householdAccessor';
+import type { Role } from '../../db/schema/values';
 import type { AccessRequest } from '../../utilities/authorization';
 import { resolveCorrelationId } from '../../utilities/correlationId';
 import { loggerFor, type IdentityDeps, type SignedInContext } from './context';

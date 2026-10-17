@@ -1,4 +1,4 @@
-import type { Role } from '../../accessors/householdAccessor';
+import type { Role } from '../../db/schema/values';
 import { type AccessRequest, decide } from './permissions';
 
 // AuthorizationUtility (U5, VBD): the yes/no gates. `hasSystemRole` checks the

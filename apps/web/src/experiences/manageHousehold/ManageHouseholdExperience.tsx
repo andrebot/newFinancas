@@ -12,12 +12,11 @@ import { useAppDispatch, useAppSelector } from '../../store';
 import { useAlerts } from '../../utilities/AlertProvider';
 import { useI18n } from '../../utilities/I18nProvider';
 import type { RequestFailure } from '../../utilities/requestOutcome';
-import { useGetCurrentUserQuery } from '../manageProfile/api';
+import { useGetCurrentUserQuery, useHouseholds } from '../../api/identityApi';
 import {
   useChangeMemberRoleMutation,
   useCreateInvitationMutation,
   useDeleteHouseholdMutation,
-  useHouseholds,
   useLazyListHouseholdInvitationsQuery,
   useLazyListMembersQuery,
   useLeaveHouseholdMutation,

@@ -1,4 +1,4 @@
-import type { SourceState } from '../shell/shellConfig';
+import type { SourceState } from '../utilities/sourceState';
 
 // How an Experience hands the App Shell a query's data (S1, OQ-156; X3,
 // OQ-159): the query hook's flags turned into the shell's `SourceState` —

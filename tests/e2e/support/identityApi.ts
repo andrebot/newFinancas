@@ -90,7 +90,10 @@ export const registerUser = async (
     data: { ...credentials, language: 'en-US' },
   });
   const tokens = await send<AuthTokens>(request, 'POST', '/auth/mfa/enrollment/confirm', {
-    data: { enrollmentToken: enrollment.enrollmentToken, mfaCode: totpCode(enrollment.totpSecret) },
+    data: {
+      enrollmentToken: enrollment.enrollmentToken,
+      mfaCode: await totpCode(enrollment.totpSecret),
+    },
   });
   // Fail here, where it broke, rather than at the first call that needs the token.
   if (!tokens.accessToken) {
@@ -122,7 +125,38 @@ export const signInThroughApi = async (
     { data: { email: user.email, password: user.password } },
   );
   return send<AuthTokens>(request, 'POST', '/auth/mfa/verify', {
-    data: { challengeToken: challenge.challengeToken, mfaCode: totpCode(user.totpSecret) },
+    data: { challengeToken: challenge.challengeToken, mfaCode: await totpCode(user.totpSecret) },
+  });
+};
+
+/** The backup codes each user (by email) has used up in this run. */
+const usedRecoveryCodes = new Map<string, number>();
+
+/**
+ * Signs a user in through the API with a backup code instead of an
+ * authenticator code — another device's session that doesn't use up a TOTP
+ * step (codes work once, OQ-163). Each call takes the user's next unused code.
+ *
+ * @param request - Playwright's API client.
+ * @param user - The user who signs in.
+ * @returns The new session's tokens.
+ */
+export const signInWithRecoveryCode = async (
+  request: APIRequestContext,
+  user: TestUser,
+): Promise<AuthTokens> => {
+  const used = usedRecoveryCodes.get(user.email) ?? 0;
+  const recoveryCode = user.recoveryCodes[used];
+  if (!recoveryCode) throw new Error(`${user.email} has no backup code left`);
+  usedRecoveryCodes.set(user.email, used + 1);
+  const challenge = await send<{ step: string; challengeToken: string }>(
+    request,
+    'POST',
+    '/auth/login',
+    { data: { email: user.email, password: user.password } },
+  );
+  return send<AuthTokens>(request, 'POST', '/auth/mfa/recover', {
+    data: { challengeToken: challenge.challengeToken, recoveryCode },
   });
 };
 

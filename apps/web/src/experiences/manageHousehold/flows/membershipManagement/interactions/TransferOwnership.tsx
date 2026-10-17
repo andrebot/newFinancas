@@ -3,7 +3,8 @@ import { InlineConfirm } from '../../../../../kit/confirm/InlineConfirm';
 import { Menu, type MenuEntry, type MenuTriggerProps } from '../../../../../kit/menu/Menu';
 import { Tooltip } from '../../../../../kit/tooltip/Tooltip';
 import { useI18n } from '../../../../../utilities/I18nProvider';
-import { fullName, type HouseholdMember } from '../membershipState';
+import { fullName } from '../../../../../utilities/personName';
+import type { HouseholdMember } from '../membershipState';
 
 // Transfer Ownership (Membership Management, mockup 60; FR-1.20, OQ-155): the
 // Owner hands the household to another member — any role, not only an Admin

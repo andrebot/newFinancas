@@ -167,6 +167,19 @@ const createSignIn = (deps: IdentityDeps) => {
   };
 
   /**
+   * Builds the authenticator-code check: right for the user's secret now, and
+   * its time step not used before — the step is used up as it passes, so each
+   * code works once (RFC 6238 §5.2, OQ-163).
+   *
+   * @param code - The code typed.
+   * @returns The second-factor check.
+   */
+  const totpAccepted = (code: string): SecondFactor => async (user) => {
+    const step = auth.verifyTotp(user.encryptedMfaSecret, code);
+    return step !== undefined && users.consumeTotpStep(user.id, step);
+  };
+
+  /**
    * The ordinary answer to a matching password: a challenge for the MFA step.
    *
    * @param user - Whose password matched.
@@ -326,11 +339,13 @@ const createSignIn = (deps: IdentityDeps) => {
       verification: MfaVerification,
       deviceInfo: string | null,
     ): Promise<AuthTokens> => {
-      const totpMatches: SecondFactor = (user) => (
-        auth.verifyTotp(user.encryptedMfaSecret, verification.mfaCode)
-      );
       const claims = await auth.verifyChallengeToken(verification.challengeToken);
-      const user = await completeStep(claims, challengeExpired, totpMatches, deps.now());
+      const user = await completeStep(
+        claims,
+        challengeExpired,
+        totpAccepted(verification.mfaCode),
+        deps.now(),
+      );
       return openSession(context, user, deviceInfo, 'Login');
     },
 
@@ -353,11 +368,13 @@ const createSignIn = (deps: IdentityDeps) => {
       deviceInfo: string | null,
     ): Promise<AuthTokens> => {
       const now = deps.now();
-      const totpMatches: SecondFactor = (user) => (
-        auth.verifyTotp(user.encryptedMfaSecret, confirmation.mfaCode)
-      );
       const claims = await auth.verifyEnrollmentToken(confirmation.enrollmentToken);
-      const user = await completeStep(claims, enrollmentExpired, totpMatches, now);
+      const user = await completeStep(
+        claims,
+        enrollmentExpired,
+        totpAccepted(confirmation.mfaCode),
+        now,
+      );
       if (await users.confirmMfaEnrollment(user.id, now) === 'stale') throw enrollmentExpired();
       return openSession(context, user, deviceInfo, 'ConfirmMfaEnrollment');
     },

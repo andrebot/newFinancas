@@ -25,8 +25,8 @@ describe('createAuthenticationUtility', () => {
     expect(enrolment.encryptedSecret).not.toContain(enrolment.secret);
     const code = auth.currentTotp(enrolment.encryptedSecret);
 
-    expect(auth.verifyTotp(enrolment.encryptedSecret, code)).toBe(true);
-    expect(auth.verifyTotp(enrolment.encryptedSecret, '000000')).toBe(false);
+    expect(auth.verifyTotp(enrolment.encryptedSecret, code)).toEqual(expect.any(Number));
+    expect(auth.verifyTotp(enrolment.encryptedSecret, '000000')).toBeUndefined();
   });
 
   it('seals a known secret (demo seed) so codes from that secret verify', () => {
@@ -34,7 +34,7 @@ describe('createAuthenticationUtility', () => {
 
     expect(sealed.startsWith('v1.')).toBe(true);
     expect(sealed).not.toContain('DEMOFINANCAS');
-    expect(auth.verifyTotp(sealed, auth.currentTotp(sealed))).toBe(true);
+    expect(auth.verifyTotp(sealed, auth.currentTotp(sealed))).toEqual(expect.any(Number));
   });
 
   it('throws when a stored secret cannot be decrypted (wrong key = configuration error)', () => {

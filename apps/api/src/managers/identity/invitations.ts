@@ -1,4 +1,4 @@
-import type { AssignableRole } from '../../accessors/householdAccessor';
+import type { AssignableRole } from '../../db/schema/values';
 import type {
   HouseholdInvitation, Invitation, Resolution,
 } from '../../accessors/invitationAccessor';

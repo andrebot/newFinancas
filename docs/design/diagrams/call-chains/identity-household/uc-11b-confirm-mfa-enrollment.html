@@ -135,7 +135,7 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain (<code>POST /auth/mfa/enrollment/confirm</code>):</strong> <code>IdentityManager</code> ① <code>AuthenticationUtility.verifyEnrollmentToken</code> / <code>verifyTotp</code> → ② <code>UserAccessor.findLoginLock</code> / <code>findByEmail</code>, then <code>recordLoginFailure</code> on a wrong code, or <code>clearLoginFailures</code> and <code>confirmMfaEnrollment</code> (guarded, once — <code>stale</code> → 401) → ③ <code>AuthenticationUtility.issueOpaqueToken</code> / <code>signAccessToken</code> → ④ <code>SessionAccessor.insert</code> → ⑤ <code>LoggingUtility</code> (async, audit).</p>
+    <p><strong>Chain (<code>POST /auth/mfa/enrollment/confirm</code>):</strong> <code>IdentityManager</code> ① <code>AuthenticationUtility.verifyEnrollmentToken</code> / <code>verifyTotp</code> → ② <code>UserAccessor.findLoginLock</code> / <code>findByEmail</code> / <code>consumeTotpStep</code> (guarded: a code works once, OQ-163), then <code>recordLoginFailure</code> on a wrong or used code, or <code>clearLoginFailures</code> and <code>confirmMfaEnrollment</code> (guarded, once — <code>stale</code> → 401) → ③ <code>AuthenticationUtility.issueOpaqueToken</code> / <code>signAccessToken</code> → ④ <code>SessionAccessor.insert</code> → ⑤ <code>LoggingUtility</code> (async, audit).</p>
     <p><strong>No smell:</strong> a variant of Login&#39;s second step — its own token audience, the same lockout and the same Create(Session) ending — plus one guarded write the Manager decides and <code>UserAccessor</code> applies (OQ-107 pattern). No new component.</p>
   </div>
 

@@ -119,19 +119,23 @@ export const enrollMfa = (
 };
 
 /**
- * Checks a TOTP code, allowing one 30-second step of clock drift either way.
+ * Checks a TOTP code, allowing one 30-second step of clock drift either way,
+ * and says which time step it belongs to — so the caller can accept each step
+ * once (RFC 6238 §5.2, OQ-163).
  *
  * @param secretBase32 - The user's secret.
  * @param code - The code typed by the user.
  * @param now - Current time.
- * @returns `true` when the code is valid now.
+ * @returns The code's time step, or `undefined` when it is not valid now.
  */
-export const verifyTotp = (secretBase32: string, code: string, now: Date): boolean => (
-  new RegExp(`^\\d{${totp.digits}}$`).test(code)
-  && totpFor(secretBase32).validate({
+export const verifyTotp = (secretBase32: string, code: string, now: Date): number | undefined => {
+  if (!new RegExp(`^\\d{${totp.digits}}$`).test(code)) return undefined;
+  const delta = totpFor(secretBase32).validate({
     token: code, timestamp: now.getTime(), window: totp.driftSteps,
-  }) !== null
-);
+  });
+  if (delta === null) return undefined;
+  return Math.floor(now.getTime() / (totp.periodSeconds * 1000)) + delta;
+};
 
 /**
  * Produces the current TOTP code for a secret (used by tests and the demo seed).

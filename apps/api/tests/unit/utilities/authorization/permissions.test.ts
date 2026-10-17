@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Role } from '../../../../src/accessors/householdAccessor';
+import type { Role } from '../../../../src/db/schema/values';
 import { decide } from '../../../../src/utilities/authorization';
 
 const ME = 'u-me';

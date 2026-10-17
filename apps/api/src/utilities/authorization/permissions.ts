@@ -1,5 +1,4 @@
-import type { Role } from '../../accessors/householdAccessor';
-import type { VISIBILITIES } from '../../db/schema/values';
+import type { Role, VISIBILITIES } from '../../db/schema/values';
 
 // The household role → permission table (U5, FR-1.7, OQ-111). It is product
 // reference data, like Transaction Kind's effects: a new built-in role or action

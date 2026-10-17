@@ -8,8 +8,9 @@ import { MemberList } from './interactions/MemberList';
 import { PendingInvitations } from './interactions/PendingInvitations';
 import { RemoveMemberConfirm } from './interactions/RemoveMemberConfirm';
 import { TransferOwnershipButton, TransferOwnershipConfirm } from './interactions/TransferOwnership';
+import { fullName } from '../../../../utilities/personName';
 import {
-  afterAction, afterLoad, confirmCancelled, confirmOpened, fullName, INITIAL_MEMBERSHIP, loading,
+  afterAction, afterLoad, confirmCancelled, confirmOpened, INITIAL_MEMBERSHIP, loading,
   managesMembers, needsReload, selfRole, started,
   type AssignableRole, type HouseholdMember, type InviteOutcome, type MembershipAction,
   type MembershipOutcome, type MembershipState, type MembershipView, type OpenConfirm,

@@ -4,7 +4,7 @@ import {
 import type { Database } from '../db/database';
 import { PG_UNIQUE_VIOLATION, pgErrorCode } from '../db/errors';
 import { householdMemberships, households, users } from '../db/schema';
-import type { ROLES } from '../db/schema/values';
+import type { AssignableRole, Role } from '../db/schema/values';
 
 // HouseholdAccessor (A3, VBD): households and memberships. It only applies data
 // changes; every business decision — who may remove whom, who succeeds the
@@ -12,10 +12,6 @@ import type { ROLES } from '../db/schema/values';
 // Writes that depend on facts the Manager read are *guarded*: they re-state
 // those facts in their WHERE clause and return 'stale' when they no longer
 // hold, so a concurrent change can't be applied over (OQ-107).
-
-export type Role = (typeof ROLES)[number];
-/** Roles `updateRole` can set; Owner moves only through `swapOwner`. */
-export type AssignableRole = Exclude<Role, 'Owner'>;
 
 export interface Household {
   readonly id: string;

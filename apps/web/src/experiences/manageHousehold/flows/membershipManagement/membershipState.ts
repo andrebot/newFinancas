@@ -1,5 +1,6 @@
 import { household } from '../../../../config/constants';
 import type { RequestFailure, RequestOutcome } from '../../../../utilities/requestOutcome';
+import { sortMembers } from '../../memberOrder';
 
 // Membership Management Flow's state (FL9, OQ-155): the household's members and
 // pending invitations as the Flow last fetched them, the request that is out,
@@ -119,29 +120,6 @@ const PANELS: Record<MembershipAction['kind'], Panel> = {
   invite: 'invite',
   revoke: 'invitations',
 };
-
-/**
- * Joins a member's names, as the rows, confirms and toasts print them.
- *
- * @param member - The member.
- * @returns E.g. "Sam Costa".
- */
-export const fullName = (
-  { firstName, lastName }: Pick<HouseholdMember, 'firstName' | 'lastName'>,
-) => [firstName, lastName].filter(Boolean).join(' ');
-
-/**
- * Orders the members: the Owner first, then by role, then the longest-tenured.
- *
- * @param members - The members as the API listed them.
- * @returns A sorted copy.
- */
-export const sortMembers = (
-  members: readonly HouseholdMember[],
-): readonly HouseholdMember[] => [...members].sort((left, right) => (
-  household.roleOrder.indexOf(left.role) - household.roleOrder.indexOf(right.role)
-  || left.joinedAt.localeCompare(right.joinedAt)
-));
 
 /**
  * Keeps the pending invitations, newest first.

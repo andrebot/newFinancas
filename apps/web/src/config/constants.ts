@@ -95,6 +95,16 @@ export const household = {
   roleOrder: ['Owner', 'Admin', 'Member', 'Viewer'],
 } as const;
 
+/** Manage Profile (X3). */
+export const profile = {
+  /**
+   * Whether the page offers Delete Account (FL8). Off until its endpoint
+   * exists: `DELETE /users/me` is the Delete User cascade, task 136 (M1D),
+   * which turns this on (code review A1, OQ-163).
+   */
+  deleteAccount: false,
+} as const;
+
 /** The product's identity, drawn by the brand mark (K34, OQ-135). A proper noun: not translated. */
 export const brand = {
   name: 'Finance APP',

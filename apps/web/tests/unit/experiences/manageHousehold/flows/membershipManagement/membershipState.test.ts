@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  afterAction, afterLoad, confirmCancelled, confirmOpened, fullName, INITIAL_MEMBERSHIP, loading,
-  managesMembers, needsReload, pendingOnly, selfRole, sortMembers, started,
+  afterAction, afterLoad, confirmCancelled, confirmOpened, INITIAL_MEMBERSHIP, loading,
+  managesMembers, needsReload, pendingOnly, selfRole, started,
   type HouseholdMember, type ListedInvitation, type MembershipState, type MembershipView,
 } from '../../../../../../src/experiences/manageHousehold/flows/membershipManagement/membershipState';
 
@@ -72,17 +72,6 @@ const viewOf = (state: MembershipState) => (
 );
 
 describe('membershipState — reading the lists', () => {
-  it('joins the names, skipping a blank one', () => {
-    expect(fullName(JANE)).toBe('jane Doe');
-    expect(fullName({ firstName: 'Cher', lastName: '' })).toBe('Cher');
-  });
-
-  it('orders the members by role, then the longest-tenured first', () => {
-    const newAdmin = member('new', 'Admin', '2026-09-01T00:00:00Z');
-    expect(sortMembers([PRIYA, newAdmin, SAM, ALEX, JANE]).map(({ userId }) => userId))
-      .toEqual(['jane', 'alex', 'new', 'sam', 'priya']);
-  });
-
   it('keeps only the pending invitations, newest first, without their status', () => {
     const listed = [
       invitation('old', 'pending', '2026-01-01T00:00:00Z'),

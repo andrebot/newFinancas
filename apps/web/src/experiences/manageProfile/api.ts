@@ -10,9 +10,11 @@ import type {
   UserPreferences,
 } from '@financas/api-types';
 import backendApi from '../../api/backendApi';
+import { identityApi } from '../../api/identityApi';
 
-// The Manage Profile Experience's endpoints (X3, OQ-159): the user's own
-// profile and preferences, their sessions and password (Security, OQ-154),
+// The Manage Profile Experience's endpoints (X3, OQ-159): edits to the user's
+// own profile and preferences (the profile itself is a shared identity read,
+// `api/identityApi.ts`, OQ-163), their sessions and password (Security, OQ-154),
 // the account's deletion (OQ-151) and the invitations waiting for them. The
 // profile and the invitations are cached; the sessions are the Security
 // Flow's own list, fetched as it mounts and never kept. Answering an
@@ -60,10 +62,6 @@ export const manageProfileApi = backendApi.enhanceEndpoints({
   addTagTypes: ['Me', 'MyInvitations', 'Households'],
 }).injectEndpoints({
   endpoints: (build) => ({
-    getCurrentUser: build.query<User, void>({
-      query: () => '/users/me',
-      providesTags: ['Me'],
-    }),
     editCurrentUser: build.mutation<User, ProfileEdit>({
       query: (edit) => send('PATCH', '/users/me', edit),
       // A preference shows at once — the shell applies the theme or language
@@ -71,14 +69,14 @@ export const manageProfileApi = backendApi.enhanceEndpoints({
       // it. Names wait for the answer, so a refused save keeps what is typed.
       // The answer then replaces the cached user.
       onQueryStarted: async ({ preferences }, { dispatch, queryFulfilled }) => {
-        const shown = preferences && dispatch(manageProfileApi.util.updateQueryData(
+        const shown = preferences && dispatch(identityApi.util.updateQueryData(
           'getCurrentUser',
           undefined,
           (user) => withPreferences(user, preferences),
         ));
         try {
           const { data } = await queryFulfilled;
-          dispatch(manageProfileApi.util.upsertQueryData('getCurrentUser', undefined, data));
+          dispatch(identityApi.util.upsertQueryData('getCurrentUser', undefined, data));
         } catch {
           shown?.undo();
         }
@@ -118,7 +116,6 @@ export const manageProfileApi = backendApi.enhanceEndpoints({
 });
 
 export const {
-  useGetCurrentUserQuery,
   useEditCurrentUserMutation,
   useDeleteCurrentUserMutation,
   useLazyListSessionsQuery,

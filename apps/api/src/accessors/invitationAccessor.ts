@@ -3,7 +3,7 @@ import { alias } from 'drizzle-orm/pg-core';
 import type { Database } from '../db/database';
 import { PG_FOREIGN_KEY_VIOLATION, PG_UNIQUE_VIOLATION, pgErrorCode } from '../db/errors';
 import { households, invitations, users } from '../db/schema';
-import type { AssignableRole } from './householdAccessor';
+import type { AssignableRole } from '../db/schema/values';
 
 // InvitationAccessor (A4, VBD): household invitations and their lifecycle,
 // pending → accepted | declined | revoked (FR-1.10). Applies data changes only:

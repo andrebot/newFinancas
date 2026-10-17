@@ -3,7 +3,7 @@ import type { User, UserPreferences } from '@financas/api-types';
 import { useCallback, useState } from 'react';
 import { sessionEnded } from '../../api/baseQuery';
 import { failureOf, toRequestOutcome } from '../../api/outcome';
-import { theme as themeSettings } from '../../config/constants';
+import { profile as profileSettings, theme as themeSettings } from '../../config/constants';
 import { Avatar, avatarTone } from '../../kit/avatar/Avatar';
 import { Button } from '../../kit/button/Button';
 import { EmptyState } from '../../kit/emptyState/EmptyState';
@@ -16,12 +16,11 @@ import { useAlerts } from '../../utilities/AlertProvider';
 import { useI18n } from '../../utilities/I18nProvider';
 import type { RequestFailure } from '../../utilities/requestOutcome';
 import type { ThemePreference } from '../../utilities/theme';
-import { useHouseholds } from '../manageHousehold/api';
+import { useGetCurrentUserQuery, useHouseholds } from '../../api/identityApi';
 import {
   useChangePasswordMutation,
   useDeleteCurrentUserMutation,
   useEditCurrentUserMutation,
-  useGetCurrentUserQuery,
   useLazyListSessionsQuery,
   useListMyInvitationsQuery,
   useRevokeOtherSessionsMutation,
@@ -257,13 +256,18 @@ function DeleteAccountPanel({ user, households }: DeleteAccountPanelProps) {
   return <DeleteAccountFlow email={user.email} ownedHouseholds={owned} onDelete={remove} />;
 }
 
+/** The page's props: the user, and whether Delete Account is offered. */
+interface ProfilePageProps extends UserPanelProps {
+  readonly deleteAccount: boolean;
+}
+
 /**
  * Lays out the profile for a loaded user, as mockup 70 does.
  *
- * @param props - The signed-in user.
+ * @param props - The signed-in user, and whether Delete Account is offered.
  * @returns The page's sections.
  */
-function ProfilePage({ user }: UserPanelProps) {
+function ProfilePage({ user, deleteAccount }: ProfilePageProps) {
   const households = useHouseholds();
   const security = useSecurityRequests();
   const list = households.status === 'ready' ? households.data : [];
@@ -276,23 +280,32 @@ function ProfilePage({ user }: UserPanelProps) {
       </div>
       <SecurityFlow {...security} />
       <InvitationsPanel />
-      <DeleteAccountPanel user={user} households={list} />
+      {deleteAccount && <DeleteAccountPanel user={user} households={list} />}
     </div>
   );
+}
+
+/** The Experience's configuration. */
+export interface ManageProfileExperienceProps {
+  /** Offer Delete Account; off until its endpoint exists (`profile.deleteAccount`). */
+  readonly deleteAccount?: boolean;
 }
 
 /**
  * Renders the profile once the user loads: a skeleton until then, a retry if
  * the load fails.
  *
+ * @param props - The Experience's configuration.
  * @returns The page.
  */
-export function ManageProfileExperience() {
+export function ManageProfileExperience({
+  deleteAccount = profileSettings.deleteAccount,
+}: ManageProfileExperienceProps = {}) {
   const translator = useI18n();
   const { data: user, isError, refetch } = useGetCurrentUserQuery();
 
   if (user) {
-    return <ProfilePage user={user} />;
+    return <ProfilePage user={user} deleteAccount={deleteAccount} />;
   }
   if (isError) {
     return (

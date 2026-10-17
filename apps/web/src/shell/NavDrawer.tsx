@@ -8,7 +8,8 @@ import { useI18n } from '../utilities/I18nProvider';
 import { DrawerIdentity } from './interactions/DrawerIdentity';
 import { HouseholdSwitcher, type HouseholdSwitcherProps } from './interactions/HouseholdSwitcher';
 import { MainNav } from './interactions/MainNav';
-import type { ShellIdentity, SourceState } from './shellConfig';
+import type { SourceState } from '../utilities/sourceState';
+import type { ShellIdentity } from './shellConfig';
 
 // The App Shell's nav drawer (S1, mockup 21): it slides over the page from
 // the left, under the header, at every width — identity, household switcher,

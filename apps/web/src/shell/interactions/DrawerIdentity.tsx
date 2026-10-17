@@ -1,7 +1,8 @@
 import { Avatar, avatarTone } from '../../kit/avatar/Avatar';
 import { Skeleton } from '../../kit/skeleton/Skeleton';
 import { useI18n } from '../../utilities/I18nProvider';
-import type { ShellIdentity, SourceState } from '../shellConfig';
+import type { SourceState } from '../../utilities/sourceState';
+import type { ShellIdentity } from '../shellConfig';
 
 // The nav drawer's identity (S1, mockup 21): the signed-in user's avatar in
 // their own mint, a greeting and their email. While the profile loads it

@@ -3774,6 +3774,96 @@ not a hardcoded assumption.
   it as a known issue.
 - The uc-14b sequence is redrawn.
 
+### OQ-163: Architecture review fixes (code review, phase 3)
+**Confirmed with the stakeholder (Oct 2026):**
+- **Delete Account waits for its endpoint.** The Delete Account Flow (task
+  55) shipped in slice 1, but `DELETE /users/me` is the Delete User cascade,
+  task 136 (`M1D`), in slice 5. The page offered an action that failed.
+  - Manage Profile takes a `deleteAccount` setting, defaulting to
+    `profile.deleteAccount` in the web's `config/constants.ts` (off). Task
+    136 turns it on.
+  - **A contract-routes check** (`apps/api/tests/integration/
+    contractRoutes.test.ts`) compares `openapi.yaml` with the routes the
+    API mounts: every operation is routed or listed as still on the plan
+    (by slice, or by task); nothing on that list is routed already; and the
+    API mounts nothing the contract lacks. A Flow can no longer reach for
+    an endpoint nobody planned to build yet without the gap being written
+    down.
+- **Shared identity reads have one home.** OQ-158 called Authenticate
+  hosting Onboard's enrollment step "the one place" one Experience imports
+  another's piece. OQ-159 then had Manage Profile read `useHouseholds` from
+  Manage Household's slice, and Manage Household read
+  `useGetCurrentUserQuery` from Manage Profile's. The current user and the
+  households are read by several Experiences and, as sources, by the App
+  Shell, so they now live in `apps/web/src/api/identityApi.ts`:
+  `getCurrentUser`, `listHouseholds` and the `useHouseholds` source. The
+  Experience slices keep their own endpoints and invalidate the shared
+  tags. The enrollment step stays OQ-158's single hosting decision.
+- **`SourceState`** (loading / ready / failed with a retry) moves from the
+  shell's configuration to `utilities/sourceState.ts`: a display type the
+  shell's Interactions take, and that `api/sourceState.ts` builds from a
+  query. `api/` and `shell/` no longer import each other's types.
+- **The household-role vocabulary lives with the other value lists.**
+  `Role` and `AssignableRole` move from `householdAccessor.ts` to
+  `db/schema/values.ts`, beside `ROLES` and `SystemRole`; authorization,
+  the Manager and the Accessors import them from there. The routes map the
+  Manager's results (`Member`, `UserHousehold`, the invitations, `User`),
+  re-exported by `managers/identity`, and no longer import an Accessor.
+  The audit sink keeps `NewAuditEntry`: producing that record is its job.
+- **No Interaction or Experience reaches into a Flow's state for helpers.**
+  `fullName` moves to `utilities/personName.ts` (formatting; FormattingUtility,
+  FU6, can absorb it). `sortMembers` — the members' order, also FR-1.18's
+  succession — moves to `experiences/manageHousehold/memberOrder.ts`,
+  generic over anything with a role and a join date: the Flow lists members
+  by it and Leave Household names the successor from it. Interactions still
+  take their Flow's prop types.
+- **Authenticator codes work once (E9, RFC 6238 §5.2).** A code used to be
+  accepted again for as long as it was valid (about 90 s with one step of
+  drift each way).
+  - `AuthenticationUtility.verifyTotp` now answers the code's time step
+    (or nothing).
+  - `UserAccessor.consumeTotpStep(userId, step)` is a guarded write: it
+    records the step only when later than `users.mfa_last_totp_step`, so
+    two simultaneous uses can't both pass. Migration `0008` adds the
+    column; restarting an enrollment clears it.
+  - IdentityManager's MFA step and enrollment confirmation accept a code
+    only when its step was used up; a reused code is answered like a wrong
+    one (401 `auth.mfa_invalid`, counted against the lockout).
+  - E2E: the TOTP helper remembers each secret's last step and uses the
+    next step's code (accepted as drift) or waits for the clock; sessions
+    for "another device" sign in with a backup code; the test timeout is
+    60 s. The login and enrollment-confirm sequences and call chains are
+    updated.
+
+**Phase 3 of the code review is complete.**
+
+### OQ-164: A review closes every slice (code review, wrap-up)
+**Confirmed with the stakeholder (Oct 2026):**
+- **The slice-1 review is closed.** Three phases, each found, decided and
+  fixed in its own PRs:
+  - tests (mutation testing): #72 (backend), #73 (web and packages);
+  - the Playwright suite: #74 (incl. OQ-162);
+  - code and architecture: #75 (OQ-163).
+
+  The record is `docs/architecture/12-code-review-2026-10.md`.
+- **Every slice now ends with the same review, as a gate.** The plan gets
+  `R<n>` items: R1, done, after task 66, and R2–R6 at the end of slices
+  2–6. The next slice starts only once its gate is ticked.
+- **The method is written down** (`docs/architecture/13-slice-review.md`):
+  three phases, one at a time; findings before fixes; one PR per phase,
+  each verified the way its findings were found. Each review gets its own
+  `<nn>-slice-<n>-review.md`.
+- **The tooling stays in the repo:**
+  - `pnpm mutation:api` and `pnpm mutation:web` (`scripts/mutation.sh`),
+    with `stryker.api.config.json` and `stryker.web.config.json`;
+  - the memory watchdog;
+  - the command runner (the Vitest runner reports false survivors under
+    Vitest 5);
+  - the web run's per-file `vitest related` scope.
+- **Left open, and planned:** a password-reset E2E journey needs a test
+  email sink (the provider is `console` only). It is part of `V3` (Full
+  E2E, task 147); which sink is a decision for then.
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.

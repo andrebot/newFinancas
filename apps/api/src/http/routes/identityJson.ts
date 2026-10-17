@@ -1,9 +1,6 @@
-import type { Member, UserHousehold } from '../../accessors/householdAccessor';
 import type {
-  HouseholdInvitation, Invitation, ReceivedInvitation,
-} from '../../accessors/invitationAccessor';
-import type { User } from '../../accessors/userAccessor';
-import type { SessionView } from '../../managers/identity';
+  HouseholdInvitation, Invitation, Member, ReceivedInvitation, SessionView, User, UserHousehold,
+} from '../../managers/identity';
 
 // IdentityManager's results in the contract's JSON shapes: times as ISO
 // strings, only the fields the contract names (no system role, no expiry).

@@ -4,8 +4,10 @@ A review of everything built so far (slice 1: identity backend, the web
 kit, Flows, Experiences and App Shell, the shared packages), asked for by
 the stakeholder after task 66 (`I7`). Coverage stays at 100%; the question
 is whether the tests actually check the logic and its edge cases.
-**Status: in progress — phases 1 and 2 done (PRs #72, #73 and the phase-2
-PR); phase 3 (code and architecture) next.** Work happens on the `review/slice-1` branch, cut from
+**Status: closed — phase 1 (PRs #72, #73), phase 2 (PR #74), phase 3
+(PR #75). The one open item, a password-reset journey (needs a test email
+sink), is planned in `V3` (task 147). This review is now the gate at the end
+of every slice (OQ-164, `13-slice-review.md`).** Work happens on the `review/slice-1` branch, cut from
 `task/66-frontend-backend-identity`.
 
 ## Plan
@@ -321,4 +323,59 @@ reuse within the window) goes to phase 3.
 
 ## Phase 3 — code and architecture
 
-*(Pending.)*
+A Harmonic Design pass over the whole codebase: VBD call rules (backend),
+EBD tiers (web), BDT test placement and mocks, and the PD checklist against
+what's built. Import graphs were extracted per layer and every
+cross-boundary edge read.
+
+**What holds.**
+- **Backend.** No Engine calls another Engine. No Accessor calls another
+  Accessor at runtime. Routes call only the Manager. The Notification
+  Engine is reached only from IdentityManager, through injected
+  dependencies. Composition happens only in `server.ts`.
+- **Web.** Only Experiences call the backend: no Flow, Interaction or kit
+  module imports the API or the store. No Flow imports a sibling Flow.
+- **Tests.** Every test mocks only the tier directly beneath it
+  (Experiences → their Flows and standalone Interactions, Flows → their
+  Interactions); the backend uses injected fakes, no module mocks.
+- **Plan.** Slice 1's checklist is complete.
+
+| # | Finding (symptom → cause → where else to look) | Severity | Proposed fix |
+|---|---|---|---|
+| A1 | **Delete Account is live, but its endpoint doesn't exist.** Manage Profile ships the Delete Account Flow (task 55, `FL8`), wired to `DELETE /users/me`. The API has no such route: the cascade is `M1D`, task 136, slice 5, because it needs every owned-data Accessor. In the real app the danger zone shows, and deleting fails. *Cause (PD):* the Flow's work package was sequenced without its dependency edge to `M1D`. *Counterpart (BDT):* the Experience test fakes `fetch`, and no journey or contract check asks whether a spec'd route is implemented, so nothing could notice. *Look next:* every slice that builds a Flow before its Manager use case (Onboard's Guided Setup, slice 2). | **Medium** | Hide the danger zone until `M1D` behind a fixed setting (`config/constants.ts`), with an Experience test for both states. Add a check that every route the web client calls is routed by the API (a route-table test against the OpenAPI paths in use), so a Flow can't ship ahead of its endpoint again. |
+| A2 | **Experiences import each other's pieces, and it is spreading.** OQ-158 called Authenticate hosting Onboard's enrollment step "the one place" one Experience imports another's. There are now three: OQ-159 added Manage Profile reading `useHouseholds` from Manage Household's API, and Manage Household reads `useGetCurrentUserQuery` from Manage Profile's API, which is undocumented. *Cause (EBD):* server data that several Experiences and the App Shell share (the current user, the households) is owned by one Experience's API slice. *Counterpart:* none on the backend (one IdentityManager serves both); the tests fake `fetch`, so they are unaffected. | Medium–low | Move the shared reads (`GET /users/me`, `GET /households`) into one shared slice the Shell already depends on (e.g. `api/identity.ts`, next to `shellSources`), and have Experiences import from there. The enrollment step stays an OQ-158 hosting decision. Record it in the OQ list. |
+| A3 | **Domain vocabulary is defined in the storage layer.** `Role`, `Member` and `UserHousehold` are exported by `householdAccessor.ts`; AuthorizationUtility, the HTTP JSON mapping and `invitationAccessor.ts` import them (type-only, so no call rule is broken). *Cause (VBD):* the household-role vocabulary has no home of its own; a storage refactor would ripple into authorization and the API mapping. | Low | Move the vocabulary types next to the value lists in `db/schema/values.ts` (where `SystemRole` already lives), or a small `domain/` types module; Accessors re-export. |
+| A4 | **Interactions import a helper from their Flow's state module.** `MemberList` and `TransferOwnership` import `fullName` (runtime) from `membershipState.ts`; three other Interactions import types from their Flow's state. Prop types are fine, but a display-name formatter living in one Flow's state is cross-cutting formatting. | Low | Move `fullName` to the formatting utility (FU6) or `utilities/`; keep only prop types in the Flow. |
+| A5 | **`api/` and `shell/` depend on each other.** `api/sourceState.ts` imports `SourceState` from `shell/shellConfig.ts`, while `shell/shellState.ts` imports the API slice and `sessionEnded`. | Low | Move `SourceState` into `api/` (it describes a query's state). |
+| A6 | **The Manager answers with HTTP statuses** (`managers/identity/errors.ts` imports `http/apiError`). | Accepted (OQ-114) | Recorded on purpose: picking 401 vs 404 is part of the Manager's anti-enumeration rules. Cost to remember: a non-HTTP caller (a scheduled job, a CLI) would get HTTP-shaped errors. |
+| A7 | `household.created` is published with no subscriber. | Note | Expected until AccountManager seeds Categories (slice 2); Core E2E #1 then proves the pub/sub effect. |
+
+**E9, carried over from phase 2: TOTP codes are reusable within their
+window.** A code accepted once is accepted again for up to about 90 s
+(the 30 s step plus one step of drift each way). RFC 6238 §5.2 recommends
+refusing a second use.
+
+### Phase 3 — fixes
+
+Decisions: fix A1–A5; make authenticator codes single-use (E9). All
+recorded in OQ-163.
+
+| Commit | Findings |
+|---|---|
+| Review A1 | Manage Profile offers Delete Account only when `profile.deleteAccount` is on (off until task 136). A contract-routes test checks `openapi.yaml` against the mounted routes, with the not-yet-built operations listed by slice or task. |
+| Review A2, A5 | `GET /users/me` and `GET /households` move to `api/identityApi.ts`; `SourceState` moves to `utilities/sourceState.ts`. |
+| Review A3 | `Role` / `AssignableRole` move to `db/schema/values.ts`; routes take the Manager's result types. |
+| Review A4 | `fullName` → `utilities/personName.ts`; `sortMembers` → `experiences/manageHousehold/memberOrder.ts`. |
+| Review E9 | `users.mfa_last_totp_step` (migration `0008`), `UserAccessor.consumeTotpStep` (guarded), `verifyTotp` answers the time step; a reused code is refused like a wrong one. E2E helpers track the last step. Sequences and call chains for login step 2 and enrollment confirmation redrawn. |
+
+## Closing (OQ-164)
+
+The review is closed. What it changed beyond the fixes:
+
+- **Every slice now ends with this review**, as gate `R<n>` in the plan.
+  The method is in `13-slice-review.md`.
+- **The tooling is committed:** `pnpm mutation:api`, `pnpm mutation:web`
+  (`scripts/mutation.sh`, with its memory watchdog), and the
+  contract-routes test.
+- **Planned, not done:** the password-reset E2E journey, in `V3` (task
+  147), once a test email sink is chosen.
