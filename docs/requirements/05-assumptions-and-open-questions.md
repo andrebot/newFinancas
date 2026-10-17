@@ -4180,6 +4180,60 @@ not a hardcoded assumption.
   `cycleOf` lives in `accessors/billingCycle.ts`. The demo seed's card row
   now sits in its billing cycle.
 
+### OQ-171: InvestmentHoldingAccessor (task A11)
+**Confirmed with the stakeholder (Oct 2026):**
+- **The Manager signs both deltas of a trade:** `applyTrade(holdingId,
+  { quantityDelta, costBasisDelta })`. A buy adds its quantity and what was
+  paid; a sell or redemption removes its quantity and its **average cost**
+  (cost basis × sold ÷ held), computed by `TransactionManager`, which keeps
+  both deltas with the transaction so an edit or delete undoes them exactly
+  (the same call negated). The Accessor refuses a quantity
+  (`insufficient_quantity`) or cost basis (`cost_basis_below_zero`) below
+  zero under the Holding's row lock, writing nothing. Weighed and rejected:
+  the Accessor applying the average-cost rule itself — a business formula
+  in an Accessor. `applyTrade` lost its `valuation` and `date`: the
+  automatic snapshot is ValuationSnapshotAccessor's (OQ-167) and a Holding
+  has no dated history.
+- **Archiving stays the Manager's separate call.** `applyTrade` returns the
+  new position; `TransactionManager` calls `archive(by=system)` at 0 and
+  `unarchiveIfSystemArchived` above it (FR-5.8, OQ-80). `archive` keeps the
+  first archive.
+- **Re-buying a zeroed market-priced Holding reopens it.** `findByTicker
+  (accountId, assetType, ticker)` includes archived Holdings, so the buy
+  accumulates into the system-archived one and un-archives it — one Holding
+  per ticker per Account, its value history continuing. **Its old Goal
+  split is cleared by the buy, not at zero:** at quantity 0 the old shares
+  are worth 0, so OQ-168's re-weighting drops every one and the new buy's
+  split is the only one left (a new buy has its own purpose). Clearing at
+  zero was rejected: undoing the zeroing sell would bring the Holding back
+  (OQ-80) without its split. **Before `TransactionManager`'s tests are
+  written, every test of this behavior is walked through with the
+  stakeholder.**
+- **A schedule is replaced whole until it starts:** `applySchedule(holdingId,
+  entries)` replaces every entry (so editing a fixed-term buy can recompute
+  it) and is refused with `schedule_started` once an entry has posted.
+  `markEntryPosted(entryId)` marks an unposted entry, called by
+  `TransactionManager` in the database transaction that posts it; `false`
+  means a repeated event delivery, which then posts nothing.
+  `findDueScheduleEntries(today)` returns each entry's id and Account.
+- **A matured Holding's recipients are the Manager's.**
+  `findMaturedWithPosition(today)` (redemption date before today, quantity
+  > 0, not archived, not yet notified) returns the Account's household,
+  owner and visibility; `AccountManager` notifies the owner of a personal
+  Account and, for a shared one, the members from
+  `HouseholdAccessor.listMembers` — the Accessor never reads memberships.
+  `markMaturedNotified` marks once.
+- **The rest:** `insert(holding)` opens a Holding with no position (its
+  buy's `applyTrade` sets one) and refuses an Account that is
+  `credit_card_only` (`account_not_allowed`, OQ-76) or unknown; a fixed-term
+  rate and the debenture flag are set only here. Reads: `findById
+  (householdId, holdingId)` (household guard through the Account — OQ-167's
+  `get`), `listByAccounts(accountIds, { includeArchived })`,
+  `listSchedule(holdingIds)`.
+- **Gap for `AccountTransactionAccessor`:** `account_transactions` has no
+  column for a trade's quantity or cost-basis delta, which Edit/Delete
+  Transaction need to undo it. Added with that task.
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.

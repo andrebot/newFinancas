@@ -78,7 +78,7 @@ sequenceDiagram
     else authorized
         AZ-->>AM: allowed
         AM->>VU: check(input)
-        AM->>IHA: get(holdingId)
+        AM->>IHA: findById(householdId, holdingId)
         alt Holding is a fixed-term instrument (OQ-51)
             IHA-->>AM: assetType = CDB / Tesouro / ...
             AM-->>API: Conflict

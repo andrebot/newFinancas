@@ -135,7 +135,7 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain:</strong> <code>investmentsDaily</code> (one daily cron for cash events + matured holdings, Manager review M6) → ① <code>InvestmentHoldingAccessor.findDueScheduleEntries(today)</code> → <code>ServiceBusUtility.publish("transaction.import.requested")</code> (async) → ② <code>TransactionManager</code> subscribes and runs the full Record Transaction pipeline (see that chain), incl. auto-archive when a redemption zeroes the Holding.</p>
+    <p><strong>Chain:</strong> <code>investmentsDaily</code> (one daily cron for cash events + matured holdings, Manager review M6) → ① <code>InvestmentHoldingAccessor.findDueScheduleEntries(today)</code> → <code>ServiceBusUtility.publish("transaction.import.requested")</code> (async) → ② <code>TransactionManager</code> subscribes → ③ <code>InvestmentHoldingAccessor.markEntryPosted(entryId)</code> (once — a repeated delivery stops here, OQ-171) → ④ the full Record Transaction pipeline (see that chain) in the same database transaction, incl. auto-archive when a redemption zeroes the Holding → ⑤ <code>LoggingUtility</code> (async).</p>
     <p>Tax amounts were computed by <code>InvestmentProductEngine</code> at buy time and stored with the schedule — the trigger never calls the Engine. The recurring-schedule trigger that used to share this shape is gone (OQ-55).</p>
   </div>
 
@@ -149,7 +149,7 @@
       svg.style.width = containerRect.width + 'px';
       svg.style.height = containerRect.height + 'px';
 
-      var edges = [{"from": "acc-holding", "to": "util-servicebus", "type": "async", "order": 1}, {"from": "util-servicebus", "to": "mgr-transaction", "type": "async", "order": 2}, {"from": "mgr-transaction", "to": "acc-accounttxn", "type": "sync", "order": 3}, {"from": "mgr-transaction", "to": "util-logging", "type": "async", "order": 4}];
+      var edges = [{"from": "acc-holding", "to": "util-servicebus", "type": "async", "order": 1}, {"from": "util-servicebus", "to": "mgr-transaction", "type": "async", "order": 2}, {"from": "mgr-transaction", "to": "acc-holding", "type": "sync", "order": 3}, {"from": "mgr-transaction", "to": "acc-accounttxn", "type": "sync", "order": 4}, {"from": "mgr-transaction", "to": "util-logging", "type": "async", "order": 5}];
 
       var activeIds = {};
       edges.forEach(function (e) { activeIds[e.from] = true; activeIds[e.to] = true; });

@@ -62,7 +62,7 @@ sequenceDiagram
     else authorized
         AZ-->>AM: allowed
         AM->>VU: check(input)
-        AM->>IHA: get(holdingId)
+        AM->>IHA: findById(householdId, holdingId)
         alt Holding is a fixed-term instrument (OQ-51)
             IHA-->>AM: assetType = CDB / Tesouro / ...
             AM-->>API: Conflict
@@ -235,19 +235,27 @@ sequenceDiagram
 
     CRON->>IHA: findDueScheduleEntries(today)
     Note over IHA: reads the schedule (and coded taxes) InvestmentProductEngine<br/>computed at buy time &mdash; the Engine is NOT called again
-    IHA-->>CRON: [{holdingId, accountId, kind, amount, date}, ...]
+    IHA-->>CRON: [{entryId, holdingId, accountId, kind, amount, date}, ...]
     loop for each due entry
-        CRON->>SB: publish("transaction.import.requested", {...})
+        CRON->>SB: publish("transaction.import.requested", {entryId, ...})
         SB-->>TM: subscribe("transaction.import.requested")
-        Note over TM: same recordTransaction(...) pipeline as POST /transactions &mdash;<br/>kind = interest / redemption / tax, linked to the Holding,<br/>a redemption that zeroes it auto-archives it (OQ-72)
-        TM->>ATA: insert(accountTransaction, effect, holdingId)
-        ATA-->>TM: transactionId
+        TM->>IHA: markEntryPosted(entryId)
+        alt already posted (a repeated delivery)
+            IHA-->>TM: false
+            Note over TM: nothing more &mdash; the entry posted once (OQ-171)
+        else marked now
+            IHA-->>TM: true
+            Note over TM: same recordTransaction(...) pipeline as POST /transactions,<br/>in the same database transaction &mdash; kind = interest / redemption / tax,<br/>linked to the Holding, a redemption that zeroes it auto-archives it (OQ-72)
+            TM->>ATA: insert(accountTransaction, effect, holdingId)
+            ATA-->>TM: transactionId
+        end
         TM-->>LOG: logActivity(correlationId, systemActor, "PostScheduledCashEvent")
         TM-->>LOG: recordAudit(systemActor, "Transaction", transactionId)
     end
 """,
     notes="""
     <ul>
+      <li><strong>Posted once (OQ-171):</strong> <code>markEntryPosted</code> runs in the same database transaction as the posted Transaction and only marks an unposted entry, so a repeated event delivery posts nothing twice.</li>
       <li><strong>Payout source (FR-5.9):</strong> the interest transactions posted here, linked to their Holding, are what the payout chart reads.</li>
       <li>The same <code>investmentsDaily</code> run also publishes <code>holding.matured</code> (UC-11) &mdash; one cron, two events (Manager review M6).</li>
       <li>See FR-11.2, FR-11.3, FR-5.9, OQ-72.</li>
@@ -273,17 +281,24 @@ sequenceDiagram
     participant IHA as InvestmentHoldingAccessor
     participant SB as ServiceBusUtility
     participant AM as AccountManager
+    participant HA as HouseholdAccessor
     participant NE as NotificationEngine
     participant NIA as NotificationInboxAccessor
     participant LOG as LoggingUtility
 
     CRON->>IHA: findMaturedWithPosition(today)
     Note over IHA: fixed-term, dueDate < today, quantity > 0,<br/>not yet notified
-    IHA-->>CRON: [{holdingId, ownerUserIds}, ...]
+    IHA-->>CRON: [{holdingId, accountId, householdId, ownerUserId, visibility, assetType, ticker, dueDate}, ...]
     loop for each matured Holding
-        CRON->>SB: publish("holding.matured", {holdingId, ownerUserIds})
+        CRON->>SB: publish("holding.matured", {holdingId, householdId, ownerUserId, visibility, ...})
         SB-->>AM: subscribe("holding.matured")
-        loop for each owner
+        alt shared Account
+            AM->>HA: listMembers(householdId)
+            HA-->>AM: the members &mdash; each is a recipient (OQ-171)
+        else personal Account
+            Note over AM: the recipient is ownerUserId
+        end
+        loop for each recipient
             AM->>NE: notify("holding.matured", recipient = {userId}, params = {holdingId, holdingName, dueDate})
             Note over NE: routing table: holding.matured &rarr; in-app
             NE->>NIA: insert(userId, "holding.matured", params)
@@ -301,6 +316,7 @@ sequenceDiagram
     notes="""
     <ul>
       <li><strong>Type + params, never text (OQ-82):</strong> the frontend renders &ldquo;CDB Banco Inter 2026 reached its due date&hellip; archive it?&rdquo; in the user's language. <code>holdingName</code> is a deliberate snapshot (historical label).</li>
+      <li><strong>Recipients are the Manager's (OQ-171):</strong> the Accessor returns the Holding's Account owner and visibility; a shared Account's recipients are its household's members, read through <code>HouseholdAccessor</code> &mdash; the Accessor never reads memberships.</li>
       <li><strong>Synchronous on purpose:</strong> unlike invitations, the Manager waits for <code>NotificationEngine</code>, because marking the Holding notified depends on it (BDT plan).</li>
       <li>Normally a redemption (UC-4) zeroes and auto-archives the Holding first; this catches the rest.</li>
       <li>See FR-5.8, FR-6.5, OQ-68, OQ-72, OQ-82; Manager review M6.</li>

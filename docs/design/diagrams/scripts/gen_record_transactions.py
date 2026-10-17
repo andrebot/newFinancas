@@ -79,32 +79,40 @@ sequenceDiagram
             TM->>CCA: applyMovement(cardId, {-amount, currency, date})
             CCA-->>TM: outstanding balance reduced
         else effect = investment_trade
-            Note over TM: quantityDelta computed here (buy/sell/redemption rule, FR-3.8)
+            Note over TM: quantityDelta and costBasisDelta computed here (FR-3.8):<br/>a buy adds what was paid, a sell or redemption removes its average cost (OQ-171)
             opt kind = investment buy
                 alt assetType is one of FR-11.1's fixed-term instruments
-                    TM->>IHA: create a new Holding, always (OQ-50)
-                    IHA-->>TM: new holdingId
-                else no existing Holding for this ticker+account
-                    TM->>IHA: create Holding (auto-create, FR-5.1/OQ-41)
-                    IHA-->>TM: new holdingId
+                    TM->>IHA: insert(holding) &mdash; a new Holding, always (OQ-50)
+                    IHA-->>TM: new Holding
+                else market-priced
+                    TM->>IHA: findByTicker(accountId, assetType, ticker)
+                    IHA-->>TM: the Holding, archived ones included (OQ-171)
+                    opt none
+                        TM->>IHA: insert(holding) (auto-create, FR-5.1/OQ-41)
+                        IHA-->>TM: new Holding
+                    end
                 end
             end
-            TM->>IHA: applyTrade(holdingId, quantityDelta, date)
-            IHA-->>TM: {newQuantity}
+            TM->>IHA: applyTrade(holdingId, {quantityDelta, costBasisDelta})
+            IHA-->>TM: {quantity, costBasis}
+            Note over IHA: refused below zero: insufficient_quantity / cost_basis_below_zero
             opt market-priced assetType (OQ-51)
                 TM->>VSA: insertAutomatic(holdingId, transactionId, valuation, date)
                 Note over VSA: source = transaction &mdash; changes only with its transaction (OQ-56)
             end
-            opt newQuantity = 0 (full sell or redemption)
+            alt quantity = 0 (full sell or redemption)
                 TM->>IHA: archive(holdingId, by = system)
                 Note over IHA: auto-archive (FR-5.8, OQ-72) &mdash; undone if this<br/>transaction is later edited or deleted (OQ-80)
+            else a buy into a system-archived Holding
+                TM->>IHA: unarchiveIfSystemArchived(holdingId)
+                Note over IHA: the re-buy reopens the position (OQ-171)
             end
             opt assetType is a defined FR-11.1 instrument type
                 Note over TM,IPE: dueDate, rate and the debenture incentivised flag are<br/>user-supplied &mdash; not derivable from assetType alone (OQ-50, OQ-79)
                 TM->>IPE: schedule(assetType, incentivised, dueDate, rate, purchaseDate, amount)
                 IPE-->>TM: {cashEvents[], taxes} &mdash; tax rules coded per type, US = none estimated
                 TM->>IHA: applySchedule(holdingId, schedule)
-                IHA-->>TM: schedule stored
+                IHA-->>TM: schedule stored (replace-all, refused once an entry posted, OQ-171)
             end
             opt allocations provided (OQ-54, OQ-168)
                 TM->>GA: findByIds(householdId, goalIds)
@@ -143,6 +151,7 @@ sequenceDiagram
       <li><strong>Two separate ledgers, one bridge:</strong> Card Transactions and Account Transactions are two distinct tables with no FK between them (OQ-16) &mdash; the only bridge is a Credit Card Bill Payment, an Account Transaction carrying a <code>credit_card_id</code>.</li>
       <li>No <code>NotificationDeliveryUtility</code> call anywhere in this flow &mdash; FR-4.4's threshold alert was removed (OQ-52, Round 8).</li>
       <li><strong>Oct 2026 review:</strong> automatic Valuation Snapshot is explicit (<code>source = transaction</code>, OQ-56); a full sell/redemption auto-archives the Holding (OQ-72); investment kinds rejected on credit-card-only accounts (OQ-76); the Engine call carries the debenture flag and returns coded taxes (OQ-79); error responses use OQ-83 codes. No recurring option (OQ-55).</li>
+      <li><strong>Re-buying a zeroed Holding (OQ-171):</strong> a market-priced buy reopens the system-archived Holding of its ticker. Its old Goal split is worth 0 at quantity 0, so the buy's re-weighting (OQ-168) drops every old share &mdash; the new buy's split is the only one left; undoing the zeroing sell instead restores the old split intact.</li>
       <li><strong>Goal allocation can be bundled here (OQ-54, added after the API coverage audit):</strong> one call in, no separate <code>PATCH /holdings/{holdingId}</code> follow-up required &mdash; same 100%-cap rejection as that endpoint's own allocation edit (FR-8.3), just reachable from this pipeline too. Direction of control is unchanged (OQ-48): still written from the Holding's side, never the Goal's.</li>
       <li><strong>The buy's split is the purchase's (OQ-168):</strong> buying into a Holding that already funds Goals re-weights its whole split by value at this buy's unit price, so every Goal keeps exactly its money (900 at Retirement 60% / Trip 20%, plus 100 for Car 100% &rarr; 54% / 18% / 10%). One replace-all write, so a refusal never leaves half a split behind.</li>
       <li>See FR-3.1, FR-3.6&ndash;3.9, FR-5.2, FR-5.8, FR-8.2, FR-8.3, FR-11.1&ndash;11.3, OQ-16, OQ-39, OQ-48, OQ-50, OQ-51, OQ-54, OQ-56, OQ-72, OQ-76, OQ-79, OQ-83.</li>
@@ -184,7 +193,7 @@ sequenceDiagram
                 TM->>CCA: applyMovement(cardId, {+oldAmount, currency, oldDate})
             end
         else was an investment trade
-            TM->>IHA: applyTrade(holdingId, -oldQuantityDelta, oldValuation, oldDate)
+            TM->>IHA: applyTrade(holdingId, {-oldQuantityDelta, -oldCostBasisDelta})
         else was a card charge/refund
             TM->>CCA: applyMovement(cardId, {-oldSignedAmount, currency, oldDate})
         end
@@ -196,12 +205,12 @@ sequenceDiagram
                 TM->>CCA: applyMovement(cardId, {-newAmount, currency, newDate})
             end
         else new effect is an investment trade
-            TM->>IHA: applyTrade(holdingId, newQuantityDelta, newDate)
-            IHA-->>TM: {newQuantity}
+            TM->>IHA: applyTrade(holdingId, {newQuantityDelta, newCostBasisDelta})
+            IHA-->>TM: {quantity, costBasis}
             TM->>VSA: updateAutomatic(transactionId, newValuation, newDate)
-            alt newQuantity = 0
+            alt quantity = 0
                 TM->>IHA: archive(holdingId, by = system)
-            else newQuantity > 0
+            else quantity > 0
                 TM->>IHA: unarchiveIfSystemArchived(holdingId)
                 Note over IHA: undoes only a system-made archive (OQ-80)
             end
@@ -259,7 +268,7 @@ sequenceDiagram
                 TM->>CCA: applyMovement(cardId, {+amount, currency, date})
             end
         else was an investment trade
-            TM->>IHA: applyTrade(holdingId, -quantityDelta, date)
+            TM->>IHA: applyTrade(holdingId, {-quantityDelta, -costBasisDelta})
             TM->>VSA: deleteAutomatic(transactionId)
             TM->>IHA: unarchiveIfSystemArchived(holdingId)
             Note over IHA: if this was the sell/redemption that zeroed the<br/>Holding, it comes back (OQ-80)
