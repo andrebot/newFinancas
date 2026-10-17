@@ -84,15 +84,21 @@ sequenceDiagram
         Note over TM: reverse the OLD effect first, using the transaction's<br/>current stored values
         alt was a balance movement or bill payment
             TM->>AA: applyMovement(accountId, {-oldAmount, currency, oldDate})
+            opt was a bill payment
+                TM->>CCA: applyMovement(cardId, {+oldAmount, currency, oldDate})
+            end
         else was an investment trade
             TM->>IHA: applyTrade(holdingId, -oldQuantityDelta, oldValuation, oldDate)
         else was a card charge/refund
-            TM->>CCA: applyChargeOrRefund(cardId, -oldAmount, oldKind)
+            TM->>CCA: applyMovement(cardId, {-oldSignedAmount, currency, oldDate})
         end
         TM->>BA: accrueIfClaimed({accountScope, currency, oldCategoryId, oldSubcategoryId, -oldAmount, oldDate})
         Note over TM: then reapply the NEW values &mdash; same dispatch as<br/>Record Transaction, on the new amount/date/category
         alt new effect is a balance movement or bill payment
             TM->>AA: applyMovement(accountId, {newAmount, currency, newDate})
+            opt is a bill payment
+                TM->>CCA: applyMovement(cardId, {-newAmount, currency, newDate})
+            end
         else new effect is an investment trade
             TM->>IHA: applyTrade(holdingId, newQuantityDelta, newDate)
             IHA-->>TM: {newQuantity}
@@ -104,7 +110,7 @@ sequenceDiagram
                 Note over IHA: undoes only a system-made archive (OQ-80)
             end
         else new effect is a card charge/refund
-            TM->>CCA: applyChargeOrRefund(cardId, newAmount, newKind)
+            TM->>CCA: applyMovement(cardId, {newSignedAmount, currency, newDate})
         end
         TM->>BA: accrueIfClaimed({accountScope, currency, newCategoryId, newSubcategoryId, newAmount, newDate})
         TM->>ATA: update(transactionId, input)

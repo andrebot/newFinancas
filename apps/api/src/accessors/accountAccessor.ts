@@ -5,7 +5,7 @@ import type { Database } from '../db/database';
 import { accountMonthBalances, accounts } from '../db/schema';
 import type { AccountType, Visibility } from '../db/schema/values';
 import {
-  monthOf, monthsBetween, type CalendarMonth,
+  monthOf, monthsBetween, type CalendarMonth, type MonthRange,
 } from './calendarMonth';
 
 // AccountAccessor (A5, VBD): Financial Accounts and their month balances (FR-2,
@@ -84,12 +84,6 @@ export interface AccountMonthBalance extends CalendarMonth {
   readonly openingBalance: number;
   readonly endingBalance: number;
   readonly updatedAt: Date;
-}
-
-/** The months a balance history covers; open ends reach the chain's ends. */
-export interface MonthRange {
-  readonly from?: CalendarMonth;
-  readonly to?: CalendarMonth;
 }
 
 const accountColumns = {

@@ -1,10 +1,16 @@
 // Calendar months shared by the Accessors that keep one row per month
-// (Budget Periods, Account month balances). Pure helpers, no database.
+// (Budget Periods, Account and Credit Card month balances). Pure helpers, no database.
 
 /** A calendar month in the app's time zone — the Manager works it out (OQ-104). */
 export interface CalendarMonth {
   readonly year: number;
   readonly month: number;
+}
+
+/** The months a balance history covers; open ends reach the chain's ends. */
+export interface MonthRange {
+  readonly from?: CalendarMonth;
+  readonly to?: CalendarMonth;
 }
 
 const MONTHS_PER_YEAR = 12;

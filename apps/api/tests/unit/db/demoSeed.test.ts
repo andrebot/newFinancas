@@ -50,8 +50,9 @@ describe('buildDemoSeed', () => {
       expect([balance.year, balance.month]).toEqual([2026, 10]);
       expect(balance.openingBalance).toBe(balance.endingBalance);
     });
+    // The 8th is past the card's closing day (5), so its first cycle closes in November.
     expect(seed.creditCardMonthBalances[0])
-      .toMatchObject({ year: 2026, month: 10, endingOutstandingBalance: 0 });
+      .toMatchObject({ year: 2026, month: 11, endingOutstandingBalance: 0 });
   });
 
   it('records one value per index, dated the seeding day', () => {

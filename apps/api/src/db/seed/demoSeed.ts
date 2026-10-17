@@ -1,4 +1,5 @@
 import { defaultCategoriesFor } from '@financas/reference';
+import cycleOf from '../../accessors/billingCycle';
 import type {
   accountMonthBalances, accounts, categories, creditCardMonthBalances, creditCards,
   householdMemberships, households, indexRateValues, subcategories, users,
@@ -42,6 +43,7 @@ const CHECKING_USD = demoId(21);
 const INVESTMENTS = demoId(22);
 const CARDS_ACCOUNT = demoId(23);
 const CARD = demoId(30);
+const CARD_CLOSING_DAY = 5;
 
 /** Opening balances per account, in minor units (FR-2.1). */
 const OPENING_BALANCES: Record<string, number> = {
@@ -170,7 +172,7 @@ export const buildDemoSeed = (today: Date, credentials: DemoCredentials): DemoSe
       accountId: CARDS_ACCOUNT,
       network: 'mastercard',
       last4: '4242',
-      closingDay: 5,
+      closingDay: CARD_CLOSING_DAY,
       dueDay: 12,
       expirationMonth: 8,
       expirationYear: 2030,
@@ -186,8 +188,7 @@ export const buildDemoSeed = (today: Date, credentials: DemoCredentials): DemoSe
     creditCardMonthBalances: [{
       id: demoId(50),
       creditCardId: CARD,
-      year,
-      month,
+      ...cycleOf(asOfDate, CARD_CLOSING_DAY),
       openingOutstandingBalance: 0,
       endingOutstandingBalance: 0,
     }],
