@@ -135,7 +135,7 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain:</strong> <code>AccountManager</code> ① <code>AuthorizationUtility</code> → ② <code>ValidationUtility</code> → ③ <code>IndexRateAccessor.insert(index, value, asOf)</code> → ④ <code>LoggingUtility</code> (async).</p>
+    <p><strong>Chain:</strong> <code>AccountManager</code> ① <code>AuthorizationUtility</code> → ② <code>ValidationUtility</code> → ③ <code>IndexRateAccessor.insert(householdId, {index, value, asOf}, actor)</code> → ④ <code>LoggingUtility</code> (async).</p>
     <p><code>IndexRateAccessor</code> is new in Round 9. Projections read the latest value on demand, so nothing downstream is recalculated here.</p>
   </div>
 

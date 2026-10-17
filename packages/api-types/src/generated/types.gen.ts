@@ -925,7 +925,7 @@ export type RegisterUserData = {
 
 export type RegisterUserErrors = {
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
      */
     409: Error;
     /**
@@ -1312,7 +1312,7 @@ export type RevokeSessionData = {
 
 export type RevokeSessionErrors = {
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
 };
@@ -1409,7 +1409,7 @@ export type DeleteHouseholdErrors = {
      */
     403: Error;
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
 };
@@ -1454,7 +1454,7 @@ export type ListMembersData = {
 
 export type ListMembersErrors = {
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
 };
@@ -1488,11 +1488,11 @@ export type RemoveMemberErrors = {
      */
     403: Error;
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
      */
     409: Error;
 };
@@ -1526,11 +1526,11 @@ export type ChangeMemberRoleErrors = {
      */
     403: Error;
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
      */
     409: Error;
     /**
@@ -1565,11 +1565,11 @@ export type TransferOwnershipErrors = {
      */
     403: Error;
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
      */
     409: Error;
 };
@@ -1598,7 +1598,7 @@ export type ListHouseholdInvitationsErrors = {
      */
     403: Error;
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
 };
@@ -1815,7 +1815,7 @@ export type GetAccountData = {
 
 export type GetAccountErrors = {
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
 };
@@ -2290,7 +2290,7 @@ export type EditHoldingData = {
 
 export type EditHoldingErrors = {
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
     /**
@@ -2376,7 +2376,7 @@ export type RecordMarketValueErrors = {
      */
     403: Error;
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
      */
     409: Error;
     /**
@@ -2790,7 +2790,7 @@ export type DeleteNotificationData = {
 
 export type DeleteNotificationErrors = {
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
 };
@@ -2858,11 +2858,11 @@ export type DeleteMarketValueErrors = {
      */
     403: Error;
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
      */
     409: Error;
 };
@@ -2897,11 +2897,11 @@ export type EditMarketValueErrors = {
      */
     403: Error;
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
      */
     409: Error;
     /**
@@ -2958,7 +2958,7 @@ export type RecordIndexRateErrors = {
      */
     403: Error;
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
      */
     409: Error;
     /**
@@ -2994,7 +2994,7 @@ export type DeleteIndexRateErrors = {
      */
     403: Error;
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
 };
@@ -3032,9 +3032,13 @@ export type EditIndexRateErrors = {
      */
     403: Error;
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
+    /**
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
+     */
+    409: Error;
     /**
      * Request body failed validation. Codes: `validation.failed` with `details[]`, or specific codes such as `password.too_short`, `transaction.investment_not_allowed_on_account`.
      */

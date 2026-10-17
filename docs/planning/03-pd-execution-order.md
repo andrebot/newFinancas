@@ -117,7 +117,7 @@ identity screens, the rest as later slices use them.
 - [x] **71.** `A5` AccountAccessor (OQ-169: the starting balance is the balance on the creation day — an older transaction only rebuilds history; the month chain has no gaps; `applyMovement` takes the date)
 - [x] **72.** `A6` CreditCardAccessor (OQ-170: a cycle is named by the month it closes in; a closing-day edit never moves the past; one signed `applyMovement` with the date — a bill payment also debits its Account)
 - [x] **73.** `A11` InvestmentHoldingAccessor (OQ-171: the Manager signs quantity and cost-basis deltas; a re-buy reopens a zeroed Holding and the buy's re-weighting clears its old Goal split; a schedule is replaced until an entry posts, each entry posted once; a shared matured Holding's recipients are the Manager's)
-- [ ] **74.** `A14` IndexRateAccessor
+- [x] **74.** `A14` IndexRateAccessor (OQ-172: one value per index per day, refused on record and on a date edit; no future dates, so the latest is the highest date; the Rates tab's list is AccountManager's)
 - [ ] **75.** `A9` CategoryAccessor
 - [ ] **76.** `M2` AccountManager
 - [ ] **77.** `FU6` FormattingUtility

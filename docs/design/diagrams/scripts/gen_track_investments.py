@@ -81,8 +81,15 @@ sequenceDiagram
     ))
 
 
-def ir(n, verb, route, body, call, status):
-    """Index rate (FR-11.6) Create/Edit/Delete."""
+def ir(n, verb, route, body, call, status, refusals):
+    """Index rate (FR-11.6) Create/Edit/Delete; `refusals` are the Accessor's
+    (result, response) outcomes before the success branch (OQ-172)."""
+    outcomes = "".join(
+        f"""        {'alt' if i == 0 else 'else'} {result}
+            IRA-->>AM: {result}
+            AM-->>API: {response.split()[0]}
+            API-->>User: {response.split(maxsplit=1)[1]}
+""" for i, (result, response) in enumerate(refusals))
     UCS.append(dict(
         filename=f"uc-{n:02d}-{verb.lower()}-index-rate.html",
         title=f"{verb} Index Rate",
@@ -105,17 +112,19 @@ sequenceDiagram
     else authorized
         AZ-->>AM: allowed
         AM->>VU: check(input)
-        alt unknown index or value out of range
+        alt unknown index, value out of range or future date
             VU-->>AM: rejected
             AM-->>API: ValidationError
             API-->>User: 422 index_rate.invalid
         else valid
             AM->>IRA: {call}
+""" + outcomes + f"""        else done
             IRA-->>AM: done
             AM-->>LOG: logActivity(correlationId, actor, "{verb}IndexRate")
             AM-->>LOG: recordAudit(actor, "IndexRate", valueId)
             AM-->>API: done
             API-->>User: {status}
+        end
         end
     end
 """,
@@ -266,9 +275,11 @@ sequenceDiagram
 mv(5, "Record", 'insertManual(holdingId, {valuation, asOfDate})', "POST /holdings/:holdingId/valuation-snapshots", "{value, asOf}", "201 Created {snapshotId}", "Fixed-term Holdings have no snapshots (value = cost basis until redemption, OQ-51).")
 mv(6, "Edit", 'updateManual(holdingId, snapshotId, {valuation?, asOfDate?})', "PATCH /holdings/:holdingId/valuation-snapshots/:snapshotId", "{value?, asOf?}", "200 OK", "Corrects a typo in a past value (OQ-56).")
 mv(7, "Delete", 'deleteManual(holdingId, snapshotId)', "DELETE /holdings/:holdingId/valuation-snapshots/:snapshotId", "", "204 No Content", "If it was the latest, the previous snapshot becomes the current value.")
-ir(8, "Record", "POST /index-rates/:index/values", "{value, asOf}", "insert(householdId, index, value, asOf)", "201 Created {valueId}")
-ir(9, "Edit", "PATCH /index-rates/:index/values/:valueId", "{value?, asOf?}", "update(valueId, value, asOf)", "200 OK")
-ir(10, "Delete", "DELETE /index-rates/:index/values/:valueId", "", "delete(valueId)", "204 No Content")
+DUPLICATE_DAY = ("duplicate_day", "Conflict 409 index_rate.duplicate_day")
+RATE_NOT_FOUND = ("not_found", "NotFound 404 index_rate.not_found")
+ir(8, "Record", "POST /index-rates/:index/values", "{value, asOf}", "insert(householdId, {index, value, asOf}, actor)", "201 Created {valueId}", [DUPLICATE_DAY])
+ir(9, "Edit", "PATCH /index-rates/:index/values/:valueId", "{value?, asOf?}", "update(householdId, index, valueId, changes)", "200 OK", [RATE_NOT_FOUND, DUPLICATE_DAY])
+ir(10, "Delete", "DELETE /index-rates/:index/values/:valueId", "", "remove(householdId, index, valueId)", "204 No Content", [RATE_NOT_FOUND])
 
 # ---------------------------------------------------------------- UC-11
 UCS.append(dict(
@@ -328,7 +339,7 @@ sequenceDiagram
 UCS.append(dict(
     filename="uc-12-view-investments.html",
     title="View Investments",
-    subtitle='<span class="route">GET /reports/investments-overview</span>, <span class="route">GET /reports/payouts?holdingIds=</span>, <span class="route">GET /accounts/:accountId/holdings</span>, <span class="route">GET /index-rates</span> &mdash; FR-5.3/5.4, FR-5.9, FR-11.2, FR-11.6. Fixed v1 report types under <code>/reports</code> (sequence review Q1).',
+    subtitle='<span class="route">GET /reports/investments-overview</span>, <span class="route">GET /reports/payouts?holdingIds=</span>, <span class="route">GET /accounts/:accountId/holdings</span> &mdash; FR-5.3/5.4, FR-5.9, FR-11.2, FR-11.6. Fixed v1 report types under <code>/reports</code> (sequence review Q1).',
     mermaid="""
 sequenceDiagram
 """ + P_IM + """
@@ -365,7 +376,7 @@ sequenceDiagram
     RE-->>IM: holdings with positions and values
     loop for each fixed-term Holding
         IM->>IPE: project(holding)
-        IPE->>IRA: latest(index) &mdash; index-linked rates only
+        IPE->>IRA: latest(householdId, index) &mdash; index-linked rates only
         IRA-->>IPE: value, asOf
         Note over IPE: coded tax rules per type (OQ-79)<br/>US: expectedTaxes = not estimated
         IPE-->>IM: {expectedPayout, expectedTaxes}
@@ -377,7 +388,7 @@ sequenceDiagram
     <ul>
       <li><strong>Two Engines side by side, never calling each other</strong> &mdash; <code>InsightsManager</code> composes them (VBD &sect;3).</li>
       <li>Payout comes only from linked transactions (FR-5.9); projections are computed on read (FR-11.2) &mdash; nothing new is stored.</li>
-      <li>The Rates tab reads <code>GET /index-rates</code> (every index with its history) &mdash; a plain read; value history reads <code>GET /holdings/:holdingId/valuation-snapshots</code> (exists).</li>
+      <li>The Rates tab reads <code>GET /index-rates</code> (every index with its history) &mdash; a plain read of <code>AccountManager</code>'s own entities, so it is <code>AccountManager</code>'s (<code>IndexRateAccessor.list</code>, read-ownership rule, OQ-172), not this Manager's; value history reads <code>GET /holdings/:holdingId/valuation-snapshots</code> (exists).</li>
       <li>See FR-5.3, FR-5.4, FR-5.9, FR-11.2, FR-11.6, OQ-58, OQ-73, OQ-79.</li>
     </ul>
 """,
