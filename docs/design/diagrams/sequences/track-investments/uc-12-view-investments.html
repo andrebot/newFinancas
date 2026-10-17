@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>View Investments</h1>
-  <p class="subtitle"><span class="route">GET /reports/investments-overview</span>, <span class="route">GET /reports/payouts?holdingIds=</span>, <span class="route">GET /accounts/:accountId/holdings</span>, <span class="route">GET /index-rates</span> &mdash; FR-5.3/5.4, FR-5.9, FR-11.2, FR-11.6. Fixed v1 report types under <code>/reports</code> (sequence review Q1).</p>
+  <p class="subtitle"><span class="route">GET /reports/investments-overview</span>, <span class="route">GET /reports/payouts?holdingIds=</span>, <span class="route">GET /accounts/:accountId/holdings</span> &mdash; FR-5.3/5.4, FR-5.9, FR-11.2, FR-11.6. Fixed v1 report types under <code>/reports</code> (sequence review Q1).</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -95,7 +95,7 @@ sequenceDiagram
     RE-->>IM: holdings with positions and values
     loop for each fixed-term Holding
         IM->>IPE: project(holding)
-        IPE->>IRA: latest(index) &mdash; index-linked rates only
+        IPE->>IRA: latest(householdId, index) &mdash; index-linked rates only
         IRA-->>IPE: value, asOf
         Note over IPE: coded tax rules per type (OQ-79)<br/>US: expectedTaxes = not estimated
         IPE-->>IM: {expectedPayout, expectedTaxes}
@@ -108,7 +108,7 @@ sequenceDiagram
     <ul>
       <li><strong>Two Engines side by side, never calling each other</strong> &mdash; <code>InsightsManager</code> composes them (VBD &sect;3).</li>
       <li>Payout comes only from linked transactions (FR-5.9); projections are computed on read (FR-11.2) &mdash; nothing new is stored.</li>
-      <li>The Rates tab reads <code>GET /index-rates</code> (every index with its history) &mdash; a plain read; value history reads <code>GET /holdings/:holdingId/valuation-snapshots</code> (exists).</li>
+      <li>The Rates tab reads <code>GET /index-rates</code> (every index with its history) &mdash; a plain read of <code>AccountManager</code>'s own entities, so it is <code>AccountManager</code>'s (<code>IndexRateAccessor.list</code>, read-ownership rule, OQ-172), not this Manager's; value history reads <code>GET /holdings/:holdingId/valuation-snapshots</code> (exists).</li>
       <li>See FR-5.3, FR-5.4, FR-5.9, FR-11.2, FR-11.6, OQ-58, OQ-73, OQ-79.</li>
     </ul>
   </div>

@@ -163,9 +163,9 @@ ir = lambda n, verb, method: write(TI / f"uc-{n:02d}-{verb}-index-rate.html", f"
       E((1, "mgr-account", "util-authz"), (2, "mgr-account", "util-validation"), (3, "mgr-account", "acc-indexrate"), (4, "mgr-account", "util-logging", "a")),
       [f"<strong>Chain:</strong> <code>AccountManager</code> ① <code>AuthorizationUtility</code> → ② <code>ValidationUtility</code> → ③ <code>IndexRateAccessor.{method}</code> → ④ <code>LoggingUtility</code> (async).",
        "<code>IndexRateAccessor</code> is new in Round 9. Projections read the latest value on demand, so nothing downstream is recalculated here."])
-ir(8, "record", "insert(index, value, asOf)")
-ir(9, "edit", "update(id, value, asOf)")
-ir(10, "delete", "delete(id)")
+ir(8, "record", "insert(householdId, {index, value, asOf}, actor)")
+ir(9, "edit", "update(householdId, index, valueId, changes)")
+ir(10, "delete", "remove(householdId, index, valueId)")
 write(TI / "uc-11-notify-matured-holding.html", "Call Chain — Notify Matured Holding", f"Use case 11 of 12 in {T}, FR-5.8, FR-6.5. System-Trigger + subscriber. {ADDED}",
       E((1, "acc-holding", "util-servicebus", "a"), (2, "util-servicebus", "mgr-account", "a"), (3, "mgr-account", "util-notify"), (4, "mgr-account", "acc-holding"), (5, "mgr-account", "util-logging", "a")),
       ["<strong>Chain:</strong> <code>investmentsDaily</code> (same daily cron as the scheduled cash events, Manager review M6) → ① <code>InvestmentHoldingAccessor.findMaturedWithPosition(today)</code> → <code>ServiceBusUtility.publish(\"holding.matured\")</code> (async) → ② <code>AccountManager</code> subscribes → ③ <code>NotificationDeliveryUtility.deliver</code> (in-app) → ④ <code>InvestmentHoldingAccessor.markMaturedNotified</code> → ⑤ <code>LoggingUtility</code> (async).",
@@ -173,7 +173,7 @@ write(TI / "uc-11-notify-matured-holding.html", "Call Chain — Notify Matured H
 write(TI / "uc-12-view-investments.html", "Call Chain — View Investments", f"Use case 12 of 12 in {T}, FR-5.3/5.4, FR-5.9, FR-11.2, FR-11.6. View. {ADDED}",
       E((1, "mgr-insights", "util-authz"), (2, "mgr-insights", "eng-reporting"), (3, "eng-reporting", "acc-holding"), (3, "eng-reporting", "acc-snapshot"), (3, "eng-reporting", "acc-accounttxn"), (3, "eng-reporting", "acc-account"),
         (4, "mgr-insights", "eng-product"), (5, "eng-product", "acc-indexrate")),
-      ["<strong>Chain:</strong> <code>InsightsManager</code> ① <code>AuthorizationUtility</code> → ② <code>ReportingEngine</code> (net worth + change, payout this month + 12-month series from dividend/interest transactions, allocations, coming due, positions) → ③ its reads → ④ <code>InvestmentProductEngine.project(holding)</code> per fixed-term holding → ⑤ <code>IndexRateAccessor.latest(index)</code>.",
+      ["<strong>Chain:</strong> <code>InsightsManager</code> ① <code>AuthorizationUtility</code> → ② <code>ReportingEngine</code> (net worth + change, payout this month + 12-month series from dividend/interest transactions, allocations, coming due, positions) → ③ its reads → ④ <code>InvestmentProductEngine.project(holding)</code> per fixed-term holding → ⑤ <code>IndexRateAccessor.latest(householdId, index)</code>.",
        "<strong>Two Engines, side by side, never calling each other</strong> — the Manager composes both results. Payout is never stored (FR-5.9); projections are computed on read (FR-11.2)."])
 
 INS = CC / "insights-reports"

@@ -4234,6 +4234,36 @@ not a hardcoded assumption.
   column for a trade's quantity or cost-basis delta, which Edit/Delete
   Transaction need to undo it. Added with that task.
 
+### OQ-172: IndexRateAccessor (task A14)
+**Confirmed with the stakeholder (Oct 2026):**
+- **One value per index per day, refused — never overwritten.** Recording
+  a second value for an index's day, or editing a value onto a day that
+  already has one, returns `duplicate_day` (the unique index firing) →
+  409 `index_rate.duplicate_day`. The contract's `PATCH` had no 409; added.
+  Weighed and rejected: an upsert — an edit could silently delete another
+  row.
+- **No future-dated values.** `ValidationUtility`/`AccountManager` refuse
+  an `asOf` after today (422 `index_rate.invalid`), so `latest(householdId,
+  indexCode)` is simply the highest date, as the data model says, and
+  `InvestmentProductEngine.project` needs no "today". Weighed and
+  rejected: storing announced future values and reading `latest ≤ date`.
+- **Writes are keyed by the route:** `update(householdId, indexCode,
+  valueId, changes)` and `remove(householdId, indexCode, valueId)` touch
+  only that household's value of that index, else `not_found` (404
+  `index_rate.not_found`) — the same guard-in-the-WHERE as
+  CreditCardAccessor (OQ-170). The index of a value never changes (the
+  body has none). An empty change reads the value back.
+  `insert(householdId, {indexCode, value, asOfDate}, actor)` records who
+  entered it; clearing `created_by_user_id` on user deletion (FR-1.17)
+  ships with `M1D`. The index code's validity is the Manager's check
+  (in-code list, no DB CHECK).
+- **The Rates tab's list is `AccountManager`'s.** `GET /index-rates` is a
+  plain list of entities `AccountManager` owns, so by the read-ownership
+  rule (VBD §3) it serves it via `list(householdId)` — by index, newest
+  first — grouping into `IndexRateSeries` with each index's unit from
+  `INDEX_CODES`. The View Investments sequence had placed the route under
+  `InsightsManager`; fixed with this task.
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.

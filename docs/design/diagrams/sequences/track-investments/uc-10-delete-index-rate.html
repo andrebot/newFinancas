@@ -77,17 +77,23 @@ sequenceDiagram
     else authorized
         AZ-->>AM: allowed
         AM->>VU: check(input)
-        alt unknown index or value out of range
+        alt unknown index, value out of range or future date
             VU-->>AM: rejected
             AM-->>API: ValidationError
             API-->>User: 422 index_rate.invalid
         else valid
-            AM->>IRA: delete(valueId)
+            AM->>IRA: remove(householdId, index, valueId)
+        alt not_found
+            IRA-->>AM: not_found
+            AM-->>API: NotFound
+            API-->>User: 404 index_rate.not_found
+        else done
             IRA-->>AM: done
             AM-->>LOG: logActivity(correlationId, actor, "DeleteIndexRate")
             AM-->>LOG: recordAudit(actor, "IndexRate", valueId)
             AM-->>API: done
             API-->>User: 204 No Content
+        end
         end
     end
     </pre>

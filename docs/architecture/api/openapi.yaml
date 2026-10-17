@@ -1970,6 +1970,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
         '422':
           $ref: '#/components/responses/ValidationError'
     delete:
@@ -2257,12 +2259,12 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
     NotFound:
-      description: 'Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `invitation.invitee_not_registered`.'
+      description: 'Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `invitation.invitee_not_registered`.'
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
     Conflict:
-      description: "The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107)."
+      description: "The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107)."
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
