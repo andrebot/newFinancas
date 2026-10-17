@@ -51,13 +51,12 @@ export interface NewAccount {
 }
 
 /**
- * What an edit may change: never the type or currency (OQ-32, FR-2.2). The
- * Manager names the owner when an Account turns personal (FR-2.3, OQ-33).
+ * What an edit may change: never the type or currency (OQ-32, FR-2.2), never the
+ * owner — an Account turned personal goes back to its creator (OQ-169).
  */
 export interface AccountChanges {
   readonly name?: string;
   readonly visibility?: Visibility;
-  readonly ownerUserId?: string;
 }
 
 /** Which Accounts a list returns; every visibility the viewer can see by default. */
@@ -338,7 +337,8 @@ const createAccountAccessor = (db: Database) => ({
   },
 
   /**
-   * Edits an Account's name, visibility and/or owner (FR-2.3).
+   * Edits an Account's name and/or visibility (FR-2.3). Only its creator may
+   * change the visibility — the Manager's check (OQ-169).
    *
    * @param householdId - The household.
    * @param accountId - The Account.

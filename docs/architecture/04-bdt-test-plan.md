@@ -179,7 +179,7 @@ gap there as a missing scenario, not an acceptable gap.
 `ValidationUtility`, `AuthorizationUtility`, `ServiceBusUtility`,
 `NotificationEngine`.
 - Subscribes `household.created` → `CategoryAccessor.seedDefaults`: this is where the Manager↔Manager effect actually gets verified from the *receiving* side — assert the subscription handler calls `seedDefaults` with the published `householdId`
-- Create/Edit Account: validation fail, type/currency-change-attempted (rejected, OQ-32), card-attach-on-wrong-account-type (rejected, FR-2.7), success (`uc-01`/`uc-02` financial-accounts)
+- Create/Edit Account: validation fail, type/currency-change-attempted (rejected, OQ-32), visibility changed by someone other than the creator (rejected, OQ-169), made personal → back to its creator, card-attach-on-wrong-account-type (rejected, FR-2.7), success (`uc-01`/`uc-02` financial-accounts)
 - Archive Account: success, Open-Banking-linked branch (currently unreachable — assert it's *not* called rather than mocking a parked Accessor)
 - Category/Subcategory CRUD and archive-cascade (`categories/uc-01..03`)
 - Budget CRUD: target overlap rejected (FR-4.7), success (`budget-spending/uc-01..03`)
@@ -204,6 +204,7 @@ gap there as a missing scenario, not an acceptable gap.
   instrument-type paths (`uc-01-record-transaction.html` — this single
   diagram's `alt`/`opt` nesting maps to roughly six distinct integration
   scenarios on its own)
+- Record on an archived Account → rejected, no Accessor write (OQ-169)
 - Record, **Round 9 branches:** investment kind on a `credit_card_only` account → 422 `transaction.investment_not_allowed_on_account`; full sell/redemption → `archive(by=system)`; automatic snapshot written for market-priced only; bundled allocations: the purchase's split > 100 → 409 (and nothing else persisted — assert the rollback); buy into a funded Holding re-weights by value at the buy's unit price (900 with 60/20 + 100 for Car 100 → 54/18/10), largest-remainder rounding, a share rounding to 0 dropped, completed Goals re-weighted but never named for new money (OQ-168); debenture `incentivised` passed to the Engine
 - Edit/Delete: reverse-then-reapply for each of the three effect shapes; **zeroing transaction edited/deleted → `unarchiveIfSystemArchived`**, automatic snapshot updated/deleted with it (`uc-02`/`uc-03`)
 - Browse & Filter (`uc-04`, owned here by stakeholder decision): visibility scope applied before filters; both ledgers merged newest-first; cursor continuation returns no duplicates across the page boundary (two rows on the same date)

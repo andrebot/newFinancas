@@ -192,17 +192,17 @@ describe('list', () => {
 });
 
 describe('update', () => {
-  it('renames an Account and turns it personal for a named owner', scenario(async ({
+  it('renames an Account and turns it personal, back to its creator', scenario(async ({
     accessor, casa, bruno, create,
   }) => {
-    const accountId = await create();
+    const accountId = await create({ ownerUserId: bruno });
 
     const updated = await accessor.update(casa, accountId, {
-      name: 'Bruno\'s now', visibility: 'personal', ownerUserId: bruno,
+      name: 'Bruno\'s own', visibility: 'personal',
     });
 
     expect(updated).toMatchObject({
-      name: 'Bruno\'s now', visibility: 'personal', ownerUserId: bruno, type: 'checking',
+      name: 'Bruno\'s own', visibility: 'personal', ownerUserId: bruno, type: 'checking',
     });
   }));
 

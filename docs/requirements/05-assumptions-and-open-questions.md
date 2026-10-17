@@ -4063,8 +4063,15 @@ not a hardcoded assumption.
   (edit, delete) is the same call with the amount negated. The Account row
   is locked `FOR UPDATE`, so two movements on one Account run one after
   the other. Keyed by Account — the Manager has already loaded it within
-  the household (OQ-167). Whether an archived Account still takes
-  movements is the Managers' call.
+  the household (OQ-167).
+- **An archived Account takes no transactions** — the TransactionManager
+  refuses them before calling (Manager decides, Accessor applies).
+- **Only an Account's creator may change its visibility** (share it or
+  remove the share), and an Account turned personal goes back to its
+  creator — `owner_user_id` already holds the creator (identity if
+  personal, provenance if shared), so an edit never changes the owner.
+  AccountManager checks the creator. A shared Account whose creator left
+  (owner nulled, FR-1.17) can no longer be made personal.
 - **The month chain has no gaps.** Months with no movement between the
   chain's ends and a new movement's month are filled, opening and ending
   at the carried balance, so `account_month_balances` is a complete
@@ -4073,9 +4080,8 @@ not a hardcoded assumption.
   Account's latest month at or before it (the current balance is the one
   as of today's month; ReportingEngine reads month ends).
 - **Account writes:** `insert` (the Account plus its first month row at
-  the starting balance), `update` (name, visibility, and the owner the
-  Manager names when an Account turns personal — never type or currency,
-  OQ-32), `archive` (one way, keeps the first time, OQ-34). Reads:
+  the starting balance), `update` (name and visibility — never type,
+  currency or owner, OQ-32), `archive` (one way, keeps the first time, OQ-34). Reads:
   `findById`, `list(householdId, viewerUserId, { visibility? })` — shared
   Accounts plus the viewer's personal ones, open first then archived, by
   name; unpaginated (a household has a handful), so `GET /accounts`'s

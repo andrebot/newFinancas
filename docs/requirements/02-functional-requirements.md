@@ -128,10 +128,13 @@ and carry the document's current default assumption.
   system does not convert between currencies.
 - **FR-2.3** An account can be marked **personal** (visible only to its
   owner) or **shared** (visible to the household). Unlike type/currency,
-  this can be **changed later** via editing the account (see OQ-33).
+  this can be **changed later** via editing the account (see OQ-33) —
+  **only by the account's creator**; an account made personal again goes
+  back to its creator (OQ-169).
 - **FR-2.4** A user can archive/close an account without deleting its
   transaction history. **One-way — an archived account cannot be
-  reactivated** (see OQ-34), consistent with the Category/Subcategory
+  reactivated** (see OQ-34), and it **takes no new transactions**
+  (OQ-169), consistent with the Category/Subcategory
   archive pattern (FR-10.3). If the account has an active Open Banking
   connection (FR-2.5), archiving it **automatically disconnects** the
   sync (FR-2.6) — an archived account never keeps pulling in new
