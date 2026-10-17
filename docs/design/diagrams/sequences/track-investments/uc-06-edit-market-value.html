@@ -85,9 +85,13 @@ sequenceDiagram
             API-->>User: 409 holding.not_market_priced
         else market-priced
             IHA-->>AM: ok
-            AM->>VSA: updateManual(snapshotId, value, asOf)
+            AM->>VSA: updateManual(holdingId, snapshotId, {valuation?, asOfDate?})
+        else not this Holding's snapshot
+            VSA-->>AM: not_found
+            AM-->>API: NotFound
+            API-->>User: 404 snapshot.not_found
         else snapshot is automatic (source = transaction)
-            VSA-->>AM: rejected
+            VSA-->>AM: automatic
             AM-->>API: Conflict
             API-->>User: 409 snapshot.automatic_not_editable
         end

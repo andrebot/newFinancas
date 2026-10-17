@@ -31,8 +31,12 @@ P_IM = """    actor User
 def mv(n, verb, method, route, body, status, notes):
     """Market-value (manual Valuation Snapshot) Create/Edit/Delete."""
     rejects = "" if verb == "Record" else """
+        else not this Holding's snapshot
+            VSA-->>AM: not_found
+            AM-->>API: NotFound
+            API-->>User: 404 snapshot.not_found
         else snapshot is automatic (source = transaction)
-            VSA-->>AM: rejected
+            VSA-->>AM: automatic
             AM-->>API: Conflict
             API-->>User: 409 snapshot.automatic_not_editable"""
     UCS.append(dict(
@@ -238,9 +242,9 @@ sequenceDiagram
 """,
 ))
 
-mv(5, "Record", 'insertManual(holdingId, value, asOf)', "POST /holdings/:holdingId/valuation-snapshots", "{value, asOf}", "201 Created {snapshotId}", "Fixed-term Holdings have no snapshots (value = cost basis until redemption, OQ-51).")
-mv(6, "Edit", 'updateManual(snapshotId, value, asOf)', "PATCH /holdings/:holdingId/valuation-snapshots/:snapshotId", "{value?, asOf?}", "200 OK", "Corrects a typo in a past value (OQ-56).")
-mv(7, "Delete", 'deleteManual(snapshotId)', "DELETE /holdings/:holdingId/valuation-snapshots/:snapshotId", "", "204 No Content", "If it was the latest, the previous snapshot becomes the current value.")
+mv(5, "Record", 'insertManual(holdingId, {valuation, asOfDate})', "POST /holdings/:holdingId/valuation-snapshots", "{value, asOf}", "201 Created {snapshotId}", "Fixed-term Holdings have no snapshots (value = cost basis until redemption, OQ-51).")
+mv(6, "Edit", 'updateManual(holdingId, snapshotId, {valuation?, asOfDate?})', "PATCH /holdings/:holdingId/valuation-snapshots/:snapshotId", "{value?, asOf?}", "200 OK", "Corrects a typo in a past value (OQ-56).")
+mv(7, "Delete", 'deleteManual(holdingId, snapshotId)', "DELETE /holdings/:holdingId/valuation-snapshots/:snapshotId", "", "204 No Content", "If it was the latest, the previous snapshot becomes the current value.")
 ir(8, "Record", "POST /index-rates/:index/values", "{value, asOf}", "insert(householdId, index, value, asOf)", "201 Created {valueId}")
 ir(9, "Edit", "PATCH /index-rates/:index/values/:valueId", "{value?, asOf?}", "update(valueId, value, asOf)", "200 OK")
 ir(10, "Delete", "DELETE /index-rates/:index/values/:valueId", "", "delete(valueId)", "204 No Content")
@@ -312,7 +316,7 @@ sequenceDiagram
     IM->>AZ: visibleScope(actor)
     IM->>RE: investmentsOverview(scope)
     RE->>IHA: holdings (cost basis for fixed-term)
-    RE->>VSA: latest snapshots (market-priced)
+    RE->>VSA: latestAsOf(market-priced holdingIds, today)
     RE->>ATA: this month's dividend / interest transactions linked to Holdings
     RE-->>IM: {netWorthByCurrency + change vs previous month, payoutThisMonth, allocations, comingDue}
     IM-->>API: report

@@ -29,3 +29,5 @@ export type Role = (typeof ROLES)[number];
 export type AssignableRole = Exclude<Role, 'Owner'>;
 /** Who sees a record: its owner only, or the whole household (FR-2.3/FR-4.2). */
 export type Visibility = (typeof VISIBILITIES)[number];
+/** How a Valuation Snapshot was written: by hand, or by a trade (OQ-56). */
+export type SnapshotSource = (typeof SNAPSHOT_SOURCES)[number];

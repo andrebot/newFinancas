@@ -575,10 +575,12 @@ Backs `AccountManager`'s `InvestmentHoldingAccessor`,
   schedule_entries` computes one schedule *per purchase*, so two
   differently-dated purchases sharing one Holding would have left no way
   to tell which schedule entries belonged to which purchase.
-- **"Snapshot, don't overwrite" (FR-5.2)** → **application-level**:
-  `ValuationSnapshotAccessor`'s write path only ever `INSERT`s a new row,
-  never `UPDATE`s an existing one — a behavioral guarantee of the
-  Accessor's code, not something the schema itself can force.
+- **A Holding's value on a date is its latest snapshot at or before it
+  (FR-5.2/5.4)** → **application-level**, in `ValuationSnapshotAccessor`
+  (`latestAsOf`): snapshots on the same date are ordered by `created_at`,
+  the later one winning (OQ-167). *Superseded:* the old "snapshot, don't
+  overwrite" write rule went with OQ-56 — manual snapshots are edited in
+  place.
 - **Reporting reads `cost_basis` directly for fixed-term Holdings,
   `valuation_snapshots` for everyone else (OQ-51)** → **application-
   level**, a branch in `ReportingEngine`'s FR-5.3/5.4/8.5/8.7 read paths

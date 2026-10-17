@@ -329,7 +329,7 @@ sequenceDiagram
     RE->>AA: balances at month end (derived from dated ledger, FR-6.6)
     RE->>BA: budget periods for the month (over-budget first)
     RE->>GA: goals + allocations
-    RE->>VSA: latest snapshot at or before month end, per allocated Holding
+    RE->>VSA: latestAsOf(allocated holdingIds, monthEnd)
     RE-->>IM: {summaryByCurrency, yearStrip, balances, budgets, goals}
     IM-->>API: report
     API-->>User: 200 OK
