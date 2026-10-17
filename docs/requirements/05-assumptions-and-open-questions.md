@@ -1655,6 +1655,8 @@ OQ-112:** `NotificationDeliveryUtility` was misclassified.
 - **Names must not be blank:** register and edit trim first and last name
   and refuse an empty result (422 `validation.failed`, `string.min`); the
   contract says `minLength: 1`. The BDT plan already required names.
+  *Since U3 (OQ-165), IdentityManager trims and checks them through
+  `ValidationUtility`, not the route; the answer is unchanged.*
 - **Edit User** changes only the fields sent; an edit that changes nothing
   is a read. Audited as `EditUser`. Request-shape checks (theme, language
   sets) are the route's contract validation (OQ-93), not a
@@ -3863,6 +3865,48 @@ not a hardcoded assumption.
 - **Left open, and planned:** a password-reset E2E journey needs a test
   email sink (the provider is `console` only). It is part of `V3` (Full
   E2E, task 147); which sink is a decision for then.
+
+### OQ-165: Backend ValidationUtility (task U3)
+**Confirmed with the stakeholder (Oct 2026):**
+- **The contract first, the Utility for the rest.** The route already checks
+  every request against the contract's generated schemas (OQ-93). Anything a
+  JSON schema can say is said there; `ValidationUtility`
+  (`apps/api/src/utilities/validation.ts`) holds only what it can't:
+  - `nonBlank`: text that is blank once trimmed;
+  - `minLength`: a length the Manager answers with its own code
+    (`password.too_short`);
+  - `moneyWithin`, `dateWithin`: bounds that come from another field (a
+    range's start) or from the request (today, by the Manager's clock).
+
+  Whether a field is required, its type, enum and format stay the
+  contract's, so every rule lets a field that wasn't sent through.
+- **The Utility reports, the Manager answers.** `checkFields(values, rules)`
+  returns `FieldDetail[]` — `{field, code, params}` in the existing field
+  codes, no new catalog keys — and the Utility touches no HTTP. The
+  Managers' shared `requireValidFields` (`apps/api/src/managers/validation.ts`)
+  throws 422 `validation.failed` with them, through the same
+  `validationFailed` the route's contract check now uses, so both 422s have
+  the same shape.
+- **A blank name is answered as `string.min` with `{min: 1}`**, the code the
+  contract's own `minLength: 1` produces for `""`, so `""` and `"  "` read
+  the same however they arrive.
+- **v1 currencies are BRL and USD, in the contract.** A new `Currency`
+  schema (`enum: [BRL, USD]`) is referenced by every `currency` and
+  `targetCurrency` field, in requests and responses, so the route refuses
+  anything else (`field.invalid_option`) and the web app gets the type.
+  Adding a currency means adding it there. The database keeps its
+  `^[A-Z]{3}$` checks, a fact about the data. The version stays 1.1.0: no
+  client sends a currency yet.
+- **Slice 1 moved onto it.** The routes' hand-written
+  `z.string().trim().min(1)` name schemas broke OQ-93's "nobody
+  hand-writes a request schema". They are gone, and IdentityManager trims
+  and checks the names itself: Register (uc-11), Edit User (uc-13), Create
+  Household (uc-01). The password minimum goes through `minLength`. The
+  sequences and call chains are redrawn with the `ValidationUtility` step
+  (supersedes OQ-116's "names trimmed at the route").
+- **Known behaviour:** the contract check runs first, so a request that
+  fails it (say, a malformed email) does not also list a blank name; that
+  one is reported once the request is otherwise well formed.
 
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every

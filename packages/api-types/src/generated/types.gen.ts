@@ -47,6 +47,12 @@ export type Pagination = {
 };
 
 /**
+ * ISO 4217 code of a currency the app supports — BRL and USD in v1. Money is never converted between them (FR-2.2); adding a currency means adding it here and to the formatting it needs.
+ *
+ */
+export type Currency = 'BRL' | 'USD';
+
+/**
  * An integer count of the currency's minor unit (cents for USD/BRL, the only two currencies in v1 scope) — e.g. 1234.56 USD is transmitted as 123456, never as a decimal or a string. Matches the underlying bigint column exactly, so no stringify/parse conversion happens anywhere in the stack (DB, backend, API, or frontend). See 03-api-design.md.
  *
  */
@@ -203,9 +209,9 @@ export type Account = {
      */
     type?: 'checking' | 'savings' | 'credit_card_only' | 'investment';
     /**
-     * ISO 4217, immutable once set, FR-2.2
+     * Immutable once set, FR-2.2
      */
-    currency?: string;
+    currency?: Currency;
     visibility?: 'personal' | 'shared';
     /**
      * One-way, FR-2.4/OQ-34
@@ -217,7 +223,7 @@ export type Account = {
 export type AccountCreateRequest = {
     name: string;
     type: 'checking' | 'savings' | 'credit_card_only' | 'investment';
-    currency: string;
+    currency: Currency;
     visibility: 'personal' | 'shared';
     openingBalance?: Money;
     cards?: Array<CreditCardInput>;
@@ -338,7 +344,7 @@ export type Budget = {
     ownerUserId?: string | null;
     name?: string;
     targetAmount?: Money;
-    currency?: string;
+    currency?: Currency;
     visibility?: 'personal' | 'shared';
     targets?: Array<BudgetTargetInput>;
     createdAt?: string;
@@ -347,7 +353,7 @@ export type Budget = {
 export type BudgetCreateRequest = {
     name: string;
     targetAmount: Money;
-    currency: string;
+    currency: Currency;
     visibility: 'personal' | 'shared';
     targets: Array<BudgetTargetInput>;
 };
@@ -460,7 +466,7 @@ export type TransactionCreateRequest = {
     kind: string;
     date: string;
     amount: Money;
-    currency: string;
+    currency: Currency;
     categoryId?: string;
     subcategoryId?: string;
     description?: string;
@@ -521,7 +527,7 @@ export type AccountTransaction = {
     effect?: 'movement' | 'transfer' | 'bill_payment' | 'investment_trade';
     date?: string;
     amount?: Money;
-    currency?: string;
+    currency?: Currency;
     categoryId?: string | null;
     subcategoryId?: string | null;
     description?: string;
@@ -547,7 +553,7 @@ export type CardTransaction = {
     kind?: 'charge' | 'refund';
     date?: string;
     amount?: Money;
-    currency?: string;
+    currency?: Currency;
     categoryId?: string | null;
     subcategoryId?: string | null;
     description?: string;
@@ -637,7 +643,7 @@ export type Goal = {
     ownerUserId?: string | null;
     name?: string;
     targetAmount?: Money;
-    targetCurrency?: string;
+    targetCurrency?: Currency;
     dueDate?: string;
     visibility?: 'personal' | 'shared';
     createdAt?: string;
@@ -661,7 +667,7 @@ export type GoalAllocation = {
 export type GoalCreateRequest = {
     name: string;
     targetAmount: Money;
-    targetCurrency: string;
+    targetCurrency: Currency;
     dueDate: string;
     visibility: 'personal' | 'shared';
 };
@@ -671,10 +677,10 @@ export type GoalCreateRequest = {
  */
 export type GoalProgress = {
     targetAmount?: Money;
-    targetCurrency?: string;
+    targetCurrency?: Currency;
     contributions?: Array<{
         holdingId?: string;
-        currency?: string;
+        currency?: Currency;
         amount?: Money;
     }>;
     goalId?: string;
@@ -683,14 +689,14 @@ export type GoalProgress = {
 export type GoalUpdateRequest = {
     name?: string;
     targetAmount?: Money;
-    targetCurrency?: string;
+    targetCurrency?: Currency;
     dueDate?: string;
 };
 
 export type GoalWithProgress = Goal & {
     contributions?: Array<{
         holdingId?: string;
-        currency?: string;
+        currency?: Currency;
         amount?: Money;
     }>;
     fundedBy?: Array<{
@@ -716,13 +722,13 @@ export type TransactionPage = CursorPage & {
     items?: Array<LedgerItem>;
     dayTotals?: Array<{
         date?: string;
-        currency?: string;
+        currency?: Currency;
         net?: Money;
     }>;
 };
 
 export type MoneyByCurrency = {
-    currency?: string;
+    currency?: Currency;
     amount?: Money;
 };
 
@@ -735,21 +741,21 @@ export type MonthOverviewReport = {
      * Per currency, never summed
      */
     summary?: Array<{
-        currency?: string;
+        currency?: Currency;
         in?: Money;
         out?: Money;
         net?: Money;
     }>;
     yearStrip?: Array<{
         month?: number;
-        currency?: string;
+        currency?: Currency;
         in?: Money;
         out?: Money;
     }>;
     balances?: Array<{
         accountId?: string;
         creditCardId?: string | null;
-        currency?: string;
+        currency?: Currency;
         amount?: Money;
     }>;
     /**
@@ -765,7 +771,7 @@ export type MonthOverviewReport = {
 export type InvestmentsOverviewReport = {
     reportType?: 'investments-overview';
     netWorth?: Array<{
-        currency?: string;
+        currency?: Currency;
         amount?: Money;
         changeVsPreviousMonth?: Money;
         series?: Array<{
@@ -778,12 +784,12 @@ export type InvestmentsOverviewReport = {
         transactionId?: string;
         kind?: string;
         date?: string;
-        currency?: string;
+        currency?: Currency;
         amount?: Money;
     }>;
     allocations?: Array<{
         group?: string;
-        currency?: string;
+        currency?: Currency;
         holdingId?: string | null;
         amount?: Money;
     }>;
@@ -791,7 +797,7 @@ export type InvestmentsOverviewReport = {
         holdingId?: string;
         name?: string;
         dueDate?: string;
-        currency?: string;
+        currency?: Currency;
         amount?: Money;
     }>;
 };
@@ -803,7 +809,7 @@ export type PayoutsReport = {
     reportType?: 'payouts';
     series?: Array<{
         holdingId?: string;
-        currency?: string;
+        currency?: Currency;
         months?: Array<{
             month?: string;
             amount?: Money;
@@ -2597,7 +2603,7 @@ export type GetDashboardResponses = {
      */
     200: {
         netWorth?: Array<{
-            currency?: string;
+            currency?: Currency;
             amount?: Money;
             changeVsPreviousMonth?: Money;
             series?: Array<{
@@ -2609,14 +2615,14 @@ export type GetDashboardResponses = {
             holdingId?: string;
             name?: string;
             dueDate?: string;
-            currency?: string;
+            currency?: Currency;
             amount?: Money;
         }>;
         payouts?: PayoutsReport;
         balances?: Array<{
             accountId?: string;
             creditCardId?: string | null;
-            currency?: string;
+            currency?: Currency;
             amount?: Money;
         }>;
         /**

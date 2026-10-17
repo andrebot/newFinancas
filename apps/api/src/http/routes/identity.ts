@@ -21,17 +21,10 @@ import { publicContextOf, signedInContextOf } from './requestContext';
 // signed-in USER (OQ-111).
 
 // The minimum length is IdentityManager's rule, answered as `password.too_short`
-// (BDT plan), not as a generic validation failure.
-// Names are trimmed and must not be blank (OQ-116); the contract's minLength
-// alone would accept "  ".
-const name = z.string().trim().min(1);
-const registerBody = zRegisterUserBody.extend({
-  password: z.string(), firstName: name, lastName: name,
-});
-const validProfileEdit = validate(
-  'json',
-  zEditCurrentUserBody.extend({ firstName: name.optional(), lastName: name.optional() }),
-);
+// (BDT plan), not as a generic validation failure. A blank name is too: the
+// Manager trims it and checks it with ValidationUtility (OQ-116, OQ-165).
+const registerBody = zRegisterUserBody.extend({ password: z.string() });
+const validProfileEdit = validate('json', zEditCurrentUserBody);
 const validPasswordChange = validate(
   'json',
   zChangePasswordBody.extend({ newPassword: z.string() }),

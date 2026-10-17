@@ -62,6 +62,7 @@ sequenceDiagram
     actor User
     participant API as Hono route
     participant IM as IdentityManager
+    participant VU as ValidationUtility
     participant UA as UserAccessor
     participant HA as HouseholdAccessor
     participant SB as ServiceBusUtility
@@ -70,8 +71,15 @@ sequenceDiagram
     participant LOG as LoggingUtility
 
     User->>API: POST /households {name}
-    Note over API: name trimmed and non-blank (contract validation, OQ-116)
+    Note over API: validated against the contract (OQ-93): a name of at least one character
     API->>IM: createHousehold(actor, name)
+    IM->>VU: checkFields({name}, {name: nonBlank})
+    alt blank once trimmed
+        VU-->>IM: [{field: name, code: string.min, params: {min: 1}}]
+        IM-->>API: ValidationError
+        API-->>User: 422 validation.failed {details}
+    else ok
+    VU-->>IM: []
     IM->>UA: findById(actor.userId)
     alt the account is gone
         UA-->>IM: none
@@ -79,7 +87,7 @@ sequenceDiagram
         API-->>User: 401 auth.unauthenticated
     else found
     UA-->>IM: creator (language)
-    IM->>HA: insert(name, ownerUserId = actor.userId)
+    IM->>HA: insert(name trimmed, ownerUserId = actor.userId)
     HA-->>IM: household (creator is Owner, one transaction)
     IM->>SB: publish("household.created", {householdId, createdByUserId, language})
     Note over SB: fire-and-forget &mdash; AccountManager seeds the default<br/>categories in the creator&#39;s language (OQ-117)
@@ -90,12 +98,14 @@ sequenceDiagram
     IM-->>API: household + role Owner
     API-->>User: 201 Created MyHousehold
     end
+    end
     </pre>
   </div>
   <div class="notes">
     <ul>
       <li><strong>No <code>IdentityManager</code> &rarr; <code>AccountManager</code> edge</strong> — the Category-seeding call is entirely on <code>AccountManager</code>&#39;s side of the Service Bus subscription; <code>IdentityManager</code> never learns <code>AccountManager</code> or <code>CategoryAccessor</code> exist (VBD doc &sect;3.1b).</li>
       <li><strong>The event carries the creator and their language</strong> (<code>{householdId, createdByUserId, language}</code>, OQ-117): default categories are seeded in the creator&#39;s language, and <code>AccountManager</code> must not reach into Identity&#39;s data to find it.</li>
+      <li><strong>A blank name is the Manager&#39;s check (OQ-165):</strong> the contract&#39;s <code>minLength: 1</code> lets <code>"  "</code> through, so <code>IdentityManager</code> asks <code>ValidationUtility</code> before any work and trims the name it stores. The 422 has the same shape as the route&#39;s.</li>
       <li>The Service Bus hop is fire-and-forget from <code>IdentityManager</code>&#39;s perspective — the 201 response doesn&#39;t wait on Category seeding completing.</li>
       <li>See <code>docs/architecture/backend/01-vbd-decomposition.md</code> &sect;3.1b and FR-1.4/FR-10.1.</li>
     </ul>

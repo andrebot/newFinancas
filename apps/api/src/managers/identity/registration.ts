@@ -1,5 +1,7 @@
 import { authentication } from '../../config/constants';
 import type { Language } from '../../db/schema/values';
+import { minLength, nonBlank } from '../../utilities/validation';
+import requireValidFields from '../validation';
 import {
   enrollmentStart, loggerFor,
   type EnrollmentStart, type IdentityDeps, type RequestContext,
@@ -9,6 +11,8 @@ import { emailTaken, passwordTooShort } from './errors';
 // Create User (uc-11, FR-1.1/FR-1.15): registration enrols TOTP and issues the
 // recovery codes in the same step — an account can't sign in without MFA. The
 // enrollment stays unconfirmed until its first code (OQ-149, uc-11b).
+
+const checkPasswordLength = minLength(authentication.password.minLength);
 
 /** What someone registers with. */
 export interface Registration {
@@ -41,10 +45,12 @@ const createRegistration = (deps: IdentityDeps) => ({
    *   trimmed here (OQ-108).
    * @returns The new user's id, TOTP secret, QR URI, recovery codes and the
    *   token that confirms the enrollment.
-   * @throws {ApiError} 422 `password.too_short`; 409 `user.email_taken`.
+   * @throws {ApiError} 422 `validation.failed` for a blank name; 422
+   *   `password.too_short`; 409 `user.email_taken`.
    */
   register: async (context: RequestContext, input: Registration): Promise<Registered> => {
-    if (input.password.length < authentication.password.minLength) throw passwordTooShort();
+    requireValidFields(input, { firstName: nonBlank, lastName: nonBlank });
+    if (checkPasswordLength(input.password) !== undefined) throw passwordTooShort();
     const email = input.email.trim();
     const mfa = deps.authentication.enrollMfa(email);
     const result = await deps.users.insert({

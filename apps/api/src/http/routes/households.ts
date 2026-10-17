@@ -17,11 +17,8 @@ import { signedInContextOf } from './requestContext';
 
 const validHousehold = validate('param', z.object({ householdId: z.uuid() }));
 const validMember = validate('param', z.object({ householdId: z.uuid(), userId: z.uuid() }));
-// The name is trimmed and must not be blank (OQ-116).
-const validNewHousehold = validate(
-  'json',
-  zCreateHouseholdBody.extend({ name: z.string().trim().min(1) }),
-);
+// IdentityManager trims the name and refuses a blank one (OQ-116, OQ-165).
+const validNewHousehold = validate('json', zCreateHouseholdBody);
 const validRole = validate('json', zChangeMemberRoleBody);
 const validTransfer = validate('json', zTransferOwnershipBody);
 const validInvitation = validate(

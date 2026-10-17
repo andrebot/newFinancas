@@ -2,6 +2,8 @@ import type { UserHousehold } from '../../accessors/householdAccessor';
 import type { ReceivedInvitation } from '../../accessors/invitationAccessor';
 import type { User, UserChanges } from '../../accessors/userAccessor';
 import type { Language, Theme } from '../../db/schema/values';
+import { nonBlank } from '../../utilities/validation';
+import requireValidFields from '../validation';
 import { loggerFor, type IdentityDeps, type SignedInContext } from './context';
 import { unauthenticated } from './errors';
 
@@ -69,9 +71,11 @@ const createProfile = (deps: IdentityDeps) => {
      * @param context - The signed-in request.
      * @param edit - The fields to change.
      * @returns The updated user.
-     * @throws {ApiError} 401 `auth.unauthenticated` when the account is gone.
+     * @throws {ApiError} 422 `validation.failed` for a blank name; 401
+     *   `auth.unauthenticated` when the account is gone.
      */
     editProfile: async (context: SignedInContext, edit: ProfileEdit): Promise<User> => {
+      requireValidFields(edit, { firstName: nonBlank, lastName: nonBlank });
       const changes = changesOf(edit);
       if (Object.keys(changes).length === 0) return getProfile(context);
       const user = await users.update(context.actor.userId, changes);

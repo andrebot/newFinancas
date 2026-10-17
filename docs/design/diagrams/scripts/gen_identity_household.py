@@ -30,6 +30,7 @@ UCS.append(dict(
     mermaid="""
 sequenceDiagram
 """ + P_CORE + """
+    participant VU as ValidationUtility
     participant UA as UserAccessor
     participant HA as HouseholdAccessor
     participant SB as ServiceBusUtility
@@ -38,8 +39,15 @@ sequenceDiagram
     participant LOG as LoggingUtility
 
     User->>API: POST /households {name}
-    Note over API: name trimmed and non-blank (contract validation, OQ-116)
+    Note over API: validated against the contract (OQ-93): a name of at least one character
     API->>IM: createHousehold(actor, name)
+    IM->>VU: checkFields({name}, {name: nonBlank})
+    alt blank once trimmed
+        VU-->>IM: [{field: name, code: string.min, params: {min: 1}}]
+        IM-->>API: ValidationError
+        API-->>User: 422 validation.failed {details}
+    else ok
+    VU-->>IM: []
     IM->>UA: findById(actor.userId)
     alt the account is gone
         UA-->>IM: none
@@ -47,7 +55,7 @@ sequenceDiagram
         API-->>User: 401 auth.unauthenticated
     else found
     UA-->>IM: creator (language)
-    IM->>HA: insert(name, ownerUserId = actor.userId)
+    IM->>HA: insert(name trimmed, ownerUserId = actor.userId)
     HA-->>IM: household (creator is Owner, one transaction)
     IM->>SB: publish("household.created", {householdId, createdByUserId, language})
     Note over SB: fire-and-forget &mdash; AccountManager seeds the default<br/>categories in the creator&#39;s language (OQ-117)
@@ -58,11 +66,13 @@ sequenceDiagram
     IM-->>API: household + role Owner
     API-->>User: 201 Created MyHousehold
     end
+    end
 """,
     notes="""
     <ul>
       <li><strong>No <code>IdentityManager</code> &rarr; <code>AccountManager</code> edge</strong> — the Category-seeding call is entirely on <code>AccountManager</code>&#39;s side of the Service Bus subscription; <code>IdentityManager</code> never learns <code>AccountManager</code> or <code>CategoryAccessor</code> exist (VBD doc &sect;3.1b).</li>
       <li><strong>The event carries the creator and their language</strong> (<code>{householdId, createdByUserId, language}</code>, OQ-117): default categories are seeded in the creator&#39;s language, and <code>AccountManager</code> must not reach into Identity&#39;s data to find it.</li>
+      <li><strong>A blank name is the Manager&#39;s check (OQ-165):</strong> the contract&#39;s <code>minLength: 1</code> lets <code>"  "</code> through, so <code>IdentityManager</code> asks <code>ValidationUtility</code> before any work and trims the name it stores. The 422 has the same shape as the route&#39;s.</li>
       <li>The Service Bus hop is fire-and-forget from <code>IdentityManager</code>&#39;s perspective — the 201 response doesn&#39;t wait on Category seeding completing.</li>
       <li>See <code>docs/architecture/backend/01-vbd-decomposition.md</code> &sect;3.1b and FR-1.4/FR-10.1.</li>
     </ul>
@@ -579,18 +589,25 @@ UCS.append(dict(
     mermaid="""
 sequenceDiagram
 """ + P_CORE + """
+    participant VU as ValidationUtility
     participant UA as UserAccessor
     participant AN as AuthenticationUtility
     participant LOG as LoggingUtility
 
     User->>API: POST /auth/register {email, password, firstName, lastName, language?}
-    Note over API: validated against the contract (OQ-93): a well-formed email,<br/>names trimmed and non-blank (OQ-116)
+    Note over API: validated against the contract (OQ-93): a well-formed email,<br/>names of at least one character
     alt request invalid
         API-->>User: 422 validation.failed {details}
     else valid
         API->>IM: register(input)
-        alt password shorter than 12 characters
-            Note over IM: the Manager&#39;s rule, before any work (BDT plan)
+        IM->>VU: checkFields(input, {firstName: nonBlank, lastName: nonBlank})
+        IM->>VU: minLength(12)(password)
+        alt a name blank once trimmed
+            VU-->>IM: [{field, code: string.min, params: {min: 1}}]
+            IM-->>API: ValidationError
+            API-->>User: 422 validation.failed {details}
+        else password shorter than 12 characters
+            Note over IM: the Manager&#39;s rule and answer, before any work (BDT plan)
             IM-->>API: ValidationError
             API-->>User: 422 password.too_short {min: 12}
         else long enough
@@ -625,7 +642,7 @@ sequenceDiagram
       <li><code>otpauthUri</code> carries the issuer and TOTP settings (<code>config/constants.ts</code>), so the web app draws the QR without repeating them.</li>
       <li><strong>The account starts in the language it registered in (OQ-161).</strong> The web app sends the locale it shows; without it the account is pt-BR. Otherwise the app would switch language once the user signs in and their saved preference applies.</li>
       <li>The recovery codes are returned exactly once, at creation — the backend stores only their hashes (<code>mfa_recovery_codes.code_hash</code>), never the plaintext codes themselves after this response.</li>
-      <li><strong>Redrawn to the implementation (M1):</strong> the route is <code>POST /auth/register</code> (was shown as <code>POST /users</code>); request shape is checked at the route against the contract, not by a <code>ValidationUtility</code>; a duplicate email is the insert&#39;s typed result, not a prior lookup that two simultaneous registrations could both pass.</li>
+      <li><strong>Redrawn to the implementation (M1):</strong> the route is <code>POST /auth/register</code> (was shown as <code>POST /users</code>); request shape is checked at the route against the contract; <code>ValidationUtility</code> covers only what the contract can&#39;t say &mdash; a name that is blank once trimmed, and the password length the Manager answers itself (OQ-165); a duplicate email is the insert&#39;s typed result, not a prior lookup that two simultaneous registrations could both pass.</li>
       <li>See FR-1.1, FR-1.15, OQ-29 (first_name/last_name resolved during data modeling), OQ-114, OQ-116, OQ-149.</li>
     </ul>
 """,
@@ -762,16 +779,23 @@ UCS.append(dict(
     mermaid="""
 sequenceDiagram
 """ + P_CORE + """
+    participant VU as ValidationUtility
     participant UA as UserAccessor
     participant LOG as LoggingUtility
 
     User->>API: PATCH /users/me {firstName?, lastName?, preferences?: {theme?, language?}}
-    Note over API: validated against the contract (OQ-93): names trimmed and<br/>non-blank, theme and language from their sets, nothing filled in (OQ-116)
+    Note over API: validated against the contract (OQ-93): names of at least one<br/>character, theme and language from their sets, nothing filled in (OQ-116)
     alt request invalid
         API-->>User: 422 validation.failed {details}
     else valid
         API->>IM: editProfile(actor, input)
-        alt nothing to change
+        IM->>VU: checkFields(input, {firstName: nonBlank, lastName: nonBlank})
+        Note over VU: a name not sent passes
+        alt a name blank once trimmed
+            VU-->>IM: [{field, code: string.min, params: {min: 1}}]
+            IM-->>API: ValidationError
+            API-->>User: 422 validation.failed {details}
+        else nothing to change
             IM->>UA: findById(actor.userId)
             UA-->>IM: user
         else some fields sent
@@ -787,6 +811,7 @@ sequenceDiagram
     notes="""
     <ul>
       <li>Deliberately the plainest flow in this whole area &mdash; no cross-table effects, no cascades, just a validated field update.</li>
+      <li><strong>Names are trimmed by the Manager, and a blank one refused through <code>ValidationUtility</code> (OQ-165)</strong> &mdash; the contract&#39;s <code>minLength: 1</code> alone would accept <code>"  "</code>.</li>
       <li>See FR-1.1/OQ-29.</li>
     </ul>
 """,

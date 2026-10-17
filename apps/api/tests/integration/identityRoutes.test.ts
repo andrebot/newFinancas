@@ -239,24 +239,28 @@ describe('identity routes — profile and lists (OQ-116)', () => {
     expect(await response.json()).toEqual(USER_JSON);
   });
 
-  it('PATCH /users/me trims names, refuses blank ones, never fills in a preference', async () => {
+  it('PATCH /users/me passes names as sent, never fills in a preference', async () => {
     const { app, identity } = setup();
     identity.editProfile.mockResolvedValueOnce(USER);
 
     const edited = await send(app, 'PATCH', '/users/me', {
       ...SIGNED_IN, body: { firstName: ' Ana ', preferences: { language: 'en-US' } },
     });
-    const blank = await send(app, 'PATCH', '/users/me', {
-      ...SIGNED_IN, body: { lastName: '   ' },
-    });
 
     expect(await edited.json()).toEqual(USER_JSON);
     expect(identity.editProfile).toHaveBeenCalledWith(
       expect.objectContaining({ actor: ACTOR }),
-      { firstName: 'Ana', preferences: { language: 'en-US' } },
+      { firstName: ' Ana ', preferences: { language: 'en-US' } },
     );
-    expect(blank.status).toBe(422);
-    expect(identity.editProfile).toHaveBeenCalledTimes(1);
+  });
+
+  it('PATCH /users/me refuses an empty name against the contract', async () => {
+    const { app, identity } = setup();
+
+    const empty = await send(app, 'PATCH', '/users/me', { ...SIGNED_IN, body: { lastName: '' } });
+
+    expect(empty.status).toBe(422);
+    expect(identity.editProfile).not.toHaveBeenCalled();
   });
 
   it('POST /auth/register passes the registering locale on (OQ-161)', async () => {
@@ -279,11 +283,11 @@ describe('identity routes — profile and lists (OQ-116)', () => {
     expect(identity.register).not.toHaveBeenCalled();
   });
 
-  it('POST /auth/register refuses a blank name', async () => {
+  it('POST /auth/register refuses an empty name against the contract', async () => {
     const { app, identity } = setup();
 
     const response = await send(app, 'POST', '/auth/register', {
-      body: { ...REGISTRATION, firstName: ' ' },
+      body: { ...REGISTRATION, firstName: '' },
     });
 
     expect(response.status).toBe(422);

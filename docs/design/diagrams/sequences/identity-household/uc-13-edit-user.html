@@ -62,16 +62,23 @@ sequenceDiagram
     actor User
     participant API as Hono route
     participant IM as IdentityManager
+    participant VU as ValidationUtility
     participant UA as UserAccessor
     participant LOG as LoggingUtility
 
     User->>API: PATCH /users/me {firstName?, lastName?, preferences?: {theme?, language?}}
-    Note over API: validated against the contract (OQ-93): names trimmed and<br/>non-blank, theme and language from their sets, nothing filled in (OQ-116)
+    Note over API: validated against the contract (OQ-93): names of at least one<br/>character, theme and language from their sets, nothing filled in (OQ-116)
     alt request invalid
         API-->>User: 422 validation.failed {details}
     else valid
         API->>IM: editProfile(actor, input)
-        alt nothing to change
+        IM->>VU: checkFields(input, {firstName: nonBlank, lastName: nonBlank})
+        Note over VU: a name not sent passes
+        alt a name blank once trimmed
+            VU-->>IM: [{field, code: string.min, params: {min: 1}}]
+            IM-->>API: ValidationError
+            API-->>User: 422 validation.failed {details}
+        else nothing to change
             IM->>UA: findById(actor.userId)
             UA-->>IM: user
         else some fields sent
@@ -88,6 +95,7 @@ sequenceDiagram
   <div class="notes">
     <ul>
       <li>Deliberately the plainest flow in this whole area &mdash; no cross-table effects, no cascades, just a validated field update.</li>
+      <li><strong>Names are trimmed by the Manager, and a blank one refused through <code>ValidationUtility</code> (OQ-165)</strong> &mdash; the contract&#39;s <code>minLength: 1</code> alone would accept <code>"  "</code>.</li>
       <li>See FR-1.1/OQ-29.</li>
     </ul>
   </div>

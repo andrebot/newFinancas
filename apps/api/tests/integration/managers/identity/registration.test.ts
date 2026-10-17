@@ -1,7 +1,7 @@
 import { captureLogs } from '@financas/logging';
 import { describe, expect, it } from 'vitest';
 import { createIdentityManager } from '../../../../src/managers/identity';
-import { ANA, fakeDeps } from './fakes';
+import { ANA, blankName, fakeDeps } from './fakes';
 
 const CONTEXT = { correlationId: 'c1' };
 const INPUT = {
@@ -51,6 +51,15 @@ describe('IdentityManager — Register (uc-11)', () => {
     await createIdentityManager(deps).register(CONTEXT, { ...INPUT, language: 'en-US' });
 
     expect(users.insert).toHaveBeenCalledWith(expect.objectContaining({ language: 'en-US' }));
+  });
+
+  it('refuses a blank name with 422 validation.failed before doing any work (OQ-165)', async () => {
+    const { deps, users, authentication } = fakeDeps();
+
+    await expect(createIdentityManager(deps).register(CONTEXT, { ...INPUT, firstName: ' ' }))
+      .rejects.toMatchObject(blankName('firstName'));
+    expect(authentication.hashPassword).not.toHaveBeenCalled();
+    expect(users.insert).not.toHaveBeenCalled();
   });
 
   it('rejects a password under 12 characters before doing any work', async () => {

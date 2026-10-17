@@ -1,7 +1,7 @@
 import { zValidator } from '@hono/zod-validator';
 import type { ValidationTargets } from 'hono';
 import { z, type core } from 'zod';
-import { createApiError, type ApiError } from './apiError';
+import { validationFailed, type ApiError } from './apiError';
 import { toFieldDetail } from './fieldDetail';
 import { coerceQuery } from './queryCoercion';
 
@@ -24,12 +24,7 @@ interface ValidationResult {
  * @returns The error, with one `details[]` entry per issue.
  */
 export const validationError = (issues: readonly core.$ZodIssue[], input: unknown): ApiError => (
-  createApiError({
-    status: 422,
-    code: 'validation.failed',
-    message: 'Request validation failed',
-    details: issues.map((issue) => toFieldDetail(issue, input)),
-  })
+  validationFailed(issues.map((issue) => toFieldDetail(issue, input)))
 );
 
 /**

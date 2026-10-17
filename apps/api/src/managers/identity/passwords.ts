@@ -1,4 +1,5 @@
 import { authentication } from '../../config/constants';
+import { minLength } from '../../utilities/validation';
 import {
   emailKeyOf, loggerFor, type IdentityDeps, type RequestContext, type SignedInContext,
 } from './context';
@@ -11,6 +12,7 @@ import {
 // on a change, every one on a reset (OQ-115).
 
 const { password, passwordReset } = authentication;
+const checkPasswordLength = minLength(password.minLength);
 
 /** A signed-in user's password change. */
 export interface PasswordChange {
@@ -32,7 +34,7 @@ export interface PasswordResetConfirmation {
  * @throws {ApiError} 422 `password.too_short`.
  */
 const requireLongEnough = (newPassword: string): void => {
-  if (newPassword.length < password.minLength) throw passwordTooShort();
+  if (checkPasswordLength(newPassword) !== undefined) throw passwordTooShort();
 };
 
 /**

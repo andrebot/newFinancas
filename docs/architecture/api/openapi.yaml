@@ -2326,6 +2326,13 @@ components:
         offset: { type: integer }
         total: { type: integer }
 
+    Currency:
+      type: string
+      enum: [BRL, USD]
+      description: >
+        ISO 4217 code of a currency the app supports — BRL and USD in v1.
+        Money is never converted between them (FR-2.2); adding a currency
+        means adding it here and to the formatting it needs.
     Money:
       type: integer
       description: >
@@ -2485,7 +2492,7 @@ components:
         ownerUserId: { type: [string, "null"], format: uuid, description: "Identity for personal, provenance for shared (dual-role, FR-1.17)" }
         name: { type: string }
         type: { type: string, enum: [checking, savings, credit_card_only, investment], description: "Immutable once set, OQ-32. Four types since OQ-76." }
-        currency: { type: string, description: "ISO 4217, immutable once set, FR-2.2" }
+        currency: { $ref: "#/components/schemas/Currency", description: "Immutable once set, FR-2.2" }
         visibility: { type: string, enum: [personal, shared] }
         archivedAt: { type: [string, "null"], format: date-time, description: "One-way, FR-2.4/OQ-34" }
         createdAt: { type: string, format: date-time }
@@ -2496,7 +2503,7 @@ components:
       properties:
         name: { type: string }
         type: { type: string, enum: [checking, savings, credit_card_only, investment] }
-        currency: { type: string }
+        currency: { $ref: "#/components/schemas/Currency" }
         visibility: { type: string, enum: [personal, shared] }
         openingBalance: { $ref: "#/components/schemas/Money" }
         cards:
@@ -2655,7 +2662,7 @@ components:
         ownerUserId: { type: [string, "null"], format: uuid }
         name: { type: string }
         targetAmount: { $ref: "#/components/schemas/Money" }
-        currency: { type: string }
+        currency: { $ref: "#/components/schemas/Currency" }
         visibility: { type: string, enum: [personal, shared] }
         targets:
           type: array
@@ -2668,7 +2675,7 @@ components:
       properties:
         name: { type: string }
         targetAmount: { $ref: "#/components/schemas/Money" }
-        currency: { type: string }
+        currency: { $ref: "#/components/schemas/Currency" }
         visibility: { type: string, enum: [personal, shared] }
         targets:
           type: array
@@ -2821,7 +2828,7 @@ components:
         kind: { type: string, description: "Reference data, e.g. withdrawal, deposit, transfer sent/received, investment buy, card charge, ... FR-3.1" }
         date: { type: string, format: date }
         amount: { $ref: "#/components/schemas/Money" }
-        currency: { type: string }
+        currency: { $ref: "#/components/schemas/Currency" }
         categoryId: { type: string, format: uuid }
         subcategoryId: { type: string, format: uuid }
         description: { type: string }
@@ -2874,7 +2881,7 @@ components:
         effect: { type: string, enum: [movement, transfer, bill_payment, investment_trade], description: "Persisted via EFFECT_BY_KIND, not recomputed — see 02-data-model.md" }
         date: { type: string, format: date }
         amount: { $ref: "#/components/schemas/Money" }
-        currency: { type: string }
+        currency: { $ref: "#/components/schemas/Currency" }
         categoryId: { type: [string, "null"], format: uuid }
         subcategoryId: { type: [string, "null"], format: uuid }
         description: { type: string }
@@ -2900,7 +2907,7 @@ components:
         kind: { type: string, enum: [charge, refund] }
         date: { type: string, format: date }
         amount: { $ref: "#/components/schemas/Money" }
-        currency: { type: string }
+        currency: { $ref: "#/components/schemas/Currency" }
         categoryId: { type: [string, "null"], format: uuid }
         subcategoryId: { type: [string, "null"], format: uuid }
         description: { type: string }
@@ -3026,7 +3033,7 @@ components:
         ownerUserId: { type: [string, "null"], format: uuid }
         name: { type: string }
         targetAmount: { $ref: "#/components/schemas/Money" }
-        targetCurrency: { type: string }
+        targetCurrency: { $ref: "#/components/schemas/Currency" }
         dueDate: { type: string, format: date }
         visibility: { type: string, enum: [personal, shared] }
         createdAt: { type: string, format: date-time }
@@ -3054,7 +3061,7 @@ components:
       properties:
         name: { type: string }
         targetAmount: { $ref: "#/components/schemas/Money" }
-        targetCurrency: { type: string }
+        targetCurrency: { $ref: "#/components/schemas/Currency" }
         dueDate: { type: string, format: date }
         visibility: { type: string, enum: [personal, shared] }
     GoalProgress:
@@ -3062,14 +3069,14 @@ components:
       description: "FR-8.5 — per-Holding contributions in native currency; blending is a frontend concern."
       properties:
         targetAmount: { $ref: "#/components/schemas/Money" }
-        targetCurrency: { type: string }
+        targetCurrency: { $ref: "#/components/schemas/Currency" }
         contributions:
           type: array
           items:
             type: object
             properties:
               holdingId: { type: string, format: uuid }
-              currency: { type: string }
+              currency: { $ref: "#/components/schemas/Currency" }
               amount: { $ref: "#/components/schemas/Money" }
         goalId:
           type: string
@@ -3079,7 +3086,7 @@ components:
       properties:
         name: { type: string }
         targetAmount: { $ref: "#/components/schemas/Money" }
-        targetCurrency: { type: string }
+        targetCurrency: { $ref: "#/components/schemas/Currency" }
         dueDate: { type: string, format: date }
     GoalWithProgress:
       allOf:
@@ -3092,7 +3099,7 @@ components:
                 type: object
                 properties:
                   holdingId: { type: string, format: uuid }
-                  currency: { type: string }
+                  currency: { $ref: "#/components/schemas/Currency" }
                   amount: { $ref: "#/components/schemas/Money" }
             fundedBy:
               type: array
@@ -3137,14 +3144,14 @@ components:
                     type: string
                     format: date
                   currency:
-                    type: string
+                    $ref: '#/components/schemas/Currency'
                   net:
                     $ref: '#/components/schemas/Money'
     MoneyByCurrency:
       type: object
       properties:
         currency:
-          type: string
+          $ref: '#/components/schemas/Currency'
         amount:
           $ref: '#/components/schemas/Money'
     MonthOverviewReport:
@@ -3162,7 +3169,7 @@ components:
             type: object
             properties:
               currency:
-                type: string
+                $ref: '#/components/schemas/Currency'
               in:
                 $ref: '#/components/schemas/Money'
               out:
@@ -3177,7 +3184,7 @@ components:
               month:
                 type: integer
               currency:
-                type: string
+                $ref: '#/components/schemas/Currency'
               in:
                 $ref: '#/components/schemas/Money'
               out:
@@ -3194,7 +3201,7 @@ components:
                 type: [string, "null"]
                 format: uuid
               currency:
-                type: string
+                $ref: '#/components/schemas/Currency'
               amount:
                 $ref: '#/components/schemas/Money'
         budgets:
@@ -3220,7 +3227,7 @@ components:
             type: object
             properties:
               currency:
-                type: string
+                $ref: '#/components/schemas/Currency'
               amount:
                 $ref: '#/components/schemas/Money'
               changeVsPreviousMonth:
@@ -3251,7 +3258,7 @@ components:
                 type: string
                 format: date
               currency:
-                type: string
+                $ref: '#/components/schemas/Currency'
               amount:
                 $ref: '#/components/schemas/Money'
         allocations:
@@ -3262,7 +3269,7 @@ components:
               group:
                 type: string
               currency:
-                type: string
+                $ref: '#/components/schemas/Currency'
               holdingId:
                 type: [string, "null"]
                 format: uuid
@@ -3282,7 +3289,7 @@ components:
                 type: string
                 format: date
               currency:
-                type: string
+                $ref: '#/components/schemas/Currency'
               amount:
                 $ref: '#/components/schemas/Money'
     PayoutsReport:
@@ -3302,7 +3309,7 @@ components:
                 type: string
                 format: uuid
               currency:
-                type: string
+                $ref: '#/components/schemas/Currency'
               months:
                 type: array
                 items:

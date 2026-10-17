@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createApiError, isApiError } from '../../../src/http/apiError';
+import { createApiError, isApiError, validationFailed } from '../../../src/http/apiError';
 
 describe('createApiError', () => {
   it('creates an Error carrying the envelope description', () => {
@@ -32,5 +32,17 @@ describe('isApiError', () => {
     ['null', null],
   ])('rejects %s', (_case, value) => {
     expect(isApiError(value)).toBe(false);
+  });
+});
+
+describe('validationFailed', () => {
+  it('answers 422 validation.failed with the field details', () => {
+    const details = [{ field: 'name', code: 'string.min', params: { min: 1 } }] as const;
+
+    const error = validationFailed(details);
+
+    expect(error.apiError).toEqual({
+      status: 422, code: 'validation.failed', message: 'Request validation failed', details,
+    });
   });
 });

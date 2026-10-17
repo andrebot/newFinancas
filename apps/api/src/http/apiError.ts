@@ -47,3 +47,17 @@ export const createApiError = (init: ApiErrorInit): ApiError => (
 export const isApiError = (value: unknown): value is ApiError => (
   value instanceof Error && 'apiError' in value
 );
+
+/**
+ * Builds the 422 `validation.failed` error — one shape whether the route's
+ * contract check or a Manager's ValidationUtility check found the problems.
+ *
+ * @param details - One entry per failing field.
+ * @returns The error, ready to throw.
+ */
+export const validationFailed = (details: readonly FieldDetail[]): ApiError => createApiError({
+  status: 422,
+  code: 'validation.failed',
+  message: 'Request validation failed',
+  details,
+});

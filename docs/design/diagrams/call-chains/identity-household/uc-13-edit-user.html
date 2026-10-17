@@ -135,8 +135,8 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain:</strong> <code>IdentityManager</code> &#9312; <code>UserAccessor.update(userId, only the fields sent)</code> &mdash; or <code>findById</code> when nothing changes (gone &rarr; 401) &rarr; &#9313; <code>LoggingUtility</code> audit, only when something changed.</p>
-    <p>No <code>ValidationUtility</code> step: the contract validates at the route (OQ-116). Synced with the code (task M1 audit, Oct 2026).</p>
+    <p><strong>Chain:</strong> <code>IdentityManager</code> &#9312; <code>ValidationUtility.checkFields</code> (a name sent blank &rarr; 422 <code>validation.failed</code>) &rarr; &#9313; <code>UserAccessor.update(userId, only the fields sent, names trimmed)</code> &mdash; or <code>findById</code> when nothing changes (gone &rarr; 401) &rarr; &#9314; <code>LoggingUtility</code> audit, only when something changed.</p>
+    <p><strong>Changed (U3, OQ-165):</strong> the route checks the contract (OQ-116); a blank name is the Manager&#39;s check, through <code>ValidationUtility</code>. Synced with the code (task M1 audit, Oct 2026).</p>
   </div>
 
   <script>
@@ -149,7 +149,7 @@
       svg.style.width = containerRect.width + 'px';
       svg.style.height = containerRect.height + 'px';
 
-      var edges = [{"from": "mgr-identity", "to": "acc-user", "type": "sync", "order": 1}, {"from": "mgr-identity", "to": "util-logging", "type": "async", "order": 2}];
+      var edges = [{"from": "mgr-identity", "to": "util-validation", "type": "sync", "order": 1}, {"from": "mgr-identity", "to": "acc-user", "type": "sync", "order": 2}, {"from": "mgr-identity", "to": "util-logging", "type": "async", "order": 3}];
 
       var activeIds = {};
       edges.forEach(function (e) { activeIds[e.from] = true; activeIds[e.to] = true; });
