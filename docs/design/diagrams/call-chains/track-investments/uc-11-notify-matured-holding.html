@@ -135,7 +135,7 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain:</strong> <code>investmentsDaily</code> → ① <code>InvestmentHoldingAccessor.findMaturedWithPosition(today)</code> → <code>ServiceBusUtility.publish("holding.matured")</code> (async) → ② <code>AccountManager</code> subscribes → ③ <code>NotificationEngine.notify("holding.matured", {userId})</code> per owner (sync — the Manager needs the outcome) → ④ in-app: <code>NotificationInboxAccessor.insert</code> → ⑤ <code>InvestmentHoldingAccessor.markMaturedNotified</code> only after every owner was notified → ⑥ <code>LoggingUtility</code> (async).</p>
+    <p><strong>Chain:</strong> <code>investmentsDaily</code> → ① <code>InvestmentHoldingAccessor.findMaturedWithPosition(today)</code> → <code>ServiceBusUtility.publish("holding.matured")</code> (async) → ② <code>AccountManager</code> subscribes → ③ a shared Account's recipients: <code>HouseholdAccessor.listMembers</code> (a personal one's is its owner, OQ-171) → ④ <code>NotificationEngine.notify("holding.matured", {userId})</code> per recipient (sync — the Manager needs the outcome) → ⑤ in-app: <code>NotificationInboxAccessor.insert</code> → ⑥ <code>InvestmentHoldingAccessor.markMaturedNotified</code> only after every recipient was notified → ⑦ <code>LoggingUtility</code> (async).</p>
     <p>Same trigger shape as the scheduled cash events (§3.2a). <code>NotificationInboxAccessor</code> has two callers: the Engine writes, <code>InsightsManager</code> reads (View/Delete Notification) — a shared Accessor, not an Accessor→Accessor call.</p>
   </div>
 
@@ -149,7 +149,7 @@
       svg.style.width = containerRect.width + 'px';
       svg.style.height = containerRect.height + 'px';
 
-      var edges = [{"from": "acc-holding", "to": "util-servicebus", "type": "async", "order": 1}, {"from": "util-servicebus", "to": "mgr-account", "type": "async", "order": 2}, {"from": "mgr-account", "to": "eng-notify", "type": "sync", "order": 3}, {"from": "eng-notify", "to": "acc-inbox", "type": "sync", "order": 4}, {"from": "mgr-account", "to": "acc-holding", "type": "sync", "order": 5}, {"from": "mgr-account", "to": "util-logging", "type": "async", "order": 6}];
+      var edges = [{"from": "acc-holding", "to": "util-servicebus", "type": "async", "order": 1}, {"from": "util-servicebus", "to": "mgr-account", "type": "async", "order": 2}, {"from": "mgr-account", "to": "acc-household", "type": "sync", "order": 3}, {"from": "mgr-account", "to": "eng-notify", "type": "sync", "order": 4}, {"from": "eng-notify", "to": "acc-inbox", "type": "sync", "order": 5}, {"from": "mgr-account", "to": "acc-holding", "type": "sync", "order": 6}, {"from": "mgr-account", "to": "util-logging", "type": "async", "order": 7}];
 
       var activeIds = {};
       edges.forEach(function (e) { activeIds[e.from] = true; activeIds[e.to] = true; });

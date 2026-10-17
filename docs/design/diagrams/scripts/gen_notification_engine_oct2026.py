@@ -64,9 +64,9 @@ TI = CC / "track-investments"
 T = "the Track Investments &amp; Net Worth set (CUC-6)"
 write(TI / "uc-11-notify-matured-holding.html", "Call Chain — Notify Matured Holding",
       f"Use case 11 of 12 in {T}, FR-5.8, FR-6.5. System-Trigger + subscriber. {DECIDED}",
-      E((1, "acc-holding", "util-servicebus", "a"), (2, "util-servicebus", "mgr-account", "a"), (3, "mgr-account", "eng-notify"),
-        (4, "eng-notify", "acc-inbox"), (5, "mgr-account", "acc-holding"), (6, "mgr-account", "util-logging", "a")),
-      ["<strong>Chain:</strong> <code>investmentsDaily</code> → ① <code>InvestmentHoldingAccessor.findMaturedWithPosition(today)</code> → <code>ServiceBusUtility.publish(\"holding.matured\")</code> (async) → ② <code>AccountManager</code> subscribes → ③ <code>NotificationEngine.notify(\"holding.matured\", {userId})</code> per owner (sync — the Manager needs the outcome) → ④ in-app: <code>NotificationInboxAccessor.insert</code> → ⑤ <code>InvestmentHoldingAccessor.markMaturedNotified</code> only after every owner was notified → ⑥ <code>LoggingUtility</code> (async).",
+      E((1, "acc-holding", "util-servicebus", "a"), (2, "util-servicebus", "mgr-account", "a"), (3, "mgr-account", "acc-household"),
+        (4, "mgr-account", "eng-notify"), (5, "eng-notify", "acc-inbox"), (6, "mgr-account", "acc-holding"), (7, "mgr-account", "util-logging", "a")),
+      ["<strong>Chain:</strong> <code>investmentsDaily</code> → ① <code>InvestmentHoldingAccessor.findMaturedWithPosition(today)</code> → <code>ServiceBusUtility.publish(\"holding.matured\")</code> (async) → ② <code>AccountManager</code> subscribes → ③ a shared Account's recipients: <code>HouseholdAccessor.listMembers</code> (a personal one's is its owner, OQ-171) → ④ <code>NotificationEngine.notify(\"holding.matured\", {userId})</code> per recipient (sync — the Manager needs the outcome) → ⑤ in-app: <code>NotificationInboxAccessor.insert</code> → ⑥ <code>InvestmentHoldingAccessor.markMaturedNotified</code> only after every recipient was notified → ⑦ <code>LoggingUtility</code> (async).",
        "Same trigger shape as the scheduled cash events (§3.2a). <code>NotificationInboxAccessor</code> has two callers: the Engine writes, <code>InsightsManager</code> reads (View/Delete Notification) — a shared Accessor, not an Accessor→Accessor call."])
 
 # ------------------------------------------------------------------ 3. static diagrams

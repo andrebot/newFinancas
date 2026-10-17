@@ -86,7 +86,7 @@ sequenceDiagram
                 TM->>CCA: applyMovement(cardId, {+amount, currency, date})
             end
         else was an investment trade
-            TM->>IHA: applyTrade(holdingId, -quantityDelta, date)
+            TM->>IHA: applyTrade(holdingId, {-quantityDelta, -costBasisDelta})
             TM->>VSA: deleteAutomatic(transactionId)
             TM->>IHA: unarchiveIfSystemArchived(holdingId)
             Note over IHA: if this was the sell/redemption that zeroed the<br/>Holding, it comes back (OQ-80)

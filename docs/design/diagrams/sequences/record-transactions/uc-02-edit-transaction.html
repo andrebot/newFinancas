@@ -88,7 +88,7 @@ sequenceDiagram
                 TM->>CCA: applyMovement(cardId, {+oldAmount, currency, oldDate})
             end
         else was an investment trade
-            TM->>IHA: applyTrade(holdingId, -oldQuantityDelta, oldValuation, oldDate)
+            TM->>IHA: applyTrade(holdingId, {-oldQuantityDelta, -oldCostBasisDelta})
         else was a card charge/refund
             TM->>CCA: applyMovement(cardId, {-oldSignedAmount, currency, oldDate})
         end
@@ -100,12 +100,12 @@ sequenceDiagram
                 TM->>CCA: applyMovement(cardId, {-newAmount, currency, newDate})
             end
         else new effect is an investment trade
-            TM->>IHA: applyTrade(holdingId, newQuantityDelta, newDate)
-            IHA-->>TM: {newQuantity}
+            TM->>IHA: applyTrade(holdingId, {newQuantityDelta, newCostBasisDelta})
+            IHA-->>TM: {quantity, costBasis}
             TM->>VSA: updateAutomatic(transactionId, newValuation, newDate)
-            alt newQuantity = 0
+            alt quantity = 0
                 TM->>IHA: archive(holdingId, by = system)
-            else newQuantity > 0
+            else quantity > 0
                 TM->>IHA: unarchiveIfSystemArchived(holdingId)
                 Note over IHA: undoes only a system-made archive (OQ-80)
             end

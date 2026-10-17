@@ -272,7 +272,7 @@ database constraint).
 | ~~`RecurringTransactionScheduleAccessor`~~ | **Removed, Round 9** — recurring transactions dropped (FR-3.5, OQ-55) | — |
 | `CategoryAccessor` | Categories, Subcategories | Enforces exactly-two-levels and cascades an archive to Subcategories (FR-10.2/10.4) as part of the write; `seedDefaults(householdId)` creates the predefined default set (FR-10.1), called from `AccountManager`'s subscription to `household.created` (§3.1b), not from a direct `IdentityManager` call |
 | `BudgetAccessor` | Budgets, Budget Periods | `insert(budget, targets, month)` / `replaceTargets(...)` claim a whole target set atomically and reject a Category/Subcategory already claimed elsewhere in scope (FR-4.7 — the literal duplicate is a uniqueness constraint; the rollup half is checked under the parent Category's row lock — OQ-166); a spend accrues to the Budget in its Account's scope (OQ-166); `accrueIfClaimed(categoryId, subcategoryId, amount, date)` resolves the rollup match (FR-4.6) and updates the Budget Period's spend — **Round 8: no longer returns a threshold-crossed signal**, since FR-4.4's alert threshold was removed (OQ-52); deletion (FR-4.10) is a hard delete releasing claimed targets — no archive, since Budget Periods are their own independent immutable record |
-| `InvestmentHoldingAccessor` | Investment Holdings | `applyTrade(holdingId, quantityDelta, valuation, date)` — `TransactionManager` computes `quantityDelta` (positive for buy, negative for sell, `-currentQuantity` for redemption — its own workflow rule, FR-3.8) and this Accessor executes the write. **New, Round 7:** `applySchedule(holdingId, schedule)` persists `InvestmentProductEngine`'s FR-11 output; archiving is one-way (FR-5.8/OQ-43), not a hard delete, since Valuation Snapshot history and Goal allocations depend on the Holding existing. **Round 9:** `archive(holdingId, by)` records who archived (`system` at zero quantity via `applyTrade`, or `user` from the matured notification); `unarchiveIfSystemArchived(holdingId)` (OQ-80 — only system archives are undone); `findMaturedWithPosition(today)` + `markMaturedNotified(holdingId)` for the daily trigger (§3.2a) |
+| `InvestmentHoldingAccessor` | Investment Holdings | `applyTrade(holdingId, quantityDelta, valuation, date)` — `TransactionManager` computes `quantityDelta` (positive for buy, negative for sell, `-currentQuantity` for redemption — its own workflow rule, FR-3.8) and this Accessor executes the write. **New, Round 7:** `applySchedule(holdingId, schedule)` persists `InvestmentProductEngine`'s FR-11 output; archiving is one-way (FR-5.8/OQ-43), not a hard delete, since Valuation Snapshot history and Goal allocations depend on the Holding existing. **Round 9:** `archive(holdingId, by)` records who archived (`system` at zero quantity via `applyTrade`, or `user` from the matured notification); `unarchiveIfSystemArchived(holdingId)` (OQ-80 — only system archives are undone); `findMaturedWithPosition(today)` + `markMaturedNotified(holdingId)` for the daily trigger (§3.2a). **OQ-171 (as built):** `insert(holding)` (no position; refuses a `credit_card_only` Account, OQ-76), `findById(householdId, holdingId)` (household guard), `findByTicker(accountId, assetType, ticker)` (archived included — a re-buy reopens a zeroed Holding), `listByAccounts(accountIds, {includeArchived})`; `applyTrade(holdingId, {quantityDelta, costBasisDelta})` — both deltas the Manager's (average cost on a sell), refused below zero under the row lock, no snapshot or date; archiving stays the Manager's separate call; `applySchedule` replaces the whole schedule until an entry posts (`schedule_started`), `listSchedule(holdingIds)`, `findDueScheduleEntries(today)` + `markEntryPosted(entryId)` (once, in the posting transaction); `findMaturedWithPosition` returns the Account's owner and visibility — a shared Account's recipients are `AccountManager`'s, via `HouseholdAccessor.listMembers` |
 | `ValuationSnapshotAccessor` | Valuation Snapshots | Two kinds, tagged by `source`: **automatic** (written by `TransactionManager` with each buy/sell/redemption; changes only through its transaction) and **manual** market values (`AccountManager`: `insertManual` / `updateManual` / `deleteManual` — Round 9, OQ-56; the "never overwrite" rule is gone, update/delete refuse automatic rows). Fixed-term Holdings have none (OQ-51) — the Managers check that. **OQ-167:** keyed by Holding only (the Manager's `InvestmentHoldingAccessor.get` is the household guard); automatic rows via `insertAutomatic` / `updateAutomatic` / `deleteAutomatic(transactionId)`; reads `list(holdingId, range)` and `latestAsOf(holdingIds, date)` |
 | `GoalAccessor` | Goals, Goal Allocations | `replaceAllocations(householdId, holdingId, shares)` replaces a Holding's whole split, all or nothing, and rejects one whose total passes 100% (FR-8.3, OQ-168 — superseding the per-pair `allocate`); Goals stay in their household. Visibility and the completed-Goal rule (FR-8.9) are the Managers', checked before calling — note allocation is written *from the Holding's edit flow*, not the Goal's (OQ-48); complete/reopen (FR-8.8/8.9, renamed from archive/unarchive — OQ-78) is the one reversible lifecycle transition in the whole system, distinct from delete (FR-8.6, hard, no history); written by two Managers (`AccountManager` on Edit Holding, `TransactionManager` on a bundled buy) — the ≤ 100% invariant lives here, so both paths get it |
 | `IndexRateAccessor` *(new, Round 9)* | Household Index Reference Rates — dated history per index (Selic, CDI, IPCA, IGP-M; reference data, can grow) (FR-11.6, OQ-59) | Written by `AccountManager` (insert / update / delete); `latest(index)` read by `InvestmentProductEngine.project`; no automated feed in v1 |
@@ -396,8 +396,9 @@ TransactionManager.record(input)
            AccountAccessor.applyMovement(accountId, {amount, currency, date})
            bill_payment: AccountAccessor.applyMovement(accountId, {−amount, currency, date})
              and CreditCardAccessor.applyMovement(cardId, {−amount, currency, date})  [both sides, OQ-15/OQ-170]
-           InvestmentHoldingAccessor.applyTrade(holdingId, quantityDelta, valuation, date)
-             [quantityDelta computed here: +qty buy, -qty sell, -currentQty redemption;
+           InvestmentHoldingAccessor.applyTrade(holdingId, {quantityDelta, costBasisDelta})
+             [both computed here: +qty/+paid buy, -qty/-average cost sell, -currentQty/-costBasis
+              redemption (OQ-171); the automatic snapshot is ValuationSnapshotAccessor's;
               Round 8/OQ-51 — the Valuation Snapshot this call records only
               happens for market-priced assetTypes (stock/FII/fund/other);
               a fixed-term instrument's value is its cost basis, nothing to
@@ -408,8 +409,9 @@ TransactionManager.record(input)
                  never matches an existing one by ticker (OQ-50, Round 8):
                  each purchase is its own immutable contract with its own
                  rate/purchase date/maturity date, not more units of the same thing
-               else if no existing Holding for this ticker+account:
+               else findByTicker(accountId, assetType, ticker); if none:
                  InvestmentHoldingAccessor creates the Holding first (auto-create, OQ-41)
+                 [a system-archived match is reused and un-archived — OQ-171]
                if assetType is one of FR-11.1's defined instrument types:
                  InvestmentProductEngine.computeSchedule(dueDate, rate, purchaseDate)
                  InvestmentHoldingAccessor.applySchedule(holdingId, schedule)
@@ -555,21 +557,25 @@ No Manager or Engine in the trigger itself:
 
 ```
 [cron, daily] investmentsDaily()
- ├─ InvestmentHoldingAccessor.findDueScheduleEntries(today) → [{holdingId, kind, amount, date}, ...]
+ ├─ InvestmentHoldingAccessor.findDueScheduleEntries(today) → [{entryId, holdingId, accountId, kind, amount, date}, ...]
  │    [reads the schedule InvestmentProductEngine computed at buy time —
  │     does NOT call the Engine again, same principle as §3.2's provider reads]
  │  └─ for each: ServiceBusUtility.publish("transaction.import.requested", {...})
- └─ InvestmentHoldingAccessor.findMaturedWithPosition(today) → [{holdingId, ownerIds}, ...]
+ └─ InvestmentHoldingAccessor.findMaturedWithPosition(today) → [{holdingId, householdId, ownerUserId, visibility, ...}, ...]
     └─ for each: ServiceBusUtility.publish("holding.matured", {...})
 
 TransactionManager
  └─ subscribes "transaction.import.requested" → runs the exact same §3.1 pipeline
    (kind = interest/redemption/tax, no user confirmation, FR-11.3; a
-    redemption that zeroes the Holding auto-archives it, OQ-72)
+    redemption that zeroes the Holding auto-archives it, OQ-72) — first
+    InvestmentHoldingAccessor.markEntryPosted(entryId) in the same database
+    transaction: false means already posted, nothing more (OQ-171)
 
 AccountManager
- └─ subscribes "holding.matured" → NotificationEngine.notify("holding.matured",
-    {userId}, params) per owner (routed in-app) → only if all succeeded:
+ └─ subscribes "holding.matured" → recipients: the owner of a personal Account,
+    HouseholdAccessor.listMembers(householdId) for a shared one (OQ-171) →
+    NotificationEngine.notify("holding.matured", {userId}, params) per
+    recipient (routed in-app) → only if all succeeded:
     InvestmentHoldingAccessor.markMaturedNotified(holdingId)
 ```
 
@@ -595,8 +601,8 @@ mutations) while the other three do:
 | Manager | Calls (Engines) | Calls (Accessors, direct incl. validated writes) | Calls (Utilities) |
 |---|---|---|---|
 | `IdentityManager` | `NotificationEngine` (invitation received, password-reset email — OQ-113) | `UserAccessor` (incl. preferences, FR-1.21), `SessionAccessor` (incl. `deleteAllExceptCurrent`), `HouseholdAccessor` (incl. `listForUser`), `InvitationAccessor` (incl. `listPendingForUser` with inviter) | `AuthorizationUtility`, `AuthenticationUtility`, `LoggingUtility` (`logActivity` + `recordAudit`), `ServiceBusUtility` (publishes `household.created`, §3.1b) |
-| `AccountManager` | `NotificationEngine` (matured holding — OQ-113) | `AccountAccessor`, `CreditCardAccessor`, `OpenBankingConnectionAccessor` (parked), region provider Accessor (parked), `CategoryAccessor` (incl. `seedDefaults` on `household.created`, §3.1b), `BudgetAccessor` (`insert`, `replaceTargets`), `GoalAccessor` (goal lifecycle + `replaceAllocations` from Edit Holding), `InvestmentHoldingAccessor` (verify market-priced, `archive(by=user)`, `markMaturedNotified`), `ValuationSnapshotAccessor` (manual: insert/update/delete — Round 9), `IndexRateAccessor` *(new, Round 9)*, `PortfolioAccessor` (parked) | `AuthorizationUtility`, `ValidationUtility`, `LoggingUtility` (`logActivity` + `recordAudit`); subscribes to `household.created` and `holding.matured` via `ServiceBusUtility` |
-| `TransactionManager` | `InvestmentProductEngine` (`schedule` — investment-buy against a defined FR-11 instrument type, inline within §3.1) | `AccountTransactionAccessor`, `CardTransactionAccessor` (incl. `list(filter, cursor)` for Browse & Filter — Round 9), `AccountAccessor`, `CreditCardAccessor`, `InvestmentHoldingAccessor` (`applyTrade` incl. auto-archive, `applySchedule`, `unarchiveIfSystemArchived`), `ValuationSnapshotAccessor` (automatic snapshots), `BudgetAccessor` (`accrueIfClaimed`), `GoalAccessor` (`allocate` — bundled with a buy, OQ-54) | `AuthorizationUtility`, `ValidationUtility`, `LoggingUtility` (`logActivity` + `recordAudit`); subscribes to `transaction.import.requested` — **no `NotificationDeliveryUtility` call** (OQ-52) |
+| `AccountManager` | `NotificationEngine` (matured holding — OQ-113) | `AccountAccessor`, `CreditCardAccessor`, `OpenBankingConnectionAccessor` (parked), region provider Accessor (parked), `CategoryAccessor` (incl. `seedDefaults` on `household.created`, §3.1b), `BudgetAccessor` (`insert`, `replaceTargets`), `GoalAccessor` (goal lifecycle + `replaceAllocations` from Edit Holding), `InvestmentHoldingAccessor` (verify market-priced, `archive(by=user)`, `markMaturedNotified`), `HouseholdAccessor` (`listMembers` — a shared matured Holding's recipients, OQ-171), `ValuationSnapshotAccessor` (manual: insert/update/delete — Round 9), `IndexRateAccessor` *(new, Round 9)*, `PortfolioAccessor` (parked) | `AuthorizationUtility`, `ValidationUtility`, `LoggingUtility` (`logActivity` + `recordAudit`); subscribes to `household.created` and `holding.matured` via `ServiceBusUtility` |
+| `TransactionManager` | `InvestmentProductEngine` (`schedule` — investment-buy against a defined FR-11 instrument type, inline within §3.1) | `AccountTransactionAccessor`, `CardTransactionAccessor` (incl. `list(filter, cursor)` for Browse & Filter — Round 9), `AccountAccessor`, `CreditCardAccessor`, `InvestmentHoldingAccessor` (`insert`, `findByTicker`, `applyTrade`, `archive(by=system)`, `applySchedule`, `unarchiveIfSystemArchived`, `markEntryPosted`), `ValuationSnapshotAccessor` (automatic snapshots), `BudgetAccessor` (`accrueIfClaimed`), `GoalAccessor` (`allocate` — bundled with a buy, OQ-54) | `AuthorizationUtility`, `ValidationUtility`, `LoggingUtility` (`logActivity` + `recordAudit`); subscribes to `transaction.import.requested` — **no `NotificationDeliveryUtility` call** (OQ-52) |
 | `InsightsManager` | `ReportingEngine` (sole caller), `InvestmentProductEngine` (`project` — View Investments, Round 9) | `AuditLogAccessor` (export only, OQ-46), `NotificationInboxAccessor` (list, seen/unseen, delete), `DashboardAccessor` (parked, v3) — **Round 9: `SessionAccessor` removed** (View Sessions is `IdentityManager`'s, per the read-ownership rule — Manager review M2) | `AuthorizationUtility`, `LoggingUtility` (`logActivity` **only** — reads never trigger `recordAudit`) |
 
 `ValidationUtility`/`CorrelationIdUtility` still omitted (used by every

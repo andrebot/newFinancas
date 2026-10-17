@@ -551,7 +551,10 @@ Backs `AccountManager`'s `InvestmentHoldingAccessor`,
   Transaction kinds), `amount`, `date`, `posted_at` (nullable — set once
   the cron-driven `postDueInvestmentCashEvents()` (VBD doc §3.2a) actually
   posts it; `findDueScheduleEntries(today)` reads `WHERE posted_at IS
-  NULL AND date <= today`), `created_at`. **No separate `maturity_date`
+  NULL AND date <= today`; `markEntryPosted` sets it once, in the
+  posting transaction — OQ-171), `created_at`. A schedule is replaced
+  whole by `applySchedule` until one of its entries posts (OQ-171).
+  **No separate `maturity_date`
   column anywhere** — it's just the `date` of the row whose `kind` is
   `redemption`; one source of truth instead of two.
 - **`index_rate_values`** *(new, Oct 2026 — FR-11.6/OQ-59)* — `id` (PK),

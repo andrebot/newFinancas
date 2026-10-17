@@ -135,7 +135,7 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain:</strong> <code>TransactionManager</code> ① <code>AuthorizationUtility</code> → ② <code>ValidationUtility</code> → ③ read + update the ledger record → ④ reverse/re-apply the balance movement → ⑤ <code>InvestmentHoldingAccessor.applyTrade</code> (delta) then <code>unarchiveIfSystemArchived</code> if quantity is no longer 0 (OQ-80) → ⑥ <code>ValuationSnapshotAccessor.updateAutomatic</code> → ⑦ <code>BudgetAccessor</code> re-accrual → ⑧ <code>LoggingUtility</code> (async).</p>
+    <p><strong>Chain:</strong> <code>TransactionManager</code> ① <code>AuthorizationUtility</code> → ② <code>ValidationUtility</code> → ③ read + update the ledger record → ④ reverse/re-apply the balance movement → ⑤ <code>InvestmentHoldingAccessor.applyTrade</code> (quantity and cost-basis deltas) then <code>unarchiveIfSystemArchived</code> if quantity is no longer 0 (OQ-80) → ⑥ <code>ValuationSnapshotAccessor.updateAutomatic</code> → ⑦ <code>BudgetAccessor</code> re-accrual → ⑧ <code>LoggingUtility</code> (async).</p>
   </div>
 
   <script>

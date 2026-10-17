@@ -68,13 +68,20 @@ sequenceDiagram
 
     CRON->>IHA: findDueScheduleEntries(today)
     Note over IHA: reads the schedule (and coded taxes) InvestmentProductEngine<br/>computed at buy time &mdash; the Engine is NOT called again
-    IHA-->>CRON: [{holdingId, accountId, kind, amount, date}, ...]
+    IHA-->>CRON: [{entryId, holdingId, accountId, kind, amount, date}, ...]
     loop for each due entry
-        CRON->>SB: publish("transaction.import.requested", {...})
+        CRON->>SB: publish("transaction.import.requested", {entryId, ...})
         SB-->>TM: subscribe("transaction.import.requested")
-        Note over TM: same recordTransaction(...) pipeline as POST /transactions &mdash;<br/>kind = interest / redemption / tax, linked to the Holding,<br/>a redemption that zeroes it auto-archives it (OQ-72)
-        TM->>ATA: insert(accountTransaction, effect, holdingId)
-        ATA-->>TM: transactionId
+        TM->>IHA: markEntryPosted(entryId)
+        alt already posted (a repeated delivery)
+            IHA-->>TM: false
+            Note over TM: nothing more &mdash; the entry posted once (OQ-171)
+        else marked now
+            IHA-->>TM: true
+            Note over TM: same recordTransaction(...) pipeline as POST /transactions,<br/>in the same database transaction &mdash; kind = interest / redemption / tax,<br/>linked to the Holding, a redemption that zeroes it auto-archives it (OQ-72)
+            TM->>ATA: insert(accountTransaction, effect, holdingId)
+            ATA-->>TM: transactionId
+        end
         TM-->>LOG: logActivity(correlationId, systemActor, "PostScheduledCashEvent")
         TM-->>LOG: recordAudit(systemActor, "Transaction", transactionId)
     end
@@ -82,6 +89,7 @@ sequenceDiagram
   </div>
   <div class="notes">
     <ul>
+      <li><strong>Posted once (OQ-171):</strong> <code>markEntryPosted</code> runs in the same database transaction as the posted Transaction and only marks an unposted entry, so a repeated event delivery posts nothing twice.</li>
       <li><strong>Payout source (FR-5.9):</strong> the interest transactions posted here, linked to their Holding, are what the payout chart reads.</li>
       <li>The same <code>investmentsDaily</code> run also publishes <code>holding.matured</code> (UC-11) &mdash; one cron, two events (Manager review M6).</li>
       <li>See FR-11.2, FR-11.3, FR-5.9, OQ-72.</li>
