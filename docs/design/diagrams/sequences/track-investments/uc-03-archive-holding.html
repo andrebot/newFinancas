@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Archive Matured Holding</h1>
-  <p class="subtitle"><span class="route">POST /holdings/:holdingId/archive</span> &mdash; FR-5.8/OQ-43/OQ-72. Reached from the &ldquo;past due &mdash; archive?&rdquo; notification. One-way.</p>
+  <p class="subtitle"><span class="route">POST /households/:householdId/holdings/:holdingId/archive</span> &mdash; FR-5.8/OQ-43/OQ-72. Reached from the &ldquo;past due &mdash; archive?&rdquo; notification. One-way.</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -66,7 +66,7 @@ sequenceDiagram
     participant IHA as InvestmentHoldingAccessor
     participant LOG as LoggingUtility
 
-    User->>API: POST /holdings/:holdingId/archive
+    User->>API: POST /households/:householdId/holdings/:holdingId/archive
     API->>AM: archiveHolding(actor, holdingId)
     AM->>AZ: canWrite(actor, holdingId)?
     alt not authorized

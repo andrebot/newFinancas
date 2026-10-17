@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>View Report</h1>
-  <p class="subtitle"><strong>Ad-hoc report types deferred to v2 (OQ-71)</strong> &mdash; the <code>/reports/:reportType</code> resource itself is v1, serving the fixed types <code>month-overview</code>, <code>investments-overview</code>, <code>payouts</code>. <span class="route">GET /reports/:reportType</span> &mdash; FR-6.2/6.3/6.6. One generic use case standing in for spend-by-category, income-vs-expense, and account-balance-by-month &mdash; the same computation shape, different parameters.</p>
+  <p class="subtitle"><strong>Ad-hoc report types deferred to v2 (OQ-71)</strong> &mdash; the <code>/reports/:reportType</code> resource itself is v1, serving the fixed types <code>month-overview</code>, <code>investments-overview</code>, <code>payouts</code>. <span class="route">GET /households/:householdId/reports/:reportType</span> &mdash; FR-6.2/6.3/6.6. One generic use case standing in for spend-by-category, income-vs-expense, and account-balance-by-month &mdash; the same computation shape, different parameters.</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -66,7 +66,7 @@ sequenceDiagram
     participant ATA as AccountTransactionAccessor
     participant CTA as CardTransactionAccessor
 
-    User->>API: GET /reports/:reportType?dateRange=...&accountId=...
+    User->>API: GET /households/:householdId/reports/:reportType?dateRange=...&accountId=...
     API->>IM: getReport(actor, reportType, params)
     alt reportType unknown or dateRange malformed
         IM-->>API: BadRequest

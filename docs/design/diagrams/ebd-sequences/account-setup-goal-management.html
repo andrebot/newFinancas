@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Account Setup — Goal Management</h1>
-  <p class="subtitle"><span class="route">POST/PATCH/DELETE /goals</span>, <span class="route">POST /goals/:id/complete|reopen</span>, <span class="route">GET /goals</span>.</p>
+  <p class="subtitle"><span class="route">POST/PATCH/DELETE /households/:householdId/goals</span>, <span class="route">POST /households/:householdId/goals/:id/complete|reopen</span>, <span class="route">GET /households/:householdId/goals</span>.</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -68,7 +68,7 @@ sequenceDiagram
     participant EXP as Account Setup<br/>Experience
     participant API as Backend API
     FLOW->>EXP: request goals(status)
-    EXP->>API: GET /goals?status=active
+    EXP->>API: GET /households/:householdId/goals?status=active
     API-->>EXP: goals with per-currency contributions + funded by
     EXP-->>FLOW: state
     FLOW-->>GP: render progress
@@ -81,12 +81,12 @@ sequenceDiagram
         User->>GF: name, currency, visibility, target, due date
         GF->>FLOW: emit goalSubmitted
         FLOW->>EXP: request saveGoal
-        EXP->>API: POST /goals (or PATCH)
+        EXP->>API: POST /households/:householdId/goals (or PATCH)
     else complete / reopen
         User->>CR: confirm
         CR->>FLOW: emit transition
         FLOW->>EXP: request complete or reopen
-        EXP->>API: POST /goals/:goalId/complete (or /reopen)
+        EXP->>API: POST /households/:householdId/goals/:goalId/complete (or /reopen)
     end
     </pre>
   </div>

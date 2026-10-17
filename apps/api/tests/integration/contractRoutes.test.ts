@@ -16,10 +16,20 @@ const BASE = '/api/v1';
 
 /** Contract operations whose backend is still on the plan (03-pd-execution-order.md). */
 const NOT_YET_ROUTED: readonly { readonly matches: RegExp; readonly lands: string }[] = [
-  { matches: /^\w+ \/(accounts|credit-cards|categories|budgets|goals)(\/|$)/, lands: 'slice 2' },
-  { matches: /^\w+ \/transactions(\/|$)/, lands: 'slice 3' },
-  { matches: /^\w+ \/(holdings|index-rates)(\/|$)/, lands: 'slice 4' },
-  { matches: /^\w+ \/(dashboard|reports|notifications)(\/|$)/, lands: 'slice 5' },
+  {
+    matches: /^\w+ \/households\/\{householdId\}\/(accounts|credit-cards|budgets|goals)(\/|$)/,
+    lands: 'slice 2 (task 76, M2)',
+  },
+  {
+    matches: /^\w+ \/households\/\{householdId\}\/(holdings|index-rates)(\/|$)/,
+    lands: 'slice 2 (task 76, M2)',
+  },
+  { matches: /^\w+ \/households\/\{householdId\}\/transactions(\/|$)/, lands: 'slice 3' },
+  {
+    matches: /^\w+ \/households\/\{householdId\}\/(dashboard|reports)(\/|$)/,
+    lands: 'slice 5',
+  },
+  { matches: /^\w+ \/notifications(\/|$)/, lands: 'slice 5' },
   { matches: /^GET \/households\/\{householdId\}\/audit-log(\/|$)/, lands: 'slice 5' },
   { matches: /^DELETE \/users\/me$/, lands: 'task 136 (M1D, the Delete User cascade)' },
 ];

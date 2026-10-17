@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Account Setup — Category Management</h1>
-  <p class="subtitle"><span class="route">POST/PATCH /categories</span>, archive endpoints.</p>
+  <p class="subtitle"><span class="route">POST/PATCH /households/:householdId/categories</span>, archive endpoints.</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -71,17 +71,17 @@ sequenceDiagram
         User->>IP: name, icon, colour (18 palette tokens)
         IP->>FLOW: emit categoryDrafted
         FLOW->>EXP: request createCategory
-        EXP->>API: POST /categories
+        EXP->>API: POST /households/:householdId/categories
     else add a subcategory
         User->>SE: name, ✓
         SE->>FLOW: emit subcategoryAdded
         FLOW->>EXP: request updateCategory(subcategories)
-        EXP->>API: PATCH /categories/:categoryId
+        EXP->>API: PATCH /households/:householdId/categories/:categoryId
     else archive
         User->>AC: confirm (cascades to subcategories)
         AC->>FLOW: emit archive
         FLOW->>EXP: request archive
-        EXP->>API: POST /categories/:categoryId/archive
+        EXP->>API: POST /households/:householdId/categories/:categoryId/archive
     end
     API-->>EXP: done
     EXP-->>FLOW: state refreshed

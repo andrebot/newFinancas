@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Track Investments — Rates Maintenance</h1>
-  <p class="subtitle"><span class="route">GET /index-rates</span>, <span class="route">POST/PATCH/DELETE /index-rates/:index/values</span>.</p>
+  <p class="subtitle"><span class="route">GET /households/:householdId/index-rates</span>, <span class="route">POST/PATCH/DELETE /households/:householdId/index-rates/:index/values</span>.</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -67,7 +67,7 @@ sequenceDiagram
     participant EXP as Track Investments<br/>Experience
     participant API as Backend API
     FLOW->>EXP: request rates
-    EXP->>API: GET /index-rates
+    EXP->>API: GET /households/:householdId/index-rates
     API-->>EXP: every index with history
     EXP-->>FLOW: state
     FLOW-->>RC: render Selic, CDI, IPCA, IGP-M with charts
@@ -75,12 +75,12 @@ sequenceDiagram
         User->>RU: value + as-of date
         RU->>FLOW: emit rateEntered
         FLOW->>EXP: request record
-        EXP->>API: POST /index-rates/:index/values
+        EXP->>API: POST /households/:householdId/index-rates/:index/values
     else fix history
         User->>RH: edit or delete an entry
         RH->>FLOW: emit historyChange
         FLOW->>EXP: request edit / delete
-        EXP->>API: PATCH or DELETE /index-rates/:index/values/:valueId
+        EXP->>API: PATCH or DELETE /households/:householdId/index-rates/:index/values/:valueId
     end
     API-->>EXP: done
     EXP-->>FLOW: state refreshed

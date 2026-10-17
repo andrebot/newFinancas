@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Delete Transaction</h1>
-  <p class="subtitle"><span class="route">DELETE /transactions/:transactionId</span> &mdash; FR-3.2. Same reverse-effect complexity as Edit, without a reapply step.</p>
+  <p class="subtitle"><span class="route">DELETE /households/:householdId/transactions/:transactionId</span> &mdash; FR-3.2. Same reverse-effect complexity as Edit, without a reapply step.</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -71,7 +71,7 @@ sequenceDiagram
     participant ATA as AccountTransactionAccessor
     participant LOG as LoggingUtility
 
-    User->>API: DELETE /transactions/:transactionId
+    User->>API: DELETE /households/:householdId/transactions/:transactionId
     API->>TM: delete(actor, transactionId)
     TM->>AZ: canWrite(actor, transactionId)?
     alt not authorized

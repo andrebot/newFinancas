@@ -4,7 +4,7 @@ import { createIdentityManager } from '../../../../src/managers/identity';
 import {
   ANA, blankName, fakeDeps, HOUSEHOLD, MEMBER, NOW, SESSION,
 } from './fakes';
-import { expectAudited } from './audit';
+import { expectAudited } from '../audit';
 
 const ACTOR = { userId: ANA.id, sessionId: SESSION.id, systemRole: 'USER' as const };
 const CORRELATION_ID = '0199c5a0-0000-7000-8000-0000000000cc';

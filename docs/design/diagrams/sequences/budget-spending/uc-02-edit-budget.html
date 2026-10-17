@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Edit Budget</h1>
-  <p class="subtitle"><span class="route">PATCH /budgets/:budgetId</span> &mdash; FR-4.9. Changing the target amount only affects the current and future Budget Periods; every past period keeps the target actually in effect at the time.</p>
+  <p class="subtitle"><span class="route">PATCH /households/:householdId/budgets/:budgetId</span> &mdash; FR-4.9. Changing the target amount only affects the current and future Budget Periods; every past period keeps the target actually in effect at the time.</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -66,7 +66,7 @@ sequenceDiagram
     participant BA as BudgetAccessor
     participant LOG as LoggingUtility
 
-    User->>API: PATCH /budgets/:budgetId {name, targetAmount, targets: [...]}
+    User->>API: PATCH /households/:householdId/budgets/:budgetId {name, targetAmount, targets: [...]}
     API->>AM: editBudget(actor, budgetId, input)
     AM->>VU: check(input)
     alt validation fails

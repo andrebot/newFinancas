@@ -137,6 +137,17 @@ exist for either.
   `dueDate`, `asOfDate`, `nextRunDate`) matching the data model's own
   `date`-vs-`timestamp` column split; `date-time` (full ISO 8601) for
   every `created_at`/`updated_at`/`archived_at`-shaped field.
+- **Household data lives under `/households/{householdId}` (OQ-174).**
+  Every route on a household's data — accounts, credit cards,
+  categories, budgets, holdings, index rates, goals, transactions,
+  dashboard, reports, audit log — is nested under its household, the
+  way invitations already were. The household is explicit in the URL
+  (the web app's active household, FR-1.8), the Manager checks the
+  caller's role in it once, and every Accessor gets the `householdId`
+  it guards with. Short forms such as `PATCH /holdings/{holdingId}` in
+  this document mean the nested path. User-scoped routes (`/auth`,
+  `/users/me`, `/notifications`, accepting/declining an invitation) are
+  not nested.
 - **IDs are UUIDs** everywhere, matching the data model's `uuid` PK/FK
   convention throughout.
 - **JSON field names are camelCase**; the OpenAPI schemas translate every

@@ -136,7 +136,7 @@ sequenceDiagram
 UCS.append(dict(
     filename="uc-02-edit-holding.html",
     title="Edit Holding Goal Allocations",
-    subtitle='<span class="route">PATCH /holdings/:holdingId</span> &mdash; FR-8.2/8.3/OQ-48. Narrowed in the Oct 2026 review: allocations only &mdash; position is transaction-only, market value has its own use cases.',
+    subtitle='<span class="route">PATCH /households/:householdId/holdings/:holdingId</span> &mdash; FR-8.2/8.3/OQ-48. Narrowed in the Oct 2026 review: allocations only &mdash; position is transaction-only, market value has its own use cases.',
     mermaid="""
 sequenceDiagram
 """ + P_CORE_AM + """
@@ -144,7 +144,7 @@ sequenceDiagram
     participant GA as GoalAccessor
     participant LOG as LoggingUtility
 
-    User->>API: PATCH /holdings/:holdingId {allocations: [{goalId, percentage}, ...]}
+    User->>API: PATCH /households/:householdId/holdings/:holdingId {allocations: [{goalId, percentage}, ...]}
     API->>AM: editHoldingAllocations(actor, holdingId, allocations)
     AM->>AZ: canWrite(actor, holdingId)?
     alt not authorized
@@ -193,7 +193,7 @@ sequenceDiagram
 UCS.append(dict(
     filename="uc-03-archive-holding.html",
     title="Archive Matured Holding",
-    subtitle='<span class="route">POST /holdings/:holdingId/archive</span> &mdash; FR-5.8/OQ-43/OQ-72. Reached from the &ldquo;past due &mdash; archive?&rdquo; notification. One-way.',
+    subtitle='<span class="route">POST /households/:householdId/holdings/:holdingId/archive</span> &mdash; FR-5.8/OQ-43/OQ-72. Reached from the &ldquo;past due &mdash; archive?&rdquo; notification. One-way.',
     mermaid="""
 sequenceDiagram
 """ + P_CORE_AM + """
@@ -201,7 +201,7 @@ sequenceDiagram
     participant IHA as InvestmentHoldingAccessor
     participant LOG as LoggingUtility
 
-    User->>API: POST /holdings/:holdingId/archive
+    User->>API: POST /households/:householdId/holdings/:holdingId/archive
     API->>AM: archiveHolding(actor, holdingId)
     AM->>AZ: canWrite(actor, holdingId)?
     alt not authorized
@@ -254,7 +254,7 @@ sequenceDiagram
             Note over TM: nothing more &mdash; the entry posted once (OQ-171)
         else marked now
             IHA-->>TM: true
-            Note over TM: same recordTransaction(...) pipeline as POST /transactions,<br/>in the same database transaction &mdash; kind = interest / redemption / tax,<br/>linked to the Holding, a redemption that zeroes it auto-archives it (OQ-72)
+            Note over TM: same recordTransaction(...) pipeline as POST /households/:householdId/transactions,<br/>in the same database transaction &mdash; kind = interest / redemption / tax,<br/>linked to the Holding, a redemption that zeroes it auto-archives it (OQ-72)
             TM->>ATA: insert(accountTransaction, effect, holdingId)
             ATA-->>TM: transactionId
         end
@@ -272,14 +272,14 @@ sequenceDiagram
 """,
 ))
 
-mv(5, "Record", 'insertManual(holdingId, {valuation, asOfDate})', "POST /holdings/:holdingId/valuation-snapshots", "{value, asOf}", "201 Created {snapshotId}", "Fixed-term Holdings have no snapshots (value = cost basis until redemption, OQ-51).")
-mv(6, "Edit", 'updateManual(holdingId, snapshotId, {valuation?, asOfDate?})', "PATCH /holdings/:holdingId/valuation-snapshots/:snapshotId", "{value?, asOf?}", "200 OK", "Corrects a typo in a past value (OQ-56).")
-mv(7, "Delete", 'deleteManual(holdingId, snapshotId)', "DELETE /holdings/:holdingId/valuation-snapshots/:snapshotId", "", "204 No Content", "If it was the latest, the previous snapshot becomes the current value.")
+mv(5, "Record", 'insertManual(holdingId, {valuation, asOfDate})', "POST /households/:householdId/holdings/:holdingId/valuation-snapshots", "{value, asOf}", "201 Created {snapshotId}", "Fixed-term Holdings have no snapshots (value = cost basis until redemption, OQ-51).")
+mv(6, "Edit", 'updateManual(holdingId, snapshotId, {valuation?, asOfDate?})', "PATCH /households/:householdId/holdings/:holdingId/valuation-snapshots/:snapshotId", "{value?, asOf?}", "200 OK", "Corrects a typo in a past value (OQ-56).")
+mv(7, "Delete", 'deleteManual(holdingId, snapshotId)', "DELETE /households/:householdId/holdings/:holdingId/valuation-snapshots/:snapshotId", "", "204 No Content", "If it was the latest, the previous snapshot becomes the current value.")
 DUPLICATE_DAY = ("duplicate_day", "Conflict 409 index_rate.duplicate_day")
 RATE_NOT_FOUND = ("not_found", "NotFound 404 index_rate.not_found")
-ir(8, "Record", "POST /index-rates/:index/values", "{value, asOf}", "insert(householdId, {index, value, asOf}, actor)", "201 Created {valueId}", [DUPLICATE_DAY])
-ir(9, "Edit", "PATCH /index-rates/:index/values/:valueId", "{value?, asOf?}", "update(householdId, index, valueId, changes)", "200 OK", [RATE_NOT_FOUND, DUPLICATE_DAY])
-ir(10, "Delete", "DELETE /index-rates/:index/values/:valueId", "", "remove(householdId, index, valueId)", "204 No Content", [RATE_NOT_FOUND])
+ir(8, "Record", "POST /households/:householdId/index-rates/:index/values", "{value, asOf}", "insert(householdId, {index, value, asOf}, actor)", "201 Created {valueId}", [DUPLICATE_DAY])
+ir(9, "Edit", "PATCH /households/:householdId/index-rates/:index/values/:valueId", "{value?, asOf?}", "update(householdId, index, valueId, changes)", "200 OK", [RATE_NOT_FOUND, DUPLICATE_DAY])
+ir(10, "Delete", "DELETE /households/:householdId/index-rates/:index/values/:valueId", "", "remove(householdId, index, valueId)", "204 No Content", [RATE_NOT_FOUND])
 
 # ---------------------------------------------------------------- UC-11
 UCS.append(dict(
@@ -339,7 +339,7 @@ sequenceDiagram
 UCS.append(dict(
     filename="uc-12-view-investments.html",
     title="View Investments",
-    subtitle='<span class="route">GET /reports/investments-overview</span>, <span class="route">GET /reports/payouts?holdingIds=</span>, <span class="route">GET /accounts/:accountId/holdings</span> &mdash; FR-5.3/5.4, FR-5.9, FR-11.2, FR-11.6. Fixed v1 report types under <code>/reports</code> (sequence review Q1).',
+    subtitle='<span class="route">GET /households/:householdId/reports/investments-overview</span>, <span class="route">GET /households/:householdId/reports/payouts?holdingIds=</span>, <span class="route">GET /households/:householdId/accounts/:accountId/holdings</span> &mdash; FR-5.3/5.4, FR-5.9, FR-11.2, FR-11.6. Fixed v1 report types under <code>/reports</code> (sequence review Q1).',
     mermaid="""
 sequenceDiagram
 """ + P_IM + """
@@ -351,7 +351,7 @@ sequenceDiagram
     participant ATA as AccountTransactionAccessor
     participant IRA as IndexRateAccessor
 
-    User->>API: GET /reports/investments-overview
+    User->>API: GET /households/:householdId/reports/investments-overview
     API->>IM: report(actor, "investments-overview")
     IM->>AZ: visibleScope(actor)
     IM->>RE: investmentsOverview(scope)
@@ -362,7 +362,7 @@ sequenceDiagram
     IM-->>API: report
     API-->>User: 200 OK
 
-    User->>API: GET /reports/payouts?holdingIds=a,b,c&months=12
+    User->>API: GET /households/:householdId/reports/payouts?holdingIds=a,b,c&months=12
     API->>IM: report(actor, "payouts", {holdingIds, months})
     IM->>RE: payoutSeries(scope, holdingIds, months)
     RE->>ATA: monthly sums of linked dividend / interest transactions
@@ -370,7 +370,7 @@ sequenceDiagram
     IM-->>API: report
     API-->>User: 200 OK
 
-    User->>API: GET /accounts/:accountId/holdings
+    User->>API: GET /households/:householdId/accounts/:accountId/holdings
     API->>IM: holdingsByAccount(actor, accountId)
     IM->>RE: positions(accountId)
     RE-->>IM: holdings with positions and values
@@ -388,7 +388,7 @@ sequenceDiagram
     <ul>
       <li><strong>Two Engines side by side, never calling each other</strong> &mdash; <code>InsightsManager</code> composes them (VBD &sect;3).</li>
       <li>Payout comes only from linked transactions (FR-5.9); projections are computed on read (FR-11.2) &mdash; nothing new is stored.</li>
-      <li>The Rates tab reads <code>GET /index-rates</code> (every index with its history) &mdash; a plain read of <code>AccountManager</code>'s own entities, so it is <code>AccountManager</code>'s (<code>IndexRateAccessor.list</code>, read-ownership rule, OQ-172), not this Manager's; value history reads <code>GET /holdings/:holdingId/valuation-snapshots</code> (exists).</li>
+      <li>The Rates tab reads <code>GET /households/:householdId/index-rates</code> (every index with its history) &mdash; a plain read of <code>AccountManager</code>'s own entities, so it is <code>AccountManager</code>'s (<code>IndexRateAccessor.list</code>, read-ownership rule, OQ-172), not this Manager's; value history reads <code>GET /households/:householdId/holdings/:holdingId/valuation-snapshots</code> (exists).</li>
       <li>See FR-5.3, FR-5.4, FR-5.9, FR-11.2, FR-11.6, OQ-58, OQ-73, OQ-79.</li>
     </ul>
 """,

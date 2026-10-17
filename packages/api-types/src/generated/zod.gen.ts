@@ -233,6 +233,95 @@ export const zCreditCardMonthBalance = z.object({
     updatedAt: z.iso.datetime().optional()
 });
 
+/**
+ * Material Symbols name from the in-code icon set (FR-10.1, OQ-126) — mirrors `CATEGORY_ICONS` in `@financas/reference`; a test keeps the two equal (OQ-174).
+ *
+ */
+export const zCategoryIcon = z.enum([
+    'home-outline',
+    'apartment',
+    'bolt',
+    'water-drop-outline',
+    'local-fire-department-outline',
+    'wifi',
+    'smartphone-outline',
+    'build-outline',
+    'cleaning-services-outline',
+    'chair-outline',
+    'shopping-cart-outline',
+    'restaurant',
+    'local-cafe-outline',
+    'local-bar-outline',
+    'fastfood-outline',
+    'bakery-dining-outline',
+    'directions-car-outline',
+    'local-gas-station-outline',
+    'directions-bus-outline',
+    'local-taxi-outline',
+    'local-parking',
+    'two-wheeler',
+    'flight',
+    'medical-services-outline',
+    'local-pharmacy-outline',
+    'fitness-center',
+    'spa-outline',
+    'psychology-outline',
+    'shopping-bag-outline',
+    'checkroom',
+    'devices-outline',
+    'content-cut',
+    'redeem',
+    'child-care-outline',
+    'pets',
+    'school-outline',
+    'elderly',
+    'movie-outline',
+    'sports-esports-outline',
+    'music-note',
+    'menu-book-outline',
+    'theater-comedy-outline',
+    'beach-access-outline',
+    'celebration-outline',
+    'subscriptions-outline',
+    'payments-outline',
+    'work-outline',
+    'savings-outline',
+    'account-balance-outline',
+    'receipt-long-outline',
+    'credit-card-outline',
+    'trending-up',
+    'sell-outline',
+    'real-estate-agent-outline',
+    'shield-outline',
+    'volunteer-activism-outline',
+    'category-outline'
+]);
+
+/**
+ * Palette token, not a hex — resolves per theme (OQ-85). Mirrors `PALETTE_TOKENS` in `@financas/reference` (OQ-174).
+ *
+ */
+export const zCategoryColor = z.enum([
+    'mint',
+    'emerald',
+    'teal',
+    'cyan',
+    'sky',
+    'blue',
+    'indigo',
+    'violet',
+    'lilac',
+    'fuchsia',
+    'pink',
+    'rose',
+    'coral',
+    'peach',
+    'orange',
+    'sun',
+    'lime',
+    'slate'
+]);
+
 export const zSubcategory = z.object({
     id: z.uuid().optional(),
     categoryId: z.uuid().optional(),
@@ -248,56 +337,18 @@ export const zCategory = z.object({
     archivedAt: z.iso.datetime().nullish(),
     createdAt: z.iso.datetime().optional(),
     subcategories: z.array(zSubcategory).optional(),
-    icon: z.string().optional(),
-    color: z.enum([
-        'mint',
-        'emerald',
-        'teal',
-        'cyan',
-        'sky',
-        'blue',
-        'indigo',
-        'violet',
-        'lilac',
-        'fuchsia',
-        'pink',
-        'rose',
-        'coral',
-        'peach',
-        'orange',
-        'sun',
-        'lime',
-        'slate'
-    ]).optional()
+    icon: zCategoryIcon.optional(),
+    color: zCategoryColor.optional()
 });
 
 export const zCategoryUpdateRequest = z.object({
     name: z.string().optional(),
     subcategories: z.array(z.object({
         id: z.uuid().optional(),
-        name: z.string().optional()
+        name: z.string()
     })).optional(),
-    icon: z.string().optional(),
-    color: z.enum([
-        'mint',
-        'emerald',
-        'teal',
-        'cyan',
-        'sky',
-        'blue',
-        'indigo',
-        'violet',
-        'lilac',
-        'fuchsia',
-        'pink',
-        'rose',
-        'coral',
-        'peach',
-        'orange',
-        'sun',
-        'lime',
-        'slate'
-    ]).optional()
+    icon: zCategoryIcon.optional(),
+    color: zCategoryColor.optional()
 });
 
 /**
@@ -1094,8 +1145,11 @@ export const zDeclineInvitationPath = z.object({
     invitationId: z.uuid()
 });
 
+export const zListAccountsPath = z.object({
+    householdId: z.uuid()
+});
+
 export const zListAccountsQuery = z.object({
-    householdId: z.uuid().optional(),
     visibility: z.enum(['personal', 'shared']).optional(),
     limit: z.int().gte(1).lte(100).optional().default(20),
     offset: z.int().gte(0).optional().default(0)
@@ -1111,12 +1165,17 @@ export const zListAccountsResponse = z.object({
 
 export const zCreateAccountBody = zAccountCreateRequest;
 
+export const zCreateAccountPath = z.object({
+    householdId: z.uuid()
+});
+
 /**
  * Created
  */
 export const zCreateAccountResponse = zAccount;
 
 export const zGetAccountPath = z.object({
+    householdId: z.uuid(),
     accountId: z.uuid()
 });
 
@@ -1128,6 +1187,7 @@ export const zGetAccountResponse = zAccount;
 export const zEditAccountBody = zAccountUpdateRequest;
 
 export const zEditAccountPath = z.object({
+    householdId: z.uuid(),
     accountId: z.uuid()
 });
 
@@ -1137,6 +1197,7 @@ export const zEditAccountPath = z.object({
 export const zEditAccountResponse = zAccount;
 
 export const zArchiveAccountPath = z.object({
+    householdId: z.uuid(),
     accountId: z.uuid()
 });
 
@@ -1146,6 +1207,7 @@ export const zArchiveAccountPath = z.object({
 export const zArchiveAccountResponse = z.void();
 
 export const zListCreditCardsPath = z.object({
+    householdId: z.uuid(),
     accountId: z.uuid()
 });
 
@@ -1157,6 +1219,7 @@ export const zListCreditCardsResponse = z.object({
 });
 
 export const zGetAccountBalancesPath = z.object({
+    householdId: z.uuid(),
     accountId: z.uuid()
 });
 
@@ -1173,6 +1236,7 @@ export const zGetAccountBalancesResponse = z.object({
 });
 
 export const zGetCreditCardBalancesPath = z.object({
+    householdId: z.uuid(),
     creditCardId: z.uuid()
 });
 
@@ -1188,6 +1252,10 @@ export const zGetCreditCardBalancesResponse = z.object({
     data: z.array(zCreditCardMonthBalance).optional()
 });
 
+export const zListCategoriesPath = z.object({
+    householdId: z.uuid()
+});
+
 export const zListCategoriesQuery = z.object({
     includeArchived: z.boolean().optional().default(false)
 });
@@ -1201,27 +1269,12 @@ export const zListCategoriesResponse = z.object({
 
 export const zCreateCategoryBody = z.object({
     name: z.string(),
-    icon: z.string(),
-    color: z.enum([
-        'mint',
-        'emerald',
-        'teal',
-        'cyan',
-        'sky',
-        'blue',
-        'indigo',
-        'violet',
-        'lilac',
-        'fuchsia',
-        'pink',
-        'rose',
-        'coral',
-        'peach',
-        'orange',
-        'sun',
-        'lime',
-        'slate'
-    ])
+    icon: zCategoryIcon,
+    color: zCategoryColor
+});
+
+export const zCreateCategoryPath = z.object({
+    householdId: z.uuid()
 });
 
 /**
@@ -1230,6 +1283,7 @@ export const zCreateCategoryBody = z.object({
 export const zCreateCategoryResponse = zCategory;
 
 export const zGetCategoryPath = z.object({
+    householdId: z.uuid(),
     categoryId: z.uuid()
 });
 
@@ -1241,6 +1295,7 @@ export const zGetCategoryResponse = zCategory;
 export const zEditCategoryBody = zCategoryUpdateRequest;
 
 export const zEditCategoryPath = z.object({
+    householdId: z.uuid(),
     categoryId: z.uuid()
 });
 
@@ -1250,6 +1305,7 @@ export const zEditCategoryPath = z.object({
 export const zEditCategoryResponse = zCategory;
 
 export const zArchiveCategoryPath = z.object({
+    householdId: z.uuid(),
     categoryId: z.uuid()
 });
 
@@ -1259,6 +1315,7 @@ export const zArchiveCategoryPath = z.object({
 export const zArchiveCategoryResponse = z.void();
 
 export const zArchiveSubcategoryPath = z.object({
+    householdId: z.uuid(),
     categoryId: z.uuid(),
     subcategoryId: z.uuid()
 });
@@ -1267,6 +1324,10 @@ export const zArchiveSubcategoryPath = z.object({
  * No Content
  */
 export const zArchiveSubcategoryResponse = z.void();
+
+export const zListBudgetsPath = z.object({
+    householdId: z.uuid()
+});
 
 export const zListBudgetsQuery = z.object({
     visibility: z.enum(['personal', 'shared']).optional(),
@@ -1284,12 +1345,17 @@ export const zListBudgetsResponse = z.object({
 
 export const zCreateBudgetBody = zBudgetCreateRequest;
 
+export const zCreateBudgetPath = z.object({
+    householdId: z.uuid()
+});
+
 /**
  * Created
  */
 export const zCreateBudgetResponse = zBudget;
 
 export const zDeleteBudgetPath = z.object({
+    householdId: z.uuid(),
     budgetId: z.uuid()
 });
 
@@ -1299,6 +1365,7 @@ export const zDeleteBudgetPath = z.object({
 export const zDeleteBudgetResponse = z.void();
 
 export const zGetBudgetPath = z.object({
+    householdId: z.uuid(),
     budgetId: z.uuid()
 });
 
@@ -1310,6 +1377,7 @@ export const zGetBudgetResponse = zBudget;
 export const zEditBudgetBody = zBudgetUpdateRequest;
 
 export const zEditBudgetPath = z.object({
+    householdId: z.uuid(),
     budgetId: z.uuid()
 });
 
@@ -1319,6 +1387,7 @@ export const zEditBudgetPath = z.object({
 export const zEditBudgetResponse = zBudget;
 
 export const zListBudgetPeriodsPath = z.object({
+    householdId: z.uuid(),
     budgetId: z.uuid()
 });
 
@@ -1335,6 +1404,7 @@ export const zListBudgetPeriodsResponse = z.object({
 });
 
 export const zListHoldingsPath = z.object({
+    householdId: z.uuid(),
     accountId: z.uuid()
 });
 
@@ -1350,6 +1420,7 @@ export const zListHoldingsResponse = z.object({
 });
 
 export const zGetHoldingPath = z.object({
+    householdId: z.uuid(),
     holdingId: z.uuid()
 });
 
@@ -1361,6 +1432,7 @@ export const zGetHoldingResponse = zInvestmentHolding;
 export const zEditHoldingBody = zHoldingUpdateRequest;
 
 export const zEditHoldingPath = z.object({
+    householdId: z.uuid(),
     holdingId: z.uuid()
 });
 
@@ -1370,6 +1442,7 @@ export const zEditHoldingPath = z.object({
 export const zEditHoldingResponse = zInvestmentHolding;
 
 export const zArchiveHoldingPath = z.object({
+    householdId: z.uuid(),
     holdingId: z.uuid()
 });
 
@@ -1379,6 +1452,7 @@ export const zArchiveHoldingPath = z.object({
 export const zArchiveHoldingResponse = z.void();
 
 export const zListValuationSnapshotsPath = z.object({
+    householdId: z.uuid(),
     holdingId: z.uuid()
 });
 
@@ -1397,6 +1471,7 @@ export const zListValuationSnapshotsResponse = z.object({
 export const zRecordMarketValueBody = zValuationSnapshotInput;
 
 export const zRecordMarketValuePath = z.object({
+    householdId: z.uuid(),
     holdingId: z.uuid()
 });
 
@@ -1406,6 +1481,7 @@ export const zRecordMarketValuePath = z.object({
 export const zRecordMarketValueResponse = zValuationSnapshot;
 
 export const zListScheduleEntriesPath = z.object({
+    householdId: z.uuid(),
     holdingId: z.uuid()
 });
 
@@ -1414,6 +1490,10 @@ export const zListScheduleEntriesPath = z.object({
  */
 export const zListScheduleEntriesResponse = z.object({
     data: z.array(zInvestmentScheduleEntry).optional()
+});
+
+export const zListTransactionsPath = z.object({
+    householdId: z.uuid()
 });
 
 export const zListTransactionsQuery = z.object({
@@ -1435,6 +1515,10 @@ export const zListTransactionsResponse = zTransactionPage;
 
 export const zRecordTransactionBody = zTransactionCreateRequest;
 
+export const zRecordTransactionPath = z.object({
+    householdId: z.uuid()
+});
+
 /**
  * Created
  */
@@ -1444,6 +1528,7 @@ export const zRecordTransactionResponse = z.union([
 ]);
 
 export const zDeleteTransactionPath = z.object({
+    householdId: z.uuid(),
     transactionId: z.uuid()
 });
 
@@ -1453,6 +1538,7 @@ export const zDeleteTransactionPath = z.object({
 export const zDeleteTransactionResponse = z.void();
 
 export const zGetTransactionPath = z.object({
+    householdId: z.uuid(),
     transactionId: z.uuid()
 });
 
@@ -1464,6 +1550,7 @@ export const zGetTransactionResponse = zAccountTransaction;
 export const zEditTransactionBody = zTransactionUpdateRequest;
 
 export const zEditTransactionPath = z.object({
+    householdId: z.uuid(),
     transactionId: z.uuid()
 });
 
@@ -1473,6 +1560,7 @@ export const zEditTransactionPath = z.object({
 export const zEditTransactionResponse = zAccountTransaction;
 
 export const zListCardTransactionsPath = z.object({
+    householdId: z.uuid(),
     creditCardId: z.uuid()
 });
 
@@ -1489,6 +1577,10 @@ export const zListCardTransactionsQuery = z.object({
 export const zListCardTransactionsResponse = z.object({
     data: z.array(zCardTransaction).optional(),
     pagination: zPagination.optional()
+});
+
+export const zGetDashboardPath = z.object({
+    householdId: z.uuid()
 });
 
 /**
@@ -1526,7 +1618,12 @@ export const zEditDashboardWidgetsBody = z.object({
     widgets: z.array(zDashboardWidgetInput)
 });
 
+export const zEditDashboardWidgetsPath = z.object({
+    householdId: z.uuid()
+});
+
 export const zGetReportPath = z.object({
+    householdId: z.uuid(),
     reportType: z.enum([
         'month-overview',
         'investments-overview',
@@ -1549,6 +1646,10 @@ export const zGetReportResponse = z.discriminatedUnion('reportType', [
     zInvestmentsOverviewReport.extend({ reportType: z.literal('investments-overview') }),
     zPayoutsReport.extend({ reportType: z.literal('payouts') })
 ]);
+
+export const zExportTransactionsPath = z.object({
+    householdId: z.uuid()
+});
 
 export const zExportTransactionsQuery = z.object({
     startDate: z.iso.date().optional(),
@@ -1600,6 +1701,7 @@ export const zExportAuditLogQuery = z.object({
 export const zExportAuditLogResponse = z.string();
 
 export const zDeleteMarketValuePath = z.object({
+    householdId: z.uuid(),
     holdingId: z.uuid(),
     snapshotId: z.uuid()
 });
@@ -1615,6 +1717,7 @@ export const zEditMarketValueBody = z.object({
 });
 
 export const zEditMarketValuePath = z.object({
+    householdId: z.uuid(),
     holdingId: z.uuid(),
     snapshotId: z.uuid()
 });
@@ -1623,6 +1726,10 @@ export const zEditMarketValuePath = z.object({
  * OK
  */
 export const zEditMarketValueResponse = zValuationSnapshot;
+
+export const zListIndexRatesPath = z.object({
+    householdId: z.uuid()
+});
 
 /**
  * OK
@@ -1635,6 +1742,7 @@ export const zRecordIndexRateBody = z.object({
 });
 
 export const zRecordIndexRatePath = z.object({
+    householdId: z.uuid(),
     index: z.enum([
         'selic',
         'cdi',
@@ -1649,6 +1757,7 @@ export const zRecordIndexRatePath = z.object({
 export const zRecordIndexRateResponse = zIndexRateValue;
 
 export const zDeleteIndexRatePath = z.object({
+    householdId: z.uuid(),
     index: z.enum([
         'selic',
         'cdi',
@@ -1669,6 +1778,7 @@ export const zEditIndexRateBody = z.object({
 });
 
 export const zEditIndexRatePath = z.object({
+    householdId: z.uuid(),
     index: z.enum([
         'selic',
         'cdi',
@@ -1683,6 +1793,10 @@ export const zEditIndexRatePath = z.object({
  */
 export const zEditIndexRateResponse = zIndexRateValue;
 
+export const zListGoalsPath = z.object({
+    householdId: z.uuid()
+});
+
 export const zListGoalsQuery = z.object({
     status: z.enum(['active', 'completed']).optional().default('active')
 });
@@ -1694,12 +1808,17 @@ export const zListGoalsResponse = z.array(zGoalWithProgress);
 
 export const zCreateGoalBody = zGoalCreateRequest;
 
+export const zCreateGoalPath = z.object({
+    householdId: z.uuid()
+});
+
 /**
  * Created
  */
 export const zCreateGoalResponse = zGoal;
 
 export const zDeleteGoalPath = z.object({
+    householdId: z.uuid(),
     goalId: z.uuid()
 });
 
@@ -1709,6 +1828,7 @@ export const zDeleteGoalPath = z.object({
 export const zDeleteGoalResponse = z.void();
 
 export const zGetGoalPath = z.object({
+    householdId: z.uuid(),
     goalId: z.uuid()
 });
 
@@ -1720,6 +1840,7 @@ export const zGetGoalResponse = zGoal;
 export const zEditGoalBody = zGoalUpdateRequest;
 
 export const zEditGoalPath = z.object({
+    householdId: z.uuid(),
     goalId: z.uuid()
 });
 
@@ -1729,6 +1850,7 @@ export const zEditGoalPath = z.object({
 export const zEditGoalResponse = zGoal;
 
 export const zCompleteGoalPath = z.object({
+    householdId: z.uuid(),
     goalId: z.uuid()
 });
 
@@ -1738,6 +1860,7 @@ export const zCompleteGoalPath = z.object({
 export const zCompleteGoalResponse = z.void();
 
 export const zReopenGoalPath = z.object({
+    householdId: z.uuid(),
     goalId: z.uuid()
 });
 
@@ -1747,6 +1870,7 @@ export const zReopenGoalPath = z.object({
 export const zReopenGoalResponse = z.void();
 
 export const zListGoalAllocationsPath = z.object({
+    householdId: z.uuid(),
     goalId: z.uuid()
 });
 
@@ -1758,6 +1882,7 @@ export const zListGoalAllocationsResponse = z.object({
 });
 
 export const zGetGoalProgressPath = z.object({
+    householdId: z.uuid(),
     goalId: z.uuid()
 });
 

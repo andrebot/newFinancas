@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>View Month Overview</h1>
-  <p class="subtitle"><span class="route">GET /reports/month-overview?year=&amp;month=</span> &mdash; FR-6.11, FR-6.6, FR-4.3, FR-8.5/OQ-74. A fixed v1 report type of <code>GET /reports/{reportType}</code> (stakeholder: reports will expand later).</p>
+  <p class="subtitle"><span class="route">GET /households/:householdId/reports/month-overview?year=&amp;month=</span> &mdash; FR-6.11, FR-6.6, FR-4.3, FR-8.5/OQ-74. A fixed v1 report type of <code>GET /households/:householdId/reports/{reportType}</code> (stakeholder: reports will expand later).</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -71,7 +71,7 @@ sequenceDiagram
     participant GA as GoalAccessor
     participant VSA as ValuationSnapshotAccessor
 
-    User->>API: GET /reports/month-overview?year=2026&month=9
+    User->>API: GET /households/:householdId/reports/month-overview?year=2026&month=9
     API->>IM: report(actor, "month-overview", {year, month})
     IM->>AZ: visibleScope(actor)
     AZ-->>IM: scope

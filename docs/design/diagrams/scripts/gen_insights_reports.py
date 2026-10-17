@@ -23,14 +23,14 @@ UCS = []
 UCS.append(dict(
     filename="uc-01-view-dashboard.html",
     title="View Dashboard",
-    subtitle='<span class="route">GET /dashboard</span> &mdash; FR-6.0 (v1 fixed panels, OQ-67). Updated in the Oct 2026 sequence review: no stored layout &mdash; widgets are v3.',
+    subtitle='<span class="route">GET /households/:householdId/dashboard</span> &mdash; FR-6.0 (v1 fixed panels, OQ-67). Updated in the Oct 2026 sequence review: no stored layout &mdash; widgets are v3.',
     mermaid="""
 sequenceDiagram
 """ + P_CORE + """
     participant AZ as AuthorizationUtility
     participant RE as ReportingEngine
 
-    User->>API: GET /dashboard
+    User->>API: GET /households/:householdId/dashboard
     API->>IM: getDashboard(actor)
     IM->>AZ: visibleScope(actor)
     AZ-->>IM: scope (personal + shared, FR-2.3/4.2/8.1)
@@ -42,7 +42,7 @@ sequenceDiagram
 """,
     notes="""
     <ul>
-      <li><strong>v1 = fixed panels (FR-6.0, OQ-67):</strong> no <code>DashboardAccessor</code> read (parked until v3). Changing which holdings the payout chart shows refetches <code>GET /reports/payouts</code> only.</li>
+      <li><strong>v1 = fixed panels (FR-6.0, OQ-67):</strong> no <code>DashboardAccessor</code> read (parked until v3). Changing which holdings the payout chart shows refetches <code>GET /households/:householdId/reports/payouts</code> only.</li>
       <li>See FR-6.0, FR-5.3, FR-5.9, FR-4.3, FR-8.5, OQ-67.</li>
     </ul>
 """,
@@ -52,7 +52,7 @@ sequenceDiagram
 UCS.append(dict(
     filename="uc-02-edit-dashboard-layout.html",
     title="Edit Dashboard Layout",
-    subtitle='<strong>Deferred to v3 (OQ-67).</strong> <span class="route">PATCH /dashboard/widgets</span> &mdash; FR-6.1/FR-6.8. Add, remove, reorder; the same Widget type can appear more than once with different settings.',
+    subtitle='<strong>Deferred to v3 (OQ-67).</strong> <span class="route">PATCH /households/:householdId/dashboard/widgets</span> &mdash; FR-6.1/FR-6.8. Add, remove, reorder; the same Widget type can appear more than once with different settings.',
     mermaid="""
 sequenceDiagram
 """ + P_CORE + """
@@ -60,7 +60,7 @@ sequenceDiagram
     participant DA as DashboardAccessor
     participant LOG as LoggingUtility
 
-    User->>API: PATCH /dashboard/widgets {widgets: [{widgetId?, widgetType, position, settings}, ...]}
+    User->>API: PATCH /households/:householdId/dashboard/widgets {widgets: [{widgetId?, widgetType, position, settings}, ...]}
     API->>IM: editLayout(actor, input)
     IM->>VU: check(input)
     alt validation fails (unknown widgetType)
@@ -89,7 +89,7 @@ sequenceDiagram
 UCS.append(dict(
     filename="uc-03-view-report.html",
     title="View Report",
-    subtitle='<strong>Ad-hoc report types deferred to v2 (OQ-71)</strong> &mdash; the <code>/reports/:reportType</code> resource itself is v1, serving the fixed types <code>month-overview</code>, <code>investments-overview</code>, <code>payouts</code>. <span class="route">GET /reports/:reportType</span> &mdash; FR-6.2/6.3/6.6. One generic use case standing in for spend-by-category, income-vs-expense, and account-balance-by-month &mdash; the same computation shape, different parameters.',
+    subtitle='<strong>Ad-hoc report types deferred to v2 (OQ-71)</strong> &mdash; the <code>/reports/:reportType</code> resource itself is v1, serving the fixed types <code>month-overview</code>, <code>investments-overview</code>, <code>payouts</code>. <span class="route">GET /households/:householdId/reports/:reportType</span> &mdash; FR-6.2/6.3/6.6. One generic use case standing in for spend-by-category, income-vs-expense, and account-balance-by-month &mdash; the same computation shape, different parameters.',
     mermaid="""
 sequenceDiagram
 """ + P_CORE + """
@@ -97,7 +97,7 @@ sequenceDiagram
     participant ATA as AccountTransactionAccessor
     participant CTA as CardTransactionAccessor
 
-    User->>API: GET /reports/:reportType?dateRange=...&accountId=...
+    User->>API: GET /households/:householdId/reports/:reportType?dateRange=...&accountId=...
     API->>IM: getReport(actor, reportType, params)
     alt reportType unknown or dateRange malformed
         IM-->>API: BadRequest
@@ -126,7 +126,7 @@ sequenceDiagram
 UCS.append(dict(
     filename="uc-04-export-csv.html",
     title="Export Transactions to CSV",
-    subtitle='<strong>Deferred to v2 (OQ-71).</strong> <span class="route">GET /reports/transactions/export?format=csv</span> &mdash; FR-6.4. A formatted PDF is a nice-to-have, not a v1 commitment; CSV is the only guaranteed export format.',
+    subtitle='<strong>Deferred to v2 (OQ-71).</strong> <span class="route">GET /households/:householdId/reports/transactions/export?format=csv</span> &mdash; FR-6.4. A formatted PDF is a nice-to-have, not a v1 commitment; CSV is the only guaranteed export format.',
     mermaid="""
 sequenceDiagram
 """ + P_CORE + """
@@ -134,7 +134,7 @@ sequenceDiagram
     participant ATA as AccountTransactionAccessor
     participant CTA as CardTransactionAccessor
 
-    User->>API: GET /reports/transactions/export?format=csv&dateRange=...
+    User->>API: GET /households/:householdId/reports/transactions/export?format=csv&dateRange=...
     API->>IM: exportTransactions(actor, dateRange)
     IM->>RE: exportCsv(actor, dateRange)
     RE->>ATA: query(actor, dateRange)

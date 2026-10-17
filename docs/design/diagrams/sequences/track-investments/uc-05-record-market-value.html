@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Record Market Value</h1>
-  <p class="subtitle"><span class="route">POST /holdings/:holdingId/valuation-snapshots</span> &mdash; FR-5.2/OQ-56. Manual Valuation Snapshot of a market-priced Holding (stock, FII, fund, other).</p>
+  <p class="subtitle"><span class="route">POST /households/:householdId/holdings/:holdingId/valuation-snapshots</span> &mdash; FR-5.2/OQ-56. Manual Valuation Snapshot of a market-priced Holding (stock, FII, fund, other).</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -68,7 +68,7 @@ sequenceDiagram
     participant VSA as ValuationSnapshotAccessor
     participant LOG as LoggingUtility
 
-    User->>API: POST /holdings/:holdingId/valuation-snapshots {value, asOf}
+    User->>API: POST /households/:householdId/holdings/:holdingId/valuation-snapshots {value, asOf}
     API->>AM: recordMarketValue(actor, holdingId, input)
     AM->>AZ: canWrite(actor, holdingId)?
     alt not authorized

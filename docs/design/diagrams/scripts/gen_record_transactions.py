@@ -24,7 +24,7 @@ UCS = []
 UCS.append(dict(
     filename="uc-01-record-transaction.html",
     title="Record Transaction",
-    subtitle='<span class="route">POST /transactions</span> &mdash; FR-3.1/OQ-39. One unified entry point for both Account and Card Transactions &mdash; target narrows which kinds are valid, itself data-driven. The investment-buy-against-a-fixed-term-instrument sub-case is one of the two widest-fan-out flows in the whole system.',
+    subtitle='<span class="route">POST /households/:householdId/transactions</span> &mdash; FR-3.1/OQ-39. One unified entry point for both Account and Card Transactions &mdash; target narrows which kinds are valid, itself data-driven. The investment-buy-against-a-fixed-term-instrument sub-case is one of the two widest-fan-out flows in the whole system.',
     mermaid="""
 sequenceDiagram
 """ + P_CORE + """
@@ -40,7 +40,7 @@ sequenceDiagram
     participant CTA as CardTransactionAccessor
     participant LOG as LoggingUtility
 
-    User->>API: POST /transactions {target, kind, date, amount, currency, categoryId, description, assetType?, ticker?, quantity?, rate?, dueDate?, incentivised?, allocations?}
+    User->>API: POST /households/:householdId/transactions {target, kind, date, amount, currency, categoryId, description, assetType?, ticker?, quantity?, rate?, dueDate?, incentivised?, allocations?}
     API->>TM: record(actor, input)
     TM->>AZ: canWrite(actor, targetId)?
     alt not authorized
@@ -152,7 +152,7 @@ sequenceDiagram
       <li>No <code>NotificationDeliveryUtility</code> call anywhere in this flow &mdash; FR-4.4's threshold alert was removed (OQ-52, Round 8).</li>
       <li><strong>Oct 2026 review:</strong> automatic Valuation Snapshot is explicit (<code>source = transaction</code>, OQ-56); a full sell/redemption auto-archives the Holding (OQ-72); investment kinds rejected on credit-card-only accounts (OQ-76); the Engine call carries the debenture flag and returns coded taxes (OQ-79); error responses use OQ-83 codes. No recurring option (OQ-55).</li>
       <li><strong>Re-buying a zeroed Holding (OQ-171):</strong> a market-priced buy reopens the system-archived Holding of its ticker. Its old Goal split is worth 0 at quantity 0, so the buy's re-weighting (OQ-168) drops every old share &mdash; the new buy's split is the only one left; undoing the zeroing sell instead restores the old split intact.</li>
-      <li><strong>Goal allocation can be bundled here (OQ-54, added after the API coverage audit):</strong> one call in, no separate <code>PATCH /holdings/{holdingId}</code> follow-up required &mdash; same 100%-cap rejection as that endpoint's own allocation edit (FR-8.3), just reachable from this pipeline too. Direction of control is unchanged (OQ-48): still written from the Holding's side, never the Goal's.</li>
+      <li><strong>Goal allocation can be bundled here (OQ-54, added after the API coverage audit):</strong> one call in, no separate <code>PATCH /households/:householdId/holdings/{holdingId}</code> follow-up required &mdash; same 100%-cap rejection as that endpoint's own allocation edit (FR-8.3), just reachable from this pipeline too. Direction of control is unchanged (OQ-48): still written from the Holding's side, never the Goal's.</li>
       <li><strong>The buy's split is the purchase's (OQ-168):</strong> buying into a Holding that already funds Goals re-weights its whole split by value at this buy's unit price, so every Goal keeps exactly its money (900 at Retirement 60% / Trip 20%, plus 100 for Car 100% &rarr; 54% / 18% / 10%). One replace-all write, so a refusal never leaves half a split behind.</li>
       <li>See FR-3.1, FR-3.6&ndash;3.9, FR-5.2, FR-5.8, FR-8.2, FR-8.3, FR-11.1&ndash;11.3, OQ-16, OQ-39, OQ-48, OQ-50, OQ-51, OQ-54, OQ-56, OQ-72, OQ-76, OQ-79, OQ-83.</li>
     </ul>
@@ -163,7 +163,7 @@ sequenceDiagram
 UCS.append(dict(
     filename="uc-02-edit-transaction.html",
     title="Edit Transaction",
-    subtitle='<span class="route">PATCH /transactions/:transactionId</span> &mdash; FR-3.2. Works for either an Account or Card Transaction, the same unified entry point (OQ-39). Real complexity: every downstream effect must be reversed, then reapplied with the new values.',
+    subtitle='<span class="route">PATCH /households/:householdId/transactions/:transactionId</span> &mdash; FR-3.2. Works for either an Account or Card Transaction, the same unified entry point (OQ-39). Real complexity: every downstream effect must be reversed, then reapplied with the new values.',
     mermaid="""
 sequenceDiagram
 """ + P_CORE + """
@@ -177,7 +177,7 @@ sequenceDiagram
     participant CTA as CardTransactionAccessor
     participant LOG as LoggingUtility
 
-    User->>API: PATCH /transactions/:transactionId {amount, date, categoryId, description}
+    User->>API: PATCH /households/:householdId/transactions/:transactionId {amount, date, categoryId, description}
     API->>TM: edit(actor, transactionId, input)
     TM->>AZ: canWrite(actor, transactionId)?
     alt not authorized
@@ -240,7 +240,7 @@ sequenceDiagram
 UCS.append(dict(
     filename="uc-03-delete-transaction.html",
     title="Delete Transaction",
-    subtitle='<span class="route">DELETE /transactions/:transactionId</span> &mdash; FR-3.2. Same reverse-effect complexity as Edit, without a reapply step.',
+    subtitle='<span class="route">DELETE /households/:householdId/transactions/:transactionId</span> &mdash; FR-3.2. Same reverse-effect complexity as Edit, without a reapply step.',
     mermaid="""
 sequenceDiagram
 """ + P_CORE + """
@@ -253,7 +253,7 @@ sequenceDiagram
     participant ATA as AccountTransactionAccessor
     participant LOG as LoggingUtility
 
-    User->>API: DELETE /transactions/:transactionId
+    User->>API: DELETE /households/:householdId/transactions/:transactionId
     API->>TM: delete(actor, transactionId)
     TM->>AZ: canWrite(actor, transactionId)?
     alt not authorized
@@ -296,7 +296,7 @@ sequenceDiagram
 UCS.append(dict(
     filename="uc-04-browse-transactions.html",
     title="Browse &amp; Filter Transactions",
-    subtitle='<span class="route">GET /transactions?kinds=&amp;accountIds=&amp;creditCardIds=&amp;categoryIds=&amp;holdingId=&amp;from=&amp;to=&amp;cursor=</span> &mdash; FR-3.12/OQ-61. Both ledgers merged, newest first, cursor-paginated. Owned by <code>TransactionManager</code> (plain read of its own ledger &mdash; read-ownership rule).',
+    subtitle='<span class="route">GET /households/:householdId/transactions?kinds=&amp;accountIds=&amp;creditCardIds=&amp;categoryIds=&amp;holdingId=&amp;from=&amp;to=&amp;cursor=</span> &mdash; FR-3.12/OQ-61. Both ledgers merged, newest first, cursor-paginated. Owned by <code>TransactionManager</code> (plain read of its own ledger &mdash; read-ownership rule).',
     mermaid="""
 sequenceDiagram
 """ + P_CORE + """
@@ -304,7 +304,7 @@ sequenceDiagram
     participant ATA as AccountTransactionAccessor
     participant CTA as CardTransactionAccessor
 
-    User->>API: GET /transactions?{filters}&cursor
+    User->>API: GET /households/:householdId/transactions?{filters}&cursor
     API->>TM: browse(actor, filters, cursor)
     TM->>AZ: visibleScope(actor)
     AZ-->>TM: {accountIds, creditCardIds} the actor may see (personal / shared)
@@ -333,7 +333,7 @@ sequenceDiagram
 UCS.append(dict(
     filename="uc-05-view-month-overview.html",
     title="View Month Overview",
-    subtitle='<span class="route">GET /reports/month-overview?year=&amp;month=</span> &mdash; FR-6.11, FR-6.6, FR-4.3, FR-8.5/OQ-74. A fixed v1 report type of <code>GET /reports/{reportType}</code> (stakeholder: reports will expand later).',
+    subtitle='<span class="route">GET /households/:householdId/reports/month-overview?year=&amp;month=</span> &mdash; FR-6.11, FR-6.6, FR-4.3, FR-8.5/OQ-74. A fixed v1 report type of <code>GET /households/:householdId/reports/{reportType}</code> (stakeholder: reports will expand later).',
     mermaid="""
 sequenceDiagram
     actor User
@@ -348,7 +348,7 @@ sequenceDiagram
     participant GA as GoalAccessor
     participant VSA as ValuationSnapshotAccessor
 
-    User->>API: GET /reports/month-overview?year=2026&month=9
+    User->>API: GET /households/:householdId/reports/month-overview?year=2026&month=9
     API->>IM: report(actor, "month-overview", {year, month})
     IM->>AZ: visibleScope(actor)
     AZ-->>IM: scope

@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Edit Transaction</h1>
-  <p class="subtitle"><span class="route">PATCH /transactions/:transactionId</span> &mdash; FR-3.2. Works for either an Account or Card Transaction, the same unified entry point (OQ-39). Real complexity: every downstream effect must be reversed, then reapplied with the new values.</p>
+  <p class="subtitle"><span class="route">PATCH /households/:householdId/transactions/:transactionId</span> &mdash; FR-3.2. Works for either an Account or Card Transaction, the same unified entry point (OQ-39). Real complexity: every downstream effect must be reversed, then reapplied with the new values.</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -72,7 +72,7 @@ sequenceDiagram
     participant CTA as CardTransactionAccessor
     participant LOG as LoggingUtility
 
-    User->>API: PATCH /transactions/:transactionId {amount, date, categoryId, description}
+    User->>API: PATCH /households/:householdId/transactions/:transactionId {amount, date, categoryId, description}
     API->>TM: edit(actor, transactionId, input)
     TM->>AZ: canWrite(actor, transactionId)?
     alt not authorized

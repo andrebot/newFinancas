@@ -71,17 +71,17 @@ sequenceDiagram
     FLOW-->>ACF: step 1 (no Skip — FR-1.22)
     ACF->>FLOW: emit accountSubmitted {account, cards}
     FLOW->>EXP: request createAccount(...)
-    EXP->>API: POST /accounts
+    EXP->>API: POST /households/:householdId/accounts
     API-->>EXP: created
     FLOW-->>CF: step 2 — review seeded categories
     CF->>FLOW: emit categoriesReviewed {changes}
     FLOW->>EXP: request apply category changes
-    EXP->>API: POST / PATCH /categories
+    EXP->>API: POST / PATCH /households/:householdId/categories
     FLOW-->>BF: step 3 — optional budget(s)
     alt user creates a budget
         BF->>FLOW: emit budgetSubmitted
         FLOW->>EXP: request createBudget
-        EXP->>API: POST /budgets
+        EXP->>API: POST /households/:householdId/budgets
     else Finish
         User->>WN: Finish setup
         WN->>FLOW: emit finish

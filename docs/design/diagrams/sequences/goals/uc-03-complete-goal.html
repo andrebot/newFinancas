@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Complete Goal</h1>
-  <p class="subtitle"><span class="route">POST /goals/:goalId/complete</span> &mdash; FR-8.8. "This goal is completed" &mdash; keeps the record intact so historical progress-by-month stays viewable, and is reversible (see Unarchive).</p>
+  <p class="subtitle"><span class="route">POST /households/:householdId/goals/:goalId/complete</span> &mdash; FR-8.8. "This goal is completed" &mdash; keeps the record intact so historical progress-by-month stays viewable, and is reversible (see Unarchive).</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -65,7 +65,7 @@ sequenceDiagram
     participant OA as GoalAccessor
     participant LOG as LoggingUtility
 
-    User->>API: POST /goals/:goalId/complete
+    User->>API: POST /households/:householdId/goals/:goalId/complete
     API->>AM: completeGoal(actor, goalId)
     AM->>OA: complete(goalId)
     Note over OA: sets completed_at &mdash; unlike every other archive in this<br/>project, this one CAN be undone (FR-8.9)

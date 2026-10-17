@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Manage Finances — Browse Transactions</h1>
-  <p class="subtitle"><span class="route">GET /transactions?…&cursor=</span>, <span class="route">DELETE /transactions/:id</span>.</p>
+  <p class="subtitle"><span class="route">GET /households/:householdId/transactions?…&cursor=</span>, <span class="route">DELETE /households/:householdId/transactions/:id</span>.</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -68,14 +68,14 @@ sequenceDiagram
     participant EXP as Manage Finances<br/>Experience
     participant API as Backend API
     FLOW->>EXP: request page(filters, cursor = null)
-    EXP->>API: GET /transactions
+    EXP->>API: GET /households/:householdId/transactions
     API-->>EXP: items, dayTotals, nextCursor
     EXP-->>FLOW: state: page
     FLOW-->>LG: render grouped by month / day
     loop user scrolls
         LG->>FLOW: emit reachedEnd
         FLOW->>EXP: request page(filters, nextCursor)
-        EXP->>API: GET /transactions?cursor=…
+        EXP->>API: GET /households/:householdId/transactions?cursor=…
     end
     opt filter
         User->>FP: kinds, accounts, cards, categories, holding, any date range
@@ -92,7 +92,7 @@ sequenceDiagram
         User->>DC: confirm
         DC->>FLOW: emit delete
         FLOW->>EXP: request delete(id)
-        EXP->>API: DELETE /transactions/:transactionId
+        EXP->>API: DELETE /households/:householdId/transactions/:transactionId
     end
     </pre>
   </div>

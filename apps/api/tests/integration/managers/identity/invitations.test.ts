@@ -6,7 +6,7 @@ import { createIdentityManager } from '../../../../src/managers/identity';
 import {
   ANA, BEN_ID, fakeDeps, HOUSEHOLD, INVITATION, NOW, SESSION,
 } from './fakes';
-import { expectAudited } from './audit';
+import { expectAudited } from '../audit';
 
 const HOME = HOUSEHOLD.id;
 const ANA_ACTOR = { userId: ANA.id, sessionId: SESSION.id, systemRole: 'USER' as const };

@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Account Setup — Budget Management</h1>
-  <p class="subtitle"><span class="route">POST/PATCH/DELETE /budgets</span>.</p>
+  <p class="subtitle"><span class="route">POST/PATCH/DELETE /households/:householdId/budgets</span>.</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -72,7 +72,7 @@ sequenceDiagram
     CP->>FLOW: emit coverChosen
     BF->>FLOW: emit budgetSubmitted
     FLOW->>EXP: request saveBudget
-    EXP->>API: POST /budgets (or PATCH)
+    EXP->>API: POST /households/:householdId/budgets (or PATCH)
     alt 409 budget.target_already_claimed
         API-->>EXP: error code (claimed meanwhile)
         EXP-->>FLOW: state: error — picker refreshes

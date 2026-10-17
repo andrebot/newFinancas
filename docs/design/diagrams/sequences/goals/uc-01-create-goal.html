@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Create Goal</h1>
-  <p class="subtitle"><span class="route">POST /goals</span> &mdash; FR-8.1.</p>
+  <p class="subtitle"><span class="route">POST /households/:householdId/goals</span> &mdash; FR-8.1.</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -66,7 +66,7 @@ sequenceDiagram
     participant OA as GoalAccessor
     participant LOG as LoggingUtility
 
-    User->>API: POST /goals {name, targetAmount, targetCurrency, dueDate, visibility}
+    User->>API: POST /households/:householdId/goals {name, targetAmount, targetCurrency, dueDate, visibility}
     API->>AM: createGoal(actor, input)
     AM->>VU: check(input)
     alt validation fails

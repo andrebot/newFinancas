@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Browse &amp; Filter Transactions</h1>
-  <p class="subtitle"><span class="route">GET /transactions?kinds=&amp;accountIds=&amp;creditCardIds=&amp;categoryIds=&amp;holdingId=&amp;from=&amp;to=&amp;cursor=</span> &mdash; FR-3.12/OQ-61. Both ledgers merged, newest first, cursor-paginated. Owned by <code>TransactionManager</code> (plain read of its own ledger &mdash; read-ownership rule).</p>
+  <p class="subtitle"><span class="route">GET /households/:householdId/transactions?kinds=&amp;accountIds=&amp;creditCardIds=&amp;categoryIds=&amp;holdingId=&amp;from=&amp;to=&amp;cursor=</span> &mdash; FR-3.12/OQ-61. Both ledgers merged, newest first, cursor-paginated. Owned by <code>TransactionManager</code> (plain read of its own ledger &mdash; read-ownership rule).</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -66,7 +66,7 @@ sequenceDiagram
     participant ATA as AccountTransactionAccessor
     participant CTA as CardTransactionAccessor
 
-    User->>API: GET /transactions?{filters}&cursor
+    User->>API: GET /households/:householdId/transactions?{filters}&cursor
     API->>TM: browse(actor, filters, cursor)
     TM->>AZ: visibleScope(actor)
     AZ-->>TM: {accountIds, creditCardIds} the actor may see (personal / shared)

@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Track Investments — Portfolio Overview</h1>
-  <p class="subtitle"><span class="route">GET /reports/investments-overview</span>, <span class="route">GET /reports/payouts?holdingIds=</span>.</p>
+  <p class="subtitle"><span class="route">GET /households/:householdId/reports/investments-overview</span>, <span class="route">GET /households/:householdId/reports/payouts?holdingIds=</span>.</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -68,19 +68,19 @@ sequenceDiagram
     participant EXP as Track Investments<br/>Experience
     participant API as Backend API
     FLOW->>EXP: request overview
-    EXP->>API: GET /reports/investments-overview
+    EXP->>API: GET /households/:householdId/reports/investments-overview
     API-->>EXP: net worth + change, payout this month, allocations, coming due
     EXP-->>FLOW: state
     FLOW-->>NW: render
     FLOW-->>PT: render this month's dividend / interest transactions
     FLOW->>EXP: request payouts(default holdings)
-    EXP->>API: GET /reports/payouts
+    EXP->>API: GET /households/:householdId/reports/payouts
     API-->>EXP: series
     FLOW-->>PC: render top 5 + Others
     User->>HS: search, presets, check holdings
     HS->>FLOW: emit holdingsSelected
     FLOW->>EXP: request payouts(selected)
-    EXP->>API: GET /reports/payouts?holdingIds=…
+    EXP->>API: GET /households/:householdId/reports/payouts?holdingIds=…
     API-->>EXP: series
     EXP-->>FLOW: state
     FLOW-->>PC: re-render (only the chart refetches)

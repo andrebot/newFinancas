@@ -384,17 +384,17 @@ end
 FLOW-->>ACF: step 1 (no Skip — FR-1.22)
 ACF->>FLOW: emit accountSubmitted {account, cards}
 FLOW->>EXP: request createAccount(...)
-EXP->>API: POST /accounts
+EXP->>API: POST /households/:householdId/accounts
 API-->>EXP: created
 FLOW-->>CF: step 2 — review seeded categories
 CF->>FLOW: emit categoriesReviewed {changes}
 FLOW->>EXP: request apply category changes
-EXP->>API: POST / PATCH /categories
+EXP->>API: POST / PATCH /households/:householdId/categories
 FLOW-->>BF: step 3 — optional budget(s)
 alt user creates a budget
     BF->>FLOW: emit budgetSubmitted
     FLOW->>EXP: request createBudget
-    EXP->>API: POST /budgets
+    EXP->>API: POST /households/:householdId/budgets
 else Finish
     User->>WN: Finish setup
     WN->>FLOW: emit finish
@@ -663,7 +663,7 @@ end
 """, ["A standalone Interaction, no Flow (EBD): the confirm's open state is the Interaction's own; the request and its failure are the Experience's.",
         "The successor shown is a preview in FR-1.18's order (the longest-tenured Admin, else Member, else Viewer); the API decides.",
         "The leave doesn't refetch the members: the household is no longer the user's."]),
-    ("account-setup-account-card-management", "Account Setup — Account & Card Management", f"{R('POST/PATCH /accounts')}, {R('POST /accounts/:id/archive')}.",
+    ("account-setup-account-card-management", "Account Setup — Account & Card Management", f"{R('POST/PATCH /households/:householdId/accounts')}, {R('POST /households/:householdId/accounts/:id/archive')}.",
      [("AF", "Account Form"), ("CE", "Card Entry with<br/>Live Preview"), ("AC", "Archive Confirm"), FLOW("Account & Card Management"), EXP("Account Setup"), API],
      """
 User->>AF: name, type (checking / savings / credit card only / investment), currency, balance, visibility
@@ -673,40 +673,40 @@ opt add a card
     CE->>FLOW: emit cardAdded {network, last4, days, expiry}
 end
 FLOW->>EXP: request saveAccount(account, cards)
-EXP->>API: POST /accounts (or PATCH /accounts/:accountId)
+EXP->>API: POST /households/:householdId/accounts (or PATCH /households/:householdId/accounts/:accountId)
 API-->>EXP: saved or 422 validation.failed
 EXP-->>FLOW: state
 opt archive
     User->>AC: confirm (one-way)
     AC->>FLOW: emit archive
     FLOW->>EXP: request archive
-    EXP->>API: POST /accounts/:accountId/archive
+    EXP->>API: POST /households/:householdId/accounts/:accountId/archive
 end
 """, ["Only last4 + network leave the browser — the full number never does (NFR-SEC-7).", "Reused as Guided Setup step 1."]),
-    ("account-setup-category-management", "Account Setup — Category Management", f"{R('POST/PATCH /categories')}, archive endpoints.",
+    ("account-setup-category-management", "Account Setup — Category Management", f"{R('POST/PATCH /households/:householdId/categories')}, archive endpoints.",
      [("CC", "Category Card"), ("IP", "Icon & Colour Picker"), ("SE", "Inline Subcategory Entry"), ("AC", "Archive Confirm"), FLOW("Category Management"), EXP("Account Setup"), API],
      """
 alt new category
     User->>IP: name, icon, colour (18 palette tokens)
     IP->>FLOW: emit categoryDrafted
     FLOW->>EXP: request createCategory
-    EXP->>API: POST /categories
+    EXP->>API: POST /households/:householdId/categories
 else add a subcategory
     User->>SE: name, ✓
     SE->>FLOW: emit subcategoryAdded
     FLOW->>EXP: request updateCategory(subcategories)
-    EXP->>API: PATCH /categories/:categoryId
+    EXP->>API: PATCH /households/:householdId/categories/:categoryId
 else archive
     User->>AC: confirm (cascades to subcategories)
     AC->>FLOW: emit archive
     FLOW->>EXP: request archive
-    EXP->>API: POST /categories/:categoryId/archive
+    EXP->>API: POST /households/:householdId/categories/:categoryId/archive
 end
 API-->>EXP: done
 EXP-->>FLOW: state refreshed
 FLOW-->>CC: re-render (colour via ThemeUtility)
 """, ["Colour stored as a token, resolved per theme (OQ-85)."]),
-    ("account-setup-budget-management", "Account Setup — Budget Management", f"{R('POST/PATCH/DELETE /budgets')}.",
+    ("account-setup-budget-management", "Account Setup — Budget Management", f"{R('POST/PATCH/DELETE /households/:householdId/budgets')}.",
      [("BF", "Budget Form"), ("CP", "Claim-Aware<br/>Category Picker"), ("DC", "Delete Confirm"), FLOW("Budget Management"), EXP("Account Setup"), API],
      """
 FLOW-->>CP: render categories — claimed ones disabled, showing which budget owns them
@@ -715,7 +715,7 @@ User->>CP: pick free categories / subcategories
 CP->>FLOW: emit coverChosen
 BF->>FLOW: emit budgetSubmitted
 FLOW->>EXP: request saveBudget
-EXP->>API: POST /budgets (or PATCH)
+EXP->>API: POST /households/:householdId/budgets (or PATCH)
 alt 409 budget.target_already_claimed
     API-->>EXP: error code (claimed meanwhile)
     EXP-->>FLOW: state: error — picker refreshes
@@ -724,11 +724,11 @@ else saved
     EXP-->>FLOW: state refreshed
 end
 """, ["Setup page shows no spend progress (stakeholder)."]),
-    ("account-setup-goal-management", "Account Setup — Goal Management", f"{R('POST/PATCH/DELETE /goals')}, {R('POST /goals/:id/complete|reopen')}, {R('GET /goals')}.",
+    ("account-setup-goal-management", "Account Setup — Goal Management", f"{R('POST/PATCH/DELETE /households/:householdId/goals')}, {R('POST /households/:householdId/goals/:id/complete|reopen')}, {R('GET /households/:householdId/goals')}.",
      [("GF", "Goal Form"), ("GP", "Goal Progress Card"), ("FX", "Exchange-Rate<br/>Calculator"), ("CR", "Complete / Reopen<br/>Confirm"), FLOW("Goal Management"), EXP("Account Setup"), API],
      """
 FLOW->>EXP: request goals(status)
-EXP->>API: GET /goals?status=active
+EXP->>API: GET /households/:householdId/goals?status=active
 API-->>EXP: goals with per-currency contributions + funded by
 EXP-->>FLOW: state
 FLOW-->>GP: render progress
@@ -741,15 +741,15 @@ alt create / edit
     User->>GF: name, currency, visibility, target, due date
     GF->>FLOW: emit goalSubmitted
     FLOW->>EXP: request saveGoal
-    EXP->>API: POST /goals (or PATCH)
+    EXP->>API: POST /households/:householdId/goals (or PATCH)
 else complete / reopen
     User->>CR: confirm
     CR->>FLOW: emit transition
     FLOW->>EXP: request complete or reopen
-    EXP->>API: POST /goals/:goalId/complete (or /reopen)
+    EXP->>API: POST /households/:householdId/goals/:goalId/complete (or /reopen)
 end
 """, ["Allocations are never edited here — always from the Holding (OQ-48).", "FX never leaves the browser (FR-9)."]),
-    ("manage-finances-record-transaction", "Manage Finances — Record Transaction", f"{R('POST /transactions')}; edit reuses it with {R('PATCH /transactions/:id')}.",
+    ("manage-finances-record-transaction", "Manage Finances — Record Transaction", f"{R('POST /households/:householdId/transactions')}; edit reuses it with {R('PATCH /households/:householdId/transactions/:id')}.",
      [("KS", "Kind Group &<br/>Kind Selection"), ("TE", "Transaction Entry"), ("IB", "Investment Buy Entry"), ("GA", "Goal Allocation Entry"), FLOW("Record Transaction"), EXP("Manage Finances"), API],
      """
 User->>KS: group (Cash / Transfer / Credit card / Investment), then kind
@@ -768,7 +768,7 @@ end
 User->>TE: amount (currency from account), date, category, description
 TE->>FLOW: emit fields
 FLOW->>EXP: request record(transaction)
-EXP->>API: POST /transactions
+EXP->>API: POST /households/:householdId/transactions
 alt 4xx (e.g. goal.allocation_exceeds_100, transaction.investment_not_allowed_on_account)
     API-->>EXP: error code + params
     EXP-->>FLOW: state: error — I18nUtility renders it
@@ -777,18 +777,18 @@ else 201
     EXP-->>FLOW: complete → Experience refreshes Browse + Month Overview
 end
 """, ["No recurring option (OQ-55).", "The Experience, not this Flow, refreshes the sibling Flows on completion."]),
-    ("manage-finances-browse-transactions", "Manage Finances — Browse Transactions", f"{R('GET /transactions?…&cursor=')}, {R('DELETE /transactions/:id')}.",
+    ("manage-finances-browse-transactions", "Manage Finances — Browse Transactions", f"{R('GET /households/:householdId/transactions?…&cursor=')}, {R('DELETE /households/:householdId/transactions/:id')}.",
      [("FP", "Filter Panel"), ("LG", "Ledger"), ("XR", "Expanded Row"), ("DC", "Delete Confirm"), FLOW("Browse Transactions"), EXP("Manage Finances"), API],
      """
 FLOW->>EXP: request page(filters, cursor = null)
-EXP->>API: GET /transactions
+EXP->>API: GET /households/:householdId/transactions
 API-->>EXP: items, dayTotals, nextCursor
 EXP-->>FLOW: state: page
 FLOW-->>LG: render grouped by month / day
 loop user scrolls
     LG->>FLOW: emit reachedEnd
     FLOW->>EXP: request page(filters, nextCursor)
-    EXP->>API: GET /transactions?cursor=…
+    EXP->>API: GET /households/:householdId/transactions?cursor=…
 end
 opt filter
     User->>FP: kinds, accounts, cards, categories, holding, any date range
@@ -805,14 +805,14 @@ else delete
     User->>DC: confirm
     DC->>FLOW: emit delete
     FLOW->>EXP: request delete(id)
-    EXP->>API: DELETE /transactions/:transactionId
+    EXP->>API: DELETE /households/:householdId/transactions/:transactionId
 end
 """, ["Not scoped to the period bar (OQ-61).", "Edit goes through the Experience to Record Transaction — no Flow-to-Flow call."]),
-    ("manage-finances-month-overview", "Manage Finances — Month Overview", f"{R('GET /reports/month-overview?year=&month=')}.",
+    ("manage-finances-month-overview", "Manage Finances — Month Overview", f"{R('GET /households/:householdId/reports/month-overview?year=&month=')}.",
      [("PB", "Period Bar"), ("CS", "Currency Switch"), ("RL", "Balance / Budget /<br/>Goal Rails"), FLOW("Month Overview"), EXP("Manage Finances"), API],
      """
 FLOW->>EXP: request overview(year, month = today)
-EXP->>API: GET /reports/month-overview
+EXP->>API: GET /households/:householdId/reports/month-overview
 API-->>EXP: summary per currency, year strip, balances, budgets, goals
 EXP-->>FLOW: state
 FLOW-->>PB: render year + 12 months (mini in/out bars)
@@ -821,40 +821,40 @@ alt pick another month or year
     User->>PB: select
     PB->>FLOW: emit periodChanged
     FLOW->>EXP: request overview(year, month)
-    EXP->>API: GET /reports/month-overview
+    EXP->>API: GET /households/:householdId/reports/month-overview
 else switch currency
     User->>CS: $ or R$
     CS->>FLOW: emit currencyChanged (local — no request)
 end
 """, ["FormattingUtility formats every amount in its own currency; nothing is summed across currencies."]),
-    ("track-investments-portfolio-overview", "Track Investments — Portfolio Overview", f"{R('GET /reports/investments-overview')}, {R('GET /reports/payouts?holdingIds=')}.",
+    ("track-investments-portfolio-overview", "Track Investments — Portfolio Overview", f"{R('GET /households/:householdId/reports/investments-overview')}, {R('GET /households/:householdId/reports/payouts?holdingIds=')}.",
      [("NW", "Net Worth / Allocation /<br/>Coming Due cards"), ("PT", "Payout This Month"), ("HS", "Payout Holding Selector"), ("PC", "Payout Chart"), FLOW("Portfolio Overview"), EXP("Track Investments"), API],
      """
 FLOW->>EXP: request overview
-EXP->>API: GET /reports/investments-overview
+EXP->>API: GET /households/:householdId/reports/investments-overview
 API-->>EXP: net worth + change, payout this month, allocations, coming due
 EXP-->>FLOW: state
 FLOW-->>NW: render
 FLOW-->>PT: render this month's dividend / interest transactions
 FLOW->>EXP: request payouts(default holdings)
-EXP->>API: GET /reports/payouts
+EXP->>API: GET /households/:householdId/reports/payouts
 API-->>EXP: series
 FLOW-->>PC: render top 5 + Others
 User->>HS: search, presets, check holdings
 HS->>FLOW: emit holdingsSelected
 FLOW->>EXP: request payouts(selected)
-EXP->>API: GET /reports/payouts?holdingIds=…
+EXP->>API: GET /households/:householdId/reports/payouts?holdingIds=…
 API-->>EXP: series
 EXP-->>FLOW: state
 FLOW-->>PC: re-render (only the chart refetches)
 """, ["Portfolio Builder buttons render disabled (v2)."]),
-    ("track-investments-holding-maintenance", "Track Investments — Holding Maintenance", f"{R('GET /accounts/:id/holdings')}, {R('PATCH /holdings/:id')}, {R('…/valuation-snapshots')}.",
+    ("track-investments-holding-maintenance", "Track Investments — Holding Maintenance", f"{R('GET /households/:householdId/accounts/:id/holdings')}, {R('PATCH /households/:householdId/holdings/:id')}, {R('…/valuation-snapshots')}.",
      [("AP", "Account Picker"), ("HT", "Holdings Table"), ("GA", "Goal Allocation Editor"), ("MV", "Market Value Entry"), ("VH", "Value History Editor"), FLOW("Holding Maintenance"), EXP("Track Investments"), API],
      """
 User->>AP: pick account
 AP->>FLOW: emit accountChosen
 FLOW->>EXP: request holdings(accountId)
-EXP->>API: GET /accounts/:accountId/holdings
+EXP->>API: GET /households/:householdId/accounts/:accountId/holdings
 API-->>EXP: positions (+ expected payout / taxes for fixed-term)
 EXP-->>FLOW: state
 User->>HT: expand a holding
@@ -863,12 +863,12 @@ alt edit goal allocations
     User->>GA: rows with whole %
     GA->>FLOW: emit allocations
     FLOW->>EXP: request saveAllocations
-    EXP->>API: PATCH /holdings/:holdingId
+    EXP->>API: PATCH /households/:householdId/holdings/:holdingId
 else record a market value (market-priced only)
     User->>MV: value + as-of date
     MV->>FLOW: emit marketValue
     FLOW->>EXP: request recordValue
-    EXP->>API: POST /holdings/:holdingId/valuation-snapshots
+    EXP->>API: POST /households/:householdId/holdings/:holdingId/valuation-snapshots
 else fix a past value
     User->>VH: edit or delete an entry
     VH->>FLOW: emit historyChange
@@ -878,11 +878,11 @@ end
 API-->>EXP: done or error code (e.g. 409 snapshot.automatic_not_editable)
 EXP-->>FLOW: state refreshed
 """, ["Positions are read-only (transactions only).", "'See in Transactions' asks the Experience to route to Manage Finances with holdingId — no Flow-to-Flow call."]),
-    ("track-investments-rates-maintenance", "Track Investments — Rates Maintenance", f"{R('GET /index-rates')}, {R('POST/PATCH/DELETE /index-rates/:index/values')}.",
+    ("track-investments-rates-maintenance", "Track Investments — Rates Maintenance", f"{R('GET /households/:householdId/index-rates')}, {R('POST/PATCH/DELETE /households/:householdId/index-rates/:index/values')}.",
      [("RC", "Rate Card"), ("RU", "Rate Update Entry"), ("RH", "Rate History Editor"), FLOW("Rates Maintenance"), EXP("Track Investments"), API],
      """
 FLOW->>EXP: request rates
-EXP->>API: GET /index-rates
+EXP->>API: GET /households/:householdId/index-rates
 API-->>EXP: every index with history
 EXP-->>FLOW: state
 FLOW-->>RC: render Selic, CDI, IPCA, IGP-M with charts
@@ -890,21 +890,21 @@ alt update
     User->>RU: value + as-of date
     RU->>FLOW: emit rateEntered
     FLOW->>EXP: request record
-    EXP->>API: POST /index-rates/:index/values
+    EXP->>API: POST /households/:householdId/index-rates/:index/values
 else fix history
     User->>RH: edit or delete an entry
     RH->>FLOW: emit historyChange
     FLOW->>EXP: request edit / delete
-    EXP->>API: PATCH or DELETE /index-rates/:index/values/:valueId
+    EXP->>API: PATCH or DELETE /households/:householdId/index-rates/:index/values/:valueId
 end
 API-->>EXP: done
 EXP-->>FLOW: state refreshed
 """, ["Values are × 10,000 on the wire; FormattingUtility shows 10.50% a.a."]),
-    ("review-insights-dashboard", "Review Insights — Dashboard", f"{R('GET /dashboard')}, {R('GET /reports/payouts?holdingIds=')}.",
+    ("review-insights-dashboard", "Review Insights — Dashboard", f"{R('GET /households/:householdId/dashboard')}, {R('GET /households/:householdId/reports/payouts?holdingIds=')}.",
      [("PN", "Panels"), ("HS", "Payout Holding Selector"), ("PC", "Payout Chart"), FLOW("Dashboard"), EXP("Review Insights"), API],
      """
 FLOW->>EXP: request dashboard
-EXP->>API: GET /dashboard
+EXP->>API: GET /households/:householdId/dashboard
 API-->>EXP: fixed panels
 EXP-->>FLOW: state
 FLOW-->>PN: render net worth, coming due, rails (over-budget first)
@@ -912,7 +912,7 @@ FLOW-->>PC: render payouts
 User->>HS: change holdings
 HS->>FLOW: emit holdingsSelected
 FLOW->>EXP: request payouts(selected)
-EXP->>API: GET /reports/payouts?holdingIds=…
+EXP->>API: GET /households/:householdId/reports/payouts?holdingIds=…
 API-->>EXP: series
 EXP-->>FLOW: state
 FLOW-->>PC: re-render
@@ -937,7 +937,7 @@ else holding.matured — Archive holding
     User->>BELL: Archive holding
     BELL->>SHELL: emit action {type: holding.matured, archive, params}
     SHELL->>TI: route → Archive Matured Holding
-    TI->>API: POST /holdings/:holdingId/archive
+    TI->>API: POST /households/:householdId/holdings/:holdingId/archive
 end
 API-->>SHELL: done
 SHELL->>API: DELETE /notifications/:notificationId

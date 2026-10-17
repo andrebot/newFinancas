@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Manage Finances — Month Overview</h1>
-  <p class="subtitle"><span class="route">GET /reports/month-overview?year=&month=</span>.</p>
+  <p class="subtitle"><span class="route">GET /households/:householdId/reports/month-overview?year=&month=</span>.</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -67,7 +67,7 @@ sequenceDiagram
     participant EXP as Manage Finances<br/>Experience
     participant API as Backend API
     FLOW->>EXP: request overview(year, month = today)
-    EXP->>API: GET /reports/month-overview
+    EXP->>API: GET /households/:householdId/reports/month-overview
     API-->>EXP: summary per currency, year strip, balances, budgets, goals
     EXP-->>FLOW: state
     FLOW-->>PB: render year + 12 months (mini in/out bars)
@@ -76,7 +76,7 @@ sequenceDiagram
         User->>PB: select
         PB->>FLOW: emit periodChanged
         FLOW->>EXP: request overview(year, month)
-        EXP->>API: GET /reports/month-overview
+        EXP->>API: GET /households/:householdId/reports/month-overview
     else switch currency
         User->>CS: $ or R$
         CS->>FLOW: emit currencyChanged (local — no request)

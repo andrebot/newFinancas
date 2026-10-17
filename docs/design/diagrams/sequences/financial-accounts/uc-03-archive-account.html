@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Archive Financial Account</h1>
-  <p class="subtitle"><span class="route">POST /accounts/:accountId/archive</span> &mdash; FR-2.4/OQ-34. One-way, no unarchive path. Auto-disconnects Open Banking sync if linked (OQ-36) &mdash; currently a no-op since that trigger is parked.</p>
+  <p class="subtitle"><span class="route">POST /households/:householdId/accounts/:accountId/archive</span> &mdash; FR-2.4/OQ-34. One-way, no unarchive path. Auto-disconnects Open Banking sync if linked (OQ-36) &mdash; currently a no-op since that trigger is parked.</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -66,7 +66,7 @@ sequenceDiagram
     participant OB as OpenBankingConnectionAccessor
     participant LOG as LoggingUtility
 
-    User->>API: POST /accounts/:accountId/archive
+    User->>API: POST /households/:householdId/accounts/:accountId/archive
     API->>AM: archiveAccount(actor, accountId)
     AM->>AA: archive(accountId)
     Note over AA: sets archived_at, one-way &mdash; no unarchive endpoint exists (OQ-34)

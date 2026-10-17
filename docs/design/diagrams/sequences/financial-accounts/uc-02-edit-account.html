@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Edit Financial Account (incl. Credit Cards)</h1>
-  <p class="subtitle"><span class="route">PATCH /accounts/:accountId</span> &mdash; FR-2.9/OQ-35. Attaching, editing, and removing this account&#39;s Credit Cards is folded into this same request &mdash; not four separate endpoints.</p>
+  <p class="subtitle"><span class="route">PATCH /households/:householdId/accounts/:accountId</span> &mdash; FR-2.9/OQ-35. Attaching, editing, and removing this account&#39;s Credit Cards is folded into this same request &mdash; not four separate endpoints.</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -67,7 +67,7 @@ sequenceDiagram
     participant CA as CreditCardAccessor
     participant LOG as LoggingUtility
 
-    User->>API: PATCH /accounts/:accountId {name, visibility, cards: [...]}
+    User->>API: PATCH /households/:householdId/accounts/:accountId {name, visibility, cards: [...]}
     API->>AM: editAccount(actor, accountId, input)
     AM->>VU: check(input)
     alt request attempts to change type or currency
@@ -108,7 +108,7 @@ sequenceDiagram
   </div>
   <div class="notes">
     <ul>
-      <li>FR-2.9&#39;s combined-form decision (OQ-35) means there is no separate <code>POST /accounts/:id/cards</code> endpoint at all &mdash; card attach/edit/remove only ever happens through this one request.</li>
+      <li>FR-2.9&#39;s combined-form decision (OQ-35) means there is no separate <code>POST /households/:householdId/accounts/:id/cards</code> endpoint at all &mdash; card attach/edit/remove only ever happens through this one request.</li>
       <li>See FR-2.7, FR-2.9, OQ-32, OQ-35.</li>
     </ul>
   </div>

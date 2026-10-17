@@ -4,13 +4,16 @@ import correlationIdMiddleware from './http/correlation';
 import { createErrorHandler, handleNotFound, type AppEnv } from './http/errorHandler';
 import type { VerifyAccessToken } from './http/authentication';
 import createRequestLogger from './http/requestLog';
+import createCategoryRoutes from './http/routes/categories';
 import createHouseholdRoutes from './http/routes/households';
 import createIdentityRoutes from './http/routes/identity';
+import type { AccountManager } from './managers/account';
 import type { IdentityManager } from './managers/identity';
 
 /** What the routes call: the Managers, and access-token verification. */
 export interface AppDeps {
   readonly identity: IdentityManager;
+  readonly account: AccountManager;
   readonly verifyAccessToken: VerifyAccessToken;
 }
 
@@ -46,7 +49,10 @@ const createApp = (deps: AppDeps): Hono<AppEnv> => {
   app.use(createRequestLogger());
   app.get('/health', (httpContext) => httpContext.json({ status: 'ok' }));
   app.route('/api/v1', createIdentityRoutes(deps.identity, deps.verifyAccessToken));
+  // The household routes' `/households/*` guard also admits the household-data
+  // routes mounted after it (OQ-174).
   app.route('/api/v1', createHouseholdRoutes(deps.identity, deps.verifyAccessToken));
+  app.route('/api/v1', createCategoryRoutes(deps.account));
   return app;
 };
 

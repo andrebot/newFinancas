@@ -55,41 +55,60 @@
 </head>
 <body>
   <h1>Create Category</h1>
-  <p class="subtitle"><span class="route">POST /categories</span> &mdash; FR-10.1. A custom Category supplementing the predefined default set every household is seeded with (VBD doc &sect;3.1b).</p>
+  <p class="subtitle"><span class="route">POST /households/:householdId/categories</span> &mdash; FR-10.1. A custom Category supplementing the predefined default set every household is seeded with (VBD doc &sect;3.1b).</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
     actor User
     participant API as Hono route
     participant AM as AccountManager
+    participant AZ as AuthorizationUtility
     participant VU as ValidationUtility
     participant CA as CategoryAccessor
     participant LOG as LoggingUtility
 
-    User->>API: POST /categories {name, icon, color}
+    User->>API: POST /households/:householdId/categories {name, icon, color}
+    Note over API: contract check: icon and colour are enums<br/>(CategoryIcon, CategoryColor &mdash; OQ-174) &rarr; 422 before the Manager
     API->>AM: createCategory(actor, householdId, {name, icon, color})
-    AM->>VU: check(name, icon, color)
-    alt name missing, icon or colour unknown
-        VU-->>AM: rejected
-        AM-->>API: ValidationError
-        API-->>User: 422 validation.failed {details}
-    else valid
-        VU-->>AM: ok
-        AM->>CA: insert(householdId, {name, icon, color})
-        Note over CA: refuses an icon/colour outside the in-code sets as a<br/>second line (invalid_icon / invalid_color, OQ-173)
-        CA-->>AM: Category (no Subcategories yet)
-        AM-->>LOG: logActivity(correlationId, actor, "CreateCategory")
-        AM-->>LOG: recordAudit(actor, "Category", categoryId)
-        AM-->>API: categoryId
-        API-->>User: 201 Created {categoryId}
+    AM->>AZ: authorize(actor.userId, householdId, data.create on shared data, owner none)
+    alt not a member
+        AZ-->>AM: not_member
+        AM-->>API: NotFound
+        API-->>User: 404 household.not_found
+    else a Viewer
+        AZ-->>AM: forbidden
+        AM-->>API: Forbidden
+        API-->>User: 403 auth.forbidden
+    else allowed
+        AZ-->>AM: allowed
+        AM->>VU: checkFields({name}, {name: nonBlank})
+        alt name blank once trimmed
+            VU-->>AM: [name: string.min]
+            AM-->>API: ValidationError
+            API-->>User: 422 validation.failed {details}
+        else valid
+            VU-->>AM: []
+            AM->>CA: insert(householdId, {name trimmed, icon, color})
+            Note over CA: refuses an icon/colour outside the in-code sets as a<br/>second line (invalid_icon / invalid_color, OQ-173)
+            alt refused
+                CA-->>AM: invalid_icon / invalid_color
+                AM-->>API: ValidationError
+                API-->>User: 422 validation.failed {icon / color: field.invalid_option}
+            else inserted
+                CA-->>AM: Category (no Subcategories yet)
+                AM-->>LOG: log.audit("CreateCategory", Category categoryId)
+                AM-->>API: Category
+                API-->>User: 201 Created Category
+            end
+        end
     end
     </pre>
   </div>
   <div class="notes">
     <ul>
-      <li>No <code>visibility</code> field &mdash; Category is pure household-shared taxonomy, no personal/shared split exists for it (see <code>02-data-model.md</code>).</li>
-      <li><strong>Oct 2026 review:</strong> icon + colour (fixed palette) on every category (FR-10.1, OQ-57).</li>
-      <li><strong>OQ-173:</strong> the Accessor re-checks icon and colour against <code>@financas/reference</code> and returns <code>invalid_icon</code>/<code>invalid_color</code>; the Manager&#39;s 422 normally fires first. Names need not be unique.</li>
+      <li>No <code>visibility</code> field &mdash; Category is pure household-shared taxonomy with no recorded creator, so the permission table reads it as <strong>shared data nobody owns</strong> (OQ-174): any member but a Viewer may create one; editing and archiving are Owner/Admin (FR-1.7).</li>
+      <li><strong>Oct 2026 review:</strong> icon + colour (fixed palette) on every category (FR-10.1, OQ-57). Both are contract enums mirroring <code>@financas/reference</code>, kept equal by a test (OQ-174).</li>
+      <li><strong>OQ-173:</strong> the Accessor re-checks icon and colour and returns <code>invalid_icon</code>/<code>invalid_color</code>; the route&#39;s 422 normally fires first. Names need not be unique.</li>
       <li>See FR-10.1.</li>
     </ul>
   </div>

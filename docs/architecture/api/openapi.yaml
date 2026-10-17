@@ -802,15 +802,14 @@ paths:
               schema: { $ref: "#/components/schemas/Error" }
 
   # =========================================================== ACCOUNTS
-  /accounts:
+  /households/{householdId}/accounts:
+    parameters:
+      - $ref: "#/components/parameters/HouseholdId"
     get:
       tags: [Accounts]
       operationId: listAccounts
       summary: List financial accounts visible to the current user
       parameters:
-        - name: householdId
-          in: query
-          schema: { type: string, format: uuid }
         - name: visibility
           in: query
           schema: { type: string, enum: [personal, shared] }
@@ -850,8 +849,9 @@ paths:
               schema: { $ref: "#/components/schemas/Account" }
         "422": { $ref: "#/components/responses/ValidationError" }
 
-  /accounts/{accountId}:
+  /households/{householdId}/accounts/{accountId}:
     parameters:
+      - $ref: "#/components/parameters/HouseholdId"
       - $ref: "#/components/parameters/AccountId"
     get:
       tags: [Accounts]
@@ -888,8 +888,9 @@ paths:
               schema: { $ref: "#/components/schemas/Account" }
         "422": { $ref: "#/components/responses/ValidationError" }
 
-  /accounts/{accountId}/archive:
+  /households/{householdId}/accounts/{accountId}/archive:
     parameters:
+      - $ref: "#/components/parameters/HouseholdId"
       - $ref: "#/components/parameters/AccountId"
     post:
       tags: [Accounts]
@@ -902,8 +903,9 @@ paths:
       responses:
         "204": { description: No Content }
 
-  /accounts/{accountId}/credit-cards:
+  /households/{householdId}/accounts/{accountId}/credit-cards:
     parameters:
+      - $ref: "#/components/parameters/HouseholdId"
       - $ref: "#/components/parameters/AccountId"
     get:
       tags: [Accounts]
@@ -921,8 +923,9 @@ paths:
                     type: array
                     items: { $ref: "#/components/schemas/CreditCard" }
 
-  /accounts/{accountId}/balances:
+  /households/{householdId}/accounts/{accountId}/balances:
     parameters:
+      - $ref: "#/components/parameters/HouseholdId"
       - $ref: "#/components/parameters/AccountId"
     get:
       tags: [Accounts]
@@ -947,8 +950,9 @@ paths:
                     type: array
                     items: { $ref: "#/components/schemas/AccountMonthBalance" }
 
-  /credit-cards/{creditCardId}/balances:
+  /households/{householdId}/credit-cards/{creditCardId}/balances:
     parameters:
+      - $ref: "#/components/parameters/HouseholdId"
       - $ref: "#/components/parameters/CreditCardId"
     get:
       tags: [Accounts]
@@ -970,7 +974,9 @@ paths:
                     items: { $ref: "#/components/schemas/CreditCardMonthBalance" }
 
   # =========================================================== CATEGORIES
-  /categories:
+  /households/{householdId}/categories:
+    parameters:
+      - $ref: "#/components/parameters/HouseholdId"
     get:
       tags: [Categories]
       operationId: listCategories
@@ -990,13 +996,18 @@ paths:
                   data:
                     type: array
                     items: { $ref: "#/components/schemas/Category" }
+        "404": { $ref: "#/components/responses/NotFound" }
     post:
       tags: [Categories]
       operationId: createCategory
       summary: Create a category
       description: >
         FR-10.1. A custom Category supplementing the predefined default
-        set every household is seeded with.
+        set every household is seeded with. Categories are shared
+        household data with no recorded creator: any member but a Viewer
+        may create one; editing and archiving are Owner/Admin (FR-1.7,
+        OQ-174). Created without Subcategories — add them with
+        `editCategory`.
       requestBody:
         required: true
         content:
@@ -1009,41 +1020,21 @@ paths:
                 - color
               properties:
                 name: { type: string }
-                icon:
-                  type: string
-                  description: Icon name from the in-code icon set (Material Symbols)
-                color:
-                  type: string
-                  enum:
-                    - mint
-                    - emerald
-                    - teal
-                    - cyan
-                    - sky
-                    - blue
-                    - indigo
-                    - violet
-                    - lilac
-                    - fuchsia
-                    - pink
-                    - rose
-                    - coral
-                    - peach
-                    - orange
-                    - sun
-                    - lime
-                    - slate
-                  description: Palette token, not a hex — resolves per theme (OQ-85)
+                icon: { $ref: "#/components/schemas/CategoryIcon" }
+                color: { $ref: "#/components/schemas/CategoryColor" }
       responses:
         "201":
           description: Created
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Category" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "422": { $ref: "#/components/responses/ValidationError" }
 
-  /categories/{categoryId}:
+  /households/{householdId}/categories/{categoryId}:
     parameters:
+      - $ref: "#/components/parameters/HouseholdId"
       - $ref: "#/components/parameters/CategoryId"
     get:
       tags: [Categories]
@@ -1055,6 +1046,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Category" }
+        "404": { $ref: "#/components/responses/NotFound" }
     patch:
       tags: [Categories]
       operationId: editCategory
@@ -1064,6 +1056,8 @@ paths:
         folded into this same request. The two-level limit is
         structural — a Subcategory payload has no field to nest a
         further level, so there is nothing to reject at runtime.
+        Atomic (OQ-173): a Subcategory `id` not under this Category
+        refuses the whole edit with 404 `subcategory.not_found`.
       requestBody:
         required: true
         content:
@@ -1075,10 +1069,13 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Category" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "422": { $ref: "#/components/responses/ValidationError" }
 
-  /categories/{categoryId}/archive:
+  /households/{householdId}/categories/{categoryId}/archive:
     parameters:
+      - $ref: "#/components/parameters/HouseholdId"
       - $ref: "#/components/parameters/CategoryId"
     post:
       tags: [Categories]
@@ -1089,9 +1086,12 @@ paths:
         archived_at, then every live Subcategory's, in one transaction.
       responses:
         "204": { description: No Content }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
-  /categories/{categoryId}/subcategories/{subcategoryId}/archive:
+  /households/{householdId}/categories/{categoryId}/subcategories/{subcategoryId}/archive:
     parameters:
+      - $ref: "#/components/parameters/HouseholdId"
       - $ref: "#/components/parameters/CategoryId"
       - $ref: "#/components/parameters/SubcategoryId"
     post:
@@ -1101,9 +1101,13 @@ paths:
       description: FR-10.3/FR-10.4. One-way, single-row — no cascade in this direction.
       responses:
         "204": { description: No Content }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
   # =========================================================== BUDGETS
-  /budgets:
+  /households/{householdId}/budgets:
+    parameters:
+      - $ref: "#/components/parameters/HouseholdId"
     get:
       tags: [Budgets]
       operationId: listBudgets
@@ -1152,8 +1156,9 @@ paths:
               schema: { $ref: "#/components/schemas/Error" }
         "422": { $ref: "#/components/responses/ValidationError" }
 
-  /budgets/{budgetId}:
+  /households/{householdId}/budgets/{budgetId}:
     parameters:
+      - $ref: "#/components/parameters/HouseholdId"
       - $ref: "#/components/parameters/BudgetId"
     get:
       tags: [Budgets]
@@ -1203,8 +1208,9 @@ paths:
       responses:
         "204": { description: No Content }
 
-  /budgets/{budgetId}/periods:
+  /households/{householdId}/budgets/{budgetId}/periods:
     parameters:
+      - $ref: "#/components/parameters/HouseholdId"
       - $ref: "#/components/parameters/BudgetId"
     get:
       tags: [Budgets]
@@ -1227,8 +1233,9 @@ paths:
                     items: { $ref: "#/components/schemas/BudgetPeriod" }
 
   # =========================================================== INVESTMENTS
-  /accounts/{accountId}/holdings:
+  /households/{householdId}/accounts/{accountId}/holdings:
     parameters:
+      - $ref: "#/components/parameters/HouseholdId"
       - $ref: "#/components/parameters/AccountId"
     get:
       tags: [Investments]
@@ -1249,8 +1256,9 @@ paths:
                   data:
                     type: array
                     items: { $ref: "#/components/schemas/InvestmentHolding" }
-  /holdings/{holdingId}:
+  /households/{householdId}/holdings/{holdingId}:
     parameters:
+      - $ref: "#/components/parameters/HouseholdId"
       - $ref: "#/components/parameters/HoldingId"
     get:
       tags: [Investments]
@@ -1295,8 +1303,9 @@ paths:
               schema: { $ref: "#/components/schemas/Error" }
         "422": { $ref: "#/components/responses/ValidationError" }
 
-  /holdings/{holdingId}/archive:
+  /households/{householdId}/holdings/{holdingId}/archive:
     parameters:
+      - $ref: "#/components/parameters/HouseholdId"
       - $ref: "#/components/parameters/HoldingId"
     post:
       tags: [Investments]
@@ -1309,8 +1318,9 @@ paths:
       responses:
         "204": { description: No Content }
 
-  /holdings/{holdingId}/valuation-snapshots:
+  /households/{householdId}/holdings/{holdingId}/valuation-snapshots:
     parameters:
+      - $ref: "#/components/parameters/HouseholdId"
       - $ref: "#/components/parameters/HoldingId"
     get:
       tags: [Investments]
@@ -1360,8 +1370,9 @@ paths:
         '422':
           $ref: '#/components/responses/ValidationError'
 
-  /holdings/{holdingId}/schedule-entries:
+  /households/{householdId}/holdings/{holdingId}/schedule-entries:
     parameters:
+      - $ref: "#/components/parameters/HouseholdId"
       - $ref: "#/components/parameters/HoldingId"
     get:
       tags: [Investments]
@@ -1385,7 +1396,9 @@ paths:
                     items: { $ref: "#/components/schemas/InvestmentScheduleEntry" }
 
   # =========================================================== TRANSACTIONS
-  /transactions:
+  /households/{householdId}/transactions:
+    parameters:
+      - $ref: "#/components/parameters/HouseholdId"
     get:
       tags: [Transactions]
       operationId: listTransactions
@@ -1515,8 +1528,9 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
 
-  /transactions/{transactionId}:
+  /households/{householdId}/transactions/{transactionId}:
     parameters:
+      - $ref: "#/components/parameters/HouseholdId"
       - $ref: "#/components/parameters/TransactionId"
     get:
       tags: [Transactions]
@@ -1563,8 +1577,9 @@ paths:
         "204": { description: No Content }
         "403": { $ref: "#/components/responses/Forbidden" }
 
-  /credit-cards/{creditCardId}/transactions:
+  /households/{householdId}/credit-cards/{creditCardId}/transactions:
     parameters:
+      - $ref: "#/components/parameters/HouseholdId"
       - $ref: "#/components/parameters/CreditCardId"
     get:
       tags: [Transactions]
@@ -1590,7 +1605,9 @@ paths:
                   pagination: { $ref: "#/components/schemas/Pagination" }
 
   # =========================================================== INSIGHTS
-  /dashboard:
+  /households/{householdId}/dashboard:
+    parameters:
+      - $ref: "#/components/parameters/HouseholdId"
     get:
       tags: [Insights]
       operationId: getDashboard
@@ -1618,7 +1635,9 @@ paths:
                   goals:
                     $ref: '#/components/schemas/MonthOverviewReport/properties/goals'
 
-  /dashboard/widgets:
+  /households/{householdId}/dashboard/widgets:
+    parameters:
+      - $ref: "#/components/parameters/HouseholdId"
     patch:
       tags: [Insights]
       operationId: editDashboardWidgets
@@ -1643,8 +1662,9 @@ paths:
         "422": { $ref: "#/components/responses/ValidationError" }
       x-deferred: v3 (OQ-67)
 
-  /reports/{reportType}:
+  /households/{householdId}/reports/{reportType}:
     parameters:
+      - $ref: "#/components/parameters/HouseholdId"
       - name: reportType
         in: path
         required: true
@@ -1726,7 +1746,9 @@ paths:
                     payouts: '#/components/schemas/PayoutsReport'
         "400": { $ref: "#/components/responses/BadRequest" }
 
-  /reports/transactions/export:
+  /households/{householdId}/reports/transactions/export:
+    parameters:
+      - $ref: "#/components/parameters/HouseholdId"
     get:
       tags:
         - Reports
@@ -1834,8 +1856,9 @@ paths:
             text/csv:
               schema: { type: string }
         "403": { $ref: "#/components/responses/Forbidden" }
-  /holdings/{holdingId}/valuation-snapshots/{snapshotId}:
+  /households/{householdId}/holdings/{holdingId}/valuation-snapshots/{snapshotId}:
     parameters:
+      - $ref: "#/components/parameters/HouseholdId"
       - $ref: '#/components/parameters/HoldingId'
       - $ref: '#/components/parameters/SnapshotId'
     patch:
@@ -1884,7 +1907,9 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
-  /index-rates:
+  /households/{householdId}/index-rates:
+    parameters:
+      - $ref: "#/components/parameters/HouseholdId"
     get:
       tags:
         - Investments
@@ -1900,8 +1925,9 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/IndexRateSeries'
-  /index-rates/{index}/values:
+  /households/{householdId}/index-rates/{index}/values:
     parameters:
+      - $ref: "#/components/parameters/HouseholdId"
       - $ref: '#/components/parameters/IndexCode'
     post:
       tags:
@@ -1937,8 +1963,9 @@ paths:
           $ref: '#/components/responses/Conflict'
         '422':
           $ref: '#/components/responses/ValidationError'
-  /index-rates/{index}/values/{valueId}:
+  /households/{householdId}/index-rates/{index}/values/{valueId}:
     parameters:
+      - $ref: "#/components/parameters/HouseholdId"
       - $ref: '#/components/parameters/IndexCode'
       - $ref: '#/components/parameters/IndexValueId'
     patch:
@@ -1986,7 +2013,9 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-  /goals:
+  /households/{householdId}/goals:
+    parameters:
+      - $ref: "#/components/parameters/HouseholdId"
     get:
       tags:
         - Goals
@@ -2030,8 +2059,9 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Goal" }
         "422": { $ref: "#/components/responses/ValidationError" }
-  /goals/{goalId}:
+  /households/{householdId}/goals/{goalId}:
     parameters:
+      - $ref: "#/components/parameters/HouseholdId"
       - $ref: "#/components/parameters/GoalId"
     get:
       tags:
@@ -2072,8 +2102,9 @@ paths:
         FR-8.6/OQ-47. Hard delete, no history — "this goal no longer makes sense." The underlying Investment Holdings are never deleted; only this Goal's allocations cascade away.
       responses:
         "204": { description: No Content }
-  /goals/{goalId}/complete:
+  /households/{householdId}/goals/{goalId}/complete:
     parameters:
+      - $ref: "#/components/parameters/HouseholdId"
       - $ref: "#/components/parameters/GoalId"
     post:
       tags:
@@ -2084,8 +2115,9 @@ paths:
         FR-8.8/OQ-47. Unlike every other complete in this project, this one is reversible — see POST .../reopen. Keeps the record intact so historical progress-by-month stays viewable.
       responses:
         "204": { description: No Content }
-  /goals/{goalId}/reopen:
+  /households/{householdId}/goals/{goalId}/reopen:
     parameters:
+      - $ref: "#/components/parameters/HouseholdId"
       - $ref: "#/components/parameters/GoalId"
     post:
       tags:
@@ -2096,8 +2128,9 @@ paths:
         FR-8.9. The only "reopen" endpoint in the entire API — every other completed entity in this project stays completed, one-way.
       responses:
         "204": { description: No Content }
-  /goals/{goalId}/allocations:
+  /households/{householdId}/goals/{goalId}/allocations:
     parameters:
+      - $ref: "#/components/parameters/HouseholdId"
       - $ref: "#/components/parameters/GoalId"
     get:
       tags:
@@ -2117,8 +2150,9 @@ paths:
                   data:
                     type: array
                     items: { $ref: "#/components/schemas/GoalAllocation" }
-  /goals/{goalId}/progress:
+  /households/{householdId}/goals/{goalId}/progress:
     parameters:
+      - $ref: "#/components/parameters/HouseholdId"
       - $ref: "#/components/parameters/GoalId"
     get:
       tags:
@@ -2259,7 +2293,7 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
     NotFound:
-      description: 'Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `invitation.invitee_not_registered`.'
+      description: 'Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `invitation.invitee_not_registered`.'
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
@@ -2570,6 +2604,95 @@ components:
         updatedAt: { type: string, format: date-time }
 
     # ---------------------------------------------------- categories
+    CategoryIcon:
+      type: string
+      description: >
+        Material Symbols name from the in-code icon set (FR-10.1, OQ-126) —
+        mirrors `CATEGORY_ICONS` in `@financas/reference`; a test keeps the two equal (OQ-174).
+      enum:
+        - home-outline
+        - apartment
+        - bolt
+        - water-drop-outline
+        - local-fire-department-outline
+        - wifi
+        - smartphone-outline
+        - build-outline
+        - cleaning-services-outline
+        - chair-outline
+        - shopping-cart-outline
+        - restaurant
+        - local-cafe-outline
+        - local-bar-outline
+        - fastfood-outline
+        - bakery-dining-outline
+        - directions-car-outline
+        - local-gas-station-outline
+        - directions-bus-outline
+        - local-taxi-outline
+        - local-parking
+        - two-wheeler
+        - flight
+        - medical-services-outline
+        - local-pharmacy-outline
+        - fitness-center
+        - spa-outline
+        - psychology-outline
+        - shopping-bag-outline
+        - checkroom
+        - devices-outline
+        - content-cut
+        - redeem
+        - child-care-outline
+        - pets
+        - school-outline
+        - elderly
+        - movie-outline
+        - sports-esports-outline
+        - music-note
+        - menu-book-outline
+        - theater-comedy-outline
+        - beach-access-outline
+        - celebration-outline
+        - subscriptions-outline
+        - payments-outline
+        - work-outline
+        - savings-outline
+        - account-balance-outline
+        - receipt-long-outline
+        - credit-card-outline
+        - trending-up
+        - sell-outline
+        - real-estate-agent-outline
+        - shield-outline
+        - volunteer-activism-outline
+        - category-outline
+
+    CategoryColor:
+      type: string
+      description: >
+        Palette token, not a hex — resolves per theme (OQ-85). Mirrors
+        `PALETTE_TOKENS` in `@financas/reference` (OQ-174).
+      enum:
+        - mint
+        - emerald
+        - teal
+        - cyan
+        - sky
+        - blue
+        - indigo
+        - violet
+        - lilac
+        - fuchsia
+        - pink
+        - rose
+        - coral
+        - peach
+        - orange
+        - sun
+        - lime
+        - slate
+
     Subcategory:
       type: object
       properties:
@@ -2590,31 +2713,8 @@ components:
         subcategories:
           type: array
           items: { $ref: "#/components/schemas/Subcategory" }
-        icon:
-          type: string
-          description: Icon name from the in-code icon set (Material Symbols)
-        color:
-          type: string
-          enum:
-            - mint
-            - emerald
-            - teal
-            - cyan
-            - sky
-            - blue
-            - indigo
-            - violet
-            - lilac
-            - fuchsia
-            - pink
-            - rose
-            - coral
-            - peach
-            - orange
-            - sun
-            - lime
-            - slate
-          description: Palette token, not a hex — resolves per theme (OQ-85)
+        icon: { $ref: "#/components/schemas/CategoryIcon" }
+        color: { $ref: "#/components/schemas/CategoryColor" }
 
     CategoryUpdateRequest:
       type: object
@@ -2624,34 +2724,12 @@ components:
           type: array
           items:
             type: object
+            required: [name]
             properties:
               id: { type: string, format: uuid, description: "Omit to create a new Subcategory" }
               name: { type: string }
-        icon:
-          type: string
-          description: Icon name from the in-code icon set (Material Symbols)
-        color:
-          type: string
-          enum:
-            - mint
-            - emerald
-            - teal
-            - cyan
-            - sky
-            - blue
-            - indigo
-            - violet
-            - lilac
-            - fuchsia
-            - pink
-            - rose
-            - coral
-            - peach
-            - orange
-            - sun
-            - lime
-            - slate
-          description: Palette token, not a hex — resolves per theme (OQ-85)
+        icon: { $ref: "#/components/schemas/CategoryIcon" }
+        color: { $ref: "#/components/schemas/CategoryColor" }
 
     # ---------------------------------------------------- budgets
     BudgetTargetInput:

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  checkFields, dateWithin, firstProblem, minLength, moneyWithin, nonBlank,
+  checkFields, checkItems, dateWithin, firstProblem, minLength, moneyWithin, nonBlank,
   type Rule,
 } from '../../../src/utilities/validation';
 
@@ -151,5 +151,21 @@ describe('checkFields', () => {
     const range = { name: 'Q4', note: '' };
 
     expect(checkFields(range, { name: nonBlank })).toEqual([]);
+  });
+});
+
+describe('checkItems', () => {
+  it('names each failing item field by its path, in item order', () => {
+    const subcategories = [{ name: 'Rent' }, { name: ' ' }, { name: '' }];
+
+    expect(checkItems('subcategories', subcategories, { name: nonBlank })).toEqual([
+      { field: 'subcategories[1].name', code: 'string.min', params: { min: 1 } },
+      { field: 'subcategories[2].name', code: 'string.min', params: { min: 1 } },
+    ]);
+  });
+
+  it('reports nothing for an empty list or passing items', () => {
+    expect(checkItems('subcategories', [] as { name: string }[], { name: nonBlank })).toEqual([]);
+    expect(checkItems('subcategories', [{ name: 'Rent' }], { name: nonBlank })).toEqual([]);
   });
 });

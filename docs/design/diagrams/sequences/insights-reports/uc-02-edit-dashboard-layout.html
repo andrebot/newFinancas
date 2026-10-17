@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Edit Dashboard Layout</h1>
-  <p class="subtitle"><strong>Deferred to v3 (OQ-67).</strong> <span class="route">PATCH /dashboard/widgets</span> &mdash; FR-6.1/FR-6.8. Add, remove, reorder; the same Widget type can appear more than once with different settings.</p>
+  <p class="subtitle"><strong>Deferred to v3 (OQ-67).</strong> <span class="route">PATCH /households/:householdId/dashboard/widgets</span> &mdash; FR-6.1/FR-6.8. Add, remove, reorder; the same Widget type can appear more than once with different settings.</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -66,7 +66,7 @@ sequenceDiagram
     participant DA as DashboardAccessor
     participant LOG as LoggingUtility
 
-    User->>API: PATCH /dashboard/widgets {widgets: [{widgetId?, widgetType, position, settings}, ...]}
+    User->>API: PATCH /households/:householdId/dashboard/widgets {widgets: [{widgetId?, widgetType, position, settings}, ...]}
     API->>IM: editLayout(actor, input)
     IM->>VU: check(input)
     alt validation fails (unknown widgetType)
