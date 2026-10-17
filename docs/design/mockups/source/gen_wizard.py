@@ -96,7 +96,22 @@ def step_account() -> str:
         </div>
         <div class="grid grid-cols-[1fr_1.4fr] gap-4">
           <div><span class="flabel">Currency</span><div class="flex gap-2"><button class="opt" aria-pressed="false">BRL</button><button class="opt" aria-pressed="true">USD</button></div></div>
-          <div class="rounded-2xl bg-bg border border-line px-4 py-3"><span class="flabel !mb-0">Starting balance</span><div class="flex items-baseline gap-2"><span class="font-display text-xl font-bold text-muted">$</span><input class="bg-transparent font-display text-[28px] leading-9 font-extrabold num w-full outline-none" value="3,240.50" aria-label="Starting balance"></div></div>
+          <div class="flex flex-col gap-1.5">
+            <div class="rounded-2xl bg-bg border border-line px-4 py-3"><span class="flabel !mb-0">Starting balance</span><div class="flex items-baseline gap-2"><span class="font-display text-xl font-bold text-muted">$</span><input class="bg-transparent font-display text-[28px] leading-9 font-extrabold num w-full outline-none" value="3,240.50" aria-label="Starting balance" aria-describedby="sb-help"></div></div>
+            <span id="sb-help" class="text-xs text-faint px-1">Your balance in this account <span class="text-muted font-semibold">today</span>. For an investment account, only the uninvested cash.</span>
+          </div>
+        </div>
+        <!-- Starting balance explained (OQ-169): always shown on the first account -->
+        <div class="rounded-2xl border border-line bg-white/[.02] px-4 py-3.5 flex gap-3">
+          <iconify-icon icon="material-symbols:info-outline" width="20" class="text-sky shrink-0 mt-0.5"></iconify-icon>
+          <div class="flex flex-col gap-2 text-sm">
+            <span class="font-semibold">Spent or invested before today? Record it anyway.</span>
+            <ul class="flex flex-col gap-1.5 text-muted">
+              <li class="flex gap-2"><iconify-icon icon="material-symbols:history" width="16" class="text-faint shrink-0 mt-0.5"></iconify-icon><span>Add earlier transactions with the date they happened &mdash; this month&#39;s purchases, or investments you already own.</span></li>
+              <li class="flex gap-2"><iconify-icon icon="material-symbols:check-circle-outline" width="16" class="text-mint shrink-0 mt-0.5"></iconify-icon><span>They fill in your history, count toward that month&#39;s budgets, and add your investments to your goals.</span></li>
+              <li class="flex gap-2"><iconify-icon icon="material-symbols:lock-outline" width="16" class="text-faint shrink-0 mt-0.5"></iconify-icon><span>They <span class="text-ink font-semibold">don&#39;t change</span> your starting balance &mdash; it already includes them.</span></li>
+            </ul>
+          </div>
         </div>
         <div class="flex flex-col gap-2">
           <span class="flabel !mb-0">Cards on this account <span class="font-normal text-faint">· optional</span></span>
