@@ -1271,7 +1271,10 @@ paths:
         Holding is the entry point, never the Goal (OQ-48). Position
         changes only through transactions; market value has its own
         endpoints under /valuation-snapshots (OQ-56). Replace-all; rejected
-        with 409 `goal.allocation_exceeds_100` past 100%. See
+        with 409 `goal.allocation_exceeds_100` past 100%, 409 `goal.completed`
+        when a completed Goal's share is grown or added (kept unchanged or
+        removed is fine — FR-8.9), 404 `goal.not_found` for a Goal the actor
+        can't see (OQ-168). See
         docs/design/diagrams/sequences/track-investments/uc-02-edit-holding.html.
       requestBody:
         required: true
@@ -1284,8 +1287,9 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/InvestmentHolding" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "409":
-          description: This Holding's total allocated percentage would exceed 100% (FR-8.3).
+          description: This Holding's total allocated percentage would exceed 100% (FR-8.3), or a completed Goal's share would grow (`goal.completed`, FR-8.9, OQ-168).
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
@@ -1499,7 +1503,7 @@ paths:
                   - $ref: "#/components/schemas/CardTransaction"
         "403": { $ref: "#/components/responses/Forbidden" }
         "409":
-          description: One of `allocations`' Holdings would exceed 100% total allocated (FR-8.3).
+          description: The purchase's own split exceeds 100% (FR-8.3), or names a completed Goal (`goal.completed`). The split applies to the purchase; buying into a funded Holding re-weights its existing split by value (OQ-168).
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
@@ -2258,7 +2262,7 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
     Conflict:
-      description: "The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107)."
+      description: "The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107)."
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }

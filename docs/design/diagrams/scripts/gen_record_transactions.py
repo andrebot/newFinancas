@@ -103,16 +103,24 @@ sequenceDiagram
                 TM->>IHA: applySchedule(holdingId, schedule)
                 IHA-->>TM: schedule stored
             end
-            opt allocations provided (OQ-54)
-                loop for each {goalId, percentage}
-                    TM->>GA: allocate(holdingId, goalId, percentage)
-                    alt this Holding's total allocated percentage would exceed 100%
-                        GA-->>TM: rejected (FR-8.3)
-                        TM-->>API: Conflict
-                        API-->>User: 409 goal.allocation_exceeds_100 {current, requested}
-                    else within budget
-                        GA-->>TM: applied
-                    end
+            opt allocations provided (OQ-54, OQ-168)
+                TM->>GA: findByIds(householdId, goalIds)
+                GA-->>TM: the named Goals
+                TM->>GA: listAllocations({holdingId})
+                GA-->>TM: the Holding's current split
+                alt a named Goal isn't visible to the actor
+                    TM-->>API: NotFound
+                    API-->>User: 404 goal.not_found
+                else a named Goal is completed (FR-8.9)
+                    TM-->>API: Conflict
+                    API-->>User: 409 goal.completed
+                else the purchase's own split passes 100% (FR-8.3)
+                    TM-->>API: Conflict
+                    API-->>User: 409 goal.allocation_exceeds_100 {current, requested}
+                else
+                    Note over TM: the split applies to the purchase: re-weight the existing split by value<br/>(existing quantity &times; this buy's unit price) plus the purchase's shares &mdash;<br/>largest remainder, a share rounding to 0% dropped, completed Goals re-weighted too
+                    TM->>GA: replaceAllocations(householdId, holdingId, shares)
+                    GA-->>TM: replaced
                 end
             end
         end
@@ -133,6 +141,7 @@ sequenceDiagram
       <li>No <code>NotificationDeliveryUtility</code> call anywhere in this flow &mdash; FR-4.4's threshold alert was removed (OQ-52, Round 8).</li>
       <li><strong>Oct 2026 review:</strong> automatic Valuation Snapshot is explicit (<code>source = transaction</code>, OQ-56); a full sell/redemption auto-archives the Holding (OQ-72); investment kinds rejected on credit-card-only accounts (OQ-76); the Engine call carries the debenture flag and returns coded taxes (OQ-79); error responses use OQ-83 codes. No recurring option (OQ-55).</li>
       <li><strong>Goal allocation can be bundled here (OQ-54, added after the API coverage audit):</strong> one call in, no separate <code>PATCH /holdings/{holdingId}</code> follow-up required &mdash; same 100%-cap rejection as that endpoint's own allocation edit (FR-8.3), just reachable from this pipeline too. Direction of control is unchanged (OQ-48): still written from the Holding's side, never the Goal's.</li>
+      <li><strong>The buy's split is the purchase's (OQ-168):</strong> buying into a Holding that already funds Goals re-weights its whole split by value at this buy's unit price, so every Goal keeps exactly its money (900 at Retirement 60% / Trip 20%, plus 100 for Car 100% &rarr; 54% / 18% / 10%). One replace-all write, so a refusal never leaves half a split behind.</li>
       <li>See FR-3.1, FR-3.6&ndash;3.9, FR-5.2, FR-5.8, FR-8.2, FR-8.3, FR-11.1&ndash;11.3, OQ-16, OQ-39, OQ-48, OQ-50, OQ-51, OQ-54, OQ-56, OQ-72, OQ-76, OQ-79, OQ-83.</li>
     </ul>
 """,

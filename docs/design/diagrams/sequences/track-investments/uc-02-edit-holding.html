@@ -75,17 +75,29 @@ sequenceDiagram
         API-->>User: 403 auth.forbidden
     else authorized
         AZ-->>AM: allowed
-        AM->>GA: replaceAllocations(holdingId, allocations)
-        alt total would exceed 100%
-            GA-->>AM: rejected (FR-8.3)
+        AM->>GA: findByIds(householdId, goalIds)
+        GA-->>AM: the named Goals
+        AM->>GA: listAllocations({holdingId})
+        GA-->>AM: the Holding's current split
+        alt a Goal isn't visible to the actor (another member's personal one)
+            AM-->>API: NotFound
+            API-->>User: 404 goal.not_found
+        else a completed Goal's share is grown or added (FR-8.9)
             AM-->>API: Conflict
-            API-->>User: 409 goal.allocation_exceeds_100 {current, requested}
-        else within budget
-            GA-->>AM: replaced
-            AM-->>LOG: logActivity(correlationId, actor, "EditHoldingAllocations")
-            AM-->>LOG: recordAudit(actor, "InvestmentHolding", holdingId)
-            AM-->>API: updated
-            API-->>User: 200 OK
+            API-->>User: 409 goal.completed
+        else
+            AM->>GA: replaceAllocations(householdId, holdingId, allocations)
+            alt total would exceed 100%
+                GA-->>AM: rejected (FR-8.3)
+                AM-->>API: Conflict
+                API-->>User: 409 goal.allocation_exceeds_100 {current, requested}
+            else within budget
+                GA-->>AM: replaced
+                AM-->>LOG: logActivity(correlationId, actor, "EditHoldingAllocations")
+                AM-->>LOG: recordAudit(actor, "InvestmentHolding", holdingId)
+                AM-->>API: updated
+                API-->>User: 200 OK
+            end
         end
     end
     </pre>
@@ -93,7 +105,8 @@ sequenceDiagram
   <div class="notes">
     <ul>
       <li><strong>Direction of control (OQ-48):</strong> allocations are written from the Holding, never from the Goal.</li>
-      <li>Replace-all semantics: the request carries the full allocation list, so the &le; 100% check is a single comparison in <code>GoalAccessor</code>.</li>
+      <li>Replace-all semantics: the request carries the full allocation list, so the &le; 100% check is a single comparison in <code>GoalAccessor</code>, made under the Holding's row lock.</li>
+      <li><strong>Business rules are the Manager's (OQ-168):</strong> a Goal the actor can't see is &ldquo;not found&rdquo;, never revealed; a completed Goal's share may stay unchanged or be removed, never grow or be added. A shared Holding may fund a personal Goal.</li>
       <li>See FR-8.2, FR-8.3, OQ-48, OQ-56.</li>
     </ul>
   </div>

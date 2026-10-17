@@ -420,7 +420,7 @@ owns any creation path. See FR-5.1, FR-11.5, OQ-44, OQ-50.
 ### OQ-54: Should Goal allocation at Holding-creation time be a separate call, or bundled into the investment-buy transaction?
 **Confirmed, resolved during the mockup-vs-API coverage audit follow-up:
 Bundled — one call.** `TransactionCreateRequest` gains an optional
-`allocations` field; `TransactionManager` calls `GoalAccessor.allocate`
+`allocations` field; `TransactionManager` calls `GoalAccessor.allocate` (*now `replaceAllocations`, with the buy's split re-weighted — OQ-168*)
 directly within the same investment-buy pipeline that creates/updates the
 Holding (§3.1), rejecting with 409 the same way `PATCH /holdings/{holdingId}`
 already does if the total would exceed 100% (FR-8.3). This doesn't
@@ -3985,6 +3985,57 @@ not a hardcoded assumption.
   by-month series waits for `ReportingEngine`, when its shape is known.
 - **Fixed-term Holdings never get a snapshot (OQ-51)** is a Manager
   decision, so the BDT row moves that check to the Manager seam suites.
+
+### OQ-168: GoalAccessor (task A13)
+**Confirmed with the stakeholder (Oct 2026):**
+- **A Goal stores only percentages of Holdings, never amounts.** Progress
+  is always current value × percentage, computed on read, so the value
+  source can change (manual values today; a market-price API later — a
+  future idea, its own `MarketPriceAccessor` and its own decision on
+  provider and coexistence with manual values) without touching Goals.
+- **One allocation write: `replaceAllocations(householdId, holdingId,
+  shares)`, replace-all, all or nothing**, for both Managers. It supersedes
+  the per-pair `allocate` loop on the bundled buy (OQ-54), which could leave
+  half the split written behind a 409 — the same fix OQ-166 made for
+  Budget targets. The Holding row is locked `FOR UPDATE`, so two allocation
+  writes on one Holding run one after the other.
+- **A buy's allocations split the purchase, not the Holding.** Buying into
+  an existing market-priced Holding (OQ-50 accumulate) re-weights the whole
+  split by value, so every Goal keeps exactly its money: existing value =
+  existing quantity × **this buy's unit price** (fresh and exact, not the
+  latest snapshot, not cost basis). E.g. a Holding worth 900 funding
+  Retirement 60% / Trip 20%, plus a buy of 100 for Car 100% → 1,000:
+  Retirement 54%, Trip 18%, Car 10%. Whole percents (OQ-87) are rounded by
+  largest remainder; the small drift each buy leaves is accepted (editable
+  in Edit Holding). A share that rounds to 0% is dropped. A sell or
+  redemption keeps the percentages — every Goal shrinks proportionally.
+  This re-weighting is `TransactionManager`'s (built with it), which then
+  calls `replaceAllocations`; the purchase's own split still can't pass 100%.
+- **Completed Goals (FR-8.9): kept or removed, never grown or added.** In
+  Edit Holding a pair on a completed Goal passes only unchanged (same
+  percentage) — the form resubmits the full list — or by being left out;
+  a new pair or a changed percentage is refused with 409 `goal.completed`
+  (a new code that ships with `M2`). A buy's re-weighting of existing pairs
+  is exempt (the Goal's money doesn't change); a buy naming a completed Goal
+  for new money is refused the same way.
+- **Business rules live in the Managers.** Visibility (another member's
+  personal Goal is `404 goal.not_found`, never revealed) and the
+  completed-Goal rule are checked by the Managers before calling, using
+  `findByIds` and `listAllocations({ holdingId })`. A shared Holding may
+  fund a personal Goal. The Accessor keeps only household isolation
+  (`goal_not_found` for another household's Goal), the FR-8.3 100% cap as
+  the data model places it (`allocation_exceeds_100` with `current` and
+  `requested` totals) and `holding_not_found`. A Goal listed twice is
+  ValidationUtility's to refuse (the unique pair index would throw).
+- **Goal writes:** `insert`, `update` (name, target amount, **target
+  currency** — allowed, progress is derived on read — and due date),
+  `complete` (idempotent, keeps the first time), `reopen`, `delete` (hard;
+  allocations cascade, Holdings stay). Reads: `findById`, `findByIds`,
+  `list(householdId, viewerUserId, status)` — shared Goals plus the viewer's
+  personal ones, soonest due first, unpaginated as `GET /goals` is — and
+  `listAllocations({ holdingId } | { goalIds })`.
+- **Deleting a user's Goals** (cascade personal, null `owner_user_id` on
+  shared) ships with `M1D`.
 
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
