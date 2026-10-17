@@ -132,13 +132,13 @@ identity screens, the rest as later slices use them.
 - [ ] **86.** `K7` Money input
 - [ ] **87.** `K8` Number / percent / rate input
 - [ ] **88.** `K9` Date input
-- [ ] **89.** `FL11` Account & Card Management
+- [ ] **89.** `FL11` Account & Card Management (explain the starting balance on Add Account — OQ-169)
 - [ ] **90.** `FL12` Category Management
 - [ ] **91.** `FL13` Budget Management
 - [ ] **92.** `FL14` Goal Management
 - [ ] **93.** `FL6` Guided Setup
 - [ ] **94.** `X5` Account Setup
-- [ ] **95.** `X2G` Onboard: Guided Setup step
+- [ ] **95.** `X2G` Onboard: Guided Setup step (explain the starting balance on Add Account — OQ-169)
 - [ ] **96.** `I2` AccountManager seam suite
 - [ ] **97.** `I5` Manager pub/sub (household.created, holding.matured)
 - [ ] **98.** `I8` Frontend ↔ backend: account setup
