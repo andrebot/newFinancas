@@ -40,28 +40,31 @@ sequenceDiagram
         API-->>User: 422 validation.failed {details}
     else valid
         VU-->>AM: ok
-        AM->>BA: insert(budget)
-        BA-->>AM: budgetId
-        loop for each target in the request
-            AM->>BA: assignTarget(budgetId, categoryId or subcategoryId)
-            alt target already claimed in this scope
-                BA-->>AM: rejected (FR-4.7, partial unique index)
-                AM-->>API: Conflict
-                API-->>User: 409 budget.target_already_claimed {categoryId, budgetId}
-            else target available
-                BA-->>AM: claimed
-            end
+        AM->>BA: insert(budget, targets, currentMonth)
+        Note over BA: one transaction: the Budget, every target claim and<br/>the current month's period &mdash; a refusal keeps nothing (OQ-166)
+        alt a target is claimed in this scope (FR-4.7)
+            BA-->>AM: target_claimed {target, claimedByBudgetId}
+            AM-->>API: Conflict
+            API-->>User: 409 budget.target_already_claimed {categoryId, budgetId}
+        else a target is not this household's
+            BA-->>AM: target_not_found {target}
+            AM-->>API: ValidationError
+            API-->>User: 422 validation.failed {details}
+        else all targets claimed
+            BA-->>AM: budget
+            AM-->>LOG: logActivity(correlationId, actor, "CreateBudget")
+            AM-->>LOG: recordAudit(actor, "Budget", budgetId)
+            AM-->>API: budget
+            API-->>User: 201 Created {budget}
         end
-        AM-->>LOG: logActivity(correlationId, actor, "CreateBudget")
-        AM-->>LOG: recordAudit(actor, "Budget", budgetId)
-        AM-->>API: budgetId
-        API-->>User: 201 Created {budgetId}
     end
 """,
     notes="""
     <ul>
-      <li>The overlap rejection (FR-4.7) is a real DB constraint one layer down &mdash; a partial unique index on <code>budget_targets (household_id, visibility, owner_user_id, category_id)</code>, scoped columns denormalized specifically to make this a plain index rather than a cross-table application check.</li>
-      <li>See FR-4.1, FR-4.2, FR-4.7.</li>
+      <li>The literal-duplicate rejection (FR-4.7) is a real DB constraint one layer down &mdash; partial unique indexes on <code>budget_targets</code>, per scope (shared: per household; personal: per household + owner, OQ-95), scoped columns denormalized specifically to make this a plain index rather than a cross-table application check.</li>
+      <li>The rollup half (a claimed Category reserves its Subcategories, both ways) is checked by the Accessor before each insert, under the parent Category's row lock (OQ-166).</li>
+      <li>Each scope claims a Category once: the same Category can sit in one shared Budget and in each member's personal Budget; a spend counts toward the Budget of its Account's scope (OQ-166).</li>
+      <li>See FR-4.1, FR-4.2, FR-4.7, OQ-166.</li>
     </ul>
 """,
 ))
@@ -87,17 +90,22 @@ sequenceDiagram
         API-->>User: 422 validation.failed {details}
     else valid
         VU-->>AM: ok
-        AM->>BA: update(budgetId, {name, targetAmount})
-        Note over BA: only the current/future budget_periods rows are ever<br/>touched &mdash; nothing in this write path revisits a past<br/>period's target_amount (FR-4.9)
+        AM->>BA: update(householdId, budgetId, {name, targetAmount}, currentMonth)
+        Note over BA: a new target writes the current month's period (opened<br/>if needed) and any later one &mdash; never a past period's<br/>target_amount (FR-4.9)
         BA-->>AM: updated
-        loop for each target change
-            AM->>BA: assignTarget/releaseTarget(budgetId, target)
-            alt newly assigned target already claimed elsewhere
-                BA-->>AM: rejected (FR-4.7)
+        opt targets sent
+            AM->>BA: replaceTargets(householdId, budgetId, targets)
+            Note over BA: one transaction: dropped claims released, new ones<br/>claimed &mdash; a refusal keeps the old set (OQ-166)
+            alt a new target is claimed elsewhere in the scope (FR-4.7)
+                BA-->>AM: target_claimed {target, claimedByBudgetId}
                 AM-->>API: Conflict
                 API-->>User: 409 budget.target_already_claimed {categoryId, budgetId}
+            else a target is not this household's
+                BA-->>AM: target_not_found {target}
+                AM-->>API: ValidationError
+                API-->>User: 422 validation.failed {details}
             else applied
-                BA-->>AM: applied
+                BA-->>AM: ok
             end
         end
         AM-->>LOG: logActivity(correlationId, actor, "EditBudget")
@@ -127,7 +135,7 @@ sequenceDiagram
 
     User->>API: DELETE /budgets/:budgetId
     API->>AM: deleteBudget(actor, budgetId)
-    AM->>BA: delete(budgetId)
+    AM->>BA: delete(householdId, budgetId)
     Note over BA: hard delete &mdash; budget_targets rows cascade away<br/>(they're the live definition's own claims), but<br/>budget_periods.budget_id is a nullable FK with<br/>ON DELETE SET NULL, so past periods survive intact (OQ-40)
     BA-->>AM: deleted, targets released
     AM-->>LOG: logActivity(correlationId, actor, "DeleteBudget")

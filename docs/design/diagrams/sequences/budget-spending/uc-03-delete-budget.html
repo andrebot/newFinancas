@@ -67,7 +67,7 @@ sequenceDiagram
 
     User->>API: DELETE /budgets/:budgetId
     API->>AM: deleteBudget(actor, budgetId)
-    AM->>BA: delete(budgetId)
+    AM->>BA: delete(householdId, budgetId)
     Note over BA: hard delete &mdash; budget_targets rows cascade away<br/>(they're the live definition's own claims), but<br/>budget_periods.budget_id is a nullable FK with<br/>ON DELETE SET NULL, so past periods survive intact (OQ-40)
     BA-->>AM: deleted, targets released
     AM-->>LOG: logActivity(correlationId, actor, "DeleteBudget")

@@ -55,7 +55,7 @@ sequenceDiagram
         else charge or refund
             TM->>CCA: applyChargeOrRefund(cardId, amount, kind)
             CCA-->>TM: outstanding balance updated
-            TM->>BA: accrueIfClaimed(categoryId, subcategoryId, amount, date)
+            TM->>BA: accrueIfClaimed({accountScope, currency, categoryId, subcategoryId, amount, date})
             BA-->>TM: spend updated (no-op if unclaimed)
             TM->>CTA: insert(cardTransaction)
             CTA-->>TM: transactionId
@@ -116,7 +116,7 @@ sequenceDiagram
                 end
             end
         end
-        TM->>BA: accrueIfClaimed(categoryId, subcategoryId, amount, date)
+        TM->>BA: accrueIfClaimed({accountScope, currency, categoryId, subcategoryId, amount, date})
         BA-->>TM: spend updated
         TM->>ATA: insert(accountTransaction, effect)
         ATA-->>TM: transactionId
@@ -173,7 +173,7 @@ sequenceDiagram
         else was a card charge/refund
             TM->>CCA: applyChargeOrRefund(cardId, -oldAmount, oldKind)
         end
-        TM->>BA: accrueIfClaimed(oldCategoryId, oldSubcategoryId, -oldAmount, oldDate)
+        TM->>BA: accrueIfClaimed({accountScope, currency, oldCategoryId, oldSubcategoryId, -oldAmount, oldDate})
         Note over TM: then reapply the NEW values &mdash; same dispatch as<br/>Record Transaction, on the new amount/date/category
         alt new effect is a balance movement or bill payment
             TM->>AA: applyMovement(accountId, newAmount, currency)
@@ -190,7 +190,7 @@ sequenceDiagram
         else new effect is a card charge/refund
             TM->>CCA: applyChargeOrRefund(cardId, newAmount, newKind)
         end
-        TM->>BA: accrueIfClaimed(newCategoryId, newSubcategoryId, newAmount, newDate)
+        TM->>BA: accrueIfClaimed({accountScope, currency, newCategoryId, newSubcategoryId, newAmount, newDate})
         TM->>ATA: update(transactionId, input)
         ATA-->>TM: updated
         TM-->>LOG: logActivity(correlationId, actor, "EditTransaction")
@@ -245,7 +245,7 @@ sequenceDiagram
         else was a card charge/refund
             TM->>CCA: applyChargeOrRefund(cardId, -amount, kind)
         end
-        TM->>BA: accrueIfClaimed(categoryId, subcategoryId, -amount, date)
+        TM->>BA: accrueIfClaimed({accountScope, currency, categoryId, subcategoryId, -amount, date})
         TM->>ATA: delete(transactionId)
         ATA-->>TM: deleted
         TM-->>LOG: logActivity(correlationId, actor, "DeleteTransaction")

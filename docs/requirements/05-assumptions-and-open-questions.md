@@ -3908,6 +3908,56 @@ not a hardcoded assumption.
   fails it (say, a malformed email) does not also list a blank name; that
   one is reported once the request is otherwise well formed.
 
+### OQ-166: BudgetAccessor (task A10)
+**Confirmed with the stakeholder (Oct 2026):**
+- **FR-4.7 is per scope, and the Account decides where a spend goes.** A
+  Category/Subcategory is claimed at most once in the household's shared
+  scope and at most once in each member's personal scope (the existing
+  partial unique indexes). So "Groceries" can sit in one shared Budget and
+  in Ana's personal Budget at once. A transaction accrues to the Budget in
+  its **Account's** scope: a shared Account's spend counts toward the
+  shared Budget, a personal Account's toward its owner's personal Budget.
+  Each spend counts toward one Budget only. Making it one claim per
+  household was weighed and rejected: a personal Budget nobody else can
+  see would block everyone else's claim with a 409 they can't explain.
+- **Target writes are atomic.** `insert(budget, targets, month)` and
+  `replaceTargets(householdId, budgetId, targets)` each claim the whole
+  set in one transaction, and the first refusal rolls everything back:
+  `target_claimed` (with the claiming Budget's id) or `target_not_found`
+  (not this household's). This supersedes the sequence diagrams'
+  per-target `assignTarget`/`releaseTarget` loop, which could leave a
+  half-saved Budget behind a 409.
+- **FR-4.7 enforcement.** The literal duplicate is the partial unique
+  index firing (23505). The rollup half (a Category reserves its
+  Subcategories, both ways) is checked in code before the insert, while
+  holding the parent Category's row lock (`FOR UPDATE`), so two concurrent
+  claims on one Category tree run one after the other. One Budget may hold
+  a Category and one of its own Subcategories.
+- **Budget Periods (FR-4.9): created at insert, then lazily.** `insert`
+  opens the current month's period. Every target change writes the
+  current month's period (opening it if needed), and any later period
+  already opened follows. So the target in effect for a month is always
+  the latest period at or before it. `accrueIfClaimed` opens a missing
+  month with that target, which gives a backdated spend the target of its
+  own month. A spend dated before the Budget's first period isn't
+  tracked. Months come from the Manager in the app time zone (OQ-104),
+  so the Accessor does no time-zone maths.
+- **`accrueIfClaimed(spend)`** takes `{scope, currency, categoryId,
+  subcategoryId, amount, date}`. It matches by exact Subcategory or by
+  Category rollup (FR-4.8) in the spend's scope and currency (FR-4.7
+  leaves at most one match), adds `amount` (negative to reverse), and
+  returns `accrued` or `untracked`. It locks the Budget (`FOR SHARE`) so a
+  concurrent delete can't slip in before the period is written.
+- **Reads:** `findById`, `list(householdId, viewerUserId, {visibility,
+  limit, offset})` (shared Budgets plus the viewer's own personal ones, by
+  name, with a total) and `listPeriods(householdId, budgetId, from, to)`.
+  `update` changes name and/or target and never touches a past period.
+  `delete` is the FR-4.10 hard delete (periods survive, `budget_id` →
+  NULL).
+- **Not here yet:** Delete User's cascade (personal Budgets deleted, shared
+  ones' owner cleared) waits for `M1D` (task 136), like the other
+  Accessors.
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.
