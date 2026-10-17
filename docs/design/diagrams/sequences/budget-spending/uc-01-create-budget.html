@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Create Budget</h1>
-  <p class="subtitle"><span class="route">POST /budgets</span> &mdash; FR-4.1/4.7. A Category or Subcategory can be claimed by at most one Budget per scope &mdash; a real partial-unique-index constraint, not application logic.</p>
+  <p class="subtitle"><span class="route">POST /households/:householdId/budgets</span> &mdash; FR-4.1/4.7. A Category or Subcategory can be claimed by at most one Budget per scope &mdash; a real partial-unique-index constraint, not application logic.</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -66,7 +66,7 @@ sequenceDiagram
     participant BA as BudgetAccessor
     participant LOG as LoggingUtility
 
-    User->>API: POST /budgets {name, targetAmount, currency, visibility, targets: [...]}
+    User->>API: POST /households/:householdId/budgets {name, targetAmount, currency, visibility, targets: [...]}
     API->>AM: createBudget(actor, input)
     AM->>VU: check(name, targetAmount, currency)
     alt validation fails

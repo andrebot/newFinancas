@@ -23,7 +23,7 @@ UCS = []
 UCS.append(dict(
     filename="uc-01-create-account.html",
     title="Create Financial Account",
-    subtitle='<span class="route">POST /accounts</span> &mdash; FR-2.1. <code>type</code> and <code>currency</code> are immutable once set (OQ-32) &mdash; there is no edit path for either, ever.',
+    subtitle='<span class="route">POST /households/:householdId/accounts</span> &mdash; FR-2.1. <code>type</code> and <code>currency</code> are immutable once set (OQ-32) &mdash; there is no edit path for either, ever.',
     mermaid="""
 sequenceDiagram
 """ + P_CORE + """
@@ -32,7 +32,7 @@ sequenceDiagram
     participant CA as CreditCardAccessor
     participant LOG as LoggingUtility
 
-    User->>API: POST /accounts {name, type: checking|savings|credit_card_only|investment, currency, visibility, openingBalance, cards?}
+    User->>API: POST /households/:householdId/accounts {name, type: checking|savings|credit_card_only|investment, currency, visibility, openingBalance, cards?}
     API->>AM: createAccount(actor, input)
     AM->>VU: check(name, type, currency)
     alt validation fails (missing name, unsupported type/currency)
@@ -68,7 +68,7 @@ sequenceDiagram
 UCS.append(dict(
     filename="uc-02-edit-account.html",
     title="Edit Financial Account (incl. Credit Cards)",
-    subtitle='<span class="route">PATCH /accounts/:accountId</span> &mdash; FR-2.9/OQ-35. Attaching, editing, and removing this account&#39;s Credit Cards is folded into this same request &mdash; not four separate endpoints.',
+    subtitle='<span class="route">PATCH /households/:householdId/accounts/:accountId</span> &mdash; FR-2.9/OQ-35. Attaching, editing, and removing this account&#39;s Credit Cards is folded into this same request &mdash; not four separate endpoints.',
     mermaid="""
 sequenceDiagram
 """ + P_CORE + """
@@ -77,7 +77,7 @@ sequenceDiagram
     participant CA as CreditCardAccessor
     participant LOG as LoggingUtility
 
-    User->>API: PATCH /accounts/:accountId {name, visibility, cards: [...]}
+    User->>API: PATCH /households/:householdId/accounts/:accountId {name, visibility, cards: [...]}
     API->>AM: editAccount(actor, accountId, input)
     AM->>VU: check(input)
     alt request attempts to change type or currency
@@ -117,7 +117,7 @@ sequenceDiagram
 """,
     notes="""
     <ul>
-      <li>FR-2.9&#39;s combined-form decision (OQ-35) means there is no separate <code>POST /accounts/:id/cards</code> endpoint at all &mdash; card attach/edit/remove only ever happens through this one request.</li>
+      <li>FR-2.9&#39;s combined-form decision (OQ-35) means there is no separate <code>POST /households/:householdId/accounts/:id/cards</code> endpoint at all &mdash; card attach/edit/remove only ever happens through this one request.</li>
       <li>See FR-2.7, FR-2.9, OQ-32, OQ-35.</li>
     </ul>
 """,
@@ -127,7 +127,7 @@ sequenceDiagram
 UCS.append(dict(
     filename="uc-03-archive-account.html",
     title="Archive Financial Account",
-    subtitle='<span class="route">POST /accounts/:accountId/archive</span> &mdash; FR-2.4/OQ-34. One-way, no unarchive path. Auto-disconnects Open Banking sync if linked (OQ-36) &mdash; currently a no-op since that trigger is parked.',
+    subtitle='<span class="route">POST /households/:householdId/accounts/:accountId/archive</span> &mdash; FR-2.4/OQ-34. One-way, no unarchive path. Auto-disconnects Open Banking sync if linked (OQ-36) &mdash; currently a no-op since that trigger is parked.',
     mermaid="""
 sequenceDiagram
 """ + P_CORE + """
@@ -135,7 +135,7 @@ sequenceDiagram
     participant OB as OpenBankingConnectionAccessor
     participant LOG as LoggingUtility
 
-    User->>API: POST /accounts/:accountId/archive
+    User->>API: POST /households/:householdId/accounts/:accountId/archive
     API->>AM: archiveAccount(actor, accountId)
     AM->>AA: archive(accountId)
     Note over AA: sets archived_at, one-way &mdash; no unarchive endpoint exists (OQ-34)

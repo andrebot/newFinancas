@@ -55,38 +55,69 @@
 </head>
 <body>
   <h1>Archive Category or Subcategory</h1>
-  <p class="subtitle"><span class="route">POST /categories/:categoryId/archive</span> or <span class="route">POST /categories/:categoryId/subcategories/:subcategoryId/archive</span> &mdash; FR-10.3/10.4. Archiving a Category cascades to all its Subcategories; archiving a Subcategory affects nothing else.</p>
+  <p class="subtitle"><span class="route">POST /households/:householdId/categories/:categoryId/archive</span> or <span class="route">POST /households/:householdId/categories/:categoryId/subcategories/:subcategoryId/archive</span> &mdash; FR-10.3/10.4. Archiving a Category cascades to all its Subcategories; archiving a Subcategory affects nothing else.</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
     actor User
     participant API as Hono route
     participant AM as AccountManager
+    participant AZ as AuthorizationUtility
     participant CA as CategoryAccessor
     participant LOG as LoggingUtility
 
     alt target is a Category
-        User->>API: POST /categories/:categoryId/archive
-        API->>AM: archiveCategory(actor, categoryId)
-        AM->>CA: archive(householdId, categoryId)
-        Note over CA: stamps this Category's archived_at, then its live<br/>Subcategories' with the same time &mdash; one transaction<br/>(FR-10.4's cascade) &mdash; already-archived ones keep theirs
-        CA-->>AM: archived (Category + all Subcategories)
+        User->>API: POST /households/:householdId/categories/:categoryId/archive
+        API->>AM: archiveCategory(actor, householdId, categoryId)
     else target is a Subcategory
-        User->>API: POST /categories/:categoryId/subcategories/:subcategoryId/archive
-        API->>AM: archiveSubcategory(actor, categoryId, subcategoryId)
-        AM->>CA: archiveSubcategory(householdId, categoryId, subcategoryId)
-        Note over CA: single-row update &mdash; parent Category and sibling<br/>Subcategories are untouched (FR-10.4)
-        CA-->>AM: archived (this Subcategory only)
+        User->>API: POST /households/:householdId/categories/:categoryId/subcategories/:subcategoryId/archive
+        API->>AM: archiveSubcategory(actor, householdId, categoryId, subcategoryId)
     end
-    AM-->>LOG: logActivity(correlationId, actor, "ArchiveCategory")
-    AM-->>LOG: recordAudit(actor, "Category", categoryId)
-    AM-->>API: archived
-    API-->>User: 204 No Content
+    AM->>AZ: authorize(actor.userId, householdId, data.delete on shared data, owner none)
+    alt not a member
+        AZ-->>AM: not_member
+        AM-->>API: NotFound
+        API-->>User: 404 household.not_found
+    else a Member or Viewer
+        AZ-->>AM: forbidden
+        AM-->>API: Forbidden
+        API-->>User: 403 auth.forbidden
+    else allowed
+        AZ-->>AM: allowed
+        alt target is a Category
+            AM->>CA: archive(householdId, categoryId)
+            Note over CA: stamps this Category's archived_at, then its live<br/>Subcategories' with the same time &mdash; one transaction<br/>(FR-10.4's cascade) &mdash; already-archived ones keep theirs
+            alt not this household's
+                CA-->>AM: false
+                AM-->>API: NotFound
+                API-->>User: 404 category.not_found
+            else archived
+                CA-->>AM: true
+                AM-->>LOG: log.audit("ArchiveCategory", Category categoryId)
+                AM-->>API: archived
+                API-->>User: 204 No Content
+            end
+        else target is a Subcategory
+            AM->>CA: archiveSubcategory(householdId, categoryId, subcategoryId)
+            Note over CA: single-row update &mdash; parent Category and sibling<br/>Subcategories are untouched (FR-10.4)
+            alt not under that Category of this household
+                CA-->>AM: false
+                AM-->>API: NotFound
+                API-->>User: 404 subcategory.not_found
+            else archived
+                CA-->>AM: true
+                AM-->>LOG: log.audit("ArchiveSubcategory", Subcategory subcategoryId)
+                AM-->>API: archived
+                API-->>User: 204 No Content
+            end
+        end
+    end
     </pre>
   </div>
   <div class="notes">
     <ul>
       <li>No hard delete exists for either resource &mdash; FR-10.3 only ever defines archive, the same one-way shape as Accounts/Holdings, not Budget&#39;s hard-delete shape.</li>
+      <li>Archiving is checked as <code>data.delete</code> on shared data nobody owns: Owner/Admin (FR-1.7, OQ-174).</li>
       <li>See FR-10.3, FR-10.4.</li>
     </ul>
   </div>

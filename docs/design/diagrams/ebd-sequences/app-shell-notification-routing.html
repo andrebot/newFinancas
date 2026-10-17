@@ -82,7 +82,7 @@ sequenceDiagram
         User->>BELL: Archive holding
         BELL->>SHELL: emit action {type: holding.matured, archive, params}
         SHELL->>TI: route → Archive Matured Holding
-        TI->>API: POST /holdings/:holdingId/archive
+        TI->>API: POST /households/:householdId/holdings/:holdingId/archive
     end
     API-->>SHELL: done
     SHELL->>API: DELETE /notifications/:notificationId

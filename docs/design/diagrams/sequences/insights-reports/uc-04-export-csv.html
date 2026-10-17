@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Export Transactions to CSV</h1>
-  <p class="subtitle"><strong>Deferred to v2 (OQ-71).</strong> <span class="route">GET /reports/transactions/export?format=csv</span> &mdash; FR-6.4. A formatted PDF is a nice-to-have, not a v1 commitment; CSV is the only guaranteed export format.</p>
+  <p class="subtitle"><strong>Deferred to v2 (OQ-71).</strong> <span class="route">GET /households/:householdId/reports/transactions/export?format=csv</span> &mdash; FR-6.4. A formatted PDF is a nice-to-have, not a v1 commitment; CSV is the only guaranteed export format.</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -66,7 +66,7 @@ sequenceDiagram
     participant ATA as AccountTransactionAccessor
     participant CTA as CardTransactionAccessor
 
-    User->>API: GET /reports/transactions/export?format=csv&dateRange=...
+    User->>API: GET /households/:householdId/reports/transactions/export?format=csv&dateRange=...
     API->>IM: exportTransactions(actor, dateRange)
     IM->>RE: exportCsv(actor, dateRange)
     RE->>ATA: query(actor, dateRange)

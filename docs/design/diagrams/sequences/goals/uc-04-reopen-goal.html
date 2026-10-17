@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Reopen Goal</h1>
-  <p class="subtitle"><span class="route">POST /goals/:goalId/reopen</span> &mdash; FR-8.9. The only "unarchive" endpoint in the entire API &mdash; every other archived entity in this project stays archived, one-way.</p>
+  <p class="subtitle"><span class="route">POST /households/:householdId/goals/:goalId/reopen</span> &mdash; FR-8.9. The only "unarchive" endpoint in the entire API &mdash; every other archived entity in this project stays archived, one-way.</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -65,7 +65,7 @@ sequenceDiagram
     participant OA as GoalAccessor
     participant LOG as LoggingUtility
 
-    User->>API: POST /goals/:goalId/reopen
+    User->>API: POST /households/:householdId/goals/:goalId/reopen
     API->>AM: uncompleteGoal(actor, goalId)
     AM->>OA: reopen(goalId)
     Note over OA: nulls completed_at back out &mdash; restores active status,<br/>able to receive new allocations again (FR-8.9)

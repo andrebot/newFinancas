@@ -190,6 +190,7 @@ gap there as a missing scenario, not an acceptable gap.
 - Subscribes `holding.matured` → per owner `NotificationEngine.notify("holding.matured", {userId}, params)` then `markMaturedNotified` — assert both, and that a delivery failure does **not** mark it notified (`uc-11`)
 - Create Account: the 4 types only (OQ-76); Create/Edit Category with icon + colour token
 - Goal CRUD / complete / reopen / delete (`goals/uc-01..05`)
+- **Written so far (OQ-174, part 1):** `tests/integration/managers/account/` — Categories (access per use case as shared data nobody owns, non-member 404, 403 before validation, blank names incl. `subcategories[i].name`, each Accessor refusal mapped and unaudited, empty edit unaudited, every write audited) and `household.created` (subscription, `seedDefaults` in the creator's language, outcome logged as the system, failure left to the bus); routes in `tests/integration/categoryRoutes.test.ts`
 
 **`TransactionManager`** — mocks `AccountAccessor`, `CreditCardAccessor`,
 `InvestmentHoldingAccessor`, `ValuationSnapshotAccessor`,

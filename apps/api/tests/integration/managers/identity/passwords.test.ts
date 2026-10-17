@@ -6,7 +6,7 @@ import { createIdentityManager } from '../../../../src/managers/identity';
 import {
   ANA, fakeDeps, minutes, NOW, SESSION,
 } from './fakes';
-import { expectAudited } from './audit';
+import { expectAudited } from '../audit';
 
 const ACTOR = { userId: ANA.id, sessionId: SESSION.id, systemRole: 'USER' as const };
 const SIGNED_IN = { correlationId: 'c1', actor: ACTOR };

@@ -119,3 +119,20 @@ export const checkFields = <Values extends object>(
     const problem = rules[field]?.(values[field]);
     return problem === undefined ? [] : [{ field, ...problem }];
   });
+
+/**
+ * Checks every item of a list field, e.g. each Subcategory of a Category edit.
+ * Problems are named by the item's path, as the route's contract check names
+ * them (`subcategories[1].name`).
+ *
+ * @param field - The list field's name.
+ * @param items - The items, as the route validated them.
+ * @param rules - The rule for each item field that has one.
+ * @returns One detail per failing item field, in item order; empty when all passed.
+ */
+export const checkItems = <Item extends object>(
+  field: string,
+  items: readonly Item[],
+  rules: FieldRules<Item>,
+): readonly FieldDetail[] => items.flatMap((item, index) => checkFields(item, rules)
+  .map((detail) => ({ ...detail, field: `${field}[${index}].${detail.field}` })));

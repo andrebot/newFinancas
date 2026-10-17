@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Edit Holding Goal Allocations</h1>
-  <p class="subtitle"><span class="route">PATCH /holdings/:holdingId</span> &mdash; FR-8.2/8.3/OQ-48. Narrowed in the Oct 2026 review: allocations only &mdash; position is transaction-only, market value has its own use cases.</p>
+  <p class="subtitle"><span class="route">PATCH /households/:householdId/holdings/:holdingId</span> &mdash; FR-8.2/8.3/OQ-48. Narrowed in the Oct 2026 review: allocations only &mdash; position is transaction-only, market value has its own use cases.</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -66,7 +66,7 @@ sequenceDiagram
     participant GA as GoalAccessor
     participant LOG as LoggingUtility
 
-    User->>API: PATCH /holdings/:holdingId {allocations: [{goalId, percentage}, ...]}
+    User->>API: PATCH /households/:householdId/holdings/:holdingId {allocations: [{goalId, percentage}, ...]}
     API->>AM: editHoldingAllocations(actor, holdingId, allocations)
     AM->>AZ: canWrite(actor, holdingId)?
     alt not authorized

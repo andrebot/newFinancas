@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Delete Goal</h1>
-  <p class="subtitle"><span class="route">DELETE /goals/:goalId</span> &mdash; FR-8.6. Hard delete, no history kept &mdash; "this goal no longer makes sense." The underlying Investment Holdings are never deleted.</p>
+  <p class="subtitle"><span class="route">DELETE /households/:householdId/goals/:goalId</span> &mdash; FR-8.6. Hard delete, no history kept &mdash; "this goal no longer makes sense." The underlying Investment Holdings are never deleted.</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -65,7 +65,7 @@ sequenceDiagram
     participant OA as GoalAccessor
     participant LOG as LoggingUtility
 
-    User->>API: DELETE /goals/:goalId
+    User->>API: DELETE /households/:householdId/goals/:goalId
     API->>AM: deleteGoal(actor, goalId)
     AM->>OA: delete(goalId)
     Note over OA: hard delete, no history &mdash; goal_allocations rows<br/>cascade away, but the Investment Holdings they referenced<br/>are completely untouched (FR-8.6)

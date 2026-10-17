@@ -3,17 +3,17 @@ import type { Role } from '../../db/schema/values';
 import type { AccessRequest } from '../../utilities/authorization';
 import { resolveCorrelationId } from '../../utilities/correlationId';
 import { nonBlank } from '../../utilities/validation';
+import { requireAccess as requireHouseholdAccess } from '../access';
 import requireValidFields from '../validation';
 import { loggerFor, type IdentityDeps, type SignedInContext } from './context';
-import { forbidden, householdNotFound, unauthenticated } from './errors';
+import { householdNotFound, unauthenticated } from './errors';
 
 // Create, view and delete a household, and list its members (uc-01, uc-02,
 // FR-1.4/1.7). Every action checks the caller's household role first (OQ-111).
 
 /**
- * Checks the caller may act in the household, answering like the API does: a
- * non-member gets 404 (the household isn't revealed), a member without the
- * role 403.
+ * Checks the caller may act in the household (OQ-111): a non-member gets 404,
+ * a member without the role 403.
  *
  * @param deps - The tier below.
  * @param context - The signed-in request.
@@ -22,16 +22,14 @@ import { forbidden, householdNotFound, unauthenticated } from './errors';
  * @returns The caller's role.
  * @throws {ApiError} 404 `household.not_found`; 403 `auth.forbidden`.
  */
-export const requireAccess = async (
+export const requireAccess = (
   deps: IdentityDeps,
   context: SignedInContext,
   householdId: string,
   request: AccessRequest,
-): Promise<Role> => {
-  const result = await deps.authorization.authorize(context.actor.userId, householdId, request);
-  if (result.outcome === 'allowed') return result.role;
-  throw result.outcome === 'not_member' ? householdNotFound() : forbidden();
-};
+): Promise<Role> => (
+  requireHouseholdAccess(deps.authorization, context.actor.userId, householdId, request)
+);
 
 /**
  * Builds the household use cases.

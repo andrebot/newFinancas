@@ -24,7 +24,7 @@ UCS = []
 UCS.append(dict(
     filename="uc-01-create-goal.html",
     title="Create Goal",
-    subtitle='<span class="route">POST /goals</span> &mdash; FR-8.1.',
+    subtitle='<span class="route">POST /households/:householdId/goals</span> &mdash; FR-8.1.',
     mermaid="""
 sequenceDiagram
 """ + P_CORE + """
@@ -32,7 +32,7 @@ sequenceDiagram
     participant OA as GoalAccessor
     participant LOG as LoggingUtility
 
-    User->>API: POST /goals {name, targetAmount, targetCurrency, dueDate, visibility}
+    User->>API: POST /households/:householdId/goals {name, targetAmount, targetCurrency, dueDate, visibility}
     API->>AM: createGoal(actor, input)
     AM->>VU: check(input)
     alt validation fails
@@ -61,7 +61,7 @@ sequenceDiagram
 UCS.append(dict(
     filename="uc-02-edit-goal.html",
     title="Edit Goal",
-    subtitle='<span class="route">PATCH /goals/:goalId</span> &mdash; FR-8.1. Name/target/due-date only &mdash; allocations are never editable from here (OQ-48).',
+    subtitle='<span class="route">PATCH /households/:householdId/goals/:goalId</span> &mdash; FR-8.1. Name/target/due-date only &mdash; allocations are never editable from here (OQ-48).',
     mermaid="""
 sequenceDiagram
 """ + P_CORE + """
@@ -69,7 +69,7 @@ sequenceDiagram
     participant OA as GoalAccessor
     participant LOG as LoggingUtility
 
-    User->>API: PATCH /goals/:goalId {name, targetAmount, targetCurrency, dueDate}
+    User->>API: PATCH /households/:householdId/goals/:goalId {name, targetAmount, targetCurrency, dueDate}
     API->>AM: editGoal(actor, goalId, input)
     AM->>VU: check(input)
     alt validation fails
@@ -98,14 +98,14 @@ sequenceDiagram
 UCS.append(dict(
     filename="uc-03-complete-goal.html",
     title="Complete Goal",
-    subtitle='<span class="route">POST /goals/:goalId/complete</span> &mdash; FR-8.8. "This goal is completed" &mdash; keeps the record intact so historical progress-by-month stays viewable, and is reversible (see Unarchive).',
+    subtitle='<span class="route">POST /households/:householdId/goals/:goalId/complete</span> &mdash; FR-8.8. "This goal is completed" &mdash; keeps the record intact so historical progress-by-month stays viewable, and is reversible (see Unarchive).',
     mermaid="""
 sequenceDiagram
 """ + P_CORE + """
     participant OA as GoalAccessor
     participant LOG as LoggingUtility
 
-    User->>API: POST /goals/:goalId/complete
+    User->>API: POST /households/:householdId/goals/:goalId/complete
     API->>AM: completeGoal(actor, goalId)
     AM->>OA: complete(goalId)
     Note over OA: sets completed_at &mdash; unlike every other archive in this<br/>project, this one CAN be undone (FR-8.9)
@@ -127,14 +127,14 @@ sequenceDiagram
 UCS.append(dict(
     filename="uc-04-reopen-goal.html",
     title="Reopen Goal",
-    subtitle='<span class="route">POST /goals/:goalId/reopen</span> &mdash; FR-8.9. The only "unarchive" endpoint in the entire API &mdash; every other archived entity in this project stays archived, one-way.',
+    subtitle='<span class="route">POST /households/:householdId/goals/:goalId/reopen</span> &mdash; FR-8.9. The only "unarchive" endpoint in the entire API &mdash; every other archived entity in this project stays archived, one-way.',
     mermaid="""
 sequenceDiagram
 """ + P_CORE + """
     participant OA as GoalAccessor
     participant LOG as LoggingUtility
 
-    User->>API: POST /goals/:goalId/reopen
+    User->>API: POST /households/:householdId/goals/:goalId/reopen
     API->>AM: uncompleteGoal(actor, goalId)
     AM->>OA: reopen(goalId)
     Note over OA: nulls completed_at back out &mdash; restores active status,<br/>able to receive new allocations again (FR-8.9)
@@ -156,14 +156,14 @@ sequenceDiagram
 UCS.append(dict(
     filename="uc-05-delete-goal.html",
     title="Delete Goal",
-    subtitle='<span class="route">DELETE /goals/:goalId</span> &mdash; FR-8.6. Hard delete, no history kept &mdash; "this goal no longer makes sense." The underlying Investment Holdings are never deleted.',
+    subtitle='<span class="route">DELETE /households/:householdId/goals/:goalId</span> &mdash; FR-8.6. Hard delete, no history kept &mdash; "this goal no longer makes sense." The underlying Investment Holdings are never deleted.',
     mermaid="""
 sequenceDiagram
 """ + P_CORE + """
     participant OA as GoalAccessor
     participant LOG as LoggingUtility
 
-    User->>API: DELETE /goals/:goalId
+    User->>API: DELETE /households/:householdId/goals/:goalId
     API->>AM: deleteGoal(actor, goalId)
     AM->>OA: delete(goalId)
     Note over OA: hard delete, no history &mdash; goal_allocations rows<br/>cascade away, but the Investment Holdings they referenced<br/>are completely untouched (FR-8.6)
@@ -185,7 +185,7 @@ sequenceDiagram
 UCS.append(dict(
     filename="uc-06-view-goals.html",
     title="View Goals",
-    subtitle='<span class="route">GET /goals?status=active|completed</span> &mdash; FR-8.5/8.7/FR-9. Progress per currency, computed on read &mdash; the frontend blends currencies with the user&#39;s on-the-fly rate (nothing stored).',
+    subtitle='<span class="route">GET /households/:householdId/goals?status=active|completed</span> &mdash; FR-8.5/8.7/FR-9. Progress per currency, computed on read &mdash; the frontend blends currencies with the user&#39;s on-the-fly rate (nothing stored).',
     mermaid="""
 sequenceDiagram
     actor User
@@ -197,7 +197,7 @@ sequenceDiagram
     participant IHA as InvestmentHoldingAccessor
     participant VSA as ValuationSnapshotAccessor
 
-    User->>API: GET /goals?status=active
+    User->>API: GET /households/:householdId/goals?status=active
     API->>IM: viewGoals(actor, status)
     IM->>AZ: visibleScope(actor)
     IM->>RE: goalProgress(scope, status)
@@ -212,7 +212,7 @@ sequenceDiagram
     notes="""
     <ul>
       <li><strong>FX stays in the browser (FR-9, OQ-49):</strong> &ldquo;1 USD = x BRL&rdquo; is typed on the goal card and only blends the returned per-currency contributions for display.</li>
-      <li>Reshaped read &rarr; <code>InsightsManager</code> + <code>ReportingEngine</code> (read-ownership rule). <code>GET /goals/:goalId/progress</code> stays for the by-month history (FR-8.7).</li>
+      <li>Reshaped read &rarr; <code>InsightsManager</code> + <code>ReportingEngine</code> (read-ownership rule). <code>GET /households/:householdId/goals/:goalId/progress</code> stays for the by-month history (FR-8.7).</li>
       <li>See FR-8.5, FR-8.7, FR-9, OQ-49.</li>
     </ul>
 """,

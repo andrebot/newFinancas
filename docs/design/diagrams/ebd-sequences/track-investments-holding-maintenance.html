@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Track Investments — Holding Maintenance</h1>
-  <p class="subtitle"><span class="route">GET /accounts/:id/holdings</span>, <span class="route">PATCH /holdings/:id</span>, <span class="route">…/valuation-snapshots</span>.</p>
+  <p class="subtitle"><span class="route">GET /households/:householdId/accounts/:id/holdings</span>, <span class="route">PATCH /households/:householdId/holdings/:id</span>, <span class="route">…/valuation-snapshots</span>.</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -71,7 +71,7 @@ sequenceDiagram
     User->>AP: pick account
     AP->>FLOW: emit accountChosen
     FLOW->>EXP: request holdings(accountId)
-    EXP->>API: GET /accounts/:accountId/holdings
+    EXP->>API: GET /households/:householdId/accounts/:accountId/holdings
     API-->>EXP: positions (+ expected payout / taxes for fixed-term)
     EXP-->>FLOW: state
     User->>HT: expand a holding
@@ -80,12 +80,12 @@ sequenceDiagram
         User->>GA: rows with whole %
         GA->>FLOW: emit allocations
         FLOW->>EXP: request saveAllocations
-        EXP->>API: PATCH /holdings/:holdingId
+        EXP->>API: PATCH /households/:householdId/holdings/:holdingId
     else record a market value (market-priced only)
         User->>MV: value + as-of date
         MV->>FLOW: emit marketValue
         FLOW->>EXP: request recordValue
-        EXP->>API: POST /holdings/:holdingId/valuation-snapshots
+        EXP->>API: POST /households/:householdId/holdings/:holdingId/valuation-snapshots
     else fix a past value
         User->>VH: edit or delete an entry
         VH->>FLOW: emit historyChange

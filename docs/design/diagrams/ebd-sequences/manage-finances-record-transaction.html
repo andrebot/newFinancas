@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Manage Finances — Record Transaction</h1>
-  <p class="subtitle"><span class="route">POST /transactions</span>; edit reuses it with <span class="route">PATCH /transactions/:id</span>.</p>
+  <p class="subtitle"><span class="route">POST /households/:householdId/transactions</span>; edit reuses it with <span class="route">PATCH /households/:householdId/transactions/:id</span>.</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -83,7 +83,7 @@ sequenceDiagram
     User->>TE: amount (currency from account), date, category, description
     TE->>FLOW: emit fields
     FLOW->>EXP: request record(transaction)
-    EXP->>API: POST /transactions
+    EXP->>API: POST /households/:householdId/transactions
     alt 4xx (e.g. goal.allocation_exceeds_100, transaction.investment_not_allowed_on_account)
         API-->>EXP: error code + params
         EXP-->>FLOW: state: error — I18nUtility renders it

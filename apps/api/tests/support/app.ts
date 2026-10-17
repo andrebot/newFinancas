@@ -1,12 +1,14 @@
 import { vi, type Mock } from 'vitest';
 import createApp from '../../src/app';
 import type { VerifyAccessToken } from '../../src/http/authentication';
+import type { AccountManager } from '../../src/managers/account';
 import type { IdentityManager } from '../../src/managers/identity';
 
 // The app with its Managers mocked — the one boundary below the routes (BDT).
 // Every Manager use case is a `vi.fn()` the test programs.
 
 export type MockedIdentity = { [K in keyof IdentityManager]: Mock<IdentityManager[K]> };
+export type MockedAccount = { [K in keyof AccountManager]: Mock<AccountManager[K]> };
 
 /**
  * An IdentityManager whose every use case is a mock.
@@ -46,6 +48,21 @@ export const mockIdentity = (): MockedIdentity => ({
 });
 
 /**
+ * An AccountManager whose every use case is a mock.
+ *
+ * @returns The mock Manager.
+ */
+export const mockAccount = (): MockedAccount => ({
+  listCategories: vi.fn(),
+  getCategory: vi.fn(),
+  createCategory: vi.fn(),
+  editCategory: vi.fn(),
+  archiveCategory: vi.fn(),
+  archiveSubcategory: vi.fn(),
+  seedDefaultCategories: vi.fn(),
+});
+
+/**
  * Builds the app over mocked Managers and a programmable token check.
  *
  * @param verifyAccessToken - Token verification (default: every token is invalid).
@@ -55,7 +72,8 @@ export const appWithMocks = (
   verifyAccessToken: VerifyAccessToken = vi.fn(async () => undefined),
 ) => {
   const identity = mockIdentity();
-  return { app: createApp({ identity, verifyAccessToken }), identity };
+  const account = mockAccount();
+  return { app: createApp({ identity, account, verifyAccessToken }), identity, account };
 };
 
 /**

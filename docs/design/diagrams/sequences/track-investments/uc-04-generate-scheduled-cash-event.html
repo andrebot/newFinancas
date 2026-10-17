@@ -78,7 +78,7 @@ sequenceDiagram
             Note over TM: nothing more &mdash; the entry posted once (OQ-171)
         else marked now
             IHA-->>TM: true
-            Note over TM: same recordTransaction(...) pipeline as POST /transactions,<br/>in the same database transaction &mdash; kind = interest / redemption / tax,<br/>linked to the Holding, a redemption that zeroes it auto-archives it (OQ-72)
+            Note over TM: same recordTransaction(...) pipeline as POST /households/:householdId/transactions,<br/>in the same database transaction &mdash; kind = interest / redemption / tax,<br/>linked to the Holding, a redemption that zeroes it auto-archives it (OQ-72)
             TM->>ATA: insert(accountTransaction, effect, holdingId)
             ATA-->>TM: transactionId
         end

@@ -8,6 +8,7 @@ import { serve } from '@hono/node-server';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
 import createAuditLogAccessor from './accessors/auditLogAccessor';
+import createCategoryAccessor from './accessors/categoryAccessor';
 import createEmailAccessor from './accessors/emailAccessor';
 import createHouseholdAccessor from './accessors/householdAccessor';
 import createInvitationAccessor from './accessors/invitationAccessor';
@@ -18,6 +19,7 @@ import createApp from './app';
 import { logging } from './config/constants';
 import loadEnv from './config/env';
 import { createNotificationEngine } from './engines/notification';
+import { createAccountManager, subscribeAccountManager } from './managers/account';
 import { createIdentityManager } from './managers/identity';
 import { createAuthenticationUtility } from './utilities/authentication';
 import { createAuthorizationUtility } from './utilities/authorization';
@@ -60,21 +62,27 @@ const bus = createServiceBus({
     { error: String(error), correlationId: message.correlationId },
   ),
 });
+const authorization = createAuthorizationUtility({ findMembership: households.findMembership });
 const identity = createIdentityManager({
   users: createUserAccessor(db),
   sessions: createSessionAccessor(db),
   households,
   invitations: createInvitationAccessor(db),
   authentication,
-  authorization: createAuthorizationUtility({ findMembership: households.findMembership }),
+  authorization,
   bus,
   notifications,
   webAppUrl: env.webAppUrl,
   now: () => new Date(),
 });
 
+const account = createAccountManager({ categories: createCategoryAccessor(db), authorization });
+subscribeAccountManager(bus, account);
+
 serve({
-  fetch: createApp({ identity, verifyAccessToken: authentication.verifyAccessToken }).fetch,
+  fetch: createApp({
+    identity, account, verifyAccessToken: authentication.verifyAccessToken,
+  }).fetch,
   port: env.port,
 });
 log.info('API started', { port: env.port });

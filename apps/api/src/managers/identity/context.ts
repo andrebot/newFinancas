@@ -5,9 +5,12 @@ import type { SessionAccessor } from '../../accessors/sessionAccessor';
 import type { UserAccessor } from '../../accessors/userAccessor';
 import { authentication } from '../../config/constants';
 import type { NotificationEngine } from '../../engines/notification';
-import type { AccessTokenClaims, AuthenticationUtility } from '../../utilities/authentication';
+import type { AuthenticationUtility } from '../../utilities/authentication';
 import type { AuthorizationUtility } from '../../utilities/authorization';
 import type { ServiceBus } from '../../utilities/serviceBus';
+import type { RequestContext } from '../requestContext';
+
+export type { RequestContext, SignedInContext } from '../requestContext';
 
 // What every IdentityManager use case shares: its dependencies (the tier below,
 // injected so integration tests mock exactly that tier — BDT), the request it
@@ -26,17 +29,6 @@ export interface IdentityDeps {
   /** Where the web app runs; email links point here (WEB_APP_URL). */
   readonly webAppUrl: string;
   readonly now: () => Date;
-}
-
-/** The request a use case runs for: its correlation ID and, once signed in, its actor. */
-export interface RequestContext {
-  readonly correlationId: string;
-  readonly actor?: AccessTokenClaims;
-}
-
-/** A signed-in request. */
-export interface SignedInContext extends RequestContext {
-  readonly actor: AccessTokenClaims;
 }
 
 /** What a client keeps after signing in or refreshing. */

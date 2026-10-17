@@ -4302,6 +4302,69 @@ not a hardcoded assumption.
   list doesn't include `CategoryAccessor`. To settle with the Record
   Transaction work.
 
+### OQ-174: AccountManager (task M2)
+**Confirmed with the stakeholder (Oct 2026):**
+- **Household data routes are nested under `/households/{householdId}`.**
+  The contract never said which household `POST /accounts`, `GET
+  /categories`, `/budgets`, `/goals` or `/index-rates` act in, yet every
+  Accessor needs one. Every household-data path (accounts, credit cards,
+  categories, budgets, holdings, index rates, goals, transactions,
+  dashboard, reports) moved under `/households/{householdId}/…`, like
+  invitations and the audit export already were; `GET /accounts`'s
+  `householdId` query parameter is gone. Weighed and rejected: an
+  `X-Household-Id` header (hidden context, declared on every operation)
+  and a query/body field (inconsistent between verbs). The version stays
+  1.1.0: no client calls these routes yet. Every sequence and EBD diagram
+  showing these routes was redrawn. The `/households/*` guard mounted
+  with the household routes admits only signed-in USERs on all of them,
+  so the token is checked once.
+- **Built only what slice 2 needs, each read where it belongs.** A plain
+  list of a Manager's own entities is that Manager's (read-ownership
+  rule, VBD §3): AccountManager serves Goal definitions (`GET …/goals`,
+  `GET …/goals/{goalId}`) now, for Goal Management and Guided Setup;
+  progress, a reshaped read, stays `InsightsManager`'s (`M4`), on its own
+  route, when it is built. The contract's Goal reads change with the
+  Goals part of this task.
+- **Removing a Credit Card keeps the Budget spend its charges accrued.**
+  The money was spent; Budget Periods are history and survive even a
+  Budget delete (FR-4.10). Reversing it would need `CardTransactionAccessor`,
+  which isn't AccountManager's. Weighed and rejected: refusing to remove
+  a card with charges, and reversing the spend on removal.
+- **Built in five parts, one PR each** (as `M1` was): ① Categories and
+  the `household.created` → `seedDefaults` subscription; ② Accounts and
+  Credit Cards with their balance histories; ③ Budgets; ④ Goals; ⑤
+  investment administration — Edit Holding, archive Holding, manual
+  market values, schedule entries, index rates and the `holding.matured`
+  subscription.
+- **Categories are shared data nobody owns.** They record no creator, so
+  the permission table reads them as shared data with no owner: any
+  member but a Viewer may create one; viewing is everyone's; editing
+  (Subcategories included) and archiving are Owner/Admin — a Member
+  cannot edit a Category they created. Recording a creator (a migration)
+  was left for when a Member needs it.
+- **The icon set is a contract enum** (`CategoryIcon`), like the colour
+  (`CategoryColor`) — what a JSON schema can say is said there (OQ-165),
+  so the route refuses an unknown icon (`field.invalid_option`) and the
+  web app gets the type. A test keeps both enums equal to
+  `CATEGORY_ICONS` / `PALETTE_TOKENS` in `@financas/reference`. The
+  Accessor's `invalid_icon`/`invalid_color` (OQ-173) is answered the same
+  way, on the field. A Subcategory in an edit now requires its `name`.
+- **Category answers:** another household's (or a missing) Category is 404
+  `category.not_found`; a Subcategory id not under the Category — in an
+  edit body or on the archive route — is 404 `subcategory.not_found`
+  (new codes, both locales). Blank names, the Category's and each
+  Subcategory's, are 422 with `subcategories[i].name` paths
+  (`ValidationUtility.checkItems`). An empty edit reads the Category back
+  and is not audited. Every write is audited (`CreateCategory`,
+  `EditCategory`, `ArchiveCategory`, `ArchiveSubcategory`).
+- **Seeding runs as the system** on the event's correlation ID and logs
+  whether the defaults were inserted; a failure reaches the bus's error
+  sink (`onHandlerError`), never the household's creator.
+- **Shared Manager plumbing moved out of IdentityManager:** the household
+  access check (`managers/access.ts`: `requireAccess`, with an optional
+  entity 404 for someone else's personal data) and the request context
+  types (`managers/requestContext.ts`), so no Manager imports another.
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.

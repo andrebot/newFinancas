@@ -287,6 +287,18 @@ export type CreditCardMonthBalance = {
     updatedAt?: string;
 };
 
+/**
+ * Material Symbols name from the in-code icon set (FR-10.1, OQ-126) — mirrors `CATEGORY_ICONS` in `@financas/reference`; a test keeps the two equal (OQ-174).
+ *
+ */
+export type CategoryIcon = 'home-outline' | 'apartment' | 'bolt' | 'water-drop-outline' | 'local-fire-department-outline' | 'wifi' | 'smartphone-outline' | 'build-outline' | 'cleaning-services-outline' | 'chair-outline' | 'shopping-cart-outline' | 'restaurant' | 'local-cafe-outline' | 'local-bar-outline' | 'fastfood-outline' | 'bakery-dining-outline' | 'directions-car-outline' | 'local-gas-station-outline' | 'directions-bus-outline' | 'local-taxi-outline' | 'local-parking' | 'two-wheeler' | 'flight' | 'medical-services-outline' | 'local-pharmacy-outline' | 'fitness-center' | 'spa-outline' | 'psychology-outline' | 'shopping-bag-outline' | 'checkroom' | 'devices-outline' | 'content-cut' | 'redeem' | 'child-care-outline' | 'pets' | 'school-outline' | 'elderly' | 'movie-outline' | 'sports-esports-outline' | 'music-note' | 'menu-book-outline' | 'theater-comedy-outline' | 'beach-access-outline' | 'celebration-outline' | 'subscriptions-outline' | 'payments-outline' | 'work-outline' | 'savings-outline' | 'account-balance-outline' | 'receipt-long-outline' | 'credit-card-outline' | 'trending-up' | 'sell-outline' | 'real-estate-agent-outline' | 'shield-outline' | 'volunteer-activism-outline' | 'category-outline';
+
+/**
+ * Palette token, not a hex — resolves per theme (OQ-85). Mirrors `PALETTE_TOKENS` in `@financas/reference` (OQ-174).
+ *
+ */
+export type CategoryColor = 'mint' | 'emerald' | 'teal' | 'cyan' | 'sky' | 'blue' | 'indigo' | 'violet' | 'lilac' | 'fuchsia' | 'pink' | 'rose' | 'coral' | 'peach' | 'orange' | 'sun' | 'lime' | 'slate';
+
 export type Subcategory = {
     id?: string;
     categoryId?: string;
@@ -305,14 +317,8 @@ export type Category = {
     archivedAt?: string | null;
     createdAt?: string;
     subcategories?: Array<Subcategory>;
-    /**
-     * Icon name from the in-code icon set (Material Symbols)
-     */
-    icon?: string;
-    /**
-     * Palette token, not a hex — resolves per theme (OQ-85)
-     */
-    color?: 'mint' | 'emerald' | 'teal' | 'cyan' | 'sky' | 'blue' | 'indigo' | 'violet' | 'lilac' | 'fuchsia' | 'pink' | 'rose' | 'coral' | 'peach' | 'orange' | 'sun' | 'lime' | 'slate';
+    icon?: CategoryIcon;
+    color?: CategoryColor;
 };
 
 export type CategoryUpdateRequest = {
@@ -322,16 +328,10 @@ export type CategoryUpdateRequest = {
          * Omit to create a new Subcategory
          */
         id?: string;
-        name?: string;
+        name: string;
     }>;
-    /**
-     * Icon name from the in-code icon set (Material Symbols)
-     */
-    icon?: string;
-    /**
-     * Palette token, not a hex — resolves per theme (OQ-85)
-     */
-    color?: 'mint' | 'emerald' | 'teal' | 'cyan' | 'sky' | 'blue' | 'indigo' | 'violet' | 'lilac' | 'fuchsia' | 'pink' | 'rose' | 'coral' | 'peach' | 'orange' | 'sun' | 'lime' | 'slate';
+    icon?: CategoryIcon;
+    color?: CategoryColor;
 };
 
 /**
@@ -1312,7 +1312,7 @@ export type RevokeSessionData = {
 
 export type RevokeSessionErrors = {
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
 };
@@ -1409,7 +1409,7 @@ export type DeleteHouseholdErrors = {
      */
     403: Error;
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
 };
@@ -1454,7 +1454,7 @@ export type ListMembersData = {
 
 export type ListMembersErrors = {
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
 };
@@ -1488,7 +1488,7 @@ export type RemoveMemberErrors = {
      */
     403: Error;
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
     /**
@@ -1526,7 +1526,7 @@ export type ChangeMemberRoleErrors = {
      */
     403: Error;
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
     /**
@@ -1565,7 +1565,7 @@ export type TransferOwnershipErrors = {
      */
     403: Error;
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
     /**
@@ -1598,7 +1598,7 @@ export type ListHouseholdInvitationsErrors = {
      */
     403: Error;
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
 };
@@ -1757,14 +1757,15 @@ export type DeclineInvitationResponses = {
 
 export type ListAccountsData = {
     body?: never;
-    path?: never;
+    path: {
+        householdId: string;
+    };
     query?: {
-        householdId?: string;
         visibility?: 'personal' | 'shared';
         limit?: number;
         offset?: number;
     };
-    url: '/accounts';
+    url: '/households/{householdId}/accounts';
 };
 
 export type ListAccountsResponses = {
@@ -1781,9 +1782,11 @@ export type ListAccountsResponse = ListAccountsResponses[keyof ListAccountsRespo
 
 export type CreateAccountData = {
     body: AccountCreateRequest;
-    path?: never;
+    path: {
+        householdId: string;
+    };
     query?: never;
-    url: '/accounts';
+    url: '/households/{householdId}/accounts';
 };
 
 export type CreateAccountErrors = {
@@ -1807,15 +1810,16 @@ export type CreateAccountResponse = CreateAccountResponses[keyof CreateAccountRe
 export type GetAccountData = {
     body?: never;
     path: {
+        householdId: string;
         accountId: string;
     };
     query?: never;
-    url: '/accounts/{accountId}';
+    url: '/households/{householdId}/accounts/{accountId}';
 };
 
 export type GetAccountErrors = {
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
 };
@@ -1834,10 +1838,11 @@ export type GetAccountResponse = GetAccountResponses[keyof GetAccountResponses];
 export type EditAccountData = {
     body: AccountUpdateRequest;
     path: {
+        householdId: string;
         accountId: string;
     };
     query?: never;
-    url: '/accounts/{accountId}';
+    url: '/households/{householdId}/accounts/{accountId}';
 };
 
 export type EditAccountErrors = {
@@ -1861,10 +1866,11 @@ export type EditAccountResponse = EditAccountResponses[keyof EditAccountResponse
 export type ArchiveAccountData = {
     body?: never;
     path: {
+        householdId: string;
         accountId: string;
     };
     query?: never;
-    url: '/accounts/{accountId}/archive';
+    url: '/households/{householdId}/accounts/{accountId}/archive';
 };
 
 export type ArchiveAccountResponses = {
@@ -1879,10 +1885,11 @@ export type ArchiveAccountResponse = ArchiveAccountResponses[keyof ArchiveAccoun
 export type ListCreditCardsData = {
     body?: never;
     path: {
+        householdId: string;
         accountId: string;
     };
     query?: never;
-    url: '/accounts/{accountId}/credit-cards';
+    url: '/households/{householdId}/accounts/{accountId}/credit-cards';
 };
 
 export type ListCreditCardsResponses = {
@@ -1899,6 +1906,7 @@ export type ListCreditCardsResponse = ListCreditCardsResponses[keyof ListCreditC
 export type GetAccountBalancesData = {
     body?: never;
     path: {
+        householdId: string;
         accountId: string;
     };
     query?: {
@@ -1911,7 +1919,7 @@ export type GetAccountBalancesData = {
          */
         endDate?: string;
     };
-    url: '/accounts/{accountId}/balances';
+    url: '/households/{householdId}/accounts/{accountId}/balances';
 };
 
 export type GetAccountBalancesResponses = {
@@ -1928,6 +1936,7 @@ export type GetAccountBalancesResponse = GetAccountBalancesResponses[keyof GetAc
 export type GetCreditCardBalancesData = {
     body?: never;
     path: {
+        householdId: string;
         creditCardId: string;
     };
     query?: {
@@ -1940,7 +1949,7 @@ export type GetCreditCardBalancesData = {
          */
         endDate?: string;
     };
-    url: '/credit-cards/{creditCardId}/balances';
+    url: '/households/{householdId}/credit-cards/{creditCardId}/balances';
 };
 
 export type GetCreditCardBalancesResponses = {
@@ -1956,12 +1965,23 @@ export type GetCreditCardBalancesResponse = GetCreditCardBalancesResponses[keyof
 
 export type ListCategoriesData = {
     body?: never;
-    path?: never;
+    path: {
+        householdId: string;
+    };
     query?: {
         includeArchived?: boolean;
     };
-    url: '/categories';
+    url: '/households/{householdId}/categories';
 };
+
+export type ListCategoriesErrors = {
+    /**
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `invitation.invitee_not_registered`.
+     */
+    404: Error;
+};
+
+export type ListCategoriesError = ListCategoriesErrors[keyof ListCategoriesErrors];
 
 export type ListCategoriesResponses = {
     /**
@@ -1977,21 +1997,25 @@ export type ListCategoriesResponse = ListCategoriesResponses[keyof ListCategorie
 export type CreateCategoryData = {
     body: {
         name: string;
-        /**
-         * Icon name from the in-code icon set (Material Symbols)
-         */
-        icon: string;
-        /**
-         * Palette token, not a hex — resolves per theme (OQ-85)
-         */
-        color: 'mint' | 'emerald' | 'teal' | 'cyan' | 'sky' | 'blue' | 'indigo' | 'violet' | 'lilac' | 'fuchsia' | 'pink' | 'rose' | 'coral' | 'peach' | 'orange' | 'sun' | 'lime' | 'slate';
+        icon: CategoryIcon;
+        color: CategoryColor;
     };
-    path?: never;
+    path: {
+        householdId: string;
+    };
     query?: never;
-    url: '/categories';
+    url: '/households/{householdId}/categories';
 };
 
 export type CreateCategoryErrors = {
+    /**
+     * Authenticated, but not permitted to perform this action. Codes: `auth.forbidden`.
+     */
+    403: Error;
+    /**
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `invitation.invitee_not_registered`.
+     */
+    404: Error;
     /**
      * Request body failed validation. Codes: `validation.failed` with `details[]`, or specific codes such as `password.too_short`, `transaction.investment_not_allowed_on_account`.
      */
@@ -2012,11 +2036,21 @@ export type CreateCategoryResponse = CreateCategoryResponses[keyof CreateCategor
 export type GetCategoryData = {
     body?: never;
     path: {
+        householdId: string;
         categoryId: string;
     };
     query?: never;
-    url: '/categories/{categoryId}';
+    url: '/households/{householdId}/categories/{categoryId}';
 };
+
+export type GetCategoryErrors = {
+    /**
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `invitation.invitee_not_registered`.
+     */
+    404: Error;
+};
+
+export type GetCategoryError = GetCategoryErrors[keyof GetCategoryErrors];
 
 export type GetCategoryResponses = {
     /**
@@ -2030,13 +2064,22 @@ export type GetCategoryResponse = GetCategoryResponses[keyof GetCategoryResponse
 export type EditCategoryData = {
     body: CategoryUpdateRequest;
     path: {
+        householdId: string;
         categoryId: string;
     };
     query?: never;
-    url: '/categories/{categoryId}';
+    url: '/households/{householdId}/categories/{categoryId}';
 };
 
 export type EditCategoryErrors = {
+    /**
+     * Authenticated, but not permitted to perform this action. Codes: `auth.forbidden`.
+     */
+    403: Error;
+    /**
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `invitation.invitee_not_registered`.
+     */
+    404: Error;
     /**
      * Request body failed validation. Codes: `validation.failed` with `details[]`, or specific codes such as `password.too_short`, `transaction.investment_not_allowed_on_account`.
      */
@@ -2057,11 +2100,25 @@ export type EditCategoryResponse = EditCategoryResponses[keyof EditCategoryRespo
 export type ArchiveCategoryData = {
     body?: never;
     path: {
+        householdId: string;
         categoryId: string;
     };
     query?: never;
-    url: '/categories/{categoryId}/archive';
+    url: '/households/{householdId}/categories/{categoryId}/archive';
 };
+
+export type ArchiveCategoryErrors = {
+    /**
+     * Authenticated, but not permitted to perform this action. Codes: `auth.forbidden`.
+     */
+    403: Error;
+    /**
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `invitation.invitee_not_registered`.
+     */
+    404: Error;
+};
+
+export type ArchiveCategoryError = ArchiveCategoryErrors[keyof ArchiveCategoryErrors];
 
 export type ArchiveCategoryResponses = {
     /**
@@ -2075,12 +2132,26 @@ export type ArchiveCategoryResponse = ArchiveCategoryResponses[keyof ArchiveCate
 export type ArchiveSubcategoryData = {
     body?: never;
     path: {
+        householdId: string;
         categoryId: string;
         subcategoryId: string;
     };
     query?: never;
-    url: '/categories/{categoryId}/subcategories/{subcategoryId}/archive';
+    url: '/households/{householdId}/categories/{categoryId}/subcategories/{subcategoryId}/archive';
 };
+
+export type ArchiveSubcategoryErrors = {
+    /**
+     * Authenticated, but not permitted to perform this action. Codes: `auth.forbidden`.
+     */
+    403: Error;
+    /**
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `invitation.invitee_not_registered`.
+     */
+    404: Error;
+};
+
+export type ArchiveSubcategoryError = ArchiveSubcategoryErrors[keyof ArchiveSubcategoryErrors];
 
 export type ArchiveSubcategoryResponses = {
     /**
@@ -2093,13 +2164,15 @@ export type ArchiveSubcategoryResponse = ArchiveSubcategoryResponses[keyof Archi
 
 export type ListBudgetsData = {
     body?: never;
-    path?: never;
+    path: {
+        householdId: string;
+    };
     query?: {
         visibility?: 'personal' | 'shared';
         limit?: number;
         offset?: number;
     };
-    url: '/budgets';
+    url: '/households/{householdId}/budgets';
 };
 
 export type ListBudgetsResponses = {
@@ -2116,9 +2189,11 @@ export type ListBudgetsResponse = ListBudgetsResponses[keyof ListBudgetsResponse
 
 export type CreateBudgetData = {
     body: BudgetCreateRequest;
-    path?: never;
+    path: {
+        householdId: string;
+    };
     query?: never;
-    url: '/budgets';
+    url: '/households/{householdId}/budgets';
 };
 
 export type CreateBudgetErrors = {
@@ -2146,10 +2221,11 @@ export type CreateBudgetResponse = CreateBudgetResponses[keyof CreateBudgetRespo
 export type DeleteBudgetData = {
     body?: never;
     path: {
+        householdId: string;
         budgetId: string;
     };
     query?: never;
-    url: '/budgets/{budgetId}';
+    url: '/households/{householdId}/budgets/{budgetId}';
 };
 
 export type DeleteBudgetResponses = {
@@ -2164,10 +2240,11 @@ export type DeleteBudgetResponse = DeleteBudgetResponses[keyof DeleteBudgetRespo
 export type GetBudgetData = {
     body?: never;
     path: {
+        householdId: string;
         budgetId: string;
     };
     query?: never;
-    url: '/budgets/{budgetId}';
+    url: '/households/{householdId}/budgets/{budgetId}';
 };
 
 export type GetBudgetResponses = {
@@ -2182,10 +2259,11 @@ export type GetBudgetResponse = GetBudgetResponses[keyof GetBudgetResponses];
 export type EditBudgetData = {
     body: BudgetUpdateRequest;
     path: {
+        householdId: string;
         budgetId: string;
     };
     query?: never;
-    url: '/budgets/{budgetId}';
+    url: '/households/{householdId}/budgets/{budgetId}';
 };
 
 export type EditBudgetErrors = {
@@ -2213,6 +2291,7 @@ export type EditBudgetResponse = EditBudgetResponses[keyof EditBudgetResponses];
 export type ListBudgetPeriodsData = {
     body?: never;
     path: {
+        householdId: string;
         budgetId: string;
     };
     query?: {
@@ -2225,7 +2304,7 @@ export type ListBudgetPeriodsData = {
          */
         endDate?: string;
     };
-    url: '/budgets/{budgetId}/periods';
+    url: '/households/{householdId}/budgets/{budgetId}/periods';
 };
 
 export type ListBudgetPeriodsResponses = {
@@ -2242,12 +2321,13 @@ export type ListBudgetPeriodsResponse = ListBudgetPeriodsResponses[keyof ListBud
 export type ListHoldingsData = {
     body?: never;
     path: {
+        householdId: string;
         accountId: string;
     };
     query?: {
         includeArchived?: boolean;
     };
-    url: '/accounts/{accountId}/holdings';
+    url: '/households/{householdId}/accounts/{accountId}/holdings';
 };
 
 export type ListHoldingsResponses = {
@@ -2264,10 +2344,11 @@ export type ListHoldingsResponse = ListHoldingsResponses[keyof ListHoldingsRespo
 export type GetHoldingData = {
     body?: never;
     path: {
+        householdId: string;
         holdingId: string;
     };
     query?: never;
-    url: '/holdings/{holdingId}';
+    url: '/households/{householdId}/holdings/{holdingId}';
 };
 
 export type GetHoldingResponses = {
@@ -2282,15 +2363,16 @@ export type GetHoldingResponse = GetHoldingResponses[keyof GetHoldingResponses];
 export type EditHoldingData = {
     body: HoldingUpdateRequest;
     path: {
+        householdId: string;
         holdingId: string;
     };
     query?: never;
-    url: '/holdings/{holdingId}';
+    url: '/households/{householdId}/holdings/{holdingId}';
 };
 
 export type EditHoldingErrors = {
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
     /**
@@ -2317,10 +2399,11 @@ export type EditHoldingResponse = EditHoldingResponses[keyof EditHoldingResponse
 export type ArchiveHoldingData = {
     body?: never;
     path: {
+        householdId: string;
         holdingId: string;
     };
     query?: never;
-    url: '/holdings/{holdingId}/archive';
+    url: '/households/{householdId}/holdings/{holdingId}/archive';
 };
 
 export type ArchiveHoldingResponses = {
@@ -2335,6 +2418,7 @@ export type ArchiveHoldingResponse = ArchiveHoldingResponses[keyof ArchiveHoldin
 export type ListValuationSnapshotsData = {
     body?: never;
     path: {
+        householdId: string;
         holdingId: string;
     };
     query?: {
@@ -2347,7 +2431,7 @@ export type ListValuationSnapshotsData = {
          */
         endDate?: string;
     };
-    url: '/holdings/{holdingId}/valuation-snapshots';
+    url: '/households/{householdId}/holdings/{holdingId}/valuation-snapshots';
 };
 
 export type ListValuationSnapshotsResponses = {
@@ -2364,10 +2448,11 @@ export type ListValuationSnapshotsResponse = ListValuationSnapshotsResponses[key
 export type RecordMarketValueData = {
     body: ValuationSnapshotInput;
     path: {
+        householdId: string;
         holdingId: string;
     };
     query?: never;
-    url: '/holdings/{holdingId}/valuation-snapshots';
+    url: '/households/{householdId}/holdings/{holdingId}/valuation-snapshots';
 };
 
 export type RecordMarketValueErrors = {
@@ -2399,10 +2484,11 @@ export type RecordMarketValueResponse = RecordMarketValueResponses[keyof RecordM
 export type ListScheduleEntriesData = {
     body?: never;
     path: {
+        householdId: string;
         holdingId: string;
     };
     query?: never;
-    url: '/holdings/{holdingId}/schedule-entries';
+    url: '/households/{householdId}/holdings/{holdingId}/schedule-entries';
 };
 
 export type ListScheduleEntriesResponses = {
@@ -2418,7 +2504,9 @@ export type ListScheduleEntriesResponse = ListScheduleEntriesResponses[keyof Lis
 
 export type ListTransactionsData = {
     body?: never;
-    path?: never;
+    path: {
+        householdId: string;
+    };
     query?: {
         /**
          * Transaction kinds
@@ -2448,7 +2536,7 @@ export type ListTransactionsData = {
         cursor?: string;
         limit?: number;
     };
-    url: '/transactions';
+    url: '/households/{householdId}/transactions';
 };
 
 export type ListTransactionsResponses = {
@@ -2462,9 +2550,11 @@ export type ListTransactionsResponse = ListTransactionsResponses[keyof ListTrans
 
 export type RecordTransactionData = {
     body: TransactionCreateRequest;
-    path?: never;
+    path: {
+        householdId: string;
+    };
     query?: never;
-    url: '/transactions';
+    url: '/households/{householdId}/transactions';
 };
 
 export type RecordTransactionErrors = {
@@ -2497,10 +2587,11 @@ export type RecordTransactionResponse = RecordTransactionResponses[keyof RecordT
 export type DeleteTransactionData = {
     body?: never;
     path: {
+        householdId: string;
         transactionId: string;
     };
     query?: never;
-    url: '/transactions/{transactionId}';
+    url: '/households/{householdId}/transactions/{transactionId}';
 };
 
 export type DeleteTransactionErrors = {
@@ -2524,10 +2615,11 @@ export type DeleteTransactionResponse = DeleteTransactionResponses[keyof DeleteT
 export type GetTransactionData = {
     body?: never;
     path: {
+        householdId: string;
         transactionId: string;
     };
     query?: never;
-    url: '/transactions/{transactionId}';
+    url: '/households/{householdId}/transactions/{transactionId}';
 };
 
 export type GetTransactionResponses = {
@@ -2542,10 +2634,11 @@ export type GetTransactionResponse = GetTransactionResponses[keyof GetTransactio
 export type EditTransactionData = {
     body: TransactionUpdateRequest;
     path: {
+        householdId: string;
         transactionId: string;
     };
     query?: never;
-    url: '/transactions/{transactionId}';
+    url: '/households/{householdId}/transactions/{transactionId}';
 };
 
 export type EditTransactionErrors = {
@@ -2569,6 +2662,7 @@ export type EditTransactionResponse = EditTransactionResponses[keyof EditTransac
 export type ListCardTransactionsData = {
     body?: never;
     path: {
+        householdId: string;
         creditCardId: string;
     };
     query?: {
@@ -2583,7 +2677,7 @@ export type ListCardTransactionsData = {
         limit?: number;
         offset?: number;
     };
-    url: '/credit-cards/{creditCardId}/transactions';
+    url: '/households/{householdId}/credit-cards/{creditCardId}/transactions';
 };
 
 export type ListCardTransactionsResponses = {
@@ -2600,9 +2694,11 @@ export type ListCardTransactionsResponse = ListCardTransactionsResponses[keyof L
 
 export type GetDashboardData = {
     body?: never;
-    path?: never;
+    path: {
+        householdId: string;
+    };
     query?: never;
-    url: '/dashboard';
+    url: '/households/{householdId}/dashboard';
 };
 
 export type GetDashboardResponses = {
@@ -2647,9 +2743,11 @@ export type EditDashboardWidgetsData = {
     body: {
         widgets: Array<DashboardWidgetInput>;
     };
-    path?: never;
+    path: {
+        householdId: string;
+    };
     query?: never;
-    url: '/dashboard/widgets';
+    url: '/households/{householdId}/dashboard/widgets';
 };
 
 export type EditDashboardWidgetsErrors = {
@@ -2671,6 +2769,7 @@ export type EditDashboardWidgetsResponses = {
 export type GetReportData = {
     body?: never;
     path: {
+        householdId: string;
         reportType: 'month-overview' | 'investments-overview' | 'payouts';
     };
     query?: {
@@ -2691,7 +2790,7 @@ export type GetReportData = {
          */
         months?: number;
     };
-    url: '/reports/{reportType}';
+    url: '/households/{householdId}/reports/{reportType}';
 };
 
 export type GetReportErrors = {
@@ -2720,7 +2819,9 @@ export type GetReportResponse = GetReportResponses[keyof GetReportResponses];
 
 export type ExportTransactionsData = {
     body?: never;
-    path?: never;
+    path: {
+        householdId: string;
+    };
     query?: {
         /**
          * Inclusive, ISO 8601 date (YYYY-MM-DD).
@@ -2731,7 +2832,7 @@ export type ExportTransactionsData = {
          */
         endDate?: string;
     };
-    url: '/reports/transactions/export';
+    url: '/households/{householdId}/reports/transactions/export';
 };
 
 export type ExportTransactionsResponses = {
@@ -2790,7 +2891,7 @@ export type DeleteNotificationData = {
 
 export type DeleteNotificationErrors = {
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
 };
@@ -2845,11 +2946,12 @@ export type ExportAuditLogResponse = ExportAuditLogResponses[keyof ExportAuditLo
 export type DeleteMarketValueData = {
     body?: never;
     path: {
+        householdId: string;
         holdingId: string;
         snapshotId: string;
     };
     query?: never;
-    url: '/holdings/{holdingId}/valuation-snapshots/{snapshotId}';
+    url: '/households/{householdId}/holdings/{holdingId}/valuation-snapshots/{snapshotId}';
 };
 
 export type DeleteMarketValueErrors = {
@@ -2858,7 +2960,7 @@ export type DeleteMarketValueErrors = {
      */
     403: Error;
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
     /**
@@ -2884,11 +2986,12 @@ export type EditMarketValueData = {
         asOf?: string;
     };
     path: {
+        householdId: string;
         holdingId: string;
         snapshotId: string;
     };
     query?: never;
-    url: '/holdings/{holdingId}/valuation-snapshots/{snapshotId}';
+    url: '/households/{householdId}/holdings/{holdingId}/valuation-snapshots/{snapshotId}';
 };
 
 export type EditMarketValueErrors = {
@@ -2897,7 +3000,7 @@ export type EditMarketValueErrors = {
      */
     403: Error;
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
     /**
@@ -2923,9 +3026,11 @@ export type EditMarketValueResponse = EditMarketValueResponses[keyof EditMarketV
 
 export type ListIndexRatesData = {
     body?: never;
-    path?: never;
+    path: {
+        householdId: string;
+    };
     query?: never;
-    url: '/index-rates';
+    url: '/households/{householdId}/index-rates';
 };
 
 export type ListIndexRatesResponses = {
@@ -2946,10 +3051,11 @@ export type RecordIndexRateData = {
         asOf: string;
     };
     path: {
+        householdId: string;
         index: 'selic' | 'cdi' | 'ipca' | 'igpm';
     };
     query?: never;
-    url: '/index-rates/{index}/values';
+    url: '/households/{householdId}/index-rates/{index}/values';
 };
 
 export type RecordIndexRateErrors = {
@@ -2981,11 +3087,12 @@ export type RecordIndexRateResponse = RecordIndexRateResponses[keyof RecordIndex
 export type DeleteIndexRateData = {
     body?: never;
     path: {
+        householdId: string;
         index: 'selic' | 'cdi' | 'ipca' | 'igpm';
         valueId: string;
     };
     query?: never;
-    url: '/index-rates/{index}/values/{valueId}';
+    url: '/households/{householdId}/index-rates/{index}/values/{valueId}';
 };
 
 export type DeleteIndexRateErrors = {
@@ -2994,7 +3101,7 @@ export type DeleteIndexRateErrors = {
      */
     403: Error;
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
 };
@@ -3019,11 +3126,12 @@ export type EditIndexRateData = {
         asOf?: string;
     };
     path: {
+        householdId: string;
         index: 'selic' | 'cdi' | 'ipca' | 'igpm';
         valueId: string;
     };
     query?: never;
-    url: '/index-rates/{index}/values/{valueId}';
+    url: '/households/{householdId}/index-rates/{index}/values/{valueId}';
 };
 
 export type EditIndexRateErrors = {
@@ -3032,7 +3140,7 @@ export type EditIndexRateErrors = {
      */
     403: Error;
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
     /**
@@ -3058,11 +3166,13 @@ export type EditIndexRateResponse = EditIndexRateResponses[keyof EditIndexRateRe
 
 export type ListGoalsData = {
     body?: never;
-    path?: never;
+    path: {
+        householdId: string;
+    };
     query?: {
         status?: 'active' | 'completed';
     };
-    url: '/goals';
+    url: '/households/{householdId}/goals';
 };
 
 export type ListGoalsResponses = {
@@ -3076,9 +3186,11 @@ export type ListGoalsResponse = ListGoalsResponses[keyof ListGoalsResponses];
 
 export type CreateGoalData = {
     body: GoalCreateRequest;
-    path?: never;
+    path: {
+        householdId: string;
+    };
     query?: never;
-    url: '/goals';
+    url: '/households/{householdId}/goals';
 };
 
 export type CreateGoalErrors = {
@@ -3102,10 +3214,11 @@ export type CreateGoalResponse = CreateGoalResponses[keyof CreateGoalResponses];
 export type DeleteGoalData = {
     body?: never;
     path: {
+        householdId: string;
         goalId: string;
     };
     query?: never;
-    url: '/goals/{goalId}';
+    url: '/households/{householdId}/goals/{goalId}';
 };
 
 export type DeleteGoalResponses = {
@@ -3120,10 +3233,11 @@ export type DeleteGoalResponse = DeleteGoalResponses[keyof DeleteGoalResponses];
 export type GetGoalData = {
     body?: never;
     path: {
+        householdId: string;
         goalId: string;
     };
     query?: never;
-    url: '/goals/{goalId}';
+    url: '/households/{householdId}/goals/{goalId}';
 };
 
 export type GetGoalResponses = {
@@ -3138,10 +3252,11 @@ export type GetGoalResponse = GetGoalResponses[keyof GetGoalResponses];
 export type EditGoalData = {
     body: GoalUpdateRequest;
     path: {
+        householdId: string;
         goalId: string;
     };
     query?: never;
-    url: '/goals/{goalId}';
+    url: '/households/{householdId}/goals/{goalId}';
 };
 
 export type EditGoalErrors = {
@@ -3165,10 +3280,11 @@ export type EditGoalResponse = EditGoalResponses[keyof EditGoalResponses];
 export type CompleteGoalData = {
     body?: never;
     path: {
+        householdId: string;
         goalId: string;
     };
     query?: never;
-    url: '/goals/{goalId}/complete';
+    url: '/households/{householdId}/goals/{goalId}/complete';
 };
 
 export type CompleteGoalResponses = {
@@ -3183,10 +3299,11 @@ export type CompleteGoalResponse = CompleteGoalResponses[keyof CompleteGoalRespo
 export type ReopenGoalData = {
     body?: never;
     path: {
+        householdId: string;
         goalId: string;
     };
     query?: never;
-    url: '/goals/{goalId}/reopen';
+    url: '/households/{householdId}/goals/{goalId}/reopen';
 };
 
 export type ReopenGoalResponses = {
@@ -3201,10 +3318,11 @@ export type ReopenGoalResponse = ReopenGoalResponses[keyof ReopenGoalResponses];
 export type ListGoalAllocationsData = {
     body?: never;
     path: {
+        householdId: string;
         goalId: string;
     };
     query?: never;
-    url: '/goals/{goalId}/allocations';
+    url: '/households/{householdId}/goals/{goalId}/allocations';
 };
 
 export type ListGoalAllocationsResponses = {
@@ -3221,13 +3339,14 @@ export type ListGoalAllocationsResponse = ListGoalAllocationsResponses[keyof Lis
 export type GetGoalProgressData = {
     body?: never;
     path: {
+        householdId: string;
         goalId: string;
     };
     query?: {
         year?: number;
         month?: number;
     };
-    url: '/goals/{goalId}/progress';
+    url: '/households/{householdId}/goals/{goalId}/progress';
 };
 
 export type GetGoalProgressResponses = {

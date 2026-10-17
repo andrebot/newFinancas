@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import requireValidFields from '../../../src/managers/validation';
+import requireValidFields, { requireNoProblems } from '../../../src/managers/validation';
 import { nonBlank } from '../../../src/utilities/validation';
 
 // The rules are ValidationUtility's own, kept real: they are pure (BDT plan).
@@ -23,5 +23,23 @@ describe('requireValidFields', () => {
           ],
         }),
       }));
+  });
+});
+
+describe('requireNoProblems', () => {
+  it('returns quietly when nothing was reported', () => {
+    expect(() => requireNoProblems([])).not.toThrow();
+  });
+
+  it('refuses with 422 validation.failed carrying the problems', () => {
+    const problem = {
+      field: 'subcategories[0].name', code: 'string.min', params: { min: 1 },
+    } as const;
+
+    expect(() => requireNoProblems([problem])).toThrow(expect.objectContaining({
+      apiError: expect.objectContaining({
+        status: 422, code: 'validation.failed', details: [problem],
+      }),
+    }));
   });
 });

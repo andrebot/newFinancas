@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Delete Index Rate</h1>
-  <p class="subtitle"><span class="route">DELETE /index-rates/:index/values/:valueId</span> &mdash; FR-11.6/OQ-59. Manual, dated history per index (Selic, CDI, IPCA, IGP-M).</p>
+  <p class="subtitle"><span class="route">DELETE /households/:householdId/index-rates/:index/values/:valueId</span> &mdash; FR-11.6/OQ-59. Manual, dated history per index (Selic, CDI, IPCA, IGP-M).</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -67,7 +67,7 @@ sequenceDiagram
     participant IRA as IndexRateAccessor
     participant LOG as LoggingUtility
 
-    User->>API: DELETE /index-rates/:index/values/:valueId 
+    User->>API: DELETE /households/:householdId/index-rates/:index/values/:valueId 
     API->>AM: deleteIndexRate(actor, index, input)
     AM->>AZ: canWrite(actor, householdId)?
     alt not authorized

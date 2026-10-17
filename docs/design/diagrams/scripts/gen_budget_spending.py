@@ -23,7 +23,7 @@ UCS = []
 UCS.append(dict(
     filename="uc-01-create-budget.html",
     title="Create Budget",
-    subtitle='<span class="route">POST /budgets</span> &mdash; FR-4.1/4.7. A Category or Subcategory can be claimed by at most one Budget per scope &mdash; a real partial-unique-index constraint, not application logic.',
+    subtitle='<span class="route">POST /households/:householdId/budgets</span> &mdash; FR-4.1/4.7. A Category or Subcategory can be claimed by at most one Budget per scope &mdash; a real partial-unique-index constraint, not application logic.',
     mermaid="""
 sequenceDiagram
 """ + P_CORE + """
@@ -31,7 +31,7 @@ sequenceDiagram
     participant BA as BudgetAccessor
     participant LOG as LoggingUtility
 
-    User->>API: POST /budgets {name, targetAmount, currency, visibility, targets: [...]}
+    User->>API: POST /households/:householdId/budgets {name, targetAmount, currency, visibility, targets: [...]}
     API->>AM: createBudget(actor, input)
     AM->>VU: check(name, targetAmount, currency)
     alt validation fails
@@ -73,7 +73,7 @@ sequenceDiagram
 UCS.append(dict(
     filename="uc-02-edit-budget.html",
     title="Edit Budget",
-    subtitle='<span class="route">PATCH /budgets/:budgetId</span> &mdash; FR-4.9. Changing the target amount only affects the current and future Budget Periods; every past period keeps the target actually in effect at the time.',
+    subtitle='<span class="route">PATCH /households/:householdId/budgets/:budgetId</span> &mdash; FR-4.9. Changing the target amount only affects the current and future Budget Periods; every past period keeps the target actually in effect at the time.',
     mermaid="""
 sequenceDiagram
 """ + P_CORE + """
@@ -81,7 +81,7 @@ sequenceDiagram
     participant BA as BudgetAccessor
     participant LOG as LoggingUtility
 
-    User->>API: PATCH /budgets/:budgetId {name, targetAmount, targets: [...]}
+    User->>API: PATCH /households/:householdId/budgets/:budgetId {name, targetAmount, targets: [...]}
     API->>AM: editBudget(actor, budgetId, input)
     AM->>VU: check(input)
     alt validation fails
@@ -126,14 +126,14 @@ sequenceDiagram
 UCS.append(dict(
     filename="uc-03-delete-budget.html",
     title="Delete Budget",
-    subtitle='<span class="route">DELETE /budgets/:budgetId</span> &mdash; FR-4.10/OQ-40. Hard delete of the live definition only &mdash; unlike every other archive/delete decision in this project, past Budget Periods are unaffected and survive on their own.',
+    subtitle='<span class="route">DELETE /households/:householdId/budgets/:budgetId</span> &mdash; FR-4.10/OQ-40. Hard delete of the live definition only &mdash; unlike every other archive/delete decision in this project, past Budget Periods are unaffected and survive on their own.',
     mermaid="""
 sequenceDiagram
 """ + P_CORE + """
     participant BA as BudgetAccessor
     participant LOG as LoggingUtility
 
-    User->>API: DELETE /budgets/:budgetId
+    User->>API: DELETE /households/:householdId/budgets/:budgetId
     API->>AM: deleteBudget(actor, budgetId)
     AM->>BA: delete(householdId, budgetId)
     Note over BA: hard delete &mdash; budget_targets rows cascade away<br/>(they're the live definition's own claims), but<br/>budget_periods.budget_id is a nullable FK with<br/>ON DELETE SET NULL, so past periods survive intact (OQ-40)

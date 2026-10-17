@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Create Financial Account</h1>
-  <p class="subtitle"><span class="route">POST /accounts</span> &mdash; FR-2.1. <code>type</code> and <code>currency</code> are immutable once set (OQ-32) &mdash; there is no edit path for either, ever.</p>
+  <p class="subtitle"><span class="route">POST /households/:householdId/accounts</span> &mdash; FR-2.1. <code>type</code> and <code>currency</code> are immutable once set (OQ-32) &mdash; there is no edit path for either, ever.</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -67,7 +67,7 @@ sequenceDiagram
     participant CA as CreditCardAccessor
     participant LOG as LoggingUtility
 
-    User->>API: POST /accounts {name, type: checking|savings|credit_card_only|investment, currency, visibility, openingBalance, cards?}
+    User->>API: POST /households/:householdId/accounts {name, type: checking|savings|credit_card_only|investment, currency, visibility, openingBalance, cards?}
     API->>AM: createAccount(actor, input)
     AM->>VU: check(name, type, currency)
     alt validation fails (missing name, unsupported type/currency)

@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Review Insights — Dashboard</h1>
-  <p class="subtitle"><span class="route">GET /dashboard</span>, <span class="route">GET /reports/payouts?holdingIds=</span>.</p>
+  <p class="subtitle"><span class="route">GET /households/:householdId/dashboard</span>, <span class="route">GET /households/:householdId/reports/payouts?holdingIds=</span>.</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -67,7 +67,7 @@ sequenceDiagram
     participant EXP as Review Insights<br/>Experience
     participant API as Backend API
     FLOW->>EXP: request dashboard
-    EXP->>API: GET /dashboard
+    EXP->>API: GET /households/:householdId/dashboard
     API-->>EXP: fixed panels
     EXP-->>FLOW: state
     FLOW-->>PN: render net worth, coming due, rails (over-budget first)
@@ -75,7 +75,7 @@ sequenceDiagram
     User->>HS: change holdings
     HS->>FLOW: emit holdingsSelected
     FLOW->>EXP: request payouts(selected)
-    EXP->>API: GET /reports/payouts?holdingIds=…
+    EXP->>API: GET /households/:householdId/reports/payouts?holdingIds=…
     API-->>EXP: series
     EXP-->>FLOW: state
     FLOW-->>PC: re-render

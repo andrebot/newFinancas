@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Delete Budget</h1>
-  <p class="subtitle"><span class="route">DELETE /budgets/:budgetId</span> &mdash; FR-4.10/OQ-40. Hard delete of the live definition only &mdash; unlike every other archive/delete decision in this project, past Budget Periods are unaffected and survive on their own.</p>
+  <p class="subtitle"><span class="route">DELETE /households/:householdId/budgets/:budgetId</span> &mdash; FR-4.10/OQ-40. Hard delete of the live definition only &mdash; unlike every other archive/delete decision in this project, past Budget Periods are unaffected and survive on their own.</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -65,7 +65,7 @@ sequenceDiagram
     participant BA as BudgetAccessor
     participant LOG as LoggingUtility
 
-    User->>API: DELETE /budgets/:budgetId
+    User->>API: DELETE /households/:householdId/budgets/:budgetId
     API->>AM: deleteBudget(actor, budgetId)
     AM->>BA: delete(householdId, budgetId)
     Note over BA: hard delete &mdash; budget_targets rows cascade away<br/>(they're the live definition's own claims), but<br/>budget_periods.budget_id is a nullable FK with<br/>ON DELETE SET NULL, so past periods survive intact (OQ-40)

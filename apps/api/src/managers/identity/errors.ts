@@ -1,6 +1,8 @@
 import { authentication } from '../../config/constants';
 import { createApiError, type ApiError } from '../../http/apiError';
 
+export { forbidden, householdNotFound } from '../access';
+
 // IdentityManager's rejections. A Manager answers with the contract's code and
 // status itself (OQ-114): choosing 401 vs 404 vs 409 here is part of its
 // security decisions (enumeration avoidance, one answer for every login failure).
@@ -129,25 +131,6 @@ export const resetTokenInvalid = (): ApiError => createApiError({
  */
 export const unauthenticated = (): ApiError => createApiError({
   status: 401, code: 'auth.unauthenticated', message: 'Account no longer exists',
-});
-
-/**
- * The household doesn't exist or the caller isn't a member — the same answer
- * for both, so it never confirms a household exists (OQ-117).
- *
- * @returns 404 `household.not_found`.
- */
-export const householdNotFound = (): ApiError => createApiError({
-  status: 404, code: 'household.not_found', message: 'Household not found',
-});
-
-/**
- * A member without the household role an action needs (FR-1.7, OQ-111).
- *
- * @returns 403 `auth.forbidden`.
- */
-export const forbidden = (): ApiError => createApiError({
-  status: 403, code: 'auth.forbidden', message: 'Not permitted in this household',
 });
 
 /**

@@ -1,5 +1,5 @@
 import type { Context } from 'hono';
-import type { RequestContext, SignedInContext } from '../../managers/identity';
+import type { RequestContext, SignedInContext } from '../../managers/requestContext';
 import { actorOf } from '../authentication';
 import { correlationIdOf, type AppEnv } from '../errorHandler';
 

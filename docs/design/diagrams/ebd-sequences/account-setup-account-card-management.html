@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Account Setup — Account & Card Management</h1>
-  <p class="subtitle"><span class="route">POST/PATCH /accounts</span>, <span class="route">POST /accounts/:id/archive</span>.</p>
+  <p class="subtitle"><span class="route">POST/PATCH /households/:householdId/accounts</span>, <span class="route">POST /households/:householdId/accounts/:id/archive</span>.</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -73,14 +73,14 @@ sequenceDiagram
         CE->>FLOW: emit cardAdded {network, last4, days, expiry}
     end
     FLOW->>EXP: request saveAccount(account, cards)
-    EXP->>API: POST /accounts (or PATCH /accounts/:accountId)
+    EXP->>API: POST /households/:householdId/accounts (or PATCH /households/:householdId/accounts/:accountId)
     API-->>EXP: saved or 422 validation.failed
     EXP-->>FLOW: state
     opt archive
         User->>AC: confirm (one-way)
         AC->>FLOW: emit archive
         FLOW->>EXP: request archive
-        EXP->>API: POST /accounts/:accountId/archive
+        EXP->>API: POST /households/:householdId/accounts/:accountId/archive
     end
     </pre>
   </div>

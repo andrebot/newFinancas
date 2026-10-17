@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Edit Goal</h1>
-  <p class="subtitle"><span class="route">PATCH /goals/:goalId</span> &mdash; FR-8.1. Name/target/due-date only &mdash; allocations are never editable from here (OQ-48).</p>
+  <p class="subtitle"><span class="route">PATCH /households/:householdId/goals/:goalId</span> &mdash; FR-8.1. Name/target/due-date only &mdash; allocations are never editable from here (OQ-48).</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -66,7 +66,7 @@ sequenceDiagram
     participant OA as GoalAccessor
     participant LOG as LoggingUtility
 
-    User->>API: PATCH /goals/:goalId {name, targetAmount, targetCurrency, dueDate}
+    User->>API: PATCH /households/:householdId/goals/:goalId {name, targetAmount, targetCurrency, dueDate}
     API->>AM: editGoal(actor, goalId, input)
     AM->>VU: check(input)
     alt validation fails
