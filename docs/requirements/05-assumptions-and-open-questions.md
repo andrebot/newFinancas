@@ -3958,6 +3958,34 @@ not a hardcoded assumption.
   ones' owner cleared) waits for `M1D` (task 136), like the other
   Accessors.
 
+### OQ-167: ValuationSnapshotAccessor (task A12)
+**Confirmed with the stakeholder (Oct 2026):**
+- **Keyed by Holding, not household.** A Holding reaches its household
+  only through its Account, and the Manager already loads the Holding
+  (`InvestmentHoldingAccessor.get`, scoped to the household) to check it
+  is market-priced, so that call is the household guard. Manual edits and
+  deletes take `(holdingId, snapshotId)`: a snapshot of another Holding is
+  `not_found`, never touched. Taking a `householdId` and joining through
+  `investment_holdings` → `accounts` on every call was weighed and
+  rejected as a second guard reading two other tables.
+- **Manual writes:** `insertManual(holdingId, {valuation, asOfDate})`,
+  `updateManual(holdingId, snapshotId, changes)` and
+  `deleteManual(holdingId, snapshotId)`. The update/delete is guarded by
+  `source = 'manual'` in its `WHERE`; a miss is then told apart as
+  `automatic` (409 `snapshot.automatic_not_editable`) or `not_found`
+  (404 `snapshot.not_found`, a new code that ships with `M2`).
+- **Automatic writes:** `insertAutomatic`, `updateAutomatic(transactionId,
+  value)` and `deleteAutomatic(transactionId)`. Deleting the transaction
+  needs no call (FK cascade); `deleteAutomatic` stays for an edit that
+  takes a transaction off its Holding while the transaction survives.
+- **Reads:** `list(holdingId, {from?, to?})`, newest first, for the value
+  history; `latestAsOf(holdingIds, date)`, one row per Holding, for net
+  worth and Goal progress. Same-date snapshots are ordered by
+  `created_at`, the later-written winning (then `id`, a UUIDv7). A
+  by-month series waits for `ReportingEngine`, when its shape is known.
+- **Fixed-term Holdings never get a snapshot (OQ-51)** is a Manager
+  decision, so the BDT row moves that check to the Manager seam suites.
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.

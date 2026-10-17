@@ -75,7 +75,7 @@ sequenceDiagram
     IM->>AZ: visibleScope(actor)
     IM->>RE: investmentsOverview(scope)
     RE->>IHA: holdings (cost basis for fixed-term)
-    RE->>VSA: latest snapshots (market-priced)
+    RE->>VSA: latestAsOf(market-priced holdingIds, today)
     RE->>ATA: this month's dividend / interest transactions linked to Holdings
     RE-->>IM: {netWorthByCurrency + change vs previous month, payoutThisMonth, allocations, comingDue}
     IM-->>API: report

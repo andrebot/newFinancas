@@ -85,7 +85,7 @@ sequenceDiagram
             API-->>User: 409 holding.not_market_priced
         else market-priced
             IHA-->>AM: ok
-            AM->>VSA: insertManual(holdingId, value, asOf)
+            AM->>VSA: insertManual(holdingId, {valuation, asOfDate})
         end
         AM-->>LOG: logActivity(correlationId, actor, "RecordMarketValue")
         AM-->>LOG: recordAudit(actor, "ValuationSnapshot", snapshotId)

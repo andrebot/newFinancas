@@ -74,7 +74,7 @@ sequenceDiagram
     IM->>RE: goalProgress(scope, status)
     RE->>GA: goals + allocations
     RE->>IHA: allocated Holdings (cost basis for fixed-term)
-    RE->>VSA: latest snapshots for market-priced Holdings
+    RE->>VSA: latestAsOf(market-priced holdingIds, date)
     Note over RE: contribution = value &times; allocated %, kept in the<br/>Holding&#39;s own currency (OQ-49) &mdash; never converted here
     RE-->>IM: [{goal, contributionsByCurrency[], fundedBy[]}]
     IM-->>API: goals
