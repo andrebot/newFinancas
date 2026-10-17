@@ -135,8 +135,8 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain:</strong> <code>IdentityManager</code> (password &lt; 12 &rarr; 422 <code>password.too_short</code>, before any work) &#9312; <code>AuthenticationUtility.enrollMfa(email)</code> (TOTP secret, sealed, + 10 recovery codes and their hashes) and <code>hashPassword</code> &rarr; &#9313; <code>UserAccessor.insert</code> (one transaction; the unique index on <code>lower(email)</code> decides a duplicate &rarr; 409) &rarr; &#9314; <code>LoggingUtility</code> audit; then &#9312; again, <code>signEnrollmentToken</code>, for the confirmation (OQ-149).</p>
-    <p>Corrected: no <code>ValidationUtility</code> step (the contract validates at the route). Synced with the code (task M1 audit, Oct 2026).</p>
+    <p><strong>Chain:</strong> <code>IdentityManager</code> &#9312; <code>ValidationUtility</code> (a name blank once trimmed &rarr; 422 <code>validation.failed</code>; password &lt; 12 &rarr; 422 <code>password.too_short</code>, before any work) &rarr; &#9313; <code>AuthenticationUtility.enrollMfa(email)</code> (TOTP secret, sealed, + 10 recovery codes and their hashes) and <code>hashPassword</code> &rarr; &#9314; <code>UserAccessor.insert</code> (one transaction; the unique index on <code>lower(email)</code> decides a duplicate &rarr; 409) &rarr; &#9315; <code>LoggingUtility</code> audit; then &#9313; again, <code>signEnrollmentToken</code>, for the confirmation (OQ-149).</p>
+    <p><strong>Changed (U3, OQ-165):</strong> the contract validates the request&#39;s shape at the route; <code>ValidationUtility</code> covers what it can&#39;t say &mdash; a blank name, and the password length the Manager answers itself. Synced with the code (task M1 audit, Oct 2026).</p>
     <p><strong>Changed (OQ-149):</strong> the first code is now checked by the backend, in a second request &mdash; Confirm MFA Enrollment (uc-11b) &mdash; with the <code>enrollmentToken</code> answered here. It replaces the M1 note that the verify step was the web Flow&#39;s alone: no endpoint existed to check it.</p>
   </div>
 
@@ -150,7 +150,7 @@
       svg.style.width = containerRect.width + 'px';
       svg.style.height = containerRect.height + 'px';
 
-      var edges = [{"from": "mgr-identity", "to": "util-authn", "type": "sync", "order": 1}, {"from": "mgr-identity", "to": "acc-user", "type": "sync", "order": 2}, {"from": "mgr-identity", "to": "util-logging", "type": "async", "order": 3}];
+      var edges = [{"from": "mgr-identity", "to": "util-validation", "type": "sync", "order": 1}, {"from": "mgr-identity", "to": "util-authn", "type": "sync", "order": 2}, {"from": "mgr-identity", "to": "acc-user", "type": "sync", "order": 3}, {"from": "mgr-identity", "to": "util-logging", "type": "async", "order": 4}];
 
       var activeIds = {};
       edges.forEach(function (e) { activeIds[e.from] = true; activeIds[e.to] = true; });

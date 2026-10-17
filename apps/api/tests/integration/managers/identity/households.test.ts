@@ -2,7 +2,7 @@ import { captureLogs } from '@financas/logging';
 import { describe, expect, it } from 'vitest';
 import { createIdentityManager } from '../../../../src/managers/identity';
 import {
-  ANA, fakeDeps, HOUSEHOLD, MEMBER, NOW, SESSION,
+  ANA, blankName, fakeDeps, HOUSEHOLD, MEMBER, NOW, SESSION,
 } from './fakes';
 import { expectAudited } from './audit';
 
@@ -36,6 +36,23 @@ describe('IdentityManager — Create Household (uc-01, FR-1.4)', () => {
       entityId: HOUSEHOLD.id,
       householdId: HOUSEHOLD.id,
     });
+  });
+
+  it('trims the name before storing it', async () => {
+    const { deps, households } = fakeDeps();
+
+    await createIdentityManager(deps).createHousehold(CONTEXT, '  Casa ');
+
+    expect(households.insert).toHaveBeenCalledWith('Casa', ANA.id);
+  });
+
+  it('refuses a blank name with 422 validation.failed, creating nothing (OQ-165)', async () => {
+    const { deps, households, bus } = fakeDeps();
+
+    await expect(createIdentityManager(deps).createHousehold(CONTEXT, '   '))
+      .rejects.toMatchObject(blankName('name'));
+    expect(households.insert).not.toHaveBeenCalled();
+    expect(bus.publish).not.toHaveBeenCalled();
   });
 
   it('answers 401 when the creator\'s account is gone, creating nothing', async () => {

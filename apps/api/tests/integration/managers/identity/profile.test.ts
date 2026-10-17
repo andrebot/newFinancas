@@ -2,7 +2,7 @@ import { captureLogs } from '@financas/logging';
 import { describe, expect, it } from 'vitest';
 import { createIdentityManager } from '../../../../src/managers/identity';
 import {
-  ANA, fakeDeps, HOUSEHOLD, RECEIVED, SESSION,
+  ANA, blankName, fakeDeps, HOUSEHOLD, RECEIVED, SESSION,
 } from './fakes';
 import { expectAudited } from './audit';
 
@@ -38,6 +38,14 @@ describe('IdentityManager — View / Edit User (uc-13, FR-1.21)', () => {
     expectAudited(logs.events, {
       action: 'EditUser', actorId: ANA.id, entityType: 'User', entityId: ANA.id, householdId: null,
     });
+  });
+
+  it('refuses a blank name with 422 validation.failed, changing nothing (OQ-165)', async () => {
+    const { deps, users } = fakeDeps();
+
+    await expect(createIdentityManager(deps).editProfile(CONTEXT, { lastName: '  ' }))
+      .rejects.toMatchObject(blankName('lastName'));
+    expect(users.update).not.toHaveBeenCalled();
   });
 
   it('treats an empty edit as a read, and answers 401 when the account is gone', async () => {

@@ -244,8 +244,8 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain:</strong> <code>IdentityManager</code> &#9312; <code>UserAccessor.findById</code> (the creator&#39;s language; gone &rarr; 401) &rarr; &#9313; <code>HouseholdAccessor.insert(name, ownerUserId)</code> (the creator is Owner, one transaction) &rarr; &#9314; <code>ServiceBusUtility.publish(&quot;household.created&quot;, {householdId, createdByUserId, language})</code> &rarr; &#9315; <code>AccountManager</code> subscribes &rarr; &#9316; <code>CategoryAccessor.seedDefaults</code> (not built yet &mdash; slice 2, I5) &rarr; &#9317; <code>LoggingUtility</code> audit.</p>
-    <p>No <code>ValidationUtility</code> step: the name is trimmed and checked against the contract at the route (OQ-116). Synced with the code (task M1 audit, Oct 2026).</p>
+    <p><strong>Chain:</strong> <code>IdentityManager</code> &#9312; <code>ValidationUtility.checkFields</code> (a name blank once trimmed &rarr; 422 <code>validation.failed</code>) &rarr; &#9313; <code>UserAccessor.findById</code> (the creator&#39;s language; gone &rarr; 401) &rarr; &#9314; <code>HouseholdAccessor.insert(name trimmed, ownerUserId)</code> (the creator is Owner, one transaction) &rarr; &#9315; <code>ServiceBusUtility.publish(&quot;household.created&quot;, {householdId, createdByUserId, language})</code> &rarr; &#9316; <code>AccountManager</code> subscribes &rarr; &#9317; <code>CategoryAccessor.seedDefaults</code> (not built yet &mdash; slice 2, I5) &rarr; &#9318; <code>LoggingUtility</code> audit.</p>
+    <p><strong>Changed (U3, OQ-165):</strong> the route checks the contract only; trimming the name and refusing a blank one is the Manager&#39;s, through <code>ValidationUtility</code>. Synced with the code (task M1 audit, Oct 2026).</p>
   </div>
 
   <script>
@@ -258,7 +258,7 @@
       svg.style.width = containerRect.width + 'px';
       svg.style.height = containerRect.height + 'px';
 
-      var edges = [{"from": "mgr-identity", "to": "acc-user", "type": "sync", "order": 1}, {"from": "mgr-identity", "to": "acc-household", "type": "sync", "order": 2}, {"from": "mgr-identity", "to": "util-servicebus", "type": "async", "order": 3}, {"from": "util-servicebus", "to": "mgr-account", "type": "async", "order": 4}, {"from": "mgr-account", "to": "acc-category", "type": "sync", "order": 5}, {"from": "mgr-identity", "to": "util-logging", "type": "async", "order": 6}];
+      var edges = [{"from": "mgr-identity", "to": "util-validation", "type": "sync", "order": 1}, {"from": "mgr-identity", "to": "acc-user", "type": "sync", "order": 2}, {"from": "mgr-identity", "to": "acc-household", "type": "sync", "order": 3}, {"from": "mgr-identity", "to": "util-servicebus", "type": "async", "order": 4}, {"from": "util-servicebus", "to": "mgr-account", "type": "async", "order": 5}, {"from": "mgr-account", "to": "acc-category", "type": "sync", "order": 6}, {"from": "mgr-identity", "to": "util-logging", "type": "async", "order": 7}];
 
       var activeIds = {};
       edges.forEach(function (e) { activeIds[e.from] = true; activeIds[e.to] = true; });

@@ -55,6 +55,9 @@ exist for either.
   exact same integer, so there is no conversion step anywhere in the
   stack to get wrong. The one thing given up is writing `WHERE amount >
   10.50` instead of `WHERE amount > 1050` in raw SQL — trivial.
+- **A currency is one of the `Currency` enum — `BRL` or `USD` in v1**
+  (OQ-165). Every `currency` / `targetCurrency` field references it, so
+  the route refuses any other code; adding a currency starts there.
 - **`investment_holdings.quantity` gets the identical treatment, closing
   the question the money revision first left open** — also an integer,
   also `bigint` at the DB layer, but scaled by **1e-8 (8 decimal places,

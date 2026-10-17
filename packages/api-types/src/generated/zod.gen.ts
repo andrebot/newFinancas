@@ -26,6 +26,12 @@ export const zPagination = z.object({
 });
 
 /**
+ * ISO 4217 code of a currency the app supports — BRL and USD in v1. Money is never converted between them (FR-2.2); adding a currency means adding it here and to the formatting it needs.
+ *
+ */
+export const zCurrency = z.enum(['BRL', 'USD']);
+
+/**
  * An integer count of the currency's minor unit (cents for USD/BRL, the only two currencies in v1 scope) — e.g. 1234.56 USD is transmitted as 123456, never as a decimal or a string. Matches the underlying bigint column exactly, so no stringify/parse conversion happens anywhere in the stack (DB, backend, API, or frontend). See 03-api-design.md.
  *
  */
@@ -161,7 +167,7 @@ export const zAccount = z.object({
         'credit_card_only',
         'investment'
     ]).optional(),
-    currency: z.string().optional(),
+    currency: zCurrency.optional(),
     visibility: z.enum(['personal', 'shared']).optional(),
     archivedAt: z.iso.datetime().nullish(),
     createdAt: z.iso.datetime().optional()
@@ -198,7 +204,7 @@ export const zAccountCreateRequest = z.object({
         'credit_card_only',
         'investment'
     ]),
-    currency: z.string(),
+    currency: zCurrency,
     visibility: z.enum(['personal', 'shared']),
     openingBalance: zMoney.optional(),
     cards: z.array(zCreditCardInput).optional()
@@ -307,7 +313,7 @@ export const zBudget = z.object({
     ownerUserId: z.uuid().nullish(),
     name: z.string().optional(),
     targetAmount: zMoney.optional(),
-    currency: z.string().optional(),
+    currency: zCurrency.optional(),
     visibility: z.enum(['personal', 'shared']).optional(),
     targets: z.array(zBudgetTargetInput).optional(),
     createdAt: z.iso.datetime().optional()
@@ -316,7 +322,7 @@ export const zBudget = z.object({
 export const zBudgetCreateRequest = z.object({
     name: z.string(),
     targetAmount: zMoney,
-    currency: z.string(),
+    currency: zCurrency,
     visibility: z.enum(['personal', 'shared']),
     targets: z.array(zBudgetTargetInput).min(1)
 });
@@ -423,7 +429,7 @@ export const zTransactionCreateRequest = z.object({
     kind: z.string(),
     date: z.iso.date(),
     amount: zMoney,
-    currency: z.string(),
+    currency: zCurrency,
     categoryId: z.uuid().optional(),
     subcategoryId: z.uuid().optional(),
     description: z.string().optional(),
@@ -468,7 +474,7 @@ export const zAccountTransaction = z.object({
     ]).optional(),
     date: z.iso.date().optional(),
     amount: zMoney.optional(),
-    currency: z.string().optional(),
+    currency: zCurrency.optional(),
     categoryId: z.uuid().nullish(),
     subcategoryId: z.uuid().nullish(),
     description: z.string().optional(),
@@ -485,7 +491,7 @@ export const zCardTransaction = z.object({
     kind: z.enum(['charge', 'refund']).optional(),
     date: z.iso.date().optional(),
     amount: zMoney.optional(),
-    currency: z.string().optional(),
+    currency: zCurrency.optional(),
     categoryId: z.uuid().nullish(),
     subcategoryId: z.uuid().nullish(),
     description: z.string().optional(),
@@ -570,7 +576,7 @@ export const zGoal = z.object({
     ownerUserId: z.uuid().nullish(),
     name: z.string().optional(),
     targetAmount: zMoney.optional(),
-    targetCurrency: z.string().optional(),
+    targetCurrency: zCurrency.optional(),
     dueDate: z.iso.date().optional(),
     visibility: z.enum(['personal', 'shared']).optional(),
     createdAt: z.iso.datetime().optional(),
@@ -588,7 +594,7 @@ export const zGoalAllocation = z.object({
 export const zGoalCreateRequest = z.object({
     name: z.string(),
     targetAmount: zMoney,
-    targetCurrency: z.string(),
+    targetCurrency: zCurrency,
     dueDate: z.iso.date(),
     visibility: z.enum(['personal', 'shared'])
 });
@@ -598,10 +604,10 @@ export const zGoalCreateRequest = z.object({
  */
 export const zGoalProgress = z.object({
     targetAmount: zMoney.optional(),
-    targetCurrency: z.string().optional(),
+    targetCurrency: zCurrency.optional(),
     contributions: z.array(z.object({
         holdingId: z.uuid().optional(),
-        currency: z.string().optional(),
+        currency: zCurrency.optional(),
         amount: zMoney.optional()
     })).optional(),
     goalId: z.uuid().optional()
@@ -610,14 +616,14 @@ export const zGoalProgress = z.object({
 export const zGoalUpdateRequest = z.object({
     name: z.string().optional(),
     targetAmount: zMoney.optional(),
-    targetCurrency: z.string().optional(),
+    targetCurrency: zCurrency.optional(),
     dueDate: z.iso.date().optional()
 });
 
 export const zGoalWithProgress = zGoal.and(z.object({
     contributions: z.array(z.object({
         holdingId: z.uuid().optional(),
-        currency: z.string().optional(),
+        currency: zCurrency.optional(),
         amount: zMoney.optional()
     })).optional(),
     fundedBy: z.array(z.object({
@@ -639,13 +645,13 @@ export const zTransactionPage = zCursorPage.and(z.object({
     items: z.array(zLedgerItem).optional(),
     dayTotals: z.array(z.object({
         date: z.iso.date().optional(),
-        currency: z.string().optional(),
+        currency: zCurrency.optional(),
         net: zMoney.optional()
     })).optional()
 }));
 
 export const zMoneyByCurrency = z.object({
-    currency: z.string().optional(),
+    currency: zCurrency.optional(),
     amount: zMoney.optional()
 });
 
@@ -655,21 +661,21 @@ export const zMoneyByCurrency = z.object({
 export const zMonthOverviewReport = z.object({
     reportType: z.enum(['month-overview']).optional(),
     summary: z.array(z.object({
-        currency: z.string().optional(),
+        currency: zCurrency.optional(),
         in: zMoney.optional(),
         out: zMoney.optional(),
         net: zMoney.optional()
     })).optional(),
     yearStrip: z.array(z.object({
         month: z.int().optional(),
-        currency: z.string().optional(),
+        currency: zCurrency.optional(),
         in: zMoney.optional(),
         out: zMoney.optional()
     })).optional(),
     balances: z.array(z.object({
         accountId: z.uuid().optional(),
         creditCardId: z.uuid().nullish(),
-        currency: z.string().optional(),
+        currency: zCurrency.optional(),
         amount: zMoney.optional()
     })).optional(),
     budgets: z.array(zBudgetPeriod).optional(),
@@ -682,7 +688,7 @@ export const zMonthOverviewReport = z.object({
 export const zInvestmentsOverviewReport = z.object({
     reportType: z.enum(['investments-overview']).optional(),
     netWorth: z.array(z.object({
-        currency: z.string().optional(),
+        currency: zCurrency.optional(),
         amount: zMoney.optional(),
         changeVsPreviousMonth: zMoney.optional(),
         series: z.array(z.object({
@@ -695,12 +701,12 @@ export const zInvestmentsOverviewReport = z.object({
         transactionId: z.uuid().optional(),
         kind: z.string().optional(),
         date: z.iso.date().optional(),
-        currency: z.string().optional(),
+        currency: zCurrency.optional(),
         amount: zMoney.optional()
     })).optional(),
     allocations: z.array(z.object({
         group: z.string().optional(),
-        currency: z.string().optional(),
+        currency: zCurrency.optional(),
         holdingId: z.uuid().nullish(),
         amount: zMoney.optional()
     })).optional(),
@@ -708,7 +714,7 @@ export const zInvestmentsOverviewReport = z.object({
         holdingId: z.uuid().optional(),
         name: z.string().optional(),
         dueDate: z.iso.date().optional(),
-        currency: z.string().optional(),
+        currency: zCurrency.optional(),
         amount: zMoney.optional()
     })).optional()
 });
@@ -720,7 +726,7 @@ export const zPayoutsReport = z.object({
     reportType: z.enum(['payouts']).optional(),
     series: z.array(z.object({
         holdingId: z.uuid().optional(),
-        currency: z.string().optional(),
+        currency: zCurrency.optional(),
         months: z.array(z.object({
             month: z.string().optional(),
             amount: zMoney.optional()
@@ -1489,7 +1495,7 @@ export const zListCardTransactionsResponse = z.object({
  */
 export const zGetDashboardResponse = z.object({
     netWorth: z.array(z.object({
-        currency: z.string().optional(),
+        currency: zCurrency.optional(),
         amount: zMoney.optional(),
         changeVsPreviousMonth: zMoney.optional(),
         series: z.array(z.object({
@@ -1501,14 +1507,14 @@ export const zGetDashboardResponse = z.object({
         holdingId: z.uuid().optional(),
         name: z.string().optional(),
         dueDate: z.iso.date().optional(),
-        currency: z.string().optional(),
+        currency: zCurrency.optional(),
         amount: zMoney.optional()
     })).optional(),
     payouts: zPayoutsReport.optional(),
     balances: z.array(z.object({
         accountId: z.uuid().optional(),
         creditCardId: z.uuid().nullish(),
-        currency: z.string().optional(),
+        currency: zCurrency.optional(),
         amount: zMoney.optional()
     })).optional(),
     budgets: z.array(zBudgetPeriod).optional(),

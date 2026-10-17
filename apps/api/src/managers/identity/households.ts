@@ -2,6 +2,8 @@ import type { Member, UserHousehold } from '../../accessors/householdAccessor';
 import type { Role } from '../../db/schema/values';
 import type { AccessRequest } from '../../utilities/authorization';
 import { resolveCorrelationId } from '../../utilities/correlationId';
+import { nonBlank } from '../../utilities/validation';
+import requireValidFields from '../validation';
 import { loggerFor, type IdentityDeps, type SignedInContext } from './context';
 import { forbidden, householdNotFound, unauthenticated } from './errors';
 
@@ -44,15 +46,17 @@ const createHouseholds = (deps: IdentityDeps) => ({
    * creator's language — through the bus, never a direct call (VBD §3.1b).
    *
    * @param context - The signed-in request.
-   * @param name - The household's name (trimmed, non-blank at the route).
+   * @param name - The household's name; trimmed here, and must not be blank.
    * @returns The household, with the caller's role.
-   * @throws {ApiError} 401 `auth.unauthenticated` when the account is gone.
+   * @throws {ApiError} 422 `validation.failed` for a blank name; 401
+   *   `auth.unauthenticated` when the account is gone.
    */
   createHousehold: async (context: SignedInContext, name: string): Promise<UserHousehold> => {
+    requireValidFields({ name }, { name: nonBlank });
     const { userId } = context.actor;
     const creator = await deps.users.findById(userId);
     if (!creator) throw unauthenticated();
-    const household = await deps.households.insert(name, userId);
+    const household = await deps.households.insert(name.trim(), userId);
     deps.bus.publish(
       'household.created',
       { householdId: household.id, createdByUserId: userId, language: creator.language },

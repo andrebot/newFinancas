@@ -65,18 +65,25 @@ describe('household routes', () => {
     expect((await errorOf(response)).code).toBe('auth.unauthenticated');
   });
 
-  it('POST /households → 201 with my role; a blank name is 422', async () => {
+  it('POST /households → 201 with my role; the name goes on as sent', async () => {
     const { app, identity } = setup();
     identity.createHousehold.mockResolvedValueOnce(HOUSEHOLD);
 
     const created = await send(app, 'POST', '/households', { name: ' Casa ' });
-    const blank = await send(app, 'POST', '/households', { name: '  ' });
 
     expect(created.status).toBe(201);
     expect(await created.json()).toEqual(HOUSEHOLD_JSON);
     expect(identity.createHousehold)
-      .toHaveBeenCalledWith(expect.objectContaining({ actor: ACTOR }), 'Casa');
-    expect(blank.status).toBe(422);
+      .toHaveBeenCalledWith(expect.objectContaining({ actor: ACTOR }), ' Casa ');
+  });
+
+  it('POST /households refuses an empty name against the contract', async () => {
+    const { app, identity } = setup();
+
+    const empty = await send(app, 'POST', '/households', { name: '' });
+
+    expect(empty.status).toBe(422);
+    expect(identity.createHousehold).not.toHaveBeenCalled();
   });
 
   it('GET and DELETE /households/:id', async () => {

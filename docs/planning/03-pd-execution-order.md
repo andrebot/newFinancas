@@ -110,7 +110,7 @@ identity screens, the rest as later slices use them.
 
 *Done when:* accounts, cards, categories, budgets, goals, plus the full onboarding wizard.
 
-- [ ] **67.** `U3` ValidationUtility
+- [x] **67.** `U3` ValidationUtility (OQ-165: only what the contract can't say; v1 currencies BRL/USD in the contract; slice 1's name checks moved onto it)
 - [ ] **68.** `A10` BudgetAccessor
 - [ ] **69.** `A12` ValuationSnapshotAccessor
 - [ ] **70.** `A13` GoalAccessor

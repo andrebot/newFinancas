@@ -7,6 +7,20 @@ import type { IdentityDeps } from '../../../../src/managers/identity';
 export const NOW = new Date('2026-10-13T12:00:00Z');
 export const minutes = (count: number) => new Date(NOW.getTime() + count * 60_000);
 
+/**
+ * The rejection IdentityManager gives a blank name (ValidationUtility, OQ-165).
+ *
+ * @param field - The name field.
+ * @returns A matcher for `rejects.toMatchObject`.
+ */
+export const blankName = (field: string) => ({
+  apiError: {
+    status: 422,
+    code: 'validation.failed',
+    details: [{ field, code: 'string.min', params: { min: 1 } }],
+  },
+});
+
 export const ANA = {
   id: '0199c5a0-0000-7000-8000-000000000001',
   email: 'ana@example.com',
