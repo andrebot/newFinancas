@@ -3,6 +3,7 @@ import type { AccountAccessor } from '../../accessors/accountAccessor';
 import type { BudgetAccessor } from '../../accessors/budgetAccessor';
 import type { CategoryAccessor } from '../../accessors/categoryAccessor';
 import type { CreditCardAccessor } from '../../accessors/creditCardAccessor';
+import type { GoalAccessor } from '../../accessors/goalAccessor';
 import { calendar } from '../../config/constants';
 import type { AuthorizationUtility } from '../../utilities/authorization';
 import calendarDate from '../../utilities/calendar';
@@ -21,6 +22,7 @@ export interface AccountStores {
   readonly accounts: AccountAccessor;
   readonly creditCards: CreditCardAccessor;
   readonly budgets: BudgetAccessor;
+  readonly goals: GoalAccessor;
 }
 
 /** The components AccountManager calls, and the clock. */

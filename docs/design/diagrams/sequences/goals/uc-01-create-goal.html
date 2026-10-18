@@ -55,39 +55,46 @@
 </head>
 <body>
   <h1>Create Goal</h1>
-  <p class="subtitle"><span class="route">POST /households/:householdId/goals</span> &mdash; FR-8.1.</p>
+  <p class="subtitle"><span class="route">POST /households/:householdId/goals</span> &mdash; FR-8.1. A Goal starts open and unfunded; its creator owns it.</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
     actor User
     participant API as Hono route
     participant AM as AccountManager
+    participant AU as AuthorizationUtility
     participant VU as ValidationUtility
-    participant OA as GoalAccessor
+    participant GA as GoalAccessor
     participant LOG as LoggingUtility
 
     User->>API: POST /households/:householdId/goals {name, targetAmount, targetCurrency, dueDate, visibility}
-    API->>AM: createGoal(actor, input)
-    AM->>VU: check(input)
-    alt validation fails
-        VU-->>AM: rejected
-        AM-->>API: ValidationError
-        API-->>User: 422 validation.failed {details}
-    else valid
-        VU-->>AM: ok
-        AM->>OA: insert(goal, ownerId=actor)
-        OA-->>AM: goalId
-        AM-->>LOG: logActivity(correlationId, actor, "CreateGoal")
-        AM-->>LOG: recordAudit(actor, "Goal", goalId)
-        AM-->>API: goalId
-        API-->>User: 201 Created {goalId}
+    Note over API: contract check first: targetAmount &ge; 1, currency,<br/>dueDate a date, visibility &rarr; 422 validation.failed
+    API->>AM: createGoal(context, householdId, input)
+    AM->>AU: authorize(actor, householdId, {data.create, visibility, ownerUserId: actor})
+    alt not a member
+        AM-->>API: 404 household.not_found
+    else shared Goal by a role that may not create (Viewer)
+        AM-->>API: 403 auth.forbidden
+    else allowed (a personal Goal is anyone&#39;s own)
+        AM->>VU: checkFields({name: nonBlank})
+        alt blank name
+            AM-->>API: 422 validation.failed {name}
+        else valid
+            AM->>GA: insert(goal, ownerUserId = actor, name trimmed)
+            GA-->>AM: goal
+            AM-->>LOG: audit CreateGoal
+            AM-->>API: goal
+            API-->>User: 201 Created {goal}
+        end
     end
     </pre>
   </div>
   <div class="notes">
     <ul>
-      <li>No allocations here &mdash; a Goal starts unfunded; allocating a Holding to it happens later, from the Holding's own edit flow (OQ-48).</li>
-      <li>See FR-8.1.</li>
+      <li>No allocations here &mdash; a Goal starts unfunded; allocating a Holding to it happens later, from the Holding&#39;s own edit flow (OQ-48).</li>
+      <li><strong>Corrected (OQ-177):</strong> creating is authorized like a Budget &mdash; a shared Goal needs Owner, Admin or Member; a personal one is anyone&#39;s own, a Viewer&#39;s too (OQ-111). The earlier diagram had no <code>AuthorizationUtility</code> edge.</li>
+      <li>The target is more than zero (<code>PositiveMoney</code>); a due date in the past is allowed &mdash; an overdue Goal is a display state.</li>
+      <li>See FR-8.1, OQ-48, OQ-177.</li>
     </ul>
   </div>
   <script>

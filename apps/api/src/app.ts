@@ -7,6 +7,7 @@ import createRequestLogger from './http/requestLog';
 import createAccountRoutes from './http/routes/accounts';
 import createBudgetRoutes from './http/routes/budgets';
 import createCategoryRoutes from './http/routes/categories';
+import createGoalRoutes from './http/routes/goals';
 import createHouseholdRoutes from './http/routes/households';
 import createIdentityRoutes from './http/routes/identity';
 import type { AccountManager } from './managers/account';
@@ -57,6 +58,7 @@ const createApp = (deps: AppDeps): Hono<AppEnv> => {
   app.route('/api/v1', createCategoryRoutes(deps.account));
   app.route('/api/v1', createAccountRoutes(deps.account));
   app.route('/api/v1', createBudgetRoutes(deps.account));
+  app.route('/api/v1', createGoalRoutes(deps.account));
   return app;
 };
 

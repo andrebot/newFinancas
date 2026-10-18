@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>View Goals</h1>
-  <p class="subtitle"><span class="route">GET /households/:householdId/goals?status=active|completed</span> &mdash; FR-8.5/8.7/FR-9. Progress per currency, computed on read &mdash; the frontend blends currencies with the user&#39;s on-the-fly rate (nothing stored).</p>
+  <p class="subtitle"><span class="route">GET /households/:householdId/goal-progress?status=active|completed</span> &mdash; FR-8.5/8.7/FR-9. Progress per currency, computed on read &mdash; the frontend blends currencies with the user&#39;s on-the-fly rate (nothing stored).</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -68,7 +68,7 @@ sequenceDiagram
     participant IHA as InvestmentHoldingAccessor
     participant VSA as ValuationSnapshotAccessor
 
-    User->>API: GET /households/:householdId/goals?status=active
+    User->>API: GET /households/:householdId/goal-progress?status=active
     API->>IM: viewGoals(actor, status)
     IM->>AZ: visibleScope(actor)
     IM->>RE: goalProgress(scope, status)
@@ -84,8 +84,8 @@ sequenceDiagram
   <div class="notes">
     <ul>
       <li><strong>FX stays in the browser (FR-9, OQ-49):</strong> &ldquo;1 USD = x BRL&rdquo; is typed on the goal card and only blends the returned per-currency contributions for display.</li>
-      <li>Reshaped read &rarr; <code>InsightsManager</code> + <code>ReportingEngine</code> (read-ownership rule). <code>GET /households/:householdId/goals/:goalId/progress</code> stays for the by-month history (FR-8.7).</li>
-      <li>See FR-8.5, FR-8.7, FR-9, OQ-49.</li>
+      <li>Reshaped read &rarr; <code>InsightsManager</code> + <code>ReportingEngine</code> (read-ownership rule), built with M4. <strong>OQ-177:</strong> moved to its own route &mdash; <code>GET /households/:householdId/goals</code> is <code>AccountManager</code>&#39;s plain list of definitions (OQ-174); <code>GET &hellip;/goals/:goalId/allocations</code> was dropped, as <code>fundedBy</code> here covers it. <code>GET /households/:householdId/goals/:goalId/progress</code> stays for the by-month history (FR-8.7).</li>
+      <li>See FR-8.5, FR-8.7, FR-9, OQ-49, OQ-177.</li>
     </ul>
   </div>
   <script>

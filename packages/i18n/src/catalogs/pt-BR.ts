@@ -40,6 +40,7 @@ const ptBR = {
     'category.not_found': 'Categoria não encontrada.',
     'credit_card.not_found': 'Cartão de crédito não encontrado.',
     'goal.allocation_exceeds_100': 'Este investimento já tem {current, number}% alocado; adicionar {requested, number}% passaria de 100%.',
+    'goal.not_found': 'Meta não encontrada.',
     'household.changed': 'Os membros desta casa mudaram enquanto você editava. Tente novamente.',
     'household.not_found': 'Casa não encontrada.',
     'household.member_not_found': 'Esta pessoa não é membro da casa.',

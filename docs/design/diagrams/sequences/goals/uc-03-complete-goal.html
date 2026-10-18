@@ -55,31 +55,52 @@
 </head>
 <body>
   <h1>Complete Goal</h1>
-  <p class="subtitle"><span class="route">POST /households/:householdId/goals/:goalId/complete</span> &mdash; FR-8.8. "This goal is completed" &mdash; keeps the record intact so historical progress-by-month stays viewable, and is reversible (see Unarchive).</p>
+  <p class="subtitle"><span class="route">POST /households/:householdId/goals/:goalId/complete</span> &mdash; FR-8.8. &ldquo;This goal is completed&rdquo; &mdash; keeps the record intact so historical progress-by-month stays viewable, and is reversible (see Reopen).</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
     actor User
     participant API as Hono route
     participant AM as AccountManager
-    participant OA as GoalAccessor
+    participant AU as AuthorizationUtility
+    participant GA as GoalAccessor
     participant LOG as LoggingUtility
 
     User->>API: POST /households/:householdId/goals/:goalId/complete
-    API->>AM: completeGoal(actor, goalId)
-    AM->>OA: complete(goalId)
-    Note over OA: sets completed_at &mdash; unlike every other archive in this<br/>project, this one CAN be undone (FR-8.9)
-    OA-->>AM: completed
-    AM-->>LOG: logActivity(correlationId, actor, "CompleteGoal")
-    AM-->>LOG: recordAudit(actor, "Goal", goalId)
-    AM-->>API: completed
-    API-->>User: 204 No Content
+    API->>AM: completeGoal(context, householdId, goalId)
+    AM->>GA: findById(householdId, goalId)
+    GA-->>AM: goal (or none)
+    AM->>AU: authorize(actor, householdId, {data.edit, goal.visibility, goal.ownerUserId})
+    alt not a member
+        AM-->>API: 404 household.not_found
+    else missing, or someone else&#39;s personal Goal
+        AM-->>API: 404 goal.not_found
+    else role may not edit (a Member may on a shared one they created)
+        AM-->>API: 403 auth.forbidden
+    else allowed
+        alt already completed
+            AM-->>API: nothing to write, unaudited (OQ-177)
+            API-->>User: 204 No Content
+        else
+            AM->>GA: complete(householdId, goalId)
+            Note over GA: sets completed_at &mdash; unlike every other archive in this<br/>project, this one CAN be undone (FR-8.9)
+            alt deleted meanwhile
+                GA-->>AM: false
+                AM-->>API: 404 goal.not_found
+            else written
+                GA-->>AM: true
+                AM-->>LOG: audit CompleteGoal
+                API-->>User: 204 No Content
+            end
+        end
+    end
     </pre>
   </div>
   <div class="notes">
     <ul>
-      <li>Distinct from Delete (UC-05): archive means "done," delete means "no longer makes sense" &mdash; OQ-47's "third lifecycle pattern," the only entity in this project with both a hard delete and a reversible archive.</li>
-      <li>See FR-8.8, OQ-47.</li>
+      <li>Distinct from Delete (UC-05): complete means &ldquo;done,&rdquo; delete means &ldquo;no longer makes sense&rdquo; &mdash; OQ-47&#39;s &ldquo;third lifecycle pattern,&rdquo; the only entity in this project with both a hard delete and a reversible completion.</li>
+      <li><strong>Corrected (OQ-177):</strong> completing is a <code>data.edit</code> on the Goal; completing a completed Goal is a 204 that writes and audits nothing.</li>
+      <li>See FR-8.8, OQ-47, OQ-177.</li>
     </ul>
   </div>
   <script>

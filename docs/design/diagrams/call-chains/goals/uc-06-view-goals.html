@@ -50,7 +50,7 @@
 </head>
 <body>
   <h1>Call Chain — View Goals</h1>
-  <p class="subtitle">Use case 6 of 6 in the Goals set (CUC-10), FR-8.5/8.7. View. Added in the Oct 2026 call chain review (<code>docs/architecture/06-call-chain-review-2026-10.md</code>, VBD Round 9).</p>
+  <p class="subtitle">Use case 6 of 6 in the Goals set (CUC-10, FR-8.5/8.7). View. Progress on <code>GET /households/:householdId/goal-progress</code> (OQ-177); built with M4.</p>
 
   <div class="architecture">
     <svg id="arrows-svg"></svg>
@@ -136,7 +136,8 @@
 
   <div class="notes">
     <p><strong>Chain:</strong> <code>InsightsManager</code> ① <code>AuthorizationUtility</code> (visibility) → ② <code>ReportingEngine.goalProgress</code> → ③ reads <code>GoalAccessor</code> (goals + allocations), <code>InvestmentHoldingAccessor</code> (fixed-term cost basis), <code>ValuationSnapshotAccessor</code> (market-priced values).</p>
-    <p>Contributions come back per currency (OQ-49); the exchange-rate input is frontend-only (FR-9).</p>
+    <p><strong>OQ-177:</strong> the plain list of definitions, <code>GET &hellip;/goals</code>, is <code>AccountManager</code>&#39;s own read (OQ-174) &mdash; Goal Management reads both.</p>
+    <p><strong>No smell:</strong> a reshaped read stays on the read side; the Engine reads three Accessors, none calls another.</p>
   </div>
 
   <script>

@@ -77,6 +77,19 @@ export const PERIOD = {
   year: 2026, month: 10, targetAmount: 150000, spendAmount: 4200, createdAt: NOW,
 };
 
+export const GOAL = {
+  id: '0199c5a0-0000-7000-8000-0000000000f1',
+  householdId: HOUSEHOLD_ID,
+  ownerUserId: ANA_ID as string | null,
+  name: 'House',
+  targetAmount: 15000000,
+  targetCurrency: 'BRL',
+  dueDate: '2030-12-31',
+  visibility: 'shared' as 'shared' | 'personal',
+  completedAt: null as Date | null,
+  createdAt: NOW,
+};
+
 /** What BudgetAccessor answers a target set it refused or took. */
 type TargetResult = { ok: true } | { ok: false; reason: 'not_found' }
   | { ok: false; reason: 'target_claimed'; target: object; claimedByBudgetId: string }
@@ -158,11 +171,23 @@ export const fakeDeps = () => {
     listPeriods: vi.fn(async () => [PERIOD]),
     accrueIfClaimed: vi.fn(async () => 'accrued' as const),
   };
+  const goals = {
+    insert: vi.fn(async () => GOAL),
+    findById: vi.fn(async (): Promise<typeof GOAL | undefined> => GOAL),
+    findByIds: vi.fn(async () => [GOAL]),
+    list: vi.fn(async () => [GOAL]),
+    update: vi.fn(async (): Promise<typeof GOAL | undefined> => GOAL),
+    complete: vi.fn(async () => true),
+    reopen: vi.fn(async () => true),
+    delete: vi.fn(async () => true),
+    listAllocations: vi.fn(async () => []),
+    replaceAllocations: vi.fn(async () => ({ ok: true })),
+  };
   const authorization = {
     authorize: vi.fn(async (): Promise<Outcome> => ({ outcome: 'allowed', role: 'Owner' })),
   };
   const stores = {
-    categories, accounts, creditCards, budgets,
+    categories, accounts, creditCards, budgets, goals,
   };
   // The work runs against the same mocks, so a test sees its writes; a throw
   // inside it is what the real unit of work would roll back.
@@ -173,6 +198,6 @@ export const fakeDeps = () => {
     ...stores, authorization, inTransaction, now: () => NOW,
   } as unknown as AccountDeps;
   return {
-    deps, categories, accounts, creditCards, budgets, authorization, inTransaction,
+    deps, categories, accounts, creditCards, budgets, goals, authorization, inTransaction,
   };
 };

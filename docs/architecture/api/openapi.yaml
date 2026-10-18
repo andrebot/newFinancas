@@ -31,7 +31,7 @@ tags:
   - name: Investments
     description: Investment Holdings, Valuation Snapshots, schedule entries. FR-5, FR-11, CUC-6.
   - name: Goals
-    description: 'Goals (formerly Objectives — OQ-66): create, edit, complete/reopen, delete, progress.'
+    description: 'Goals (formerly Objectives — OQ-66): create, edit, complete/reopen, delete; progress (InsightsManager, OQ-177).'
   - name: Transactions
     description: Account Transactions and Card Transactions — record, edit, delete, browse & filter. FR-3, CUC-4.
   - name: Insights
@@ -2056,7 +2056,12 @@ paths:
       tags:
         - Goals
       operationId: listGoals
-      summary: List goals with progress per currency (View Goals)
+      summary: List goals (View Goals' definitions)
+      description: >
+        Every shared Goal and the caller's own personal ones in one status,
+        soonest due first — not paginated, like listBudgets. The
+        definitions only: progress is a reshaped read, listGoalProgress
+        (OQ-174, OQ-177).
       parameters:
         - name: status
           in: query
@@ -2073,9 +2078,12 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/GoalWithProgress'
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/Goal" }
+        "404": { $ref: "#/components/responses/NotFound" }
     post:
       tags:
         - Goals
@@ -2083,6 +2091,7 @@ paths:
       summary: Create a Goal
       description: >
         FR-8.1. Starts unfunded — allocating a Holding to it happens later, from the Holding's own edit flow (OQ-48).
+        A personal Goal is anyone's own (a Viewer included); a shared one needs Owner, Admin or Member (OQ-177).
       requestBody:
         required: true
         content:
@@ -2094,7 +2103,44 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Goal" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "422": { $ref: "#/components/responses/ValidationError" }
+  /households/{householdId}/goal-progress:
+    parameters:
+      - $ref: "#/components/parameters/HouseholdId"
+    get:
+      tags:
+        - Goals
+      operationId: listGoalProgress
+      summary: List goals with progress per currency (View Goals)
+      description: >
+        FR-8.5/OQ-49. The Goals listGoals returns, each with its
+        contributions in their Holdings' own currencies and the Holdings
+        funding it. A reshaped read — InsightsManager's, built with M4
+        (OQ-177); cross-currency blending is the frontend's (FR-8.4).
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - active
+              - completed
+            default: active
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/GoalWithProgress' }
+        "404": { $ref: "#/components/responses/NotFound" }
   /households/{householdId}/goals/{goalId}:
     parameters:
       - $ref: "#/components/parameters/HouseholdId"
@@ -2104,19 +2150,24 @@ paths:
         - Goals
       operationId: getGoal
       summary: Get a Goal
+      description: >
+        Someone else's personal Goal is 404 `goal.not_found`, so it never
+        confirms one exists (OQ-177).
       responses:
         "200":
           description: OK
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Goal" }
+        "404": { $ref: "#/components/responses/NotFound" }
     patch:
       tags:
         - Goals
       operationId: editGoal
       summary: Edit a Goal's name/target/due date
       description: >
-        FR-8.1. Never editable here: allocations — see PATCH /holdings/{holdingId} (OQ-48).
+        FR-8.1. Never editable here: allocations — see PATCH /holdings/{holdingId} (OQ-48) — and the visibility.
+        A completed Goal can be edited too: only new funding is closed to it (FR-8.9, OQ-177).
       requestBody:
         required: true
         content:
@@ -2128,6 +2179,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Goal" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "422": { $ref: "#/components/responses/ValidationError" }
     delete:
       tags:
@@ -2136,8 +2189,11 @@ paths:
       summary: Delete a Goal
       description: >
         FR-8.6/OQ-47. Hard delete, no history — "this goal no longer makes sense." The underlying Investment Holdings are never deleted; only this Goal's allocations cascade away.
+        Deleting it again is 404 `goal.not_found`.
       responses:
         "204": { description: No Content }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
   /households/{householdId}/goals/{goalId}/complete:
     parameters:
       - $ref: "#/components/parameters/HouseholdId"
@@ -2149,8 +2205,11 @@ paths:
       summary: Complete a Goal ("this goal is completed")
       description: >
         FR-8.8/OQ-47. Unlike every other complete in this project, this one is reversible — see POST .../reopen. Keeps the record intact so historical progress-by-month stays viewable.
+        Completing a completed Goal changes nothing (OQ-177).
       responses:
         "204": { description: No Content }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
   /households/{householdId}/goals/{goalId}/reopen:
     parameters:
       - $ref: "#/components/parameters/HouseholdId"
@@ -2162,30 +2221,11 @@ paths:
       summary: Reopen a Goal
       description: >
         FR-8.9. The only "reopen" endpoint in the entire API — every other completed entity in this project stays completed, one-way.
+        Reopening an active Goal changes nothing (OQ-177).
       responses:
         "204": { description: No Content }
-  /households/{householdId}/goals/{goalId}/allocations:
-    parameters:
-      - $ref: "#/components/parameters/HouseholdId"
-      - $ref: "#/components/parameters/GoalId"
-    get:
-      tags:
-        - Goals
-      operationId: listGoalAllocations
-      summary: List which Holdings fund this Goal (read-only)
-      description: >
-        FR-8.2/OQ-48. Display-only — editing an allocation always happens via PATCH /holdings/{holdingId}, never here.
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data:
-                    type: array
-                    items: { $ref: "#/components/schemas/GoalAllocation" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
   /households/{householdId}/goals/{goalId}/progress:
     parameters:
       - $ref: "#/components/parameters/HouseholdId"
@@ -2339,7 +2379,7 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
     NotFound:
-      description: 'Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `budget.not_found`, `invitation.invitee_not_registered`.'
+      description: 'Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `budget.not_found`, `goal.not_found`, `invitation.invitee_not_registered`.'
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
@@ -2431,7 +2471,7 @@ components:
     PositiveMoney:
       type: integer
       minimum: 1
-      description: Money (minor units, as `Money`) that must be more than zero — a Budget's monthly target (OQ-176).
+      description: Money (minor units, as `Money`) that must be more than zero — a Budget's monthly target (OQ-176), a Goal's target (OQ-177).
       example: 123456
 
     Quantity:
@@ -3233,26 +3273,12 @@ components:
           type: [string, "null"]
           format: date-time
           description: Complete sets it, reopen nulls it — the one reversible lifecycle flag (FR-8.8/8.9, OQ-78)
-    GoalAllocation:
-      type: object
-      properties:
-        id: { type: string, format: uuid }
-        holdingId: { type: string, format: uuid }
-        percentage:
-          type: integer
-          minimum: 1
-          maximum: 100
-          description: Whole percent (60 = 60%) — integer, no floats; contribution = value × pct / 100, rounded half-up to the cent (OQ-87)
-        createdAt: { type: string, format: date-time }
-        goalId:
-          type: string
-          format: uuid
     GoalCreateRequest:
       type: object
       required: [name, targetAmount, targetCurrency, dueDate, visibility]
       properties:
         name: { type: string }
-        targetAmount: { $ref: "#/components/schemas/Money" }
+        targetAmount: { $ref: "#/components/schemas/PositiveMoney" }
         targetCurrency: { $ref: "#/components/schemas/Currency" }
         dueDate: { type: string, format: date }
         visibility: { type: string, enum: [personal, shared] }
@@ -3277,7 +3303,7 @@ components:
       type: object
       properties:
         name: { type: string }
-        targetAmount: { $ref: "#/components/schemas/Money" }
+        targetAmount: { $ref: "#/components/schemas/PositiveMoney" }
         targetCurrency: { $ref: "#/components/schemas/Currency" }
         dueDate: { type: string, format: date }
     GoalWithProgress:

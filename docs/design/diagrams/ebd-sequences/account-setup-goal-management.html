@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Account Setup — Goal Management</h1>
-  <p class="subtitle"><span class="route">POST/PATCH/DELETE /households/:householdId/goals</span>, <span class="route">POST /households/:householdId/goals/:id/complete|reopen</span>, <span class="route">GET /households/:householdId/goals</span>.</p>
+  <p class="subtitle"><span class="route">POST/PATCH/DELETE /households/:householdId/goals</span>, <span class="route">POST /households/:householdId/goals/:id/complete|reopen</span>, <span class="route">GET /households/:householdId/goals</span> (definitions, AccountManager) + <span class="route">GET /households/:householdId/goal-progress</span> (progress, InsightsManager — OQ-177).</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -68,9 +68,14 @@ sequenceDiagram
     participant EXP as Account Setup<br/>Experience
     participant API as Backend API
     FLOW->>EXP: request goals(status)
-    EXP->>API: GET /households/:householdId/goals?status=active
-    API-->>EXP: goals with per-currency contributions + funded by
-    EXP-->>FLOW: state
+    par definitions
+        EXP->>API: GET /households/:householdId/goals?status=active
+        API-->>EXP: goals (name, target, due date, visibility)
+    and progress
+        EXP->>API: GET /households/:householdId/goal-progress?status=active
+        API-->>EXP: per-currency contributions + funded by, per goal
+    end
+    EXP-->>FLOW: state (progress joined by goal id)
     FLOW-->>GP: render progress
     opt goal mixes currencies
         User->>FX: '1 USD = 5.20 BRL'
@@ -91,7 +96,7 @@ sequenceDiagram
     </pre>
   </div>
   <div class="notes">
-<ul><li>Allocations are never edited here — always from the Holding (OQ-48).</li><li>FX never leaves the browser (FR-9).</li></ul>
+<ul><li>Allocations are never edited here — always from the Holding (OQ-48).</li><li>FX never leaves the browser (FR-9).</li><li>Definitions and progress are two reads (OQ-177): the Goal list is AccountManager's own; progress, a reshaped read, is InsightsManager's. A completed Goal can still be edited.</li></ul>
   </div>
   <script>
     mermaid.initialize({

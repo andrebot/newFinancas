@@ -50,7 +50,7 @@
 </head>
 <body>
   <h1>Call Chain — Delete Goal</h1>
-  <p class="subtitle">Use case 5 of 6 in the Goals set (CUC-10, FR-8.6). Lifecycle Transition, hard delete, releases allocations.</p>
+  <p class="subtitle">Use case 5 of 6 in the Goals set (CUC-10, FR-8.6). Hard delete (OQ-47). As built in M2 part 4 (OQ-177).</p>
 
   <div class="architecture">
     <svg id="arrows-svg"></svg>
@@ -135,8 +135,9 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain:</strong> <code>AccountManager</code> ① <code>GoalAccessor.delete(...)</code> (sync, hard delete — releases allocations in the same write, Holdings themselves untouched) → ② <code>LoggingUtility</code> (async).</p>
-    <p><strong>No smell:</strong> single-Accessor chain, correctly not reaching into <code>InvestmentHoldingAccessor</code> at all — deleting a Goal never touches the Holdings that funded it, only the allocation join records.</p>
+    <p><strong>Chain:</strong> <code>AccountManager</code> ① <code>GoalAccessor.findById(...)</code> (sync &mdash; the Goal&#39;s visibility and owner feed the check; later the write) → ② <code>AuthorizationUtility.authorize(data.delete)</code> (sync) → <code>GoalAccessor.delete(...)</code> (sync, hard delete &mdash; allocations cascade, Holdings stay) → ③ <code>LoggingUtility</code> (async).</p>
+    <p><strong>Corrected (OQ-177):</strong> the authorization call is needed &mdash; a Goal is personal or shared like a Budget, so every use case checks the caller&#39;s role against the Goal&#39;s visibility and owner (OQ-111).</p>
+    <p><strong>No smell:</strong> the allocations go by FK cascade inside the one write; no call reaches <code>InvestmentHoldingAccessor</code>.</p>
   </div>
 
   <script>
@@ -149,7 +150,7 @@
       svg.style.width = containerRect.width + 'px';
       svg.style.height = containerRect.height + 'px';
 
-      var edges = [{"from": "mgr-account", "to": "acc-goal", "type": "sync", "order": 1}, {"from": "mgr-account", "to": "util-logging", "type": "async", "order": 2}];
+      var edges = [{"from": "mgr-account", "to": "acc-goal", "type": "sync", "order": 1}, {"from": "mgr-account", "to": "util-authz", "type": "sync", "order": 2}, {"from": "mgr-account", "to": "util-logging", "type": "async", "order": 3}];
 
       var activeIds = {};
       edges.forEach(function (e) { activeIds[e.from] = true; activeIds[e.to] = true; });

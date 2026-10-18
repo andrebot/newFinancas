@@ -172,7 +172,9 @@ exist for either.
   never through any Goal endpoint — OQ-48's direction-of-control
   decision, carried through literally: there is no
   `POST /goals/{id}/allocations` endpoint at all, by design, not
-  oversight. `GET /goals/{id}/allocations` exists for display only.
+  oversight. ~~`GET /goals/{id}/allocations` exists for display only.~~
+  **OQ-177:** dropped — the progress read's `fundedBy` shows which
+  Holdings fund a Goal.
 - **`PATCH /categories/{id}` folds in Subcategory create/rename**, the
   same combined-request pattern FR-2.9/OQ-35 established for
   Account+Credit-Card edits — applied here by extension, since the
@@ -209,10 +211,14 @@ itself when it was first introduced:
   this API on purpose; entries are written only by
   `InvestmentProductEngine` at purchase time (OQ-53), never created
   directly through a client request.
-- `GET /goals/{id}/allocations`, `GET /goals/{id}/progress` —
+- `GET /goals/{id}/progress` —
   progress computation per FR-8.5/8.7, returning per-currency
   contributions and leaving the cross-currency blend to the frontend
   (OQ-49), unchanged from how `ReportingEngine` already works.
+  **OQ-177:** `GET /goals` returns plain Goal definitions
+  (AccountManager, unpaginated); the list with progress moved to `GET
+  /goal-progress` (InsightsManager, M4), and `GET
+  /goals/{id}/allocations` was dropped.
 - `GET /transactions` — **Oct 2026:** Browse & Filter over **both**
   ledgers merged (kinds, accounts, cards, categories, holding, any date
   range; cursor pagination). `GET /credit-cards/{id}/transactions` stays
