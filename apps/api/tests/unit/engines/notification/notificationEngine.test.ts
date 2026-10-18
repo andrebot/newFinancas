@@ -63,7 +63,7 @@ describe('NotificationEngine (OQ-113)', () => {
     sendEmail.mockRejectedValueOnce(new Error('provider down'));
 
     await expect(engine.notify('holding.matured', { userId: 'u1' }, {
-      holdingId: 'h1', holdingName: 'CDB', dueDate: '2026-10-01',
+      holdingId: 'h1', assetType: 'cdb', ticker: null, dueDate: '2026-10-01',
     })).rejects.toThrow('db down');
     await expect(engine.notify('password.reset', { email: 'a@b.c', language: 'en-US' }, RESET))
       .rejects.toThrow('provider down');

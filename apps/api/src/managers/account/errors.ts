@@ -1,4 +1,5 @@
 import type { BudgetTarget } from '../../accessors/budgetAccessor';
+import type { ManualRefusal } from '../../accessors/valuationSnapshotAccessor';
 import type { StyleRefusal } from '../../accessors/categoryAccessor';
 import { createApiError, validationFailed, type ApiError } from '../../http/apiError';
 
@@ -107,4 +108,101 @@ export const targetAlreadyClaimed = (target: BudgetTarget, budgetId: string): Ap
  */
 export const goalNotFound = (): ApiError => createApiError({
   status: 404, code: 'goal.not_found', message: 'Goal not found',
+});
+
+/**
+ * A completed Goal given a bigger share, or a new one (FR-8.9, OQ-168).
+ *
+ * @returns 409 `goal.completed`.
+ */
+export const goalCompleted = (): ApiError => createApiError({
+  status: 409, code: 'goal.completed', message: 'A completed goal takes no new funding',
+});
+
+/**
+ * A Holding split past 100% (FR-8.3).
+ *
+ * @param current - The Holding's total before.
+ * @param requested - The refused total, hidden shares included (OQ-178).
+ * @returns 409 `goal.allocation_exceeds_100` with both totals.
+ */
+export const allocationExceeds100 = (current: number, requested: number): ApiError => (
+  createApiError({
+    status: 409,
+    code: 'goal.allocation_exceeds_100',
+    message: 'Allocations would exceed 100%',
+    params: { current, requested },
+  })
+);
+
+/**
+ * A Holding that isn't this household's, doesn't exist, or sits in someone
+ * else's personal Account (OQ-178).
+ *
+ * @returns 404 `holding.not_found`.
+ */
+export const holdingNotFound = (): ApiError => createApiError({
+  status: 404, code: 'holding.not_found', message: 'Holding not found',
+});
+
+/**
+ * A change to an archived Holding: archiving is one-way (FR-5.8, OQ-178).
+ *
+ * @returns 409 `holding.archived`.
+ */
+export const holdingArchived = (): ApiError => createApiError({
+  status: 409, code: 'holding.archived', message: 'Holding is archived',
+});
+
+/**
+ * A manual archive of a Holding that isn't fixed-term, past due and still
+ * holding a position (FR-5.8, OQ-178).
+ *
+ * @returns 409 `holding.not_matured`.
+ */
+export const holdingNotMatured = (): ApiError => createApiError({
+  status: 409, code: 'holding.not_matured', message: 'Holding has not matured',
+});
+
+/**
+ * A market value for a fixed-term Holding, valued by its contract (OQ-51).
+ *
+ * @returns 409 `holding.not_market_priced`.
+ */
+export const holdingNotMarketPriced = (): ApiError => createApiError({
+  status: 409, code: 'holding.not_market_priced', message: 'Holding is not market-priced',
+});
+
+/**
+ * Why ValuationSnapshotAccessor refused a manual change, as the API answers it.
+ *
+ * @param refusal - `not_found` (not this Holding's) or `automatic` (OQ-56).
+ * @returns 404 `snapshot.not_found` or 409 `snapshot.automatic_not_editable`.
+ */
+export const snapshotRefused = (refusal: ManualRefusal): ApiError => (
+  refusal === 'not_found'
+    ? createApiError({ status: 404, code: 'snapshot.not_found', message: 'Snapshot not found' })
+    : createApiError({
+      status: 409,
+      code: 'snapshot.automatic_not_editable',
+      message: 'Automatic snapshots change only with their transaction',
+    })
+);
+
+/**
+ * An index value of another household or index, or none (OQ-172).
+ *
+ * @returns 404 `index_rate.not_found`.
+ */
+export const indexRateNotFound = (): ApiError => createApiError({
+  status: 404, code: 'index_rate.not_found', message: 'Index value not found',
+});
+
+/**
+ * A second value for an index's day (OQ-172).
+ *
+ * @returns 409 `index_rate.duplicate_day`.
+ */
+export const indexRateDuplicateDay = (): ApiError => createApiError({
+  status: 409, code: 'index_rate.duplicate_day', message: 'Index already has a value that day',
 });

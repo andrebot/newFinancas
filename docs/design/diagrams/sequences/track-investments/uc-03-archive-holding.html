@@ -62,34 +62,55 @@ sequenceDiagram
     actor User
     participant API as Hono route
     participant AM as AccountManager
-    participant AZ as AuthorizationUtility
+    participant AU as AuthorizationUtility
     participant IHA as InvestmentHoldingAccessor
+    participant AA as AccountAccessor
     participant LOG as LoggingUtility
 
     User->>API: POST /households/:householdId/holdings/:holdingId/archive
-    API->>AM: archiveHolding(actor, holdingId)
-    AM->>AZ: canWrite(actor, holdingId)?
-    alt not authorized
-        AZ-->>AM: denied
-        AM-->>API: Forbidden
-        API-->>User: 403 auth.forbidden
-    else authorized
-        AZ-->>AM: allowed
-        AM->>IHA: archive(holdingId, by = user)
-        Note over IHA: one-way &mdash; a user-made archive is never undone<br/>automatically (contrast OQ-80)
-        IHA-->>AM: archived
-        AM-->>LOG: logActivity(correlationId, actor, "ArchiveHolding")
-        AM-->>LOG: recordAudit(actor, "InvestmentHolding", holdingId)
-        AM-->>API: archived
-        API-->>User: 204 No Content
+    API->>AM: archiveHolding(context, householdId, holdingId)
+    AM->>IHA: findById(householdId, holdingId)
+    IHA-->>AM: holding (or none)
+    AM->>AA: findById(householdId, holding.accountId)
+    AA-->>AM: its Account
+    AM->>AU: authorize(actor, householdId, {data.delete, account.visibility, account.ownerUserId})
+    alt not a member
+        AM-->>API: 404 household.not_found
+    else missing, or in someone else&#39;s personal Account
+        AM-->>API: 404 holding.not_found
+    else role may not archive (a Member may on a shared Account they created)
+        AM-->>API: 403 auth.forbidden
+    else allowed
+        alt already archived
+            AM-->>API: nothing to write, unaudited
+            API-->>User: 204 No Content
+        else open
+            AM->>IHA: listSchedule([holdingId])
+            IHA-->>AM: the schedule
+            alt not fixed-term, no position, or not past its redemption date
+                AM-->>API: 409 holding.not_matured
+            else matured
+                AM->>IHA: archive(holdingId, by = user)
+                Note over IHA: one-way &mdash; a user-made archive is never undone<br/>automatically (contrast OQ-80)
+                alt archived meanwhile
+                    IHA-->>AM: false
+                    API-->>User: 204 No Content (unaudited)
+                else archived now
+                    IHA-->>AM: true
+                    AM-->>LOG: audit ArchiveHolding
+                    API-->>User: 204 No Content
+                end
+            end
+        end
     end
     Note over User,API: frontend then calls DELETE /notifications/:notificationId<br/>(Insights UC-6) to clear the notice
     </pre>
   </div>
   <div class="notes">
     <ul>
-      <li><strong>Oct 2026 review:</strong> manual archive is now only for a fixed-term Holding past due with a position; every other archive happens automatically in Record Transaction. Authorization added (it was missing).</li>
-      <li>See FR-5.8, OQ-43, OQ-72, OQ-80.</li>
+      <li><strong>Only a matured Holding (OQ-178):</strong> fixed-term, still holding a position, past its due date &mdash; the redemption entry&#39;s date, the same rule <code>findMaturedWithPosition</code> uses. Every other archive happens automatically in Record Transaction when a trade zeroes the Holding.</li>
+      <li>Archiving is <code>data.delete</code> on the Holding&#39;s Account, like archiving an Account.</li>
+      <li>See FR-5.8, OQ-43, OQ-72, OQ-80, OQ-178.</li>
     </ul>
   </div>
   <script>

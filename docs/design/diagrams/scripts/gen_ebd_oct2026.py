@@ -868,7 +868,7 @@ API-->>EXP: series
 EXP-->>FLOW: state
 FLOW-->>PC: re-render (only the chart refetches)
 """, ["Portfolio Builder buttons render disabled (v2)."]),
-    ("track-investments-holding-maintenance", "Track Investments — Holding Maintenance", f"{R('GET /households/:householdId/accounts/:id/holdings')}, {R('PATCH /households/:householdId/holdings/:id')}, {R('…/valuation-snapshots')}.",
+    ("track-investments-holding-maintenance", "Track Investments — Holding Maintenance", f"{R('GET /households/:householdId/accounts/:id/holdings')} (InsightsManager), {R('GET/PATCH /households/:householdId/holdings/:id/allocations')}, {R('…/valuation-snapshots')} (AccountManager — OQ-178).",
      [("AP", "Account Picker"), ("HT", "Holdings Table"), ("GA", "Goal Allocation Editor"), ("MV", "Market Value Entry"), ("VH", "Value History Editor"), FLOW("Holding Maintenance"), EXP("Track Investments"), API],
      """
 User->>AP: pick account
@@ -879,6 +879,15 @@ API-->>EXP: positions (+ expected payout / taxes for fixed-term)
 EXP-->>FLOW: state
 User->>HT: expand a holding
 HT->>FLOW: emit holdingExpanded
+FLOW->>EXP: request split + history(holdingId)
+par
+    EXP->>API: GET /households/:householdId/holdings/:holdingId/allocations
+    API-->>EXP: the split over the Goals this member can see
+and
+    EXP->>API: GET /households/:householdId/holdings/:holdingId/valuation-snapshots
+    API-->>EXP: value history, newest first
+end
+EXP-->>FLOW: state
 alt edit goal allocations
     User->>GA: rows with whole %
     GA->>FLOW: emit allocations
@@ -895,9 +904,9 @@ else fix a past value
     FLOW->>EXP: request edit / delete snapshot
     EXP->>API: PATCH or DELETE …/valuation-snapshots/:snapshotId
 end
-API-->>EXP: done or error code (e.g. 409 snapshot.automatic_not_editable)
+API-->>EXP: done or error code (e.g. 409 snapshot.automatic_not_editable, goal.completed, holding.archived)
 EXP-->>FLOW: state refreshed
-""", ["Positions are read-only (transactions only).", "'See in Transactions' asks the Experience to route to Manage Finances with holdingId — no Flow-to-Flow call."]),
+""", ["Positions are read-only (transactions only).", "'See in Transactions' asks the Experience to route to Manage Finances with holdingId — no Flow-to-Flow call.", "The split shows only the Goals this member can see; a share funding someone else's personal Goal is kept by the server on save and still counts toward 100% (OQ-178)."]),
     ("track-investments-rates-maintenance", "Track Investments — Rates Maintenance", f"{R('GET /households/:householdId/index-rates')}, {R('POST/PATCH/DELETE /households/:householdId/index-rates/:index/values')}.",
      [("RC", "Rate Card"), ("RU", "Rate Update Entry"), ("RH", "Rate History Editor"), FLOW("Rates Maintenance"), EXP("Track Investments"), API],
      """

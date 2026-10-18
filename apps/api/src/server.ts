@@ -15,10 +15,13 @@ import createCreditCardAccessor from './accessors/creditCardAccessor';
 import createEmailAccessor from './accessors/emailAccessor';
 import createGoalAccessor from './accessors/goalAccessor';
 import createHouseholdAccessor from './accessors/householdAccessor';
+import createIndexRateAccessor from './accessors/indexRateAccessor';
+import createInvestmentHoldingAccessor from './accessors/investmentHoldingAccessor';
 import createInvitationAccessor from './accessors/invitationAccessor';
 import createNotificationInboxAccessor from './accessors/notificationInboxAccessor';
 import createSessionAccessor from './accessors/sessionAccessor';
 import createUserAccessor from './accessors/userAccessor';
+import createValuationSnapshotAccessor from './accessors/valuationSnapshotAccessor';
 import createApp from './app';
 import { logging } from './config/constants';
 import loadEnv from './config/env';
@@ -99,6 +102,11 @@ const accountStoresOver = (over: Database): AccountStores => ({
 });
 const account = createAccountManager({
   ...accountStoresOver(db),
+  holdings: createInvestmentHoldingAccessor(db),
+  valuations: createValuationSnapshotAccessor(db),
+  indexRates: createIndexRateAccessor(db),
+  households,
+  notifications,
   authorization,
   inTransaction: createUnitOfWork(db, accountStoresOver),
   now: () => new Date(),

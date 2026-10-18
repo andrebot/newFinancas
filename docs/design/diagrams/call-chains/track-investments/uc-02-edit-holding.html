@@ -50,7 +50,7 @@
 </head>
 <body>
   <h1>Call Chain — Edit Holding Goal Allocations</h1>
-  <p class="subtitle">Use case 2 of 12 in the Track Investments &amp; Net Worth set (CUC-6), FR-8.2/8.3. Edit. Updated in the Oct 2026 call chain review (<code>docs/architecture/06-call-chain-review-2026-10.md</code>, VBD Round 9).</p>
+  <p class="subtitle">Use case 2 of 12 in the Track Investments &amp; Net Worth set (CUC-6, FR-8.2/8.3). Edit. As built in M2 part 5 (OQ-178).</p>
 
   <div class="architecture">
     <svg id="arrows-svg"></svg>
@@ -135,8 +135,9 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain:</strong> <code>AccountManager</code> ① <code>AuthorizationUtility</code> → ② <code>GoalAccessor.findByIds</code> + <code>listAllocations</code> (the Manager's visibility and completed-Goal checks, OQ-168), then <code>replaceAllocations(householdId, holdingId, [...])</code> (rejects &gt; 100%, FR-8.3) → ③ <code>LoggingUtility</code> (async).</p>
-    <p><strong>Narrowed (Round 9):</strong> no snapshot write and no holding-field update any more — position is transaction-only, market value has its own use cases. Direction of control unchanged (OQ-48).</p>
+    <p><strong>Chain:</strong> <code>AccountManager</code> ① <code>InvestmentHoldingAccessor.findById</code> + <code>AccountAccessor.findById</code> (sync &mdash; the Holding&#39;s Account&#39;s visibility and owner feed the check) → ② <code>AuthorizationUtility.authorize(data.edit)</code> (sync) → ③ <code>GoalAccessor.listAllocations</code> + <code>findByIds</code> (the visible Goals, the hidden shares) → ④ <code>ValidationUtility.distinctItems</code> → ⑤ <code>GoalAccessor.replaceAllocations(householdId, holdingId, hidden + new)</code> (rejects &gt; 100%, FR-8.3) → ⑥ <code>LoggingUtility</code> (async).</p>
+    <p><strong>Corrected (OQ-178):</strong> a Holding has no owner of its own, so access is decided on its Account &mdash; the <code>AccountAccessor</code> read is the check&#39;s input, not a second Accessor in a chain (both are called by the Manager).</p>
+    <p><strong>No smell:</strong> the completed-Goal and visibility rules are the Manager&#39;s decisions (OQ-168); the Accessor keeps only household isolation and the cap. The split read (<code>GET &hellip;/allocations</code>) is ①–③ alone.</p>
   </div>
 
   <script>
@@ -149,7 +150,7 @@
       svg.style.width = containerRect.width + 'px';
       svg.style.height = containerRect.height + 'px';
 
-      var edges = [{"from": "mgr-account", "to": "util-authz", "type": "sync", "order": 1}, {"from": "mgr-account", "to": "acc-goal", "type": "sync", "order": 2}, {"from": "mgr-account", "to": "util-logging", "type": "async", "order": 3}];
+      var edges = [{"from": "mgr-account", "to": "acc-holding", "type": "sync", "order": 1}, {"from": "mgr-account", "to": "acc-account", "type": "sync", "order": 1}, {"from": "mgr-account", "to": "util-authz", "type": "sync", "order": 2}, {"from": "mgr-account", "to": "acc-goal", "type": "sync", "order": 3}, {"from": "mgr-account", "to": "util-validation", "type": "sync", "order": 4}, {"from": "mgr-account", "to": "acc-goal", "type": "sync", "order": 5}, {"from": "mgr-account", "to": "util-logging", "type": "async", "order": 6}];
 
       var activeIds = {};
       edges.forEach(function (e) { activeIds[e.from] = true; activeIds[e.to] = true; });

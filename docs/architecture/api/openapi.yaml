@@ -1314,11 +1314,16 @@ paths:
         FR-8.2/8.3/OQ-48. Goal allocations only (narrowed Oct 2026) — the
         Holding is the entry point, never the Goal (OQ-48). Position
         changes only through transactions; market value has its own
-        endpoints under /valuation-snapshots (OQ-56). Replace-all; rejected
-        with 409 `goal.allocation_exceeds_100` past 100%, 409 `goal.completed`
-        when a completed Goal's share is grown or added (kept unchanged or
-        removed is fine — FR-8.9), 404 `goal.not_found` for a Goal the actor
-        can't see (OQ-168). See
+        endpoints under /valuation-snapshots (OQ-56). Replace-all over the
+        Goals the caller can see: a share funding a Goal the caller can't see
+        (another member's personal one) is kept as it is and still counts
+        toward the 100% (OQ-178). Rejected with 409
+        `goal.allocation_exceeds_100` past 100%, 409 `goal.completed` when a
+        completed Goal's share is grown or added (kept unchanged or removed is
+        fine — FR-8.9), 409 `holding.archived` on an archived Holding, 404
+        `goal.not_found` for a Goal the actor can't see (OQ-168), 422 for a
+        Goal listed twice (`array.duplicate`). Answers the split the caller
+        can see. See
         docs/design/diagrams/sequences/track-investments/uc-02-edit-holding.html.
       requestBody:
         required: true
@@ -1330,14 +1335,35 @@ paths:
           description: OK
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/InvestmentHolding" }
+              schema: { $ref: "#/components/schemas/HoldingAllocations" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409":
-          description: This Holding's total allocated percentage would exceed 100% (FR-8.3), or a completed Goal's share would grow (`goal.completed`, FR-8.9, OQ-168).
+          description: This Holding's total allocated percentage would exceed 100% (FR-8.3), a completed Goal's share would grow (`goal.completed`, FR-8.9, OQ-168), or the Holding is archived (`holding.archived`, OQ-178).
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
         "422": { $ref: "#/components/responses/ValidationError" }
+
+  /households/{householdId}/holdings/{holdingId}/allocations:
+    parameters:
+      - $ref: "#/components/parameters/HouseholdId"
+      - $ref: "#/components/parameters/HoldingId"
+    get:
+      tags: [Investments]
+      operationId: listHoldingAllocations
+      summary: A Holding's Goal split
+      description: >
+        The Goal Allocation Editor's read (OQ-178): the shares funding the
+        Goals the caller can see, oldest first; a share funding someone else's
+        personal Goal is left out, never revealed.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/HoldingAllocations" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
   /households/{householdId}/holdings/{holdingId}/archive:
     parameters:
@@ -1346,13 +1372,19 @@ paths:
     post:
       tags: [Investments]
       operationId: archiveHolding
-      summary: Archive an Investment Holding
+      summary: Archive a matured Investment Holding
       description: >
-        FR-5.8/OQ-43. One-way, no unarchive — Valuation Snapshot history
+        FR-5.8/OQ-43/OQ-72. One-way, no unarchive — Valuation Snapshot history
         and Goal allocations both depend on the Holding continuing
-        to exist.
+        to exist. Only a fixed-term Holding past its due date (its redemption
+        entry's date) that still has a position: any other is 409
+        `holding.not_matured` — a zeroed Holding archives itself (OQ-178).
+        Archiving an archived Holding changes nothing.
       responses:
         "204": { description: No Content }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /households/{householdId}/holdings/{holdingId}/valuation-snapshots:
     parameters:
@@ -1365,7 +1397,7 @@ paths:
       description: >
         FR-5.2/FR-5.4. Market-priced assetTypes only (OQ-51) — a
         fixed-term Holding never populates this; read its costBasis
-        instead.
+        instead. Newest first.
       parameters:
         - $ref: "#/components/parameters/StartDate"
         - $ref: "#/components/parameters/EndDate"
@@ -1380,12 +1412,16 @@ paths:
                   data:
                     type: array
                     items: { $ref: "#/components/schemas/ValuationSnapshot" }
+        "404": { $ref: "#/components/responses/NotFound" }
     post:
       tags:
         - Investments
       operationId: recordMarketValue
       summary: Record a market value (manual Valuation Snapshot)
-      description: FR-5.2 / OQ-56 — market-priced Holdings only.
+      description: >
+        FR-5.2 / OQ-56 — market-priced Holdings only (409
+        `holding.not_market_priced`), never an archived one (409
+        `holding.archived`); `asOf` not after today (422 `date.max`, OQ-178).
       requestBody:
         required: true
         content:
@@ -1401,6 +1437,8 @@ paths:
                 $ref: '#/components/schemas/ValuationSnapshot'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
         '422':
@@ -1430,6 +1468,7 @@ paths:
                   data:
                     type: array
                     items: { $ref: "#/components/schemas/InvestmentScheduleEntry" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
   # =========================================================== TRANSACTIONS
   /households/{householdId}/transactions:
@@ -1902,6 +1941,11 @@ paths:
         - Investments
       operationId: editMarketValue
       summary: Edit a manual market value
+      description: >
+        OQ-56. Only a `manual` snapshot (409 `snapshot.automatic_not_editable`)
+        of this Holding (404 `snapshot.not_found`), never on an archived Holding
+        (409 `holding.archived`); `asOf` not after today (422 `date.max`). An
+        empty edit reads the snapshot back (OQ-178).
       requestBody:
         required: true
         content:
@@ -1910,7 +1954,7 @@ paths:
               type: object
               properties:
                 value:
-                  $ref: '#/components/schemas/Money'
+                  $ref: '#/components/schemas/NonNegativeMoney'
                 asOf:
                   type: string
                   format: date
@@ -1934,6 +1978,11 @@ paths:
         - Investments
       operationId: deleteMarketValue
       summary: Delete a manual market value
+      description: >
+        OQ-56. Only a `manual` snapshot (409 `snapshot.automatic_not_editable`)
+        of this Holding (404 `snapshot.not_found`), never on an archived Holding
+        (409 `holding.archived`). The previous snapshot becomes the Holding's
+        value again.
       responses:
         '204':
           description: No Content
@@ -1951,25 +2000,38 @@ paths:
         - Investments
       operationId: listIndexRates
       summary: Every index with its value history (Rates tab)
-      description: FR-11.6 / OQ-59 — household-scoped, manual.
+      description: >
+        FR-11.6 / OQ-59 — household-scoped, manual. Every index, in the
+        in-code order, each with its values newest first; an index with no
+        value has an empty list (OQ-178).
       responses:
         '200':
           description: OK
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/IndexRateSeries'
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/IndexRateSeries'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /households/{householdId}/index-rates/{index}/values:
     parameters:
       - $ref: "#/components/parameters/HouseholdId"
-      - $ref: '#/components/parameters/IndexCode'
+      - $ref: '#/components/parameters/Index'
     post:
       tags:
         - Investments
       operationId: recordIndexRate
       summary: Record an index value
+      description: >
+        FR-11.6. One value per index per day (409 `index_rate.duplicate_day`,
+        OQ-172); `asOf` not after today (422 `date.max`). Any member but a
+        Viewer (OQ-178).
       requestBody:
         required: true
         content:
@@ -1995,6 +2057,8 @@ paths:
                 $ref: '#/components/schemas/IndexRateValue'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
         '422':
@@ -2002,13 +2066,18 @@ paths:
   /households/{householdId}/index-rates/{index}/values/{valueId}:
     parameters:
       - $ref: "#/components/parameters/HouseholdId"
-      - $ref: '#/components/parameters/IndexCode'
+      - $ref: '#/components/parameters/Index'
       - $ref: '#/components/parameters/IndexValueId'
     patch:
       tags:
         - Investments
       operationId: editIndexRate
       summary: Edit an index value
+      description: >
+        FR-11.6. Owner/Admin, or the Member who recorded it (OQ-178). Another
+        household's or index's value is 404 `index_rate.not_found`; moving it
+        onto a day that has one is 409 `index_rate.duplicate_day`; `asOf` not
+        after today (422 `date.max`). An empty edit reads the value back.
       requestBody:
         required: true
         content:
@@ -2042,6 +2111,10 @@ paths:
         - Investments
       operationId: deleteIndexRate
       summary: Delete an index value
+      description: >
+        FR-11.6. Owner/Admin, or the Member who recorded it (OQ-178); the
+        index's previous value becomes its latest. Another household's or
+        index's value is 404 `index_rate.not_found`.
       responses:
         '204':
           description: No Content
@@ -2324,17 +2397,12 @@ components:
       schema:
         type: string
         format: uuid
-    IndexCode:
+    Index:
       name: index
       in: path
       required: true
       schema:
-        type: string
-        enum:
-          - selic
-          - cdi
-          - ipca
-          - igpm
+        $ref: '#/components/schemas/IndexCode'
     IndexValueId:
       name: valueId
       in: path
@@ -2379,12 +2447,12 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
     NotFound:
-      description: 'Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `budget.not_found`, `goal.not_found`, `invitation.invitee_not_registered`.'
+      description: 'Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `holding.not_found`, `snapshot.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `budget.not_found`, `goal.not_found`, `invitation.invitee_not_registered`.'
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
     Conflict:
-      description: "The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed` (params: the target and the claiming `budgetId` — OQ-176), `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107)."
+      description: "The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed` (params: the target and the claiming `budgetId` — OQ-176), `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `holding.archived` (OQ-178), `holding.not_matured` (OQ-178), `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107)."
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
@@ -2468,6 +2536,12 @@ components:
         Matches the underlying bigint column exactly, so no
         stringify/parse conversion happens anywhere in the stack (DB,
         backend, API, or frontend). See 03-api-design.md.
+    NonNegativeMoney:
+      type: integer
+      minimum: 0
+      description: Money (minor units, as `Money`) that can't be negative — a manual market value (OQ-178).
+      example: 123456
+
     PositiveMoney:
       type: integer
       minimum: 1
@@ -3006,20 +3080,30 @@ components:
       properties:
         allocations:
           type: array
-          items:
-            type: object
-            required:
-              - goalId
-              - percentage
-            properties:
-              goalId:
-                type: string
-                format: uuid
-              percentage:
-                type: integer
-                minimum: 1
-                maximum: 100
-                description: Whole percent (60 = 60%) — integer, no floats; contribution = value × pct / 100, rounded half-up to the cent (OQ-87)
+          description: The split over the Goals the caller can see; each Goal at most once.
+          items: { $ref: "#/components/schemas/HoldingAllocation" }
+    HoldingAllocation:
+      type: object
+      required:
+        - goalId
+        - percentage
+      properties:
+        goalId:
+          type: string
+          format: uuid
+        percentage:
+          type: integer
+          minimum: 1
+          maximum: 100
+          description: Whole percent (60 = 60%) — integer, no floats; contribution = value × pct / 100, rounded half-up to the cent (OQ-87)
+    HoldingAllocations:
+      type: object
+      required: [data]
+      description: A Holding's split over the Goals the caller can see (OQ-178).
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/HoldingAllocation" }
     ValuationSnapshot:
       type: object
       properties:
@@ -3212,47 +3296,54 @@ components:
         - asOf
       properties:
         value:
-          $ref: '#/components/schemas/Money'
+          $ref: '#/components/schemas/NonNegativeMoney'
         asOf:
           type: string
           format: date
     IndexRateValue:
       type: object
+      required: [id, index, value, asOf, createdByUserId, createdAt]
       properties:
         id:
           type: string
           format: uuid
         index:
-          type: string
-          enum:
-            - selic
-            - cdi
-            - ipca
-            - igpm
+          $ref: '#/components/schemas/IndexCode'
         value:
           type: integer
           description: Percent × 10,000 — 10.50% = 105000 (bigint fixed-point, OQ-86)
         asOf:
           type: string
           format: date
+        createdByUserId:
+          type: [string, "null"]
+          format: uuid
+          description: Who recorded it — a Member may edit or delete their own (OQ-178)
         createdAt:
           type: string
           format: date-time
+    IndexCode:
+      type: string
+      enum:
+        - selic
+        - cdi
+        - ipca
+        - igpm
+      description: The in-code index list (`INDEX_CODES` in @financas/reference, kept equal by a test — OQ-178).
+    IndexRateUnit:
+      type: string
+      enum:
+        - annual_percent
+        - trailing_12m_percent
+      description: How an index's values read, from `INDEX_CODES` (OQ-178).
     IndexRateSeries:
       type: object
+      required: [index, unit, values]
       properties:
         index:
-          type: string
-          enum:
-            - selic
-            - cdi
-            - ipca
-            - igpm
+          $ref: '#/components/schemas/IndexCode'
         unit:
-          type: string
-          enum:
-            - annual
-            - trailing_12m
+          $ref: '#/components/schemas/IndexRateUnit'
         values:
           type: array
           items:
@@ -3595,9 +3686,11 @@ components:
             holdingId:
               type: string
               format: uuid
-            holdingName:
+            assetType:
               type: string
-              description: Historical label, snapshotted
+              description: The Holding's asset type, the frontend's label in the reader's language (OQ-82, OQ-178)
+            ticker:
+              type: [string, "null"]
             dueDate:
               type: string
               format: date

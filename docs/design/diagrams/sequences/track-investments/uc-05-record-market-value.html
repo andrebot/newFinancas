@@ -62,40 +62,47 @@ sequenceDiagram
     actor User
     participant API as Hono route
     participant AM as AccountManager
-    participant AZ as AuthorizationUtility
-    participant VU as ValidationUtility
+    participant AU as AuthorizationUtility
     participant IHA as InvestmentHoldingAccessor
+    participant AA as AccountAccessor
+    participant VU as ValidationUtility
     participant VSA as ValuationSnapshotAccessor
     participant LOG as LoggingUtility
 
     User->>API: POST /households/:householdId/holdings/:holdingId/valuation-snapshots {value, asOf}
-    API->>AM: recordMarketValue(actor, holdingId, input)
-    AM->>AZ: canWrite(actor, holdingId)?
-    alt not authorized
-        AZ-->>AM: denied
-        AM-->>API: Forbidden
-        API-->>User: 403 auth.forbidden
-    else authorized
-        AZ-->>AM: allowed
-        AM->>VU: check(input)
-        AM->>IHA: findById(householdId, holdingId)
-        alt Holding is a fixed-term instrument (OQ-51)
-            IHA-->>AM: assetType = CDB / Tesouro / ...
-            AM-->>API: Conflict
-            API-->>User: 409 holding.not_market_priced
+    API->>AM: recordMarketValue(context, householdId, holdingId, input)
+    AM->>IHA: findById(householdId, holdingId)
+    IHA-->>AM: holding (or none)
+    AM->>AA: findById(householdId, holding.accountId)
+    AA-->>AM: its Account
+    AM->>AU: authorize(actor, householdId, {data.edit, account.visibility, account.ownerUserId})
+    alt not a member
+        AM-->>API: 404 household.not_found
+    else missing, or in someone else&#39;s personal Account
+        AM-->>API: 404 holding.not_found
+    else role may not maintain (a Member may on a shared Account they created)
+        AM-->>API: 403 auth.forbidden
+    else allowed
+        alt Holding archived
+            AM-->>API: 409 holding.archived
+        else fixed-term (OQ-51)
+            AM-->>API: 409 holding.not_market_priced
         else market-priced
-            IHA-->>AM: ok
-            AM->>VSA: insertManual(holdingId, {valuation, asOfDate})
+            AM->>VU: checkFields({asOf: dateWithin(max: today)})
+            alt asOf after today
+                AM-->>API: 422 validation.failed {asOf: date.max}
+            else
+                AM->>VSA: insertManual(holdingId, {valuation, asOfDate})
+                VSA-->>AM: snapshot
+                AM-->>LOG: audit RecordMarketValue
+                API-->>User: 201 Created {snapshot}
+            end
         end
-        AM-->>LOG: logActivity(correlationId, actor, "RecordMarketValue")
-        AM-->>LOG: recordAudit(actor, "ValuationSnapshot", snapshotId)
-        AM-->>API: done
-        API-->>User: 201 Created {snapshotId}
     end
     </pre>
   </div>
   <div class="notes">
-<ul><li>Fixed-term Holdings have no snapshots (value = cost basis until redemption, OQ-51).</li><li>Net worth and goal progress read &ldquo;latest snapshot at or before month end&rdquo; on demand &mdash; nothing to recompute here.</li><li>See FR-5.2, OQ-51, OQ-56, OQ-83.</li></ul>
+<ul><li>Fixed-term Holdings have no snapshots (value = cost basis until redemption, OQ-51). The value is zero or more (<code>NonNegativeMoney</code>).</li><li><strong>As built (OQ-178):</strong> access is the Holding&#39;s Account&#39;s (<code>data.edit</code> for all three writes); an archived Holding takes no new value; a date after today is refused on the field (<code>date.max</code>), as everywhere else (OQ-165).</li><li>Net worth and goal progress read &ldquo;latest snapshot at or before month end&rdquo; on demand &mdash; nothing to recompute here.</li><li>See FR-5.2, OQ-51, OQ-56, OQ-83, OQ-178.</li></ul>
   </div>
   <script>
     mermaid.initialize({

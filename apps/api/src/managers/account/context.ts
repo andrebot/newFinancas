@@ -4,7 +4,12 @@ import type { BudgetAccessor } from '../../accessors/budgetAccessor';
 import type { CategoryAccessor } from '../../accessors/categoryAccessor';
 import type { CreditCardAccessor } from '../../accessors/creditCardAccessor';
 import type { GoalAccessor } from '../../accessors/goalAccessor';
+import type { HouseholdAccessor } from '../../accessors/householdAccessor';
+import type { IndexRateAccessor } from '../../accessors/indexRateAccessor';
+import type { InvestmentHoldingAccessor } from '../../accessors/investmentHoldingAccessor';
+import type { ValuationSnapshotAccessor } from '../../accessors/valuationSnapshotAccessor';
 import { calendar } from '../../config/constants';
+import type { NotificationEngine } from '../../engines/notification';
 import type { AuthorizationUtility } from '../../utilities/authorization';
 import calendarDate from '../../utilities/calendar';
 import type { InTransaction } from '../../utilities/unitOfWork';
@@ -27,6 +32,13 @@ export interface AccountStores {
 
 /** The components AccountManager calls, and the clock. */
 export interface AccountDeps extends AccountStores {
+  /** Investment administration (OQ-174 ⑤): each write is one Accessor call. */
+  readonly holdings: InvestmentHoldingAccessor;
+  readonly valuations: ValuationSnapshotAccessor;
+  readonly indexRates: IndexRateAccessor;
+  /** A shared matured Holding's recipients (OQ-171). */
+  readonly households: Pick<HouseholdAccessor, 'listMembers'>;
+  readonly notifications: Pick<NotificationEngine, 'notify'>;
   readonly authorization: Pick<AuthorizationUtility, 'authorize'>;
   /** Writes through several Accessors together or not at all (OQ-175). */
   readonly inTransaction: InTransaction<AccountStores>;

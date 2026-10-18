@@ -55,48 +55,68 @@
 </head>
 <body>
   <h1>Edit Holding Goal Allocations</h1>
-  <p class="subtitle"><span class="route">PATCH /households/:householdId/holdings/:holdingId</span> &mdash; FR-8.2/8.3/OQ-48. Narrowed in the Oct 2026 review: allocations only &mdash; position is transaction-only, market value has its own use cases.</p>
+  <p class="subtitle"><span class="route">GET /households/:householdId/holdings/:holdingId/allocations</span>, <span class="route">PATCH /households/:householdId/holdings/:holdingId</span> &mdash; FR-8.2/8.3/OQ-48. Allocations only &mdash; position is transaction-only, market value has its own use cases.</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
     actor User
     participant API as Hono route
     participant AM as AccountManager
-    participant AZ as AuthorizationUtility
+    participant AU as AuthorizationUtility
+    participant IHA as InvestmentHoldingAccessor
+    participant AA as AccountAccessor
+    participant VU as ValidationUtility
     participant GA as GoalAccessor
     participant LOG as LoggingUtility
 
+    User->>API: GET /households/:householdId/holdings/:holdingId/allocations
+    API->>AM: listHoldingAllocations(context, householdId, holdingId)
+    Note over AM: same access check (data.view), then GA.listAllocations + findByIds,<br/>the shares of Goals the caller can&#39;t see left out
+    AM-->>API: the visible split
+    API-->>User: 200 OK {data: [{goalId, percentage}]}
+
     User->>API: PATCH /households/:householdId/holdings/:holdingId {allocations: [{goalId, percentage}, ...]}
-    API->>AM: editHoldingAllocations(actor, holdingId, allocations)
-    AM->>AZ: canWrite(actor, holdingId)?
-    alt not authorized
-        AZ-->>AM: denied
-        AM-->>API: Forbidden
-        API-->>User: 403 auth.forbidden
-    else authorized
-        AZ-->>AM: allowed
-        AM->>GA: findByIds(householdId, goalIds)
-        GA-->>AM: the named Goals
-        AM->>GA: listAllocations({holdingId})
-        GA-->>AM: the Holding's current split
-        alt a Goal isn't visible to the actor (another member's personal one)
-            AM-->>API: NotFound
-            API-->>User: 404 goal.not_found
-        else a completed Goal's share is grown or added (FR-8.9)
-            AM-->>API: Conflict
-            API-->>User: 409 goal.completed
-        else
-            AM->>GA: replaceAllocations(householdId, holdingId, allocations)
-            alt total would exceed 100%
-                GA-->>AM: rejected (FR-8.3)
-                AM-->>API: Conflict
-                API-->>User: 409 goal.allocation_exceeds_100 {current, requested}
-            else within budget
-                GA-->>AM: replaced
-                AM-->>LOG: logActivity(correlationId, actor, "EditHoldingAllocations")
-                AM-->>LOG: recordAudit(actor, "InvestmentHolding", holdingId)
-                AM-->>API: updated
-                API-->>User: 200 OK
+    Note over API: contract check first: each percentage 1..100 &rarr; 422
+    API->>AM: editHolding(context, householdId, holdingId, allocations)
+    AM->>IHA: findById(householdId, holdingId)
+    IHA-->>AM: holding (or none)
+    AM->>AA: findById(householdId, holding.accountId)
+    AA-->>AM: its Account
+    AM->>AU: authorize(actor, householdId, {data.edit, account.visibility, account.ownerUserId})
+    alt not a member
+        AM-->>API: 404 household.not_found
+    else missing, or in someone else&#39;s personal Account
+        AM-->>API: 404 holding.not_found
+    else role may not edit (a Member may on a shared Account they created)
+        AM-->>API: 403 auth.forbidden
+    else allowed
+        alt Holding archived
+            AM-->>API: 409 holding.archived
+        else open
+            AM->>GA: listAllocations({holdingId})
+            GA-->>AM: the split now
+            AM->>GA: findByIds(householdId, goals now + goals named)
+            GA-->>AM: the Goals &mdash; those the caller can see are the visible ones
+            AM->>VU: distinctItems(allocations, goalId)
+            alt a Goal named twice
+                AM-->>API: 422 validation.failed {allocations[i].goalId: array.duplicate}
+            else a named Goal isn&#39;t visible (someone else&#39;s personal one, another household&#39;s)
+                AM-->>API: 404 goal.not_found
+            else a completed Goal&#39;s share grown or added (FR-8.9)
+                AM-->>API: 409 goal.completed
+            else
+                AM->>GA: replaceAllocations(householdId, holdingId, hidden shares + the new split)
+                alt total would exceed 100%
+                    GA-->>AM: allocation_exceeds_100 {current, requested}
+                    AM-->>API: 409 goal.allocation_exceeds_100 {current, requested}
+                else Holding or Goal gone meanwhile
+                    GA-->>AM: holding_not_found / goal_not_found
+                    AM-->>API: 404 holding.not_found / goal.not_found
+                else replaced
+                    GA-->>AM: ok
+                    AM-->>LOG: audit EditHoldingAllocations
+                    API-->>User: 200 OK {data: the split as written}
+                end
             end
         end
     end
@@ -105,9 +125,11 @@ sequenceDiagram
   <div class="notes">
     <ul>
       <li><strong>Direction of control (OQ-48):</strong> allocations are written from the Holding, never from the Goal.</li>
-      <li>Replace-all semantics: the request carries the full allocation list, so the &le; 100% check is a single comparison in <code>GoalAccessor</code>, made under the Holding's row lock.</li>
-      <li><strong>Business rules are the Manager's (OQ-168):</strong> a Goal the actor can't see is &ldquo;not found&rdquo;, never revealed; a completed Goal's share may stay unchanged or be removed, never grow or be added. A shared Holding may fund a personal Goal.</li>
-      <li>See FR-8.2, FR-8.3, OQ-48, OQ-56.</li>
+      <li><strong>Replace-all over what the caller can see (OQ-178):</strong> a shared Holding may fund someone else&#39;s personal Goal; the editor never sees that share, so the Manager carries it over unchanged and it still counts toward the 100% &mdash; the 409&#39;s totals include it without naming it.</li>
+      <li>The &le; 100% check is a single comparison in <code>GoalAccessor</code>, made under the Holding&#39;s row lock.</li>
+      <li><strong>Business rules are the Manager&#39;s (OQ-168):</strong> a Goal the actor can&#39;t see is &ldquo;not found&rdquo;, never revealed; a completed Goal&#39;s share may stay unchanged or be removed, never grow or be added.</li>
+      <li><strong>Access (OQ-178):</strong> a Holding takes its Account&#39;s visibility and owner; an archived Holding is closed to edits.</li>
+      <li>See FR-8.2, FR-8.3, OQ-48, OQ-168, OQ-178.</li>
     </ul>
   </div>
   <script>

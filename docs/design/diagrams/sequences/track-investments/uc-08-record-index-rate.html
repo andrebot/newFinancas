@@ -62,44 +62,39 @@ sequenceDiagram
     actor User
     participant API as Hono route
     participant AM as AccountManager
-    participant AZ as AuthorizationUtility
+    participant AU as AuthorizationUtility
     participant VU as ValidationUtility
     participant IRA as IndexRateAccessor
     participant LOG as LoggingUtility
 
     User->>API: POST /households/:householdId/index-rates/:index/values {value, asOf}
-    API->>AM: recordIndexRate(actor, index, input)
-    AM->>AZ: canWrite(actor, householdId)?
-    alt not authorized
-        AZ-->>AM: denied
-        AM-->>API: Forbidden
-        API-->>User: 403 auth.forbidden
-    else authorized
-        AZ-->>AM: allowed
-        AM->>VU: check(input)
-        alt unknown index, value out of range or future date
-            VU-->>AM: rejected
-            AM-->>API: ValidationError
-            API-->>User: 422 index_rate.invalid
-        else valid
-            AM->>IRA: insert(householdId, {index, value, asOf}, actor)
-        alt duplicate_day
-            IRA-->>AM: duplicate_day
-            AM-->>API: Conflict
-            API-->>User: 409 index_rate.duplicate_day
-        else done
-            IRA-->>AM: done
-            AM-->>LOG: logActivity(correlationId, actor, "RecordIndexRate")
-            AM-->>LOG: recordAudit(actor, "IndexRate", valueId)
-            AM-->>API: done
-            API-->>User: 201 Created {valueId}
-        end
+    Note over API: contract check first: index is selic / cdi / ipca / igpm, value an integer, asOf a date
+    API->>AM: recordIndexRate(context, householdId, index, input)
+    AM->>AU: authorize(actor, householdId, {data.create, shared, ownerUserId: actor})
+    alt not a member
+        AM-->>API: 404 household.not_found
+    else a Viewer
+        AM-->>API: 403 auth.forbidden
+    else allowed
+        AM->>VU: checkFields({asOf: dateWithin(max: today)})
+        alt asOf after today
+            AM-->>API: 422 validation.failed {asOf: date.max}
+        else
+            AM->>IRA: insert(householdId, {indexCode, value, asOfDate}, actor)
+            alt duplicate_day
+                IRA-->>AM: duplicate_day
+                AM-->>API: 409 index_rate.duplicate_day
+            else done
+                IRA-->>AM: done
+                AM-->>LOG: audit RecordIndexRate
+                API-->>User: 201 Created {value}
+            end
         end
     end
     </pre>
   </div>
   <div class="notes">
-<ul><li>Household-scoped reference data, written by <code>AccountManager</code>. <code>InvestmentProductEngine.project</code> reads the latest value on demand, so no projection is stored or recomputed here.</li><li>See FR-11.6, OQ-59.</li></ul>
+<ul><li>Household-scoped reference data, written by <code>AccountManager</code>. <code>InvestmentProductEngine.project</code> reads the latest value on demand, so no projection is stored or recomputed here.</li><li><strong>As built (OQ-178):</strong> shared data whose recorder counts as its creator &mdash; any member but a Viewer records; Owner/Admin, or the Member who recorded it, corrects or deletes. A date after today is <code>date.max</code> on <code>asOf</code> (it was drawn as <code>index_rate.invalid</code>).</li><li>See FR-11.6, OQ-59, OQ-172, OQ-178.</li></ul>
   </div>
   <script>
     mermaid.initialize({

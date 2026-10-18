@@ -50,7 +50,7 @@
 </head>
 <body>
   <h1>Call Chain — Notify Matured Holding</h1>
-  <p class="subtitle">Use case 11 of 12 in the Track Investments &amp; Net Worth set (CUC-6), FR-5.8, FR-6.5. System-Trigger + subscriber. Updated by the NotificationEngine rework (OQ-113).</p>
+  <p class="subtitle">Use case 11 of 12 in the Track Investments &amp; Net Worth set (CUC-6, FR-5.8, FR-6.5). System-Trigger + subscriber. As built in M2 part 5 (OQ-178).</p>
 
   <div class="architecture">
     <svg id="arrows-svg"></svg>
@@ -135,7 +135,7 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain:</strong> <code>investmentsDaily</code> → ① <code>InvestmentHoldingAccessor.findMaturedWithPosition(today)</code> → <code>ServiceBusUtility.publish("holding.matured")</code> (async) → ② <code>AccountManager</code> subscribes → ③ a shared Account's recipients: <code>HouseholdAccessor.listMembers</code> (a personal one's is its owner, OQ-171) → ④ <code>NotificationEngine.notify("holding.matured", {userId})</code> per recipient (sync — the Manager needs the outcome) → ⑤ in-app: <code>NotificationInboxAccessor.insert</code> → ⑥ <code>InvestmentHoldingAccessor.markMaturedNotified</code> only after every recipient was notified → ⑦ <code>LoggingUtility</code> (async).</p>
+    <p><strong>Chain:</strong> <code>investmentsDaily</code> → ① <code>InvestmentHoldingAccessor.findMaturedWithPosition(today)</code> → <code>ServiceBusUtility.publish("holding.matured")</code> (async) → ② <code>AccountManager.notifyMaturedHolding</code> subscribes → ③ a shared Account&#39;s recipients: <code>HouseholdAccessor.listMembers</code> (a personal one&#39;s is its owner, OQ-171) → ④ <code>NotificationEngine.notify("holding.matured", {userId}, {holdingId, assetType, ticker, dueDate})</code> per recipient, all settled (sync — the Manager needs every outcome) → ⑤ in-app: <code>NotificationInboxAccessor.insert</code> → ⑥ <code>InvestmentHoldingAccessor.markMaturedNotified</code> only after every recipient was notified → ⑦ <code>LoggingUtility</code> (async).</p>
     <p>Same trigger shape as the scheduled cash events (§3.2a). <code>NotificationInboxAccessor</code> has two callers: the Engine writes, <code>InsightsManager</code> reads (View/Delete Notification) — a shared Accessor, not an Accessor→Accessor call.</p>
   </div>
 

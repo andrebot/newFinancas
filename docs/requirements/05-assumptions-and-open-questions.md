@@ -4507,6 +4507,95 @@ not a hardcoded assumption.
   `AccountStores` for part 5's Edit Holding, which writes allocations
   with the Holding.
 
+### OQ-178: AccountManager part 5 — investment administration (task M2)
+**Confirmed with the stakeholder (Oct 2026):**
+- **A Holding takes its Account's access.** A Holding has no owner or
+  visibility of its own, so every use case on one reads the Holding, then
+  its Account, and decides on the Account's (OQ-111): personal, the
+  owner's alone; shared, the permission table plus the Member who created
+  the Account. Allocation and market-value writes are `data.edit`,
+  archiving is `data.delete` (like archiving an Account), reads are
+  `data.view`. A missing Holding, or one in someone else's personal
+  Account, is 404 `holding.not_found` (new code). An archived Holding takes
+  no allocation or market-value change: 409 `holding.archived` (new code),
+  like `account.archived` (OQ-175).
+- **Hidden shares are carried over.** A shared Holding may fund another
+  member's personal Goal (OQ-168), which the editor can't see and so can't
+  name in a replace-all edit. The edit replaces only the split over the
+  Goals the caller can see; the hidden shares are kept as they are and
+  still count toward the 100% — the 409 `goal.allocation_exceeds_100`
+  totals include them without naming them. Weighed and rejected: dropping
+  them (the other member silently loses their allocation) and refusing the
+  edit while any exist.
+- **The split has its own read.** `InvestmentHolding` carries no
+  allocations, and `AccountManager` never calls `InvestmentProductEngine`,
+  so it can't answer an `InvestmentHolding` (with `expectedPayout`). New
+  `GET …/holdings/{holdingId}/allocations` (`listHoldingAllocations`)
+  answers `{data: [{goalId, percentage}]}` — the visible shares, oldest
+  first — and `PATCH …/holdings/{holdingId}` answers the same shape, the
+  split as written (schemas `HoldingAllocation`, `HoldingAllocations`).
+  Weighed and rejected: `allocations` on the `InvestmentHolding` read
+  (`InsightsManager`) with a 204 PATCH. `GET …/accounts/{id}/holdings` and
+  `GET …/holdings/{id}` stay `InsightsManager`'s (M4).
+- **Edit Holding's rules:** a Goal named twice is 422 `array.duplicate` on
+  `allocations[i].goalId` (a new field code, `ValidationUtility.distinctItems`
+  — OQ-168 left it to ValidationUtility); a named Goal the caller can't see,
+  or another household's, is 404 `goal.not_found`; a completed Goal's share
+  grown or added is 409 `goal.completed` (new code, both locales — FR-8.9,
+  OQ-168). `GoalAccessor`'s own refusals map to 404 `holding.not_found` /
+  `goal.not_found` and 409 `goal.allocation_exceeds_100`. The catalogue's
+  100% message described the old additive check; it now reads "these
+  allocations add up to {requested}%".
+- **Only a matured Holding is archived by hand** (FR-5.8): fixed-term, still
+  holding a position, past its due date — the redemption entry's date, the
+  rule `findMaturedWithPosition` uses. Any other is 409
+  `holding.not_matured` (new code); a zeroed Holding archives itself in
+  Record Transaction. An archived Holding is a 204 that writes and audits
+  nothing. Weighed and rejected: archiving any open Holding.
+- **Index rates are shared data whose recorder is their creator:** any
+  member but a Viewer records a value; Owner/Admin, or the Member who
+  recorded it, corrects or deletes it. `IndexRateAccessor.findById` is new
+  (the check needs the recorder before the write). Weighed and rejected:
+  the Categories' rule (OQ-174), where a Member can't change what they
+  entered. `IndexRateValue` gains `createdByUserId`.
+- **Dates after today are refused on the field.** A market value's or an
+  index value's `asOf` after today is 422 `validation.failed` with
+  `date.max` on `asOf` (`ValidationUtility.dateWithin`, OQ-165) — not the
+  `index_rate.invalid` OQ-172 and the old diagrams named. A market value
+  is zero or more (`NonNegativeMoney`, a new contract schema); an index
+  value may be negative (IPCA deflation).
+- **Market values:** a fixed-term Holding is 409
+  `holding.not_market_priced` (OQ-51); another Holding's snapshot is 404
+  `snapshot.not_found` (new code) and an automatic one 409
+  `snapshot.automatic_not_editable` (OQ-56). An empty edit reads the
+  snapshot back, answered as a write would, unaudited.
+- **`GET …/index-rates` answers `{data: IndexRateSeries[]}`** (was a bare
+  array): every index in `INDEX_CODES` order, one with no value with an
+  empty list, each value newest first. The unit enum became
+  `annual_percent` / `trailing_12m_percent`, the in-code names; `IndexCode`
+  and `IndexRateUnit` are named schemas kept equal to `INDEX_CODES` by a
+  test (as OQ-174/175 did). The path parameter component is now `Index`.
+- **`holding.matured` carries the Holding, not a recipient list.** The bus
+  payload (a draft until now) is `findMaturedWithPosition`'s row; the
+  recipients are AccountManager's (OQ-171): a personal Account's owner
+  (none if gone — the Holding is then marked), every member of a shared
+  one. Every delivery is awaited (all settled); the Holding is marked
+  notified only when all succeeded, else a warning is logged and
+  tomorrow's run tries again (re-telling those already told — accepted).
+  The publisher is `N9`.
+- **The notice's params are `{holdingId, assetType, ticker, dueDate}`,**
+  not `holdingName`: a Holding has no name, and a label is the reader's
+  language's to build (OQ-82). The catalogues render "Your CDB matured on
+  … Archive it?" from `assetType`.
+- **Reads served here:** a Holding's value history (`StartDate`/`EndDate`,
+  newest first), its schedule (posted or not, now with `createdAt`) and
+  its visible split; the Rates tab. **Audit:** `EditHoldingAllocations`,
+  `ArchiveHolding` (entity `InvestmentHolding`), `RecordMarketValue`,
+  `EditMarketValue`, `DeleteMarketValue` (`ValuationSnapshot`),
+  `RecordIndexRate`, `EditIndexRate`, `DeleteIndexRate` (`IndexRate`).
+  Each write is one Accessor call, so no `UnitOfWorkUtility`; the new
+  Accessors join `AccountDeps`, not `AccountStores`.
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.
