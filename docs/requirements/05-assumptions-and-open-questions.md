@@ -4596,6 +4596,39 @@ not a hardcoded assumption.
   Each write is one Accessor call, so no `UnitOfWorkUtility`; the new
   Accessors join `AccountDeps`, not `AccountStores`.
 
+### OQ-179: FormattingUtility (task FU6)
+**Confirmed with the stakeholder (Oct 2026):**
+- **Money is written in its own currency's conventions**, whatever the
+  interface language (NFR-I18N-2): BRL as pt-BR (`R$ 1.234,56`), USD as
+  en-US (`$1,234.56`), even for an en-US user. The mockups' `R$85,000.00`
+  is representative only. The currency → locale map is
+  `formatting.currencyLocale` in `config/constants.ts`.
+- **Money always shows its cents** — no whole-units option; the mockups'
+  `R$150,000` goal targets read `R$ 150.000,00`.
+- **Signs:** a negative number takes the true minus sign `−` (U+2212), as
+  the design draws it; `{ sign: 'always' }` adds `+` to a positive amount
+  (income), never to zero.
+- **Rates (percent × 10,000, OQ-86) always show two decimals**, rounded:
+  `10.50%` / `10,50%`. Whole percents (OQ-87) show none. Both, dates and
+  lists follow the interface language.
+- **Dates** (`YYYY-MM-DD`) are read as a day, not an instant, so no time
+  zone moves them. The named styles are in `formatting.dateStyles`:
+  `numeric` (default), `dayMonth`, `monthYear`, `weekdayDayMonth`. A
+  value that isn't a date is shown as it came.
+- **Lists** join with the locale's conjunction (`A, B e C`) via
+  `Intl.ListFormat` — available now for screens that waited on it
+  (OQ-151).
+- **Shape:** pure functions in `utilities/formatting.ts` (`formatMoney`,
+  `formatRate`, `formatPercent`, `formatDate`, `formatList`) with `Intl`
+  formatters cached per locale and options; `createFormatter(locale)`
+  binds them, and `useFormatter()` gives the current locale's set.
+- **`fullName` and `describeUserAgent` stay where they are**
+  (`personName.ts`, `userAgent.ts`); they already count as
+  FormattingUtility's family (OQ-154, OQ-163). Moving them would only
+  churn imports.
+
+**Task 77 (`FU6`) is complete.**
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.

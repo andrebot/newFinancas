@@ -39,6 +39,25 @@ export const i18n = {
   storageKey: 'financas.locale',
 } as const;
 
+/** Money, rates, percents, dates and lists (FU6 FormattingUtility, NFR-I18N-2, OQ-179). */
+export const formatting = {
+  /** Money follows its own currency's conventions, whatever the interface language. */
+  currencyLocale: { BRL: 'pt-BR', USD: 'en-US' },
+  /** The decimals a rate shows: 10.50% (OQ-179). */
+  rateFractionDigits: 2,
+  /** The ways a calendar date is written on screen. */
+  dateStyles: {
+    /** 30/09/2026 · 09/30/2026 — tables, due dates, forms. */
+    numeric: { day: '2-digit', month: '2-digit', year: 'numeric' },
+    /** 7 de set. · Sep 7 — ledger rows. */
+    dayMonth: { day: 'numeric', month: 'short' },
+    /** setembro de 2026 · September 2026 — month headers. */
+    monthYear: { month: 'long', year: 'numeric' },
+    /** seg., 7 de set. · Mon, Sep 7 — ledger day headers. */
+    weekdayDayMonth: { weekday: 'short', day: 'numeric', month: 'short' },
+  },
+} as const;
+
 /** The backend API client (FU7, OQ-124). */
 export const api = {
   /** Same origin everywhere; in development Vite proxies it to the API. */

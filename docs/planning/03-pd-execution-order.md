@@ -120,7 +120,7 @@ identity screens, the rest as later slices use them.
 - [x] **74.** `A14` IndexRateAccessor (OQ-172: one value per index per day, refused on record and on a date edit; no future dates, so the latest is the highest date; the Rates tab's list is AccountManager's)
 - [x] **75.** `A9` CategoryAccessor (OQ-173: one atomic edit incl. Subcategories; icon/colour refused outside the in-code sets; defaults seeded once per household; names not unique)
 - [x] **76.** `M2` AccountManager (built in five parts, PRs #85–#89 — OQ-174..178: household data under `/households/{householdId}`; Accounts+cards and Budget edits in one transaction; Goal progress is InsightsManager's; a Holding takes its Account's access, hidden Goal shares are carried over, only a matured Holding is archived by hand)
-- [ ] **77.** `FU6` FormattingUtility
+- [x] **77.** `FU6` FormattingUtility
 - [ ] **78.** `K15` Switch
 - [ ] **79.** `K33` Progress bar
 - [ ] **80.** `K42` Expandable row / accordion
