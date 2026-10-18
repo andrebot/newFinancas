@@ -4629,6 +4629,31 @@ not a hardcoded assumption.
 
 **Task 77 (`FU6`) is complete.**
 
+### OQ-180: Switch (task K15)
+**Confirmed with the stakeholder (Oct 2026):**
+- **Visibility is not a switch.** The activity list named Account
+  visibility as a Switch user, but the approved Accounts mockup (40)
+  draws it as a two-choice pick (Personal / Shared with household). The
+  mockup wins. The Switch's first user is the debenture's
+  "incentivised" flag on Record Transaction (FR-11.1).
+- **One `<Switch>`, controlled only.** It takes `checked`, `onChange`
+  (which gets the new boolean), a translated `label`, an optional
+  `description` and `disabled`. No error state: an on/off setting has no
+  invalid value.
+- **Same mechanism as K16 (OQ-130).** A visually hidden native checkbox
+  with `role="switch"` sits inside its label, so the browser handles
+  Space, focus and the on/off state. `has-checked` draws the "on" look.
+  The input is named by the label only (`aria-labelledby`).
+- **Label left, switch right.** The row spans its container and pins the
+  switch to the end, the settings-row convention. The description sits
+  under the label in `type-caption text-muted`.
+- **Look, from the mockups' `.switch` CSS.** A 40×24 pill in `line` with
+  an 18px `muted` thumb, 3px in. On, the track turns `mint` and the thumb
+  slides 16px to the end and turns `onmint`. The shared `FOCUS_RING` goes
+  around the track. Disabled drops the row to half opacity.
+
+**Task 78 (`K15`) is complete.**
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.
