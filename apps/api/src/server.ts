@@ -7,8 +7,10 @@ import { createLogger, logger, resolveLogDir } from '@financas/logging';
 import { serve } from '@hono/node-server';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
+import createAccountAccessor from './accessors/accountAccessor';
 import createAuditLogAccessor from './accessors/auditLogAccessor';
 import createCategoryAccessor from './accessors/categoryAccessor';
+import createCreditCardAccessor from './accessors/creditCardAccessor';
 import createEmailAccessor from './accessors/emailAccessor';
 import createHouseholdAccessor from './accessors/householdAccessor';
 import createInvitationAccessor from './accessors/invitationAccessor';
@@ -19,7 +21,10 @@ import createApp from './app';
 import { logging } from './config/constants';
 import loadEnv from './config/env';
 import { createNotificationEngine } from './engines/notification';
-import { createAccountManager, subscribeAccountManager } from './managers/account';
+import type { Database } from './db/database';
+import {
+  createAccountManager, subscribeAccountManager, type AccountStores,
+} from './managers/account';
 import { createIdentityManager } from './managers/identity';
 import { createAuthenticationUtility } from './utilities/authentication';
 import { createAuthorizationUtility } from './utilities/authorization';
@@ -27,6 +32,7 @@ import { createServiceBus } from './utilities/serviceBus';
 import { newCorrelationId } from './utilities/correlationId';
 import { createAuditSink } from './utilities/logging/auditSink';
 import { logFileLister, reconcileAudit } from './utilities/logging/reconcile';
+import createUnitOfWork from './utilities/unitOfWork';
 
 const env = loadEnv(process.env);
 const pool = new pg.Pool({ connectionString: env.databaseUrl });
@@ -76,7 +82,23 @@ const identity = createIdentityManager({
   now: () => new Date(),
 });
 
-const account = createAccountManager({ categories: createCategoryAccessor(db), authorization });
+/**
+ * AccountManager's Accessors over a database or one transaction (OQ-175).
+ *
+ * @param over - The database, or a transaction.
+ * @returns The Accessors.
+ */
+const accountStoresOver = (over: Database): AccountStores => ({
+  categories: createCategoryAccessor(over),
+  accounts: createAccountAccessor(over),
+  creditCards: createCreditCardAccessor(over),
+});
+const account = createAccountManager({
+  ...accountStoresOver(db),
+  authorization,
+  inTransaction: createUnitOfWork(db, accountStoresOver),
+  now: () => new Date(),
+});
 subscribeAccountManager(bus, account);
 
 serve({

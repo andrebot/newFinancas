@@ -50,7 +50,7 @@
 </head>
 <body>
   <h1>Call Chain — Archive Financial Account</h1>
-  <p class="subtitle">Use case 3 of 3 in the Manage Financial Accounts set (CUC-3, FR-2.4). Lifecycle Transition (Account → archived), cascades Open Banking disconnect.</p>
+  <p class="subtitle">Use case 3 of 3 in the Manage Financial Accounts set (CUC-3, FR-2.4). Lifecycle Transition (Account → archived), cascades Open Banking disconnect. As built in M2 part 2 (OQ-175).</p>
 
   <div class="architecture">
     <svg id="arrows-svg"></svg>
@@ -135,8 +135,8 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain:</strong> <code>AccountManager</code> ① <code>AccountAccessor.transitionStatus(accountId, "archived")</code> (sync) → ② <code>OpenBankingConnectionAccessor.transitionStatus(connId, "disconnected")</code> (sync, only if linked — parked component, dimmed elsewhere) → ③ <code>LoggingUtility</code> (async).</p>
-    <p><strong>No smell:</strong> the cascade correctly reaches into a parked Accessor rather than being silently dropped — the interface contract stands even though the Open Banking CUC itself is deferred.</p>
+    <p><strong>Chain:</strong> <code>AccountManager</code> ① <code>AccountAccessor.findById / archive(...)</code> (sync) → ② <code>AuthorizationUtility.authorize(data.delete)</code> (sync, between the read and the write) → ③ <code>OpenBankingConnectionAccessor.disconnect(...)</code> (sync, only if linked — parked component) → ④ <code>LoggingUtility</code> (async).</p>
+    <p><strong>Corrected (OQ-175):</strong> archiving is a data.delete on the Account, so it is authorized like any write; an already archived Account is left as it is.</p>
   </div>
 
   <script>
@@ -149,7 +149,7 @@
       svg.style.width = containerRect.width + 'px';
       svg.style.height = containerRect.height + 'px';
 
-      var edges = [{"from": "mgr-account", "to": "acc-account", "type": "sync", "order": 1}, {"from": "mgr-account", "to": "acc-obconn", "type": "sync", "order": 2}, {"from": "mgr-account", "to": "util-logging", "type": "async", "order": 3}];
+      var edges = [{"from": "mgr-account", "to": "acc-account", "type": "sync", "order": 1}, {"from": "mgr-account", "to": "util-authz", "type": "sync", "order": 2}, {"from": "mgr-account", "to": "acc-obconn", "type": "sync", "order": 3}, {"from": "mgr-account", "to": "util-logging", "type": "async", "order": 4}];
 
       var activeIds = {};
       edges.forEach(function (e) { activeIds[e.from] = true; activeIds[e.to] = true; });

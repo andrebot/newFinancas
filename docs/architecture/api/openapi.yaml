@@ -808,13 +808,15 @@ paths:
     get:
       tags: [Accounts]
       operationId: listAccounts
-      summary: List financial accounts visible to the current user
+      summary: List the financial accounts visible to the current user
+      description: >
+        FR-2.3/FR-2.4. Every shared Account and the caller's own personal
+        ones, open ones first, each with its current balance and its
+        Credit Cards (OQ-175). Not paginated: a household has a handful.
       parameters:
         - name: visibility
           in: query
           schema: { type: string, enum: [personal, shared] }
-        - $ref: "#/components/parameters/Limit"
-        - $ref: "#/components/parameters/Offset"
       responses:
         "200":
           description: OK
@@ -826,15 +828,20 @@ paths:
                   data:
                     type: array
                     items: { $ref: "#/components/schemas/Account" }
-                  pagination: { $ref: "#/components/schemas/Pagination" }
+        "404": { $ref: "#/components/responses/NotFound" }
     post:
       tags: [Accounts]
       operationId: createAccount
       summary: Create a financial account
       description: >
         FR-2.1. `type` and `currency` are immutable once set (OQ-32) —
-        there is no edit path for either, ever. Cards may optionally be
-        attached inline. See
+        there is no edit path for either, ever. The opening balance is
+        the balance today (OQ-169). Cards may be attached inline, only
+        to a checking, savings or credit card only Account (FR-2.7,
+        422 `account.cards_not_allowed`); the Account and its cards are
+        written together or not at all (OQ-175). Any member may create
+        a personal Account; a shared one needs a role that may create
+        (FR-1.7). See
         docs/design/diagrams/sequences/financial-accounts/uc-01-create-account.html.
       requestBody:
         required: true
@@ -847,6 +854,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Account" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "422": { $ref: "#/components/responses/ValidationError" }
 
   /households/{householdId}/accounts/{accountId}:
@@ -857,6 +866,9 @@ paths:
       tags: [Accounts]
       operationId: getAccount
       summary: Get a financial account
+      description: >
+        Someone else's personal Account is 404 `account.not_found`, so
+        its existence isn't revealed.
       responses:
         "200":
           description: OK
@@ -871,9 +883,13 @@ paths:
       description: >
         FR-2.9/OQ-35. Attaching, editing, and removing this account's
         Credit Cards is folded into this same request, not separate
-        endpoints. `type`/`currency` changes are rejected (OQ-32); a
+        endpoints, and the whole edit is written together or not at all
+        (OQ-175). There is no field for `type`/`currency` (OQ-32). A
         card can only attach to a checking/savings/credit_card_only
-        account (FR-2.7). See
+        account (FR-2.7, 422 `account.cards_not_allowed`); a card id not
+        on this Account is 404 `credit_card.not_found`. Only the
+        Account's creator may change its visibility (FR-2.3, 403). An
+        archived Account can't be edited (409 `account.archived`). See
         docs/design/diagrams/sequences/financial-accounts/uc-02-edit-account.html.
       requestBody:
         required: true
@@ -886,6 +902,9 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Account" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
         "422": { $ref: "#/components/responses/ValidationError" }
 
   /households/{householdId}/accounts/{accountId}/archive:
@@ -897,31 +916,14 @@ paths:
       operationId: archiveAccount
       summary: Archive a financial account
       description: >
-        FR-2.4/OQ-34. One-way, no unarchive path. Auto-disconnects Open
-        Banking sync if linked (OQ-36) — currently unreachable since
-        that trigger is parked.
+        FR-2.4/OQ-34. One-way, no unarchive path; archiving it again
+        keeps the first time. Auto-disconnects Open Banking sync if
+        linked (OQ-36) — currently unreachable since that trigger is
+        parked.
       responses:
         "204": { description: No Content }
-
-  /households/{householdId}/accounts/{accountId}/credit-cards:
-    parameters:
-      - $ref: "#/components/parameters/HouseholdId"
-      - $ref: "#/components/parameters/AccountId"
-    get:
-      tags: [Accounts]
-      operationId: listCreditCards
-      summary: List credit cards attached to an account
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data:
-                    type: array
-                    items: { $ref: "#/components/schemas/CreditCard" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
   /households/{householdId}/accounts/{accountId}/balances:
     parameters:
@@ -932,12 +934,12 @@ paths:
       operationId: getAccountBalances
       summary: Get an account's balance history by month
       description: >
-        FR-5.4/FR-6.6. Backed by account_month_balances — "current
-        balance" is simply the row for today's (year, month). No new
-        stored data beyond what Record Transaction already maintains.
+        FR-5.4/FR-6.6. Backed by account_month_balances, oldest month
+        first — the chain has no gaps (OQ-169). An open end reaches the
+        chain's end.
       parameters:
-        - $ref: "#/components/parameters/StartDate"
-        - $ref: "#/components/parameters/EndDate"
+        - $ref: "#/components/parameters/FromMonth"
+        - $ref: "#/components/parameters/ToMonth"
       responses:
         "200":
           description: OK
@@ -949,6 +951,7 @@ paths:
                   data:
                     type: array
                     items: { $ref: "#/components/schemas/AccountMonthBalance" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
   /households/{householdId}/credit-cards/{creditCardId}/balances:
     parameters:
@@ -957,10 +960,14 @@ paths:
     get:
       tags: [Accounts]
       operationId: getCreditCardBalances
-      summary: Get a credit card's outstanding-balance history by month
+      summary: Get a credit card's outstanding-balance history by billing cycle
+      description: >
+        FR-2.10. One row per billing cycle, named by the month it closes
+        in (OQ-170), oldest first. A card on someone else's personal
+        Account is 404 `credit_card.not_found`.
       parameters:
-        - $ref: "#/components/parameters/StartDate"
-        - $ref: "#/components/parameters/EndDate"
+        - $ref: "#/components/parameters/FromMonth"
+        - $ref: "#/components/parameters/ToMonth"
       responses:
         "200":
           description: OK
@@ -972,6 +979,7 @@ paths:
                   data:
                     type: array
                     items: { $ref: "#/components/schemas/CreditCardMonthBalance" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
   # =========================================================== CATEGORIES
   /households/{householdId}/categories:
@@ -2217,6 +2225,16 @@ components:
       in: query
       description: Inclusive, ISO 8601 date (YYYY-MM-DD).
       schema: { type: string, format: date }
+    FromMonth:
+      name: from
+      in: query
+      description: First month, inclusive (YYYY-MM); left out, the history's first.
+      schema: { type: string, pattern: "^[0-9]{4}-(0[1-9]|1[0-2])$" }
+    ToMonth:
+      name: to
+      in: query
+      description: Last month, inclusive (YYYY-MM); left out, the history's last.
+      schema: { type: string, pattern: "^[0-9]{4}-(0[1-9]|1[0-2])$" }
     Cursor:
       name: cursor
       in: query
@@ -2293,17 +2311,17 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
     NotFound:
-      description: 'Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `invitation.invitee_not_registered`.'
+      description: 'Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `invitation.invitee_not_registered`.'
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
     Conflict:
-      description: "The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107)."
+      description: "The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107)."
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
     ValidationError:
-      description: 'Request body failed validation. Codes: `validation.failed` with `details[]`, or specific codes such as `password.too_short`, `transaction.investment_not_allowed_on_account`.'
+      description: 'Request body failed validation. Codes: `validation.failed` with `details[]`, or specific codes such as `password.too_short`, `transaction.investment_not_allowed_on_account`, `account.cards_not_allowed` (FR-2.7).'
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
@@ -2526,6 +2544,7 @@ components:
     # ---------------------------------------------------- accounts
     Account:
       type: object
+      required: [id, householdId, ownerUserId, name, type, currency, visibility, startingBalanceDate, archivedAt, createdAt, currentBalance, cards]
       properties:
         id: { type: string, format: uuid }
         householdId: { type: string, format: uuid }
@@ -2537,6 +2556,11 @@ components:
         startingBalanceDate: { type: string, format: date, description: "The day the starting balance was true — the creation day. Earlier transactions only rebuild history (OQ-169)" }
         archivedAt: { type: [string, "null"], format: date-time, description: "One-way, FR-2.4/OQ-34" }
         createdAt: { type: string, format: date-time }
+        currentBalance: { $ref: "#/components/schemas/Money", description: "The balance as of today's month — the stored month row, not a computation (OQ-175)" }
+        cards:
+          type: array
+          description: The Account's Credit Cards, in the order attached (OQ-175)
+          items: { $ref: "#/components/schemas/CreditCard" }
 
     AccountCreateRequest:
       type: object
@@ -2546,47 +2570,89 @@ components:
         type: { type: string, enum: [checking, savings, credit_card_only, investment] }
         currency: { $ref: "#/components/schemas/Currency" }
         visibility: { type: string, enum: [personal, shared] }
-        openingBalance: { $ref: "#/components/schemas/Money" }
+        openingBalance: { $ref: "#/components/schemas/Money", description: "Today's balance (OQ-169); 0 when left out" }
         cards:
           type: array
-          items: { $ref: "#/components/schemas/CreditCardInput" }
+          items: { $ref: "#/components/schemas/CreditCardNew" }
 
     AccountUpdateRequest:
       type: object
       properties:
         name: { type: string }
         visibility: { type: string, enum: [personal, shared] }
-        cards:
-          type: array
-          items: { $ref: "#/components/schemas/CreditCardInput" }
+        cards: { $ref: "#/components/schemas/CreditCardChanges" }
 
     CreditCard:
       type: object
+      required: [id, accountId, network, last4, closingDay, dueDay, expirationMonth, expirationYear, createdAt, outstandingBalance]
       properties:
         id: { type: string, format: uuid }
         accountId: { type: string, format: uuid }
-        network: { type: string, description: "Reference data (Visa, Mastercard, Elo, Amex, other, ...) — extensible, not a hardcoded enum" }
+        network: { $ref: "#/components/schemas/CardNetwork" }
         last4: { type: string }
         closingDay: { type: integer, minimum: 1, maximum: 31 }
         dueDay: { type: integer, minimum: 1, maximum: 31 }
         expirationMonth: { type: integer, minimum: 1, maximum: 12 }
         expirationYear: { type: integer }
         createdAt: { type: string, format: date-time }
+        outstandingBalance: { $ref: "#/components/schemas/Money", description: "Owed now: the current billing cycle's ending balance (FR-2.10, OQ-175)" }
 
-    CreditCardInput:
+    CardNetwork:
+      type: string
+      description: >
+        Card network ("flag", FR-2.8) — mirrors `CARD_NETWORKS` in
+        `@financas/reference`, the extensible reference list; a test keeps
+        the two equal (OQ-175).
+      enum: [visa, mastercard, amex, elo, hipercard, diners, discover, jcb, unionpay, other]
+
+    CreditCardNew:
       type: object
+      description: A card to attach. Only its last 4 digits are ever stored (NFR-SEC-7).
+      required: [network, last4, closingDay, dueDay, expirationMonth, expirationYear]
       properties:
-        id: { type: string, format: uuid, description: "Omit to attach a new card" }
-        network: { type: string }
-        last4: { type: string }
-        closingDay: { type: integer }
-        dueDay: { type: integer }
-        expirationMonth: { type: integer }
-        expirationYear: { type: integer }
-        _remove: { type: boolean, description: "Set true with an existing id to remove this card" }
+        network: { $ref: "#/components/schemas/CardNetwork" }
+        last4: { type: string, pattern: "^[0-9]{4}$" }
+        closingDay: { type: integer, minimum: 1, maximum: 31 }
+        dueDay: { type: integer, minimum: 1, maximum: 31 }
+        expirationMonth: { type: integer, minimum: 1, maximum: 12 }
+        expirationYear: { type: integer, minimum: 2000, maximum: 2100 }
+
+    CreditCardEdit:
+      type: object
+      description: >
+        An attached card's changes; any field may be left out. A new
+        closing day applies to movements written after it (OQ-170).
+      required: [id]
+      properties:
+        id: { type: string, format: uuid }
+        network: { $ref: "#/components/schemas/CardNetwork" }
+        last4: { type: string, pattern: "^[0-9]{4}$" }
+        closingDay: { type: integer, minimum: 1, maximum: 31 }
+        dueDay: { type: integer, minimum: 1, maximum: 31 }
+        expirationMonth: { type: integer, minimum: 1, maximum: 12 }
+        expirationYear: { type: integer, minimum: 2000, maximum: 2100 }
+
+    CreditCardChanges:
+      type: object
+      description: >
+        The card changes of an Account edit (FR-2.9, OQ-35), applied with
+        it in one write (OQ-175). Removing a card drops its Card
+        Transactions and balances; bill payments stay in the Account's
+        history, and the Budget spend its charges accrued stays (OQ-174).
+      properties:
+        add:
+          type: array
+          items: { $ref: "#/components/schemas/CreditCardNew" }
+        edit:
+          type: array
+          items: { $ref: "#/components/schemas/CreditCardEdit" }
+        remove:
+          type: array
+          items: { type: string, format: uuid }
 
     AccountMonthBalance:
       type: object
+      required: [year, month, openingBalance, endingBalance, updatedAt]
       properties:
         year: { type: integer }
         month: { type: integer }
@@ -2596,6 +2662,8 @@ components:
 
     CreditCardMonthBalance:
       type: object
+      description: One billing cycle, named by the month it closes in (OQ-170).
+      required: [year, month, openingOutstandingBalance, endingOutstandingBalance, updatedAt]
       properties:
         year: { type: integer }
         month: { type: integer }

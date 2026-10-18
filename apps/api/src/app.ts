@@ -4,6 +4,7 @@ import correlationIdMiddleware from './http/correlation';
 import { createErrorHandler, handleNotFound, type AppEnv } from './http/errorHandler';
 import type { VerifyAccessToken } from './http/authentication';
 import createRequestLogger from './http/requestLog';
+import createAccountRoutes from './http/routes/accounts';
 import createCategoryRoutes from './http/routes/categories';
 import createHouseholdRoutes from './http/routes/households';
 import createIdentityRoutes from './http/routes/identity';
@@ -53,6 +54,7 @@ const createApp = (deps: AppDeps): Hono<AppEnv> => {
   // routes mounted after it (OQ-174).
   app.route('/api/v1', createHouseholdRoutes(deps.identity, deps.verifyAccessToken));
   app.route('/api/v1', createCategoryRoutes(deps.account));
+  app.route('/api/v1', createAccountRoutes(deps.account));
   return app;
 };
 

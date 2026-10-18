@@ -61,7 +61,7 @@ export interface AccountChanges {
 
 /** Which Accounts a list returns; every visibility the viewer can see by default. */
 export interface AccountFilter {
-  readonly visibility?: Visibility;
+  readonly visibility?: Visibility | undefined;
 }
 
 /** A money movement on an Account. */

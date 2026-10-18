@@ -59,6 +59,13 @@ export const mockAccount = (): MockedAccount => ({
   editCategory: vi.fn(),
   archiveCategory: vi.fn(),
   archiveSubcategory: vi.fn(),
+  listAccounts: vi.fn(),
+  getAccount: vi.fn(),
+  createAccount: vi.fn(),
+  editAccount: vi.fn(),
+  archiveAccount: vi.fn(),
+  getAccountBalances: vi.fn(),
+  getCreditCardBalances: vi.fn(),
   seedDefaultCategories: vi.fn(),
 });
 

@@ -55,61 +55,70 @@
 </head>
 <body>
   <h1>Edit Financial Account (incl. Credit Cards)</h1>
-  <p class="subtitle"><span class="route">PATCH /households/:householdId/accounts/:accountId</span> &mdash; FR-2.9/OQ-35. Attaching, editing, and removing this account&#39;s Credit Cards is folded into this same request &mdash; not four separate endpoints.</p>
+  <p class="subtitle"><span class="route">PATCH /households/:householdId/accounts/:accountId</span> &mdash; FR-2.9/OQ-35. Attaching, editing, and removing this account&#39;s Credit Cards is folded into this same request, in one write (OQ-175) &mdash; not separate endpoints.</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
     actor User
     participant API as Hono route
     participant AM as AccountManager
+    participant AU as AuthorizationUtility
     participant VU as ValidationUtility
+    participant UW as UnitOfWorkUtility
     participant AA as AccountAccessor
     participant CA as CreditCardAccessor
     participant LOG as LoggingUtility
 
-    User->>API: PATCH /households/:householdId/accounts/:accountId {name, visibility, cards: [...]}
-    API->>AM: editAccount(actor, accountId, input)
-    AM->>VU: check(input)
-    alt request attempts to change type or currency
-        VU-->>AM: rejected (OQ-32/FR-2.2 &mdash; immutable once set)
-        AM-->>API: ValidationError
-        API-->>User: 422 validation.failed {details}
-    else no type/currency change requested
-        VU-->>AM: ok
-        opt visibility changes
-            AM->>AA: findById(householdId, accountId)
-            AA-->>AM: account
-            Note over AM: only the creator (account.ownerUserId) may share it<br/>or remove the share, and personal goes back to them (OQ-169)
-        end
-        alt visibility changed by someone other than the creator
-            AM-->>API: Forbidden
-            API-->>User: 403 auth.forbidden
-        else creator, or no visibility change
-            AM->>AA: update(householdId, accountId, {name, visibility})
-            AA-->>AM: updated
-        end
-        loop for each card change in the request
-            AM->>AA: findById(accountId)
-            alt account.type not in {checking, savings, credit_card}
-                AA-->>AM: rejected (FR-2.7)
-                AM-->>API: ValidationError
-                API-->>User: 422 validation.failed {details}
-            else account type allows cards
-                AM->>CA: insert(card, today) / update(accountId, cardId, changes) / remove(accountId, cardId)
-                CA-->>AM: applied
+    User->>API: PATCH /households/:householdId/accounts/:accountId {name?, visibility?, cards?: {add?, edit?: [{id, ...}], remove?: [id]}}
+    Note over API: no field for type/currency exists (OQ-32)
+    API->>AM: editAccount(context, householdId, accountId, edit)
+    AM->>AA: findById(householdId, accountId)
+    AA-->>AM: account (or none)
+    AM->>AU: authorize(actor, householdId, {data.edit, account.visibility, account.ownerUserId})
+    alt not a member
+        AM-->>API: 404 household.not_found
+    else missing, or someone else&#39;s personal Account
+        AM-->>API: 404 account.not_found
+    else role may not edit (a Member may edit a shared one they created)
+        AM-->>API: 403 auth.forbidden
+    else allowed
+        alt account archived (one-way, FR-2.4)
+            AM-->>API: 409 account.archived
+        else visibility changed by someone other than the creator (FR-2.3, OQ-169)
+            AM-->>API: 403 auth.forbidden
+        else
+            AM->>VU: checkFields({name: nonBlank})
+            AM->>CA: listByAccounts([accountId])
+            alt blank name
+                AM-->>API: 422 validation.failed {name}
+            else a card added to an investment Account (FR-2.7)
+                AM-->>API: 422 account.cards_not_allowed
+            else an edited or removed card id not on this Account
+                AM-->>API: 404 credit_card.not_found
+            else all checked
+                AM->>UW: inTransaction(work)
+                AM->>AA: update(householdId, accountId, {name, visibility})
+                loop add, then edit, then remove &mdash; one at a time
+                    AM->>CA: insert({accountId, ...card}, today) / update(accountId, cardId, changes) / remove(accountId, cardId)
+                end
+                Note over AM,CA: an Account or card gone meanwhile &rarr; 404, the whole edit rolls back
+                UW-->>AM: committed
+                AM-->>LOG: audit EditAccount (if name/visibility changed), AttachCreditCard / EditCreditCard / RemoveCreditCard per card
+                AM->>AA: balancesAsOf([accountId], today&#39;s month)
+                AM->>CA: listByAccounts([accountId]), balancesAsOf(cardIds, current cycle)
+                AM-->>API: Account {currentBalance, cards: outstandingBalance}
+                API-->>User: 200 OK
             end
         end
-        AM-->>LOG: logActivity(correlationId, actor, "EditAccount")
-        AM-->>LOG: recordAudit(actor, "Account", accountId)
-        AM-->>API: updated
-        API-->>User: 200 OK
     end
     </pre>
   </div>
   <div class="notes">
     <ul>
       <li>FR-2.9&#39;s combined-form decision (OQ-35) means there is no separate <code>POST /households/:householdId/accounts/:id/cards</code> endpoint at all &mdash; card attach/edit/remove only ever happens through this one request.</li>
-      <li>See FR-2.7, FR-2.9, OQ-32, OQ-35.</li>
+      <li>Every check runs before the transaction opens, so a refused edit writes nothing. A new closing day applies to movements written after it (OQ-170). Removing a card drops its Card Transactions and balances; the Budget spend its charges accrued stays (OQ-174).</li>
+      <li>An empty edit reads the Account back, unaudited.</li>
+      <li>See FR-2.3, FR-2.7, FR-2.9, OQ-32, OQ-35, OQ-175.</li>
     </ul>
   </div>
   <script>

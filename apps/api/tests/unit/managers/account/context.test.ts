@@ -1,6 +1,6 @@
 import { captureLogs } from '@financas/logging';
 import { describe, expect, it } from 'vitest';
-import { loggerFor, requestLogger } from '../../../../src/managers/account/context';
+import { loggerFor, requestLogger, todayOf } from '../../../../src/managers/account/context';
 
 const ACTOR = { userId: 'u1', sessionId: 's1', systemRole: 'USER' as const };
 
@@ -28,5 +28,11 @@ describe('requestLogger', () => {
     expect(logs.events[0]).toMatchObject({
       label: 'AccountManager', correlationId: 'c2', actor: 'user:u1',
     });
+  });
+});
+
+describe('todayOf', () => {
+  it('reads the clock as a date in the app\'s time zone (OQ-104)', () => {
+    expect(todayOf({ now: () => new Date('2026-10-17T02:00:00Z') })).toBe('2026-10-16');
   });
 });

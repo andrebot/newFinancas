@@ -4365,6 +4365,61 @@ not a hardcoded assumption.
   entity 404 for someone else's personal data) and the request context
   types (`managers/requestContext.ts`), so no Manager imports another.
 
+### OQ-175: AccountManager part 2 — Accounts and Credit Cards (task M2)
+**Confirmed with the stakeholder (Oct 2026):**
+- **An Account read carries its balance and cards.** `Account` gains
+  `currentBalance` (the stored month row as of today's month) and
+  `cards`, each with `outstandingBalance` (its latest cycle at or
+  before the one today falls in, by its closing day — OQ-170). One
+  request fills the Accounts page and the record drawer's card list.
+  These are stored rows read back, not a computation, so it stays a
+  plain read of AccountManager's own entities (VBD §3 read-ownership
+  rule). `GET …/accounts/{accountId}/credit-cards` is gone. Weighed and
+  rejected: separate calls per Account (N+1 requests per page).
+- **Writes across Accessors share one transaction:
+  `UnitOfWorkUtility`.** Creating an Account with cards, and an edit
+  with card changes, write through AccountAccessor and
+  CreditCardAccessor together or not at all. The composition root
+  builds the Accessors over one transaction and hands them to the
+  Manager's work (`deps.inTransaction(work)`); a throw rolls everything
+  back. The writes inside run one at a time (a nested write is a
+  savepoint on the shared connection). Every check runs before the
+  transaction opens, so a refused request writes nothing; a card or
+  Account gone meanwhile is 404 and rolls the edit back.
+  `TransactionManager`'s record cascade will use the same Utility.
+  Weighed and rejected: validating first and accepting a half-written
+  request on a database fault.
+- **An archived Account can't be edited** — name, visibility and cards
+  alike: 409 `account.archived`. Archiving is one-way (FR-2.4);
+  archiving again is a 204 that writes and audits nothing.
+- **Card changes are `cards: {add, edit, remove}`** on the Account edit
+  (OQ-35), replacing the `CreditCardInput` list with its `_remove`
+  flag: a new card needs every field (`CreditCardNew`), an edit names
+  its `id` and any fields (`CreditCardEdit`), a removal is an id. The
+  network is a contract enum (`CardNetwork`) kept equal to
+  `CARD_NETWORKS` in `@financas/reference` by a test (as OQ-174 did for
+  icons); `last4` is four digits, days 1–31, expiry month 1–12, year
+  2000–2100. Adding a card to an investment Account is 422
+  `account.cards_not_allowed` (FR-2.7); an edited or removed id not on
+  the Account is 404 `credit_card.not_found`.
+- **Who may do what:** a personal Account is its owner's alone (any
+  role — a Viewer may create and manage one); a shared one follows the
+  table (create: Owner/Admin/Member; edit/archive: Owner/Admin, or the
+  Member who created it — OQ-111). Only the creator may change the
+  visibility (FR-2.3) — anyone else gets 403, unless they send the
+  visibility it already has. Someone else's personal Account, and a
+  card on one, are 404 `account.not_found` / `credit_card.not_found`.
+- **Balance histories take months:** `from` / `to` as `YYYY-MM`, both
+  optional, on `GET …/accounts/{id}/balances` and `GET
+  …/credit-cards/{id}/balances` (a card's rows are billing cycles,
+  named by closing month). `listAccounts` is not paginated, like
+  `listCategories`.
+- **Audit:** `CreateAccount`, `EditAccount` (only when the name or
+  visibility changed), `ArchiveAccount`, and one entry per card change
+  — `AttachCreditCard`, `EditCreditCard`, `RemoveCreditCard` (entity
+  `CreditCard`). "Today" is the app time zone's date from the
+  Manager's clock (OQ-104).
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.

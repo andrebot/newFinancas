@@ -192,9 +192,12 @@ itself when it was first introduced:
   needed the moment a real UI has to render a household switcher, a
   member list, or a "pending invites" screen; FR-1.8 (multi-household
   membership) implies the first one directly.
-- `GET /accounts/{id}/credit-cards`, `GET /accounts/{id}/balances`,
-  `GET /credit-cards/{id}/balances` — balance history endpoints back
-  FR-5.4/FR-6.6 directly; no new stored data, per that FR's own text.
+- `GET /accounts/{id}/balances`, `GET /credit-cards/{id}/balances` —
+  balance history endpoints back FR-5.4/FR-6.6 directly; no new stored
+  data, per that FR's own text. **OQ-175:** they take `from`/`to` as
+  `YYYY-MM`; `GET /accounts/{id}/credit-cards` was dropped, since every
+  Account read now carries its `cards` (with `outstandingBalance`) and
+  its `currentBalance`.
 - `GET /budgets/{id}/periods` — backs the FR-4.3 status display.
 - `GET /accounts/{id}/holdings`, `GET /holdings/{id}/valuation-snapshots`,
   `GET /holdings/{id}/schedule-entries` — the latter is read-only from
