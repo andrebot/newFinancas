@@ -149,7 +149,7 @@ ACTIVITIES = {
     "FL8": ("Delete Account", ["K27"]),
     "FL9": ("Membership Management", ["K45", "K30", "K26", "K11"]),
     "FL10": ("Household Deletion", ["K27"]),
-    "FL11": ("Account & Card Management", ["K14", "K7", "K48", "K13", "K15", "K26"]),
+    "FL11": ("Account & Card Management", ["K14", "K7", "K48", "K13", "K26"]),
     "FL12": ("Category Management", ["K42", "K18", "K19", "K50", "K26"]),
     "FL13": ("Budget Management", ["K11", "K7", "K26", "K50"]),
     "FL14": ("Goal Management", ["K7", "K8", "K9", "K33", "K26"]),

@@ -9,7 +9,7 @@ durations and the critical path to the same file.
 transitive ones (if A → B → C, A → C is dropped), **no cycles**, **15
 levels**. A level is the longest chain of prerequisites in front of an
 activity; everything on one level can be done in any order.
-Today the network has 149 activities and 420 dependencies: the three
+Today the network has 149 activities and 419 dependencies: the three
 slicing splits (step 3) and `N14`, the component library (OQ-128), were
 added later. Run `pd_network.py` for the current figures.
 
