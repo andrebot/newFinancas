@@ -55,31 +55,52 @@
 </head>
 <body>
   <h1>Reopen Goal</h1>
-  <p class="subtitle"><span class="route">POST /households/:householdId/goals/:goalId/reopen</span> &mdash; FR-8.9. The only "unarchive" endpoint in the entire API &mdash; every other archived entity in this project stays archived, one-way.</p>
+  <p class="subtitle"><span class="route">POST /households/:householdId/goals/:goalId/reopen</span> &mdash; FR-8.9. The only &ldquo;reopen&rdquo; endpoint in the entire API &mdash; every other archived entity in this project stays archived, one-way.</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
     actor User
     participant API as Hono route
     participant AM as AccountManager
-    participant OA as GoalAccessor
+    participant AU as AuthorizationUtility
+    participant GA as GoalAccessor
     participant LOG as LoggingUtility
 
     User->>API: POST /households/:householdId/goals/:goalId/reopen
-    API->>AM: uncompleteGoal(actor, goalId)
-    AM->>OA: reopen(goalId)
-    Note over OA: nulls completed_at back out &mdash; restores active status,<br/>able to receive new allocations again (FR-8.9)
-    OA-->>AM: reopened
-    AM-->>LOG: logActivity(correlationId, actor, "UncompleteGoal")
-    AM-->>LOG: recordAudit(actor, "Goal", goalId)
-    AM-->>API: reopened
-    API-->>User: 204 No Content
+    API->>AM: reopenGoal(context, householdId, goalId)
+    AM->>GA: findById(householdId, goalId)
+    GA-->>AM: goal (or none)
+    AM->>AU: authorize(actor, householdId, {data.edit, goal.visibility, goal.ownerUserId})
+    alt not a member
+        AM-->>API: 404 household.not_found
+    else missing, or someone else&#39;s personal Goal
+        AM-->>API: 404 goal.not_found
+    else role may not edit (a Member may on a shared one they created)
+        AM-->>API: 403 auth.forbidden
+    else allowed
+        alt already active
+            AM-->>API: nothing to write, unaudited (OQ-177)
+            API-->>User: 204 No Content
+        else
+            AM->>GA: reopen(householdId, goalId)
+            Note over GA: nulls completed_at back out &mdash; restores active status,<br/>able to receive new allocations again (FR-8.9)
+            alt deleted meanwhile
+                GA-->>AM: false
+                AM-->>API: 404 goal.not_found
+            else written
+                GA-->>AM: true
+                AM-->>LOG: audit ReopenGoal
+                API-->>User: 204 No Content
+            end
+        end
+    end
     </pre>
   </div>
   <div class="notes">
     <ul>
-      <li>Same column, same shape as Archive (UC-03) &mdash; the only difference is which direction the write goes. No other resource in this project exposes the reverse direction at all.</li>
-      <li>See FR-8.9.</li>
+      <li>Same column, same shape as Complete (UC-03) &mdash; the only difference is which direction the write goes. No other resource in this project exposes the reverse direction at all.</li>
+      <li><strong>Corrected (OQ-177):</strong> the audit action is <code>ReopenGoal</code> (was <code>UncompleteGoal</code>) and the use case <code>reopenGoal</code>; reopening an active Goal is a 204 that writes and audits nothing.</li>
+      <li>See FR-8.9, OQ-177.</li>
     </ul>
   </div>
   <script>

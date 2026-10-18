@@ -50,7 +50,7 @@
 </head>
 <body>
   <h1>Call Chain — Create Goal</h1>
-  <p class="subtitle">Use case 1 of 6 in the Goals set (CUC-10, FR-8.1). Create pattern, no allocation here (OQ-48).</p>
+  <p class="subtitle">Use case 1 of 6 in the Goals set (CUC-10, FR-8.1). Create pattern. As built in M2 part 4 (OQ-177).</p>
 
   <div class="architecture">
     <svg id="arrows-svg"></svg>
@@ -135,8 +135,9 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain:</strong> <code>AccountManager</code> ① <code>ValidationUtility.check(...)</code> (sync) → ② <code>GoalAccessor.create(...)</code> (sync) → ③ <code>LoggingUtility</code> (async).</p>
-    <p><strong>No smell:</strong> no edge to <code>GoalAccessor.allocate</code> — confirms OQ-48 structurally: a newly created Goal starts unfunded, allocation only ever happens from the Holding's edit flow (Track Investments UC-2).</p>
+    <p><strong>Chain:</strong> <code>AccountManager</code> ① <code>AuthorizationUtility.authorize(data.create)</code> (sync) → ② <code>ValidationUtility.checkFields(...)</code> (sync) → ③ <code>GoalAccessor.insert(...)</code> (sync) → ④ <code>LoggingUtility</code> (async).</p>
+    <p><strong>Corrected (OQ-177):</strong> the authorization call is needed &mdash; a Goal is personal or shared like a Budget, so every use case checks the caller&#39;s role against the Goal&#39;s visibility and owner (OQ-111).</p>
+    <p><strong>No smell:</strong> a Goal starts unfunded &mdash; no allocation write here (OQ-48).</p>
   </div>
 
   <script>
@@ -149,7 +150,7 @@
       svg.style.width = containerRect.width + 'px';
       svg.style.height = containerRect.height + 'px';
 
-      var edges = [{"from": "mgr-account", "to": "util-validation", "type": "sync", "order": 1}, {"from": "mgr-account", "to": "acc-goal", "type": "sync", "order": 2}, {"from": "mgr-account", "to": "util-logging", "type": "async", "order": 3}];
+      var edges = [{"from": "mgr-account", "to": "util-authz", "type": "sync", "order": 1}, {"from": "mgr-account", "to": "util-validation", "type": "sync", "order": 2}, {"from": "mgr-account", "to": "acc-goal", "type": "sync", "order": 3}, {"from": "mgr-account", "to": "util-logging", "type": "async", "order": 4}];
 
       var activeIds = {};
       edges.forEach(function (e) { activeIds[e.from] = true; activeIds[e.to] = true; });

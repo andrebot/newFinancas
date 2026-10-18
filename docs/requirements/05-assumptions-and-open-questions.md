@@ -4467,6 +4467,46 @@ not a hardcoded assumption.
   helper moved from the Account use cases to `managers/access.ts`
   (`accessToOwned`), now used by Accounts and Budgets.
 
+### OQ-177: AccountManager part 4 — Goals (task M2)
+**Confirmed with the stakeholder (Oct 2026):**
+- **`GET …/goals` returns definitions; progress has its own route.** As
+  OQ-174 set out, the plain list is AccountManager's own read (`{data:
+  Goal[]}`, one status, soonest due first, unpaginated like
+  `listBudgets`). The list with per-currency contributions and
+  `fundedBy` — `GoalWithProgress` — moved to `GET
+  /households/{householdId}/goal-progress?status=` (`listGoalProgress`),
+  a reshaped read, `InsightsManager`'s, built with `M4`; `GET
+  …/goals/{goalId}/progress` (by month) stays there too. Goal Management
+  reads both and joins them by Goal id. A separate path, not
+  `…/goals/progress`, so it can't be mistaken for a `goalId`. Weighed and
+  rejected: leaving progress out of the contract until `M4`.
+- **`GET …/goals/{goalId}/allocations` is dropped.** It duplicated
+  `fundedBy` on the progress read, which also carries the Holding names
+  only `InsightsManager` reads. The `GoalAllocation` schema went with it.
+- **A completed Goal can be edited** (name, target, target currency, due
+  date). FR-8.9 closes only new funding to it — `goal.completed`, which
+  ships with Edit Holding (part 5). Completion is reversible, unlike an
+  archived Account (OQ-175). Weighed and rejected: 409 `goal.completed`
+  on the edit.
+- **Who may do what follows the Budgets' rule (OQ-176):** a personal Goal
+  is its owner's alone (a Viewer may create and manage one); a shared one
+  follows the permission table (create: Owner/Admin/Member; edit,
+  complete, reopen, delete: Owner/Admin, or the Member who created it —
+  OQ-111). Complete and reopen are `data.edit`. Someone else's personal
+  Goal — and a deleted one — is 404 `goal.not_found` (new code, both
+  locales).
+- **Rules:** the target is more than zero (`PositiveMoney`) on create and
+  edit; a blank name is 422; a due date in the past is allowed (overdue
+  is a display state); the visibility never changes. Completing a
+  completed Goal, or reopening an active one, is a 204 that writes and
+  audits nothing; an empty edit reads the Goal back, unaudited. A Goal
+  gone before its write is 404.
+- **Audit:** `CreateGoal`, `EditGoal`, `CompleteGoal`, `ReopenGoal` (the
+  old diagram's `UncompleteGoal`), `DeleteGoal`. Each write goes through
+  GoalAccessor alone, so no `UnitOfWorkUtility`; `GoalAccessor` joins
+  `AccountStores` for part 5's Edit Holding, which writes allocations
+  with the Holding.
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.

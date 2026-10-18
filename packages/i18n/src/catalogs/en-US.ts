@@ -25,6 +25,7 @@ const enUS: Catalog = {
     'category.not_found': 'Category not found.',
     'credit_card.not_found': 'Credit card not found.',
     'goal.allocation_exceeds_100': 'This holding already has {current, number}% allocated; adding {requested, number}% would exceed 100%.',
+    'goal.not_found': 'Goal not found.',
     'household.changed': 'The members of this household changed while you were editing. Please try again.',
     'household.not_found': 'Household not found.',
     'household.member_not_found': 'This person is not a member of the household.',

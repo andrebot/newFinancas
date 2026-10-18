@@ -55,39 +55,57 @@
 </head>
 <body>
   <h1>Edit Goal</h1>
-  <p class="subtitle"><span class="route">PATCH /households/:householdId/goals/:goalId</span> &mdash; FR-8.1. Name/target/due-date only &mdash; allocations are never editable from here (OQ-48).</p>
+  <p class="subtitle"><span class="route">PATCH /households/:householdId/goals/:goalId</span> &mdash; FR-8.1. Name, target, target currency and due date only &mdash; never the visibility, never the allocations (OQ-48).</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
     actor User
     participant API as Hono route
     participant AM as AccountManager
+    participant AU as AuthorizationUtility
     participant VU as ValidationUtility
-    participant OA as GoalAccessor
+    participant GA as GoalAccessor
     participant LOG as LoggingUtility
 
-    User->>API: PATCH /households/:householdId/goals/:goalId {name, targetAmount, targetCurrency, dueDate}
-    API->>AM: editGoal(actor, goalId, input)
-    AM->>VU: check(input)
-    alt validation fails
-        VU-->>AM: rejected
-        AM-->>API: ValidationError
-        API-->>User: 422 validation.failed {details}
-    else valid
-        VU-->>AM: ok
-        AM->>OA: update(goalId, input)
-        OA-->>AM: updated
-        AM-->>LOG: logActivity(correlationId, actor, "EditGoal")
-        AM-->>LOG: recordAudit(actor, "Goal", goalId)
-        AM-->>API: updated
-        API-->>User: 200 OK
+    User->>API: PATCH /households/:householdId/goals/:goalId {name?, targetAmount?, targetCurrency?, dueDate?}
+    Note over API: contract check first: targetAmount &ge; 1, currency, dueDate a date
+    API->>AM: editGoal(context, householdId, goalId, edit)
+    AM->>GA: findById(householdId, goalId)
+    GA-->>AM: goal (or none)
+    AM->>AU: authorize(actor, householdId, {data.edit, goal.visibility, goal.ownerUserId})
+    alt not a member
+        AM-->>API: 404 household.not_found
+    else missing, or someone else&#39;s personal Goal
+        AM-->>API: 404 goal.not_found
+    else role may not edit (a Member may on a shared one they created)
+        AM-->>API: 403 auth.forbidden
+    else allowed
+        AM->>VU: checkFields({name: nonBlank})
+        alt blank name
+            AM-->>API: 422 validation.failed {name}
+        else nothing to change
+            AM-->>API: the Goal as read, unaudited
+            API-->>User: 200 OK {goal}
+        else changes
+            AM->>GA: update(householdId, goalId, changes)
+            alt deleted meanwhile
+                GA-->>AM: none
+                AM-->>API: 404 goal.not_found
+            else updated
+                GA-->>AM: goal
+                AM-->>LOG: audit EditGoal
+                AM-->>API: goal
+                API-->>User: 200 OK {goal}
+            end
+        end
     end
     </pre>
   </div>
   <div class="notes">
     <ul>
       <li>This endpoint has no <code>allocations</code> field at all &mdash; contrast with Edit Investment Holding (<code>docs/design/diagrams/sequences/track-investments/uc-02-edit-holding.html</code>), which is where allocation changes actually happen.</li>
-      <li>See FR-8.1, OQ-48.</li>
+      <li><strong>A completed Goal can be edited too (OQ-177):</strong> FR-8.9 closes only new funding to it (<code>goal.completed</code>, on Edit Holding). Changing the target currency is allowed: progress is derived on read, nothing stored follows it (OQ-168).</li>
+      <li>See FR-8.1, OQ-48, OQ-177.</li>
     </ul>
   </div>
   <script>

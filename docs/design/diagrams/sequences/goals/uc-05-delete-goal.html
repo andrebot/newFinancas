@@ -55,31 +55,47 @@
 </head>
 <body>
   <h1>Delete Goal</h1>
-  <p class="subtitle"><span class="route">DELETE /households/:householdId/goals/:goalId</span> &mdash; FR-8.6. Hard delete, no history kept &mdash; "this goal no longer makes sense." The underlying Investment Holdings are never deleted.</p>
+  <p class="subtitle"><span class="route">DELETE /households/:householdId/goals/:goalId</span> &mdash; FR-8.6. Hard delete, no history kept &mdash; &ldquo;this goal no longer makes sense.&rdquo; The underlying Investment Holdings are never deleted.</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
     actor User
     participant API as Hono route
     participant AM as AccountManager
-    participant OA as GoalAccessor
+    participant AU as AuthorizationUtility
+    participant GA as GoalAccessor
     participant LOG as LoggingUtility
 
     User->>API: DELETE /households/:householdId/goals/:goalId
-    API->>AM: deleteGoal(actor, goalId)
-    AM->>OA: delete(goalId)
-    Note over OA: hard delete, no history &mdash; goal_allocations rows<br/>cascade away, but the Investment Holdings they referenced<br/>are completely untouched (FR-8.6)
-    OA-->>AM: deleted
-    AM-->>LOG: logActivity(correlationId, actor, "DeleteGoal")
-    AM-->>LOG: recordAudit(actor, "Goal", goalId)
-    AM-->>API: deleted
-    API-->>User: 204 No Content
+    API->>AM: deleteGoal(context, householdId, goalId)
+    AM->>GA: findById(householdId, goalId)
+    GA-->>AM: goal (or none)
+    AM->>AU: authorize(actor, householdId, {data.delete, goal.visibility, goal.ownerUserId})
+    alt not a member
+        AM-->>API: 404 household.not_found
+    else missing, or someone else&#39;s personal Goal
+        AM-->>API: 404 goal.not_found
+    else role may not delete (a Member may on a shared one they created)
+        AM-->>API: 403 auth.forbidden
+    else allowed
+        AM->>GA: delete(householdId, goalId)
+        Note over GA: hard delete, no history &mdash; goal_allocations rows<br/>cascade away, but the Investment Holdings they referenced<br/>are completely untouched (FR-8.6)
+        alt deleted meanwhile
+            GA-->>AM: false
+            AM-->>API: 404 goal.not_found
+        else deleted
+            GA-->>AM: true
+            AM-->>LOG: audit DeleteGoal
+            API-->>User: 204 No Content
+        end
+    end
     </pre>
   </div>
   <div class="notes">
     <ul>
-      <li>Contrast with Archive (UC-03): this is deliberately unrecoverable, for the case where the Goal itself was a mistake, not merely completed.</li>
-      <li>See FR-8.6, OQ-47.</li>
+      <li>Contrast with Complete (UC-03): this is deliberately unrecoverable, for the case where the Goal itself was a mistake, not merely completed. Deleting it again is 404: nothing is left.</li>
+      <li><strong>Corrected (OQ-177):</strong> deleting is a <code>data.delete</code> on the Goal, authorized like any write. The earlier diagram had no <code>AuthorizationUtility</code> edge.</li>
+      <li>See FR-8.6, OQ-47, OQ-177.</li>
     </ul>
   </div>
   <script>

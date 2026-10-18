@@ -38,7 +38,7 @@ export const zCurrency = z.enum(['BRL', 'USD']);
 export const zMoney = z.int();
 
 /**
- * Money (minor units, as `Money`) that must be more than zero — a Budget's monthly target (OQ-176).
+ * Money (minor units, as `Money`) that must be more than zero — a Budget's monthly target (OQ-176), a Goal's target (OQ-177).
  */
 export const zPositiveMoney = z.int().gte(1);
 
@@ -689,17 +689,9 @@ export const zGoal = z.object({
     completedAt: z.iso.datetime().nullish()
 });
 
-export const zGoalAllocation = z.object({
-    id: z.uuid().optional(),
-    holdingId: z.uuid().optional(),
-    percentage: z.int().gte(1).lte(100).optional(),
-    createdAt: z.iso.datetime().optional(),
-    goalId: z.uuid().optional()
-});
-
 export const zGoalCreateRequest = z.object({
     name: z.string(),
-    targetAmount: zMoney,
+    targetAmount: zPositiveMoney,
     targetCurrency: zCurrency,
     dueDate: z.iso.date(),
     visibility: z.enum(['personal', 'shared'])
@@ -721,7 +713,7 @@ export const zGoalProgress = z.object({
 
 export const zGoalUpdateRequest = z.object({
     name: z.string().optional(),
-    targetAmount: zMoney.optional(),
+    targetAmount: zPositiveMoney.optional(),
     targetCurrency: zCurrency.optional(),
     dueDate: z.iso.date().optional()
 });
@@ -1850,7 +1842,9 @@ export const zListGoalsQuery = z.object({
 /**
  * OK
  */
-export const zListGoalsResponse = z.array(zGoalWithProgress);
+export const zListGoalsResponse = z.object({
+    data: z.array(zGoal).optional()
+});
 
 export const zCreateGoalBody = zGoalCreateRequest;
 
@@ -1862,6 +1856,21 @@ export const zCreateGoalPath = z.object({
  * Created
  */
 export const zCreateGoalResponse = zGoal;
+
+export const zListGoalProgressPath = z.object({
+    householdId: z.uuid()
+});
+
+export const zListGoalProgressQuery = z.object({
+    status: z.enum(['active', 'completed']).optional().default('active')
+});
+
+/**
+ * OK
+ */
+export const zListGoalProgressResponse = z.object({
+    data: z.array(zGoalWithProgress).optional()
+});
 
 export const zDeleteGoalPath = z.object({
     householdId: z.uuid(),
@@ -1914,18 +1923,6 @@ export const zReopenGoalPath = z.object({
  * No Content
  */
 export const zReopenGoalResponse = z.void();
-
-export const zListGoalAllocationsPath = z.object({
-    householdId: z.uuid(),
-    goalId: z.uuid()
-});
-
-/**
- * OK
- */
-export const zListGoalAllocationsResponse = z.object({
-    data: z.array(zGoalAllocation).optional()
-});
 
 export const zGetGoalProgressPath = z.object({
     householdId: z.uuid(),

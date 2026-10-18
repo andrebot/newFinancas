@@ -98,3 +98,13 @@ export const targetAlreadyClaimed = (target: BudgetTarget, budgetId: string): Ap
     params: { ...target, budgetId },
   })
 );
+
+/**
+ * A Goal that isn't this household's, doesn't exist (a hard delete leaves
+ * nothing), or is someone else's personal one (OQ-177).
+ *
+ * @returns 404 `goal.not_found`.
+ */
+export const goalNotFound = (): ApiError => createApiError({
+  status: 404, code: 'goal.not_found', message: 'Goal not found',
+});

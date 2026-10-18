@@ -739,13 +739,18 @@ opt delete
     EXP-->>FLOW: state refreshed
 end
 """, ["Setup page shows no spend progress (stakeholder) — the list carries definitions only (OQ-176).", "Currency and visibility can't change after creation: the edit form shows them read-only."]),
-    ("account-setup-goal-management", "Account Setup — Goal Management", f"{R('POST/PATCH/DELETE /households/:householdId/goals')}, {R('POST /households/:householdId/goals/:id/complete|reopen')}, {R('GET /households/:householdId/goals')}.",
+    ("account-setup-goal-management", "Account Setup — Goal Management", f"{R('POST/PATCH/DELETE /households/:householdId/goals')}, {R('POST /households/:householdId/goals/:id/complete|reopen')}, {R('GET /households/:householdId/goals')} (definitions, AccountManager) + {R('GET /households/:householdId/goal-progress')} (progress, InsightsManager — OQ-177).",
      [("GF", "Goal Form"), ("GP", "Goal Progress Card"), ("FX", "Exchange-Rate<br/>Calculator"), ("CR", "Complete / Reopen<br/>Confirm"), FLOW("Goal Management"), EXP("Account Setup"), API],
      """
 FLOW->>EXP: request goals(status)
-EXP->>API: GET /households/:householdId/goals?status=active
-API-->>EXP: goals with per-currency contributions + funded by
-EXP-->>FLOW: state
+par definitions
+    EXP->>API: GET /households/:householdId/goals?status=active
+    API-->>EXP: goals (name, target, due date, visibility)
+and progress
+    EXP->>API: GET /households/:householdId/goal-progress?status=active
+    API-->>EXP: per-currency contributions + funded by, per goal
+end
+EXP-->>FLOW: state (progress joined by goal id)
 FLOW-->>GP: render progress
 opt goal mixes currencies
     User->>FX: '1 USD = 5.20 BRL'
@@ -763,7 +768,7 @@ else complete / reopen
     FLOW->>EXP: request complete or reopen
     EXP->>API: POST /households/:householdId/goals/:goalId/complete (or /reopen)
 end
-""", ["Allocations are never edited here — always from the Holding (OQ-48).", "FX never leaves the browser (FR-9)."]),
+""", ["Allocations are never edited here — always from the Holding (OQ-48).", "FX never leaves the browser (FR-9).", "Definitions and progress are two reads (OQ-177): the Goal list is AccountManager's own; progress, a reshaped read, is InsightsManager's. A completed Goal can still be edited."]),
     ("manage-finances-record-transaction", "Manage Finances — Record Transaction", f"{R('POST /households/:householdId/transactions')}; edit reuses it with {R('PATCH /households/:householdId/transactions/:id')}.",
      [("KS", "Kind Group &<br/>Kind Selection"), ("TE", "Transaction Entry"), ("IB", "Investment Buy Entry"), ("GA", "Goal Allocation Entry"), FLOW("Record Transaction"), EXP("Manage Finances"), API],
      """

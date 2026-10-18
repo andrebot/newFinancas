@@ -71,6 +71,13 @@ export const mockAccount = (): MockedAccount => ({
   editBudget: vi.fn(),
   deleteBudget: vi.fn(),
   listBudgetPeriods: vi.fn(),
+  listGoals: vi.fn(),
+  getGoal: vi.fn(),
+  createGoal: vi.fn(),
+  editGoal: vi.fn(),
+  completeGoal: vi.fn(),
+  reopenGoal: vi.fn(),
+  deleteGoal: vi.fn(),
   getCreditCardBalances: vi.fn(),
   seedDefaultCategories: vi.fn(),
 });

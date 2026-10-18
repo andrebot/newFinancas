@@ -50,7 +50,7 @@
 </head>
 <body>
   <h1>Call Chain — Edit Goal</h1>
-  <p class="subtitle">Use case 2 of 6 in the Goals set (CUC-10, FR-8.1). Edit pattern, fields only — no allocation editing (OQ-48).</p>
+  <p class="subtitle">Use case 2 of 6 in the Goals set (CUC-10, FR-8.1). Edit pattern. As built in M2 part 4 (OQ-177).</p>
 
   <div class="architecture">
     <svg id="arrows-svg"></svg>
@@ -135,8 +135,9 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain:</strong> <code>AccountManager</code> ① <code>ValidationUtility.check(...)</code> (sync) → ② <code>GoalAccessor.update(...)</code> (sync, fields only) → ③ <code>LoggingUtility</code> (async).</p>
-    <p><strong>No smell:</strong> identical shape to Create (UC-1), and still no <code>allocate</code> edge — the second confirmation of OQ-48's direction-of-control decision.</p>
+    <p><strong>Chain:</strong> <code>AccountManager</code> ① <code>GoalAccessor.findById(...)</code> (sync &mdash; the Goal&#39;s visibility and owner feed the check; later the write) → ② <code>AuthorizationUtility.authorize(data.edit)</code> (sync) → ③ <code>ValidationUtility.checkFields(...)</code> (sync) → <code>GoalAccessor.update(...)</code> → ④ <code>LoggingUtility</code> (async).</p>
+    <p><strong>Corrected (OQ-177):</strong> the authorization call is needed &mdash; a Goal is personal or shared like a Budget, so every use case checks the caller&#39;s role against the Goal&#39;s visibility and owner (OQ-111).</p>
+    <p><strong>No smell:</strong> the same components as Create (UC-1) &mdash; Edit and Create differ in Accessor method, not in which components are involved.</p>
   </div>
 
   <script>
@@ -149,7 +150,7 @@
       svg.style.width = containerRect.width + 'px';
       svg.style.height = containerRect.height + 'px';
 
-      var edges = [{"from": "mgr-account", "to": "util-validation", "type": "sync", "order": 1}, {"from": "mgr-account", "to": "acc-goal", "type": "sync", "order": 2}, {"from": "mgr-account", "to": "util-logging", "type": "async", "order": 3}];
+      var edges = [{"from": "mgr-account", "to": "acc-goal", "type": "sync", "order": 1}, {"from": "mgr-account", "to": "util-authz", "type": "sync", "order": 2}, {"from": "mgr-account", "to": "util-validation", "type": "sync", "order": 3}, {"from": "mgr-account", "to": "util-logging", "type": "async", "order": 4}];
 
       var activeIds = {};
       edges.forEach(function (e) { activeIds[e.from] = true; activeIds[e.to] = true; });

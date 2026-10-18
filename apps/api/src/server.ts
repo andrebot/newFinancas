@@ -13,6 +13,7 @@ import createAuditLogAccessor from './accessors/auditLogAccessor';
 import createCategoryAccessor from './accessors/categoryAccessor';
 import createCreditCardAccessor from './accessors/creditCardAccessor';
 import createEmailAccessor from './accessors/emailAccessor';
+import createGoalAccessor from './accessors/goalAccessor';
 import createHouseholdAccessor from './accessors/householdAccessor';
 import createInvitationAccessor from './accessors/invitationAccessor';
 import createNotificationInboxAccessor from './accessors/notificationInboxAccessor';
@@ -94,6 +95,7 @@ const accountStoresOver = (over: Database): AccountStores => ({
   accounts: createAccountAccessor(over),
   creditCards: createCreditCardAccessor(over),
   budgets: createBudgetAccessor(over),
+  goals: createGoalAccessor(over),
 });
 const account = createAccountManager({
   ...accountStoresOver(db),

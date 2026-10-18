@@ -1,6 +1,6 @@
 import type {
   AccountMonthBalance, AccountView, Budget, BudgetPeriod, Category, CreditCardMonthBalance,
-  CreditCardView, Subcategory,
+  CreditCardView, Goal, Subcategory,
 } from '../../managers/account';
 
 // AccountManager's results in the contract's JSON shapes: times as ISO strings,
@@ -135,4 +135,23 @@ export const toBudgetPeriodJson = (period: BudgetPeriod) => ({
   targetAmount: period.targetAmount,
   spendAmount: period.spendAmount,
   createdAt: period.createdAt.toISOString(),
+});
+
+/**
+ * A Goal as the contract shows it (`components/schemas/Goal`).
+ *
+ * @param goal - The Goal.
+ * @returns The JSON shape.
+ */
+export const toGoalJson = (goal: Goal) => ({
+  id: goal.id,
+  householdId: goal.householdId,
+  ownerUserId: goal.ownerUserId,
+  name: goal.name,
+  targetAmount: goal.targetAmount,
+  targetCurrency: goal.targetCurrency,
+  dueDate: goal.dueDate,
+  visibility: goal.visibility,
+  createdAt: goal.createdAt.toISOString(),
+  completedAt: goal.completedAt?.toISOString() ?? null,
 });
