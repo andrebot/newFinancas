@@ -13,10 +13,22 @@ export interface BusEvents {
     readonly createdByUserId: string;
     readonly language: Language;
   };
-  /** The daily job found a matured holding → AccountManager notifies its owners (§3.2a). */
+  /**
+   * The daily job found a matured holding → AccountManager notifies its owners
+   * (§3.2a): the Holding as InvestmentHoldingAccessor's `findMaturedWithPosition`
+   * reads it — the recipients of a shared one are AccountManager's (OQ-171, OQ-178).
+   */
   readonly 'holding.matured': {
     readonly holdingId: string;
-    readonly ownerUserIds: readonly string[];
+    readonly accountId: string;
+    readonly householdId: string;
+    /** The Account's owner — of a shared one, its creator (not a recipient by that alone). */
+    readonly ownerUserId: string | null;
+    readonly visibility: string;
+    readonly assetType: string;
+    readonly ticker: string | null;
+    /** `YYYY-MM-DD`, the redemption entry's date. */
+    readonly dueDate: string;
   };
   /**
    * The daily job found a due schedule entry → TransactionManager posts it (§3.2a).

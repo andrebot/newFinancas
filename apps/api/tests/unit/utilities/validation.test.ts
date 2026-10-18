@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  checkFields, checkItems, dateWithin, firstProblem, minLength, moneyWithin, nonBlank,
+  checkFields, checkItems, dateWithin, distinctItems, firstProblem, minLength, moneyWithin,
+  nonBlank,
   type Rule,
 } from '../../../src/utilities/validation';
 
@@ -167,5 +168,21 @@ describe('checkItems', () => {
   it('reports nothing for an empty list or passing items', () => {
     expect(checkItems('subcategories', [] as { name: string }[], { name: nonBlank })).toEqual([]);
     expect(checkItems('subcategories', [{ name: 'Rent' }], { name: nonBlank })).toEqual([]);
+  });
+});
+
+describe('distinctItems', () => {
+  it('passes a list whose keys are all different', () => {
+    expect(distinctItems('allocations', [{ goalId: 'a' }, { goalId: 'b' }], 'goalId')).toEqual([]);
+    expect(distinctItems('allocations', [], 'goalId')).toEqual([]);
+  });
+
+  it('names every repeat after the first by its path', () => {
+    const items = [{ goalId: 'a' }, { goalId: 'b' }, { goalId: 'a' }, { goalId: 'a' }];
+
+    expect(distinctItems('allocations', items, 'goalId')).toEqual([
+      { field: 'allocations[2].goalId', code: 'array.duplicate' },
+      { field: 'allocations[3].goalId', code: 'array.duplicate' },
+    ]);
   });
 });

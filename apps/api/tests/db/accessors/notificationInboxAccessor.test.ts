@@ -99,7 +99,7 @@ describe('NotificationInboxAccessor', () => {
   describe('markSeen (FR-6.10)', () => {
     it('marks only those shown; a newer one stays unseen', test(async (inbox, { ana }) => {
       const shown = await inbox.insert(ana, 'invitation.received', INVITATION);
-      const arrivedLater = await inbox.insert(ana, 'holding.matured', { holdingName: 'LCI' });
+      const arrivedLater = await inbox.insert(ana, 'holding.matured', { assetType: 'lci' });
 
       expect(await inbox.markSeen(ana, [shown.id], NOW)).toBe(1);
 

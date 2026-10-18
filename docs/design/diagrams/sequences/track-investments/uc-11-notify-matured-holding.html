@@ -69,40 +69,42 @@ sequenceDiagram
     participant LOG as LoggingUtility
 
     CRON->>IHA: findMaturedWithPosition(today)
-    Note over IHA: fixed-term, dueDate < today, quantity > 0,<br/>not yet notified
+    Note over IHA: fixed-term, redemption date < today, quantity > 0,<br/>not archived, not yet notified
     IHA-->>CRON: [{holdingId, accountId, householdId, ownerUserId, visibility, assetType, ticker, dueDate}, ...]
     loop for each matured Holding
-        CRON->>SB: publish("holding.matured", {holdingId, householdId, ownerUserId, visibility, ...})
-        SB-->>AM: subscribe("holding.matured")
+        CRON->>SB: publish("holding.matured", the row)
+        SB-->>AM: subscribe("holding.matured") &mdash; notifyMaturedHolding, as the system
         alt shared Account
             AM->>HA: listMembers(householdId)
             HA-->>AM: the members &mdash; each is a recipient (OQ-171)
         else personal Account
-            Note over AM: the recipient is ownerUserId
+            Note over AM: the recipient is ownerUserId (none if the owner is gone)
         end
-        loop for each recipient
-            AM->>NE: notify("holding.matured", recipient = {userId}, params = {holdingId, holdingName, dueDate})
+        par for each recipient
+            AM->>NE: notify("holding.matured", {userId}, {holdingId, assetType, ticker, dueDate})
             Note over NE: routing table: holding.matured &rarr; in-app
             NE->>NIA: insert(userId, "holding.matured", params)
             NIA-->>NE: stored
-            NE-->>AM: delivered
+            NE-->>AM: delivered (or rejected)
         end
-        alt every owner notified
+        alt every delivery succeeded
             AM->>IHA: markMaturedNotified(holdingId)
+            AM-->>LOG: info "Matured holding notified" {holdingId, recipients}
         else a delivery failed
+            AM-->>LOG: warn "not marked" {holdingId, recipients, failed}
             Note over AM: not marked &mdash; tomorrow&#39;s run tries again
         end
-        AM-->>LOG: logActivity(correlationId, systemActor, "NotifyMaturedHolding")
     end
     </pre>
   </div>
   <div class="notes">
     <ul>
-      <li><strong>Type + params, never text (OQ-82):</strong> the frontend renders &ldquo;CDB Banco Inter 2026 reached its due date&hellip; archive it?&rdquo; in the user's language. <code>holdingName</code> is a deliberate snapshot (historical label).</li>
-      <li><strong>Recipients are the Manager's (OQ-171):</strong> the Accessor returns the Holding's Account owner and visibility; a shared Account's recipients are its household's members, read through <code>HouseholdAccessor</code> &mdash; the Accessor never reads memberships.</li>
-      <li><strong>Synchronous on purpose:</strong> unlike invitations, the Manager waits for <code>NotificationEngine</code>, because marking the Holding notified depends on it (BDT plan).</li>
+      <li><strong>Type + params, never text (OQ-82):</strong> the frontend renders &ldquo;Your CDB matured on 2026-10-01. Archive it?&rdquo; in the reader&#39;s language from <code>assetType</code>. <strong>OQ-178:</strong> the params carry <code>assetType</code> and <code>ticker</code> instead of a <code>holdingName</code> &mdash; a Holding has no name, and a label is the reader&#39;s language&#39;s to build.</li>
+      <li><strong>Recipients are the Manager&#39;s (OQ-171):</strong> the event carries the Holding&#39;s Account owner and visibility; a shared Account&#39;s recipients are its household&#39;s members, read through <code>HouseholdAccessor</code> &mdash; the Accessor never reads memberships.</li>
+      <li><strong>Synchronous on purpose:</strong> unlike invitations, the Manager waits for every delivery (all settled), because marking the Holding notified depends on them all. A partial failure re-notifies tomorrow, including those already told &mdash; accepted.</li>
+      <li>The publisher (<code>investmentsDaily</code>) is task N9; this subscription is built with M2 part 5.</li>
       <li>Normally a redemption (UC-4) zeroes and auto-archives the Holding first; this catches the rest.</li>
-      <li>See FR-5.8, FR-6.5, OQ-68, OQ-72, OQ-82; Manager review M6.</li>
+      <li>See FR-5.8, FR-6.5, OQ-68, OQ-72, OQ-82, OQ-171, OQ-178; Manager review M6.</li>
     </ul>
   </div>
   <script>

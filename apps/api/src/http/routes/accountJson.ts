@@ -1,6 +1,7 @@
 import type {
   AccountMonthBalance, AccountView, Budget, BudgetPeriod, Category, CreditCardMonthBalance,
-  CreditCardView, Goal, Subcategory,
+  CreditCardView, Goal, IndexRateSeries, IndexRateValue, ScheduleEntry, Subcategory,
+  ValuationSnapshot,
 } from '../../managers/account';
 
 // AccountManager's results in the contract's JSON shapes: times as ISO strings,
@@ -154,4 +155,63 @@ export const toGoalJson = (goal: Goal) => ({
   visibility: goal.visibility,
   createdAt: goal.createdAt.toISOString(),
   completedAt: goal.completedAt?.toISOString() ?? null,
+});
+
+/**
+ * A Valuation Snapshot as the contract shows it (`components/schemas/ValuationSnapshot`).
+ *
+ * @param snapshot - The snapshot.
+ * @returns The JSON shape.
+ */
+export const toValuationSnapshotJson = (snapshot: ValuationSnapshot) => ({
+  id: snapshot.id,
+  holdingId: snapshot.holdingId,
+  valuation: snapshot.valuation,
+  asOfDate: snapshot.asOfDate,
+  source: snapshot.source,
+  accountTransactionId: snapshot.accountTransactionId,
+  createdAt: snapshot.createdAt.toISOString(),
+});
+
+/**
+ * A schedule entry as the contract shows it (`components/schemas/InvestmentScheduleEntry`).
+ *
+ * @param entry - The entry.
+ * @returns The JSON shape.
+ */
+export const toScheduleEntryJson = (entry: ScheduleEntry) => ({
+  id: entry.id,
+  holdingId: entry.holdingId,
+  kind: entry.kind,
+  amount: entry.amount,
+  date: entry.date,
+  postedAt: entry.postedAt?.toISOString() ?? null,
+  createdAt: entry.createdAt.toISOString(),
+});
+
+/**
+ * An index value as the contract shows it (`components/schemas/IndexRateValue`).
+ *
+ * @param rate - The value.
+ * @returns The JSON shape.
+ */
+export const toIndexRateJson = (rate: IndexRateValue) => ({
+  id: rate.id,
+  index: rate.indexCode,
+  value: rate.value,
+  asOf: rate.asOfDate,
+  createdByUserId: rate.createdByUserId,
+  createdAt: rate.createdAt.toISOString(),
+});
+
+/**
+ * An index with its history (`components/schemas/IndexRateSeries`).
+ *
+ * @param series - The series.
+ * @returns The JSON shape.
+ */
+export const toIndexRateSeriesJson = (series: IndexRateSeries) => ({
+  index: series.index,
+  unit: series.unit,
+  values: series.values.map(toIndexRateJson),
 });

@@ -136,3 +136,24 @@ export const checkItems = <Item extends object>(
   rules: FieldRules<Item>,
 ): readonly FieldDetail[] => items.flatMap((item, index) => checkFields(item, rules)
   .map((detail) => ({ ...detail, field: `${field}[${index}].${detail.field}` })));
+
+/**
+ * Checks that no two items of a list field share a key, e.g. a Goal named twice
+ * in one allocation split. Each repeat after the first is named by its path
+ * (`allocations[2].goalId`), so the form can point at it.
+ *
+ * @param field - The list field's name.
+ * @param items - The items, as the route validated them.
+ * @param key - The item field that must be distinct.
+ * @returns One `array.duplicate` detail per repeat, in item order; empty when
+ *   every key is distinct.
+ */
+export const distinctItems = <Item extends object>(
+  field: string,
+  items: readonly Item[],
+  key: keyof Item & string,
+): readonly FieldDetail[] => items.flatMap((item, index) => (
+  items.slice(0, index).some((earlier) => earlier[key] === item[key])
+    ? [{ field: `${field}[${index}].${key}`, code: 'array.duplicate' }]
+    : []
+));

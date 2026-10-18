@@ -6,6 +6,16 @@ import { createServiceBus, type BusMessage } from '../../../../src/utilities/ser
 
 const NOW = new Date('2026-10-08T12:00:00Z');
 const CREATED = { householdId: 'h1', createdByUserId: 'u1', language: 'pt-BR' } as const;
+const MATURED = {
+  holdingId: 'x',
+  accountId: 'a1',
+  householdId: 'h1',
+  ownerUserId: 'u1',
+  visibility: 'personal',
+  assetType: 'cdb',
+  ticker: null,
+  dueDate: '2026-10-01',
+} as const;
 const CORRELATION_ID = newCorrelationId(() => '0199c5a0-1b2c-7d3e-8f40-123456789abc');
 
 /**
@@ -166,7 +176,7 @@ describe('ServiceBusUtility', () => {
         setTimeout(resolve, 5);
       });
       order.push('household handled');
-      bus.publish('holding.matured', { holdingId: 'x', ownerUserIds: [] }, message.correlationId);
+      bus.publish('holding.matured', MATURED, message.correlationId);
     });
     bus.subscribe('holding.matured', async () => {
       await new Promise((resolve) => {

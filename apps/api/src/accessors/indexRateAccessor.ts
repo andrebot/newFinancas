@@ -186,6 +186,24 @@ const createIndexRateAccessor = (db: Database) => ({
   },
 
   /**
+   * Reads one value of one index of a household — the Manager's access check
+   * needs its recorder before an edit or delete (OQ-178).
+   *
+   * @param householdId - The household.
+   * @param indexCode - The index, from the route.
+   * @param valueId - The value.
+   * @returns The value, or `undefined` for another household's or index's.
+   */
+  findById: async (
+    householdId: string,
+    indexCode: IndexCodeValue,
+    valueId: string,
+  ): Promise<IndexRateValue | undefined> => {
+    const found = await findValue(db, householdId, indexCode, valueId);
+    return found === 'not_found' ? undefined : found;
+  },
+
+  /**
    * An index's latest value — the one with the highest date (FR-11.2/11.6).
    *
    * @param householdId - The household.

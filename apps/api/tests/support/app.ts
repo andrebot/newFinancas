@@ -78,8 +78,21 @@ export const mockAccount = (): MockedAccount => ({
   completeGoal: vi.fn(),
   reopenGoal: vi.fn(),
   deleteGoal: vi.fn(),
+  listHoldingAllocations: vi.fn(),
+  editHolding: vi.fn(),
+  archiveHolding: vi.fn(),
+  listScheduleEntries: vi.fn(),
+  listValuationSnapshots: vi.fn(),
+  recordMarketValue: vi.fn(),
+  editMarketValue: vi.fn(),
+  deleteMarketValue: vi.fn(),
+  listIndexRates: vi.fn(),
+  recordIndexRate: vi.fn(),
+  editIndexRate: vi.fn(),
+  deleteIndexRate: vi.fn(),
   getCreditCardBalances: vi.fn(),
   seedDefaultCategories: vi.fn(),
+  notifyMaturedHolding: vi.fn(),
 });
 
 /**

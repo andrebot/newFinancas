@@ -249,6 +249,21 @@ describe('IndexRateAccessor.remove', () => {
   }));
 });
 
+describe('IndexRateAccessor.findById', () => {
+  it('reads a value of the household and index asked for', scenario(async (setup) => {
+    const rate = await setup.record('cdi', 104_000, '2026-10-01');
+
+    expect(await setup.rates.findById(setup.householdId, 'cdi', rate.id)).toEqual(rate);
+  }));
+
+  it('finds nothing through another household or index', scenario(async (setup) => {
+    const rate = await setup.record('cdi', 104_000, '2026-10-01');
+
+    expect(await setup.rates.findById(setup.otherHouseholdId, 'cdi', rate.id)).toBeUndefined();
+    expect(await setup.rates.findById(setup.householdId, 'selic', rate.id)).toBeUndefined();
+  }));
+});
+
 describe('IndexRateAccessor.latest', () => {
   it('picks the highest date, not the last written', scenario(async (setup) => {
     await setup.record('cdi', 104_000, '2026-10-01');

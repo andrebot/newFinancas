@@ -90,6 +90,45 @@ export const GOAL = {
   createdAt: NOW,
 };
 
+/** A market-priced Holding in ACCOUNT, as InvestmentHoldingAccessor returns it. */
+export const HOLDING = {
+  id: '0199c5a0-0000-7000-8000-0000000000b1',
+  accountId: ACCOUNT.id,
+  assetType: 'stock',
+  ticker: 'PETR4' as string | null,
+  quantity: 100,
+  costBasis: 300000,
+  rateType: null as string | null,
+  rateValue: null as number | null,
+  incentivised: null as boolean | null,
+  archivedAt: null as Date | null,
+  archivedBy: null as 'system' | 'user' | null,
+  maturedNotifiedAt: null as Date | null,
+  createdAt: NOW,
+};
+
+/** A manual market value of HOLDING. */
+export const SNAPSHOT = {
+  id: '0199c5a0-0000-7000-8000-0000000000b2',
+  holdingId: HOLDING.id,
+  valuation: 320000,
+  asOfDate: '2026-10-01',
+  source: 'manual' as 'manual' | 'transaction',
+  accountTransactionId: null as string | null,
+  createdAt: NOW,
+};
+
+/** A Selic value Ana recorded. */
+export const RATE = {
+  id: '0199c5a0-0000-7000-8000-0000000000b3',
+  householdId: HOUSEHOLD_ID,
+  indexCode: 'selic' as const,
+  value: 105000,
+  asOfDate: '2026-10-01',
+  createdByUserId: ANA_ID as string | null,
+  createdAt: NOW,
+};
+
 /** What BudgetAccessor answers a target set it refused or took. */
 type TargetResult = { ok: true } | { ok: false; reason: 'not_found' }
   | { ok: false; reason: 'target_claimed'; target: object; claimedByBudgetId: string }
@@ -174,15 +213,38 @@ export const fakeDeps = () => {
   const goals = {
     insert: vi.fn(async () => GOAL),
     findById: vi.fn(async (): Promise<typeof GOAL | undefined> => GOAL),
-    findByIds: vi.fn(async () => [GOAL]),
+    findByIds: vi.fn(async (): Promise<typeof GOAL[]> => [GOAL]),
     list: vi.fn(async () => [GOAL]),
     update: vi.fn(async (): Promise<typeof GOAL | undefined> => GOAL),
     complete: vi.fn(async () => true),
     reopen: vi.fn(async () => true),
     delete: vi.fn(async () => true),
-    listAllocations: vi.fn(async () => []),
-    replaceAllocations: vi.fn(async () => ({ ok: true })),
+    listAllocations: vi.fn(async (): Promise<object[]> => []),
+    replaceAllocations: vi.fn(async (): Promise<object> => ({ ok: true })),
   };
+  const holdings = {
+    findById: vi.fn(async (): Promise<typeof HOLDING | undefined> => HOLDING),
+    listSchedule: vi.fn(async (): Promise<object[]> => []),
+    archive: vi.fn(async () => true),
+    markMaturedNotified: vi.fn(async () => true),
+  };
+  const valuations = {
+    list: vi.fn(async (): Promise<typeof SNAPSHOT[]> => [SNAPSHOT]),
+    insertManual: vi.fn(async () => SNAPSHOT),
+    updateManual: vi.fn(async (): Promise<typeof SNAPSHOT | string> => SNAPSHOT),
+    deleteManual: vi.fn(async (): Promise<string> => 'deleted'),
+  };
+  const indexRates = {
+    findById: vi.fn(async (): Promise<typeof RATE | undefined> => RATE),
+    list: vi.fn(async (): Promise<typeof RATE[]> => [RATE]),
+    insert: vi.fn(async (): Promise<typeof RATE | string> => RATE),
+    update: vi.fn(async (): Promise<typeof RATE | string> => RATE),
+    remove: vi.fn(async (): Promise<string> => 'deleted'),
+  };
+  const households = {
+    listMembers: vi.fn(async (): Promise<{ userId: string }[]> => [{ userId: ANA_ID }]),
+  };
+  const notifications = { notify: vi.fn(async (..._call: unknown[]) => undefined) };
   const authorization = {
     authorize: vi.fn(async (): Promise<Outcome> => ({ outcome: 'allowed', role: 'Owner' })),
   };
@@ -195,9 +257,29 @@ export const fakeDeps = () => {
     work(stores)
   ));
   const deps = {
-    ...stores, authorization, inTransaction, now: () => NOW,
+    ...stores,
+    holdings,
+    valuations,
+    indexRates,
+    households,
+    notifications,
+    authorization,
+    inTransaction,
+    now: () => NOW,
   } as unknown as AccountDeps;
   return {
-    deps, categories, accounts, creditCards, budgets, goals, authorization, inTransaction,
+    deps,
+    categories,
+    accounts,
+    creditCards,
+    budgets,
+    goals,
+    holdings,
+    valuations,
+    indexRates,
+    households,
+    notifications,
+    authorization,
+    inTransaction,
   };
 };

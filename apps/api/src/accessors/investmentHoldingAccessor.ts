@@ -89,6 +89,7 @@ export interface ScheduleEntry extends ScheduleEntryInput {
   readonly id: string;
   readonly holdingId: string;
   readonly postedAt: Date | null;
+  readonly createdAt: Date;
 }
 
 /** A schedule entry due to post, with the Account it posts to. */
@@ -355,6 +356,7 @@ const createInvestmentHoldingAccessor = (db: Database) => ({
       holdingId: investmentScheduleEntries.holdingId,
       ...entryInputColumns,
       postedAt: investmentScheduleEntries.postedAt,
+      createdAt: investmentScheduleEntries.createdAt,
     }).from(investmentScheduleEntries)
       .where(inArray(investmentScheduleEntries.holdingId, [...holdingIds]))
       .orderBy(

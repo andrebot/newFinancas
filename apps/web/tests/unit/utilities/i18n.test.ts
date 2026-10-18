@@ -54,8 +54,8 @@ describe('createTranslator', () => {
 
     expect(translator.error('auth.too_many_attempts', { retryAfterMinutes: 1 }))
       .toBe('Muitas tentativas de entrar. Tente de novo em 1 minuto.');
-    expect(translator.error('goal.allocation_exceeds_100', { current: 80, requested: 30 }))
-      .toBe('Este investimento já tem 80% alocado; adicionar 30% passaria de 100%.');
+    expect(translator.error('goal.allocation_exceeds_100', { current: 80, requested: 130 }))
+      .toBe('Estas alocações somam 130%; um investimento pode ter no máximo 100% alocado.');
     expect(capture.events).toEqual([]);
   });
 
@@ -66,6 +66,12 @@ describe('createTranslator', () => {
     expect(translator.notification('invitation.received', {
       inviterName: 'Ana', householdName: 'Casa', role: 'Viewer',
     })).toBe('Ana invited you to Casa as a viewer.');
+    expect(translator.notification('holding.matured', {
+      holdingId: 'h1', assetType: 'tesouro_direto', ticker: null, dueDate: '2026-10-01',
+    })).toBe('Your Tesouro Direto matured on 2026-10-01. Archive it?');
+    expect(createTranslator('pt-BR').notification('holding.matured', {
+      holdingId: 'h1', assetType: 'cdb', ticker: null, dueDate: '2026-10-01',
+    })).toBe('Seu investimento CDB venceu em 2026-10-01. Arquivar?');
   });
 
   it('shows each section’s generic message for an unknown code, and logs it', () => {
@@ -96,7 +102,7 @@ describe('createTranslator', () => {
   });
 
   it('shows the generic message when a known message fails to format; logs argument names', () => {
-    const text = createTranslator('en-US').notification('holding.matured', { holdingName: 'CDB' });
+    const text = createTranslator('en-US').notification('holding.matured', { ticker: 'CDB' });
 
     expect(text).toBe(catalogs['en-US'].notifications.fallback);
     expect(capture.events).toEqual([expect.objectContaining({
@@ -104,7 +110,7 @@ describe('createTranslator', () => {
       locale: 'en-US',
       section: 'notifications',
       key: 'holding.matured',
-      params: ['holdingName'],
+      params: ['ticker'],
     })]);
   });
 

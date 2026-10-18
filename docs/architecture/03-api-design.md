@@ -210,7 +210,18 @@ itself when it was first introduced:
   `GET /holdings/{id}/schedule-entries` — the latter is read-only from
   this API on purpose; entries are written only by
   `InvestmentProductEngine` at purchase time (OQ-53), never created
-  directly through a client request.
+  directly through a client request. **OQ-178:** the Holding reads
+  (`GET /accounts/{id}/holdings`, `GET /holdings/{id}`) carry
+  `expectedPayout`/`expectedTaxes`, so they are `InsightsManager`'s (M4);
+  the snapshot and schedule lists are `AccountManager`'s plain reads. `PATCH
+  /holdings/{id}` answers the split it wrote, and the new `GET
+  /holdings/{id}/allocations` reads it — both over the Goals the caller can
+  see (a share funding someone else's personal Goal is kept, never shown).
+  `GET /index-rates` answers `{data: IndexRateSeries[]}`, every index in the
+  in-code order (an empty history included), each value with its
+  `createdByUserId`; `IndexCode` and `IndexRateUnit` are named schemas kept
+  equal to `INDEX_CODES` by a test. A manual market value is
+  `NonNegativeMoney`.
 - `GET /goals/{id}/progress` —
   progress computation per FR-8.5/8.7, returning per-currency
   contributions and leaving the cross-currency blend to the frontend

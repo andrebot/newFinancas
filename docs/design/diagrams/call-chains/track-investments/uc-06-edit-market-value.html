@@ -50,7 +50,7 @@
 </head>
 <body>
   <h1>Call Chain — Edit Market Value</h1>
-  <p class="subtitle">Use case 6 of 12 in the Track Investments &amp; Net Worth set (CUC-6), FR-5.2. Edit. Added in the Oct 2026 call chain review (<code>docs/architecture/06-call-chain-review-2026-10.md</code>, VBD Round 9).</p>
+  <p class="subtitle">Use case 6 of 12 in the Track Investments &amp; Net Worth set (CUC-6, FR-5.2). Edit. As built in M2 part 5 (OQ-178).</p>
 
   <div class="architecture">
     <svg id="arrows-svg"></svg>
@@ -135,7 +135,8 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain:</strong> <code>AccountManager</code> ① <code>AuthorizationUtility</code> → ② <code>ValidationUtility</code> → ③ <code>InvestmentHoldingAccessor</code> (verify market-priced) → ④ <code>ValuationSnapshotAccessor.updateManual</code> → ⑤ <code>LoggingUtility</code> (async).</p>
+    <p><strong>Chain:</strong> <code>AccountManager</code> ① <code>InvestmentHoldingAccessor.findById</code> + <code>AccountAccessor.findById</code> (sync &mdash; the Holding&#39;s Account&#39;s visibility and owner feed the check) → ② <code>AuthorizationUtility.authorize(data.edit)</code> (sync) → (open and market-priced, else 409) → ③ <code>ValidationUtility.dateWithin(max: today)</code> → ④ <code>ValuationSnapshotAccessor.updateManual (an empty edit: <code>list</code>, read back)</code> → ⑤ <code>LoggingUtility</code> (async).</p>
+    <p><strong>Corrected (OQ-178):</strong> a Holding has no owner of its own, so access is decided on its Account &mdash; the <code>AccountAccessor</code> read is the check&#39;s input, not a second Accessor in a chain (both are called by the Manager).</p>
     <p>Rejects automatic (transaction-driven) snapshots — those change only with their transaction (OQ-56).</p>
   </div>
 
@@ -149,7 +150,7 @@
       svg.style.width = containerRect.width + 'px';
       svg.style.height = containerRect.height + 'px';
 
-      var edges = [{"from": "mgr-account", "to": "util-authz", "type": "sync", "order": 1}, {"from": "mgr-account", "to": "util-validation", "type": "sync", "order": 2}, {"from": "mgr-account", "to": "acc-holding", "type": "sync", "order": 3}, {"from": "mgr-account", "to": "acc-snapshot", "type": "sync", "order": 4}, {"from": "mgr-account", "to": "util-logging", "type": "async", "order": 5}];
+      var edges = [{"from": "mgr-account", "to": "acc-holding", "type": "sync", "order": 1}, {"from": "mgr-account", "to": "acc-account", "type": "sync", "order": 1}, {"from": "mgr-account", "to": "util-authz", "type": "sync", "order": 2}, {"from": "mgr-account", "to": "util-validation", "type": "sync", "order": 3}, {"from": "mgr-account", "to": "acc-snapshot", "type": "sync", "order": 4}, {"from": "mgr-account", "to": "util-logging", "type": "async", "order": 5}];
 
       var activeIds = {};
       edges.forEach(function (e) { activeIds[e.from] = true; activeIds[e.to] = true; });

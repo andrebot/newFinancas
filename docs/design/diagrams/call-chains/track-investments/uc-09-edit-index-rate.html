@@ -50,7 +50,7 @@
 </head>
 <body>
   <h1>Call Chain — Edit Index Rate</h1>
-  <p class="subtitle">Use case 9 of 12 in the Track Investments &amp; Net Worth set (CUC-6), FR-11.6. Edit. Added in the Oct 2026 call chain review (<code>docs/architecture/06-call-chain-review-2026-10.md</code>, VBD Round 9).</p>
+  <p class="subtitle">Use case 9 of 12 in the Track Investments &amp; Net Worth set (CUC-6, FR-11.6). Edit. As built in M2 part 5 (OQ-178).</p>
 
   <div class="architecture">
     <svg id="arrows-svg"></svg>
@@ -135,8 +135,9 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain:</strong> <code>AccountManager</code> ① <code>AuthorizationUtility</code> → ② <code>ValidationUtility</code> → ③ <code>IndexRateAccessor.update(householdId, index, valueId, changes)</code> → ④ <code>LoggingUtility</code> (async).</p>
-    <p><code>IndexRateAccessor</code> is new in Round 9. Projections read the latest value on demand, so nothing downstream is recalculated here.</p>
+    <p><strong>Chain:</strong> <code>AccountManager</code> ① <code>IndexRateAccessor.findById</code> (its recorder) → <code>AuthorizationUtility.authorize(data.edit)</code> (sync) → ② <code>ValidationUtility.dateWithin(max: today)</code> → ③ <code>IndexRateAccessor.update(householdId, index, valueId, changes)</code> → ④ <code>LoggingUtility</code> (async).</p>
+    <p><strong>OQ-178:</strong> shared data whose recorder counts as its creator &mdash; a Member may correct or delete their own value, so an edit or delete reads it first.</p>
+    <p>Projections read the latest value on demand, so nothing downstream is recalculated here.</p>
   </div>
 
   <script>
@@ -149,7 +150,7 @@
       svg.style.width = containerRect.width + 'px';
       svg.style.height = containerRect.height + 'px';
 
-      var edges = [{"from": "mgr-account", "to": "util-authz", "type": "sync", "order": 1}, {"from": "mgr-account", "to": "util-validation", "type": "sync", "order": 2}, {"from": "mgr-account", "to": "acc-indexrate", "type": "sync", "order": 3}, {"from": "mgr-account", "to": "util-logging", "type": "async", "order": 4}];
+      var edges = [{"from": "mgr-account", "to": "acc-indexrate", "type": "sync", "order": 1}, {"from": "mgr-account", "to": "util-authz", "type": "sync", "order": 1}, {"from": "mgr-account", "to": "util-validation", "type": "sync", "order": 2}, {"from": "mgr-account", "to": "acc-indexrate", "type": "sync", "order": 3}, {"from": "mgr-account", "to": "util-logging", "type": "async", "order": 4}];
 
       var activeIds = {};
       edges.forEach(function (e) { activeIds[e.from] = true; activeIds[e.to] = true; });

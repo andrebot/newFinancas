@@ -410,7 +410,12 @@ describe('applySchedule', () => {
       .toEqual({ ok: true });
     expect(await accessor.listSchedule([holdingId])).toMatchObject([
       {
-        holdingId, kind: 'redemption', amount: 110_000, date: '2027-10-17', postedAt: null,
+        holdingId,
+        kind: 'redemption',
+        amount: 110_000,
+        date: '2027-10-17',
+        postedAt: null,
+        createdAt: expect.any(Date),
       },
       {
         holdingId, kind: 'tax', amount: 1_500, date: '2027-10-17', postedAt: null,

@@ -62,48 +62,60 @@ sequenceDiagram
     actor User
     participant API as Hono route
     participant AM as AccountManager
-    participant AZ as AuthorizationUtility
-    participant VU as ValidationUtility
+    participant AU as AuthorizationUtility
     participant IHA as InvestmentHoldingAccessor
+    participant AA as AccountAccessor
+    participant VU as ValidationUtility
     participant VSA as ValuationSnapshotAccessor
     participant LOG as LoggingUtility
 
     User->>API: PATCH /households/:householdId/holdings/:holdingId/valuation-snapshots/:snapshotId {value?, asOf?}
-    API->>AM: editMarketValue(actor, holdingId, input)
-    AM->>AZ: canWrite(actor, holdingId)?
-    alt not authorized
-        AZ-->>AM: denied
-        AM-->>API: Forbidden
-        API-->>User: 403 auth.forbidden
-    else authorized
-        AZ-->>AM: allowed
-        AM->>VU: check(input)
-        AM->>IHA: findById(householdId, holdingId)
-        alt Holding is a fixed-term instrument (OQ-51)
-            IHA-->>AM: assetType = CDB / Tesouro / ...
-            AM-->>API: Conflict
-            API-->>User: 409 holding.not_market_priced
+    API->>AM: editMarketValue(context, householdId, holdingId, snapshotId, input)
+    AM->>IHA: findById(householdId, holdingId)
+    IHA-->>AM: holding (or none)
+    AM->>AA: findById(householdId, holding.accountId)
+    AA-->>AM: its Account
+    AM->>AU: authorize(actor, householdId, {data.edit, account.visibility, account.ownerUserId})
+    alt not a member
+        AM-->>API: 404 household.not_found
+    else missing, or in someone else&#39;s personal Account
+        AM-->>API: 404 holding.not_found
+    else role may not maintain (a Member may on a shared Account they created)
+        AM-->>API: 403 auth.forbidden
+    else allowed
+        alt Holding archived
+            AM-->>API: 409 holding.archived
+        else fixed-term (OQ-51)
+            AM-->>API: 409 holding.not_market_priced
         else market-priced
-            IHA-->>AM: ok
-            AM->>VSA: updateManual(holdingId, snapshotId, {valuation?, asOfDate?})
-        else not this Holding's snapshot
-            VSA-->>AM: not_found
-            AM-->>API: NotFound
-            API-->>User: 404 snapshot.not_found
-        else snapshot is automatic (source = transaction)
-            VSA-->>AM: automatic
-            AM-->>API: Conflict
-            API-->>User: 409 snapshot.automatic_not_editable
+            AM->>VU: checkFields({asOf: dateWithin(max: today)})
+            alt asOf after today
+                AM-->>API: 422 validation.failed {asOf: date.max}
+            else
+                alt nothing to change
+                    AM->>VSA: list(holdingId)
+                    Note over AM: read back, answered as a write would (not this Holding&#39;s &rarr; 404, automatic &rarr; 409), unaudited
+                else
+                AM->>VSA: updateManual(holdingId, snapshotId, {valuation?, asOfDate?})
+                alt not this Holding&#39;s snapshot
+                    VSA-->>AM: not_found
+                    AM-->>API: 404 snapshot.not_found
+                else automatic (source = transaction)
+                    VSA-->>AM: automatic
+                    AM-->>API: 409 snapshot.automatic_not_editable
+                else written
+                    VSA-->>AM: done
+                    AM-->>LOG: audit EditMarketValue
+                    API-->>User: 200 OK {snapshot}
+                end
+                end
+            end
         end
-        AM-->>LOG: logActivity(correlationId, actor, "EditMarketValue")
-        AM-->>LOG: recordAudit(actor, "ValuationSnapshot", snapshotId)
-        AM-->>API: done
-        API-->>User: 200 OK
     end
     </pre>
   </div>
   <div class="notes">
-<ul><li>Corrects a typo in a past value (OQ-56).</li><li>Net worth and goal progress read &ldquo;latest snapshot at or before month end&rdquo; on demand &mdash; nothing to recompute here.</li><li>See FR-5.2, OQ-51, OQ-56, OQ-83.</li></ul>
+<ul><li>Corrects a typo in a past value (OQ-56).</li><li><strong>As built (OQ-178):</strong> access is the Holding&#39;s Account&#39;s (<code>data.edit</code> for all three writes); an archived Holding takes no new value; a date after today is refused on the field (<code>date.max</code>), as everywhere else (OQ-165).</li><li>Net worth and goal progress read &ldquo;latest snapshot at or before month end&rdquo; on demand &mdash; nothing to recompute here.</li><li>See FR-5.2, OQ-51, OQ-56, OQ-83, OQ-178.</li></ul>
   </div>
   <script>
     mermaid.initialize({

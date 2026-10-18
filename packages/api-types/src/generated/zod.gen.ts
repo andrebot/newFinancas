@@ -38,6 +38,11 @@ export const zCurrency = z.enum(['BRL', 'USD']);
 export const zMoney = z.int();
 
 /**
+ * Money (minor units, as `Money`) that can't be negative — a manual market value (OQ-178).
+ */
+export const zNonNegativeMoney = z.int().gte(0);
+
+/**
  * Money (minor units, as `Money`) that must be more than zero — a Budget's monthly target (OQ-176), a Goal's target (OQ-177).
  */
 export const zPositiveMoney = z.int().gte(1);
@@ -495,14 +500,23 @@ export const zInvestmentHolding = z.object({
     }).nullish()
 });
 
+export const zHoldingAllocation = z.object({
+    goalId: z.uuid(),
+    percentage: z.int().gte(1).lte(100)
+});
+
 /**
  * Narrowed (Oct 2026): goal allocations only — position changes through transactions, market value through valuation-snapshots. Replace-all semantics.
  */
 export const zHoldingUpdateRequest = z.object({
-    allocations: z.array(z.object({
-        goalId: z.uuid(),
-        percentage: z.int().gte(1).lte(100)
-    }))
+    allocations: z.array(zHoldingAllocation)
+});
+
+/**
+ * A Holding's split over the Goals the caller can see (OQ-178).
+ */
+export const zHoldingAllocations = z.object({
+    data: z.array(zHoldingAllocation)
 });
 
 export const zValuationSnapshot = z.object({
@@ -648,32 +662,38 @@ export const zUser = z.object({
 });
 
 export const zValuationSnapshotInput = z.object({
-    value: zMoney,
+    value: zNonNegativeMoney,
     asOf: z.iso.date()
 });
 
+/**
+ * The in-code index list (`INDEX_CODES` in @financas/reference, kept equal by a test — OQ-178).
+ */
+export const zIndexCode = z.enum([
+    'selic',
+    'cdi',
+    'ipca',
+    'igpm'
+]);
+
 export const zIndexRateValue = z.object({
-    id: z.uuid().optional(),
-    index: z.enum([
-        'selic',
-        'cdi',
-        'ipca',
-        'igpm'
-    ]).optional(),
-    value: z.int().optional(),
-    asOf: z.iso.date().optional(),
-    createdAt: z.iso.datetime().optional()
+    id: z.uuid(),
+    index: zIndexCode,
+    value: z.int(),
+    asOf: z.iso.date(),
+    createdByUserId: z.uuid().nullable(),
+    createdAt: z.iso.datetime()
 });
 
+/**
+ * How an index's values read, from `INDEX_CODES` (OQ-178).
+ */
+export const zIndexRateUnit = z.enum(['annual_percent', 'trailing_12m_percent']);
+
 export const zIndexRateSeries = z.object({
-    index: z.enum([
-        'selic',
-        'cdi',
-        'ipca',
-        'igpm'
-    ]).optional(),
-    unit: z.enum(['annual', 'trailing_12m']).optional(),
-    values: z.array(zIndexRateValue).optional()
+    index: zIndexCode,
+    unit: zIndexRateUnit,
+    values: z.array(zIndexRateValue)
 });
 
 export const zGoal = z.object({
@@ -852,7 +872,8 @@ export const zHoldingMaturedNotification = z.object({
     type: z.enum(['holding.matured']),
     params: z.object({
         holdingId: z.uuid().optional(),
-        holdingName: z.string().optional(),
+        assetType: z.string().optional(),
+        ticker: z.string().nullish(),
         dueDate: z.iso.date().optional()
     })
 });
@@ -922,12 +943,7 @@ export const zGoalId = z.uuid();
 
 export const zSnapshotId = z.uuid();
 
-export const zIndexCode = z.enum([
-    'selic',
-    'cdi',
-    'ipca',
-    'igpm'
-]);
+export const zIndex = zIndexCode;
 
 export const zIndexValueId = z.uuid();
 
@@ -1477,7 +1493,17 @@ export const zEditHoldingPath = z.object({
 /**
  * OK
  */
-export const zEditHoldingResponse = zInvestmentHolding;
+export const zEditHoldingResponse = zHoldingAllocations;
+
+export const zListHoldingAllocationsPath = z.object({
+    householdId: z.uuid(),
+    holdingId: z.uuid()
+});
+
+/**
+ * OK
+ */
+export const zListHoldingAllocationsResponse = zHoldingAllocations;
 
 export const zArchiveHoldingPath = z.object({
     householdId: z.uuid(),
@@ -1750,7 +1776,7 @@ export const zDeleteMarketValuePath = z.object({
 export const zDeleteMarketValueResponse = z.void();
 
 export const zEditMarketValueBody = z.object({
-    value: zMoney.optional(),
+    value: zNonNegativeMoney.optional(),
     asOf: z.iso.date().optional()
 });
 
@@ -1772,7 +1798,9 @@ export const zListIndexRatesPath = z.object({
 /**
  * OK
  */
-export const zListIndexRatesResponse = z.array(zIndexRateSeries);
+export const zListIndexRatesResponse = z.object({
+    data: z.array(zIndexRateSeries)
+});
 
 export const zRecordIndexRateBody = z.object({
     value: z.int(),
@@ -1781,12 +1809,7 @@ export const zRecordIndexRateBody = z.object({
 
 export const zRecordIndexRatePath = z.object({
     householdId: z.uuid(),
-    index: z.enum([
-        'selic',
-        'cdi',
-        'ipca',
-        'igpm'
-    ])
+    index: zIndexCode
 });
 
 /**
@@ -1796,12 +1819,7 @@ export const zRecordIndexRateResponse = zIndexRateValue;
 
 export const zDeleteIndexRatePath = z.object({
     householdId: z.uuid(),
-    index: z.enum([
-        'selic',
-        'cdi',
-        'ipca',
-        'igpm'
-    ]),
+    index: zIndexCode,
     valueId: z.uuid()
 });
 
@@ -1817,12 +1835,7 @@ export const zEditIndexRateBody = z.object({
 
 export const zEditIndexRatePath = z.object({
     householdId: z.uuid(),
-    index: z.enum([
-        'selic',
-        'cdi',
-        'ipca',
-        'igpm'
-    ]),
+    index: zIndexCode,
     valueId: z.uuid()
 });
 

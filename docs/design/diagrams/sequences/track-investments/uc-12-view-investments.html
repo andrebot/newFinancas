@@ -108,7 +108,8 @@ sequenceDiagram
     <ul>
       <li><strong>Two Engines side by side, never calling each other</strong> &mdash; <code>InsightsManager</code> composes them (VBD &sect;3).</li>
       <li>Payout comes only from linked transactions (FR-5.9); projections are computed on read (FR-11.2) &mdash; nothing new is stored.</li>
-      <li>The Rates tab reads <code>GET /households/:householdId/index-rates</code> (every index with its history) &mdash; a plain read of <code>AccountManager</code>'s own entities, so it is <code>AccountManager</code>'s (<code>IndexRateAccessor.list</code>, read-ownership rule, OQ-172), not this Manager's; value history reads <code>GET /households/:householdId/holdings/:holdingId/valuation-snapshots</code> (exists).</li>
+      <li>The Rates tab reads <code>GET /households/:householdId/index-rates</code> (every index with its history) &mdash; a plain read of <code>AccountManager</code>'s own entities, so it is <code>AccountManager</code>'s (<code>IndexRateAccessor.list</code>, read-ownership rule, OQ-172), not this Manager's; so are a Holding's value history (<code>GET &hellip;/holdings/:holdingId/valuation-snapshots</code>), its schedule (<code>&hellip;/schedule-entries</code>) and its visible Goal split (<code>&hellip;/allocations</code>) &mdash; built in M2 part 5 (OQ-178).</li>
+      <li><strong>Still this Manager&#39;s (M4):</strong> <code>GET &hellip;/accounts/:accountId/holdings</code> and <code>GET &hellip;/holdings/:holdingId</code> &mdash; a Holding read carries <code>expectedPayout</code> / <code>expectedTaxes</code>, and only <code>InsightsManager</code> calls <code>InvestmentProductEngine</code> (OQ-178).</li>
       <li>See FR-5.3, FR-5.4, FR-5.9, FR-11.2, FR-11.6, OQ-58, OQ-73, OQ-79.</li>
     </ul>
   </div>

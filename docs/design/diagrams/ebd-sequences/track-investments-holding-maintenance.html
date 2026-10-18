@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Track Investments — Holding Maintenance</h1>
-  <p class="subtitle"><span class="route">GET /households/:householdId/accounts/:id/holdings</span>, <span class="route">PATCH /households/:householdId/holdings/:id</span>, <span class="route">…/valuation-snapshots</span>.</p>
+  <p class="subtitle"><span class="route">GET /households/:householdId/accounts/:id/holdings</span> (InsightsManager), <span class="route">GET/PATCH /households/:householdId/holdings/:id/allocations</span>, <span class="route">…/valuation-snapshots</span> (AccountManager — OQ-178).</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -76,6 +76,15 @@ sequenceDiagram
     EXP-->>FLOW: state
     User->>HT: expand a holding
     HT->>FLOW: emit holdingExpanded
+    FLOW->>EXP: request split + history(holdingId)
+    par
+        EXP->>API: GET /households/:householdId/holdings/:holdingId/allocations
+        API-->>EXP: the split over the Goals this member can see
+    and
+        EXP->>API: GET /households/:householdId/holdings/:holdingId/valuation-snapshots
+        API-->>EXP: value history, newest first
+    end
+    EXP-->>FLOW: state
     alt edit goal allocations
         User->>GA: rows with whole %
         GA->>FLOW: emit allocations
@@ -92,12 +101,12 @@ sequenceDiagram
         FLOW->>EXP: request edit / delete snapshot
         EXP->>API: PATCH or DELETE …/valuation-snapshots/:snapshotId
     end
-    API-->>EXP: done or error code (e.g. 409 snapshot.automatic_not_editable)
+    API-->>EXP: done or error code (e.g. 409 snapshot.automatic_not_editable, goal.completed, holding.archived)
     EXP-->>FLOW: state refreshed
     </pre>
   </div>
   <div class="notes">
-<ul><li>Positions are read-only (transactions only).</li><li>'See in Transactions' asks the Experience to route to Manage Finances with holdingId — no Flow-to-Flow call.</li></ul>
+<ul><li>Positions are read-only (transactions only).</li><li>'See in Transactions' asks the Experience to route to Manage Finances with holdingId — no Flow-to-Flow call.</li><li>The split shows only the Goals this member can see; a share funding someone else's personal Goal is kept by the server on save and still counts toward 100% (OQ-178).</li></ul>
   </div>
   <script>
     mermaid.initialize({
