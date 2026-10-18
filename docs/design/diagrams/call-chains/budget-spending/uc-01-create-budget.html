@@ -50,7 +50,7 @@
 </head>
 <body>
   <h1>Call Chain — Create Budget</h1>
-  <p class="subtitle">Use case 1 of 3 in the Budget Spending set (CUC-5, FR-4.1/FR-4.7). Create pattern.</p>
+  <p class="subtitle">Use case 1 of 3 in the Budget &amp; Spending set (CUC-5, FR-4.1/4.7). Create pattern. As built in M2 part 3 (OQ-176).</p>
 
   <div class="architecture">
     <svg id="arrows-svg"></svg>
@@ -135,8 +135,9 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain:</strong> <code>AccountManager</code> ① <code>ValidationUtility.check(...)</code> (sync) → ② <code>BudgetAccessor.assignTarget(...)</code> (sync, validated write — rejects a Category/Subcategory already claimed elsewhere, FR-4.7) → ③ <code>LoggingUtility</code> (async).</p>
-    <p><strong>No smell:</strong> the overlap-uniqueness invariant is enforced inside the single Accessor write, not as a separate pre-check — same discipline as every other invariant in this architecture.</p>
+    <p><strong>Chain:</strong> <code>AccountManager</code> ① <code>AuthorizationUtility.authorize(data.create)</code> (sync) → ② <code>ValidationUtility.checkFields(...)</code> (sync) → ③ <code>CategoryAccessor.list(...)</code> (sync — which targets are open) → ④ <code>BudgetAccessor.insert(...)</code> (sync, validated write — the Budget, its claims and this month&#39;s period in one transaction; rejects a target claimed in the scope, FR-4.7) → ⑤ <code>LoggingUtility</code> (async).</p>
+    <p><strong>Corrected (OQ-176):</strong> the authorization call is needed — a shared Budget needs a role that may create (a Viewer may not); and a new target must be an open Category or Subcategory, read through <code>CategoryAccessor</code> (a Manager reading two Accessors, no Accessor-to-Accessor call).</p>
+    <p><strong>No smell:</strong> the overlap-uniqueness invariant is still enforced inside the single Accessor write, not as a separate pre-check.</p>
   </div>
 
   <script>
@@ -149,7 +150,7 @@
       svg.style.width = containerRect.width + 'px';
       svg.style.height = containerRect.height + 'px';
 
-      var edges = [{"from": "mgr-account", "to": "util-validation", "type": "sync", "order": 1}, {"from": "mgr-account", "to": "acc-budget", "type": "sync", "order": 2}, {"from": "mgr-account", "to": "util-logging", "type": "async", "order": 3}];
+      var edges = [{"from": "mgr-account", "to": "util-authz", "type": "sync", "order": 1}, {"from": "mgr-account", "to": "util-validation", "type": "sync", "order": 2}, {"from": "mgr-account", "to": "acc-category", "type": "sync", "order": 3}, {"from": "mgr-account", "to": "acc-budget", "type": "sync", "order": 4}, {"from": "mgr-account", "to": "util-logging", "type": "async", "order": 5}];
 
       var activeIds = {};
       edges.forEach(function (e) { activeIds[e.from] = true; activeIds[e.to] = true; });

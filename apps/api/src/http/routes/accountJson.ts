@@ -1,5 +1,6 @@
 import type {
-  AccountMonthBalance, AccountView, Category, CreditCardMonthBalance, CreditCardView, Subcategory,
+  AccountMonthBalance, AccountView, Budget, BudgetPeriod, Category, CreditCardMonthBalance,
+  CreditCardView, Subcategory,
 } from '../../managers/account';
 
 // AccountManager's results in the contract's JSON shapes: times as ISO strings,
@@ -102,4 +103,36 @@ export const toCreditCardBalanceJson = (balance: CreditCardMonthBalance) => ({
   openingOutstandingBalance: balance.openingOutstandingBalance,
   endingOutstandingBalance: balance.endingOutstandingBalance,
   updatedAt: balance.updatedAt.toISOString(),
+});
+
+/**
+ * A Budget as the contract shows it (`components/schemas/Budget`).
+ *
+ * @param budget - The Budget with its targets.
+ * @returns The JSON shape.
+ */
+export const toBudgetJson = (budget: Budget) => ({
+  id: budget.id,
+  householdId: budget.householdId,
+  ownerUserId: budget.ownerUserId,
+  name: budget.name,
+  targetAmount: budget.targetAmount,
+  currency: budget.currency,
+  visibility: budget.visibility,
+  targets: budget.targets,
+  createdAt: budget.createdAt.toISOString(),
+});
+
+/**
+ * One month of a Budget (`components/schemas/BudgetPeriod`).
+ *
+ * @param period - The month, its target and its spend.
+ * @returns The JSON shape.
+ */
+export const toBudgetPeriodJson = (period: BudgetPeriod) => ({
+  year: period.year,
+  month: period.month,
+  targetAmount: period.targetAmount,
+  spendAmount: period.spendAmount,
+  createdAt: period.createdAt.toISOString(),
 });

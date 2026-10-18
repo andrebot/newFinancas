@@ -1,6 +1,6 @@
-import type { Role } from '../db/schema/values';
+import type { Role, Visibility } from '../db/schema/values';
 import { createApiError, type ApiError } from '../http/apiError';
-import type { AccessRequest, AuthorizationUtility } from '../utilities/authorization';
+import type { AccessRequest, AuthorizationUtility, DataAction } from '../utilities/authorization';
 
 // The household access check every Manager takes before it acts (OQ-111), and
 // the answers it gives: a non-member never learns the household exists, someone
@@ -50,3 +50,23 @@ export const requireAccess = async (
   if (result.outcome === 'not_member') throw householdNotFound();
   throw result.outcome === 'not_visible' ? notVisible() : forbidden();
 };
+
+/** What an access decision reads off personal-or-shared data (FR-2.3/4.2). */
+export interface Owned {
+  readonly visibility: Visibility;
+  readonly ownerUserId: string | null;
+}
+
+/**
+ * The access request for an action on personal-or-shared data; for data that
+ * isn't there, only the membership check, so a non-member still learns nothing.
+ *
+ * @param owned - The Account, Budget, …, if found.
+ * @param action - The data action.
+ * @returns What AuthorizationUtility decides on.
+ */
+export const accessToOwned = (owned: Owned | undefined, action: DataAction): AccessRequest => (
+  owned
+    ? { action, visibility: owned.visibility, ownerUserId: owned.ownerUserId }
+    : { action: 'data.view', visibility: 'shared', ownerUserId: null }
+);

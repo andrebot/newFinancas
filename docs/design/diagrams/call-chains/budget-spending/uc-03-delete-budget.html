@@ -50,7 +50,7 @@
 </head>
 <body>
   <h1>Call Chain — Delete Budget</h1>
-  <p class="subtitle">Use case 3 of 3 in the Budget Spending set (CUC-5, FR-4.10/OQ-40). Lifecycle Transition, hard delete, releases claimed targets.</p>
+  <p class="subtitle">Use case 3 of 3 in the Budget &amp; Spending set (CUC-5, FR-4.10). Hard delete (OQ-40). As built in M2 part 3 (OQ-176).</p>
 
   <div class="architecture">
     <svg id="arrows-svg"></svg>
@@ -135,8 +135,9 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain:</strong> <code>AccountManager</code> ① <code>BudgetAccessor.delete(...)</code> (sync, hard delete — releases claimed Category/Subcategory targets in the same write) → ② <code>LoggingUtility</code> (async).</p>
-    <p><strong>No smell:</strong> the shallowest chain in this set, correctly reflecting that Budget's hard-delete (unlike most other entities' archive) has nothing else depending on the live record — Budget Periods are independent, per OQ-40.</p>
+    <p><strong>Chain:</strong> <code>AccountManager</code> ① <code>BudgetAccessor.findById / delete(...)</code> (sync, hard delete — releases claimed Category/Subcategory targets in the same write) → ② <code>AuthorizationUtility.authorize(data.delete)</code> (sync, between the read and the write) → ③ <code>LoggingUtility</code> (async).</p>
+    <p><strong>Corrected (OQ-176):</strong> deleting is a data.delete on the Budget, so it is authorized like any write.</p>
+    <p><strong>No smell:</strong> still the shallowest chain in this set — Budget Periods are independent of the live record, per OQ-40.</p>
   </div>
 
   <script>
@@ -149,7 +150,7 @@
       svg.style.width = containerRect.width + 'px';
       svg.style.height = containerRect.height + 'px';
 
-      var edges = [{"from": "mgr-account", "to": "acc-budget", "type": "sync", "order": 1}, {"from": "mgr-account", "to": "util-logging", "type": "async", "order": 2}];
+      var edges = [{"from": "mgr-account", "to": "acc-budget", "type": "sync", "order": 1}, {"from": "mgr-account", "to": "util-authz", "type": "sync", "order": 2}, {"from": "mgr-account", "to": "util-logging", "type": "async", "order": 3}];
 
       var activeIds = {};
       edges.forEach(function (e) { activeIds[e.from] = true; activeIds[e.to] = true; });

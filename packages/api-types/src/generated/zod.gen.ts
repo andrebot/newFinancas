@@ -38,6 +38,11 @@ export const zCurrency = z.enum(['BRL', 'USD']);
 export const zMoney = z.int();
 
 /**
+ * Money (minor units, as `Money`) that must be more than zero — a Budget's monthly target (OQ-176).
+ */
+export const zPositiveMoney = z.int().gte(1);
+
+/**
  * An integer count of 1e-8 units (8 decimal places, scale factor 100,000,000) — the same fixed-point treatment as Money, applied to Investment Holding quantity instead of currency. 10 shares is transmitted as 1000000000; Tesouro Direto's 0.01 minimum increment is 100000. One fixed exponent for every assetType (stock/FII/fixed-income/fund) rather than a per-instrument lookup, since there's no ISO-style standard giving investment quantity a natural exponent the way currency has minor units. Matches the underlying bigint column exactly — never a decimal or a string. See 03-api-design.md.
  *
  */
@@ -400,7 +405,8 @@ export const zCategoryUpdateRequest = z.object({
 });
 
 /**
- * Exactly one of categoryId/subcategoryId, never both.
+ * A whole Category (with all its Subcategories, FR-4.6) or one Subcategory — exactly one of the two ids, never both. The generated validator can't say "exactly one" (it ignores `additionalProperties: false` on a `oneOf` branch), so AccountManager checks it: 422 `field.invalid` on `targets[i]` (OQ-176).
+ *
  */
 export const zBudgetTargetInput = z.object({
     categoryId: z.uuid().optional(),
@@ -421,7 +427,7 @@ export const zBudget = z.object({
 
 export const zBudgetCreateRequest = z.object({
     name: z.string(),
-    targetAmount: zMoney,
+    targetAmount: zPositiveMoney,
     currency: zCurrency,
     visibility: z.enum(['personal', 'shared']),
     targets: z.array(zBudgetTargetInput).min(1)
@@ -429,8 +435,8 @@ export const zBudgetCreateRequest = z.object({
 
 export const zBudgetUpdateRequest = z.object({
     name: z.string().optional(),
-    targetAmount: zMoney.optional(),
-    targets: z.array(zBudgetTargetInput).optional()
+    targetAmount: zPositiveMoney.optional(),
+    targets: z.array(zBudgetTargetInput).min(1).optional()
 });
 
 export const zBudgetPeriod = z.object({
@@ -1373,17 +1379,14 @@ export const zListBudgetsPath = z.object({
 });
 
 export const zListBudgetsQuery = z.object({
-    visibility: z.enum(['personal', 'shared']).optional(),
-    limit: z.int().gte(1).lte(100).optional().default(20),
-    offset: z.int().gte(0).optional().default(0)
+    visibility: z.enum(['personal', 'shared']).optional()
 });
 
 /**
  * OK
  */
 export const zListBudgetsResponse = z.object({
-    data: z.array(zBudget).optional(),
-    pagination: zPagination.optional()
+    data: z.array(zBudget).optional()
 });
 
 export const zCreateBudgetBody = zBudgetCreateRequest;
@@ -1435,8 +1438,8 @@ export const zListBudgetPeriodsPath = z.object({
 });
 
 export const zListBudgetPeriodsQuery = z.object({
-    startDate: z.iso.date().optional(),
-    endDate: z.iso.date().optional()
+    from: z.string().regex(/^[0-9]{4}-(0[1-9]|1[0-2])$/).optional(),
+    to: z.string().regex(/^[0-9]{4}-(0[1-9]|1[0-2])$/).optional()
 });
 
 /**

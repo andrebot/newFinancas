@@ -706,10 +706,14 @@ API-->>EXP: done
 EXP-->>FLOW: state refreshed
 FLOW-->>CC: re-render (colour via ThemeUtility)
 """, ["Colour stored as a token, resolved per theme (OQ-85)."]),
-    ("account-setup-budget-management", "Account Setup — Budget Management", f"{R('POST/PATCH/DELETE /households/:householdId/budgets')}.",
+    ("account-setup-budget-management", "Account Setup — Budget Management", f"{R('GET/POST/PATCH/DELETE /households/:householdId/budgets')}.",
      [("BF", "Budget Form"), ("CP", "Claim-Aware<br/>Category Picker"), ("DC", "Delete Confirm"), FLOW("Budget Management"), EXP("Account Setup"), API],
      """
-FLOW-->>CP: render categories — claimed ones disabled, showing which budget owns them
+FLOW->>EXP: request budgets
+EXP->>API: GET /households/:householdId/budgets
+API-->>EXP: every Budget the caller can see, with its targets (unpaginated, OQ-176)
+EXP-->>FLOW: state
+FLOW-->>CP: render categories — claimed ones in this scope disabled, showing which budget owns them
 User->>BF: name, currency, visibility, monthly target
 User->>CP: pick free categories / subcategories
 CP->>FLOW: emit coverChosen
@@ -717,13 +721,24 @@ BF->>FLOW: emit budgetSubmitted
 FLOW->>EXP: request saveBudget
 EXP->>API: POST /households/:householdId/budgets (or PATCH)
 alt 409 budget.target_already_claimed
-    API-->>EXP: error code (claimed meanwhile)
+    API-->>EXP: error code + params {target, budgetId} (claimed meanwhile)
     EXP-->>FLOW: state: error — picker refreshes
+else 422 field.invalid_option on targets[i]
+    API-->>EXP: a category archived meanwhile
+    EXP-->>FLOW: state: error on that target
 else saved
     API-->>EXP: budget
     EXP-->>FLOW: state refreshed
 end
-""", ["Setup page shows no spend progress (stakeholder)."]),
+opt delete
+    User->>DC: confirm
+    DC->>FLOW: emit deleteConfirmed
+    FLOW->>EXP: request deleteBudget
+    EXP->>API: DELETE /households/:householdId/budgets/:budgetId
+    API-->>EXP: 204 — its claims are free again
+    EXP-->>FLOW: state refreshed
+end
+""", ["Setup page shows no spend progress (stakeholder) — the list carries definitions only (OQ-176).", "Currency and visibility can't change after creation: the edit form shows them read-only."]),
     ("account-setup-goal-management", "Account Setup — Goal Management", f"{R('POST/PATCH/DELETE /households/:householdId/goals')}, {R('POST /households/:householdId/goals/:id/complete|reopen')}, {R('GET /households/:householdId/goals')}.",
      [("GF", "Goal Form"), ("GP", "Goal Progress Card"), ("FX", "Exchange-Rate<br/>Calculator"), ("CR", "Complete / Reopen<br/>Confirm"), FLOW("Goal Management"), EXP("Account Setup"), API],
      """

@@ -11,6 +11,7 @@ import createBudgetAccessor, {
   type NewBudget,
   type Spend,
 } from '../../../src/accessors/budgetAccessor';
+import type { MonthRange } from '../../../src/accessors/calendarMonth';
 import type { Database } from '../../../src/db/database';
 import {
   budgetPeriods, categories, households, subcategories, users,
@@ -28,7 +29,6 @@ afterAll(async () => {
 const JANUARY: BudgetMonth = { year: 2026, month: 1 };
 const MARCH: BudgetMonth = { year: 2026, month: 3 };
 const UNKNOWN_ID = '00000000-0000-7000-8000-000000000000';
-const FIRST_PAGE = { limit: 10, offset: 0 };
 
 type Budgets = ReturnType<typeof createBudgetAccessor>;
 type Targets = readonly BudgetTarget[];
@@ -61,7 +61,7 @@ interface Setup {
   ) => Promise<string>;
   /** Accrues a spend: shared BRL Account, Transport > Fuel, 1,000 on 2026-01-15 by default. */
   readonly accrue: (overrides?: Partial<Spend>) => Promise<'accrued' | 'untracked'>;
-  /** A Budget's periods over 2025–2027 as `[year-month, target, spend]`, oldest first. */
+  /** A Budget's periods, all of them, as `[year-month, target, spend]`, oldest first. */
   readonly periods: (budgetId: string) => Promise<unknown[]>;
   /** A Casa Budget's targets. */
   readonly targetsOf: (budgetId: string) => Promise<Targets | undefined>;
@@ -162,12 +162,9 @@ const withHelpers = (
       date: '2026-01-15',
       ...overrides,
     }),
-    periods: async (budgetId) => (await data.budgets.listPeriods(
-      data.home,
-      budgetId,
-      { year: 2025, month: 1 },
-      { year: 2027, month: 12 },
-    )).map((period) => [`${period.year}-${period.month}`, period.targetAmount, period.spendAmount]),
+    periods: async (budgetId) => (await data.budgets.listPeriods(data.home, budgetId)).map(
+      (period) => [`${period.year}-${period.month}`, period.targetAmount, period.spendAmount],
+    ),
     targetsOf: async (budgetId) => (await data.budgets.findById(data.home, budgetId))?.targets,
   };
 };
@@ -258,7 +255,7 @@ describe('BudgetAccessor.insert', () => {
     );
 
     expect(result).toEqual(claimed({ categoryId: setup.transport }, car));
-    expect((await setup.budgets.list(setup.home, setup.ana, FIRST_PAGE)).total).toBe(1);
+    expect(await setup.budgets.list(setup.home, setup.ana)).toHaveLength(1);
     expect((await setup.attempt({}, [{ categoryId: setup.shopping }])).ok).toBe(true);
   }));
 
@@ -343,33 +340,28 @@ describe('BudgetAccessor.list', () => {
     const bias = { ...personal, name: 'Bia', ownerUserId: setup.bia };
     await setup.create(bias, [{ categoryId: setup.shopping }]);
 
-    const page = await setup.budgets.list(setup.home, setup.ana, FIRST_PAGE);
+    const listed = await setup.budgets.list(setup.home, setup.ana);
 
-    expect(page.total).toBe(2);
-    expect(page.budgets.map((budget) => [budget.name, budget.targets])).toEqual([
+    expect(listed.map((budget) => [budget.name, budget.targets])).toEqual([
       ['Ana', [{ categoryId: setup.shopping }]],
       ['Car', [{ categoryId: setup.transport }]],
     ]);
   }));
 
-  it('filters by visibility and pages', test(async (setup) => {
+  it('filters by visibility', test(async (setup) => {
     await setup.create({ name: 'Car' }, [{ categoryId: setup.transport }]);
     await setup.create({ name: 'Clothes' }, [{ categoryId: setup.shopping }]);
     await setup.create({ name: 'Mine', visibility: 'personal' }, [{ categoryId: setup.shopping }]);
 
-    const page = await setup.budgets.list(
-      setup.home,
-      setup.ana,
-      { visibility: 'shared', limit: 1, offset: 1 },
-    );
+    const shared = await setup.budgets.list(setup.home, setup.ana, { visibility: 'shared' });
+    const personal = await setup.budgets.list(setup.home, setup.ana, { visibility: 'personal' });
 
-    expect(page.total).toBe(2);
-    expect(page.budgets.map((budget) => budget.name)).toEqual(['Clothes']);
+    expect(shared.map((budget) => budget.name)).toEqual(['Car', 'Clothes']);
+    expect(personal.map((budget) => budget.name)).toEqual(['Mine']);
   }));
 
-  it('returns an empty page for a household without Budgets', test(async (setup) => {
-    expect(await setup.budgets.list(setup.elsewhere, setup.ana, FIRST_PAGE))
-      .toEqual({ budgets: [], total: 0 });
+  it('returns nothing for a household without Budgets', test(async (setup) => {
+    expect(await setup.budgets.list(setup.elsewhere, setup.ana)).toEqual([]);
   }));
 });
 
@@ -480,16 +472,29 @@ describe('BudgetAccessor.listPeriods', () => {
     await setup.accrue({ date: '2025-12-01' });
     await setup.accrue({ date: '2026-02-01' });
 
-    const periods = await setup.budgets.listPeriods(
-      setup.home,
-      car,
-      { year: 2025, month: 12 },
-      { year: 2026, month: 2 },
-    );
+    const periods = await setup.budgets.listPeriods(setup.home, car, {
+      from: { year: 2025, month: 12 },
+      to: { year: 2026, month: 2 },
+    });
 
     expect(periods.map((period) => [period.year, period.month])).toEqual([[2025, 12], [2026, 2]]);
     expect(periods[0]).toEqual(expect.objectContaining({ createdAt: expect.any(Date) }));
-    expect(await setup.budgets.listPeriods(setup.elsewhere, car, november, MARCH)).toEqual([]);
+    expect(await setup.budgets.listPeriods(setup.elsewhere, car, { from: november, to: MARCH }))
+      .toEqual([]);
+  }));
+
+  it('leaves an open end reaching the history\'s end', test(async (setup) => {
+    const november = { year: 2025, month: 11 };
+    const car = await setup.create({}, [{ categoryId: setup.transport }], november);
+    await setup.accrue({ date: '2025-12-01' });
+    await setup.accrue({ date: '2026-02-01' });
+    const months = async (range: MonthRange) => (
+      await setup.budgets.listPeriods(setup.home, car, range)
+    ).map((period) => period.month);
+
+    expect(await months({ from: { year: 2025, month: 12 } })).toEqual([12, 2]);
+    expect(await months({ to: { year: 2025, month: 12 } })).toEqual([11, 12]);
+    expect(await months({})).toEqual([11, 12, 2]);
   }));
 });
 

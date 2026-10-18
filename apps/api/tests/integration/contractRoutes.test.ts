@@ -17,7 +17,7 @@ const BASE = '/api/v1';
 /** Contract operations whose backend is still on the plan (03-pd-execution-order.md). */
 const NOT_YET_ROUTED: readonly { readonly matches: RegExp; readonly lands: string }[] = [
   {
-    matches: /^\w+ \/households\/\{householdId\}\/(budgets|goals)(\/|$)/,
+    matches: /^\w+ \/households\/\{householdId\}\/goals(\/|$)/,
     lands: 'slice 2 (task 76, M2)',
   },
   {

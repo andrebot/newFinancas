@@ -1,5 +1,6 @@
 import { actorLabel, createLogger, type Logger } from '@financas/logging';
 import type { AccountAccessor } from '../../accessors/accountAccessor';
+import type { BudgetAccessor } from '../../accessors/budgetAccessor';
 import type { CategoryAccessor } from '../../accessors/categoryAccessor';
 import type { CreditCardAccessor } from '../../accessors/creditCardAccessor';
 import { calendar } from '../../config/constants';
@@ -19,6 +20,7 @@ export interface AccountStores {
   readonly categories: CategoryAccessor;
   readonly accounts: AccountAccessor;
   readonly creditCards: CreditCardAccessor;
+  readonly budgets: BudgetAccessor;
 }
 
 /** The components AccountManager calls, and the clock. */
