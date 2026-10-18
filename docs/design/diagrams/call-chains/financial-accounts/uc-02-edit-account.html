@@ -50,7 +50,7 @@
 </head>
 <body>
   <h1>Call Chain — Edit Financial Account (incl. Credit Cards)</h1>
-  <p class="subtitle">Use case 2 of 3 in the Manage Financial Accounts set (CUC-3, FR-2.3/FR-2.9, OQ-35). Edit pattern, Credit Card CRUD folded in.</p>
+  <p class="subtitle">Use case 2 of 3 in the Manage Financial Accounts set (CUC-3, FR-2.3/FR-2.9, OQ-35). Edit pattern, Credit Card changes folded in. As built in M2 part 2 (OQ-175).</p>
 
   <div class="architecture">
     <svg id="arrows-svg"></svg>
@@ -135,8 +135,9 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain:</strong> <code>AccountManager</code> ① <code>ValidationUtility.check(...)</code> (sync) → ② <code>AccountAccessor.update(...)</code> (sync) → ③ <code>CreditCardAccessor.upsert/delete(...)</code> (sync, one call per changed card) → ④ <code>LoggingUtility</code> (async).</p>
-    <p><strong>No smell:</strong> same two Accessors as Create (UC-1), correctly reflecting that folding Credit Card management into Edit Account (OQ-35) didn't introduce any new component — it's the same two Accessors called from one combined form instead of separate ones.</p>
+    <p><strong>Chain:</strong> <code>AccountManager</code> ① <code>AccountAccessor.findById(...)</code> (sync — the Account&#39;s visibility and owner feed the check; later <code>update</code> and <code>balancesAsOf</code>) → ② <code>AuthorizationUtility.authorize(data.edit)</code> (sync) → ③ <code>ValidationUtility.checkFields(...)</code> (sync) → ④ <code>CreditCardAccessor.listByAccounts / insert / update / remove</code> (sync, one call per changed card) → ⑤ <code>LoggingUtility</code> (async).</p>
+    <p><strong>No smell:</strong> same two Accessors as Create (UC-1) — folding Credit Card management into Edit Account (OQ-35) introduced no new component.</p>
+    <p><code>UnitOfWorkUtility.inTransaction</code> wraps the Accessor writes in one transaction (OQ-175) &mdash; not drawn on the shared layout.</p>
   </div>
 
   <script>
@@ -149,7 +150,7 @@
       svg.style.width = containerRect.width + 'px';
       svg.style.height = containerRect.height + 'px';
 
-      var edges = [{"from": "mgr-account", "to": "util-validation", "type": "sync", "order": 1}, {"from": "mgr-account", "to": "acc-account", "type": "sync", "order": 2}, {"from": "mgr-account", "to": "acc-creditcard", "type": "sync", "order": 3}, {"from": "mgr-account", "to": "util-logging", "type": "async", "order": 4}];
+      var edges = [{"from": "mgr-account", "to": "acc-account", "type": "sync", "order": 1}, {"from": "mgr-account", "to": "util-authz", "type": "sync", "order": 2}, {"from": "mgr-account", "to": "util-validation", "type": "sync", "order": 3}, {"from": "mgr-account", "to": "acc-creditcard", "type": "sync", "order": 4}, {"from": "mgr-account", "to": "util-logging", "type": "async", "order": 5}];
 
       var activeIds = {};
       edges.forEach(function (e) { activeIds[e.from] = true; activeIds[e.to] = true; });

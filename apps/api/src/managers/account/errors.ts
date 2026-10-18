@@ -33,3 +33,40 @@ export const subcategoryNotFound = (): ApiError => createApiError({
 export const invalidCategoryStyle = (refusal: StyleRefusal): ApiError => validationFailed([{
   field: refusal === 'invalid_icon' ? 'icon' : 'color', code: 'field.invalid_option',
 }]);
+
+/**
+ * An Account that isn't this household's, doesn't exist, or is someone else's
+ * personal one — the same answer, so it never confirms one exists.
+ *
+ * @returns 404 `account.not_found`.
+ */
+export const accountNotFound = (): ApiError => createApiError({
+  status: 404, code: 'account.not_found', message: 'Account not found',
+});
+
+/**
+ * A Credit Card not on this Account, or on an Account the caller can't see.
+ *
+ * @returns 404 `credit_card.not_found`.
+ */
+export const creditCardNotFound = (): ApiError => createApiError({
+  status: 404, code: 'credit_card.not_found', message: 'Credit card not found',
+});
+
+/**
+ * An edit of an archived Account: archiving is one-way (FR-2.4, OQ-175).
+ *
+ * @returns 409 `account.archived`.
+ */
+export const accountArchived = (): ApiError => createApiError({
+  status: 409, code: 'account.archived', message: 'Account is archived',
+});
+
+/**
+ * A card attached to an Account type that takes none (FR-2.7).
+ *
+ * @returns 422 `account.cards_not_allowed`.
+ */
+export const cardsNotAllowed = (): ApiError => createApiError({
+  status: 422, code: 'account.cards_not_allowed', message: 'This account type takes no cards',
+});

@@ -191,6 +191,7 @@ gap there as a missing scenario, not an acceptable gap.
 - Create Account: the 4 types only (OQ-76); Create/Edit Category with icon + colour token
 - Goal CRUD / complete / reopen / delete (`goals/uc-01..05`)
 - **Written so far (OQ-174, part 1):** `tests/integration/managers/account/` — Categories (access per use case as shared data nobody owns, non-member 404, 403 before validation, blank names incl. `subcategories[i].name`, each Accessor refusal mapped and unaudited, empty edit unaudited, every write audited) and `household.created` (subscription, `seedDefaults` in the creator's language, outcome logged as the system, failure left to the bus); routes in `tests/integration/categoryRoutes.test.ts`
+- **Written so far (OQ-175, part 2):** `tests/integration/managers/account/accounts.test.ts` — Accounts and Credit Cards (access per use case from the Account's own visibility and owner, a missing Account only after the membership check, someone else's personal Account 404, creator-only visibility, archived 409, cards refused on an investment Account, foreign card ids 404 before any write, a card or Account gone mid-edit fails the edit, every write and card change audited, empty edit unaudited, balances and outstanding read as of today's month and each card's current cycle); routes in `tests/integration/accountRoutes.test.ts`; `UnitOfWorkUtility` commit and rollback against PGlite in `tests/db/utilities/unitOfWork.test.ts`
 
 **`TransactionManager`** — mocks `AccountAccessor`, `CreditCardAccessor`,
 `InvestmentHoldingAccessor`, `ValuationSnapshotAccessor`,

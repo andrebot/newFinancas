@@ -17,14 +17,17 @@ const BASE = '/api/v1';
 /** Contract operations whose backend is still on the plan (03-pd-execution-order.md). */
 const NOT_YET_ROUTED: readonly { readonly matches: RegExp; readonly lands: string }[] = [
   {
-    matches: /^\w+ \/households\/\{householdId\}\/(accounts|credit-cards|budgets|goals)(\/|$)/,
+    matches: /^\w+ \/households\/\{householdId\}\/(budgets|goals)(\/|$)/,
     lands: 'slice 2 (task 76, M2)',
   },
   {
-    matches: /^\w+ \/households\/\{householdId\}\/(holdings|index-rates)(\/|$)/,
+    matches: /^\w+ \/households\/[^/]+\/(holdings|index-rates|accounts\/[^/]+\/holdings)(\/|$)/,
     lands: 'slice 2 (task 76, M2)',
   },
-  { matches: /^\w+ \/households\/\{householdId\}\/transactions(\/|$)/, lands: 'slice 3' },
+  {
+    matches: /^\w+ \/households\/[^/]+\/(transactions|credit-cards\/[^/]+\/transactions)(\/|$)/,
+    lands: 'slice 3',
+  },
   {
     matches: /^\w+ \/households\/\{householdId\}\/(dashboard|reports)(\/|$)/,
     lands: 'slice 5',

@@ -156,45 +156,66 @@ export const zHouseholdInvitation = zInvitation.and(z.object({
     inviteeEmail: z.email()
 }));
 
+/**
+ * Card network ("flag", FR-2.8) — mirrors `CARD_NETWORKS` in `@financas/reference`, the extensible reference list; a test keeps the two equal (OQ-175).
+ *
+ */
+export const zCardNetwork = z.enum([
+    'visa',
+    'mastercard',
+    'amex',
+    'elo',
+    'hipercard',
+    'diners',
+    'discover',
+    'jcb',
+    'unionpay',
+    'other'
+]);
+
+export const zCreditCard = z.object({
+    id: z.uuid(),
+    accountId: z.uuid(),
+    network: zCardNetwork,
+    last4: z.string(),
+    closingDay: z.int().gte(1).lte(31),
+    dueDay: z.int().gte(1).lte(31),
+    expirationMonth: z.int().gte(1).lte(12),
+    expirationYear: z.int(),
+    createdAt: z.iso.datetime(),
+    outstandingBalance: zMoney
+});
+
 export const zAccount = z.object({
-    id: z.uuid().optional(),
-    householdId: z.uuid().optional(),
-    ownerUserId: z.uuid().nullish(),
-    name: z.string().optional(),
+    id: z.uuid(),
+    householdId: z.uuid(),
+    ownerUserId: z.uuid().nullable(),
+    name: z.string(),
     type: z.enum([
         'checking',
         'savings',
         'credit_card_only',
         'investment'
-    ]).optional(),
-    currency: zCurrency.optional(),
-    visibility: z.enum(['personal', 'shared']).optional(),
-    startingBalanceDate: z.iso.date().optional(),
-    archivedAt: z.iso.datetime().nullish(),
-    createdAt: z.iso.datetime().optional()
+    ]),
+    currency: zCurrency,
+    visibility: z.enum(['personal', 'shared']),
+    startingBalanceDate: z.iso.date(),
+    archivedAt: z.iso.datetime().nullable(),
+    createdAt: z.iso.datetime(),
+    currentBalance: zMoney,
+    cards: z.array(zCreditCard)
 });
 
-export const zCreditCard = z.object({
-    id: z.uuid().optional(),
-    accountId: z.uuid().optional(),
-    network: z.string().optional(),
-    last4: z.string().optional(),
-    closingDay: z.int().gte(1).lte(31).optional(),
-    dueDay: z.int().gte(1).lte(31).optional(),
-    expirationMonth: z.int().gte(1).lte(12).optional(),
-    expirationYear: z.int().optional(),
-    createdAt: z.iso.datetime().optional()
-});
-
-export const zCreditCardInput = z.object({
-    id: z.uuid().optional(),
-    network: z.string().optional(),
-    last4: z.string().optional(),
-    closingDay: z.int().optional(),
-    dueDay: z.int().optional(),
-    expirationMonth: z.int().optional(),
-    expirationYear: z.int().optional(),
-    _remove: z.boolean().optional()
+/**
+ * A card to attach. Only its last 4 digits are ever stored (NFR-SEC-7).
+ */
+export const zCreditCardNew = z.object({
+    network: zCardNetwork,
+    last4: z.string().regex(/^[0-9]{4}$/),
+    closingDay: z.int().gte(1).lte(31),
+    dueDay: z.int().gte(1).lte(31),
+    expirationMonth: z.int().gte(1).lte(12),
+    expirationYear: z.int().gte(2000).lte(2100)
 });
 
 export const zAccountCreateRequest = z.object({
@@ -208,29 +229,56 @@ export const zAccountCreateRequest = z.object({
     currency: zCurrency,
     visibility: z.enum(['personal', 'shared']),
     openingBalance: zMoney.optional(),
-    cards: z.array(zCreditCardInput).optional()
+    cards: z.array(zCreditCardNew).optional()
+});
+
+/**
+ * An attached card's changes; any field may be left out. A new closing day applies to movements written after it (OQ-170).
+ *
+ */
+export const zCreditCardEdit = z.object({
+    id: z.uuid(),
+    network: zCardNetwork.optional(),
+    last4: z.string().regex(/^[0-9]{4}$/).optional(),
+    closingDay: z.int().gte(1).lte(31).optional(),
+    dueDay: z.int().gte(1).lte(31).optional(),
+    expirationMonth: z.int().gte(1).lte(12).optional(),
+    expirationYear: z.int().gte(2000).lte(2100).optional()
+});
+
+/**
+ * The card changes of an Account edit (FR-2.9, OQ-35), applied with it in one write (OQ-175). Removing a card drops its Card Transactions and balances; bill payments stay in the Account's history, and the Budget spend its charges accrued stays (OQ-174).
+ *
+ */
+export const zCreditCardChanges = z.object({
+    add: z.array(zCreditCardNew).optional(),
+    edit: z.array(zCreditCardEdit).optional(),
+    remove: z.array(z.uuid()).optional()
 });
 
 export const zAccountUpdateRequest = z.object({
     name: z.string().optional(),
     visibility: z.enum(['personal', 'shared']).optional(),
-    cards: z.array(zCreditCardInput).optional()
+    cards: zCreditCardChanges.optional()
 });
 
 export const zAccountMonthBalance = z.object({
-    year: z.int().optional(),
-    month: z.int().optional(),
-    openingBalance: zMoney.optional(),
-    endingBalance: zMoney.optional(),
-    updatedAt: z.iso.datetime().optional()
+    year: z.int(),
+    month: z.int(),
+    openingBalance: zMoney,
+    endingBalance: zMoney,
+    updatedAt: z.iso.datetime()
 });
 
+/**
+ * One billing cycle, named by the month it closes in (OQ-170).
+ */
 export const zCreditCardMonthBalance = z.object({
-    year: z.int().optional(),
-    month: z.int().optional(),
-    openingOutstandingBalance: zMoney.optional(),
-    endingOutstandingBalance: zMoney.optional(),
-    updatedAt: z.iso.datetime().optional()
+    year: z.int(),
+    month: z.int(),
+    openingOutstandingBalance: zMoney,
+    endingOutstandingBalance: zMoney,
+    updatedAt: z.iso.datetime()
 });
 
 /**
@@ -858,6 +906,16 @@ export const zStartDate = z.iso.date();
 export const zEndDate = z.iso.date();
 
 /**
+ * First month, inclusive (YYYY-MM); left out, the history's first.
+ */
+export const zFromMonth = z.string().regex(/^[0-9]{4}-(0[1-9]|1[0-2])$/);
+
+/**
+ * Last month, inclusive (YYYY-MM); left out, the history's last.
+ */
+export const zToMonth = z.string().regex(/^[0-9]{4}-(0[1-9]|1[0-2])$/);
+
+/**
  * Opaque cursor from the previous page's `nextCursor`
  */
 export const zCursor = z.string();
@@ -1150,17 +1208,14 @@ export const zListAccountsPath = z.object({
 });
 
 export const zListAccountsQuery = z.object({
-    visibility: z.enum(['personal', 'shared']).optional(),
-    limit: z.int().gte(1).lte(100).optional().default(20),
-    offset: z.int().gte(0).optional().default(0)
+    visibility: z.enum(['personal', 'shared']).optional()
 });
 
 /**
  * OK
  */
 export const zListAccountsResponse = z.object({
-    data: z.array(zAccount).optional(),
-    pagination: zPagination.optional()
+    data: z.array(zAccount).optional()
 });
 
 export const zCreateAccountBody = zAccountCreateRequest;
@@ -1206,26 +1261,14 @@ export const zArchiveAccountPath = z.object({
  */
 export const zArchiveAccountResponse = z.void();
 
-export const zListCreditCardsPath = z.object({
-    householdId: z.uuid(),
-    accountId: z.uuid()
-});
-
-/**
- * OK
- */
-export const zListCreditCardsResponse = z.object({
-    data: z.array(zCreditCard).optional()
-});
-
 export const zGetAccountBalancesPath = z.object({
     householdId: z.uuid(),
     accountId: z.uuid()
 });
 
 export const zGetAccountBalancesQuery = z.object({
-    startDate: z.iso.date().optional(),
-    endDate: z.iso.date().optional()
+    from: z.string().regex(/^[0-9]{4}-(0[1-9]|1[0-2])$/).optional(),
+    to: z.string().regex(/^[0-9]{4}-(0[1-9]|1[0-2])$/).optional()
 });
 
 /**
@@ -1241,8 +1284,8 @@ export const zGetCreditCardBalancesPath = z.object({
 });
 
 export const zGetCreditCardBalancesQuery = z.object({
-    startDate: z.iso.date().optional(),
-    endDate: z.iso.date().optional()
+    from: z.string().regex(/^[0-9]{4}-(0[1-9]|1[0-2])$/).optional(),
+    to: z.string().regex(/^[0-9]{4}-(0[1-9]|1[0-2])$/).optional()
 });
 
 /**

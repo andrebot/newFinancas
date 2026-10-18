@@ -672,9 +672,9 @@ opt add a card
     User->>CE: number (network detected), closing day, due day, expiry
     CE->>FLOW: emit cardAdded {network, last4, days, expiry}
 end
-FLOW->>EXP: request saveAccount(account, cards)
-EXP->>API: POST /households/:householdId/accounts (or PATCH /households/:householdId/accounts/:accountId)
-API-->>EXP: saved or 422 validation.failed
+FLOW->>EXP: request saveAccount(account, cards to add / edit / remove)
+EXP->>API: POST /households/:householdId/accounts {…, cards} (or PATCH /households/:householdId/accounts/:accountId {…, cards: {add, edit, remove}})
+API-->>EXP: Account with currentBalance and cards (outstandingBalance), or 422 / 403 / 409 account.archived
 EXP-->>FLOW: state
 opt archive
     User->>AC: confirm (one-way)
@@ -682,7 +682,7 @@ opt archive
     FLOW->>EXP: request archive
     EXP->>API: POST /households/:householdId/accounts/:accountId/archive
 end
-""", ["Only last4 + network leave the browser — the full number never does (NFR-SEC-7).", "Reused as Guided Setup step 1."]),
+""", ["Only last4 + network leave the browser — the full number never does (NFR-SEC-7).", "One save writes the Account and every card change together, or nothing (OQ-175); the list the Experience shows comes from GET …/accounts, balances included.", "Reused as Guided Setup step 1."]),
     ("account-setup-category-management", "Account Setup — Category Management", f"{R('POST/PATCH /households/:householdId/categories')}, archive endpoints.",
      [("CC", "Category Card"), ("IP", "Icon & Colour Picker"), ("SE", "Inline Subcategory Entry"), ("AC", "Archive Confirm"), FLOW("Category Management"), EXP("Account Setup"), API],
      """
