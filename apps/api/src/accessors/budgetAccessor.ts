@@ -7,7 +7,7 @@ import {
   budgetPeriods, budgetTargets, budgets, categories, subcategories,
 } from '../db/schema';
 import type { Visibility } from '../db/schema/values';
-import { monthOf, type CalendarMonth } from './calendarMonth';
+import { monthOf, type CalendarMonth, type MonthRange } from './calendarMonth';
 
 // BudgetAccessor (A10, VBD): Budgets, their Category/Subcategory targets and their
 // monthly Budget Periods (FR-4, 02-data-model.md). It applies data changes only;
@@ -516,28 +516,24 @@ const createBudgetAccessor = (db: Database) => ({
 
   /**
    * Lists the Budgets a member can see (shared ones and their own personal ones),
-   * by name, one page at a time.
+   * by name — every one, as the claim-aware picker needs every claim (OQ-176).
    *
    * @param householdId - The household.
    * @param viewerUserId - The member.
-   * @param page - Optional visibility filter, page size and offset.
-   * @param page.visibility - Only this visibility, when given.
-   * @param page.limit - Page size.
-   * @param page.offset - Rows to skip.
-   * @returns The page and the total count.
+   * @param filter - Only this visibility, when given.
+   * @param filter.visibility - The visibility.
+   * @returns The Budgets.
    */
   list: async (
     householdId: string,
     viewerUserId: string,
-    page: { readonly visibility?: Visibility; readonly limit: number; readonly offset: number },
-  ) => {
-    const where = visibleTo(householdId, viewerUserId, page.visibility);
-    const rows = await db.select(budgetColumns).from(budgets).where(where)
-      .orderBy(asc(budgets.name), asc(budgets.id))
-      .limit(page.limit)
-      .offset(page.offset);
-    return { budgets: await withTargets(db, rows), total: await db.$count(budgets, where) };
-  },
+    filter: { readonly visibility?: Visibility | undefined } = {},
+  ): Promise<Budget[]> => withTargets(
+    db,
+    await db.select(budgetColumns).from(budgets)
+      .where(visibleTo(householdId, viewerUserId, filter.visibility))
+      .orderBy(asc(budgets.name), asc(budgets.id)),
+  ),
 
   /**
    * Edits a Budget's name and/or target amount; a new target applies from the
@@ -606,15 +602,13 @@ const createBudgetAccessor = (db: Database) => ({
    *
    * @param householdId - The household.
    * @param budgetId - The Budget.
-   * @param from - First month, inclusive.
-   * @param to - Last month, inclusive.
+   * @param range - The months; open ends reach the history's ends.
    * @returns The periods.
    */
   listPeriods: (
     householdId: string,
     budgetId: string,
-    from: BudgetMonth,
-    to: BudgetMonth,
+    range: MonthRange = {},
   ): Promise<BudgetPeriod[]> => db.select({
     year: budgetPeriods.year,
     month: budgetPeriods.month,
@@ -625,8 +619,8 @@ const createBudgetAccessor = (db: Database) => ({
     .where(and(
       eq(budgetPeriods.householdId, householdId),
       eq(budgetPeriods.budgetId, budgetId),
-      periodMonth('>=', from),
-      periodMonth('<=', to),
+      range.from === undefined ? undefined : periodMonth('>=', range.from),
+      range.to === undefined ? undefined : periodMonth('<=', range.to),
     ))
     .orderBy(asc(budgetPeriods.year), asc(budgetPeriods.month)),
 

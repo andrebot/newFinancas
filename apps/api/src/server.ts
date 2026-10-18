@@ -8,6 +8,7 @@ import { serve } from '@hono/node-server';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
 import createAccountAccessor from './accessors/accountAccessor';
+import createBudgetAccessor from './accessors/budgetAccessor';
 import createAuditLogAccessor from './accessors/auditLogAccessor';
 import createCategoryAccessor from './accessors/categoryAccessor';
 import createCreditCardAccessor from './accessors/creditCardAccessor';
@@ -92,6 +93,7 @@ const accountStoresOver = (over: Database): AccountStores => ({
   categories: createCategoryAccessor(over),
   accounts: createAccountAccessor(over),
   creditCards: createCreditCardAccessor(over),
+  budgets: createBudgetAccessor(over),
 });
 const account = createAccountManager({
   ...accountStoresOver(db),

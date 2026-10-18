@@ -1120,12 +1120,16 @@ paths:
       tags: [Budgets]
       operationId: listBudgets
       summary: List budgets
+      description: >
+        Every shared Budget and the caller's own personal ones, by name —
+        not paginated, like listCategories: the claim-aware Category
+        picker needs every claim in the caller's scopes (OQ-176). The
+        definitions only; spend against target is the Budget status read
+        (FR-4.3).
       parameters:
         - name: visibility
           in: query
           schema: { type: string, enum: [personal, shared] }
-        - $ref: "#/components/parameters/Limit"
-        - $ref: "#/components/parameters/Offset"
       responses:
         "200":
           description: OK
@@ -1137,7 +1141,6 @@ paths:
                   data:
                     type: array
                     items: { $ref: "#/components/schemas/Budget" }
-                  pagination: { $ref: "#/components/schemas/Pagination" }
     post:
       tags: [Budgets]
       operationId: createBudget
@@ -1145,7 +1148,12 @@ paths:
       description: >
         FR-4.1/FR-4.7. A Category or Subcategory can be claimed by at
         most one Budget per scope — a real partial-unique-index
-        constraint one layer down, not application logic.
+        constraint one layer down, not application logic. A target
+        claimed by another Budget in the scope is 409
+        `budget.target_already_claimed`, with `params` naming the target
+        and the claiming `budgetId`; one that isn't this household's, or
+        is archived, is 422 `field.invalid_option` on `targets[i]`
+        (OQ-176). A target sent twice counts once.
       requestBody:
         required: true
         content:
@@ -1157,6 +1165,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Budget" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "409":
           description: A target is already claimed by another Budget in this scope (FR-4.7).
           content:
@@ -1172,12 +1182,16 @@ paths:
       tags: [Budgets]
       operationId: getBudget
       summary: Get a budget
+      description: >
+        Someone else's personal Budget is 404 `budget.not_found`, so it
+        never confirms one exists (OQ-176).
       responses:
         "200":
           description: OK
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Budget" }
+        "404": { $ref: "#/components/responses/NotFound" }
     patch:
       tags: [Budgets]
       operationId: editBudget
@@ -1185,7 +1199,11 @@ paths:
       description: >
         FR-4.9. Changing targetAmount only affects the current and
         future Budget Periods; past periods keep the target actually in
-        effect at the time.
+        effect at the time. `targets` replaces the whole set; the name,
+        target and targets are written together or not at all (OQ-176).
+        A target the Budget already claims stays claimable when its
+        Category has since been archived; a new one may not be.
+        Currency and visibility never change.
       requestBody:
         required: true
         content:
@@ -1197,6 +1215,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Budget" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "409":
           description: A newly assigned target is already claimed elsewhere (FR-4.7).
           content:
@@ -1213,8 +1233,11 @@ paths:
         Budget Periods are unaffected (budget_periods.budget_id is a
         nullable FK, ON DELETE SET NULL) and survive on their own.
         Releases every Category/Subcategory this Budget had claimed.
+        Deleting it again is 404 `budget.not_found`.
       responses:
         "204": { description: No Content }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
   /households/{householdId}/budgets/{budgetId}/periods:
     parameters:
@@ -1224,10 +1247,14 @@ paths:
       tags: [Budgets]
       operationId: listBudgetPeriods
       summary: Get a budget's monthly period history (target vs. actual spend)
-      description: FR-4.3/FR-4.9. Backs the Budget status display.
+      description: >
+        FR-4.3/FR-4.9. Backs the Budget status display. Months as
+        `YYYY-MM`, both ends optional (OQ-176, like the balance
+        histories); oldest first. Only months a period was opened for
+        are listed.
       parameters:
-        - $ref: "#/components/parameters/StartDate"
-        - $ref: "#/components/parameters/EndDate"
+        - $ref: "#/components/parameters/FromMonth"
+        - $ref: "#/components/parameters/ToMonth"
       responses:
         "200":
           description: OK
@@ -1239,6 +1266,7 @@ paths:
                   data:
                     type: array
                     items: { $ref: "#/components/schemas/BudgetPeriod" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
   # =========================================================== INVESTMENTS
   /households/{householdId}/accounts/{accountId}/holdings:
@@ -2311,12 +2339,12 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
     NotFound:
-      description: 'Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `invitation.invitee_not_registered`.'
+      description: 'Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `budget.not_found`, `invitation.invitee_not_registered`.'
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
     Conflict:
-      description: "The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107)."
+      description: "The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed` (params: the target and the claiming `budgetId` — OQ-176), `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107)."
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
@@ -2400,6 +2428,10 @@ components:
         Matches the underlying bigint column exactly, so no
         stringify/parse conversion happens anywhere in the stack (DB,
         backend, API, or frontend). See 03-api-design.md.
+    PositiveMoney:
+      type: integer
+      minimum: 1
+      description: Money (minor units, as `Money`) that must be more than zero — a Budget's monthly target (OQ-176).
       example: 123456
 
     Quantity:
@@ -2802,7 +2834,13 @@ components:
     # ---------------------------------------------------- budgets
     BudgetTargetInput:
       type: object
-      description: "Exactly one of categoryId/subcategoryId, never both."
+      description: >
+        A whole Category (with all its Subcategories, FR-4.6) or one
+        Subcategory — exactly one of the two ids, never both. The
+        generated validator can't say "exactly one" (it ignores
+        `additionalProperties: false` on a `oneOf` branch), so
+        AccountManager checks it: 422 `field.invalid` on `targets[i]`
+        (OQ-176).
       properties:
         categoryId: { type: string, format: uuid }
         subcategoryId: { type: string, format: uuid }
@@ -2827,7 +2865,7 @@ components:
       required: [name, targetAmount, currency, visibility, targets]
       properties:
         name: { type: string }
-        targetAmount: { $ref: "#/components/schemas/Money" }
+        targetAmount: { $ref: "#/components/schemas/PositiveMoney" }
         currency: { $ref: "#/components/schemas/Currency" }
         visibility: { type: string, enum: [personal, shared] }
         targets:
@@ -2839,9 +2877,10 @@ components:
       type: object
       properties:
         name: { type: string }
-        targetAmount: { $ref: "#/components/schemas/Money" }
+        targetAmount: { $ref: "#/components/schemas/PositiveMoney" }
         targets:
           type: array
+          minItems: 1
           items: { $ref: "#/components/schemas/BudgetTargetInput" }
 
     BudgetPeriod:

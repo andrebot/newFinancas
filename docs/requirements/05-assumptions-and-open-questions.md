@@ -4420,6 +4420,53 @@ not a hardcoded assumption.
   `CreditCard`). "Today" is the app time zone's date from the
   Manager's clock (OQ-104).
 
+### OQ-176: AccountManager part 3 — Budgets (task M2)
+**Confirmed with the stakeholder (Oct 2026):**
+- **A new target must be an open Category or Subcategory.** BudgetAccessor
+  didn't check `archivedAt`, so a Budget could claim a Category nobody can
+  record against any more. The Manager reads the household's open
+  Categories (`CategoryAccessor.list`) and refuses any other new target:
+  422 `field.invalid_option` on `targets[i].categoryId` /
+  `targets[i].subcategoryId`, the same answer as a target that isn't this
+  household's. A claim the Budget already holds stays when an edit sends
+  it again, even after its Category was archived. Weighed and rejected:
+  allowing it (the claim would block nothing useful and track nothing).
+- **`GET …/budgets` isn't paginated**, like `listCategories` and
+  `listAccounts` (OQ-175): the claim-aware Category picker needs every
+  claim in the caller's scopes. It returns definitions only; spend against
+  target is the Budget status read (FR-4.3), `InsightsManager`'s, like
+  Goal progress (OQ-174). `BudgetAccessor.list` lost its page.
+- **Periods take months:** `from` / `to` as `YYYY-MM`, both optional, on
+  `GET …/budgets/{id}/periods`, like the balance histories (OQ-175);
+  `listPeriods` takes a `MonthRange` with open ends.
+- **The monthly target is more than zero** (`PositiveMoney`, `minimum: 1`),
+  on create and edit; an edit's `targets` needs at least one (FR-4.1).
+- **A target names exactly one of `categoryId` / `subcategoryId`.** The
+  contract says it in prose only: the generated Zod validator ignores
+  `additionalProperties: false`, so a `oneOf` would accept both and
+  silently drop one. AccountManager checks it — 422 `field.invalid` on
+  `targets[i]`, reported with a blank name in one answer. A target sent
+  twice is claimed once.
+- **An edit is one transaction.** `update` (name, target) and
+  `replaceTargets` run together through `UnitOfWorkUtility` (OQ-175), so a
+  refused target keeps none of the edit; the sequence diagram had them as
+  two writes. Every check runs before; a Budget deleted meanwhile is 404
+  and rolls back. An empty edit reads the Budget back, unaudited.
+- **Who may do what follows the Accounts' rule:** a personal Budget is its
+  owner's alone; a shared one follows the permission table (create:
+  Owner/Admin/Member; edit/delete: Owner/Admin, or the Member who created
+  it — OQ-111). Someone else's personal Budget — and a deleted one — is
+  404 `budget.not_found` (new code, both locales). Deleting is authorized
+  like any write (the old diagram had no `AuthorizationUtility` edge).
+- **Refusals:** a target claimed in the scope is 409
+  `budget.target_already_claimed` with `params` naming the target and the
+  claiming `budgetId` — always a Budget the caller can see, as it sits in
+  the same scope; a target gone between the check and the write is the
+  422 above. **Audit:** `CreateBudget`, `EditBudget`, `DeleteBudget`.
+- **Shared plumbing:** the "access request for personal-or-shared data"
+  helper moved from the Account use cases to `managers/access.ts`
+  (`accessToOwned`), now used by Accounts and Budgets.
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.

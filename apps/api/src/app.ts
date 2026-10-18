@@ -5,6 +5,7 @@ import { createErrorHandler, handleNotFound, type AppEnv } from './http/errorHan
 import type { VerifyAccessToken } from './http/authentication';
 import createRequestLogger from './http/requestLog';
 import createAccountRoutes from './http/routes/accounts';
+import createBudgetRoutes from './http/routes/budgets';
 import createCategoryRoutes from './http/routes/categories';
 import createHouseholdRoutes from './http/routes/households';
 import createIdentityRoutes from './http/routes/identity';
@@ -55,6 +56,7 @@ const createApp = (deps: AppDeps): Hono<AppEnv> => {
   app.route('/api/v1', createHouseholdRoutes(deps.identity, deps.verifyAccessToken));
   app.route('/api/v1', createCategoryRoutes(deps.account));
   app.route('/api/v1', createAccountRoutes(deps.account));
+  app.route('/api/v1', createBudgetRoutes(deps.account));
   return app;
 };
 

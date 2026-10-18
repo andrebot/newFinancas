@@ -20,6 +20,7 @@ const enUS: Catalog = {
     'auth.enrollment_expired': 'Your setup took too long. Please sign in again to get a new code.',
     'auth.unauthenticated': 'Please sign in to continue.',
     'auth.too_many_attempts': 'Too many sign-in attempts. Try again in {retryAfterMinutes, plural, one {# minute} other {# minutes}}.',
+    'budget.not_found': 'Budget not found.',
     'budget.target_already_claimed': 'This category already belongs to another budget.',
     'category.not_found': 'Category not found.',
     'credit_card.not_found': 'Credit card not found.',

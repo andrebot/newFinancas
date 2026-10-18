@@ -62,25 +62,41 @@ sequenceDiagram
     actor User
     participant API as Hono route
     participant AM as AccountManager
+    participant AU as AuthorizationUtility
     participant BA as BudgetAccessor
     participant LOG as LoggingUtility
 
     User->>API: DELETE /households/:householdId/budgets/:budgetId
-    API->>AM: deleteBudget(actor, budgetId)
-    AM->>BA: delete(householdId, budgetId)
-    Note over BA: hard delete &mdash; budget_targets rows cascade away<br/>(they're the live definition's own claims), but<br/>budget_periods.budget_id is a nullable FK with<br/>ON DELETE SET NULL, so past periods survive intact (OQ-40)
-    BA-->>AM: deleted, targets released
-    AM-->>LOG: logActivity(correlationId, actor, "DeleteBudget")
-    AM-->>LOG: recordAudit(actor, "Budget", budgetId)
-    AM-->>API: deleted
-    API-->>User: 204 No Content
+    API->>AM: deleteBudget(context, householdId, budgetId)
+    AM->>BA: findById(householdId, budgetId)
+    BA-->>AM: budget (or none)
+    AM->>AU: authorize(actor, householdId, {data.delete, budget.visibility, budget.ownerUserId})
+    alt not a member
+        AM-->>API: 404 household.not_found
+    else missing, or someone else&#39;s personal Budget
+        AM-->>API: 404 budget.not_found
+    else role may not delete (a Member may on a shared one they created)
+        AM-->>API: 403 auth.forbidden
+    else allowed
+        AM->>BA: delete(householdId, budgetId)
+        Note over BA: hard delete &mdash; budget_targets rows cascade away<br/>(they're the live definition's own claims), but<br/>budget_periods.budget_id is a nullable FK with<br/>ON DELETE SET NULL, so past periods survive intact (OQ-40)
+        alt deleted meanwhile
+            BA-->>AM: false
+            AM-->>API: 404 budget.not_found
+        else deleted, targets released
+            BA-->>AM: true
+            AM-->>LOG: audit DeleteBudget
+            AM-->>API: deleted
+            API-->>User: 204 No Content
+        end
+    end
     </pre>
   </div>
   <div class="notes">
     <ul>
-      <li>No alt/rejection branch shown &mdash; deleting a Budget is unconditional, matching the confirmed call chain (no <code>AuthorizationUtility</code> edge for this flow).</li>
-      <li>Deleting also frees every Category/Subcategory this Budget had claimed, making them available to a new Budget in the same scope immediately.</li>
-      <li>See FR-4.10, OQ-40.</li>
+      <li><strong>Corrected (OQ-176):</strong> deleting is a <code>data.delete</code> on the Budget, authorized like any write &mdash; a shared Budget needs Owner/Admin or the Member who created it; a personal one is its owner&#39;s alone. The earlier diagram had no <code>AuthorizationUtility</code> edge.</li>
+      <li>Deleting also frees every Category/Subcategory this Budget had claimed, making them available to a new Budget in the same scope immediately. Deleting it again is 404: nothing is left.</li>
+      <li>See FR-4.10, OQ-40, OQ-176.</li>
     </ul>
   </div>
   <script>

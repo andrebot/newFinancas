@@ -6,9 +6,9 @@ import type {
   CreditCard, CreditCardChanges, CreditCardMonthBalance, NewCreditCard,
 } from '../../accessors/creditCardAccessor';
 import type { AccountType, Visibility } from '../../db/schema/values';
-import type { AccessRequest, DataAction } from '../../utilities/authorization';
+import type { DataAction } from '../../utilities/authorization';
 import { checkFields, nonBlank } from '../../utilities/validation';
-import { forbidden, requireAccess } from '../access';
+import { accessToOwned, forbidden, requireAccess } from '../access';
 import type { SignedInContext } from '../requestContext';
 import inSequence from '../sequence';
 import requireValidFields, { requireNoProblems } from '../validation';
@@ -65,20 +65,6 @@ export interface AccountEdit {
 }
 
 /**
- * The access request for an action on an Account; for one that isn't there,
- * only the membership check, so a non-member still learns nothing.
- *
- * @param account - The Account, if found.
- * @param action - The data action.
- * @returns What AuthorizationUtility decides on.
- */
-const accessTo = (account: Account | undefined, action: DataAction): AccessRequest => (
-  account
-    ? { action, visibility: account.visibility, ownerUserId: account.ownerUserId }
-    : { action: 'data.view', visibility: 'shared', ownerUserId: null }
-);
-
-/**
  * Loads an Account the caller may take an action on.
  *
  * @param deps - The tier below.
@@ -100,7 +86,7 @@ const loadAccount = async (
     deps.authorization,
     userId,
     ids.householdId,
-    accessTo(account, action),
+    accessToOwned(account, action),
     accountNotFound,
   );
   if (!account) throw accountNotFound();
@@ -250,7 +236,7 @@ const createAccounts = (deps: AccountDeps) => ({
     householdId: string,
     filter: AccountFilter,
   ): Promise<AccountView[]> => {
-    await requireAccess(deps.authorization, context.actor.userId, householdId, accessTo(
+    await requireAccess(deps.authorization, context.actor.userId, householdId, accessToOwned(
       undefined,
       'data.view',
     ));
@@ -435,7 +421,7 @@ const createAccounts = (deps: AccountDeps) => ({
       deps.authorization,
       context.actor.userId,
       householdId,
-      accessTo(account, 'data.view'),
+      accessToOwned(account, 'data.view'),
       creditCardNotFound,
     );
     if (!card) throw creditCardNotFound();

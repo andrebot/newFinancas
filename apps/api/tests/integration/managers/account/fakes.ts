@@ -59,6 +59,29 @@ export const CARD = {
   createdAt: NOW,
 };
 
+export const BUDGET = {
+  id: '0199c5a0-0000-7000-8000-0000000000e1',
+  householdId: HOUSEHOLD_ID,
+  ownerUserId: ANA_ID as string | null,
+  name: 'Groceries',
+  targetAmount: 150000,
+  currency: 'BRL',
+  visibility: 'shared' as 'shared' | 'personal',
+  targets: [{ categoryId: CATEGORY.id }] as readonly (
+    { categoryId: string } | { subcategoryId: string })[],
+  createdAt: NOW,
+};
+
+/** A Budget Period row as BudgetAccessor returns it (October 2026). */
+export const PERIOD = {
+  year: 2026, month: 10, targetAmount: 150000, spendAmount: 4200, createdAt: NOW,
+};
+
+/** What BudgetAccessor answers a target set it refused or took. */
+type TargetResult = { ok: true } | { ok: false; reason: 'not_found' }
+  | { ok: false; reason: 'target_claimed'; target: object; claimedByBudgetId: string }
+  | { ok: false; reason: 'target_not_found'; target: object };
+
 /**
  * An Account balance row as AccountAccessor returns it (October 2026).
  *
@@ -124,10 +147,23 @@ export const fakeDeps = () => {
     listBalances: vi.fn(async () => [cardBalance(CARD.id, 900)]),
     balancesAsOf: vi.fn(async () => [cardBalance(CARD.id, 900)]),
   };
+  const budgets = {
+    insert: vi.fn(async (): Promise<{ ok: true; budget: typeof BUDGET } | TargetResult> => (
+      { ok: true, budget: BUDGET })),
+    findById: vi.fn(async (): Promise<typeof BUDGET | undefined> => BUDGET),
+    list: vi.fn(async () => [BUDGET]),
+    update: vi.fn(async (): Promise<'updated' | 'not_found'> => 'updated'),
+    replaceTargets: vi.fn(async (): Promise<TargetResult> => ({ ok: true })),
+    delete: vi.fn(async () => true),
+    listPeriods: vi.fn(async () => [PERIOD]),
+    accrueIfClaimed: vi.fn(async () => 'accrued' as const),
+  };
   const authorization = {
     authorize: vi.fn(async (): Promise<Outcome> => ({ outcome: 'allowed', role: 'Owner' })),
   };
-  const stores = { categories, accounts, creditCards };
+  const stores = {
+    categories, accounts, creditCards, budgets,
+  };
   // The work runs against the same mocks, so a test sees its writes; a throw
   // inside it is what the real unit of work would roll back.
   const inTransaction = vi.fn(async (work: (over: typeof stores) => Promise<unknown>) => (
@@ -137,6 +173,6 @@ export const fakeDeps = () => {
     ...stores, authorization, inTransaction, now: () => NOW,
   } as unknown as AccountDeps;
   return {
-    deps, categories, accounts, creditCards, authorization, inTransaction,
+    deps, categories, accounts, creditCards, budgets, authorization, inTransaction,
   };
 };

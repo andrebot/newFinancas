@@ -59,6 +59,11 @@ export type Currency = 'BRL' | 'USD';
 export type Money = number;
 
 /**
+ * Money (minor units, as `Money`) that must be more than zero — a Budget's monthly target (OQ-176).
+ */
+export type PositiveMoney = number;
+
+/**
  * An integer count of 1e-8 units (8 decimal places, scale factor 100,000,000) — the same fixed-point treatment as Money, applied to Investment Holding quantity instead of currency. 10 shares is transmitted as 1000000000; Tesouro Direto's 0.01 minimum increment is 100000. One fixed exponent for every assetType (stock/FII/fixed-income/fund) rather than a per-instrument lookup, since there's no ISO-style standard giving investment quantity a natural exponent the way currency has minor units. Matches the underlying bigint column exactly — never a decimal or a string. See 03-api-design.md.
  *
  */
@@ -375,7 +380,8 @@ export type CategoryUpdateRequest = {
 };
 
 /**
- * Exactly one of categoryId/subcategoryId, never both.
+ * A whole Category (with all its Subcategories, FR-4.6) or one Subcategory — exactly one of the two ids, never both. The generated validator can't say "exactly one" (it ignores `additionalProperties: false` on a `oneOf` branch), so AccountManager checks it: 422 `field.invalid` on `targets[i]` (OQ-176).
+ *
  */
 export type BudgetTargetInput = {
     categoryId?: string;
@@ -396,7 +402,7 @@ export type Budget = {
 
 export type BudgetCreateRequest = {
     name: string;
-    targetAmount: Money;
+    targetAmount: PositiveMoney;
     currency: Currency;
     visibility: 'personal' | 'shared';
     targets: Array<BudgetTargetInput>;
@@ -404,7 +410,7 @@ export type BudgetCreateRequest = {
 
 export type BudgetUpdateRequest = {
     name?: string;
-    targetAmount?: Money;
+    targetAmount?: PositiveMoney;
     targets?: Array<BudgetTargetInput>;
 };
 
@@ -975,7 +981,7 @@ export type RegisterUserData = {
 
 export type RegisterUserErrors = {
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed` (params: the target and the claiming `budgetId` — OQ-176), `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
      */
     409: Error;
     /**
@@ -1362,7 +1368,7 @@ export type RevokeSessionData = {
 
 export type RevokeSessionErrors = {
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `budget.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
 };
@@ -1459,7 +1465,7 @@ export type DeleteHouseholdErrors = {
      */
     403: Error;
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `budget.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
 };
@@ -1504,7 +1510,7 @@ export type ListMembersData = {
 
 export type ListMembersErrors = {
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `budget.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
 };
@@ -1538,11 +1544,11 @@ export type RemoveMemberErrors = {
      */
     403: Error;
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `budget.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed` (params: the target and the claiming `budgetId` — OQ-176), `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
      */
     409: Error;
 };
@@ -1576,11 +1582,11 @@ export type ChangeMemberRoleErrors = {
      */
     403: Error;
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `budget.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed` (params: the target and the claiming `budgetId` — OQ-176), `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
      */
     409: Error;
     /**
@@ -1615,11 +1621,11 @@ export type TransferOwnershipErrors = {
      */
     403: Error;
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `budget.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed` (params: the target and the claiming `budgetId` — OQ-176), `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
      */
     409: Error;
 };
@@ -1648,7 +1654,7 @@ export type ListHouseholdInvitationsErrors = {
      */
     403: Error;
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `budget.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
 };
@@ -1818,7 +1824,7 @@ export type ListAccountsData = {
 
 export type ListAccountsErrors = {
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `budget.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
 };
@@ -1851,7 +1857,7 @@ export type CreateAccountErrors = {
      */
     403: Error;
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `budget.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
     /**
@@ -1883,7 +1889,7 @@ export type GetAccountData = {
 
 export type GetAccountErrors = {
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `budget.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
 };
@@ -1915,11 +1921,11 @@ export type EditAccountErrors = {
      */
     403: Error;
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `budget.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed` (params: the target and the claiming `budgetId` — OQ-176), `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
      */
     409: Error;
     /**
@@ -1955,7 +1961,7 @@ export type ArchiveAccountErrors = {
      */
     403: Error;
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `budget.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
 };
@@ -1992,7 +1998,7 @@ export type GetAccountBalancesData = {
 
 export type GetAccountBalancesErrors = {
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `budget.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
 };
@@ -2031,7 +2037,7 @@ export type GetCreditCardBalancesData = {
 
 export type GetCreditCardBalancesErrors = {
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `budget.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
 };
@@ -2062,7 +2068,7 @@ export type ListCategoriesData = {
 
 export type ListCategoriesErrors = {
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `budget.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
 };
@@ -2099,7 +2105,7 @@ export type CreateCategoryErrors = {
      */
     403: Error;
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `budget.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
     /**
@@ -2131,7 +2137,7 @@ export type GetCategoryData = {
 
 export type GetCategoryErrors = {
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `budget.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
 };
@@ -2163,7 +2169,7 @@ export type EditCategoryErrors = {
      */
     403: Error;
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `budget.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
     /**
@@ -2199,7 +2205,7 @@ export type ArchiveCategoryErrors = {
      */
     403: Error;
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `budget.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
 };
@@ -2232,7 +2238,7 @@ export type ArchiveSubcategoryErrors = {
      */
     403: Error;
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `budget.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
 };
@@ -2255,8 +2261,6 @@ export type ListBudgetsData = {
     };
     query?: {
         visibility?: 'personal' | 'shared';
-        limit?: number;
-        offset?: number;
     };
     url: '/households/{householdId}/budgets';
 };
@@ -2267,7 +2271,6 @@ export type ListBudgetsResponses = {
      */
     200: {
         data?: Array<Budget>;
-        pagination?: Pagination;
     };
 };
 
@@ -2283,6 +2286,14 @@ export type CreateBudgetData = {
 };
 
 export type CreateBudgetErrors = {
+    /**
+     * Authenticated, but not permitted to perform this action. Codes: `auth.forbidden`.
+     */
+    403: Error;
+    /**
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `budget.not_found`, `invitation.invitee_not_registered`.
+     */
+    404: Error;
     /**
      * A target is already claimed by another Budget in this scope (FR-4.7).
      */
@@ -2314,6 +2325,19 @@ export type DeleteBudgetData = {
     url: '/households/{householdId}/budgets/{budgetId}';
 };
 
+export type DeleteBudgetErrors = {
+    /**
+     * Authenticated, but not permitted to perform this action. Codes: `auth.forbidden`.
+     */
+    403: Error;
+    /**
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `budget.not_found`, `invitation.invitee_not_registered`.
+     */
+    404: Error;
+};
+
+export type DeleteBudgetError = DeleteBudgetErrors[keyof DeleteBudgetErrors];
+
 export type DeleteBudgetResponses = {
     /**
      * No Content
@@ -2332,6 +2356,15 @@ export type GetBudgetData = {
     query?: never;
     url: '/households/{householdId}/budgets/{budgetId}';
 };
+
+export type GetBudgetErrors = {
+    /**
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `budget.not_found`, `invitation.invitee_not_registered`.
+     */
+    404: Error;
+};
+
+export type GetBudgetError = GetBudgetErrors[keyof GetBudgetErrors];
 
 export type GetBudgetResponses = {
     /**
@@ -2353,6 +2386,14 @@ export type EditBudgetData = {
 };
 
 export type EditBudgetErrors = {
+    /**
+     * Authenticated, but not permitted to perform this action. Codes: `auth.forbidden`.
+     */
+    403: Error;
+    /**
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `budget.not_found`, `invitation.invitee_not_registered`.
+     */
+    404: Error;
     /**
      * A newly assigned target is already claimed elsewhere (FR-4.7).
      */
@@ -2382,16 +2423,25 @@ export type ListBudgetPeriodsData = {
     };
     query?: {
         /**
-         * Inclusive, ISO 8601 date (YYYY-MM-DD).
+         * First month, inclusive (YYYY-MM); left out, the history's first.
          */
-        startDate?: string;
+        from?: string;
         /**
-         * Inclusive, ISO 8601 date (YYYY-MM-DD).
+         * Last month, inclusive (YYYY-MM); left out, the history's last.
          */
-        endDate?: string;
+        to?: string;
     };
     url: '/households/{householdId}/budgets/{budgetId}/periods';
 };
+
+export type ListBudgetPeriodsErrors = {
+    /**
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `budget.not_found`, `invitation.invitee_not_registered`.
+     */
+    404: Error;
+};
+
+export type ListBudgetPeriodsError = ListBudgetPeriodsErrors[keyof ListBudgetPeriodsErrors];
 
 export type ListBudgetPeriodsResponses = {
     /**
@@ -2458,7 +2508,7 @@ export type EditHoldingData = {
 
 export type EditHoldingErrors = {
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `budget.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
     /**
@@ -2547,7 +2597,7 @@ export type RecordMarketValueErrors = {
      */
     403: Error;
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed` (params: the target and the claiming `budgetId` — OQ-176), `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
      */
     409: Error;
     /**
@@ -2977,7 +3027,7 @@ export type DeleteNotificationData = {
 
 export type DeleteNotificationErrors = {
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `budget.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
 };
@@ -3046,11 +3096,11 @@ export type DeleteMarketValueErrors = {
      */
     403: Error;
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `budget.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed` (params: the target and the claiming `budgetId` — OQ-176), `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
      */
     409: Error;
 };
@@ -3086,11 +3136,11 @@ export type EditMarketValueErrors = {
      */
     403: Error;
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `budget.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed` (params: the target and the claiming `budgetId` — OQ-176), `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
      */
     409: Error;
     /**
@@ -3150,7 +3200,7 @@ export type RecordIndexRateErrors = {
      */
     403: Error;
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed` (params: the target and the claiming `budgetId` — OQ-176), `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
      */
     409: Error;
     /**
@@ -3187,7 +3237,7 @@ export type DeleteIndexRateErrors = {
      */
     403: Error;
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `budget.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
 };
@@ -3226,11 +3276,11 @@ export type EditIndexRateErrors = {
      */
     403: Error;
     /**
-     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `invitation.invitee_not_registered`.
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `budget.not_found`, `invitation.invitee_not_registered`.
      */
     404: Error;
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed`, `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed` (params: the target and the claiming `budgetId` — OQ-176), `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107).
      */
     409: Error;
     /**

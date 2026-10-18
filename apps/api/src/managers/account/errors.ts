@@ -1,3 +1,4 @@
+import type { BudgetTarget } from '../../accessors/budgetAccessor';
 import type { StyleRefusal } from '../../accessors/categoryAccessor';
 import { createApiError, validationFailed, type ApiError } from '../../http/apiError';
 
@@ -70,3 +71,30 @@ export const accountArchived = (): ApiError => createApiError({
 export const cardsNotAllowed = (): ApiError => createApiError({
   status: 422, code: 'account.cards_not_allowed', message: 'This account type takes no cards',
 });
+
+/**
+ * A Budget that isn't this household's, doesn't exist (a hard delete leaves
+ * nothing), or is someone else's personal one (OQ-176).
+ *
+ * @returns 404 `budget.not_found`.
+ */
+export const budgetNotFound = (): ApiError => createApiError({
+  status: 404, code: 'budget.not_found', message: 'Budget not found',
+});
+
+/**
+ * A target another Budget in the scope already claims (FR-4.7). The claimant is
+ * always one the caller can see: it sits in the same scope (OQ-176).
+ *
+ * @param target - The refused claim.
+ * @param budgetId - The Budget claiming it.
+ * @returns 409 `budget.target_already_claimed`, naming the target and the Budget.
+ */
+export const targetAlreadyClaimed = (target: BudgetTarget, budgetId: string): ApiError => (
+  createApiError({
+    status: 409,
+    code: 'budget.target_already_claimed',
+    message: 'Target already claimed by another budget',
+    params: { ...target, budgetId },
+  })
+);

@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Account Setup — Budget Management</h1>
-  <p class="subtitle"><span class="route">POST/PATCH/DELETE /households/:householdId/budgets</span>.</p>
+  <p class="subtitle"><span class="route">GET/POST/PATCH/DELETE /households/:householdId/budgets</span>.</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -66,7 +66,11 @@ sequenceDiagram
     participant FLOW as Budget Management<br/>Flow
     participant EXP as Account Setup<br/>Experience
     participant API as Backend API
-    FLOW-->>CP: render categories — claimed ones disabled, showing which budget owns them
+    FLOW->>EXP: request budgets
+    EXP->>API: GET /households/:householdId/budgets
+    API-->>EXP: every Budget the caller can see, with its targets (unpaginated, OQ-176)
+    EXP-->>FLOW: state
+    FLOW-->>CP: render categories — claimed ones in this scope disabled, showing which budget owns them
     User->>BF: name, currency, visibility, monthly target
     User->>CP: pick free categories / subcategories
     CP->>FLOW: emit coverChosen
@@ -74,16 +78,27 @@ sequenceDiagram
     FLOW->>EXP: request saveBudget
     EXP->>API: POST /households/:householdId/budgets (or PATCH)
     alt 409 budget.target_already_claimed
-        API-->>EXP: error code (claimed meanwhile)
+        API-->>EXP: error code + params {target, budgetId} (claimed meanwhile)
         EXP-->>FLOW: state: error — picker refreshes
+    else 422 field.invalid_option on targets[i]
+        API-->>EXP: a category archived meanwhile
+        EXP-->>FLOW: state: error on that target
     else saved
         API-->>EXP: budget
+        EXP-->>FLOW: state refreshed
+    end
+    opt delete
+        User->>DC: confirm
+        DC->>FLOW: emit deleteConfirmed
+        FLOW->>EXP: request deleteBudget
+        EXP->>API: DELETE /households/:householdId/budgets/:budgetId
+        API-->>EXP: 204 — its claims are free again
         EXP-->>FLOW: state refreshed
     end
     </pre>
   </div>
   <div class="notes">
-<ul><li>Setup page shows no spend progress (stakeholder).</li></ul>
+<ul><li>Setup page shows no spend progress (stakeholder) — the list carries definitions only (OQ-176).</li><li>Currency and visibility can't change after creation: the edit form shows them read-only.</li></ul>
   </div>
   <script>
     mermaid.initialize({

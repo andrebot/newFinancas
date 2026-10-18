@@ -55,42 +55,52 @@
 </head>
 <body>
   <h1>Create Budget</h1>
-  <p class="subtitle"><span class="route">POST /households/:householdId/budgets</span> &mdash; FR-4.1/4.7. A Category or Subcategory can be claimed by at most one Budget per scope &mdash; a real partial-unique-index constraint, not application logic.</p>
+  <p class="subtitle"><span class="route">POST /households/:householdId/budgets</span> &mdash; FR-4.1/4.7. A Category or Subcategory can be claimed by at most one Budget per scope &mdash; a real partial-unique-index constraint, not application logic. The Budget, its claims and this month&#39;s period are written together or not at all (OQ-166).</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
     actor User
     participant API as Hono route
     participant AM as AccountManager
+    participant AU as AuthorizationUtility
     participant VU as ValidationUtility
+    participant CA as CategoryAccessor
     participant BA as BudgetAccessor
     participant LOG as LoggingUtility
 
-    User->>API: POST /households/:householdId/budgets {name, targetAmount, currency, visibility, targets: [...]}
-    API->>AM: createBudget(actor, input)
-    AM->>VU: check(name, targetAmount, currency)
-    alt validation fails
-        VU-->>AM: rejected
-        AM-->>API: ValidationError
-        API-->>User: 422 validation.failed {details}
-    else valid
-        VU-->>AM: ok
-        AM->>BA: insert(budget, targets, currentMonth)
-        Note over BA: one transaction: the Budget, every target claim and<br/>the current month's period &mdash; a refusal keeps nothing (OQ-166)
-        alt a target is claimed in this scope (FR-4.7)
-            BA-->>AM: target_claimed {target, claimedByBudgetId}
-            AM-->>API: Conflict
-            API-->>User: 409 budget.target_already_claimed {categoryId, budgetId}
-        else a target is not this household's
-            BA-->>AM: target_not_found {target}
-            AM-->>API: ValidationError
-            API-->>User: 422 validation.failed {details}
-        else all targets claimed
-            BA-->>AM: budget
-            AM-->>LOG: logActivity(correlationId, actor, "CreateBudget")
-            AM-->>LOG: recordAudit(actor, "Budget", budgetId)
-            AM-->>API: budget
-            API-->>User: 201 Created {budget}
+    User->>API: POST /households/:householdId/budgets {name, targetAmount, currency, visibility, targets: [{categoryId} | {subcategoryId}]}
+    Note over API: contract check first: targetAmount &ge; 1, currency,<br/>targets non-empty, ids are UUIDs &rarr; 422 validation.failed
+    API->>AM: createBudget(context, householdId, input)
+    AM->>AU: authorize(actor, householdId, {data.create, visibility, ownerUserId: actor})
+    alt not a member
+        AM-->>API: 404 household.not_found
+    else shared Budget by a role that may not create (Viewer)
+        AM-->>API: 403 auth.forbidden
+    else allowed (a personal Budget is anyone&#39;s own)
+        AM->>VU: checkFields({name: nonBlank})
+        alt blank name, or a target naming both ids or neither
+            AM-->>API: 422 validation.failed {name, targets[i]}
+        else well formed
+            AM->>CA: list(householdId)
+            Note over AM,CA: open Categories and Subcategories only
+            alt a target archived or not this household&#39;s
+                AM-->>API: 422 validation.failed {targets[i].categoryId | subcategoryId: field.invalid_option}
+            else all claimable
+                AM->>BA: insert(budget, targets once each, this month)
+                Note over BA: one transaction: the Budget, every claim and this<br/>month&#39;s period &mdash; a refusal keeps nothing (OQ-166)
+                alt a target is claimed in this scope (FR-4.7)
+                    BA-->>AM: target_claimed {target, claimedByBudgetId}
+                    AM-->>API: 409 budget.target_already_claimed {target, budgetId}
+                else a target gone since the check
+                    BA-->>AM: target_not_found {target}
+                    AM-->>API: 422 validation.failed {targets[i]...}
+                else all claimed
+                    BA-->>AM: budget
+                    AM-->>LOG: audit CreateBudget
+                    AM-->>API: budget
+                    API-->>User: 201 Created {budget}
+                end
+            end
         end
     end
     </pre>
@@ -98,9 +108,11 @@ sequenceDiagram
   <div class="notes">
     <ul>
       <li>The literal-duplicate rejection (FR-4.7) is a real DB constraint one layer down &mdash; partial unique indexes on <code>budget_targets</code>, per scope (shared: per household; personal: per household + owner, OQ-95), scoped columns denormalized specifically to make this a plain index rather than a cross-table application check.</li>
-      <li>The rollup half (a claimed Category reserves its Subcategories, both ways) is checked by the Accessor before each insert, under the parent Category's row lock (OQ-166).</li>
-      <li>Each scope claims a Category once: the same Category can sit in one shared Budget and in each member's personal Budget; a spend counts toward the Budget of its Account's scope (OQ-166).</li>
-      <li>See FR-4.1, FR-4.2, FR-4.7, OQ-166.</li>
+      <li>The rollup half (a claimed Category reserves its Subcategories, both ways) is checked by the Accessor before each insert, under the parent Category&#39;s row lock (OQ-166).</li>
+      <li>Each scope claims a Category once: the same Category can sit in one shared Budget and in each member&#39;s personal Budget; a spend counts toward the Budget of its Account&#39;s scope (OQ-166). So the claiming Budget named by a 409 is always one the caller can see.</li>
+      <li>The generated validator can&#39;t say &ldquo;exactly one of <code>categoryId</code> / <code>subcategoryId</code>&rdquo;, so the Manager checks it; a target sent twice is claimed once (OQ-176).</li>
+      <li>&ldquo;This month&rdquo; is the app time zone&#39;s (OQ-104), from the Manager&#39;s clock.</li>
+      <li>See FR-4.1, FR-4.2, FR-4.7, OQ-166, OQ-176.</li>
     </ul>
   </div>
   <script>

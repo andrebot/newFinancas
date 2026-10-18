@@ -199,6 +199,11 @@ itself when it was first introduced:
   Account read now carries its `cards` (with `outstandingBalance`) and
   its `currentBalance`.
 - `GET /budgets/{id}/periods` — backs the FR-4.3 status display.
+  **OQ-176:** it takes `from`/`to` as `YYYY-MM`, like the balance
+  histories; `GET /budgets` is unpaginated (the claim-aware picker needs
+  every claim), and a target names exactly one of `categoryId` /
+  `subcategoryId` — checked by AccountManager, since the generated
+  validator can't say "exactly one".
 - `GET /accounts/{id}/holdings`, `GET /holdings/{id}/valuation-snapshots`,
   `GET /holdings/{id}/schedule-entries` — the latter is read-only from
   this API on purpose; entries are written only by
