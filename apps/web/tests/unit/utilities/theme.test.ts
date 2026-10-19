@@ -8,6 +8,7 @@ import { theme } from '../../../src/config/constants';
 import {
   browserThemeEnvironment,
   categoryColor,
+  categoryTint,
   createThemeController,
   isThemePreference,
   resolveTheme,
@@ -125,6 +126,17 @@ describe('categoryColor', () => {
 
   it('falls back to the fallback colour for a token this build does not know', () => {
     expect(categoryColor('ultraviolet')).toBe(`var(--c-cat-${theme.fallbackCategoryColor})`);
+  });
+});
+
+describe('categoryTint', () => {
+  it('mixes the category’s colour with transparency', () => {
+    expect(categoryTint('teal'))
+      .toBe(`color-mix(in oklab, var(--c-cat-teal) ${theme.categoryTintPercent}%, transparent)`);
+  });
+
+  it('tints the fallback colour for a token this build does not know', () => {
+    expect(categoryTint('ultraviolet')).toContain(`var(--c-cat-${theme.fallbackCategoryColor})`);
   });
 });
 

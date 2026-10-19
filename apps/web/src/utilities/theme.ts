@@ -79,6 +79,18 @@ export const categoryColor = (token: string): string => {
 };
 
 /**
+ * Builds the soft tint behind a category's icon (K50): its palette colour
+ * mixed with transparency, as Tailwind's `/15` modifier does. Like
+ * `categoryColor`, it follows the theme without re-rendering; use it in `style`.
+ *
+ * @param token - The category's `color` (`teal`, `rose`, …).
+ * @returns A `color-mix()` of the category's colour (the fallback colour's for an unknown token).
+ */
+export const categoryTint = (token: string): string => (
+  `color-mix(in oklab, ${categoryColor(token)} ${theme.categoryTintPercent}%, transparent)`
+);
+
+/**
  * Creates the controller for one page. Only a `system` preference listens to
  * the device; applying another preference stops that listening.
  *

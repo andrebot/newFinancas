@@ -31,6 +31,8 @@ export const theme = {
   storageKey: 'financas.theme',
   /** Shown for a category colour this build doesn't know (a newer palette). */
   fallbackCategoryColor: 'slate',
+  /** How much of a category's colour its tint keeps (the mockups' `/15` discs, K50). */
+  categoryTintPercent: 15,
 } as const;
 
 /** The interface language (FU5 I18nUtility, FR-1.21, NFR-I18N-1). */

@@ -125,7 +125,7 @@ identity screens, the rest as later slices use them.
 - [x] **79.** `K33` Progress bar (OQ-181: pill with its text two-toned over the fill; thin bar stacks segments, held to 100%)
 - [x] **80.** `K42` Expandable row / accordion (OQ-182: `row` and `card` surfaces; panel mounted only while open; own or caller-held state)
 - [x] **81.** `K49` Stepper (OQ-183: done / current / next from `current`; a row of dots below `lg`; display only)
-- [ ] **82.** `K50` Category chip
+- [x] **82.** `K50` Category chip (OQ-184: `CategoryDisc` xs/sm/md/lg + `CategoryChip` pill; colour + `/15` tint inline via ThemeUtility; display only)
 - [ ] **83.** `K18` Icon picker
 - [ ] **84.** `K19` Colour swatch picker
 - [ ] **85.** `K48` Credit-card preview

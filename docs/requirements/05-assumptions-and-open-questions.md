@@ -4749,6 +4749,31 @@ not a hardcoded assumption.
 
 **Task 81 (`K49`) is complete.**
 
+### OQ-184: Category chip (task K50)
+**Confirmed with the stakeholder (Oct 2026):**
+- **Two forms** (`kit/categoryChip/CategoryChip.tsx`), both a category's
+  icon in its palette colour on a soft tint of it (OQ-85). The
+  **`CategoryDisc`** stands beside the name: `xs` 24px (a budget's
+  claim-aware picker, mockup 42), `sm` 32px (setup's review, 12), `md`
+  36px — the default — (ledger and dashboard rows, 30 / 20) and `lg`
+  40px (the category cards, 41); icons 14 / 16 / 18 / 20px. The
+  **`CategoryChip`** is the budget card's pill (42): a 30px `raised`
+  pill holding a 20px disc (12px icon) and the name at 13px.
+- **Colour inline, from ThemeUtility.** The disc's `style` takes
+  `categoryColor()` for the icon and the new `categoryTint()` — a
+  `color-mix()` of the same variable at `theme.categoryTintPercent`
+  (15, the mockups' `/15`) — for the background. No per-token class
+  map: a new palette colour needs a CSS variable and a reference entry,
+  never a kit change; an unknown token falls back to `slate`.
+- **Typed by the reference.** `icon: CategoryIcon`, `color:
+  PaletteToken` from `@financas/reference`; the caller passes the name,
+  already translated.
+- **Display only.** The disc is `aria-hidden` (the name always stands
+  beside it or in the pill); pickers (K18, K19, the claim-aware picker)
+  wrap it.
+
+**Task 82 (`K50`) is complete.**
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.
