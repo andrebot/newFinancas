@@ -81,7 +81,7 @@ is worth building once.
 | K15 | Switch (label left, switch right; description, disabled — OQ-180) | incentivised debenture |
 | K16 | Checkbox (label with links, description, error, disabled; plus the shared `FOCUS_RING` kit helper used by K13/K14/K16 — OQ-129, OQ-130) | terms, multi-select rows |
 | K17 | Code input (6 digits; plus the backup code input `XXXX-XXXX-XXXX-XXXX` and the shared mask hook) — OQ-139 | MFA setup, MFA challenge, backup code entry |
-| K18 | Icon picker | category form |
+| K18 | Icon picker (a row of quick picks plus a "More icons" popover with every category icon; names from the `categoryIcons` catalog section — OQ-185) | category form |
 | K19 | Colour swatch picker (18 tokens) | category form |
 
 ### K-C Overlays and feedback

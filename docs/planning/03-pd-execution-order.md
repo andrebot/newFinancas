@@ -126,7 +126,7 @@ identity screens, the rest as later slices use them.
 - [x] **80.** `K42` Expandable row / accordion (OQ-182: `row` and `card` surfaces; panel mounted only while open; own or caller-held state)
 - [x] **81.** `K49` Stepper (OQ-183: done / current / next from `current`; a row of dots below `lg`; display only)
 - [x] **82.** `K50` Category chip (OQ-184: `CategoryDisc` xs/sm/md/lg + `CategoryChip` pill; colour + `/15` tint inline via ThemeUtility; display only)
-- [ ] **83.** `K18` Icon picker
+- [x] **83.** `K18` Icon picker (OQ-185: six fixed quick picks as a radio row + "More icons" popover with all 57; `categoryIcons` catalog section)
 - [ ] **84.** `K19` Colour swatch picker
 - [ ] **85.** `K48` Credit-card preview
 - [ ] **86.** `K7` Money input

@@ -4774,6 +4774,34 @@ not a hardcoded assumption.
 
 **Task 82 (`K50`) is complete.**
 
+### OQ-185: Icon picker (task K18)
+**Confirmed with the stakeholder (Oct 2026):**
+- **Mockup 41's row, then a popover** (`kit/iconPicker/IconPicker.tsx`):
+  36px rounded squares (`rounded-xl`, `border-line`, `text-muted`; the
+  selected one `border-mint/60` on `bg-mintdeep`, `text-mint`). The row
+  shows six icons, then "More icons" (`more-horiz`), which opens a K22
+  popover holding every `CATEGORY_ICONS` entry as a flat grid in picker
+  order: eight a row (`iconPicker.panelWidth` 354px, capped by the
+  viewport), scrolling inside, with no search and no group headings.
+- **Fixed quick picks.** `iconPicker.quickIcons` in `config/constants.ts`
+  holds the mockup's six (pets, school, flight, redeem, fitness,
+  child-care). The selected icon always shows in the row: when it isn't
+  a quick pick it leads the row and the last quick pick drops out, so the
+  row keeps its length.
+- **Semantics.** The row is a radio group of visually hidden native radios,
+  like the segmented control (OQ-127), so the arrow keys come from the
+  browser. The panel's icons are `aria-pressed` buttons instead: picking
+  one also closes the panel, and an arrow key on a radio would close it
+  too. The selected look is the kit's mint, never the category's colour.
+- **Names from the catalog.** The new `categoryIcons` section in
+  `packages/i18n` names each of the 57 icons in pt-BR and en-US, keyed by
+  the icon. A test keeps its keys equal to `CATEGORY_ICONS`, in order.
+  Like every kit component, the picker takes the names already translated:
+  `iconLabel(icon)`, plus `label` and `moreLabel`.
+- **Controlled.** `value: CategoryIcon` and `onChange`; it holds no state.
+
+**Task 83 (`K18`) is complete.**
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.
