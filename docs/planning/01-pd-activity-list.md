@@ -82,7 +82,7 @@ is worth building once.
 | K16 | Checkbox (label with links, description, error, disabled; plus the shared `FOCUS_RING` kit helper used by K13/K14/K16 — OQ-129, OQ-130) | terms, multi-select rows |
 | K17 | Code input (6 digits; plus the backup code input `XXXX-XXXX-XXXX-XXXX` and the shared mask hook) — OQ-139 | MFA setup, MFA challenge, backup code entry |
 | K18 | Icon picker (a row of quick picks plus a "More icons" popover with every category icon; names from the `categoryIcons` catalog section — OQ-185) | category form |
-| K19 | Colour swatch picker (18 tokens) | category form |
+| K19 | Colour swatch picker (all 18 palette tokens inline as a radio group; names from the `paletteColors` catalog section — OQ-186) | category form |
 
 ### K-C Overlays and feedback
 
@@ -90,7 +90,7 @@ is worth building once.
 |---|---|---|
 | K20 | Drawer (right side; full-screen sheet on mobile) | record, filter, edit, add budget/goal, value history |
 | K21 | Dialog | audit export |
-| K22 | Popover (non-modal dialog panel; plus the shared `overlayMiddleware` / `OVERLAY_SURFACE` and the `shadow-overlay` token every floating panel uses — OQ-131) | notification inbox; base of K11, K18, K19, K23, K24 |
+| K22 | Popover (non-modal dialog panel; plus the shared `overlayMiddleware` / `OVERLAY_SURFACE` and the `shadow-overlay` token every floating panel uses — OQ-131) | notification inbox; base of K11, K18, K23, K24 |
 | K23 | Menu (dropdown actions and radio groups; plus `MenuPill` / `StaticPill` — the static Owner role pill — and the shared `floatingList` rules — OQ-133, OQ-140) | role menu, row actions |
 | K24 | Tooltip | chart points, disabled reasons ("v2", "claimed by") |
 | K25 | Toast + inline banner (four tones, toast region and auto-dismiss timer; renders AlertUtility — OQ-141) | every save / error |

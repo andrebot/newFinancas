@@ -59,7 +59,7 @@ ACTIVITIES = {
     "K16": ("Checkbox", ["K2", "K3"]),
     "K17": ("Code input (6 digits)", ["K5"]),
     "K18": ("Icon picker", ["K22", "K3"]),
-    "K19": ("Colour swatch picker", ["K22"]),
+    "K19": ("Colour swatch picker", ["FU4"]),
     # ---- UI kit: overlays + feedback
     "K20": ("Drawer / sheet", ["K4"]),
     "K21": ("Dialog", ["K4"]),
