@@ -68,9 +68,9 @@ export const THIN_TRACK = 'flex h-2 overflow-hidden rounded-full bg-raised';
 /** The width animation every fill shares (the design system's 150–250ms). */
 export const FILL_MOTION = 'transition-[width] duration-200 ease-out';
 
-/** The text inside the pill; two copies are laid over each other. */
+/** The text inside the pill, centred; two copies are laid over each other. */
 export const PILL_LABEL = [
-  'absolute inset-0 flex items-center px-3.5 whitespace-nowrap',
+  'absolute inset-0 flex items-center justify-center px-3.5 whitespace-nowrap',
   'text-xs font-semibold tabular-nums',
 ].join(' ');
 

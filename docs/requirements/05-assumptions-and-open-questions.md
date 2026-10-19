@@ -4683,6 +4683,9 @@ not a hardcoded assumption.
   label is its `aria-valuetext`; the thin bar takes an optional
   `ariaValueText`. The caller names it (`ariaLabel`).
 - **Motion.** The fill's width animates over 200ms.
+- **The text is centred in the pill** (stakeholder review, Oct 2026),
+  not left-aligned as in the mockup; both copies centre, so they stay
+  lined up.
 
 **Task 79 (`K33`) is complete.**
 
