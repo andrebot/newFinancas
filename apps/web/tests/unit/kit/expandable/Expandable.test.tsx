@@ -110,7 +110,7 @@ describe('Expandable', () => {
     expect(screen.queryByRole('region')).toBeNull();
   });
 
-  it('draws an open row raised and its chevron turned over', () => {
+  it('draws an open row raised, its chevron turned over and its panel set apart', () => {
     const { container } = render(
       <Expandable summary="Tesouro Selic 2029" defaultExpanded>Contract</Expandable>,
     );
@@ -118,7 +118,7 @@ describe('Expandable', () => {
     expect(box.className).toBe(expandableClasses('row', true));
     expect(box.querySelector('svg')?.getAttribute('class')).toBe(chevronClasses('row', true));
     expect(triggerNamed('Tesouro Selic 2029').className).toBe(triggerClasses('row'));
-    expect(screen.getByRole('region').hasAttribute('class')).toBe(false);
+    expect(screen.getByRole('region').className).toBe('pt-2');
   });
 
   it('draws a card bordered with a rule over its panel', () => {

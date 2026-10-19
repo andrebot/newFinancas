@@ -7,6 +7,7 @@ import { Icon } from '../icons/Icon';
 // raised and edged in mint. The `card` surface is a bordered section that
 // folds away, e.g. archived categories (41). The open state is the row's own
 // unless the caller passes `expanded`, e.g. a ledger that keeps one row open.
+// The kit sets the panel apart from the summary; the caller pads the rest.
 
 /** How the expandable is drawn: a list row, or a bordered card section. */
 export type ExpandableSurface = 'row' | 'card';
@@ -35,6 +36,13 @@ const TRIGGER = [
 const TRIGGER_PADDING: Record<ExpandableSurface, string> = {
   row: 'py-3 pl-5 pr-4',
   card: 'px-5 py-3.5 text-muted',
+};
+
+// A row's panel starts 8px lower, 20px under the summary (OQ-182); a card's
+// is ruled off from its header.
+const PANEL: Record<ExpandableSurface, string> = {
+  row: 'pt-2',
+  card: 'border-t border-line',
 };
 
 const CLOSED_CHEVRON: Record<ExpandableSurface, string> = {
@@ -133,7 +141,7 @@ export function Expandable({
           id={panelId}
           role="region"
           aria-labelledby={triggerId}
-          className={surface === 'card' ? 'border-t border-line' : undefined}
+          className={PANEL[surface]}
         >
           {children}
         </div>

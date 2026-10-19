@@ -4714,6 +4714,11 @@ not a hardcoded assumption.
   `expanded` hands it to the caller — e.g. a ledger that keeps one row open
   while holdings stay independent (page 51 shows two open).
 - **Dividers belong to the list** (K41 / K43), not to K42.
+- **The kit sets the panel apart from the summary** (stakeholder review,
+  Oct 2026), not as in the mockups, where a row's panel starts right
+  under its summary. A `row` panel gets `pt-2`, so its content sits 20px
+  under the summary (the row's side padding); the caller pads the rest.
+  A `card` panel keeps only its `border-t`.
 
 **Task 80 (`K42`) is complete.**
 
