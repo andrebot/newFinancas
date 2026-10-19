@@ -106,7 +106,7 @@ is worth building once.
 | K30 | Badge / tag / pill (`Tag` — tones, sizes, icon — and the bell's `CountBadge`; the Owner role pill takes K23's trigger look — OQ-133) | bell, members, builders, contract panel |
 | K31 | Avatar (initials; you mint, members hashed by id onto sky / sun / lilac; 40 / 64px — OQ-134) | members, profile, nav drawer |
 | K32 | Progress ring | budget + goal rail cards |
-| K33 | Progress bar (pill with value inside) | goal cards, allocation total |
+| K33 | Progress bar (28px pill with the value inside, sky or mint; 8px thin bar of stacked segments — OQ-181) | goal cards, Investments Goals panel, allocation total, term elapsed |
 | K34 | Card / panel surface + section header (title + "Month/Year" label + actions) + page header + auth / wizard layouts + brand mark (`Card` sizes none / sm / md / lg; auth brand panel with a decorative preview — OQ-135); danger zone (`DangerZone`, the coral delete section of mockups 60 and 70 — OQ-151) | every page |
 | K35 | Card rail (horizontal scroll, snap, edge fade, arrows) | balances, budgets, goals — on Dashboard and Transactions |
 | K36 | Rail cards: balance, budget, goal | Dashboard, Transactions |

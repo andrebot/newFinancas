@@ -122,7 +122,7 @@ identity screens, the rest as later slices use them.
 - [x] **76.** `M2` AccountManager (built in five parts, PRs #85–#89 — OQ-174..178: household data under `/households/{householdId}`; Accounts+cards and Budget edits in one transaction; Goal progress is InsightsManager's; a Holding takes its Account's access, hidden Goal shares are carried over, only a matured Holding is archived by hand)
 - [x] **77.** `FU6` FormattingUtility
 - [x] **78.** `K15` Switch (OQ-180: visibility stays the mockup's two-choice pick; label left, switch right)
-- [ ] **79.** `K33` Progress bar
+- [x] **79.** `K33` Progress bar (OQ-181: pill with its text two-toned over the fill; thin bar stacks segments, held to 100%)
 - [ ] **80.** `K42` Expandable row / accordion
 - [ ] **81.** `K49` Stepper
 - [ ] **82.** `K50` Category chip

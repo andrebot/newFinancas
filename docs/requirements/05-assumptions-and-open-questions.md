@@ -4654,6 +4654,38 @@ not a hardcoded assumption.
 
 **Task 78 (`K15`) is complete.**
 
+### OQ-181: Progress bar (task K33)
+**Confirmed with the stakeholder (Oct 2026):**
+- **Two shapes, one `<ProgressBar>`, told apart by `size`.** The `pill`
+  (default) is the mockups' `.bar`: 28px, `track` behind, the amount
+  written inside (goal cards on page 43, the Investments Goals panel on
+  page 50). The `thin` bar is the 8px `raised` track with no text (the
+  buy drawer's allocation total on page 32, a holding's term elapsed on
+  page 51).
+- **K33 owns stacking.** The thin bar takes `segments` (`value` +
+  `tone`), drawn left to right; a single bar is one segment. The
+  Allocation editor (K47) passes one segment per Goal and draws nothing
+  of its own.
+- **Held to 100%.** The pill's fill is held to 0–100 (an overfunded Goal
+  shows full; the caller's text still says the real figure). Segments are
+  held cumulatively: the one that passes 100% is cut, later ones get no
+  width.
+- **Display only, caller formats.** It takes plain percentages and an
+  already-formatted `label` (FormattingUtility); it formats nothing.
+- **Tones.** Pill: `sky` (default) or `mint` for a completed Goal.
+  Segments add `skysoft` (`sky/60`), the mockup's alternating shade.
+- **Text readable on both sides of the fill.** As in the mockup, the
+  label is drawn twice: `ink` over the track and the tone's dark ink
+  (`onsky` / `onmint`) clipped to the fill with `clip-path`. Both copies
+  are `aria-hidden`.
+- **Accessibility.** `role="progressbar"`, 0–100, `aria-valuenow` is the
+  (rounded) held value — the segments' total for the thin bar. The pill's
+  label is its `aria-valuetext`; the thin bar takes an optional
+  `ariaValueText`. The caller names it (`ariaLabel`).
+- **Motion.** The fill's width animates over 200ms.
+
+**Task 79 (`K33`) is complete.**
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.
