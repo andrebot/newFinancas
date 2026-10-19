@@ -467,19 +467,20 @@ skipped. Only tier that calls the backend.
   flags. Owns only wizard navigation directly; the actual data-entry
   steps are composed from Account Setup's own Flows rather than
   duplicated.
-  - *Wizard Navigation Interaction* (Next / Back / Skip-this-step /
-    Skip-all) — the only Interaction this Flow owns
-  - Composes: Account Setup's **Account & Card Management Flow** (add
-    first bank account), **Budget Management Flow** (set a first
-    budget), and **Objective Management Flow** (set a first goal) — all
-    three, individually skippable
+  - *Wizard Navigation Interaction* (Next / Back / Skip-this-step) —
+    the only Interaction this Flow owns; the K49 stepper beside it only
+    shows where the user is (OQ-183)
+  - Composes, in order (mockups 11–13): Account Setup's **Account &
+    Card Management Flow** (the first account — mandatory, no Skip,
+    FR-1.22 / OQ-63), **Category Management Flow** (review the seeded
+    categories — optional) and **Budget Management Flow** (a first
+    budget — optional)
   - **Holding Management Flow deliberately excluded** (confirmed):
     building out an investment portfolio can take a while and shouldn't
-    block someone from starting to use the system day one, unlike Budget
-    and Objective setup, which don't need any history to be meaningful —
-    both can be set up fresh and tracked against from that point
-    forward. Holding backfill remains reachable later directly from
-    Account Setup.
+    block someone from starting to use the system day one, unlike a
+    Budget, which needs no history to be meaningful and can be tracked
+    from that point forward. Holding backfill remains reachable later
+    directly from Account Setup.
 
 **Validation check (not a gap):** confirmed Onboard doesn't need a
 "join an existing household via invitation" path — the resolved

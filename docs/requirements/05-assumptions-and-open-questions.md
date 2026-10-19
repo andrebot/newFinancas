@@ -4722,6 +4722,33 @@ not a hardcoded assumption.
 
 **Task 80 (`K42`) is complete.**
 
+### OQ-183: Stepper (task K49)
+**Confirmed with the stakeholder (Oct 2026):**
+- **One `<Stepper>`** (`kit/stepper/Stepper.tsx`), the guided setup's
+  aside on mockups 11–13. It takes the `steps` (`label`, optional
+  `hint`) and the `current` index; the steps before it are done.
+- **States, from the mockups.** Done: a mint 32px dot with an `onmint`
+  check, the label `muted`. Current: a `mintdeep` dot with a mint number
+  and a 2px mint ring, the label `ink`. Next: a `line`-bordered dot with
+  a `faint` number, the label `faint`. Hints are always `faint`. The
+  connector under each step but the last is mint after a done step,
+  `line` otherwise.
+- **The caller formats the caption** ("Getting started · step 1 of 3")
+  and passes it as `caption`, like K33's `label`; K49 translates nothing.
+  The dashed "can be changed later" tip is the caller's, beside it in
+  `WizardLayout`'s `aside`.
+- **Below `lg`, a row of dots.** Where the wizard stacks the stepper
+  above the step's card, it shrinks to the caption over the dots joined
+  by short connectors; the labels and hints stay for screen readers
+  only. From `lg` it is the mockups' vertical list.
+- **Display only.** The steps are not links: Back belongs to Wizard
+  Navigation, and the server's state is the progression (OQ-158).
+- **Accessibility.** An `<ol>` named by `ariaLabel`, the current step
+  `aria-current="step"`; a done step adds a visually hidden
+  `completedLabel` ("completed"). Dots and connectors are `aria-hidden`.
+
+**Task 81 (`K49`) is complete.**
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.

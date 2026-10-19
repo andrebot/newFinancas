@@ -122,7 +122,7 @@ is worth building once.
 | K46 | History editor (dated values: add / edit / delete) | **value history and rate history — same component** |
 | K47 | Allocation editor (goal + whole %, remaining, ≤ 100) | **investment buy and holding maintenance — same component** |
 | K48 | Credit-card preview (network detected, masked). Detection (OQ-126): `detectCardNetwork(digits)` in `@financas/reference` next to `CARD_NETWORKS`, with BIN ranges as data. It must work on a partial number as the user types: compare against the same count of leading digits, not a fixed 6. Check Elo and Hipercard before Visa, Discover and Diners, since their ranges overlap. Elo: 401178–9, 431274, 438935, 451416, 457393, 457631–2, 504175, 506699–506778, 509000–509999, 627780, 636297, 636368, 650031–650033, 650035–650051, 650405–650439, 650485–650538, 650541–650598, 650700–650718, 650720–650727, 650901–650978, 651652–651679, 655000–655019, 655021–655058. Hipercard: 606282, 384100, 384140, 384160, 637095, 637568, 637599, 637609, 637612 (both lists from public BIN tables: re-check them when K48 starts). A test checks every network has a rule and a logo. The old app's `utils/creditCard.ts` has the right idea, but its 3-digit `inRange` calls never match. | account setup, wizard |
-| K49 | Stepper (step n of m) | setup wizard |
+| K49 | Stepper (step n of m; caller-formatted caption; vertical list from `lg`, a row of dots below it; display only — OQ-183) | setup wizard |
 | K50 | Category chip (icon + palette colour) | ledger, pickers, budgets |
 
 ### K-E Layouts
