@@ -4802,6 +4802,31 @@ not a hardcoded assumption.
 
 **Task 83 (`K18`) is complete.**
 
+### OQ-186: Colour swatch picker (task K19)
+**Confirmed with the stakeholder (Oct 2026):**
+- **Every colour inline** (`kit/colorSwatchPicker/ColorSwatchPicker.tsx`):
+  mockup 41's row shows six swatches, but the picker shows all 18
+  `PALETTE_TOKENS` at once, wrapping in the card (`gap-2.5`). There is no
+  popover: 18 small swatches fit, and each is one click away. So K22 is
+  not a base of K19.
+- **Palette order**, the spectrum from `mint` to `slate`; the mockup's six
+  are not moved to the front.
+- **Mockup look.** 26px discs filled inline with `categoryColor()`, so, as
+  with the category chip (OQ-184), a new palette colour needs no kit
+  change. The selected swatch takes the mockup's double ring: a 2px gap in
+  `card` (the category form's surface), then 2px of its own colour
+  (`ring-current`). The keyboard ring sits outside it, 4px out.
+- **Semantics.** A radio group of visually hidden native radios, like the
+  icon picker's row (OQ-185), so the arrow keys come from the browser.
+- **Names from the catalog.** The new `paletteColors` section in
+  `packages/i18n` names each of the 18 colours in pt-BR and en-US, keyed by
+  the token. A test keeps its keys equal to `PALETTE_TOKENS`, in order. The
+  picker takes the names already translated: `colorLabel(color)`, plus
+  `label`.
+- **Controlled.** `value: PaletteToken` and `onChange`; it holds no state.
+
+**Task 84 (`K19`) is complete.**
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.
