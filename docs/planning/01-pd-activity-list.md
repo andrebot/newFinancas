@@ -115,7 +115,7 @@ is worth building once.
 | K39 | Stacked bar chart + legend (top N + Others) | payout over time (Dashboard, Investments) |
 | K40 | Period bar (year switcher + 12 months with in/out mini bars) | Month Overview |
 | K41 | Grouped list (sticky month / day headers + day totals) + infinite-scroll sentinel | ledger |
-| K42 | Expandable row / accordion | ledger rows, holdings, category cards |
+| K42 | Expandable row / accordion (`row`: raised + mint edge while open; `card`: bordered fold-away section; own or caller-held open state — OQ-182) | ledger rows, holdings, archived categories |
 | K43 | Table (columns, group rows, expandable) | holdings by account |
 | K44 | Key–value list | contract details, position, transaction details |
 | K45 | List row (`ListRows` divided / raised + `ListRow`: leading avatar / icon, title, meta, trailing, footer actions; `ListRowIcon` tinted circle — OQ-153) | members, sessions, invitations, notifications, coming due |
