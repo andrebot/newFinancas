@@ -116,6 +116,10 @@ describe('ProgressBar — pill', () => {
     expect(onFill.getAttribute('aria-hidden')).toBe('true');
   });
 
+  it('centres its text in the pill', () => {
+    expect(PILL_LABEL).toContain('justify-center');
+  });
+
   it('turns mint, with the mint ink on the fill, for a completed goal', () => {
     render(<ProgressBar value={100} label="$2,000.00 / $2,000.00" tone="mint" ariaLabel="Done" />);
     const bar = barNamed('Done');
