@@ -2,6 +2,8 @@
 // only in code, grouped by area. Facts that belong to an algorithm (a regular
 // expression, a date format) stay next to the code that implements it.
 
+import type { CategoryIcon } from '@financas/reference';
+
 /** Form field rules (FU1 ValidationUtility). */
 export const validation = {
   /** FR-1.1: the shortest password accepted (mirrors the API's `authentication.password`). */
@@ -76,6 +78,16 @@ export const overlay = {
   offset: 8,
   /** The space a panel keeps from the viewport's edges, in px (the page gutter). */
   viewportPadding: 16,
+} as const;
+
+/** The category form's icon picker (K18, OQ-185). */
+export const iconPicker = {
+  /** The icons always offered in the row, before "More icons" (mockup 41). */
+  quickIcons: [
+    'pets', 'school-outline', 'flight', 'redeem', 'fitness-center', 'child-care-outline',
+  ] as const satisfies readonly CategoryIcon[],
+  /** The "More icons" panel's width, in px: eight 36px icons a row. */
+  panelWidth: 354,
 } as const;
 
 /** The kit's tooltip (K24, OQ-160). */
