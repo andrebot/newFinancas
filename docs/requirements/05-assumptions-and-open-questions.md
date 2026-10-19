@@ -4686,6 +4686,34 @@ not a hardcoded assumption.
 
 **Task 79 (`K33`) is complete.**
 
+### OQ-182: Expandable row / accordion (task K42)
+**Confirmed with the stakeholder (Oct 2026):**
+- **One `<Expandable>`, two surfaces** (`kit/expandable/Expandable.tsx`).
+  `row` (default) is the ledger transaction (mockups 30, 34) and the
+  holding (51), and later K43's table rows: open, it is `bg-raised` with
+  a `border-y border-mint/30`. `card` is the bordered section that folds
+  away — the archived categories on page 41: `rounded-card border
+  border-line`, a muted `px-5 py-3.5` header, a `border-t` over the panel.
+- **The category cards themselves don't expand.** Page 41 shows their
+  subcategories as chips, always visible; the activity list's "category
+  cards" use of K42 is the Archived section.
+- **The summary is one button.** The caller lays it out (flex for the
+  ledger, a grid for holdings); K42 adds the `expand-more` chevron at the
+  end — `faint`, turned over and mint while open, 200ms. Since it sits
+  inside the button, the summary holds no controls: actions (Edit/Delete,
+  inputs, Save) live in the panel, as in the mockups.
+- **The panel exists only while open,** so a collapsed holding builds no
+  value-history chart. It is a `region` named by its trigger
+  (`aria-expanded`, `aria-controls`). The caller pads it (68px ledger
+  indent, 95px holdings). No open/close animation, as the mockups show none.
+- **Open state: the row's own or the caller's.** Uncontrolled by default
+  (`defaultExpanded`, `onExpandedChange` reports each toggle); passing
+  `expanded` hands it to the caller — e.g. a ledger that keeps one row open
+  while holdings stay independent (page 51 shows two open).
+- **Dividers belong to the list** (K41 / K43), not to K42.
+
+**Task 80 (`K42`) is complete.**
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.
