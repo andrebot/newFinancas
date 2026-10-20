@@ -9,7 +9,7 @@ import sys
 sys.path.insert(0, os.path.dirname(__file__))
 from seq_diagram_lib import page as _page
 
-OUT_DIR = "/home/andrebot/projects/pessoal/newFinancas/docs/design/diagrams/sequences/identity-household"
+OUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "sequences", "identity-household")
 
 
 def page(filename, title, subtitle, mermaid, notes):
