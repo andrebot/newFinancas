@@ -23,6 +23,18 @@ export interface MoneyOptions {
   readonly sign?: 'auto' | 'always';
 }
 
+/** How a currency writes its amounts: what a money input needs to mask them (K7). */
+export interface MoneyConventions {
+  /** E.g. `R$`, `$`. */
+  readonly symbol: string;
+  /** E.g. `,` for BRL, `.` for USD. */
+  readonly decimal: string;
+  /** The thousands separator, e.g. `.` for BRL, `,` for USD. */
+  readonly group: string;
+  /** The digits after the decimal separator: 2 for cents. */
+  readonly minorDigits: number;
+}
+
 /** The formatters bound to one interface locale; money needs none. */
 export interface Formatter {
   readonly money: (amount: number, currency: Currency, options?: MoneyOptions) => string;
@@ -96,6 +108,28 @@ export const formatMoney = (
   // Always set for a currency format; the lib types it as optional.
   const minorDigits = Number(format.resolvedOptions().maximumFractionDigits);
   return withMinusSign(format.format(amount / 10 ** minorDigits));
+};
+
+/**
+ * Reads how a currency writes its amounts, in its own conventions (like
+ * `formatMoney`), so a money input can mask them as they are typed.
+ *
+ * @param currency - The currency.
+ * @returns Its symbol, decimal and thousands separators and minor digits.
+ */
+export const moneyConventions = (currency: Currency): MoneyConventions => {
+  const format = numberFormat(formatting.currencyLocale[currency], { style: 'currency', currency });
+  const parts = Object.fromEntries(
+    format.formatToParts(1234.5).map(({ type, value }) => [type, value]),
+  );
+  // A currency format of 1234.5 always writes these three parts.
+  return {
+    symbol: String(parts.currency),
+    decimal: String(parts.decimal),
+    group: String(parts.group),
+    // Always set for a currency format; the lib types it as optional.
+    minorDigits: Number(format.resolvedOptions().maximumFractionDigits),
+  };
 };
 
 /**

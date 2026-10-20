@@ -101,6 +101,12 @@ export const creditCard = {
   placeholderLength: 16,
 } as const;
 
+/** The money input (K7, OQ-188). */
+export const moneyInput = {
+  /** The most digits an amount takes, cents included: up to 99,999,999,999.99. */
+  maxDigits: 13,
+} as const;
+
 /** The category form's icon picker (K18, OQ-185). */
 export const iconPicker = {
   /** The icons always offered in the row, before "More icons" (mockup 41). */

@@ -4,7 +4,8 @@ import {
   describe, expect, it, vi,
 } from 'vitest';
 import {
-  positionAfterClean, readMaskedEdit, useMaskedInput, type Mask,
+  caretCount, caretPosition, positionAfterClean, positionBeforeClean, readMaskedEdit,
+  useMaskedInput, type Mask,
 } from '../../../../src/kit/maskedInput/useMaskedInput';
 
 // Kit hook (BDT: Interaction tier → unit): nothing is mocked. A plain input
@@ -14,6 +15,13 @@ import {
 const digitsMask: Mask = {
   format: (clean) => clean.match(/.{1,3}/g)?.join('.') ?? '',
   parse: (text) => text.replace(/\D/g, ''),
+};
+
+// Cents that fill from the right, as the money input's do: `123` is `1,23`.
+const centsMask: Mask = {
+  format: (clean) => (clean ? clean.padStart(3, '0').replace(/(\d{2})$/, ',$1') : ''),
+  parse: digitsMask.parse,
+  anchor: 'end',
 };
 
 /**
@@ -37,13 +45,18 @@ const editTo = (input: HTMLInputElement, text: string, caret: number) => {
  * @param props - The starting clean value and a spy for the reported values.
  * @returns The masked input.
  */
-function Harness({ initial, onChange }: { initial: string; onChange: (clean: string) => void }) {
+function Harness({ initial, onChange, mask = digitsMask }: {
+  initial: string;
+  onChange: (clean: string) => void;
+  mask?: Mask | undefined;
+}) {
   const [value, setValue] = useState(initial);
   const { ref, value: shown, onChange: change } = useMaskedInput({
     value,
-    mask: digitsMask,
+    mask,
     onChange: (clean) => {
-      setValue(clean);
+      // Padding zeros are dropped, as the money input drops them.
+      setValue(clean.replace(/^0+/, ''));
       onChange(clean);
     },
   });
@@ -61,11 +74,12 @@ function Harness({ initial, onChange }: { initial: string; onChange: (clean: str
  * Renders the harness and finds its input.
  *
  * @param initial - The starting clean value.
+ * @param mask - The mask; the dotted digits by default.
  * @returns The input and the change spy.
  */
-const renderHarness = (initial: string) => {
+const renderHarness = (initial: string, mask?: Mask) => {
   const onChange = vi.fn();
-  render(<Harness initial={initial} onChange={onChange} />);
+  render(<Harness initial={initial} onChange={onChange} mask={mask} />);
   return { input: screen.getByRole<HTMLInputElement>('textbox'), onChange };
 };
 
@@ -81,6 +95,40 @@ describe('positionAfterClean', () => {
 
   it('is the end when the text has fewer clean characters', () => {
     expect(positionAfterClean(digitsMask.parse, '12', 5)).toBe(2);
+  });
+});
+
+describe('positionBeforeClean', () => {
+  it('is the end when no clean character follows the caret', () => {
+    expect(positionBeforeClean(centsMask.parse, '1,23', 0)).toBe(4);
+  });
+
+  it('stops right before the counted character from the end', () => {
+    expect(positionBeforeClean(centsMask.parse, '1,23', 2)).toBe(2);
+    expect(positionBeforeClean(centsMask.parse, '1,23', 3)).toBe(0);
+  });
+
+  it('is the start when the text has fewer clean characters', () => {
+    expect(positionBeforeClean(centsMask.parse, '0,23', 5)).toBe(0);
+  });
+});
+
+describe('caretCount', () => {
+  const edit = { clean: '0012', cleanBeforeCaret: 1 };
+
+  it('counts the clean characters before the caret for a start mask', () => {
+    expect(caretCount(digitsMask, edit)).toBe(1);
+  });
+
+  it('counts the clean characters after the caret for an end mask', () => {
+    expect(caretCount(centsMask, edit)).toBe(3);
+  });
+});
+
+describe('caretPosition', () => {
+  it('counts from the start or the end, as the mask is anchored', () => {
+    expect(caretPosition(digitsMask, '123.4', 4)).toBe(5);
+    expect(caretPosition(centsMask, '0,23', 2)).toBe(2);
   });
 });
 
@@ -168,6 +216,16 @@ describe('useMaskedInput', () => {
 
     expect(onChange).not.toHaveBeenCalled();
     expect(input.value).toBe('123.4');
+    expect(input.selectionStart).toBe(2);
+  });
+
+  it('keeps an end mask\'s caret before the same digits when padding appears', () => {
+    const { input, onChange } = renderHarness('123', centsMask);
+
+    editTo(input, ',23', 0);
+
+    expect(onChange).toHaveBeenCalledExactlyOnceWith('23');
+    expect(input.value).toBe('0,23');
     expect(input.selectionStart).toBe(2);
   });
 
