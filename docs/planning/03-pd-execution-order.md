@@ -128,7 +128,7 @@ identity screens, the rest as later slices use them.
 - [x] **82.** `K50` Category chip (OQ-184: `CategoryDisc` xs/sm/md/lg + `CategoryChip` pill; colour + `/15` tint inline via ThemeUtility; display only)
 - [x] **83.** `K18` Icon picker (OQ-185: six fixed quick picks as a radio row + "More icons" popover with all 57; `categoryIcons` catalog section)
 - [x] **84.** `K19` Colour swatch picker (OQ-186: all 18 palette colours inline, in palette order, as a radio group; `paletteColors` catalog section)
-- [ ] **85.** `K48` Credit-card preview
+- [x] **85.** `K48` Credit-card preview (OQ-187: network detected from BIN ranges as data, network-aware grouping, Luhn check; live `CardPreview`, `CardNumberInput`, saved-card `CardRow`; one dark gradient per network)
 - [ ] **86.** `K7` Money input
 - [ ] **87.** `K8` Number / percent / rate input
 - [ ] **88.** `K9` Date input
