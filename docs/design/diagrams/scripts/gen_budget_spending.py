@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from seq_diagram_lib import check_mermaid_source, page as _page
 from gen_call_chains_oct2026_lib import CC, E, write as write_chain
 
-OUT_DIR = "/home/andrebot/projects/pessoal/newFinancas/docs/design/diagrams/sequences/budget-spending"
+OUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "sequences", "budget-spending")
 
 
 def page(filename, title, subtitle, mermaid, notes):
