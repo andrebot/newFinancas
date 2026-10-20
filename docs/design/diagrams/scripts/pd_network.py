@@ -90,7 +90,7 @@ ACTIVITIES = {
     "K45": ("List row", ["K31", "K23"]),
     "K46": ("History editor", ["K7", "K8", "K9", "K26", "K38"]),
     "K47": ("Allocation editor", ["K11", "K8", "K33"]),
-    "K48": ("Credit-card preview", ["K5"]),
+    "K48": ("Credit-card preview", ["K3", "K5"]),
     "K49": ("Stepper", ["K2"]),
     "K50": ("Category chip", ["K3", "FU4"]),
     # ---- backend utilities

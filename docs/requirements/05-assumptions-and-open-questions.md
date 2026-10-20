@@ -2500,8 +2500,9 @@ not a hardcoded assumption.
   - K9: the date, `dd/mm/aaaa` or `mm/dd/yyyy`;
   - K17: the 6-digit code, and the backup code `XXXX-XXXX-XXXX-XXXX`
     (16 characters, as the API issues them — corrected by OQ-139);
-  - K48: the card number, grouped in fours. It never leaves the form;
-    only `network` + `last4` are sent (FR on PAN storage).
+  - K48: the card number, grouped as its network writes it (amended by
+    OQ-187: Amex and Diners 4-6, the rest in fours). It never leaves the
+    form; only `network` + `last4` are sent (FR on PAN storage).
 
   Caret handling, the hard part of any mask, is written once as a shared
   `useMaskedInput(format, parse)` hook. K17's backup code was the first to
@@ -4826,6 +4827,61 @@ not a hardcoded assumption.
 - **Controlled.** `value: PaletteToken` and `onChange`; it holds no state.
 
 **Task 84 (`K19`) is complete.**
+
+### OQ-187: Credit-card preview (task K48)
+**Confirmed with the stakeholder (Oct 2026):**
+- **Detection as data** (`packages/reference/src/cards.ts`):
+  `CARD_NETWORK_RULES` lists each network's BIN ranges, a range being two
+  prefixes with the same count of digits. `detectCardNetwork(digits)`
+  returns the first network with a range the number falls in, or `other`.
+  A range matches once the number has as many digits as its prefixes, so a
+  partial number is read as it is typed: `4` is Visa, and `401178` makes it
+  Elo. Elo and Hipercard come first, since they overlap Visa, Discover and
+  Diners. A test checks every network but `other` has a rule; the icon
+  registry's test already checks every one has a logo.
+- **BIN lists re-checked** against Braintree's `credit-card-type` (the most
+  maintained public table; there is no official one). Elo gains
+  650057–650081 and 651680–651704. Braintree keeps only 606282 as
+  Hipercard and lists 637095, 637568, 637599, 637609, 637612, 63737423
+  and 63743358 as **Hiper**, a separate Itaú brand. **Hiper counts as
+  Hipercard** (no new network), and the old 19-digit Hipercard BINs
+  384100, 384140 and 384160 stay.
+- **Network-aware grouping** (amends OQ-137): `CARD_NUMBER_FORMATS` gives
+  each network its gaps and allowed lengths — Amex 4-6-5 (15 digits),
+  Diners 4-6-4 (14), the rest in fours, with a fifth group for 19 digits.
+  The input stops at the detected network's longest length.
+- **Luhn check:** `isValidCardNumber(digits)` (digits only, a length the
+  network allows, the checksum holds) catches typos before only `last4` is
+  kept. The add-card form shows the field error; its message joins the
+  catalog with that form.
+- **Three kit pieces** (`apps/web/src/kit/creditCard/`):
+  - `CardNumberInput`: the text field with the mask (shared
+    `useMaskedInput`), `inputMode="numeric"`, `autoComplete="cc-number"`,
+    monospaced. Controlled: the digits in, the digits out.
+  - `CardPreview`: mockup 11's live card. It shows the chip, the logo, the
+    digits typed and dots for the rest (dimmed), the billing line and the
+    expiry. When no number is typed (editing a saved card), it shows dots
+    and `last4`. The card is a picture (`aria-hidden`); the caption
+    ("Mastercard detected from the number") is `aria-live="polite"`. The
+    number scales with the card's width (container units), so a 19-digit
+    number fits on one line.
+  - `CardRow`: the saved-card strip of mockups 11 and 40 — the logo,
+    "•••• 1111" over the meta line, and an optional trailing action. Mockup
+    40's inline meta takes mockup 11's stacked layout: one look.
+  - All three hold no state; the caller detects the network, formats the
+    expiry and translates every text.
+- **One dark gradient per network** (`creditCard.gradients` in
+  `config/constants.ts`), the mockup preview's gold-brown for Mastercard.
+  The card and the row are drawn with `data-theme="dark"`, so they stay
+  dark in the light theme, like a real card.
+- **Logos sit on a light badge** (the dark theme's `ink`). This is a
+  departure from the mockups: logos keep their own colours, and Visa's
+  navy and Elo's black disappear on a dark card.
+- **Catalog:** `cardNetworks` names each network (a test keeps its keys
+  equal to `CARD_NETWORKS`); `creditCard` holds the field label, the
+  billing line, the expiry, the "detected" caption and "Remove card".
+
+**Task 85 (`K48`) is complete.**
 
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every

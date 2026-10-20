@@ -2,7 +2,7 @@
 // only in code, grouped by area. Facts that belong to an algorithm (a regular
 // expression, a date format) stay next to the code that implements it.
 
-import type { CategoryIcon } from '@financas/reference';
+import type { CardNetwork, CategoryIcon } from '@financas/reference';
 
 /** Form field rules (FU1 ValidationUtility). */
 export const validation = {
@@ -78,6 +78,27 @@ export const overlay = {
   offset: 8,
   /** The space a panel keeps from the viewport's edges, in px (the page gutter). */
   viewportPadding: 16,
+} as const;
+
+/** The credit-card preview and saved-card rows (K48, OQ-187). */
+export const creditCard = {
+  /** Each network's card: a dark gradient (start, end) in both themes, like a real card. */
+  gradients: {
+    visa: ['#1E3A5F', '#14202E'],
+    mastercard: ['#3A2A12', '#14100A'],
+    amex: ['#1C4A5A', '#0F232B'],
+    elo: ['#2B2B2B', '#121212'],
+    hipercard: ['#5A1A1A', '#2A0E0E'],
+    diners: ['#2A3A4A', '#151C24'],
+    discover: ['#4A2A12', '#1F130A'],
+    jcb: ['#173F2A', '#0C1F15'],
+    unionpay: ['#13404A', '#0A1F24'],
+    other: ['#2A302D', '#141816'],
+  } satisfies Record<CardNetwork, readonly [string, string]>,
+  /** The preview's chip: gold, light to dark. */
+  chip: ['#E9C46A', '#B88A2E'],
+  /** The digits the preview draws while fewer are typed, when the network allows that many. */
+  placeholderLength: 16,
 } as const;
 
 /** The category form's icon picker (K18, OQ-185). */
