@@ -470,6 +470,9 @@ const enUS: Catalog = {
     month: 'mm',
     year: 'yyyy',
   },
+  drawer: {
+    close: 'Close',
+  },
   alerts: {
     region: 'Alerts',
     dismiss: 'Dismiss',

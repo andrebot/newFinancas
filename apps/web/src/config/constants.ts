@@ -80,6 +80,12 @@ export const overlay = {
   viewportPadding: 16,
 } as const;
 
+/** The drawer / sheet (K20, OQ-191). */
+export const drawer = {
+  /** How long it slides in or out, in ms; no motion when the device asks for less. */
+  transitionMs: 200,
+} as const;
+
 /** The credit-card preview and saved-card rows (K48, OQ-187). */
 export const creditCard = {
   /** Each network's card: a dark gradient (start, end) in both themes, like a real card. */

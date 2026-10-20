@@ -5008,6 +5008,37 @@ not a hardcoded assumption.
 
 **Task 88 (`K9`) is complete.**
 
+### OQ-191: Drawer / sheet (task K20)
+**Confirmed with the stakeholder (Oct 2026):**
+- **Moved up, before FL11.** Mockup 40 opens Add / Edit Account in a
+  drawer, and the activity list names the drawer for Add Budget / Goal
+  too, but the network had no K20 under FL11, FL13 or FL14, so task 107
+  came after them. It now runs before task 89 (keeping its number) and
+  the three Flows depend on it.
+- **A modal dialog on Floating UI** (OQ-131), unlike the shell's nav
+  drawer, which is a non-modal navigation landmark: `role="dialog"`,
+  `aria-modal`, named by its title; focus stays inside and the page behind
+  doesn't scroll. It renders in a portal over the scrim (`bg-scrim`).
+- **The caller holds `open`** — a Flow opens it from several places
+  (Add, each card's Edit). Esc, a press on the scrim and the ✕ call
+  `onClose`; a caller with a save out simply ignores it. Props: `title`
+  (names the dialog), `caption` (the small line above, "Edit account"),
+  the scrolling body and a pinned `footer` for the actions. The ✕'s label
+  is the new catalog key `drawer.close`.
+- **Focus** goes to the body's first field on opening (the ✕ when there
+  is none) and back to whatever had it before on closing.
+- **Look, from mockups 31–33, 40 and 52:** from `md` up, 520px on the
+  right under the 64px header, `bg-card` with a line on its left; the
+  heading row and footer are divided off by lines. Below `md`, a
+  full-screen sheet over the header (mockups README).
+- **It slides**: the panel in from the right (up from the bottom as a
+  sheet) and the scrim fades, over `drawer.transitionMs` (200ms, in
+  `config/constants.ts`), as the README's motion line asks; there is no
+  motion under `prefers-reduced-motion`. The nav drawer and the popover
+  stay without animation.
+
+**Task 107 (`K20`) is complete.**
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.
