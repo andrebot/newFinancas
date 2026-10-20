@@ -66,7 +66,7 @@ export const fieldAria = (
  * @param props - The message's id and the field's hint and error.
  * @returns The message line, or `null` when there is neither.
  */
-function FieldMessage({
+export function FieldMessage({
   id, hint, error,
 }: { readonly id: string } & Pick<FieldTexts, 'hint' | 'error'>) {
   if (error) {
@@ -82,7 +82,7 @@ function FieldMessage({
  * @param props - The control's id, the label, its action and whether it is hidden.
  * @returns The label row.
  */
-function FieldLabel({
+export function FieldLabel({
   controlId, label, labelAction, labelHidden,
 }: Pick<FieldProps, 'controlId' | 'label' | 'labelAction' | 'labelHidden'>) {
   if (labelHidden) {

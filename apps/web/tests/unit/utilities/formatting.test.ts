@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   createFormatter, formatDate, formatList, formatMoney, formatPercent, formatRate,
+  moneyConventions,
 } from '../../../src/utilities/formatting';
 
 // Utility (BDT: unit, pure — nothing to mock). `Intl` writes a no-break
@@ -25,6 +26,17 @@ describe('formatMoney', () => {
     expect(formatMoney(-4599, 'USD', { sign: 'always' })).toBe('−$45.99');
     expect(formatMoney(0, 'USD', { sign: 'always' })).toBe('$0.00');
     expect(formatMoney(320000, 'USD', { sign: 'auto' })).toBe('$3,200.00');
+  });
+});
+
+describe('moneyConventions', () => {
+  it('reads each currency’s symbol, separators and cents in its own conventions', () => {
+    expect(moneyConventions('BRL')).toEqual({
+      symbol: 'R$', decimal: ',', group: '.', minorDigits: 2,
+    });
+    expect(moneyConventions('USD')).toEqual({
+      symbol: '$', decimal: '.', group: ',', minorDigits: 2,
+    });
   });
 });
 

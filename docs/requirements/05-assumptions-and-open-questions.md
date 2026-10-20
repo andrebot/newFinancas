@@ -2613,7 +2613,8 @@ not a hardcoded assumption.
   same number of clean characters it followed. A backspace that only
   removed a separator removes the clean character before it instead, so
   the key always does something. It counts from the left. K7's money
-  mask, whose digits fill from the right, may extend it when it is built.
+  mask, whose digits fill from the right, may extend it when it is built
+  (it did: `Mask.anchor`, OQ-188).
 
 **Task 43 (`K17`) is complete.**
 
@@ -4882,6 +4883,53 @@ not a hardcoded assumption.
   billing line, the expiry, the "detected" caption and "Remove card".
 
 **Task 85 (`K48`) is complete.**
+
+### OQ-188: Money input (task K7)
+**Confirmed with the stakeholder (Oct 2026):**
+- **Digits fill from the right, cents first**, as in Brazilian bank apps:
+  typing 1, 2, 3 shows `0,01`, `0,12`, `1,23`; R$ 100 is typed `10000`.
+  There is no decimal key, so nothing depends on whether the currency
+  writes `,` or `.` — the free-decimal alternative was turned down because
+  an en-US user typing a BRL amount would need to type `,`. A pasted
+  `1.234,56` keeps its digits (R$ 1.234,56); a pasted `50` reads as 0,50.
+- **The text follows the currency's own conventions**, like every amount
+  on screen (FU6): a BRL amount reads `1.234,56` for an en-US user too.
+  `moneyConventions(currency)` in the FormattingUtility gives the symbol,
+  the separators and the minor digits, read from `Intl`.
+- **Two looks, one component** (`kit/moneyInput/MoneyInput.tsx`):
+  - `variant="field"` (default): the kit's text field with the symbol in
+    its leading slot — a market value (mockup 52).
+  - `variant="hero"`: the mockups' amount panel, its label inside and the
+    number in `type-display-lg`, the symbol in `type-heading-lg` — the
+    record drawer, the starting balance, budget and goal targets. The
+    mockups draw it at 24–40px; the kit has **one hero size**, as K5 has
+    one field size. The hint or error sits inside the panel, under the
+    number; an error turns the border coral.
+  - `direction` signs and tones the prefix for an amount its transaction
+    kind signs: `out` −R$ in coral, `in` +R$ in mint; without it the
+    symbol is muted.
+- **Controlled in minor units**: `value` is an integer (`Money`) or `null`
+  while empty, and `onChange` gets the same. Deleting down past `0,01`
+  empties the input (`null`) and the placeholder shows the zero (`0,00`);
+  a caller passing `0` still sees `0,00`. Only a changed amount is
+  reported. A field the API defaults (the opening balance, "0 when left
+  out") sends `null` as 0; a required one fails on `null`.
+- **Negatives only on request** (`allowNegative`, e.g. an overdrawn
+  starting balance — `openingBalance` is plain `Money`). Every minus typed
+  flips the sign, so `-` anywhere toggles it; zero is never negative. The
+  amount is written with the true minus sign (`−12,34`) after the symbol.
+- **At most 13 digits**, cents included (`moneyInput.maxDigits` in
+  `config/constants.ts`: 99,999,999,999.99, well within a safe integer);
+  a digit past it is refused.
+- **The shared mask hook gains `Mask.anchor`** (amends OQ-139): `end`
+  counts the caret's clean characters from the right, so it stays beside
+  the same digits when padding zeros appear or go (`1,23` → delete the
+  `1` → `0,|23`). The money mask's `parse` keeps those zeros; the input
+  drops them when it reads the amount.
+- **No catalog keys**: the symbol and the placeholder come from `Intl`;
+  labels and hints are the caller's.
+
+**Task 86 (`K7`) is complete.**
 
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every

@@ -7,7 +7,8 @@ import {
 // K8, K9, K48). A mask only changes what is on screen; the caller holds and
 // gets the clean value. After each edit the caret is put back after the same
 // number of clean characters it followed, so typing or deleting mid-text
-// doesn't throw it to the end when the separators move.
+// doesn't throw it to the end when the separators move. A mask whose text
+// fills from the right (money, K7) counts them from the end instead.
 
 /** How a masked input turns its clean value into text on screen, and back. */
 export interface Mask {
@@ -19,6 +20,13 @@ export interface Mask {
    * parses to a prefix of the value, and `parse(format(clean))` is `clean`.
    */
   readonly parse: (text: string) => string;
+  /**
+   * Which end the caret's clean characters are counted from: `start` (the
+   * default) for text that grows to the right, `end` for text that fills from
+   * the right, like money's cents, where `parse` may keep padding the clean
+   * value drops (`0,01` → `001`).
+   */
+  readonly anchor?: 'start' | 'end' | undefined;
 }
 
 /** An edit's outcome: the new clean value and how many clean characters precede the caret. */
@@ -65,6 +73,58 @@ export const positionAfterClean = (
   }
   return text.length;
 };
+
+/**
+ * Finds the position in a text just before its `count`-th clean character
+ * from the end.
+ *
+ * @param parse - The mask's parser, which says which characters are clean.
+ * @param text - The text shown.
+ * @param count - How many clean characters follow the caret.
+ * @returns The caret position: the text's end for none, 0 when it has fewer.
+ */
+export const positionBeforeClean = (
+  parse: Mask['parse'],
+  text: string,
+  count: number,
+): number => {
+  if (count <= 0) {
+    return text.length;
+  }
+  for (let position = text.length - 1; position > 0; position -= 1) {
+    if (parse(text.slice(position)).length >= count) {
+      return position;
+    }
+  }
+  return 0;
+};
+
+/**
+ * Counts the clean characters that place the caret after an edit, from the
+ * mask's anchored end.
+ *
+ * @param mask - The input's mask.
+ * @param edit - The edit read.
+ * @returns The clean characters before the caret, or after it for an `end` mask.
+ */
+export const caretCount = (mask: Mask, edit: MaskedEdit): number => (
+  mask.anchor === 'end' ? edit.clean.length - edit.cleanBeforeCaret : edit.cleanBeforeCaret
+);
+
+/**
+ * Finds where the caret goes in the text shown, from the clean characters
+ * counted from the mask's anchored end.
+ *
+ * @param mask - The input's mask.
+ * @param text - The text shown.
+ * @param count - The count `caretCount` gave.
+ * @returns The caret position.
+ */
+export const caretPosition = (mask: Mask, text: string, count: number): number => (
+  mask.anchor === 'end'
+    ? positionBeforeClean(mask.parse, text, count)
+    : positionAfterClean(mask.parse, text, count)
+);
 
 /**
  * Reads an edit to a masked input. When it only removed a separator (a
@@ -117,7 +177,7 @@ export function useMaskedInput({ value, onChange, mask }: MaskedInputInput): Mas
     if (pendingCaret.current === null || !element) {
       return;
     }
-    const position = positionAfterClean(mask.parse, element.value, pendingCaret.current);
+    const position = caretPosition(mask, element.value, pendingCaret.current);
     element.setSelectionRange(position, position);
     pendingCaret.current = null;
   }, [edits, shown, mask]);
@@ -125,7 +185,7 @@ export function useMaskedInput({ value, onChange, mask }: MaskedInputInput): Mas
   const change = (typed: string) => {
     const caret = ref.current?.selectionStart ?? typed.length;
     const edit = readMaskedEdit(mask, shown, typed, caret);
-    pendingCaret.current = edit.cleanBeforeCaret;
+    pendingCaret.current = caretCount(mask, edit);
     setEdits((count) => count + 1);
     if (edit.clean !== value) {
       onChange(edit.clean);
