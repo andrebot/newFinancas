@@ -132,6 +132,7 @@ identity screens, the rest as later slices use them.
 - [x] **86.** `K7` Money input (OQ-188: digits fill from the right, cents first, in the currency's conventions; field and hero looks; minor units in and out)
 - [x] **87.** `K8` Number / percent / rate input (OQ-189: the point typed with `,` or `.`, no grouping; fixed-point integers in and out — quantity × 10⁸, rate × 10,000, whole percent; field and compact sizes; a Quantity stops below the safe-integer ceiling)
 - [x] **88.** `K9` Date input (OQ-190: typed in the interface language's order with the separators added, a `/` after one digit pads it; `YYYY-MM-DD` out, the pieces typed so far while incomplete so `isoDate` flags them; format placeholder from the catalog)
+- [x] **107.** `K20` Drawer / sheet — moved up before FL11, the first Flow whose form opens in one (OQ-191: a modal dialog on Floating UI; right-hand 520px panel under the header from `md`, full-screen sheet below; the caller holds `open`, Esc / scrim / ✕ ask it to close; focus on the body's first field and back to the opener; 200ms slide, none under reduced motion)
 - [ ] **89.** `FL11` Account & Card Management (explain the starting balance on Add Account — OQ-169)
 - [ ] **90.** `FL12` Category Management
 - [ ] **91.** `FL13` Budget Management
@@ -156,7 +157,6 @@ identity screens, the rest as later slices use them.
 - [ ] **104.** `M4` InsightsManager
 - [ ] **105.** `K32` Progress ring
 - [ ] **106.** `K44` Key–value list
-- [ ] **107.** `K20` Drawer / sheet
 - [ ] **108.** `K29` Amount
 - [ ] **109.** `K35` Card rail
 - [ ] **110.** `K10` Date range picker

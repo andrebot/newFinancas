@@ -485,6 +485,9 @@ const ptBR = {
     month: 'mm',
     year: 'aaaa',
   },
+  drawer: {
+    close: 'Fechar',
+  },
   alerts: {
     region: 'Avisos',
     dismiss: 'Dispensar',

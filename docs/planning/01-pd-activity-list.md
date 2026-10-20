@@ -88,7 +88,7 @@ is worth building once.
 
 | ID | Component | Reused by |
 |---|---|---|
-| K20 | Drawer (right side; full-screen sheet on mobile) | record, filter, edit, add budget/goal, value history |
+| K20 | Drawer (right side; full-screen sheet on mobile; `Drawer`: a modal dialog the caller opens, caption + title + scrolling body + pinned footer, 200ms slide) — OQ-191 | record, filter, edit, add budget/goal, value history |
 | K21 | Dialog | audit export |
 | K22 | Popover (non-modal dialog panel; plus the shared `overlayMiddleware` / `OVERLAY_SURFACE` and the `shadow-overlay` token every floating panel uses — OQ-131) | notification inbox; base of K11, K18, K23, K24 |
 | K23 | Menu (dropdown actions and radio groups; plus `MenuPill` / `StaticPill` — the static Owner role pill — and the shared `floatingList` rules — OQ-133, OQ-140) | role menu, row actions |
