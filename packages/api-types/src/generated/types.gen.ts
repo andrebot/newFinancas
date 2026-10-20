@@ -552,7 +552,7 @@ export type TransactionCreateRequest = {
     rate?: {
         type?: 'fixed' | 'cdi' | 'ipca' | 'igpm' | 'selic';
         /**
-         * Fixed: annual % rate. CDI/Selic: % of the index (e.g. 100 = 100%). IPCA/IGP-M: spread above the index.
+         * Percent × 10,000 — 10.50% = 105000 (bigint fixed-point, OQ-86, OQ-189). Fixed: annual % rate. CDI/Selic: % of the index (110% of CDI = 1100000). IPCA/IGP-M: spread above the index.
          */
         value?: number;
     } | null;

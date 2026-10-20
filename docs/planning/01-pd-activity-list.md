@@ -71,7 +71,7 @@ is worth building once.
 | K5 | Text field (label, hint, inline error; leading / trailing slots) + the shared `Field` frame (label, label action, hint or error) K6–K11 reuse — OQ-137 | every form |
 | K6 | Password field (show / hide eye on every password field; four-bar strength meter under the box, captioned by `strengthCaption` — OQ-144) | sign in, register, reset, change password |
 | K7 | Money input (`MoneyInput`: field and hero looks, digits fill from the right in the currency's own conventions, minor units in and out, optional sign and direction; `Mask.anchor` in the shared mask hook) — OQ-188 | record, account balance, budget target, goal target, market value |
-| K8 | Number / percent / rate input (quantity, whole %, × 10,000 rates) | investment buy, allocations, rates |
+| K8 | Number / percent / rate input (`NumberInput`: `quantity` × 10⁸, `rate` × 10,000, whole `percent`; the point typed with `,` or `.`, shown in the interface language; field and compact sizes, optional sign) — OQ-189 | investment buy, allocations, rates |
 | K9 | Date input | record, filter, as-of dates, goal due date |
 | K10 | Date range picker | filter drawer, audit export dialog |
 | K11 | Select / combobox (groups, disabled options with a reason, slots, description, opt-in search) — the fallback when a pick list outgrows a row of chips — OQ-138 | long account / category lists (mockups draw chips; the claim-aware picker is multi-pick, K12) |

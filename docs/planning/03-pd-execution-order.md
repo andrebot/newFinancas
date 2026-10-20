@@ -130,7 +130,7 @@ identity screens, the rest as later slices use them.
 - [x] **84.** `K19` Colour swatch picker (OQ-186: all 18 palette colours inline, in palette order, as a radio group; `paletteColors` catalog section)
 - [x] **85.** `K48` Credit-card preview (OQ-187: network detected from BIN ranges as data, network-aware grouping, Luhn check; live `CardPreview`, `CardNumberInput`, saved-card `CardRow`; one dark gradient per network)
 - [x] **86.** `K7` Money input (OQ-188: digits fill from the right, cents first, in the currency's conventions; field and hero looks; minor units in and out)
-- [ ] **87.** `K8` Number / percent / rate input
+- [x] **87.** `K8` Number / percent / rate input (OQ-189: the point typed with `,` or `.`, no grouping; fixed-point integers in and out — quantity × 10⁸, rate × 10,000, whole percent; field and compact sizes; a Quantity stops below the safe-integer ceiling)
 - [ ] **88.** `K9` Date input
 - [ ] **89.** `FL11` Account & Card Management (explain the starting balance on Add Account — OQ-169)
 - [ ] **90.** `FL12` Category Management

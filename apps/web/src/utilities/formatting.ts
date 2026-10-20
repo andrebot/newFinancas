@@ -133,6 +133,21 @@ export const moneyConventions = (currency: Currency): MoneyConventions => {
 };
 
 /**
+ * Reads the decimal separator of the interface language, so a number input
+ * (K8) writes what is typed the way every number on screen reads.
+ *
+ * @param locale - The interface locale.
+ * @returns E.g. `,` (pt-BR), `.` (en-US).
+ */
+export const decimalSeparator = (locale: Locale): string => {
+  const parts = Object.fromEntries(
+    numberFormat(locale, {}).formatToParts(1.5).map(({ type, value }) => [type, value]),
+  );
+  // A plain number format of 1.5 always writes a decimal part.
+  return String(parts.decimal);
+};
+
+/**
  * Writes a rate in the interface language.
  *
  * @param rate - Percent × 10,000, as the API sends it (105000 is 10.50%).
