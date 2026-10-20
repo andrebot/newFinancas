@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ApiError } from '../../../src/api/errors';
-import { failureOf, toRequestOutcome } from '../../../src/api/outcome';
+import { failureOf, toDataOutcome, toRequestOutcome } from '../../../src/api/outcome';
 
 // Endpoint result → RequestOutcome (BDT: utility-like translation → unit,
 // nothing mocked).
@@ -34,6 +34,18 @@ describe('toRequestOutcome', () => {
 
   it('answers the failure for an error', () => {
     expect(toRequestOutcome({ error: API_ERROR })).toEqual({
+      ok: false, error: { code: 'auth.too_many_attempts', params: { retryAfterMinutes: 15 } },
+    });
+  });
+});
+
+describe('toDataOutcome', () => {
+  it('keeps the data on a success', () => {
+    expect(toDataOutcome({ data: { id: 'x' } })).toEqual({ ok: true, data: { id: 'x' } });
+  });
+
+  it('answers the failure for an error, without data', () => {
+    expect(toDataOutcome({ error: API_ERROR })).toEqual({
       ok: false, error: { code: 'auth.too_many_attempts', params: { retryAfterMinutes: 15 } },
     });
   });

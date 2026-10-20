@@ -5039,6 +5039,16 @@ not a hardcoded assumption.
 
 **Task 107 (`K20`) is complete.**
 
+### OQ-192: Account & Card Management (task FL11)
+**Design decisions:**
+- **The Accounts tab is the live flow; the other tabs are placeholders.** The page at `/account-setup` carries mockup 40's four tabs, and only Accounts works — Categories, Budgets and Goals show an empty state until their flows land in FL12–FL14. The page is keyed on the household, so a switch starts it afresh.
+- **The opening balance field is OQ-169's anchor.** Add Account takes "today's balance" as optional; the Manager stores it with `startingBalanceDate` set to the creation day, and the account runs from there. The field's hint says exactly that — leave it out when you start from zero.
+- **A credit-card account is its cards.** A `credit_card_only` account carries one or more cards inline (created and edited atomically with the account), and what shows as its balance is the sum of its cards' outstanding balances (OQ-175). The full number never leaves the form — only network and last four digits are stored (NFR-SEC-7) — so an attached card edits field by field, while a new one enters through its number.
+- **Type and currency lock at creation** (the contract makes them immutable); the edit drawer shows them as locked fields with their note. Visibility moves only in its creator's hands; everyone else sees it read-only.
+- **Archiving sits behind an inline confirm** — the kit's danger zone with a destructive confirm, as mockup 40 draws it — and an archived account leaves the list for its own section.
+
+**Task 89 (`FL11`) is complete.**
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.

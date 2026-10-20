@@ -49,3 +49,22 @@ export const failureOf = (error: ApiError | SerializedError): RequestFailure => 
 export const toRequestOutcome = (result: EndpointResult<unknown>): RequestOutcome => (
   result.error === undefined ? { ok: true } : { ok: false, error: failureOf(result.error) }
 );
+
+/** What an endpoint's answer carries on a success. */
+export type DataOutcome<Data> = { readonly ok: true; readonly data: Data } | {
+  readonly ok: false;
+  readonly error: RequestFailure;
+};
+
+/**
+ * Turns an endpoint's result into an outcome that keeps its data on a
+ * success, for the Flows whose state moves with what was written.
+ *
+ * @param result - What the endpoint's trigger resolved to.
+ * @returns `{ ok: true, data }`, or the failure.
+ */
+export const toDataOutcome = <Data>(result: EndpointResult<Data>): DataOutcome<Data> => (
+  result.error === undefined
+    ? { ok: true, data: result.data }
+    : { ok: false, error: failureOf(result.error) }
+);
