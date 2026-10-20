@@ -2,14 +2,23 @@ import {
   afterEach, describe, expect, it, vi,
 } from 'vitest';
 import { api } from '../../../src/config/constants';
-import { browserApiEnvironment, type ApiWindow } from '../../../src/api/environment';
+import { browserApiEnvironment, correlationIdFrom, type ApiWindow } from '../../../src/api/environment';
 import { jsonResponse } from './fakes';
 
 // The browser environment (BDT: API client → unit). Mocked: `fetch`, Web Locks
 // and `crypto` on a fake window; jsdom's own localStorage.
 
+/** A page crypto whose random bytes are all `value`. */
+const fixedCrypto = (value: number): Pick<Crypto, 'getRandomValues'> => ({
+  getRandomValues(buffer) {
+    (buffer as unknown as Uint8Array).fill(value);
+    return buffer;
+  },
+});
+
 /**
- * Builds a fake page on `http://app.test`.
+ * Builds a fake page on `http://app.test` — deliberately not a secure context,
+ * so the environment must work without `crypto.randomUUID`.
  *
  * @param fetchFn - The page's `fetch`.
  * @param locks - The page's Web Locks, if any.
@@ -20,7 +29,27 @@ const pageWith = (fetchFn: typeof fetch, locks?: LockManager): ApiWindow => ({
   localStorage: window.localStorage,
   location: { origin: 'http://app.test' },
   navigator: { locks },
-  crypto: { randomUUID: () => '00000000-0000-4000-8000-000000000001' },
+  crypto: fixedCrypto(0xab),
+});
+
+describe('correlationIdFrom', () => {
+  it('masks the version and variant bytes into UUID v4 form', () => {
+    expect(correlationIdFrom(fixedCrypto(0xab)))
+      .toBe('abababab-abab-4bab-abab-abababababab');
+  });
+
+  it('keeps high bits out of the masked positions', () => {
+    expect(correlationIdFrom(fixedCrypto(0xff)))
+      .toBe('ffffffff-ffff-4fff-bfff-ffffffffffff');
+  });
+
+  it('makes unique, well-formed IDs from real random bytes', () => {
+    const first = correlationIdFrom(crypto);
+    const second = correlationIdFrom(crypto);
+
+    expect(first).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    expect(second).not.toBe(first);
+  });
 });
 
 describe('browserApiEnvironment', () => {
@@ -46,9 +75,9 @@ describe('browserApiEnvironment', () => {
     expect(localStorage.getItem(api.refreshTokenStorageKey)).toBe('refresh-1');
   });
 
-  it('makes correlation IDs with crypto.randomUUID', () => {
+  it('makes correlation IDs from getRandomValues, without randomUUID', () => {
     expect(browserApiEnvironment(pageWith(vi.fn())).newCorrelationId())
-      .toBe('00000000-0000-4000-8000-000000000001');
+      .toBe('abababab-abab-4bab-abab-abababababab');
   });
 
   it('refreshes against the same API, under the page’s Web Lock', async () => {
