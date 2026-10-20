@@ -49,7 +49,7 @@ ACTIVITIES = {
     "K6": ("Password field", ["K5", "K4"]),
     "K7": ("Money input", ["K5", "K17", "FU6"]),
     "K8": ("Number / percent / rate input", ["K5", "K17", "FU6"]),
-    "K9": ("Date input", ["K5", "FU6"]),
+    "K9": ("Date input", ["K5", "K17", "FU6"]),
     "K10": ("Date range picker", ["K9", "K22"]),
     "K11": ("Select / combobox", ["K5", "K22"]),
     "K12": ("Multi-select with search + presets", ["K11", "K16"]),

@@ -465,6 +465,11 @@ const enUS: Catalog = {
     detected: '{network} detected from the number',
     remove: 'Remove card',
   },
+  dateInput: {
+    day: 'dd',
+    month: 'mm',
+    year: 'yyyy',
+  },
   alerts: {
     region: 'Alerts',
     dismiss: 'Dismiss',
