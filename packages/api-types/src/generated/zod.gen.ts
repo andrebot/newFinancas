@@ -564,7 +564,7 @@ export const zTransactionCreateRequest = z.object({
             'igpm',
             'selic'
         ]).optional(),
-        value: z.number().optional()
+        value: z.int().optional()
     }).nullish(),
     dueDate: z.iso.date().optional(),
     allocations: z.array(z.object({

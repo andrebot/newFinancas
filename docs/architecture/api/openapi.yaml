@@ -3156,7 +3156,7 @@ components:
           description: "Fixed-term instrument types only, investment_buy only (OQ-50) — this purchase's own immutable rate, set at creation and never recomputed."
           properties:
             type: { type: string, enum: [fixed, cdi, ipca, igpm, selic] }
-            value: { type: number, description: "Fixed: annual % rate. CDI/Selic: % of the index (e.g. 100 = 100%). IPCA/IGP-M: spread above the index." }
+            value: { type: integer, description: "Percent × 10,000 — 10.50% = 105000 (bigint fixed-point, OQ-86, OQ-189). Fixed: annual % rate. CDI/Selic: % of the index (110% of CDI = 1100000). IPCA/IGP-M: spread above the index." }
         dueDate: { type: string, format: date, description: "Fixed-term instrument types only, required for investment_buy (FR-11.1/FR-11.2) — the contract's maturity date. Not derivable from assetType alone (a CDB's term is negotiated per contract); InvestmentProductEngine uses it, alongside date and rate, to compute the interest-payment schedule between purchase and maturity, never to derive maturity itself." }
         allocations:
           type: array

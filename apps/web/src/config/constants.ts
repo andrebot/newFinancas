@@ -107,6 +107,18 @@ export const moneyInput = {
   maxDigits: 13,
 } as const;
 
+/** The number, rate and percent input (K8, OQ-189): the most whole digits each kind takes. */
+export const numberInput = {
+  maxWholeDigits: {
+    /** Up to 9,999,999.99999999 units: × 10⁸ on the wire must stay a safe integer. */
+    quantity: 7,
+    /** Up to 9,999.9999% — a rate like 110% of CDI fits with room to spare. */
+    rate: 4,
+    /** Up to 100%, and ValidationUtility holds the 1–100 range (OQ-87). */
+    percent: 3,
+  },
+} as const;
+
 /** The category form's icon picker (K18, OQ-185). */
 export const iconPicker = {
   /** The icons always offered in the row, before "More icons" (mockup 41). */

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  createFormatter, formatDate, formatList, formatMoney, formatPercent, formatRate,
-  moneyConventions,
+  createFormatter, decimalSeparator, formatDate, formatList, formatMoney, formatPercent,
+  formatRate, moneyConventions,
 } from '../../../src/utilities/formatting';
 
 // Utility (BDT: unit, pure — nothing to mock). `Intl` writes a no-break
@@ -37,6 +37,13 @@ describe('moneyConventions', () => {
     expect(moneyConventions('USD')).toEqual({
       symbol: '$', decimal: '.', group: ',', minorDigits: 2,
     });
+  });
+});
+
+describe('decimalSeparator', () => {
+  it('reads the interface language’s decimal sign', () => {
+    expect(decimalSeparator('pt-BR')).toBe(',');
+    expect(decimalSeparator('en-US')).toBe('.');
   });
 });
 

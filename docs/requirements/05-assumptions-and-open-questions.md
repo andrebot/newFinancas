@@ -4931,6 +4931,54 @@ not a hardcoded assumption.
 
 **Task 86 (`K7`) is complete.**
 
+### OQ-189: Number, rate and percent input (task K8)
+**Confirmed with the stakeholder (Oct 2026):**
+- **The decimal point is typed** (`110`, `10,25`, `0,5`), unlike money's
+  fill-from-the-right (OQ-188), which would make 110% of CDI `1100000`.
+  **Either `,` or `.` places it**, since a phone's keypad may offer only
+  one; only the first counts. **There is no thousands grouping in the
+  field**, so neither key is ambiguous. The text shows the interface
+  language's decimal sign (`decimalSeparator(locale)` in the
+  FormattingUtility), as rates and percents read everywhere (FU6). A
+  pasted `1.234,56` reads as 1.23456, which is accepted.
+- **One component, three kinds** (`kit/numberInput/NumberInput.tsx`,
+  `kind`), each controlled in the API's fixed-point integer (or `null`
+  while empty):
+  - `quantity`: units × 10⁸, up to 8 decimals (`Quantity`), no suffix;
+  - `rate`: percent × 10,000, up to 4 decimals (OQ-86), a `%` suffix;
+  - `percent`: the whole percent (OQ-87), no point, a `%` suffix.
+
+  The label says the rest ("% a.a.", "% of CDI"). The scales are the
+  contract's (`KIND_SCALE` in `decimal.ts`). The whole-digit caps are
+  `numberInput.maxWholeDigits` in `config/constants.ts`: quantity 7, rate
+  4, percent 3. A digit past a cap or a decimal past the scale is refused.
+  Ranges (1–100, required) stay with the ValidationUtility and the Flows.
+- **What was typed is kept while it still reads as the caller's number**,
+  so `10,` keeps its comma until the next digit. A number changed from
+  outside replaces it. A number from the caller is shown without trailing
+  zeros (`10,5`, not `10,5000`). Only a changed number is reported.
+- **Negatives only on request** (`allowNegative`), as in K7: every minus
+  typed flips the sign, a lone `−` is kept while the digits come, and zero
+  is never negative. The Rates tab turns it on, since IPCA and IGP-M can
+  read below zero in deflation (IGP-M's 12 months did in 2023). Quantities
+  and percents never take it.
+- **Two sizes:** `field` (the kit's text field, `%` in its trailing slot)
+  and `compact`, the Goal allocation row's small right-aligned box
+  (mockups 32, 51: `h-9 w-14`, `type-body-sm`, `%` beside it), its label
+  for screen readers only (the Goal's name) and the hint or error under it.
+- **A Quantity's real ceiling is the safe integer**, not the contract:
+  × 10⁸ in a JSON number keeps exact digits only below about 90 million
+  units. So the input stops at 9,999,999.99999999. A holding of more units
+  (e.g. some cryptocurrencies) would need the wire format to change. That
+  is recorded here, not solved in v1.
+- **Contract fix:** `TransactionCreateRequest.rate.value` was `type:
+  number`, against OQ-86 and the Holding's own `rate.value`. It is now an
+  integer, percent × 10,000 (110% of CDI = `1100000`).
+- **No catalog keys**: the `%` is a symbol; labels and hints are the
+  caller's.
+
+**Task 87 (`K8`) is complete.**
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.
