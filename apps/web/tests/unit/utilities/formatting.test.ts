@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  createFormatter, decimalSeparator, formatDate, formatList, formatMoney, formatPercent,
-  formatRate, moneyConventions,
+  createFormatter, dateConventions, decimalSeparator, formatDate, formatList, formatMoney,
+  formatPercent, formatRate, moneyConventions,
 } from '../../../src/utilities/formatting';
 
 // Utility (BDT: unit, pure — nothing to mock). `Intl` writes a no-break
@@ -44,6 +44,13 @@ describe('decimalSeparator', () => {
   it('reads the interface language’s decimal sign', () => {
     expect(decimalSeparator('pt-BR')).toBe(',');
     expect(decimalSeparator('en-US')).toBe('.');
+  });
+});
+
+describe('dateConventions', () => {
+  it('reads the interface language’s numeric date order and separator', () => {
+    expect(dateConventions('pt-BR')).toEqual({ order: ['day', 'month', 'year'], separator: '/' });
+    expect(dateConventions('en-US')).toEqual({ order: ['month', 'day', 'year'], separator: '/' });
   });
 });
 

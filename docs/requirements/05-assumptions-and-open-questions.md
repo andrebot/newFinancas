@@ -4979,6 +4979,35 @@ not a hardcoded assumption.
 
 **Task 87 (`K8`) is complete.**
 
+### OQ-190: Date input (task K9)
+**Confirmed with the stakeholder (Oct 2026):**
+- **A masked text field, as the mockups draw it** (Record and Due date,
+  mockups 31, 32, 43; As of and the history editor, 52, 53): the kit's
+  text field with no calendar and no compact size. The calendar belongs to
+  the date range picker (K10, on the popover). A native `type="date"` was
+  turned down: it writes the browser's format, not the app's, and can't
+  take the theme.
+- **The pieces follow the interface language**: `dd/mm/aaaa` in pt-BR,
+  `mm/dd/yyyy` in en-US, read from `Intl` by `dateConventions(locale)` in
+  the FormattingUtility, as every date on screen reads (FU6). Digits only,
+  up to 8; the separators appear on their own, and the year always takes
+  four digits. **A `/`, `.` or `-` typed after a single digit pads it**
+  (`1/9/2026` → `01/09/2026`), since that is how dates are often typed.
+  The caret is the shared `useMaskedInput` hook's (OQ-139).
+- **Controlled in the contract's `YYYY-MM-DD`** (`value`, `''` while
+  empty). **While incomplete, the caller gets the pieces typed so far in
+  that order** (`14/0` → `-0-14`), so the ValidationUtility's `isoDate`
+  rule reports "Enter a valid date" rather than "required". All 8 digits
+  give `YYYY-MM-DD` even for a day that doesn't exist (31/02); that and
+  the bounds are `isoDate`'s (OQ-119), not the input's. What was typed is
+  kept while it still reads as the caller's value; a date changed from
+  outside replaces it. Only a changed value is reported.
+- **The format is the placeholder**, from new catalog keys
+  (`dateInput.day/month/year`: `dd`/`mm`/`aaaa`, `dd`/`mm`/`yyyy`) in the
+  locale's order. A caller's `placeholder` wins.
+
+**Task 88 (`K9`) is complete.**
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.

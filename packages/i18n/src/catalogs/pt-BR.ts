@@ -480,6 +480,11 @@ const ptBR = {
     detected: '{network} identificado pelo número',
     remove: 'Remover cartão',
   },
+  dateInput: {
+    day: 'dd',
+    month: 'mm',
+    year: 'aaaa',
+  },
   alerts: {
     region: 'Avisos',
     dismiss: 'Dispensar',

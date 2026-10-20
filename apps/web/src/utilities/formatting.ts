@@ -35,6 +35,17 @@ export interface MoneyConventions {
   readonly minorDigits: number;
 }
 
+/** A piece of a calendar date as typed: the day, the month or the year. */
+export type DatePart = 'day' | 'month' | 'year';
+
+/** How the interface language writes a numeric date: what a date input needs to mask it (K9). */
+export interface DateConventions {
+  /** The pieces in the order written, e.g. day, month, year (pt-BR). */
+  readonly order: readonly DatePart[];
+  /** What stands between them, e.g. `/`. */
+  readonly separator: string;
+}
+
 /** The formatters bound to one interface locale; money needs none. */
 export interface Formatter {
   readonly money: (amount: number, currency: Currency, options?: MoneyOptions) => string;
@@ -77,6 +88,20 @@ const numberFormat = (locale: string, options: Intl.NumberFormatOptions): Intl.N
     `${locale}|${JSON.stringify(options)}`,
     () => new Intl.NumberFormat(locale, options),
   )
+);
+
+/**
+ * A calendar-date formatter for a locale and style, built once. It reads the
+ * date in UTC, so a day isn't moved by the time zone.
+ *
+ * @param locale - The BCP 47 locale.
+ * @param style - How the date is written.
+ * @returns The formatter.
+ */
+const dateFormat = (locale: string, style: DateStyle): Intl.DateTimeFormat => (
+  cached(dateFormats, `${locale}|${style}`, () => (
+    new Intl.DateTimeFormat(locale, { ...formatting.dateStyles[style], timeZone: 'UTC' })
+  ))
 );
 
 /**
@@ -190,10 +215,36 @@ export const formatDate = (
 ): string => {
   const day = new Date(`${isoDate}T00:00:00Z`);
   if (Number.isNaN(day.getTime())) return isoDate;
-  const format = cached(dateFormats, `${locale}|${style}`, () => (
-    new Intl.DateTimeFormat(locale, { ...formatting.dateStyles[style], timeZone: 'UTC' })
-  ));
-  return format.format(day);
+  return dateFormat(locale, style).format(day);
+};
+
+/**
+ * Tells whether a piece of a formatted date is a day, a month or a year.
+ *
+ * @param type - The piece's `Intl` type.
+ * @returns Whether it is one of the pieces a date input takes.
+ */
+const isDatePart = (type: string): type is DatePart => (
+  type === 'day' || type === 'month' || type === 'year'
+);
+
+/**
+ * Reads how the interface language writes a numeric date, so a date input
+ * (K9) takes its pieces in the order every date on screen reads.
+ *
+ * @param locale - The interface locale.
+ * @returns E.g. day, month, year and `/` (pt-BR); month, day, year and `/` (en-US).
+ */
+export const dateConventions = (locale: Locale): DateConventions => {
+  const parts = dateFormat(locale, 'numeric').formatToParts(new Date(Date.UTC(2026, 8, 30)));
+  const literals = Object.fromEntries(
+    parts.filter(({ type }) => type === 'literal').map(({ type, value }) => [type, value]),
+  );
+  return {
+    order: parts.map(({ type }) => type).filter(isDatePart),
+    // A numeric date always writes a literal between its pieces.
+    separator: String(literals.literal),
+  };
 };
 
 /**
