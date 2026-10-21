@@ -708,29 +708,56 @@ opt archive (from the edit drawer's danger zone)
     end
 end
 """, ["Only last4 + network leave the browser — the full number never does (NFR-SEC-7); an attached card's network and last four are fixed (OQ-192).", "One save writes the Account and every card change together, or nothing (OQ-175). The Flow patches its own list from the answer instead of reloading; the Experience's tag invalidation refreshes the shared cache behind it.", "Reused as Guided Setup step 1."]),
-    ("account-setup-category-management", "Account Setup — Category Management", f"{R('POST/PATCH /households/:householdId/categories')}, archive endpoints.",
+    ("account-setup-category-management", "Account Setup — Category Management", f"{R('GET/POST/PATCH /households/:householdId/categories')}, the category and subcategory archive endpoints. Built in FL12 (OQ-193).",
      [("CC", "Category Card"), ("IP", "Icon & Colour Picker"), ("SE", "Inline Subcategory Entry"), ("AC", "Archive Confirm"), FLOW("Category Management"), EXP("Account Setup"), API],
      """
-alt new category
+EXP->>API: GET /households/:householdId/categories?includeArchived=true (as the page mounts)
+API-->>EXP: categories with their subcategories
+EXP-->>FLOW: categories (loading / failed → retry / loaded) — shared with Budget Management
+FLOW-->>CC: live cards + archived section
+alt new category (Owner, Admin or Member)
     User->>IP: name, icon, colour (18 palette tokens)
     IP->>FLOW: emit categoryDrafted
     FLOW->>EXP: request createCategory
     EXP->>API: POST /households/:householdId/categories
-else add a subcategory
+else edit in place (Owner / Admin)
+    User->>IP: the card turned into its form — name, icon, colour
+    IP->>FLOW: emit categoryEdited
+    FLOW->>EXP: request editCategory
+    EXP->>API: PATCH /households/:householdId/categories/:categoryId {name, icon, color}
+else add a subcategory (Owner / Admin)
     User->>SE: name, ✓
     SE->>FLOW: emit subcategoryAdded
-    FLOW->>EXP: request updateCategory(subcategories)
-    EXP->>API: PATCH /households/:householdId/categories/:categoryId
-else archive
-    User->>AC: confirm (cascades to subcategories)
+    FLOW->>EXP: request addSubcategory
+    EXP->>API: PATCH /households/:householdId/categories/:categoryId {subcategories: [{name}]}
+else archive a subcategory (Owner / Admin)
+    User->>CC: the chip's archive
+    CC->>FLOW: emit archiveSubcategory
+    FLOW->>EXP: request archiveSubcategory
+    EXP->>API: POST …/categories/:categoryId/subcategories/:subcategoryId/archive
+else archive a category (Owner / Admin)
+    User->>AC: confirm (names the live subcategories it cascades to)
     AC->>FLOW: emit archive
-    FLOW->>EXP: request archive
+    FLOW->>EXP: request archiveCategory
     EXP->>API: POST /households/:householdId/categories/:categoryId/archive
 end
-API-->>EXP: done
-EXP-->>FLOW: state refreshed
+alt failure
+    API-->>EXP: error code
+    EXP-->>FLOW: outcome: failed(code) — a form's in its banner, typing kept, a card action's toasted
+else ok
+    API-->>EXP: done
+    EXP->>API: GET …/categories?includeArchived=true (fetched again)
+    alt list fetched
+        API-->>EXP: categories
+        EXP-->>FLOW: outcome: ok, categories refreshed — form / confirm closes
+    else list fetch failed
+        API-->>EXP: error code
+        EXP-->>FLOW: outcome: ok, categories: failed → retry (never the stale list)
+    end
+    Note over FLOW: toast "{name} created / updated / added / archived."
+end
 FLOW-->>CC: re-render (colour via ThemeUtility)
-""", ["Colour stored as a token, resolved per theme (OQ-85)."]),
+""", ["Colour stored as a token, resolved per theme (OQ-85).", "The Experience answers after the list is fetched again, so the Flow never patches it (OQ-193).", "A subcategory's add is the category's own atomic PATCH — unlisted ones untouched (OQ-173)."]),
     ("account-setup-budget-management", "Account Setup — Budget Management", f"{R('GET/POST/PATCH/DELETE /households/:householdId/budgets')}.",
      [("BF", "Budget Form"), ("CP", "Claim-Aware<br/>Category Picker"), ("DC", "Delete Confirm"), FLOW("Budget Management"), EXP("Account Setup"), API],
      """

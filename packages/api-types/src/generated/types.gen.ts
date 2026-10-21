@@ -350,25 +350,25 @@ export type CategoryIcon = 'home-outline' | 'apartment' | 'bolt' | 'water-drop-o
 export type CategoryColor = 'mint' | 'emerald' | 'teal' | 'cyan' | 'sky' | 'blue' | 'indigo' | 'violet' | 'lilac' | 'fuchsia' | 'pink' | 'rose' | 'coral' | 'peach' | 'orange' | 'sun' | 'lime' | 'slate';
 
 export type Subcategory = {
-    id?: string;
-    categoryId?: string;
-    name?: string;
-    archivedAt?: string | null;
-    createdAt?: string;
+    id: string;
+    categoryId: string;
+    name: string;
+    archivedAt: string | null;
+    createdAt: string;
 };
 
 export type Category = {
-    id?: string;
-    householdId?: string;
-    name?: string;
+    id: string;
+    householdId: string;
+    name: string;
     /**
      * One-way, cascades to Subcategories, FR-10.3/10.4
      */
-    archivedAt?: string | null;
-    createdAt?: string;
-    subcategories?: Array<Subcategory>;
-    icon?: CategoryIcon;
-    color?: CategoryColor;
+    archivedAt: string | null;
+    createdAt: string;
+    subcategories: Array<Subcategory>;
+    icon: CategoryIcon;
+    color: CategoryColor;
 };
 
 export type CategoryUpdateRequest = {

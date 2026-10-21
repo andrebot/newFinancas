@@ -14,7 +14,7 @@ import {
 // Categories and Subcategories (categories/uc-01..03, FR-10). A Category is
 // shared household taxonomy with no recorded creator, so the permission table
 // reads it as shared data nobody owns: any member but a Viewer may create one;
-// editing and archiving are Owner/Admin (FR-1.7, OQ-174).
+// editing and archiving are Owner/Admin (FR-1.7, OQ-111).
 
 /**
  * Checks the caller may take a data action on the household's Categories.

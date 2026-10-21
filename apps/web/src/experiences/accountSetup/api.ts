@@ -1,12 +1,16 @@
 import type {
-  Account, AccountCreateRequest, ListAccountsResponse, AccountUpdateRequest,
+  Account, AccountCreateRequest, ListAccountsResponse, AccountUpdateRequest, Category,
+  CategoryColor, CategoryIcon, CategoryUpdateRequest, ListCategoriesResponse,
 } from '@financas/api-types';
 import backendApi from '../../api/backendApi';
 
-// The Account Setup Experience's endpoints (X5/FL11; OQ-175). The accounts are
-// cached per household under the `Accounts` tag: create, edit and archive all
-// invalidate it, so the list refetches after any change. The request shapes
-// come straight from the contract (`@financas/api-types`).
+// The Account Setup Experience's endpoints (X5; OQ-175, OQ-193). The accounts
+// are cached per household under the `Accounts` tag: create, edit and archive
+// invalidate it, so the cache refetches after any change. The categories are
+// the Experience's own shared list (Category and Budget Management read it):
+// it fetches the list again itself after each write and answers the Flow only
+// then, so their writes don't invalidate as well — that would fetch it twice.
+// The request shapes come straight from the contract (`@financas/api-types`).
 
 /** What addresses an account inside its household. */
 export interface AccountTarget {
@@ -19,6 +23,28 @@ export type CreateAccountInput = AccountCreateRequest & { readonly householdId: 
 
 /** An edit, addressed to its account. */
 export type EditAccountInput = AccountUpdateRequest & AccountTarget;
+
+/** What addresses a category inside its household (FL12). */
+export interface CategoryTarget {
+  readonly householdId: string;
+  readonly categoryId: string;
+}
+
+/** What addresses a subcategory under its category. */
+export interface SubcategoryTarget extends CategoryTarget {
+  readonly subcategoryId: string;
+}
+
+/** A create, addressed to its household (FR-10.1). */
+export interface CreateCategoryInput {
+  readonly householdId: string;
+  readonly name: string;
+  readonly icon: CategoryIcon;
+  readonly color: CategoryColor;
+}
+
+/** An edit — fields and/or subcategories, addressed to its category (OQ-173). */
+export type EditCategoryInput = CategoryUpdateRequest & CategoryTarget;
 
 /**
  * Builds a request with a method and an optional JSON body.
@@ -51,9 +77,20 @@ const accountPath = ({ householdId, accountId }: AccountTarget) => (
 /** Names the cached accounts of one household. */
 const accountsTag = (householdId: string) => [{ type: 'Accounts' as const, id: householdId }];
 
+/** Builds a household's categories path (FL12). */
+const categoriesPath = (householdId: string) => (
+  `/households/${encodeURIComponent(householdId)}/categories`);
+
+/** Builds one category's path inside its household. */
+const categoryPath = ({ householdId, categoryId }: CategoryTarget) => (
+  `${categoriesPath(householdId)}/${encodeURIComponent(categoryId)}`);
+
+/** Names the cached categories of one household. */
+const categoriesTag = (householdId: string) => [{ type: 'Categories' as const, id: householdId }];
+
 /** The Experience's slice of the backend API. */
 export const accountSetupApi = backendApi.enhanceEndpoints({
-  addTagTypes: ['Accounts'],
+  addTagTypes: ['Accounts', 'Categories'],
 }).injectEndpoints({
   endpoints: (build) => ({
     listAccounts: build.query<readonly Account[], string>({
@@ -75,6 +112,28 @@ export const accountSetupApi = backendApi.enhanceEndpoints({
       query: (target) => send('POST', `${accountPath(target)}/archive`),
       invalidatesTags: (_result, _error, { householdId }) => accountsTag(householdId),
     }),
+    listCategories: build.query<readonly Category[], string>({
+      query: (householdId) => `${categoriesPath(householdId)}?includeArchived=true`,
+      transformResponse: (response: ListCategoriesResponse) => response.data ?? [],
+      providesTags: (_result, _error, householdId) => categoriesTag(householdId),
+    }),
+    createCategory: build.mutation<Category, CreateCategoryInput>({
+      query: ({ householdId, ...request }) => send('POST', categoriesPath(householdId), request),
+    }),
+    editCategory: build.mutation<Category, EditCategoryInput>({
+      query: ({ householdId, categoryId, ...changes }) => (
+        send('PATCH', categoryPath({ householdId, categoryId }), changes)
+      ),
+    }),
+    archiveCategory: build.mutation<void, CategoryTarget>({
+      query: (target) => send('POST', `${categoryPath(target)}/archive`),
+    }),
+    archiveSubcategory: build.mutation<void, SubcategoryTarget>({
+      query: ({ householdId, categoryId, subcategoryId }) => {
+        const base = categoryPath({ householdId, categoryId });
+        return send('POST', `${base}/subcategories/${encodeURIComponent(subcategoryId)}/archive`);
+      },
+    }),
   }),
 });
 
@@ -84,4 +143,9 @@ export const {
   useCreateAccountMutation,
   useEditAccountMutation,
   useArchiveAccountMutation,
+  useListCategoriesQuery,
+  useCreateCategoryMutation,
+  useEditCategoryMutation,
+  useArchiveCategoryMutation,
+  useArchiveSubcategoryMutation,
 } = accountSetupApi;
