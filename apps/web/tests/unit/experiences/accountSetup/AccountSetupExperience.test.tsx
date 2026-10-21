@@ -434,6 +434,28 @@ describe('the category writes it answers for its flow', () => {
     expect(await listFetches(fetchFn)).toBe(1);
   });
 
+  it('hands down the failure, not a stale list, when the fetch after a write fails', async () => {
+    const lists = vi.fn()
+      .mockReturnValueOnce(CATEGORIES_LISTED())
+      .mockReturnValueOnce(jsonResponse(500, envelope('internal.unexpected')))
+      .mockImplementation(CATEGORIES_LISTED);
+    const { fetchFn } = await renderExperience({
+      'GET /households/doe/categories': lists,
+      'POST /households/doe/categories': () => jsonResponse(201, CATEGORY),
+    });
+    await pickCategories();
+    await press('create');
+    expect(outcomeOf('categories')).toEqual({ ok: true });
+    expect(shownBy('categories')).toEqual(expect.objectContaining({
+      categories: { status: 'failed', error: { code: 'internal.unexpected', params: {} } },
+    }));
+    await press('retry');
+    expect(await listFetches(fetchFn)).toBe(3);
+    expect(shownBy('categories')).toEqual(expect.objectContaining({
+      categories: { status: 'loaded', categories: [CATEGORY] },
+    }));
+  });
+
   it('edits with its fields, address stripped out', async () => {
     const renamed = { ...CATEGORY, name: 'Renamed' };
     const { fetchFn } = await renderExperience({

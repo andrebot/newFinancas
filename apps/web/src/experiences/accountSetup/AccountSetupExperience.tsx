@@ -102,15 +102,17 @@ interface CategoriesQueryState {
 }
 
 /**
- * Reads the categories query into the Flow's view: its data once there is
- * some (kept while it refetches), its failure, or loading.
+ * Reads the categories query into the Flow's view: its failure while the last
+ * fetch failed — even over an older list, which may lack a write that just
+ * went through (OQ-193) — else its data once there is some (kept while it
+ * refetches), else loading. The query keeps its error until a fetch succeeds.
  *
  * @param query - The query's data and error.
  * @returns The view.
  */
 export const categoriesViewOf = ({ data, error }: CategoriesQueryState): CategoriesView => {
-  if (data !== undefined) return { status: 'loaded', categories: data };
   if (error !== undefined) return { status: 'failed', error: failureOf(error) };
+  if (data !== undefined) return { status: 'loaded', categories: data };
   return { status: 'loading' };
 };
 
@@ -118,7 +120,8 @@ export const categoriesViewOf = ({ data, error }: CategoriesQueryState): Categor
  * Holds the household's category list — the Experience's, shared by its
  * Flows — and builds the Category Management Flow's requests (FL12). After a
  * successful write it fetches the list again and answers only then, so the
- * Flow's spinner stops on a list that already holds the change.
+ * Flow's spinner stops on a list that already holds the change — or, if that
+ * fetch fails, on the list's failure and its retry, never on a stale list.
  *
  * @param householdId - The household.
  * @returns The list and the Flow's requests.
@@ -132,7 +135,9 @@ const useCategories = (householdId: string): Omit<CategoryManagementFlowProps, '
   const [archiveSubcategory] = useArchiveSubcategoryMutation();
 
   /**
-   * Answers a write: on a success, once the list is fetched again.
+   * Answers a write: on a success, once the list is fetched again. The write
+   * went through either way, so it stays ok; a failed fetch shows in the
+   * list's view instead.
    *
    * @param result - What the write's trigger resolved to.
    * @returns Its outcome.

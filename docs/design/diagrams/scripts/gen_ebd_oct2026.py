@@ -747,8 +747,13 @@ alt failure
 else ok
     API-->>EXP: done
     EXP->>API: GET …/categories?includeArchived=true (fetched again)
-    API-->>EXP: categories
-    EXP-->>FLOW: outcome: ok, categories refreshed — form / confirm closes
+    alt list fetched
+        API-->>EXP: categories
+        EXP-->>FLOW: outcome: ok, categories refreshed — form / confirm closes
+    else list fetch failed
+        API-->>EXP: error code
+        EXP-->>FLOW: outcome: ok, categories: failed → retry (never the stale list)
+    end
     Note over FLOW: toast "{name} created / updated / added / archived."
 end
 FLOW-->>CC: re-render (colour via ThemeUtility)

@@ -303,7 +303,7 @@ describe('editing a category', () => {
     const { queue } = await renderFlow({ onEdit: vi.fn(async () => FORBIDDEN) });
     await click('edit cat');
     await click('submit form');
-    expect(screen.getByTestId('form').dataset.alert).not.toBe('');
+    expect(screen.getByTestId('form').dataset.alert).toBe("You don't have permission to do that.");
     expect(toasts(queue)).toEqual([]);
   });
 });

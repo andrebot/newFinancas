@@ -52,7 +52,7 @@ const useSubcategoryDraft = (liveCount: number) => {
 export interface CategoryCardProps {
   /** The live category. */
   readonly category: Category;
-  /** Owner/Admin only (FR-1.7, OQ-174): the manage controls show. */
+  /** Owner/Admin only (FR-1.7, OQ-193): the manage controls show. */
   readonly canManage: boolean;
   /** A request is out: its own control spins, the others wait. */
   readonly busy: boolean;

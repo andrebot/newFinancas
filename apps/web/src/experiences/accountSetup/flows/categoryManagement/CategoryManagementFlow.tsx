@@ -67,7 +67,7 @@ interface CategoriesPanelProps {
   readonly form?: OpenForm | undefined;
   /** The archive confirm open inside a card, by category id. */
   readonly archiving?: string | undefined;
-  /** Owner/Admin only (FR-1.7, OQ-174). */
+  /** Owner/Admin only (FR-1.7, OQ-193). */
   readonly canManage: boolean;
   /** The last failure of a create or edit, for the open form's banner. */
   readonly lastError?: RequestFailure | undefined;
