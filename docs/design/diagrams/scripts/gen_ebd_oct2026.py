@@ -663,26 +663,51 @@ end
 """, ["A standalone Interaction, no Flow (EBD): the confirm's open state is the Interaction's own; the request and its failure are the Experience's.",
         "The successor shown is a preview in FR-1.18's order (the longest-tenured Admin, else Member, else Viewer); the API decides.",
         "The leave doesn't refetch the members: the household is no longer the user's."]),
-    ("account-setup-account-card-management", "Account Setup — Account & Card Management", f"{R('POST/PATCH /households/:householdId/accounts')}, {R('POST /households/:householdId/accounts/:id/archive')}.",
+    ("account-setup-account-card-management", "Account Setup — Account & Card Management", f"{R('GET/POST/PATCH /households/:householdId/accounts')}, {R('POST /households/:householdId/accounts/:id/archive')}. Built in FL11 (OQ-192).",
      [("AF", "Account Form"), ("CE", "Card Entry with<br/>Live Preview"), ("AC", "Archive Confirm"), FLOW("Account & Card Management"), EXP("Account Setup"), API],
      """
-User->>AF: name, type (checking / savings / credit card only / investment), currency, balance, visibility
-AF->>FLOW: emit accountFields
-opt add a card
-    User->>CE: number (network detected), closing day, due day, expiry
-    CE->>FLOW: emit cardAdded {network, last4, days, expiry}
+FLOW->>EXP: request load (as it mounts)
+EXP->>API: GET /households/:householdId/accounts
+API-->>EXP: accounts with currentBalance and cards (outstandingBalance), archived included
+EXP-->>FLOW: outcome: data — live grid + archived section (or failed → retry)
+alt add (every member — a Viewer's account is personal, visibility locked)
+    User->>AF: name, type (checking / savings / credit card only / investment), currency, today's balance, visibility
+else edit (personal: its owner, shared: Owner/Admin or its Member creator)
+    User->>AF: name, visibility (its creator only), type + currency shown locked
+    opt an attached card
+        User->>CE: billing days / expiry (network + last four fixed), or Remove
+    end
 end
-FLOW->>EXP: request saveAccount(account, cards to add / edit / remove)
-EXP->>API: POST /households/:householdId/accounts {…, cards} (or PATCH /households/:householdId/accounts/:accountId {…, cards: {add, edit, remove}})
-API-->>EXP: Account with currentBalance and cards (outstandingBalance), or 422 / 403 / 409 account.archived
-EXP-->>FLOW: state
-opt archive
+opt add a card (checking, savings or credit card only — FR-2.7)
+    User->>CE: number (network detected, preview drawn), closing day, due day, expiry
+    CE->>FLOW: emit card {network, last4, days, expiry}
+end
+AF->>FLOW: emit account (cards left out when the type takes none)
+FLOW->>EXP: request create / edit
+EXP->>API: POST /households/:householdId/accounts {…, cards} (or PATCH …/accounts/:accountId {…, cards: {add, edit, remove}})
+alt 422 / 403 / 409 account.archived
+    API-->>EXP: error code
+    EXP-->>FLOW: outcome: failed(code) — banner in the drawer, what was typed kept
+else ok
+    API-->>EXP: the Account as written
+    EXP-->>FLOW: outcome: data — the Flow appends / replaces it in its list
+    Note over FLOW: toast "{name} created/updated."
+end
+opt archive (from the edit drawer's danger zone)
     User->>AC: confirm (one-way)
     AC->>FLOW: emit archive
     FLOW->>EXP: request archive
     EXP->>API: POST /households/:householdId/accounts/:accountId/archive
+    alt failure
+        API-->>EXP: error code
+        EXP-->>FLOW: outcome: failed(code) — banner in the drawer, confirm stays open
+    else ok
+        API-->>EXP: 204
+        EXP-->>FLOW: outcome: ok — the Flow stamps archivedAt, it moves to the archived section
+        Note over FLOW: toast "{name} archived."
+    end
 end
-""", ["Only last4 + network leave the browser — the full number never does (NFR-SEC-7).", "One save writes the Account and every card change together, or nothing (OQ-175); the list the Experience shows comes from GET …/accounts, balances included.", "Reused as Guided Setup step 1."]),
+""", ["Only last4 + network leave the browser — the full number never does (NFR-SEC-7); an attached card's network and last four are fixed (OQ-192).", "One save writes the Account and every card change together, or nothing (OQ-175). The Flow patches its own list from the answer instead of reloading; the Experience's tag invalidation refreshes the shared cache behind it.", "Reused as Guided Setup step 1."]),
     ("account-setup-category-management", "Account Setup — Category Management", f"{R('POST/PATCH /households/:householdId/categories')}, archive endpoints.",
      [("CC", "Category Card"), ("IP", "Icon & Colour Picker"), ("SE", "Inline Subcategory Entry"), ("AC", "Archive Confirm"), FLOW("Category Management"), EXP("Account Setup"), API],
      """

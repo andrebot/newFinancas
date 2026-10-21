@@ -1,6 +1,6 @@
 import type { SerializedError } from '@reduxjs/toolkit';
 import type { MessageParams } from '../utilities/i18n';
-import type { RequestFailure, RequestOutcome } from '../utilities/requestOutcome';
+import type { DataOutcome, RequestFailure, RequestOutcome } from '../utilities/requestOutcome';
 import type { ApiError } from './errors';
 
 // How an Experience answers a Flow's request (X1, OQ-157): the endpoint's
@@ -49,12 +49,6 @@ export const failureOf = (error: ApiError | SerializedError): RequestFailure => 
 export const toRequestOutcome = (result: EndpointResult<unknown>): RequestOutcome => (
   result.error === undefined ? { ok: true } : { ok: false, error: failureOf(result.error) }
 );
-
-/** What an endpoint's answer carries on a success. */
-export type DataOutcome<Data> = { readonly ok: true; readonly data: Data } | {
-  readonly ok: false;
-  readonly error: RequestFailure;
-};
 
 /**
  * Turns an endpoint's result into an outcome that keeps its data on a

@@ -136,11 +136,25 @@ describe('the accounts’ cards', () => {
     expect(card.textContent).toContain(formatMoney(18_50, 'BRL'));
   });
 
-  it('lists the attached cards with their last four and billing days', () => {
+  it('lists the attached cards as strips: last four, billing days and expiry', () => {
     renderPanel();
-    expect(screen.getByText(/•••• 1234/)).toBeTruthy();
-    expect(screen.getByText(/Closes 10 · Due 20/)).toBeTruthy();
-    expect(screen.getByText(/•••• 9876/)).toBeTruthy();
+    expect(screen.getByText('1234')).toBeTruthy();
+    expect(screen.getByText('Closes 10 · Due 20 · Exp 08/30')).toBeTruthy();
+    expect(screen.getByText('9876')).toBeTruthy();
+    expect(screen.getByRole('img', { name: 'Elo' })).toBeTruthy();
+  });
+
+  it('shows a checking account’s balance and its cards together', () => {
+    const WITH_CARD = account('wc', {
+      name: 'Checking with card',
+      currentBalance: 99_00,
+      cards: CREDIT.cards.slice(0, 1),
+    });
+    renderPanel({ view: { status: 'loaded', accounts: [WITH_CARD] } });
+    const card = screen.getByRole('button', { name: 'Checking with card' }).parentElement;
+    expect(card?.textContent).toContain('Balance');
+    expect(card?.textContent).toContain(formatMoney(99_00, 'BRL'));
+    expect(screen.getByText('1234')).toBeTruthy();
   });
 
   it('labels a personal account and tones its tag down', () => {

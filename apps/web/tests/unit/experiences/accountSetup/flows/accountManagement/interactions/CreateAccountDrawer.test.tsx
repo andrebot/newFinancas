@@ -48,17 +48,26 @@ const submitNamed = (name: string) => {
 };
 
 describe('the form’s fields', () => {
-  it('opens with a checking, BRL, personal account and no cards section', () => {
+  it('opens with a checking, BRL, personal account and its cards section', () => {
     renderDrawer();
     expect(screen.getByRole('combobox', { name: 'Type' }).textContent).toBe('Checking');
+    expect(screen.getByText('Cards on this account · optional')).toBeTruthy();
+  });
+
+  it('offers cards on every type that takes them, and not on investment (FR-2.7)', async () => {
+    renderDrawer();
+    await pick('Type', 'Savings');
+    expect(screen.getByRole('button', { name: /Add credit card/ })).toBeTruthy();
+    await pick('Type', 'Credit card only');
+    expect(screen.getByRole('button', { name: /Add credit card/ })).toBeTruthy();
+    await pick('Type', 'Investment');
     expect(screen.queryByText(/Cards on this account/)).toBeNull();
   });
 
-  it('shows the cards section only for a credit-card account', async () => {
-    renderDrawer();
-    await pick('Type', 'Credit card only');
-    expect(screen.getByText('Cards on this account · optional')).toBeTruthy();
-    expect(screen.getByRole('button', { name: /Add credit card/ })).toBeTruthy();
+  it('locks the visibility at Personal for an actor who can’t share', () => {
+    renderDrawer({ personalOnly: true });
+    expect(screen.queryByRole('radio', { name: 'Shared' })).toBeNull();
+    expect(screen.getByText('Personal')).toBeTruthy();
   });
 
   it('shows the server’s objection in its banner', () => {
@@ -139,6 +148,27 @@ describe('its submit', () => {
 
     expect(handlers.onSubmit).not.toHaveBeenCalled();
     expect(screen.getByText("Complete the card's fields.")).toBeTruthy();
+  });
+
+  it('leaves out cards typed before switching to a type without them', async () => {
+    const handlers = renderDrawer();
+    fireEvent.click(screen.getByRole('button', { name: /Add credit card/ }));
+    const input = screen.getByRole('textbox', { name: 'Card number' });
+    fireEvent.change(input, { target: { value: VISA } });
+    await pick('Type', 'Investment');
+    submitNamed('Brokerage');
+
+    expect(handlers.onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'investment', cards: [],
+    }));
+  });
+
+  it('sends a Viewer’s account as personal', () => {
+    const handlers = renderDrawer({ personalOnly: true });
+    submitNamed('Mine');
+    expect(handlers.onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+      visibility: 'personal',
+    }));
   });
 
   it('drops a new card again before submitting', async () => {

@@ -10,66 +10,21 @@ import { TextField } from '../../../../../kit/textField/TextField';
 import { useI18n } from '../../../../../utilities/I18nProvider';
 import { nonBlank } from '../../../../../utilities/validation';
 import type { AccountEdit, CardSlot, Visibility } from '../accountManagementState';
-import { cardChangesOf, sparseCardChanges } from '../accountManagementState';
+import { cardChangesOf, sparseCardChanges, takesCards } from '../accountManagementState';
 import { AttachedCardFields } from './AttachedCardFields';
+import { LockedField } from './LockedField';
 import {
-  cardDraftOf, CardFields, EMPTY_CARD_FORM, type CardFormState,
+  CardFields, draftsOf, EMPTY_CARD_FORM, type CardFormState,
 } from './CardFields';
 
 // The edit-account drawer (FL11, mockup 40; OQ-35): the name, the locked-in
 // type and currency with their note, the visibility — movable only by its
-// creator (FR-2.3) — and the account's cards: each attached one editable
-// field by field or removable, new ones added from a typed number. Archiving
+// creator (FR-2.3) — and, on a type that takes them (FR-2.7), the account's
+// cards: each attached one's billing days and expiration editable, or the card
+// removed; new ones added from a typed number. Archiving
 // sits in its danger zone at the bottom; it is one-way (FR-2.4). The drawer
 // holds what is typed and emits an `AccountEdit`; open/close belongs to the
 // Flow.
-
-/** A locked field's props. */
-interface LockedFieldProps {
-  readonly label: string;
-  readonly value: string;
-}
-
-/**
- * Renders a field the user can't change, with its note above it.
- *
- * @param props - Its label and value.
- * @returns The locked field.
- */
-function LockedField({ label, value }: LockedFieldProps) {
-  return (
-    <div className="flex flex-col gap-1">
-      <span className="text-sm text-muted">{label}</span>
-      <span className="rounded-md border border-line bg-bg px-3 py-2 text-sm">{value}</span>
-    </div>
-  );
-}
-
-/** What the new cards' fields read into, with an error for each that fails. */
-interface DraftsResult {
-  /** The drafts that passed. */
-  readonly drafts: CardSlot[];
-  /** One per form: its objection, or nothing when it passed. */
-  readonly errors: (string | undefined)[];
-}
-
-/**
- * Reads the new cards' fields into their drafts, naming each one that fails.
- *
- * @param forms - What is typed in each new card.
- * @param incomplete - The objection for a card whose fields don't pass.
- * @returns Its drafts and its errors, per form.
- */
-const draftsOf = (forms: readonly CardFormState[], incomplete: string): DraftsResult => {
-  const drafts: CardSlot[] = [];
-  const errors: (string | undefined)[] = forms.map((form) => {
-    const draft = cardDraftOf(form);
-    if (draft === undefined) return incomplete;
-    drafts.push(draft);
-    return undefined;
-  });
-  return { drafts, errors };
-};
 
 /** What the cards section needs from its drawer. */
 interface CardsSectionProps {
@@ -92,8 +47,8 @@ interface CardsSectionProps {
 }
 
 /**
- * Renders the account's cards: each attached one editable field by field or
- * removable, and the new ones being typed through their numbers.
+ * Renders the account's cards: each attached one's billing editable or the
+ * card removable, and the new ones being typed through their numbers.
  *
  * @param props - The slots, the drafts and the handlers for them.
  * @returns The section.
@@ -107,11 +62,12 @@ function CardsSection({
     <div className="flex flex-col gap-4">
       <span className="text-sm font-medium">{translator.text('accountSetup', 'cards.title')}</span>
       {slots.map((slot, index) => (slot.removed ? null : (
-        <div key={slot.id} className="flex flex-col gap-3 rounded-lg border border-line p-4">
-          <AttachedCardFields slot={slot} onChange={(patch) => changeSlot(index, patch)} />
-          <Button variant="ghost" onClick={() => removeSlot(index)}>
-            {translator.text('creditCard', 'remove')}
-          </Button>
+        <div key={slot.id} className="rounded-lg border border-line p-4">
+          <AttachedCardFields
+            slot={slot}
+            onChange={(patch) => changeSlot(index, patch)}
+            onRemove={() => removeSlot(index)}
+          />
         </div>
       )))}
       {newCards.map((form, index) => (
@@ -190,8 +146,10 @@ export interface EditAccountDrawerProps {
   readonly account: Account;
   /** The signed-in user's id: who may move the visibility. */
   readonly selfUserId: string;
-  /** An edit or archive is out: the buttons spin and ignore submits. */
+  /** The edit is out: Save spins and ignores submits. */
   readonly busy: boolean;
+  /** The archive is out: the confirm spins. */
+  readonly archiveBusy?: boolean | undefined;
   /** Another request is out: the buttons wait. */
   readonly disabled: boolean;
   /** A failure of the last edit, already translated. */
@@ -233,7 +191,7 @@ const slotsOf = (account: Account): CardSlot[] => account.cards.map((card) => ({
  * @returns The drawer with its form.
  */
 export function EditAccountDrawer({
-  account, selfUserId, busy, disabled, alert, archiveConfirmOpen,
+  account, selfUserId, busy, archiveBusy, disabled, alert, archiveConfirmOpen,
   onSubmit, onArchive, onOpenArchive, onCloseArchive, onCancel,
 }: EditAccountDrawerProps) {
   const translator = useI18n();
@@ -245,7 +203,7 @@ export function EditAccountDrawer({
   const [cardErrors, setCardErrors] = useState<readonly (string | undefined)[]>([]);
 
   const isCreator = account.ownerUserId === selfUserId;
-  const showCards = account.type === 'credit_card_only';
+  const showCards = takesCards(account.type);
 
   /**
    * Keeps the typed name and drops its error.
@@ -389,7 +347,7 @@ export function EditAccountDrawer({
               message={translator.text('accountSetup', 'archive.confirm', { name: account.name })}
               confirmLabel={translator.text('accountSetup', 'archive.action')}
               cancelLabel={translator.text('accountSetup', 'cancel')}
-              busy={busy && archiveConfirmOpen === true}
+              busy={archiveBusy === true}
               onConfirm={onArchive}
               onCancel={onCloseArchive}
             />

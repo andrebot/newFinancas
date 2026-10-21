@@ -5,9 +5,9 @@ import { useI18n } from '../../../../utilities/I18nProvider';
 import type { RequestOutcome } from '../../../../utilities/requestOutcome';
 import {
   afterAction, afterLoad, archiveConfirmCancelled, archiveConfirmOpened, drawerClosed,
-  drawerOpened, INITIAL_ACCOUNTS, loadingAccounts, mayCreate, mayEdit, started,
-  type AccountEdit, type AccountsOutcome, type AccountManagementState, type NewAccount,
-  type Outgoing,
+  drawerOpened, INITIAL_ACCOUNTS, loadingAccounts, mayCreate, mayEdit, mayShare, started,
+  type AccountActionOutcome, type AccountEdit, type AccountsOutcome, type AccountManagementState,
+  type NewAccount, type Outgoing,
 } from './accountManagementState';
 import { AccountList } from './interactions/AccountList';
 import { CreateAccountDrawer } from './interactions/CreateAccountDrawer';
@@ -18,12 +18,13 @@ import { EditAccountDrawer } from './interactions/EditAccountDrawer';
 // (OQ-169), edit a name or visibility, run a credit-card account's cards
 // (add, edit field by field, remove) and archive behind a confirm. It fetches
 // the list as it mounts, owns what is out, the open drawer and its last
-// failure, and toasts each success. It never calls the backend: every request
+// failure, and toasts each success; a failure shows only in the open drawer's
+// banner, where the form still holds what was typed (OQ-192). It never calls
+// the backend: every request
 // goes up to the Account Setup Experience, which answers an outcome; a success
 // changes the list the way the API did (OQ-175).
 
-/** What the Experience answers for a create or edit: the account it wrote. */
-export type AccountActionOutcome = RequestOutcome & { readonly account?: Account | undefined };
+export type { AccountActionOutcome };
 
 /** What the Flow asks of the Experience. */
 export interface AccountManagementFlowProps {
@@ -61,6 +62,8 @@ interface OpenDrawersProps {
   readonly alert?: string | undefined;
   /** The signed-in user's id: who owns what. */
   readonly selfUserId: string;
+  /** The actor can't share (a Viewer): a create is personal. */
+  readonly personalOnly: boolean;
   /** Sends a create with its typed fields. */
   readonly submitCreate: (account: NewAccount) => void;
   /** Sends an edit with its typed fields. */
@@ -83,18 +86,20 @@ interface OpenDrawersProps {
  * @returns The create or edit drawer, or nothing.
  */
 function OpenDrawers({
-  state, alert, selfUserId, submitCreate, submitEdit, archive, closeDrawer, openArchive,
-  closeArchive,
+  state, alert, selfUserId, personalOnly, submitCreate, submitEdit, archive, closeDrawer,
+  openArchive, closeArchive,
 }: OpenDrawersProps) {
-  const { out, drawer } = state;
-  const locked = out !== undefined;
+  const outKind = state.out?.kind;
+  const drawerKind = state.drawer?.kind;
+  const locked = outKind !== undefined;
 
-  if (drawer?.kind === 'create') {
+  if (drawerKind === 'create') {
     return (
       <CreateAccountDrawer
-        busy={out?.kind === 'create'}
+        busy={outKind === 'create'}
         disabled={locked}
         alert={alert}
+        personalOnly={personalOnly}
         onSubmit={submitCreate}
         onCancel={closeDrawer}
       />
@@ -102,13 +107,14 @@ function OpenDrawers({
   }
 
   const editTarget = targetOf(state);
-  if (drawer?.kind !== 'edit' || editTarget === undefined) return null;
+  if (drawerKind !== 'edit' || editTarget === undefined) return null;
   return (
     <EditAccountDrawer
       key={editTarget.id}
       account={editTarget}
       selfUserId={selfUserId}
-      busy={locked}
+      busy={outKind === 'edit'}
+      archiveBusy={outKind === 'archive'}
       disabled={locked}
       alert={alert}
       archiveConfirmOpen={state.archiving === editTarget.id}
@@ -154,9 +160,9 @@ export function AccountManagementFlow({
   }, [onLoad]);
 
   /**
-   * Sends a request and applies its answer: the list moves on success, the
-   * drawer keeps what was typed on failure (and shows why), and each outcome
-   * is toasted.
+   * Sends a request and applies its answer: the list moves on success and is
+   * toasted; on a failure the drawer keeps what was typed and its banner shows
+   * why.
    *
    * @param outgoing - Which request goes out.
    * @param subject - The account's name for the toast.
@@ -174,8 +180,6 @@ export function AccountManagementFlow({
       alerts.success(
         translator.text('accountSetup', `${outgoing.kind}.done`, { name: subject }),
       );
-    } else {
-      alerts.error(translator.error(outcome.error.code, outcome.error.params));
     }
   };
 
@@ -193,7 +197,7 @@ export function AccountManagementFlow({
   const archive = (accountId: string, name: string) => run(
     { kind: 'archive', accountId },
     name,
-    async () => ({ ...(await onArchive(accountId)) }),
+    () => onArchive(accountId),
   );
 
   /** Opens the create drawer. */
@@ -230,6 +234,7 @@ export function AccountManagementFlow({
         state={state}
         alert={alert}
         selfUserId={selfUserId}
+        personalOnly={!mayShare(role)}
         submitCreate={submitCreate}
         submitEdit={submitEdit}
         archive={archive}

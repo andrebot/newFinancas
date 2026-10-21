@@ -59,13 +59,14 @@ vi.mock('../../../../../../src/experiences/accountSetup/flows/accountManagement/
      * @returns The stub.
      */
   CreateAccountDrawer: ({
-    busy, disabled, alert, onSubmit, onCancel,
+    busy, disabled, alert, personalOnly, onSubmit, onCancel,
   }: CreateAccountDrawerProps) => (
     <div
       data-testid="create"
       data-busy={String(busy)}
       data-disabled={String(disabled)}
       data-alert={alert ?? ''}
+      data-personal-only={String(personalOnly)}
     >
       <button
         type="button"
@@ -94,13 +95,14 @@ vi.mock('../../../../../../src/experiences/accountSetup/flows/accountManagement/
      * @returns The stub.
      */
   EditAccountDrawer: ({
-    account, busy, alert, archiveConfirmOpen, onSubmit, onArchive, onOpenArchive,
+    account, busy, archiveBusy, alert, archiveConfirmOpen, onSubmit, onArchive, onOpenArchive,
     onCloseArchive, onCancel,
   }: EditAccountDrawerProps) => (
     <div
       data-testid="edit"
       data-account={account.id}
       data-busy={String(busy)}
+      data-archive-busy={String(archiveBusy)}
       data-alert={alert ?? ''}
     >
       <button type="button" onClick={() => onSubmit({ accountId: account.id, name: 'Renamed' })}>
@@ -139,9 +141,9 @@ const account = (id: string): Account => ({
   cards: [],
 });
 
-const LOADED: AccountsOutcome = { ok: true, accounts: [account('chk'), account('ccr')] };
-const CREATED: AccountActionOutcome = { ok: true, account: account('new') };
-const EDITED: AccountActionOutcome = { ok: true, account: account('chk') };
+const LOADED: AccountsOutcome = { ok: true, data: [account('chk'), account('ccr')] };
+const CREATED: AccountActionOutcome = { ok: true, data: account('new') };
+const EDITED: AccountActionOutcome = { ok: true, data: account('chk') };
 const OK: AccountActionOutcome = { ok: true };
 const FORBIDDEN = { ok: false, error: { code: 'auth.forbidden' } } as const;
 
@@ -230,8 +232,21 @@ describe('loading the list', () => {
     expect(panel().dataset.status).toBe('loaded');
   });
 
-  it('hides the add button from a Viewer', async () => {
+  it('lets a Viewer add a personal account only', async () => {
     await renderFlow({ role: 'Viewer' });
+    expect(panel().dataset.canCreate).toBe('true');
+    await click('add');
+    expect(screen.getByTestId('create').dataset.personalOnly).toBe('true');
+  });
+
+  it('lets a Member pick the visibility', async () => {
+    await renderFlow({ role: 'Member' });
+    await click('add');
+    expect(screen.getByTestId('create').dataset.personalOnly).toBe('false');
+  });
+
+  it('hides the add button from someone without a role', async () => {
+    await renderFlow({ role: undefined });
     expect(panel().dataset.canCreate).toBe('false');
     expect(screen.queryByRole('button', { name: 'add' })).toBeNull();
   });
@@ -262,13 +277,14 @@ describe('creating an account', () => {
     expect(toasts(queue)).toEqual(['Main Checking created.']);
   });
 
-  it('keeps the drawer open with the failure when a create fails', async () => {
+  it('keeps the drawer open with the failure in its banner, not a toast', async () => {
     const { queue } = await renderFlow({ onCreate: vi.fn(async () => FORBIDDEN) });
     await click('add');
     await click('submit create');
 
-    expect(screen.getByTestId('create').dataset.alert).not.toBe('');
-    expect(toasts(queue)).toEqual(["You don't have permission to do that."]);
+    expect(screen.getByTestId('create').dataset.alert)
+      .toBe("You don't have permission to do that.");
+    expect(toasts(queue)).toEqual([]);
   });
 
   it('closes the drawer on a cancel', async () => {
@@ -343,12 +359,30 @@ describe('archiving an account', () => {
     expect(toasts(queue)).toEqual([]);
   });
 
-  it('keeps the confirm open with a toast when an archive fails', async () => {
+  it('keeps the confirm open with the failure in the banner when an archive fails', async () => {
     const { queue } = await renderFlow({ onArchive: vi.fn(async () => FORBIDDEN) });
     await click('edit ccr');
     await click('open archive');
     await click('confirm archive');
     expect(screen.getByRole('button', { name: 'confirm archive' })).toBeTruthy();
-    expect(toasts(queue)).toEqual(["You don't have permission to do that."]);
+    expect(screen.getByTestId('edit').dataset.alert).toBe("You don't have permission to do that.");
+    expect(toasts(queue)).toEqual([]);
+  });
+
+  it('spins only the control whose request is out', async () => {
+    const edit = pending<AccountActionOutcome>();
+    const archive = pending<AccountActionOutcome>();
+    await renderFlow({ onEdit: edit.request, onArchive: archive.request });
+    await click('edit ccr');
+    await click('save edit');
+    expect(screen.getByTestId('edit').dataset)
+      .toMatchObject({ busy: 'true', archiveBusy: 'false' });
+    await edit.answer({ ok: false, error: { code: 'auth.forbidden' } });
+
+    await click('open archive');
+    await click('confirm archive');
+    expect(screen.getByTestId('edit').dataset)
+      .toMatchObject({ busy: 'false', archiveBusy: 'true' });
+    await archive.answer(OK);
   });
 });

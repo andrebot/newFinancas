@@ -3,8 +3,10 @@ import {
   describe, expect, it, vi,
 } from 'vitest';
 import { renderInLocale } from '../../../../../../support/renderInLocale';
+import { creditCard } from '../../../../../../../src/config/constants';
 import {
-  EMPTY_CARD_FORM, CardFields, cardDraftOf, dayOption, type CardFormState,
+  EMPTY_CARD_FORM, CardFields, cardDraftOf, dayOption, draftsOf, expirationYears, expiryOf,
+  selectValue, type CardFormState,
 } from '../../../../../../../src/experiences/accountSetup/flows/accountManagement/interactions/CardFields';
 
 // One card's fields (BDT: unit): the pure read of a draft and the form's
@@ -59,6 +61,51 @@ describe('cardDraftOf', () => {
   });
 });
 
+describe('draftsOf', () => {
+  it('reads every passing form and names each failing one', () => {
+    const good = form({
+      digits: VISA, closingDay: 10, dueDay: 20, expirationMonth: 8, expirationYear: 2030,
+    });
+    const { drafts, errors } = draftsOf([good, EMPTY_CARD_FORM], 'incomplete');
+    expect(drafts).toHaveLength(1);
+    expect(errors).toEqual([undefined, 'incomplete']);
+  });
+
+  it('reads nothing from no forms', () => {
+    expect(draftsOf([], 'incomplete')).toEqual({ drafts: [], errors: [] });
+  });
+});
+
+describe('expirationYears', () => {
+  it('offers the first year and the configured window after it', () => {
+    const years = expirationYears(2026);
+    expect(years[0]).toBe(2026);
+    expect(years).toHaveLength(creditCard.expirationYearsAhead + 1);
+  });
+
+  it('keeps a year inside the window once', () => {
+    expect(expirationYears(2026, 2027)).toEqual(expirationYears(2026));
+  });
+
+  it('adds a saved card’s year outside the window, in order', () => {
+    const years = expirationYears(2026, 2020);
+    expect(years[0]).toBe(2020);
+    expect(years[1]).toBe(2026);
+  });
+});
+
+describe('expiryOf', () => {
+  it('writes MM/YY once both are picked', () => {
+    expect(expiryOf(8, 2030)).toBe('08/30');
+    expect(expiryOf(12, 2105)).toBe('12/05');
+  });
+
+  it('writes nothing until both are picked', () => {
+    expect(expiryOf(null, 2030)).toBeUndefined();
+    expect(expiryOf(8, null)).toBeUndefined();
+  });
+});
+
 describe('the fields', () => {
   /**
    * Renders the fields with a stand-in handler.
@@ -81,11 +128,27 @@ describe('the fields', () => {
     expect(screen.getByRole('combobox', { name: 'Expires year' }).textContent).toBe('Year');
   });
 
-  it('names the network as its number is typed, and reports the digits', () => {
+  it('reports the digits as they are typed', () => {
     const onChange = renderFields();
     const input = screen.getByRole('textbox', { name: 'Card number' });
     fireEvent.change(input, { target: { value: VISA } });
     expect(onChange).toHaveBeenCalledWith({ digits: VISA });
+  });
+
+  it('draws the live preview: the detected network, the billing and the expiry', () => {
+    renderFields(form({
+      digits: VISA, closingDay: 10, dueDay: 20, expirationMonth: 8, expirationYear: 2030,
+    }));
+    expect(screen.getByText('Visa detected from the number')).toBeTruthy();
+    expect(screen.getByText('Closes 10 · Due 20')).toBeTruthy();
+    expect(screen.getByText('08/30')).toBeTruthy();
+  });
+
+  it('names no network while the number is empty or objected to', () => {
+    renderInLocale(
+      <CardFields form={form({ digits: VISA })} digitsError="Bad" onChange={vi.fn()} />,
+    );
+    expect(screen.queryByText(/detected from the number/)).toBeNull();
   });
 
   it('shows a picked day on its combobox and reports the pick', async () => {
@@ -95,6 +158,11 @@ describe('the fields', () => {
     });
     fireEvent.click(screen.getByRole('option', { name: '20' }));
     expect(onChange).toHaveBeenCalledWith({ dueDay: 20 });
+  });
+
+  it('turns a pick into its Select value, null for nothing picked', () => {
+    expect(selectValue(7)).toBe('7');
+    expect(selectValue(null)).toBeNull();
   });
 
   it('labels a day’s option by its number', () => {

@@ -1,7 +1,9 @@
 import type {
   Account, CardNetwork, CreditCard, Currency,
 } from '@financas/api-types';
-import type { RequestFailure, RequestOutcome } from '../../../../utilities/requestOutcome';
+import type {
+  DataOutcome, RequestFailure, RequestOutcome,
+} from '../../../../utilities/requestOutcome';
 
 // The Account & Card Management Flow's state (FL11; OQ-175): the household's
 // accounts as the Flow last fetched them, the request that is out, the open
@@ -9,14 +11,28 @@ import type { RequestFailure, RequestOutcome } from '../../../../utilities/reque
 // transitions are pure so the Flow's rules test without React. A success
 // changes the list the way the API did — create appends the returned account,
 // edit replaces with the server's copy, archive stamps `archivedAt` locally —
-// so nothing is fetched again; the Experience's tag invalidation keeps the
-// cache in step behind it.
+// so the Flow never reloads after a write. The Experience's tag invalidation
+// still refetches its cached copy for the app's other readers; the Flow keeps
+// its own list and doesn't read that refetch.
 
 /** An account type (OQ-76). */
 export type AccountType = 'checking' | 'savings' | 'credit_card_only' | 'investment';
 
 /** Personal or shared (FR-2.3, OQ-169). */
 export type Visibility = 'personal' | 'shared';
+
+/** The account types that take credit cards (FR-2.7, OQ-11): all but investment. */
+const CARD_ACCOUNT_TYPES: ReadonlySet<AccountType> = new Set([
+  'checking', 'savings', 'credit_card_only',
+]);
+
+/**
+ * Tells whether an account type takes credit cards (FR-2.7, OQ-11).
+ *
+ * @param type - The account type.
+ * @returns Whether its forms offer cards.
+ */
+export const takesCards = (type: AccountType): boolean => CARD_ACCOUNT_TYPES.has(type);
 
 /** A card as the forms hold it: its network and the fields the API stores. */
 export interface CardDraft {
@@ -44,7 +60,8 @@ export interface NewAccount {
   readonly cards: CardDraft[];
 }
 
-/** A card slot in the edit drawer: an attached card (with its id) or a new one. */
+/** A card slot in the edit drawer: an attached card (with its id) or a new one. An
+ * attached card's network and last four digits are fixed (OQ-192). */
 export interface CardSlot extends CardDraft {
   /** Present while the card is attached to the account. */
   readonly id?: string | undefined;
@@ -52,10 +69,18 @@ export interface CardSlot extends CardDraft {
   readonly removed?: boolean | undefined;
 }
 
+/** What an attached card may change: its billing days and expiration (OQ-192). */
+export type CardBilling = Pick<
+  CardDraft, 'closingDay' | 'dueDay' | 'expirationMonth' | 'expirationYear'
+>;
+
+/** One attached card's edit: its id and its billing fields. */
+export type CardEdit = CardBilling & { readonly id: string };
+
 /** The card changes an edit sends, in the contract's shape (OQ-35). */
 export interface CardChanges {
   readonly add?: CardDraft[];
-  readonly edit?: (CardDraft & { readonly id: string })[];
+  readonly edit?: CardEdit[];
   readonly remove?: string[];
 }
 
@@ -73,7 +98,7 @@ export interface AccountEdit {
 /** The full set of card changes, before thinning to what actually moved. */
 export interface FullCardChanges {
   readonly add: CardDraft[];
-  readonly edit: (CardDraft & { readonly id: string })[];
+  readonly edit: CardEdit[];
   readonly remove: string[];
 }
 
@@ -100,8 +125,10 @@ export type Outgoing = { readonly kind: 'create' }
   | { readonly kind: 'archive'; readonly accountId: string };
 
 /** What the Experience answers for the list. */
-export type AccountsOutcome = { readonly ok: true; readonly accounts: readonly Account[] }
-  | { readonly ok: false; readonly error: RequestFailure };
+export type AccountsOutcome = DataOutcome<readonly Account[]>;
+
+/** What the Experience answers for a request: a create or edit carries the account it wrote. */
+export type AccountActionOutcome = RequestOutcome & { readonly data?: Account | undefined };
 
 /** The panels' content. */
 export type AccountsView = { readonly status: 'loading' }
@@ -150,7 +177,7 @@ export const afterLoad = (
 ): AccountManagementState => ({
   ...state,
   view: outcome.ok
-    ? { status: 'loaded', accounts: outcome.accounts }
+    ? { status: 'loaded', accounts: outcome.data }
     : { status: 'failed', error: outcome.error },
 });
 
@@ -230,26 +257,23 @@ export const splitAccounts = (accounts: readonly Account[]) => ({
  *
  * @param view - The loaded list.
  * @param outgoing - The request that succeeded.
- * @param created - The account a create returned.
- * @param edited - The account an edit returned, the server's copy.
+ * @param written - The account a create or an edit returned, the server's copy.
  * @returns The list after it.
  */
 const applied = (
   view: Extract<AccountsView, { status: 'loaded' }>,
   outgoing: Outgoing,
-  created?: Account,
-  edited?: Account,
+  written?: Account,
 ): AccountsView => {
   if (outgoing.kind === 'create') {
-    const withCreated = created ? { ...view, accounts: [...view.accounts, created] } : view;
-    return withCreated;
+    return written ? { ...view, accounts: [...view.accounts, written] } : view;
   }
   if (outgoing.kind === 'edit') {
-    return edited
+    return written
       ? {
         ...view,
         accounts: view.accounts.map((account) => (
-          account.id === edited.id ? edited : account
+          account.id === written.id ? written : account
         )),
       }
       : view;
@@ -276,13 +300,13 @@ const applied = (
  */
 export const afterAction = (
   state: AccountManagementState,
-  outcome: RequestOutcome & { readonly account?: Account | undefined },
+  outcome: AccountActionOutcome,
 ): AccountManagementState => {
   const { out, view } = state;
   if (!out) return state;
   if (!outcome.ok) return { ...state, out: undefined, lastError: outcome.error };
   const nextView = view.status === 'loaded'
-    ? applied(view, out, outcome.account, outcome.account)
+    ? applied(view, out, outcome.data)
     : view;
   return {
     ...state,
@@ -295,13 +319,23 @@ export const afterAction = (
 };
 
 /**
- * Tells whether a role may create an account in the household (FR-1.7):
- * everyone but a Viewer.
+ * Tells whether a role may create an account in the household (FR-1.7): every
+ * member — a Viewer too, since personal data is its owner's whatever their
+ * role (OQ-192).
  *
  * @param role - The actor's role.
  * @returns Whether the Add Account button shows.
  */
-export const mayCreate = (role: string | undefined) => role !== 'Viewer' && role !== undefined;
+export const mayCreate = (role: string | undefined) => role !== undefined;
+
+/**
+ * Tells whether a role may create a shared account (FR-1.7): everyone but a
+ * Viewer, who creates personal ones only.
+ *
+ * @param role - The actor's role.
+ * @returns Whether the create form offers Shared.
+ */
+export const mayShare = (role: string | undefined) => role !== undefined && role !== 'Viewer';
 
 /**
  * Tells whether an account is editable by the actor (FR-1.7, OQ-111): a
@@ -332,8 +366,8 @@ export const mayChangeVisibility = (account: Account, selfUserId: string) => (
   account.ownerUserId === selfUserId
 );
 
-/** The fields a slot holds for its card, without its bookkeeping. */
-const cardFieldsOf = (slot: CardSlot) => ({
+/** The fields a slot holds for a new card, without its bookkeeping. */
+const cardFieldsOf = (slot: CardSlot): CardDraft => ({
   network: slot.network,
   last4: slot.last4,
   closingDay: slot.closingDay,
@@ -342,8 +376,16 @@ const cardFieldsOf = (slot: CardSlot) => ({
   expirationYear: slot.expirationYear,
 });
 
+/** The fields an attached card may change: its network and last four are fixed. */
+const billingOf = (slot: CardBilling): CardBilling => ({
+  closingDay: slot.closingDay,
+  dueDay: slot.dueDay,
+  expirationMonth: slot.expirationMonth,
+  expirationYear: slot.expirationYear,
+});
+
 /**
- * Tells whether a slot's fields moved away from the card it edits.
+ * Tells whether a slot's billing fields moved away from the card it edits.
  *
  * @param slot - The slot, attached and not removed.
  * @param originals - The account's cards as they were loaded.
@@ -352,25 +394,28 @@ const cardFieldsOf = (slot: CardSlot) => ({
 const changed = (slot: CardSlot, originals: readonly CreditCard[]) => {
   const original = originals.find((card) => card.id === slot.id);
   if (!original) return true;
-  const fields = cardFieldsOf(slot);
-  return Object.entries(fields).some(([key, value]) => (
-    String(original[key as keyof CreditCard]) !== String(value)
+  const before = billingOf(original);
+  return Object.entries(billingOf(slot)).some(([key, value]) => (
+    before[key as keyof CardBilling] !== value
   ));
 };
 
 /**
  * Builds the card changes an edit sends from its slots: new cards added,
- * attached ones edited only where a field moved, removed ones dropped.
+ * attached ones edited only where a billing field moved, removed ones dropped.
  *
  * @param slots - The drawer's card slots.
  * @param originals - The account's cards as they were loaded.
  * @returns What `PATCH` takes; empty when nothing changed.
  */
-export const cardChangesOf = (slots: readonly CardSlot[], originals: readonly CreditCard[]) => {
+export const cardChangesOf = (
+  slots: readonly CardSlot[],
+  originals: readonly CreditCard[],
+): FullCardChanges => {
   const add = slots.filter((slot) => slot.id === undefined).map(cardFieldsOf);
   const edit = slots.flatMap((slot) => {
     if (slot.id === undefined || slot.removed || !changed(slot, originals)) return [];
-    return [{ id: slot.id, ...cardFieldsOf(slot) }];
+    return [{ id: slot.id, ...billingOf(slot) }];
   });
   const remove = slots.flatMap((slot) => (slot.id !== undefined && slot.removed ? [slot.id] : []));
   return { add, edit, remove };

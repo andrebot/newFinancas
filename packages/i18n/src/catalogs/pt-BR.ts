@@ -403,8 +403,6 @@ const ptBR = {
     'card.pickMonth': 'Mês',
     'card.year': 'Ano de validade',
     'card.pickYear': 'Ano',
-    'card.network': 'Bandeira',
-    'card.last4': 'Quatro últimos dígitos',
     'card.none': 'Nenhum cartão vinculado.',
     'card.balance': 'Saldo',
     'card.outstanding': 'Em aberto',

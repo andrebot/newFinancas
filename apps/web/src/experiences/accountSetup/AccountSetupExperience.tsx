@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import type { Account } from '@financas/api-types';
-import { failureOf, toRequestOutcome, type EndpointResult } from '../../api/outcome';
+import { toDataOutcome, toRequestOutcome, type EndpointResult } from '../../api/outcome';
 import { useGetCurrentUserQuery, useHouseholds } from '../../api/identityApi';
 import { Button } from '../../kit/button/Button';
 import { EmptyState } from '../../kit/emptyState/EmptyState';
@@ -16,7 +16,7 @@ import {
   useLazyListAccountsQuery,
 } from './api';
 import {
-  AccountManagementFlow, type AccountActionOutcome, type AccountManagementFlowProps,
+  AccountManagementFlow, type AccountManagementFlowProps,
 } from './flows/accountManagement/AccountManagementFlow';
 
 // The Account Setup Experience (X5, EBD; OQ-175): the household's setup page,
@@ -53,28 +53,16 @@ const useAccountRequests = (
   const [archiveAccount] = useArchiveAccountMutation();
 
   /** Lists the household's accounts, archived included. */
-  const onLoad = useCallback(async () => {
+  const onLoad = useCallback(async () => (
     // An awaited trigger has settled: its result holds the data or the error.
-    const result = await (loadAccounts(householdId) as Promise<EndpointResult<readonly Account[]>>);
-    return result.error === undefined
-      ? { ok: true as const, accounts: result.data }
-      : { ok: false as const, error: failureOf(result.error) };
-  }, [householdId, loadAccounts]);
-
-  /**
-   * Reads a create's or edit's answer for the Flow.
-   *
-   * @param result - What the trigger resolved to.
-   * @returns The account it wrote, or why it failed.
-   */
-  const withAccount = (result: EndpointResult<Account>): AccountActionOutcome => {
-    if (result.error !== undefined) return { ok: false, error: failureOf(result.error) };
-    return { ok: true, account: result.data };
-  };
+    toDataOutcome(await (
+      loadAccounts(householdId) as Promise<EndpointResult<readonly Account[]>>
+    ))
+  ), [householdId, loadAccounts]);
 
   return {
     onLoad,
-    onCreate: async (account) => withAccount(await createAccount({
+    onCreate: async (account) => toDataOutcome(await createAccount({
       householdId,
       name: account.name,
       type: account.type,
@@ -83,7 +71,7 @@ const useAccountRequests = (
       ...(account.openingBalance === null ? {} : { openingBalance: account.openingBalance }),
       cards: account.cards,
     })),
-    onEdit: async (edit) => withAccount(await editAccount({
+    onEdit: async (edit) => toDataOutcome(await editAccount({
       householdId,
       accountId: edit.accountId,
       name: edit.name,

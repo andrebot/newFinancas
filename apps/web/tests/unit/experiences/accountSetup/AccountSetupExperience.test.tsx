@@ -209,7 +209,7 @@ describe('the accounts it answers for its flow', () => {
       'GET /households/doe/accounts': () => jsonResponse(200, { data: [ACCOUNT] }),
     });
     await press('load');
-    expect(outcomeOf('accounts')).toEqual({ ok: true, accounts: [ACCOUNT] });
+    expect(outcomeOf('accounts')).toEqual({ ok: true, data: [ACCOUNT] });
     expect(await routes(fetchFn)).toContain('GET /api/v1/households/doe/accounts');
   });
 
@@ -238,7 +238,7 @@ describe('the accounts it answers for its flow', () => {
       'POST /households/doe/accounts': () => jsonResponse(201, ACCOUNT),
     });
     await press('createZero');
-    expect(outcomeOf('accounts')).toEqual(expect.objectContaining({ ok: true }));
+    expect(outcomeOf('accounts')).toEqual({ ok: true, data: ACCOUNT });
     expect(await lastBody(fetchFn)).toEqual({
       name: 'Main Checking', type: 'checking', currency: 'BRL', visibility: 'personal', cards: [],
     });

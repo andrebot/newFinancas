@@ -388,8 +388,6 @@ const enUS: Catalog = {
     'card.pickMonth': 'Month',
     'card.year': 'Expires year',
     'card.pickYear': 'Year',
-    'card.network': 'Network',
-    'card.last4': 'Last four digits',
     'card.none': 'No cards attached.',
     'card.balance': 'Balance',
     'card.outstanding': 'Outstanding',

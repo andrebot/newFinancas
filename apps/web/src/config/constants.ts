@@ -105,6 +105,8 @@ export const creditCard = {
   chip: ['#E9C46A', '#B88A2E'],
   /** The digits the preview draws while fewer are typed, when the network allows that many. */
   placeholderLength: 16,
+  /** The years after this one a card's expiration may name (FL11, OQ-192). */
+  expirationYearsAhead: 15,
 } as const;
 
 /** The money input (K7, OQ-188). */

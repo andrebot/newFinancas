@@ -123,6 +123,16 @@ describe('the locked and the movable fields', () => {
     expect(screen.getByText('Personal')).toBeTruthy();
   });
 
+  it('offers cards on a checking account (FR-2.7)', () => {
+    renderDrawer({ account: account({ type: 'checking', cards: [] }) });
+    expect(screen.getByRole('button', { name: /Add credit card/ })).toBeTruthy();
+  });
+
+  it('offers no cards on an investment account', () => {
+    renderDrawer({ account: account({ type: 'investment', cards: [] }) });
+    expect(screen.queryByRole('button', { name: /Add credit card/ })).toBeNull();
+  });
+
   it('shows the server’s objection in its banner', () => {
     renderDrawer({ alert: 'Something went wrong. Please try again.' });
     const errors = screen.getAllByText('Something went wrong. Please try again.');
@@ -160,13 +170,7 @@ describe('its submit', () => {
       visibility: undefined,
       cards: {
         edit: [{
-          id: 'card-1',
-          network: 'visa',
-          last4: '1234',
-          closingDay: 10,
-          dueDay: 25,
-          expirationMonth: 8,
-          expirationYear: 2030,
+          id: 'card-1', closingDay: 10, dueDay: 25, expirationMonth: 8, expirationYear: 2030,
         }],
       },
     });
@@ -264,13 +268,7 @@ describe('its submit', () => {
       visibility: undefined,
       cards: {
         edit: [{
-          id: 'card-1',
-          network: 'visa',
-          last4: '1234',
-          closingDay: 10,
-          dueDay: 25,
-          expirationMonth: 8,
-          expirationYear: 2030,
+          id: 'card-1', closingDay: 10, dueDay: 25, expirationMonth: 8, expirationYear: 2030,
         }],
         remove: ['card-2'],
       },
@@ -363,9 +361,12 @@ describe('the archive behind its confirm', () => {
     expect(handlers.onCloseArchive).toHaveBeenCalledTimes(1);
   });
 
-  it('spins its confirm while an archive is out', () => {
-    renderDrawer({ busy: true, archiveConfirmOpen: true });
+  it('spins its confirm while an archive is out, not Save', () => {
+    const handlers = renderDrawer({ archiveBusy: true, disabled: true, archiveConfirmOpen: true });
     const zone = screen.getByRole('region', { name: /Archive this account/ });
-    expect(within(zone).getByRole('button', { name: 'Cancel' })).toBeTruthy();
+    fireEvent.click(within(zone).getByRole('button', { name: 'Archive' }));
+    expect(handlers.onArchive).not.toHaveBeenCalled();
+    const save = screen.getByRole<HTMLButtonElement>('button', { name: 'Save changes' });
+    expect(save.disabled).toBe(true);
   });
 });

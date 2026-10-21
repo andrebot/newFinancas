@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   INITIAL_ACCOUNTS, afterAction, afterLoad, archiveConfirmCancelled, archiveConfirmOpened,
   cardChangesOf, drawerClosed, drawerOpened, loadingAccounts, mayChangeVisibility, mayCreate,
-  mayEdit, sparseCardChanges, splitAccounts, started, type AccountManagementState,
+  mayEdit, mayShare, sparseCardChanges, splitAccounts, started, takesCards,
+  type AccountManagementState,
 } from '../../../../../../src/experiences/accountSetup/flows/accountManagement/accountManagementState';
 
 // The Flow's state (BDT: pure transitions → unit, nothing mocked). A success
@@ -50,7 +51,7 @@ describe('the list and its load', () => {
   });
 
   it('applies a loaded list', () => {
-    expect(afterLoad(INITIAL_ACCOUNTS, { ok: true, accounts: [CHECKING] })).toEqual({
+    expect(afterLoad(INITIAL_ACCOUNTS, { ok: true, data: [CHECKING] })).toEqual({
       view: { status: 'loaded', accounts: [CHECKING] },
     });
   });
@@ -104,7 +105,7 @@ describe('the requests that are out', () => {
 
   it('answers a create by appending the account it wrote', () => {
     const state = started(LOADED, { kind: 'create' });
-    const next = afterAction(state, { ok: true, account: account('new') });
+    const next = afterAction(state, { ok: true, data: account('new') });
     expect(next.view).toEqual(
       { status: 'loaded', accounts: [CHECKING, CREDIT, ARCHIVED, account('new')] },
     );
@@ -115,7 +116,7 @@ describe('the requests that are out', () => {
   it('answers an edit by replacing with the server’s copy', () => {
     const state = started(LOADED, { kind: 'edit', accountId: 'chk' });
     const renamed = account('chk', { name: 'Renamed' });
-    expect(afterAction(state, { ok: true, account: renamed }).view).toEqual({
+    expect(afterAction(state, { ok: true, data: renamed }).view).toEqual({
       status: 'loaded', accounts: [renamed, CREDIT, ARCHIVED],
     });
   });
@@ -150,12 +151,19 @@ describe('the actor’s rights (FR-1.7)', () => {
   const PERSONAL = account('per', { visibility: 'personal', ownerUserId: 'ana' });
   const SHARED_BY_ANA = account('shd', { ownerUserId: 'ana' });
 
-  it('lets everyone but a Viewer create, and no one without a role', () => {
+  it('lets every member create, a Viewer too, and no one without a role', () => {
     expect(mayCreate('Owner')).toBe(true);
-    expect(mayCreate('Admin')).toBe(true);
     expect(mayCreate('Member')).toBe(true);
-    expect(mayCreate('Viewer')).toBe(false);
+    expect(mayCreate('Viewer')).toBe(true);
     expect(mayCreate(undefined)).toBe(false);
+  });
+
+  it('lets everyone but a Viewer share, and no one without a role', () => {
+    expect(mayShare('Owner')).toBe(true);
+    expect(mayShare('Admin')).toBe(true);
+    expect(mayShare('Member')).toBe(true);
+    expect(mayShare('Viewer')).toBe(false);
+    expect(mayShare(undefined)).toBe(false);
   });
 
   it('lets a personal account be edited only by its owner, whatever their role', () => {
@@ -177,6 +185,15 @@ describe('the actor’s rights (FR-1.7)', () => {
   });
 });
 
+describe('the account types that take cards (FR-2.7)', () => {
+  it('takes them on checking, savings and credit-card accounts, not investment', () => {
+    expect(takesCards('checking')).toBe(true);
+    expect(takesCards('savings')).toBe(true);
+    expect(takesCards('credit_card_only')).toBe(true);
+    expect(takesCards('investment')).toBe(false);
+  });
+});
+
 describe('the card changes an edit sends (OQ-35)', () => {
   const CARD = {
     id: 'card-1',
@@ -195,10 +212,10 @@ describe('the card changes an edit sends (OQ-35)', () => {
     const changes = cardChangesOf([
       {
         id: CARD.id,
-        network: 'mastercard',
+        network: 'visa',
         last4: '1234',
         closingDay: 10,
-        dueDay: 20,
+        dueDay: 25,
         expirationMonth: 8,
         expirationYear: 2030,
       },
@@ -232,13 +249,7 @@ describe('the card changes an edit sends (OQ-35)', () => {
         expirationYear: 2028,
       }],
       edit: [{
-        id: CARD.id,
-        network: 'mastercard',
-        last4: '1234',
-        closingDay: 10,
-        dueDay: 20,
-        expirationMonth: 8,
-        expirationYear: 2030,
+        id: CARD.id, closingDay: 10, dueDay: 25, expirationMonth: 8, expirationYear: 2030,
       }],
       remove: ['gone'],
     });
@@ -260,13 +271,7 @@ describe('the card changes an edit sends (OQ-35)', () => {
     expect(changes).toEqual({
       add: [],
       edit: [{
-        id: 'ghost',
-        network: 'visa',
-        last4: '0002',
-        closingDay: 1,
-        dueDay: 10,
-        expirationMonth: 3,
-        expirationYear: 2029,
+        id: 'ghost', closingDay: 1, dueDay: 10, expirationMonth: 3, expirationYear: 2029,
       }],
       remove: [],
     });

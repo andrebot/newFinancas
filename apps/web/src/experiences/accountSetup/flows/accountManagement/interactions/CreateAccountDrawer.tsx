@@ -9,18 +9,21 @@ import { TextField } from '../../../../../kit/textField/TextField';
 import { InlineBanner } from '../../../../../kit/alert/InlineBanner';
 import { useI18n } from '../../../../../utilities/I18nProvider';
 import { nonBlank } from '../../../../../utilities/validation';
-import type {
-  AccountType, CardDraft, NewAccount, Visibility,
+import {
+  takesCards, type AccountType, type NewAccount, type Visibility,
 } from '../accountManagementState';
 import {
-  cardDraftOf, CardFields, EMPTY_CARD_FORM, type CardFormState,
+  CardFields, draftsOf, EMPTY_CARD_FORM, type CardFormState,
 } from './CardFields';
+import { LockedField } from './LockedField';
 
 // The create-account drawer (FL11, mockup 40; OQ-169): the name, the type and
-// currency — locked in once created — the visibility, today's opening balance
-// and, on a credit-card account, its cards. It holds what is typed, checks it
-// before emitting, and shows the server's objections in its banner. The
-// drawer itself (open/close) belongs to the Flow; this renders its content.
+// currency — locked in once created — the visibility (fixed at Personal for a
+// Viewer, who can't share), today's opening balance and, on a type that takes
+// them (FR-2.7), its cards. Cards typed under a type that doesn't are neither
+// checked nor sent. It holds what is typed, checks it before emitting, and
+// shows the server's objections in its banner. The drawer itself (open/close)
+// belongs to the Flow; this renders its content.
 
 const TYPES: readonly AccountType[] = ['checking', 'savings', 'credit_card_only', 'investment'];
 const CURRENCIES: readonly Currency[] = ['BRL', 'USD'];
@@ -34,6 +37,8 @@ export interface CreateAccountDrawerProps {
   readonly disabled: boolean;
   /** A failure of the last create, already translated. */
   readonly alert?: string | undefined;
+  /** The actor can't share (a Viewer): the account is personal, the field locked. */
+  readonly personalOnly?: boolean | undefined;
   /** Gets the account once its fields pass. */
   readonly onSubmit: (account: NewAccount) => void;
   /** Closes the drawer. */
@@ -47,7 +52,7 @@ export interface CreateAccountDrawerProps {
  * @returns The drawer with its form.
  */
 export function CreateAccountDrawer({
-  busy, disabled, alert, onSubmit, onCancel,
+  busy, disabled, alert, personalOnly, onSubmit, onCancel,
 }: CreateAccountDrawerProps) {
   const translator = useI18n();
   const [name, setName] = useState('');
@@ -93,31 +98,30 @@ export function CreateAccountDrawer({
     setCardErrors(() => []);
   };
 
+  const showCards = takesCards(type);
+
   /**
    * Checks the fields and emits the account when they pass. A card that
-   * fails its checks keeps an error under it.
+   * fails its checks keeps an error under it; cards hidden by the type are
+   * left out.
    */
   const submit = () => {
     const foundName = nonBlank(name);
     setNameError(foundName && translator.field(foundName.code, foundName.params));
     if (foundName) return;
-    const drafts: CardDraft[] = [];
-    const errors: (string | undefined)[] = cards.map((form) => {
-      const draft = cardDraftOf(form);
-      if (draft === undefined) {
-        return translator.text('accountSetup', 'card.incomplete');
-      }
-      drafts.push(draft);
-      return undefined;
-    });
+    const incomplete = translator.text('accountSetup', 'card.incomplete');
+    const { drafts, errors } = draftsOf(showCards ? cards : [], incomplete);
     setCardErrors(errors);
     if (errors.some((error) => error !== undefined)) return;
     onSubmit({
-      name: name.trim(), type, currency, visibility, openingBalance, cards: drafts,
+      name: name.trim(),
+      type,
+      currency,
+      visibility: personalOnly ? 'personal' : visibility,
+      openingBalance,
+      cards: drafts,
     });
   };
-
-  const showCards = type === 'credit_card_only';
 
   return (
     <Drawer
@@ -158,18 +162,25 @@ export function CreateAccountDrawer({
           value={currency}
           onChange={setCurrency}
         />
-        <SegmentedControl
-          label={translator.text('accountSetup', 'field.visibility')}
-          options={VISIBILITIES.map((value) => ({
-            value,
-            label: translator.text(
-              'accountSetup',
-              value === 'personal' ? 'visibility.personal' : 'visibility.shared',
-            ),
-          }))}
-          value={visibility}
-          onChange={setVisibility}
-        />
+        {personalOnly ? (
+          <LockedField
+            label={translator.text('accountSetup', 'field.visibility')}
+            value={translator.text('accountSetup', 'visibility.personal')}
+          />
+        ) : (
+          <SegmentedControl
+            label={translator.text('accountSetup', 'field.visibility')}
+            options={VISIBILITIES.map((value) => ({
+              value,
+              label: translator.text(
+                'accountSetup',
+                value === 'personal' ? 'visibility.personal' : 'visibility.shared',
+              ),
+            }))}
+            value={visibility}
+            onChange={setVisibility}
+          />
+        )}
         <MoneyInput
           label={translator.text('accountSetup', 'field.openingBalance')}
           hint={translator.text('accountSetup', 'openingBalance.hint')}
