@@ -77,7 +77,7 @@ interface SubcategoryEntryProps {
 /**
  * Renders the card's way to add a subcategory (mockup 41): the dashed
  * "+ Subcategory" pill, which opens a ringed field with its ✓. Enter adds, Escape
- * closes; the field stays open after an add, for the next one.
+ * closes; the field stays open and focused after an add, for the next one.
  *
  * @param props - The live count, the busy state and the add.
  * @returns The pill, or the open field.
@@ -135,7 +135,10 @@ function SubcategoryEntry({ liveCount, busy, onAdd }: SubcategoryEntryProps) {
         maxLength={categorySettings.nameMaxLength}
         aria-label={translator.text('categoryManagement', 'sub.add.placeholder')}
         placeholder={translator.text('categoryManagement', 'sub.add.placeholder')}
-        disabled={busy}
+        // Read-only, not disabled, while the add is out: a disabled field drops the
+        // focus, and the user keeps typing the next one after Enter.
+        readOnly={busy}
+        aria-busy={busy}
         onChange={(event) => setSubName(event.target.value)}
         onKeyDown={onKeyDown}
         className="w-36 bg-transparent text-[13px] outline-none"
