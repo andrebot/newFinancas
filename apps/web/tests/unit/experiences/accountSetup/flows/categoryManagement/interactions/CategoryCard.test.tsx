@@ -92,6 +92,14 @@ const renderCard = (over: Partial<Parameters<typeof CategoryCard>[0]> = {}) => {
   };
 };
 
+/** Opens the inline subcategory field from its dashed pill. */
+const openEntry = () => {
+  fireEvent.click(screen.getByRole('button', { name: 'Subcategory' }));
+};
+
+/** The open subcategory field. */
+const field = () => screen.getByRole<HTMLInputElement>('textbox', { name: 'New subcategory' });
+
 describe('the card', () => {
   it('shows its name and its live subcategories only', () => {
     renderCard();
@@ -111,6 +119,7 @@ describe('the card', () => {
     renderCard({ canManage: false });
     expect(screen.queryByRole('button', { name: 'Edit Housing' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Archive Housing' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Subcategory' })).toBeNull();
     expect(screen.queryByRole('textbox', { name: 'New subcategory' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Add subcategory' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Archive Rent / Mortgage' })).toBeNull();
@@ -126,7 +135,8 @@ describe('the card', () => {
 
   it('adds a subcategory and clears the field once it is listed', () => {
     const { onAddSubcategory, rerender } = renderCard();
-    const input = () => screen.getByRole<HTMLInputElement>('textbox', { name: 'New subcategory' });
+    openEntry();
+    const input = field;
     fireEvent.change(input(), { target: { value: 'Parking' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add subcategory' }));
     expect(onAddSubcategory).toHaveBeenCalledWith('cat', 'Parking');
@@ -139,7 +149,8 @@ describe('the card', () => {
 
   it('keeps the typed name when the add is refused', () => {
     const { rerender } = renderCard();
-    const input = () => screen.getByRole<HTMLInputElement>('textbox', { name: 'New subcategory' });
+    openEntry();
+    const input = field;
     fireEvent.change(input(), { target: { value: 'Parking' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add subcategory' }));
     rerender({ busy: true });
@@ -149,15 +160,18 @@ describe('the card', () => {
 
   it('keeps the typed name when a sibling is archived', () => {
     const { rerender } = renderCard();
-    const input = () => screen.getByRole<HTMLInputElement>('textbox', { name: 'New subcategory' });
+    openEntry();
+    const input = field;
     fireEvent.change(input(), { target: { value: 'Parking' } });
     rerender({ category: { ...HOUSING, subcategories: HOUSING.subcategories.slice(1) } });
     expect(input().value).toBe('Parking');
   });
 
   it('waits while a request is out: no add, no subcategory archive', () => {
-    const { onAddSubcategory, onArchiveSubcategory } = renderCard({ busy: true });
-    const input = screen.getByRole<HTMLInputElement>('textbox', { name: 'New subcategory' });
+    const { onAddSubcategory, onArchiveSubcategory, rerender } = renderCard();
+    openEntry();
+    rerender({ busy: true });
+    const input = field();
     expect(input.disabled).toBe(true);
     fireEvent.change(input, { target: { value: 'Parking' } });
     fireEvent.keyDown(input, { key: 'Enter' });
@@ -168,7 +182,8 @@ describe('the card', () => {
 
   it('adds on Enter and refuses an empty field', () => {
     const { onAddSubcategory } = renderCard();
-    const input = screen.getByRole<HTMLInputElement>('textbox', { name: 'New subcategory' });
+    openEntry();
+    const input = field();
     fireEvent.keyDown(input, { key: 'Enter' });
     expect(onAddSubcategory).not.toHaveBeenCalled();
     fireEvent.change(input, { target: { value: '  Garage  ' } });
@@ -178,10 +193,45 @@ describe('the card', () => {
 
   it('ignores other keys in its subcategory field', () => {
     const { onAddSubcategory } = renderCard();
-    const input = screen.getByRole<HTMLInputElement>('textbox', { name: 'New subcategory' });
+    openEntry();
+    const input = field();
     fireEvent.change(input, { target: { value: 'Parking' } });
     fireEvent.keyDown(input, { key: 'a' });
     expect(onAddSubcategory).not.toHaveBeenCalled();
+  });
+
+  it('opens the field from its dashed pill, focused and capped at 20 characters', () => {
+    renderCard();
+    expect(screen.queryByRole('textbox', { name: 'New subcategory' })).toBeNull();
+    openEntry();
+    expect(document.activeElement).toBe(field());
+    expect(field().maxLength).toBe(20);
+    expect(screen.queryByRole('button', { name: 'Subcategory' })).toBeNull();
+  });
+
+  it('closes the field on Escape, dropping what was typed', () => {
+    renderCard();
+    openEntry();
+    fireEvent.change(field(), { target: { value: 'Parking' } });
+    fireEvent.keyDown(field(), { key: 'Escape' });
+    expect(screen.queryByRole('textbox', { name: 'New subcategory' })).toBeNull();
+    openEntry();
+    expect(field().value).toBe('');
+  });
+
+  it('keeps the pill waiting while a request is out', () => {
+    renderCard({ busy: true });
+    const pill = screen.getByRole<HTMLButtonElement>('button', { name: 'Subcategory' });
+    expect(pill.disabled).toBe(true);
+  });
+
+  it('draws Edit and Archive as icon buttons named after the category', () => {
+    renderCard({ category: { ...HOUSING, name: 'Restaurantes e Lazer' } });
+    expect(screen.getByRole('button', { name: 'Edit Restaurantes e Lazer' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Archive Restaurantes e Lazer' })).toBeTruthy();
+    // The names are for screen readers only: a long one can't stretch the buttons.
+    expect(screen.getByText('Edit Restaurantes e Lazer').className).toBe('sr-only');
+    expect(screen.getByText('Archive Restaurantes e Lazer').className).toBe('sr-only');
   });
 
   it('archives one of its subcategories on its own', () => {

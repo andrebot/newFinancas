@@ -5,6 +5,7 @@ import { ColorSwatchPicker } from '../../../../../kit/colorSwatchPicker/ColorSwa
 import { IconPicker } from '../../../../../kit/iconPicker/IconPicker';
 import { TextField } from '../../../../../kit/textField/TextField';
 import { InlineBanner } from '../../../../../kit/alert/InlineBanner';
+import { categories as categorySettings } from '../../../../../config/constants';
 import { useI18n } from '../../../../../utilities/I18nProvider';
 import { nonBlank } from '../../../../../utilities/validation';
 
@@ -82,6 +83,7 @@ export function CategoryFormCard({
       <TextField
         label={translator.text('categoryManagement', 'field.name')}
         value={name}
+        maxLength={categorySettings.nameMaxLength}
         onChange={(value) => {
           setName(value);
           if (nameError !== undefined) setNameError(undefined);

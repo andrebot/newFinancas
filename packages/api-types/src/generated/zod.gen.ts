@@ -400,10 +400,10 @@ export const zCategory = z.object({
 });
 
 export const zCategoryUpdateRequest = z.object({
-    name: z.string().optional(),
+    name: z.string().max(20).optional(),
     subcategories: z.array(z.object({
         id: z.uuid().optional(),
-        name: z.string()
+        name: z.string().max(20)
     })).optional(),
     icon: zCategoryIcon.optional(),
     color: zCategoryColor.optional()
@@ -1325,7 +1325,7 @@ export const zListCategoriesResponse = z.object({
 });
 
 export const zCreateCategoryBody = z.object({
-    name: z.string(),
+    name: z.string().max(20),
     icon: zCategoryIcon,
     color: zCategoryColor
 });

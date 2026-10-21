@@ -175,6 +175,12 @@ export const household = {
   roleOrder: ['Owner', 'Admin', 'Member', 'Viewer'],
 } as const;
 
+/** Category Management (FL12). */
+export const categories = {
+  /** The longest category or subcategory name: the contract's `maxLength` (OQ-193). */
+  nameMaxLength: 20,
+} as const;
+
 /** Manage Profile (X3). */
 export const profile = {
   /**

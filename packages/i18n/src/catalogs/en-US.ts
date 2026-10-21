@@ -422,6 +422,7 @@ const enUS: Catalog = {
     'subs.count': '{count, plural, one {# subcategory} other {# subcategories}}',
     'sub.add.placeholder': 'New subcategory',
     'sub.add': 'Add subcategory',
+    'sub.add.open': 'Subcategory',
     'sub.archive': 'Archive {name}',
     'archived.title': '{count, plural, one {# archived category} other {# archived categories}}',
     'archived.note': 'Kept so past transactions and budgets stay meaningful.',

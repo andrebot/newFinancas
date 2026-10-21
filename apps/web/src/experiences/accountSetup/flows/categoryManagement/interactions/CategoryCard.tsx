@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, type KeyboardEvent } from 'react';
 import type { Category } from '@financas/api-types';
-import { Button } from '../../../../../kit/button/Button';
+import { categories as categorySettings } from '../../../../../config/constants';
+import { IconButton } from '../../../../../kit/button/IconButton';
 import { CategoryDisc } from '../../../../../kit/categoryChip/CategoryChip';
 import { InlineConfirm } from '../../../../../kit/confirm/InlineConfirm';
 import { Icon } from '../../../../../kit/icons/Icon';
@@ -9,10 +10,12 @@ import { nonBlank } from '../../../../../utilities/validation';
 import { liveSubcategoriesOf } from '../categoryManagementState';
 
 // A category's card in the grid (FL12, mockup 41): its disc and name, its
-// live subcategories as chips — each archivable on its own (FR-10.3) — an
-// inline field to add one more (OQ-173: a single atomic edit), and the Edit
-// and Archive controls for Owner/Admin. While its archive confirm is open the
-// card shows that instead, as the mockup's coral-ringed card does. It holds no
+// live subcategories as chips — each archivable on its own (FR-10.3) — the
+// dashed "+ Subcategory" pill that opens an inline field to add one more
+// (OQ-173: a single atomic edit), and the Edit and Archive icon buttons for
+// Owner/Admin. A long name wraps rather than pushing the buttons out. While
+// its archive confirm is open the card shows that instead, as the mockup's
+// coral-ringed card does. It holds no
 // request state of its own; every action goes up to the Flow, and every
 // control waits while a request is out. The typed subcategory stays until it
 // shows up among the live ones, so a refused add keeps it for another try.
@@ -23,7 +26,20 @@ const SUB_ARCHIVE_CLASS = [
   'text-muted hover:text-coral disabled:cursor-default disabled:opacity-40',
 ].join(' ');
 
-/** The inline add-sub button surface. */
+/** The dashed pill that opens the inline field (mockup 41's `.addsub`). */
+const ADD_SUB_PILL_CLASS = [
+  'inline-flex h-[30px] cursor-pointer items-center gap-1 rounded-full border border-dashed',
+  'border-line px-3 text-[13px] text-muted hover:border-mint/50 hover:text-mint',
+  'disabled:cursor-default disabled:opacity-40',
+].join(' ');
+
+/** The open field's ringed chip (mockup 41's inline add). */
+const ADD_SUB_CHIP_CLASS = [
+  'inline-flex h-[30px] items-center gap-1 rounded-full border border-mint/60 bg-bg pl-3 pr-1',
+  'ring-3 ring-mint/15',
+].join(' ');
+
+/** The open field's confirm button. */
 const ADD_SUB_CLASS = [
   'grid size-6 cursor-pointer place-items-center rounded-full bg-mint',
   'text-onmint disabled:cursor-default disabled:opacity-40',
@@ -47,6 +63,95 @@ const useSubcategoryDraft = (liveCount: number) => {
   }
   return [subName, setSubName] as const;
 };
+
+/** The inline subcategory entry's props. */
+interface SubcategoryEntryProps {
+  /** How many live subcategories the card lists now. */
+  readonly liveCount: number;
+  /** A request is out: the pill, the field and its button wait. */
+  readonly busy: boolean;
+  /** Adds a subcategory by its trimmed name. */
+  readonly onAdd: (name: string) => void;
+}
+
+/**
+ * Renders the card's way to add a subcategory (mockup 41): the dashed
+ * "+ Subcategory" pill, which opens a ringed field with its ✓. Enter adds, Escape
+ * closes; the field stays open after an add, for the next one.
+ *
+ * @param props - The live count, the busy state and the add.
+ * @returns The pill, or the open field.
+ */
+function SubcategoryEntry({ liveCount, busy, onAdd }: SubcategoryEntryProps) {
+  const translator = useI18n();
+  const [open, setOpen] = useState(false);
+  const [subName, setSubName] = useSubcategoryDraft(liveCount);
+
+  /** Adds the typed subcategory; the field clears once it is listed. */
+  const add = () => {
+    if (busy || nonBlank(subName) !== undefined) return;
+    onAdd(subName.trim());
+  };
+
+  /** Closes the field, dropping what was typed. */
+  const close = () => {
+    setOpen(false);
+    setSubName('');
+  };
+
+  /**
+   * Adds on Enter and closes on Escape.
+   *
+   * @param event - The key pressed in the field.
+   */
+  const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') add();
+    if (event.key === 'Escape') close();
+  };
+
+  if (!open) {
+    return (
+      <span>
+        <button
+          type="button"
+          className={ADD_SUB_PILL_CLASS}
+          disabled={busy}
+          onClick={() => setOpen(true)}
+        >
+          <Icon name="add" className="size-3.5" />
+          {translator.text('categoryManagement', 'sub.add.open')}
+        </button>
+      </span>
+    );
+  }
+
+  return (
+    <span className={ADD_SUB_CHIP_CLASS}>
+      <input
+        // The field opens on the user's own click, so taking the focus is expected.
+        // eslint-disable-next-line jsx-a11y/no-autofocus
+        autoFocus
+        value={subName}
+        maxLength={categorySettings.nameMaxLength}
+        aria-label={translator.text('categoryManagement', 'sub.add.placeholder')}
+        placeholder={translator.text('categoryManagement', 'sub.add.placeholder')}
+        disabled={busy}
+        onChange={(event) => setSubName(event.target.value)}
+        onKeyDown={onKeyDown}
+        className="w-36 bg-transparent text-[13px] outline-none"
+      />
+      <button
+        type="button"
+        aria-label={translator.text('categoryManagement', 'sub.add')}
+        onClick={add}
+        disabled={busy || nonBlank(subName) !== undefined}
+        className={ADD_SUB_CLASS}
+      >
+        <Icon name="check" className="size-3.5" />
+      </button>
+    </span>
+  );
+}
 
 /** The category card's props. */
 export interface CategoryCardProps {
@@ -85,7 +190,6 @@ export function CategoryCard({
   onCancelArchive, onAddSubcategory, onArchiveSubcategory,
 }: CategoryCardProps) {
   const translator = useI18n();
-  const [subName, setSubName] = useSubcategoryDraft(liveSubcategoriesOf(category).length);
 
   if (archivingOpen) {
     return (
@@ -108,31 +212,28 @@ export function CategoryCard({
 
   const subs = liveSubcategoriesOf(category);
 
-  /** Adds the typed subcategory; the field clears once it is listed. */
-  const addSub = () => {
-    if (busy || nonBlank(subName) !== undefined) return;
-    onAddSubcategory(category.id, subName.trim());
-  };
-
   return (
     <div className="flex flex-col gap-3 rounded-xl2 bg-raised p-5">
       <div className="flex items-center gap-3">
         <CategoryDisc icon={category.icon} color={category.color} size="lg" />
-        <span className="font-semibold">{category.name}</span>
+        <span className="min-w-0 flex-1 break-words font-semibold">{category.name}</span>
         {canManage && (
-          <span className="ml-auto flex gap-1">
-            <Button variant="ghost" onClick={() => onEdit(category.id)} disabled={busy}>
-              {translator.text('categoryManagement', 'card.edit', { name: category.name })}
-            </Button>
-            <Button
-              variant="ghost"
-              leadingIcon="archive-outline"
-              className="!text-coral"
+          <span className="-mr-1 flex shrink-0">
+            <IconButton
+              icon="edit-outline"
+              size="sm"
+              label={translator.text('categoryManagement', 'card.edit', { name: category.name })}
+              onClick={() => onEdit(category.id)}
+              disabled={busy}
+            />
+            <IconButton
+              icon="archive-outline"
+              size="sm"
+              className="hover:!text-coral"
+              label={translator.text('categoryManagement', 'card.archive', { name: category.name })}
               onClick={() => onArchiveRequest(category.id)}
               disabled={busy}
-            >
-              {translator.text('categoryManagement', 'card.archive', { name: category.name })}
-            </Button>
+            />
           </span>
         )}
       </div>
@@ -141,49 +242,34 @@ export function CategoryCard({
           ? translator.text('categoryManagement', 'sub.none')
           : translator.text('categoryManagement', 'subs.count', { count: subs.length })}
       </p>
-      {subs.map((sub) => {
-        const label = translator.text('categoryManagement', 'sub.archive', { name: sub.name });
-        return (
-          <span key={sub.id} className="flex items-center gap-1">
-            <span className="rounded-full bg-card px-3 py-1 text-[13px]">{sub.name}</span>
-            {canManage && (
-              <button
-                type="button"
-                aria-label={label}
-                className={SUB_ARCHIVE_CLASS}
-                disabled={busy}
-                onClick={() => onArchiveSubcategory(category.id, sub.id, sub.name)}
-              >
-                <Icon name="delete-outline" className="size-4" />
-              </button>
-            )}
-          </span>
-        );
-      })}
-      {canManage && (
-        <div className="flex items-center gap-2">
-          <input
-            value={subName}
-            aria-label={translator.text('categoryManagement', 'sub.add.placeholder')}
-            placeholder={translator.text('categoryManagement', 'sub.add.placeholder')}
-            disabled={busy}
-            onChange={(event) => setSubName(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') addSub();
-            }}
-            className="w-32 bg-transparent text-[13px] outline-none"
+      <div className="flex flex-wrap items-center gap-2">
+        {subs.map((sub) => {
+          const label = translator.text('categoryManagement', 'sub.archive', { name: sub.name });
+          return (
+            <span key={sub.id} className="flex items-center gap-1">
+              <span className="rounded-full bg-card px-3 py-1 text-[13px]">{sub.name}</span>
+              {canManage && (
+                <button
+                  type="button"
+                  aria-label={label}
+                  className={SUB_ARCHIVE_CLASS}
+                  disabled={busy}
+                  onClick={() => onArchiveSubcategory(category.id, sub.id, sub.name)}
+                >
+                  <Icon name="delete-outline" className="size-4" />
+                </button>
+              )}
+            </span>
+          );
+        })}
+        {canManage && (
+          <SubcategoryEntry
+            liveCount={subs.length}
+            busy={busy}
+            onAdd={(name) => onAddSubcategory(category.id, name)}
           />
-          <button
-            type="button"
-            aria-label={translator.text('categoryManagement', 'sub.add')}
-            onClick={addSub}
-            disabled={busy || nonBlank(subName) !== undefined}
-            className={ADD_SUB_CLASS}
-          >
-            <Icon name="add" className="size-4" />
-          </button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
