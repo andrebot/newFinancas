@@ -293,6 +293,7 @@ describe('the accounts it answers for its flow', () => {
       'POST /households/doe/accounts': () => jsonResponse(201, funded),
     });
     await press('createFunded');
+    expect(outcomeOf('accounts')).toEqual({ ok: true, data: funded });
     expect(await lastBody(fetchFn)).toEqual({
       name: 'Savings',
       type: 'savings',
@@ -309,6 +310,7 @@ describe('the accounts it answers for its flow', () => {
       'PATCH /households/doe/accounts/chk': () => jsonResponse(200, renamed),
     });
     await press('editPlain');
+    expect(outcomeOf('accounts')).toEqual({ ok: true, data: renamed });
     expect(await lastBody(fetchFn)).toEqual({ name: 'Renamed' });
   });
 
@@ -318,6 +320,7 @@ describe('the accounts it answers for its flow', () => {
       'PATCH /households/doe/accounts/ccr': () => jsonResponse(200, cards),
     });
     await press('editFull');
+    expect(outcomeOf('accounts')).toEqual({ ok: true, data: cards });
     expect(await lastBody(fetchFn)).toEqual({
       name: 'Cards', visibility: 'personal', cards: { remove: ['card-1'] },
     });

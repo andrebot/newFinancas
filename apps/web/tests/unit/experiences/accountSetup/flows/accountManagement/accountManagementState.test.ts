@@ -1,5 +1,7 @@
 import type { Account } from '@financas/api-types';
-import { describe, expect, it } from 'vitest';
+import {
+  afterEach, describe, expect, it, vi,
+} from 'vitest';
 import {
   INITIAL_ACCOUNTS, afterAction, afterLoad, archiveConfirmCancelled, archiveConfirmOpened,
   cardChangesOf, drawerClosed, drawerOpened, loadingAccounts, mayChangeVisibility, mayCreate,
@@ -102,6 +104,10 @@ describe('the drawers and the archive confirm', () => {
 });
 
 describe('the requests that are out', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('marks one as out and drops any stale failure', () => {
     const failed = afterAction(LOADED, { ok: false, error: { code: 'auth.forbidden' } });
     const expected = { ...failed, out: { kind: 'create' } as const, lastError: undefined };
@@ -118,22 +124,36 @@ describe('the requests that are out', () => {
     expect(next.drawer).toBeUndefined();
   });
 
-  it('answers an edit by replacing with the server’s copy', () => {
-    const state = started(LOADED, { kind: 'edit', accountId: 'chk' });
+  it('answers an edit by replacing with the server’s copy and closing the drawer', () => {
+    const state = started(
+      drawerOpened(LOADED, { kind: 'edit', accountId: 'chk' }),
+      { kind: 'edit', accountId: 'chk' },
+    );
     const renamed = account('chk', { name: 'Renamed' });
-    expect(afterAction(state, { ok: true, data: renamed }).view).toEqual({
-      status: 'loaded', accounts: [renamed, CREDIT, ARCHIVED],
-    });
+    const next = afterAction(state, { ok: true, data: renamed });
+    expect(next.view).toEqual({ status: 'loaded', accounts: [renamed, CREDIT, ARCHIVED] });
+    expect(next.drawer).toBeUndefined();
+    expect(next.out).toBeUndefined();
   });
 
-  it('answers an archive by stamping the day on its account', () => {
-    const state = started(LOADED, { kind: 'archive', accountId: 'ccr' });
+  it('answers an archive by stamping now on its account alone', () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-21T12:00:00Z'));
+    const state = started(
+      drawerOpened(LOADED, { kind: 'edit', accountId: 'ccr' }),
+      { kind: 'archive', accountId: 'ccr' },
+    );
     const next = afterAction(state, { ok: true });
-    const archived = next.view.status === 'loaded'
-      ? next.view.accounts.find((acc) => acc.id === 'ccr')
-      : undefined;
-    expect(archived?.archivedAt).not.toBeNull();
+    expect(next.view).toEqual({
+      status: 'loaded',
+      accounts: [CHECKING, { ...CREDIT, archivedAt: '2026-10-21T12:00:00.000Z' }, ARCHIVED],
+    });
     expect(next.drawer).toBeUndefined();
+  });
+
+  it('keeps an archived account’s first stamp', () => {
+    const state = started(LOADED, { kind: 'archive', accountId: 'old' });
+    expect(afterAction(state, { ok: true }).view).toEqual(LOADED.view);
   });
 
   it('keeps the drawer and its failure when a request fails', () => {

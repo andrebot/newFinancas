@@ -51,13 +51,14 @@ describe('cardDraftOf', () => {
     expect(cardDraftOf(EMPTY_CARD_FORM)).toBeUndefined();
   });
 
-  it('refuses a card whose days or expiration are not picked', () => {
-    const number = form({ digits: VISA });
-    expect(cardDraftOf(form({ ...number, closingDay: 10 }))).toBeUndefined();
-    expect(cardDraftOf(form({ ...number, closingDay: 10, dueDay: 20 }))).toBeUndefined();
-    expect(cardDraftOf(form({
-      ...number, closingDay: 10, dueDay: 20, expirationMonth: 8,
-    }))).toBeUndefined();
+  it('refuses a card with any one of its picks missing', () => {
+    const complete = form({
+      digits: VISA, closingDay: 10, dueDay: 20, expirationMonth: 8, expirationYear: 2030,
+    });
+    expect(cardDraftOf({ ...complete, closingDay: null })).toBeUndefined();
+    expect(cardDraftOf({ ...complete, dueDay: null })).toBeUndefined();
+    expect(cardDraftOf({ ...complete, expirationMonth: null })).toBeUndefined();
+    expect(cardDraftOf({ ...complete, expirationYear: null })).toBeUndefined();
   });
 });
 
@@ -66,9 +67,10 @@ describe('draftsOf', () => {
     const good = form({
       digits: VISA, closingDay: 10, dueDay: 20, expirationMonth: 8, expirationYear: 2030,
     });
-    const { drafts, errors } = draftsOf([good, EMPTY_CARD_FORM], 'incomplete');
-    expect(drafts).toHaveLength(1);
-    expect(errors).toEqual([undefined, 'incomplete']);
+    const { drafts, errors } = draftsOf([EMPTY_CARD_FORM, good], 'incomplete');
+    expect(drafts).toEqual([cardDraftOf(good)]);
+    expect(drafts[0]?.last4).toBe('1111');
+    expect(errors).toEqual(['incomplete', undefined]);
   });
 
   it('reads nothing from no forms', () => {

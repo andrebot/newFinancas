@@ -270,11 +270,17 @@ describe('creating an account', () => {
     expect(screen.getByTestId('create')).toBeTruthy();
 
     await click('submit create');
-    expect(requests.onCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'Main Checking' }),
-    );
+    expect(requests.onCreate).toHaveBeenCalledWith({
+      name: 'Main Checking',
+      type: 'checking',
+      currency: 'BRL',
+      visibility: 'personal',
+      openingBalance: null,
+      cards: [],
+    });
     expect(panel().dataset.accounts).toBe('chk|ccr|new');
     expect(toasts(queue)).toEqual(['Main Checking created.']);
+    expect(screen.queryByTestId('create')).toBeNull();
   });
 
   it('keeps the drawer open with the failure in its banner, not a toast', async () => {
@@ -302,12 +308,19 @@ describe('creating an account', () => {
     expect(toasts(queue)).toEqual(['Main Checking created.']);
   });
 
-  it('applies a create behind an unfinished load', async () => {
+  // Defensive: the real list shows no Add while it loads; the stub does, so
+  // the branch that leaves an unloaded list alone is reachable here.
+  it('leaves an unloaded list alone when a create lands, then takes the load', async () => {
     const load = pending<AccountsOutcome>();
-    await renderFlow({ onLoad: load.request });
+    const { queue } = await renderFlow({ onLoad: load.request });
     await click('add');
     await click('submit create');
     expect(panel().dataset.status).toBe('loading');
+    expect(toasts(queue)).toEqual(['Main Checking created.']);
+    expect(screen.queryByTestId('create')).toBeNull();
+
+    await load.answer(LOADED);
+    expect(panel().dataset).toMatchObject({ status: 'loaded', accounts: 'chk|ccr' });
   });
 });
 
@@ -320,13 +333,15 @@ describe('editing an account', () => {
     await click('save edit');
     expect(requests.onEdit).toHaveBeenCalledWith({ accountId: 'chk', name: 'Renamed' });
     expect(toasts(queue)).toEqual(['Renamed updated.']);
+    expect(screen.queryByTestId('edit')).toBeNull();
   });
 
   it('keeps the drawer open with the failure when an edit fails', async () => {
-    await renderFlow({ onEdit: vi.fn(async () => FORBIDDEN) });
+    const { queue } = await renderFlow({ onEdit: vi.fn(async () => FORBIDDEN) });
     await click('edit ccr');
     await click('save edit');
-    expect(screen.getByTestId('edit').dataset.alert).not.toBe('');
+    expect(screen.getByTestId('edit').dataset.alert).toBe("You don't have permission to do that.");
+    expect(toasts(queue)).toEqual([]);
   });
 
   it('keeps the list when an edit answers without its account', async () => {
@@ -348,6 +363,7 @@ describe('archiving an account', () => {
     await click('confirm archive');
     expect(requests.onArchive).toHaveBeenCalledWith('ccr');
     expect(toasts(queue)).toEqual(['Account ccr archived.']);
+    expect(screen.queryByTestId('edit')).toBeNull();
   });
 
   it('closes the confirm on a no and keeps the drawer open', async () => {
