@@ -73,13 +73,14 @@ vi.mock(
      * @returns The stub.
      */
     CategoryManagementFlow: ({
-      role, onLoad, onCreate, onEdit, onAddSubcategory, onArchiveCategory, onArchiveSubcategory,
+      role, categories, onRetry, onCreate, onEdit, onAddSubcategory, onArchiveCategory,
+      onArchiveSubcategory,
     }: CategoryManagementFlowProps) => (
       <Stub
         name="categories"
-        shows={{ role }}
+        shows={{ role, categories }}
+        events={{ retry: onRetry }}
         requests={{
-          load: () => onLoad(),
           create: () => onCreate({ name: 'Housing', icon: 'home-outline', color: 'mint' }),
           editPlain: () => onEdit({
             categoryId: 'cat', name: 'Renamed', icon: 'home-outline', color: 'mint',
@@ -351,84 +352,131 @@ const CATEGORY: Category = {
   subcategories: [SUB],
 };
 
-describe('the categories it answers for its flow', () => {
-  it('lists them through the endpoint, archived included', async () => {
+/** The list the categories endpoint answers. */
+const CATEGORIES_LISTED = () => jsonResponse(200, { data: [CATEGORY] });
+
+/**
+ * Counts the times the categories list was fetched.
+ *
+ * @param fetchFn - The fake `fetch`.
+ * @returns How many `GET …/categories` went out.
+ */
+const listFetches = async (fetchFn: ReturnType<typeof fakeFetch>) => (
+  (await routes(fetchFn)).filter((route) => route === 'GET /api/v1/households/doe/categories')
+    .length
+);
+
+describe('the category list it holds for its flows', () => {
+  it('fetches it once, archived included, and hands it down', async () => {
     const { fetchFn } = await renderExperience({
-      'GET /households/doe/categories': () => jsonResponse(200, { data: [CATEGORY] }),
+      'GET /households/doe/categories': CATEGORIES_LISTED,
     });
     await pickCategories();
-    await press('load');
-    expect(outcomeOf('categories')).toEqual({ ok: true, categories: [CATEGORY] });
-    expect(await routes(fetchFn)).toContain('GET /api/v1/households/doe/categories');
-  });
-
-  it('shows the failure when a load fails', async () => {
-    await renderExperience({
-      'GET /households/doe/categories': () => jsonResponse(500, envelope('internal.unexpected')),
+    expect(shownBy('categories')).toEqual({
+      role: 'Owner', categories: { status: 'loaded', categories: [CATEGORY] },
     });
-    await pickCategories();
-    await press('load');
-    expect(outcomeOf('categories')).toEqual(
-      { ok: false, error: { code: 'internal.unexpected', params: {} } },
-    );
+    const urls = fetchFn.mock.calls.map(([input]) => (input as Request).url);
+    expect(urls.some((url) => url.endsWith('/categories?includeArchived=true'))).toBe(true);
+    expect(await listFetches(fetchFn)).toBe(1);
   });
 
-  it('creates through its endpoint with only the fields', async () => {
+  it('hands down loading until the list comes', async () => {
+    const held = deferred();
+    await renderExperience({ 'GET /households/doe/categories': () => held.promise });
+    await pickCategories();
+    expect(shownBy('categories')).toEqual(expect.objectContaining({
+      categories: { status: 'loading' },
+    }));
+  });
+
+  it('hands down the failure and fetches again on a retry', async () => {
+    const answers = vi.fn()
+      .mockReturnValueOnce(jsonResponse(500, envelope('internal.unexpected')))
+      .mockImplementation(CATEGORIES_LISTED);
+    const { fetchFn } = await renderExperience({ 'GET /households/doe/categories': answers });
+    await pickCategories();
+    expect(shownBy('categories')).toEqual(expect.objectContaining({
+      categories: { status: 'failed', error: { code: 'internal.unexpected', params: {} } },
+    }));
+    await press('retry');
+    expect(await listFetches(fetchFn)).toBe(2);
+    expect(shownBy('categories')).toEqual(expect.objectContaining({
+      categories: { status: 'loaded', categories: [CATEGORY] },
+    }));
+  });
+});
+
+describe('the category writes it answers for its flow', () => {
+  it('creates with only the fields, and answers once the list is fetched again', async () => {
     const { fetchFn } = await renderExperience({
+      'GET /households/doe/categories': CATEGORIES_LISTED,
       'POST /households/doe/categories': () => jsonResponse(201, CATEGORY),
     });
     await pickCategories();
     await press('create');
-    expect(outcomeOf('categories')).toEqual(expect.objectContaining({ ok: true }));
-    const body = await lastBody(fetchFn);
-    expect(body).toEqual({ name: 'Housing', icon: 'home-outline', color: 'mint' });
+    expect(outcomeOf('categories')).toEqual({ ok: true });
+    const calls = await sent(fetchFn);
+    const post = calls.find(({ route }) => route === 'POST /api/v1/households/doe/categories');
+    expect(post?.body).toEqual({ name: 'Housing', icon: 'home-outline', color: 'mint' });
+    expect(await listFetches(fetchFn)).toBe(2);
   });
 
-  it('answers a failed create with its error', async () => {
-    await renderExperience({
-      'POST /households/doe/categories': () => jsonResponse(403, envelope('internal.unexpected')),
+  it('answers a failed create with its error, and fetches nothing again', async () => {
+    const { fetchFn } = await renderExperience({
+      'GET /households/doe/categories': CATEGORIES_LISTED,
+      'POST /households/doe/categories': () => jsonResponse(403, envelope('auth.forbidden')),
     });
     await pickCategories();
     await press('create');
     expect(outcomeOf('categories')).toEqual(
-      { ok: false, error: { code: 'internal.unexpected', params: {} } },
+      { ok: false, error: { code: 'auth.forbidden', params: {} } },
     );
+    expect(await listFetches(fetchFn)).toBe(1);
   });
 
   it('edits with its fields, address stripped out', async () => {
     const renamed = { ...CATEGORY, name: 'Renamed' };
     const { fetchFn } = await renderExperience({
+      'GET /households/doe/categories': CATEGORIES_LISTED,
       'PATCH /households/doe/categories/cat': () => jsonResponse(200, renamed),
     });
     await pickCategories();
     await press('editPlain');
-    const body = await lastBody(fetchFn);
-    expect(body).toEqual({ name: 'Renamed', icon: 'home-outline', color: 'mint' });
+    const calls = await sent(fetchFn);
+    const patch = calls.find(({ route }) => route.startsWith('PATCH'));
+    expect(patch?.body).toEqual({ name: 'Renamed', icon: 'home-outline', color: 'mint' });
+    expect(await listFetches(fetchFn)).toBe(2);
   });
 
   it('adds a subcategory in the same atomic edit (OQ-173)', async () => {
     const grown = { ...CATEGORY, subcategories: [SUB, { ...SUB, id: 's2', name: 'Parking' }] };
     const { fetchFn } = await renderExperience({
+      'GET /households/doe/categories': CATEGORIES_LISTED,
       'PATCH /households/doe/categories/cat': () => jsonResponse(200, grown),
     });
     await pickCategories();
     await press('addSub');
-    expect(outcomeOf('categories')).toEqual(expect.objectContaining({ ok: true }));
-    expect(await lastBody(fetchFn)).toEqual({ subcategories: [{ name: 'Parking' }] });
+    expect(outcomeOf('categories')).toEqual({ ok: true });
+    const calls = await sent(fetchFn);
+    const patch = calls.find(({ route }) => route.startsWith('PATCH'));
+    expect(patch?.body).toEqual({ subcategories: [{ name: 'Parking' }] });
   });
 
-  it('archives a category through its endpoint and shows the success', async () => {
+  it('archives a category through its endpoint', async () => {
     const { fetchFn } = await renderExperience({
+      'GET /households/doe/categories': CATEGORIES_LISTED,
       'POST /households/doe/categories/cat/archive': () => jsonResponse(204),
     });
     await pickCategories();
     await press('archiveCategory');
     expect(outcomeOf('categories')).toEqual({ ok: true });
     expect(await routes(fetchFn)).toContain('POST /api/v1/households/doe/categories/cat/archive');
+    expect(await listFetches(fetchFn)).toBe(2);
   });
 
-  it('archives a subcategory through its endpoint and shows the success', async () => {
+  it('archives a subcategory through its endpoint', async () => {
     const { fetchFn } = await renderExperience({
+      'GET /households/doe/categories': CATEGORIES_LISTED,
       'POST /households/doe/categories/cat/subcategories/s1/archive': () => jsonResponse(204),
     });
     await pickCategories();

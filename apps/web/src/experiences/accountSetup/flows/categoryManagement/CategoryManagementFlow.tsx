@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { Category } from '@financas/api-types';
 import { Button } from '../../../../kit/button/Button';
 import { EmptyState } from '../../../../kit/emptyState/EmptyState';
@@ -9,39 +9,40 @@ import { useI18n } from '../../../../utilities/I18nProvider';
 import type { Translator } from '../../../../utilities/i18n';
 import type { RequestFailure, RequestOutcome } from '../../../../utilities/requestOutcome';
 import {
-  afterAction, afterLoad, archiveConfirmCancelled, archiveConfirmOpened, formClosed,
-  formOpened, INITIAL_CATEGORIES, loadingCategories, mayCreateCategory, mayManageCategories,
+  afterAction, archiveConfirmCancelled, archiveConfirmOpened, archivingTarget, formClosed,
+  formOpened, INITIAL_CATEGORIES, isFormRequest, mayCreateCategory, mayManageCategories,
   started, splitCategories,
-  type CategoriesOutcome, type CategoriesView, type CategoryEdit, type CategoryManagementState,
+  type CategoriesView, type CategoryEdit, type CategoryManagementState,
   type NewCategory, type OpenForm, type Outgoing,
 } from './categoryManagementState';
 import { ArchivedCategory, CategoryCard } from './interactions/CategoryCard';
 import { CategoryFormCard, type FormInitial } from './interactions/CategoryFormCard';
 
-// The Category Management Flow (FL12, mockup 41; OQ-173/174): the household's
+// The Category Management Flow (FL12, mockup 41; OQ-173/193): the household's
 // categories as cards — create one with a name, an icon and a colour (FR-10.1),
 // edit it in place, add subcategories straight on its card (one atomic edit)
 // and archive a category or a single subcategory behind their rules (FR-10.3/4).
-// It fetches the list as it mounts — archived included — owns what is out, the
-// open form card and its last failure, and toasts each success. It never calls
-// the backend: every request goes up to the Account Setup Experience, which
-// answers an outcome; a success changes the list the way the API did.
-
-/** What the Experience answers for a create, edit or subcategory add. */
-export type CategoryActionOutcome = RequestOutcome & { readonly category?: Category | undefined };
+// The list is the Account Setup Experience's (shared with Budget Management)
+// and comes in as display state; the Flow owns what is out, the open form card
+// and its last failure. A success is toasted; a form's failure shows in its
+// banner, a card action's in a toast (OQ-193). It never calls the backend:
+// every request goes up to the Experience, which answers an outcome once the
+// list holds the change.
 
 /** What the Flow asks of the Experience. */
 export interface CategoryManagementFlowProps {
   /** Their role in this household (FR-1.7). */
   readonly role?: string | undefined;
-  /** Lists the household's categories, archived included. */
-  readonly onLoad: () => Promise<CategoriesOutcome>;
+  /** The household's categories, archived included, as the Experience holds them. */
+  readonly categories: CategoriesView;
+  /** Fetches the list again (a retry). */
+  readonly onRetry: () => void;
   /** `POST /households/:id/categories`. */
-  readonly onCreate: (category: NewCategory) => Promise<CategoryActionOutcome>;
+  readonly onCreate: (category: NewCategory) => Promise<RequestOutcome>;
   /** `PATCH /households/:id/categories/:categoryId` with its fields. */
-  readonly onEdit: (edit: CategoryEdit) => Promise<CategoryActionOutcome>;
+  readonly onEdit: (edit: CategoryEdit) => Promise<RequestOutcome>;
   /** The same `PATCH`, adding one subcategory (OQ-173). */
-  readonly onAddSubcategory: (categoryId: string, name: string) => Promise<CategoryActionOutcome>;
+  readonly onAddSubcategory: (categoryId: string, name: string) => Promise<RequestOutcome>;
   /** `POST /households/:id/categories/:categoryId/archive` — cascades. */
   readonly onArchiveCategory: (categoryId: string) => Promise<RequestOutcome>;
   /** `POST …/subcategories/:subcategoryId/archive` — single row. */
@@ -49,13 +50,6 @@ export interface CategoryManagementFlowProps {
     categoryId: string, subcategoryId: string,
   ) => Promise<RequestOutcome>;
 }
-
-/** The category the open archive confirm is about, if any (exported for its tests). */
-export const archivingTarget = (state: CategoryManagementState): Category | undefined => {
-  const { archiving, view } = state;
-  if (archiving === undefined || view.status !== 'loaded') return undefined;
-  return view.categories.find((category) => category.id === archiving);
-};
 
 /** The last failure, translated for the open form's banner. */
 const alertOf = (lastError: RequestFailure | undefined, translator: Translator) => {
@@ -251,47 +245,38 @@ function LoadFailed({ onRetry }: { readonly onRetry: () => void }) {
 /**
  * Renders the categories panel and runs its requests.
  *
- * @param props - The actor's role and the Experience's requests.
+ * @param props - The actor's role, the Experience's list and its requests.
  * @returns The panel with whatever form or confirm is open.
  */
 export function CategoryManagementFlow({
-  role, onLoad, onCreate, onEdit, onAddSubcategory, onArchiveCategory, onArchiveSubcategory,
+  role, categories: view, onRetry, onCreate, onEdit, onAddSubcategory, onArchiveCategory,
+  onArchiveSubcategory,
 }: CategoryManagementFlowProps) {
   const translator = useI18n();
   const alerts = useAlerts();
   const [state, setState] = useState<CategoryManagementState>(INITIAL_CATEGORIES);
-  const { view } = state;
 
-  /** Fetches the list again (a retry). */
-  const reload = async () => {
-    setState((current) => loadingCategories(current));
-    const outcome = await onLoad();
-    setState((current) => afterLoad(current, outcome));
-  };
-
-  // The list is fetched as the Flow mounts. An answer after unmounting drops.
-  useEffect(() => {
-    let mounted = true;
-    onLoad().then((outcome) => {
-      if (mounted) setState((current) => afterLoad(current, outcome));
-    });
-    return () => {
-      mounted = false;
-    };
-  }, [onLoad]);
-
-  /** Toasts an outcome for its subject. */
-  const toast = (kind: Outgoing['kind'], outcome: CategoryActionOutcome, subject: string) => {
+  /**
+   * Toasts an outcome for its subject: every success, and a card action's
+   * failure — a form shows its own in its banner.
+   *
+   * @param outgoing - The request that was out.
+   * @param outcome - Its answer.
+   * @param subject - The category's or subcategory's name.
+   */
+  const toast = (outgoing: Outgoing, outcome: RequestOutcome, subject: string) => {
     if (outcome.ok) {
-      alerts.success(translator.text('categoryManagement', `${kind}.done`, { name: subject }));
-    } else {
+      alerts.success(
+        translator.text('categoryManagement', `${outgoing.kind}.done`, { name: subject }),
+      );
+    } else if (!isFormRequest(outgoing)) {
       alerts.error(translator.error(outcome.error.code, outcome.error.params));
     }
   };
 
   /**
-   * Sends a request and applies its answer: the list moves on success, an open
-   * form keeps what was typed on failure (and shows why), each outcome toasts.
+   * Sends a request and applies its answer: a success closes what it came
+   * from, a failure keeps it (and says why), and the outcome is toasted.
    *
    * @param outgoing - Which request goes out.
    * @param subject - The category's or subcategory's name for the toast.
@@ -300,12 +285,12 @@ export function CategoryManagementFlow({
   const run = async (
     outgoing: Outgoing,
     subject: string,
-    request: () => Promise<CategoryActionOutcome>,
+    request: () => Promise<RequestOutcome>,
   ) => {
     setState((current) => started(current, outgoing));
     const outcome = await request();
     setState((current) => afterAction(current, outcome));
-    toast(outgoing.kind, outcome, subject);
+    toast(outgoing, outcome, subject);
   };
 
   /** Sends a create with its typed fields. */
@@ -325,7 +310,7 @@ export function CategoryManagementFlow({
 
   /** Confirms the open archive of its category. */
   const confirmArchive = () => {
-    const target = archivingTarget(state);
+    const target = archivingTarget(view, state.archiving);
     if (target === undefined) return;
     const archive = () => onArchiveCategory(target.id);
     run({ kind: 'archiveCategory', categoryId: target.id }, target.name, archive);
@@ -356,7 +341,7 @@ export function CategoryManagementFlow({
   };
 
   if (view.status === 'failed') {
-    return <LoadFailed onRetry={reload} />;
+    return <LoadFailed onRetry={onRetry} />;
   }
 
   const canCreate = mayCreateCategory(role);

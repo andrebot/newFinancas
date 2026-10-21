@@ -1,13 +1,14 @@
 import type { Category, Subcategory } from '@financas/api-types';
 import { describe, expect, it } from 'vitest';
 import {
-  INITIAL_CATEGORIES, afterAction, afterLoad, archiveConfirmCancelled, archiveConfirmOpened,
-  formClosed, formOpened, liveSubcategoriesOf, loadingCategories, mayCreateCategory,
-  mayManageCategories, splitCategories, started, type CategoryManagementState,
+  INITIAL_CATEGORIES, afterAction, archiveConfirmCancelled, archiveConfirmOpened,
+  archivingTarget, formClosed, formOpened, isFormRequest, liveSubcategoriesOf, mayCreateCategory,
+  mayManageCategories, splitCategories, started, type CategoriesView,
 } from '../../../../../../src/experiences/accountSetup/flows/categoryManagement/categoryManagementState';
 
-// The Flow's state (BDT: pure transitions → unit, nothing mocked). A success
-// moves the list the way the API did; a failure keeps what was typed.
+// The Flow's state (BDT: pure transitions → unit, nothing mocked). The list
+// is the Experience's; the state only tracks what is out and what is open. A
+// form's failure stays for its banner, a card's goes to a toast.
 
 /**
  * Builds a subcategory with sensible defaults for its id and name.
@@ -46,39 +47,11 @@ const category = (id: string, over: Partial<Category> = {}): Category => ({
 
 const HOUSING = category('cat', { name: 'Housing', subcategories: [sub('s1'), sub('s2')] });
 const GROCERIES = category('gro');
-const OLD = category(
-  'old',
-  {
-    archivedAt: '2026-09-01T00:00:00Z',
-    subcategories: [sub('s3', { archivedAt: '2026-09-01T00:00:00Z' })],
-  },
-);
-const LOADED: CategoryManagementState = {
-  view: { status: 'loaded', categories: [HOUSING, GROCERIES, OLD] },
-};
+const OLD = category('old', { archivedAt: '2026-09-01T00:00:00Z' });
+const LOADED: CategoriesView = { status: 'loaded', categories: [HOUSING, GROCERIES, OLD] };
+const FORBIDDEN = { ok: false, error: { code: 'auth.forbidden' } } as const;
 
-describe('the list and its load', () => {
-  it('opens loading the list, nothing else', () => {
-    expect(INITIAL_CATEGORIES).toEqual({ view: { status: 'loading' } });
-  });
-
-  it('marks a retry as loading again, closing whatever was open', () => {
-    const state = formOpened(LOADED, { mode: 'edit', categoryId: 'cat' });
-    expect(loadingCategories(state)).toEqual({ view: { status: 'loading' } });
-  });
-
-  it('applies a loaded list', () => {
-    expect(afterLoad(INITIAL_CATEGORIES, { ok: true, categories: [HOUSING] })).toEqual({
-      view: { status: 'loaded', categories: [HOUSING] },
-    });
-  });
-
-  it('keeps the failure for its retry', () => {
-    const failed = { ok: false as const, error: { code: 'internal.unexpected' } };
-    const state = afterLoad(INITIAL_CATEGORIES, failed);
-    expect(state.view).toEqual({ status: 'failed', error: { code: 'internal.unexpected' } });
-  });
-
+describe('the list’s halves', () => {
   it('splits a list into its live and archived categories', () => {
     expect(splitCategories([HOUSING, OLD, GROCERIES])).toEqual({
       active: [HOUSING, GROCERIES], archived: [OLD],
@@ -94,156 +67,110 @@ describe('the list and its load', () => {
 });
 
 describe('the form card and the archive confirm', () => {
+  it('opens with nothing out and nothing open', () => {
+    expect(INITIAL_CATEGORIES).toEqual({});
+  });
+
   it('opens a form with no confirm and no stale failure', () => {
-    const state = formOpened(LOADED, { mode: 'create' });
-    expect(state.form).toEqual({ mode: 'create' });
-    expect(state.archiving).toBeUndefined();
-    expect(state.lastError).toBeUndefined();
+    const state = formOpened({ lastError: { code: 'x' } }, { mode: 'create' });
+    expect(state).toEqual({ form: { mode: 'create' }, archiving: undefined, lastError: undefined });
   });
 
   it('closes the form and its confirm', () => {
-    const editing = formOpened(LOADED, { mode: 'edit', categoryId: 'cat' });
-    const state = archiveConfirmOpened(editing, 'cat');
-    expect(formClosed(state)).toEqual({ ...LOADED, lastError: undefined });
+    const state = archiveConfirmOpened(formOpened({}, { mode: 'edit', categoryId: 'cat' }), 'cat');
+    expect(formClosed(state)).toEqual({
+      form: undefined, archiving: undefined, lastError: undefined,
+    });
   });
 
-  it('opens a card’s confirm and closes any form with it', () => {
-    const state = archiveConfirmOpened(formOpened(LOADED, { mode: 'create' }), 'gro');
+  it('opens a card’s confirm and closes any form with it, and its stale failure', () => {
+    const state = archiveConfirmOpened(
+      { form: { mode: 'create' }, lastError: { code: 'x' } },
+      'gro',
+    );
     expect(state.archiving).toBe('gro');
     expect(state.form).toBeUndefined();
+    expect(state.lastError).toBeUndefined();
   });
 
-  it('closes the confirm and keeps its card', () => {
-    const state = archiveConfirmCancelled(archiveConfirmOpened(LOADED, 'cat'));
-    expect(state.archiving).toBeUndefined();
-    expect(state.view).toEqual(LOADED.view);
+  it('closes the confirm', () => {
+    expect(archiveConfirmCancelled({ archiving: 'cat' }).archiving).toBeUndefined();
+  });
+});
+
+describe('the archive target lookup', () => {
+  it('is undefined while no confirm is open', () => {
+    expect(archivingTarget(LOADED, undefined)).toBeUndefined();
+  });
+
+  it('finds its category in a loaded list', () => {
+    expect(archivingTarget(LOADED, 'cat')).toBe(HOUSING);
+  });
+
+  it('is undefined while the list isn’t loaded', () => {
+    expect(archivingTarget({ status: 'loading' }, 'cat')).toBeUndefined();
   });
 });
 
 describe('the request that is out', () => {
+  it('tells a form’s request from a card’s', () => {
+    expect(isFormRequest({ kind: 'create' })).toBe(true);
+    expect(isFormRequest({ kind: 'edit', categoryId: 'cat' })).toBe(true);
+    expect(isFormRequest({ kind: 'addSubcategory', categoryId: 'cat' })).toBe(false);
+    expect(isFormRequest({ kind: 'archiveCategory', categoryId: 'cat' })).toBe(false);
+  });
+
   it('marks a request as out and drops the stale failure', () => {
-    const failing = { ...LOADED, lastError: { code: 'internal.unexpected' } };
-    const state = started(failing, { kind: 'create' });
-    expect(state.out).toEqual({ kind: 'create' });
-    expect(state.lastError).toBeUndefined();
+    const state = started({ lastError: { code: 'internal.unexpected' } }, { kind: 'create' });
+    expect(state).toEqual({ out: { kind: 'create' }, lastError: undefined });
   });
 
   it('leaves the state alone when nothing is out', () => {
-    const state = afterAction(LOADED, { ok: true, category: GROCERIES });
-    expect(state).toEqual(LOADED);
+    const state = { form: { mode: 'create' } } as const;
+    expect(afterAction(state, { ok: true })).toBe(state);
   });
 
-  it('keeps what was typed on a failure and shows why', () => {
-    const withForm = formOpened(LOADED, { mode: 'create' });
-    const state = afterAction(started(withForm, { kind: 'create' }), {
-      ok: false, error: { code: 'auth.forbidden' },
-    });
+  it('keeps a form and what was typed on its failure, for its banner', () => {
+    const creating = started(formOpened({}, { mode: 'create' }), { kind: 'create' });
+    const state = afterAction(creating, FORBIDDEN);
     expect(state.out).toBeUndefined();
     expect(state.lastError).toEqual({ code: 'auth.forbidden' });
     expect(state.form).toEqual({ mode: 'create' });
-    expect(state.view).toEqual(LOADED.view);
   });
 
-  it('appends a created category and closes its form', () => {
-    const withForm = formOpened(LOADED, { mode: 'create' });
-    const written = category('new');
-    const outgoing = started(withForm, { kind: 'create' });
-    const state = afterAction(outgoing, { ok: true, category: written });
-    expect(state.view).toEqual({
-      status: 'loaded', categories: [HOUSING, GROCERIES, OLD, written],
-    });
+  it('keeps no banner failure for a card’s request, and its confirm stays', () => {
+    const open = archiveConfirmOpened({}, 'cat');
+    const archiving = started(open, { kind: 'archiveCategory', categoryId: 'cat' });
+    const state = afterAction(archiving, FORBIDDEN);
+    expect(state.lastError).toBeUndefined();
+    expect(state.archiving).toBe('cat');
+  });
+
+  it('closes a form on its success', () => {
+    const editing = formOpened({}, { mode: 'edit', categoryId: 'cat' });
+    const state = afterAction(started(editing, { kind: 'edit', categoryId: 'cat' }), { ok: true });
     expect(state.form).toBeUndefined();
+    expect(state.out).toBeUndefined();
   });
 
-  it('keeps the list when a create answers without its category', () => {
-    const withForm = formOpened(LOADED, { mode: 'create' });
-    const state = afterAction(started(withForm, { kind: 'create' }), { ok: true });
-    expect(state.view).toEqual(LOADED.view);
-    expect(state.form).toBeUndefined();
-  });
-
-  it('replaces an edited category with the server’s copy and closes its form', () => {
-    const edited = { ...HOUSING, name: 'Roof' };
-    const withForm = formOpened(LOADED, { mode: 'edit', categoryId: 'cat' });
-    const state = afterAction(started(withForm, { kind: 'edit', categoryId: 'cat' }), {
-      ok: true, category: edited,
-    });
-    expect(state.view).toEqual({ status: 'loaded', categories: [edited, GROCERIES, OLD] });
-    expect(state.form).toBeUndefined();
-  });
-
-  it('keeps the list when an edit answers without its category', () => {
-    const withForm = formOpened(LOADED, { mode: 'edit', categoryId: 'cat' });
-    const state = afterAction(started(withForm, { kind: 'edit', categoryId: 'cat' }), { ok: true });
-    expect(state.view).toEqual(LOADED.view);
-    expect(state.form).toBeUndefined();
-  });
-
-  it('applies a subcategory add as the server’s copy of its category', () => {
-    const grown = { ...HOUSING, subcategories: [sub('s1'), sub('s2'), sub('parking')] };
-    const state = afterAction(started(LOADED, { kind: 'addSubcategory', categoryId: 'cat' }), {
-      ok: true, category: grown,
-    });
-    expect(state.view).toEqual({ status: 'loaded', categories: [grown, GROCERIES, OLD] });
-  });
-
-  it('archives a category and its live subcategories at once', () => {
-    const state = afterAction(
-      started(archiveConfirmOpened(LOADED, 'cat'), { kind: 'archiveCategory', categoryId: 'cat' }),
-      { ok: true },
-    );
-    const { categories } = (state.view as Extract<typeof LOADED.view, { status: 'loaded' }>);
-    const archivedHousing = categories[0];
-    if (!archivedHousing) throw new Error('the first category is missing');
-    expect(archivedHousing.archivedAt).not.toBeNull();
-    const allGone = archivedHousing.subcategories.every((item) => item.archivedAt !== null);
-    expect(allGone).toBe(true);
+  it('closes the confirm when its archive succeeds', () => {
+    const open = archiveConfirmOpened({}, 'cat');
+    const archiving = started(open, { kind: 'archiveCategory', categoryId: 'cat' });
+    const state = afterAction(archiving, { ok: true });
     expect(state.archiving).toBeUndefined();
   });
 
-  it('leaves an already-archived subcategory untouched when its parent goes', () => {
-    const halfGone = category(
-      'cat',
-      {
-        name: 'Housing',
-        subcategories: [sub('s1'), sub('s2', { archivedAt: '2026-09-01T00:00:00Z' })],
-      },
+  it('keeps an open form when a card’s request succeeds', () => {
+    const creating = formOpened({}, { mode: 'create' });
+    const state = afterAction(
+      started(creating, { kind: 'archiveSubcategory', categoryId: 'cat', subcategoryId: 's1' }),
+      { ok: true },
     );
-    const withHalfGone: CategoryManagementState = {
-      view: { status: 'loaded', categories: [halfGone, GROCERIES, OLD] },
-    };
-    const outgoing = started(archiveConfirmOpened(withHalfGone, 'cat'), {
-      kind: 'archiveCategory', categoryId: 'cat',
-    });
-    const state = afterAction(outgoing, { ok: true });
-    const { categories } = (state.view as Extract<typeof LOADED.view, { status: 'loaded' }>);
-    const gone = categories[0];
-    if (!gone) throw new Error('the first category is missing');
-    expect(gone.archivedAt).not.toBeNull();
-    expect(gone.subcategories[0]?.archivedAt).not.toBeNull();
-    expect(gone.subcategories[1]).toEqual(sub('s2', { archivedAt: '2026-09-01T00:00:00Z' }));
-  });
-
-  it('archives one subcategory and leaves its siblings', () => {
-    const state = afterAction(started(LOADED, {
-      kind: 'archiveSubcategory', categoryId: 'cat', subcategoryId: 's1',
-    }), { ok: true });
-    const housing = (state.view as Extract<typeof LOADED.view, { status: 'loaded' }>).categories[0];
-    if (!housing) throw new Error('the first category is missing');
-    expect(housing.archivedAt).toBeNull();
-    expect(housing.subcategories.map((subcategory) => subcategory.archivedAt)).toEqual([
-      expect.any(String), null,
-    ]);
-  });
-
-  it('drops an answer that lands while the list is still loading', () => {
-    const state = afterAction(started(INITIAL_CATEGORIES, { kind: 'create' }), { ok: true });
-    expect(state.view).toEqual({ status: 'loading' });
-    expect(state.out).toBeUndefined();
+    expect(state.form).toEqual({ mode: 'create' });
   });
 });
 
-describe('the role’s reach (FR-1.7, OQ-174)', () => {
+describe('the role’s reach (FR-1.7)', () => {
   it('lets everyone but a Viewer create', () => {
     expect(mayCreateCategory('Owner')).toBe(true);
     expect(mayCreateCategory('Admin')).toBe(true);

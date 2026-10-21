@@ -8,19 +8,17 @@ import { renderInLocale } from '../../../../../support/renderInLocale';
 import { AlertProvider } from '../../../../../../src/utilities/AlertProvider';
 import { createAlertQueue, type AlertQueue } from '../../../../../../src/utilities/alerts';
 import {
-  CategoryManagementFlow, archivingTarget,
+  CategoryManagementFlow, type CategoryManagementFlowProps,
 } from '../../../../../../src/experiences/accountSetup/flows/categoryManagement/CategoryManagementFlow';
-import type { CategoryActionOutcome, CategoryManagementFlowProps } from '../../../../../../src/experiences/accountSetup/flows/categoryManagement/CategoryManagementFlow';
 import type { CategoryCardProps } from '../../../../../../src/experiences/accountSetup/flows/categoryManagement/interactions/CategoryCard';
 import type { CategoryFormCardProps } from '../../../../../../src/experiences/accountSetup/flows/categoryManagement/interactions/CategoryFormCard';
-import {
-  INITIAL_CATEGORIES, afterLoad, archiveConfirmOpened, type CategoriesOutcome,
-  type CategoryManagementState,
-} from '../../../../../../src/experiences/accountSetup/flows/categoryManagement/categoryManagementState';
+import type { CategoriesView } from '../../../../../../src/experiences/accountSetup/flows/categoryManagement/categoryManagementState';
+import type { RequestOutcome } from '../../../../../../src/utilities/requestOutcome';
 
 // The panel's children are stubbed: the Flow is tested against its own state
-// machine and handlers; the cards' internals have their own suites. The kit
-// (Expandable, InlineConfirm), the toast queue and the translator stay real.
+// machine and handlers; the cards' internals have their own suites. The list
+// comes in as the Experience's display state. The kit (Expandable,
+// InlineConfirm), the toast queue and the translator stay real.
 
 vi.mock('../../../../../../src/experiences/accountSetup/flows/categoryManagement/interactions/CategoryCard', () => ({
   /**
@@ -126,10 +124,8 @@ const cat = (id: string, over: Partial<Category> = {}): Category => ({
 
 const HOUSING = cat('cat', { name: 'Housing' });
 const GROCERIES = cat('gro');
-const LOADED: CategoriesOutcome = { ok: true, categories: [HOUSING, GROCERIES] };
-const CREATED: CategoryActionOutcome = { ok: true, category: cat('new') };
-const EDITED: CategoryActionOutcome = { ok: true, category: HOUSING };
-const OK: CategoryActionOutcome = { ok: true };
+const LOADED: CategoriesView = { status: 'loaded', categories: [HOUSING, GROCERIES] };
+const OK: RequestOutcome = { ok: true };
 const FORBIDDEN = { ok: false, error: { code: 'auth.forbidden' } } as const;
 
 /** One subcategory of Groceries, for the chip-archive test. */
@@ -141,13 +137,13 @@ const GROCERY_SUB = {
 const GROWN_GROCERIES = cat('gro', { subcategories: [GROCERY_SUB] });
 
 /** The list with the grown Groceries in it. */
-const WITH_SUB_LIST: CategoriesOutcome = { ok: true, categories: [HOUSING, GROWN_GROCERIES] };
+const WITH_SUB_LIST: CategoriesView = { status: 'loaded', categories: [HOUSING, GROWN_GROCERIES] };
 
 /** An archived category, for the archived-section test. */
 const GONE_CATEGORY = cat('old', { name: 'Old', archivedAt: '2026-10-05T00:00:00Z' });
 
 /** The list with the archived one in it. */
-const WITH_GONE_LIST: CategoriesOutcome = { ok: true, categories: [HOUSING, GONE_CATEGORY] };
+const WITH_GONE_LIST: CategoriesView = { status: 'loaded', categories: [HOUSING, GONE_CATEGORY] };
 
 /** What an empty household's grid says. */
 const EMPTY_NOTE = 'No categories yet. Add the first one to start tagging spending.';
@@ -184,9 +180,10 @@ const pending = <T,>(): Pending<T> => {
 const renderFlow = async (props: Partial<CategoryManagementFlowProps> = {}) => {
   const requests = {
     role: 'Owner',
-    onLoad: vi.fn(async () => LOADED),
-    onCreate: vi.fn(async () => CREATED),
-    onEdit: vi.fn(async () => EDITED),
+    categories: LOADED,
+    onRetry: vi.fn(),
+    onCreate: vi.fn(async () => OK),
+    onEdit: vi.fn(async () => OK),
     onAddSubcategory: vi.fn(async () => OK),
     onArchiveCategory: vi.fn(async () => OK),
     onArchiveSubcategory: vi.fn(async () => OK),
@@ -217,23 +214,25 @@ const click = async (name: string) => {
 
 beforeEach(() => vi.clearAllMocks());
 
-describe('loading the list', () => {
-  it('fetches as it mounts and lists what came back', async () => {
-    const load = pending<CategoriesOutcome>();
-    await renderFlow({ onLoad: load.request });
+describe('the list it is given', () => {
+  it('shows its skeleton while the list loads', async () => {
+    await renderFlow({ categories: { status: 'loading' } });
+    expect(screen.getByRole('status', { name: 'Loading the categories' })).toBeTruthy();
     expect(screen.queryByTestId('card')).toBeNull();
-    await load.answer(LOADED);
+  });
+
+  it('lists the cards it was given', async () => {
+    await renderFlow();
     expect(screen.getAllByTestId('card').map((el) => el.dataset.id)).toEqual(['cat', 'gro']);
   });
 
-  it('shows the failure with a retry that loads again', async () => {
-    const list = vi.fn().mockResolvedValueOnce(FORBIDDEN).mockResolvedValue(LOADED);
-    await renderFlow({ onLoad: list });
-    await act(async () => {});
+  it('shows the failure with a retry that asks the Experience again', async () => {
+    const { requests } = await renderFlow({
+      categories: { status: 'failed', error: { code: 'internal.unexpected' } },
+    });
     expect(screen.getByText("Couldn't load the categories.")).toBeTruthy();
     await click('Try again');
-    expect(list).toHaveBeenCalledTimes(2);
-    expect(screen.getAllByTestId('card')).toHaveLength(2);
+    expect(requests.onRetry).toHaveBeenCalledTimes(1);
   });
 
   it('hides Add from a Viewer and shows it to a Member', async () => {
@@ -245,19 +244,10 @@ describe('loading the list', () => {
     await renderFlow({ role: 'Member' });
     expect(screen.getByRole('button', { name: 'Add category' })).toBeTruthy();
   });
-
-  it('discards answers that arrive after unmount', async () => {
-    const load = pending<CategoriesOutcome>();
-    const { view } = await renderFlow({ onLoad: load.request });
-    act(() => {
-      view.unmount();
-    });
-    await load.answer(LOADED);
-  });
 });
 
 describe('creating a category', () => {
-  it('creates from its card, toasts and lists the server copy', async () => {
+  it('creates from its card, toasts and closes the card', async () => {
     const { requests, queue } = await renderFlow();
     await click('Add category');
     expect(screen.getByTestId('form').dataset.mode).toBe('create');
@@ -267,15 +257,24 @@ describe('creating a category', () => {
     });
     expect(toasts(queue)).toEqual(['New Name created.']);
     expect(screen.queryByTestId('form')).toBeNull();
-    expect(screen.getAllByTestId('card').map((el) => el.dataset.id)).toContain('new');
   });
 
-  it('keeps the create card open on failure with its error', async () => {
+  it('keeps the create card open on failure with its error in the banner only', async () => {
     const { queue } = await renderFlow({ onCreate: vi.fn(async () => FORBIDDEN) });
     await click('Add category');
     await click('submit form');
-    expect(screen.getByTestId('form').dataset.alert).not.toBe('');
-    expect(toasts(queue)).toEqual(["You don't have permission to do that."]);
+    expect(screen.getByTestId('form').dataset.alert).toBe("You don't have permission to do that.");
+    expect(toasts(queue)).toEqual([]);
+  });
+
+  it('spins the create card while it is out', async () => {
+    const create = pending<RequestOutcome>();
+    await renderFlow({ onCreate: create.request });
+    await click('Add category');
+    await click('submit form');
+    expect(screen.getByTestId('form').dataset.busy).toBe('true');
+    await create.answer(OK);
+    expect(screen.queryByTestId('form')).toBeNull();
   });
 
   it('closes the create card from Cancel without calling out', async () => {
@@ -300,12 +299,12 @@ describe('editing a category', () => {
     expect(screen.queryByTestId('form')).toBeNull();
   });
 
-  it('keeps the edit card open on failure with its error', async () => {
+  it('keeps the edit card open on failure with its error in the banner only', async () => {
     const { queue } = await renderFlow({ onEdit: vi.fn(async () => FORBIDDEN) });
     await click('edit cat');
     await click('submit form');
     expect(screen.getByTestId('form').dataset.alert).not.toBe('');
-    expect(toasts(queue)).toEqual(["You don't have permission to do that."]);
+    expect(toasts(queue)).toEqual([]);
   });
 });
 
@@ -318,11 +317,18 @@ describe('subcategories', () => {
   });
 
   it('archives one of its subcategories from the chip', async () => {
-    const list = vi.fn(async () => WITH_SUB_LIST);
-    const { requests, queue } = await renderFlow({ onLoad: list });
+    const { requests, queue } = await renderFlow({ categories: WITH_SUB_LIST });
     await click('sub s1');
     expect(requests.onArchiveSubcategory).toHaveBeenCalledWith('gro', 's1');
     expect(toasts(queue)).toEqual(['Sub s1 archived.']);
+  });
+
+  it('toasts a refused add, and leaves an open form’s banner alone', async () => {
+    const { queue } = await renderFlow({ onAddSubcategory: vi.fn(async () => FORBIDDEN) });
+    await click('Add category');
+    await click('add sub cat');
+    expect(toasts(queue)).toEqual(["You don't have permission to do that."]);
+    expect(screen.getByTestId('form').dataset.alert).toBe('');
   });
 });
 
@@ -344,7 +350,7 @@ describe('archiving a category', () => {
     expect(requests.onArchiveCategory).not.toHaveBeenCalled();
   });
 
-  it('keeps the confirm open on failure with its error', async () => {
+  it('keeps the confirm open on failure and toasts why', async () => {
     const { queue } = await renderFlow({ onArchiveCategory: vi.fn(async () => FORBIDDEN) });
     await click('archive cat');
     await click('confirm archive');
@@ -355,14 +361,12 @@ describe('archiving a category', () => {
 
 describe('the rest of the list', () => {
   it('shows the empty note when there are none', async () => {
-    const list = vi.fn(async () => ({ ok: true, categories: [] } satisfies CategoriesOutcome));
-    await renderFlow({ onLoad: list });
+    await renderFlow({ categories: { status: 'loaded', categories: [] } });
     expect(screen.getByText(EMPTY_NOTE)).toBeTruthy();
   });
 
   it('lists its archived categories under their note', async () => {
-    const list = vi.fn(async () => WITH_GONE_LIST);
-    await renderFlow({ onLoad: list });
+    await renderFlow({ categories: WITH_GONE_LIST });
     expect(screen.queryByTestId('archived-row')).toBeNull();
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /archived categor/ }));
@@ -377,23 +381,5 @@ describe('a confirm with nothing open', () => {
     await click('force confirm');
     expect(requests.onArchiveCategory).not.toHaveBeenCalled();
     expect(toasts(queue)).toEqual([]);
-  });
-});
-
-describe('the archive target lookup', () => {
-  const loaded = afterLoad(INITIAL_CATEGORIES, LOADED);
-
-  it('is undefined while no confirm is open', () => {
-    expect(archivingTarget(loaded)).toBeUndefined();
-  });
-
-  it('finds its category in a loaded list', () => {
-    const opened = archiveConfirmOpened(loaded, 'cat');
-    expect(archivingTarget(opened)?.id).toBe('cat');
-  });
-
-  it('is undefined for a stale confirm on an unloaded list', () => {
-    const stale: CategoryManagementState = { ...INITIAL_CATEGORIES, archiving: 'cat' };
-    expect(archivingTarget(stale)).toBeUndefined();
   });
 });

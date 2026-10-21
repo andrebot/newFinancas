@@ -4,11 +4,13 @@ import type {
 } from '@financas/api-types';
 import backendApi from '../../api/backendApi';
 
-// The Account Setup Experience's endpoints (X5; OQ-175/FL12). The accounts are
-// cached per household under the `Accounts` tag and the categories under the
-// `Categories` one: create, edit and archive all invalidate their tag, so the
-// list refetches after any change. The request shapes come straight from the
-// contract (`@financas/api-types`).
+// The Account Setup Experience's endpoints (X5; OQ-175, OQ-193). The accounts
+// are cached per household under the `Accounts` tag: create, edit and archive
+// invalidate it, so the cache refetches after any change. The categories are
+// the Experience's own shared list (Category and Budget Management read it):
+// it fetches the list again itself after each write and answers the Flow only
+// then, so their writes don't invalidate as well — that would fetch it twice.
+// The request shapes come straight from the contract (`@financas/api-types`).
 
 /** What addresses an account inside its household. */
 export interface AccountTarget {
@@ -117,24 +119,20 @@ export const accountSetupApi = backendApi.enhanceEndpoints({
     }),
     createCategory: build.mutation<Category, CreateCategoryInput>({
       query: ({ householdId, ...request }) => send('POST', categoriesPath(householdId), request),
-      invalidatesTags: (_result, _error, { householdId }) => categoriesTag(householdId),
     }),
     editCategory: build.mutation<Category, EditCategoryInput>({
       query: ({ householdId, categoryId, ...changes }) => (
         send('PATCH', categoryPath({ householdId, categoryId }), changes)
       ),
-      invalidatesTags: (_result, _error, { householdId }) => categoriesTag(householdId),
     }),
     archiveCategory: build.mutation<void, CategoryTarget>({
       query: (target) => send('POST', `${categoryPath(target)}/archive`),
-      invalidatesTags: (_result, _error, { householdId }) => categoriesTag(householdId),
     }),
     archiveSubcategory: build.mutation<void, SubcategoryTarget>({
       query: ({ householdId, categoryId, subcategoryId }) => {
         const base = categoryPath({ householdId, categoryId });
         return send('POST', `${base}/subcategories/${encodeURIComponent(subcategoryId)}/archive`);
       },
-      invalidatesTags: (_result, _error, { householdId }) => categoriesTag(householdId),
     }),
   }),
 });
@@ -145,7 +143,7 @@ export const {
   useCreateAccountMutation,
   useEditAccountMutation,
   useArchiveAccountMutation,
-  useLazyListCategoriesQuery,
+  useListCategoriesQuery,
   useCreateCategoryMutation,
   useEditCategoryMutation,
   useArchiveCategoryMutation,

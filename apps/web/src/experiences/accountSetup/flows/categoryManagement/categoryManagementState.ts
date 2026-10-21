@@ -1,15 +1,13 @@
 import type { Category, CategoryColor, CategoryIcon } from '@financas/api-types';
 import type { RequestFailure, RequestOutcome } from '../../../../utilities/requestOutcome';
 
-// The Category Management Flow's state (FL12; OQ-173/174): the household's
-// categories as the Flow last fetched them — archived included, split for the
-// panels — the request that is out, the open form card (create, or edit one
-// category in place) and the archive confirm inside a card. The transitions
-// are pure so the Flow's rules test without React. A success changes the list
-// the way the API did — create appends the returned category, an edit or a
-// subcategory add replaces with the server's copy, an archive stamps
-// `archivedAt` locally (a category's cascade included) — so nothing is fetched
-// again; the Experience's tag invalidation keeps the cache in step behind it.
+// The Category Management Flow's state (FL12; OQ-193): the request that is
+// out, the open form card (create, or edit one category in place), the
+// archive confirm inside a card and the last form failure. The category list
+// itself is the Account Setup Experience's — shared with Budget Management
+// (EBD) — and comes in as display state; after a write the Experience answers
+// once the list is fetched again, so the Flow never patches it. The
+// transitions are pure so the Flow's rules test without React.
 
 /** What the create form emits (FR-10.1). */
 export interface NewCategory {
@@ -37,11 +35,7 @@ export type Outgoing = { readonly kind: 'create' }
     readonly subcategoryId: string;
   };
 
-/** What the Experience answers for the list. */
-export type CategoriesOutcome = { readonly ok: true; readonly categories: readonly Category[] }
-  | { readonly ok: false; readonly error: RequestFailure };
-
-/** The panels' content, archived included (FR-10.3). */
+/** The list as the Experience holds it, archived included (FR-10.3). */
 export type CategoriesView = { readonly status: 'loading' }
   | { readonly status: 'failed'; readonly error: RequestFailure }
   | { readonly status: 'loaded'; readonly categories: readonly Category[] };
@@ -52,50 +46,28 @@ export type OpenForm = { readonly mode: 'create' }
 
 /** The Flow's accumulated state. */
 export interface CategoryManagementState {
-  readonly view: CategoriesView;
   /** Its control spins and the others wait while it is out. */
   readonly out?: Outgoing | undefined;
   readonly form?: OpenForm | undefined;
   /** The archive confirm open inside a card, by category id. */
   readonly archiving?: string | undefined;
-  /** The last request's failure, shown until the next one goes out. */
+  /** The last create's or edit's failure, for the open form's banner. */
   readonly lastError?: RequestFailure | undefined;
 }
 
-/** The Flow as it opens: the list loading, nothing else. */
-export const INITIAL_CATEGORIES: CategoryManagementState = { view: { status: 'loading' } };
+/** The Flow as it opens: nothing out, nothing open. */
+export const INITIAL_CATEGORIES: CategoryManagementState = {};
 
 /**
- * Marks the list as loading again (a retry). Any open form or confirm closes
- * with it.
+ * Tells a form's request from a card's: a form shows its failure in its
+ * banner, a card's action is toasted (OQ-193).
  *
- * @param state - The current state.
- * @returns The state while the list is fetched.
+ * @param outgoing - The request.
+ * @returns Whether it came from a form card.
  */
-export const loadingCategories = (state: CategoryManagementState): CategoryManagementState => ({
-  ...state,
-  view: { status: 'loading' },
-  form: undefined,
-  archiving: undefined,
-  lastError: undefined,
-});
-
-/**
- * Applies the Experience's answer for the list.
- *
- * @param state - The state while the list was fetched.
- * @param outcome - The categories, or why they failed.
- * @returns The loaded list, or the failure and its retry.
- */
-export const afterLoad = (
-  state: CategoryManagementState,
-  outcome: CategoriesOutcome,
-): CategoryManagementState => ({
-  ...state,
-  view: outcome.ok
-    ? { status: 'loaded', categories: outcome.categories }
-    : { status: 'failed', error: outcome.error },
-});
+export const isFormRequest = (outgoing: Outgoing): boolean => (
+  outgoing.kind === 'create' || outgoing.kind === 'edit'
+);
 
 /**
  * Opens a form card.
@@ -131,7 +103,9 @@ export const formClosed = (state: CategoryManagementState): CategoryManagementSt
 export const archiveConfirmOpened = (
   state: CategoryManagementState,
   categoryId: string,
-): CategoryManagementState => ({ ...state, archiving: categoryId, form: undefined });
+): CategoryManagementState => ({
+  ...state, archiving: categoryId, form: undefined, lastError: undefined,
+});
 
 /**
  * Closes the open archive confirm; its card stays.
@@ -177,98 +151,53 @@ export const liveSubcategoriesOf = (category: Category) => (
 );
 
 /**
- * Applies a request's success to the loaded list, as the API did.
+ * Finds the category an open archive confirm is about.
  *
- * @param view - The loaded list.
- * @param outgoing - The request that succeeded.
- * @param written - The category a create, an edit or a subcategory add returned.
- * @returns The list after it.
+ * @param view - The Experience's list.
+ * @param archiving - The confirm's category id, if one is open.
+ * @returns The category, or nothing while no confirm is open or the list isn't loaded.
  */
-const applied = (
-  view: Extract<CategoriesView, { status: 'loaded' }>,
-  outgoing: Outgoing,
-  written?: Category,
-): CategoriesView => {
-  if (outgoing.kind === 'create') {
-    return written ? { ...view, categories: [...view.categories, written] } : view;
-  }
-  if (outgoing.kind === 'edit' || outgoing.kind === 'addSubcategory') {
-    return written
-      ? {
-        ...view,
-        categories: view.categories.map((category) => (
-          category.id === written.id ? written : category
-        )),
-      }
-      : view;
-  }
-  const archivedAt = new Date().toISOString();
-  if (outgoing.kind === 'archiveCategory') {
-    return {
-      ...view,
-      categories: view.categories.map((category) => (
-        category.id === outgoing.categoryId && category.archivedAt === null
-          ? {
-            ...category,
-            archivedAt,
-            subcategories: category.subcategories.map((subcategory) => (
-              subcategory.archivedAt === null ? { ...subcategory, archivedAt } : subcategory
-            )),
-          }
-          : category
-      )),
-    };
-  }
-  return {
-    ...view,
-    categories: view.categories.map((category) => (
-      category.id !== outgoing.categoryId
-        ? category
-        : {
-          ...category,
-          subcategories: category.subcategories.map((subcategory) => (
-            subcategory.id === outgoing.subcategoryId && subcategory.archivedAt === null
-              ? { ...subcategory, archivedAt }
-              : subcategory
-          )),
-        }
-    )),
-  };
+export const archivingTarget = (
+  view: CategoriesView,
+  archiving: string | undefined,
+): Category | undefined => {
+  if (archiving === undefined || view.status !== 'loaded') return undefined;
+  return view.categories.find((category) => category.id === archiving);
 };
 
 /**
  * Applies the Experience's answer for the request that was out. A success
- * changes the list and closes whatever form or confirm it came from; a failure
- * keeps everything so a form still holds what was typed (and shows why).
+ * closes whatever form or confirm it came from — the list already holds it; a
+ * form's failure keeps the form and its typing and shows why in its banner; a
+ * card's failure keeps its confirm open and is toasted by the Flow.
  *
  * @param state - The state while the request was out.
- * @param outcome - The Experience's answer (a create/edit/add carries its category).
+ * @param outcome - The Experience's answer.
  * @returns The next state.
  */
 export const afterAction = (
   state: CategoryManagementState,
-  outcome: RequestOutcome & { readonly category?: Category | undefined },
+  outcome: RequestOutcome,
 ): CategoryManagementState => {
-  const { out, view } = state;
+  const { out } = state;
   if (!out) return state;
-  if (!outcome.ok) return { ...state, out: undefined, lastError: outcome.error };
-  const nextView = view.status === 'loaded'
-    ? applied(view, out, outcome.category)
-    : view;
-  const closesForm = out.kind === 'create' || out.kind === 'edit';
+  if (!outcome.ok) {
+    return { ...state, out: undefined, lastError: isFormRequest(out) ? outcome.error : undefined };
+  }
   return {
     ...state,
-    view: nextView,
     out: undefined,
-    ...(closesForm ? { form: undefined } : {}),
+    ...(isFormRequest(out) ? { form: undefined } : {}),
     ...(out.kind === 'archiveCategory' ? { archiving: undefined } : {}),
     lastError: undefined,
   };
 };
 
 /**
- * Tells whether a role may create a category in the household (FR-1.7,
- * OQ-174): everyone but a Viewer.
+ * Tells whether a role may create a category in the household: everyone but
+ * a Viewer. Categories are shared data nobody owns, so the permission table
+ * applies as is (FR-1.7): a Member creates, but only an Owner or Admin
+ * manages afterwards — a Member can't add subcategories to what they made.
  *
  * @param role - The actor's role.
  * @returns Whether the Add Category button shows.
@@ -279,7 +208,7 @@ export const mayCreateCategory = (role: string | undefined) => (
 
 /**
  * Tells whether a role may edit or archive categories and their subcategories
- * in the household (FR-1.7, OQ-174): Owner/Admin only.
+ * in the household (FR-1.7): Owner/Admin only.
  *
  * @param role - The actor's role.
  * @returns Whether the manage controls show on its cards.

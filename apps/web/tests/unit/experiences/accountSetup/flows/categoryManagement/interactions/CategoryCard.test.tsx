@@ -52,7 +52,13 @@ const renderCard = (over: Partial<Parameters<typeof CategoryCard>[0]> = {}) => {
   const onCancelArchive = vi.fn();
   const onAddSubcategory = vi.fn();
   const onArchiveSubcategory = vi.fn();
-  renderInLocale(
+  /**
+   * Builds the card with the handlers above.
+   *
+   * @param props - The props over the defaults.
+   * @returns The card.
+   */
+  const card = (props: Partial<Parameters<typeof CategoryCard>[0]>) => (
     <CategoryCard
       category={HOUSING}
       canManage
@@ -64,10 +70,19 @@ const renderCard = (over: Partial<Parameters<typeof CategoryCard>[0]> = {}) => {
       onCancelArchive={onCancelArchive}
       onAddSubcategory={onAddSubcategory}
       onArchiveSubcategory={onArchiveSubcategory}
-      {...over}
-    />,
+      {...props}
+    />
   );
+  const view = renderInLocale(card(over));
   return {
+    /**
+     * Renders the card again with new props, keeping its state.
+     *
+     * @param props - The props over the defaults.
+     */
+    rerender: (props: Partial<Parameters<typeof CategoryCard>[0]>) => {
+      view.rerenderInLocale(card({ ...over, ...props }));
+    },
     onEdit,
     onArchiveRequest,
     onConfirmArchive,
@@ -109,14 +124,45 @@ describe('the card', () => {
     expect(onArchiveRequest).toHaveBeenCalledWith('cat');
   });
 
-  it('adds a subcategory from its inline field and clears it', () => {
-    const { onAddSubcategory } = renderCard();
-    const input = screen.getByRole<HTMLInputElement>('textbox', { name: 'New subcategory' });
-    fireEvent.change(input, { target: { value: 'Parking' } });
+  it('adds a subcategory and clears the field once it is listed', () => {
+    const { onAddSubcategory, rerender } = renderCard();
+    const input = () => screen.getByRole<HTMLInputElement>('textbox', { name: 'New subcategory' });
+    fireEvent.change(input(), { target: { value: 'Parking' } });
     fireEvent.click(screen.getByRole('button', { name: 'Add subcategory' }));
     expect(onAddSubcategory).toHaveBeenCalledWith('cat', 'Parking');
-    const cleared = screen.getByRole<HTMLInputElement>('textbox', { name: 'New subcategory' });
-    expect(cleared.value).toBe('');
+    expect(input().value).toBe('Parking');
+
+    const parking = { ...HOUSING.subcategories[0]!, id: 's4', name: 'Parking' };
+    rerender({ category: { ...HOUSING, subcategories: [...HOUSING.subcategories, parking] } });
+    expect(input().value).toBe('');
+  });
+
+  it('keeps the typed name when the add is refused', () => {
+    const { rerender } = renderCard();
+    const input = () => screen.getByRole<HTMLInputElement>('textbox', { name: 'New subcategory' });
+    fireEvent.change(input(), { target: { value: 'Parking' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add subcategory' }));
+    rerender({ busy: true });
+    rerender({ busy: false });
+    expect(input().value).toBe('Parking');
+  });
+
+  it('keeps the typed name when a sibling is archived', () => {
+    const { rerender } = renderCard();
+    const input = () => screen.getByRole<HTMLInputElement>('textbox', { name: 'New subcategory' });
+    fireEvent.change(input(), { target: { value: 'Parking' } });
+    rerender({ category: { ...HOUSING, subcategories: HOUSING.subcategories.slice(1) } });
+    expect(input().value).toBe('Parking');
+  });
+
+  it('waits while a request is out: no add, no subcategory archive', () => {
+    const { onAddSubcategory, onArchiveSubcategory } = renderCard({ busy: true });
+    const input = screen.getByRole<HTMLInputElement>('textbox', { name: 'New subcategory' });
+    fireEvent.change(input, { target: { value: 'Parking' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onAddSubcategory).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Archive Rent / Mortgage' }));
+    expect(onArchiveSubcategory).not.toHaveBeenCalled();
   });
 
   it('adds on Enter and refuses an empty field', () => {

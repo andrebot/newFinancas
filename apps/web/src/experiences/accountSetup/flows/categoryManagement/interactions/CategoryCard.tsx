@@ -13,19 +13,40 @@ import { liveSubcategoriesOf } from '../categoryManagementState';
 // inline field to add one more (OQ-173: a single atomic edit), and the Edit
 // and Archive controls for Owner/Admin. While its archive confirm is open the
 // card shows that instead, as the mockup's coral-ringed card does. It holds no
-// request state of its own; every action goes up to the Flow.
+// request state of its own; every action goes up to the Flow, and every
+// control waits while a request is out. The typed subcategory stays until it
+// shows up among the live ones, so a refused add keeps it for another try.
 
 /** The subcategory chip's archive button surface. */
 const SUB_ARCHIVE_CLASS = [
   'grid size-6 cursor-pointer place-items-center rounded-full',
-  'text-muted hover:text-coral',
+  'text-muted hover:text-coral disabled:cursor-default disabled:opacity-40',
 ].join(' ');
 
 /** The inline add-sub button surface. */
 const ADD_SUB_CLASS = [
   'grid size-6 cursor-pointer place-items-center rounded-full bg-mint',
-  'text-[#062A1F] disabled:cursor-default disabled:opacity-40',
+  'text-onmint disabled:cursor-default disabled:opacity-40',
 ].join(' ');
+
+/**
+ * Holds the inline subcategory field's text, cleared once a new live
+ * subcategory shows up — the add went through. A refused add, or a sibling
+ * archived, keeps it. Set while rendering, React's pattern for state that
+ * follows a prop.
+ *
+ * @param liveCount - How many live subcategories the card lists now.
+ * @returns The text and its setter.
+ */
+const useSubcategoryDraft = (liveCount: number) => {
+  const [subName, setSubName] = useState('');
+  const [seenCount, setSeenCount] = useState(liveCount);
+  if (liveCount !== seenCount) {
+    setSeenCount(liveCount);
+    if (liveCount > seenCount) setSubName('');
+  }
+  return [subName, setSubName] as const;
+};
 
 /** The category card's props. */
 export interface CategoryCardProps {
@@ -64,7 +85,7 @@ export function CategoryCard({
   onCancelArchive, onAddSubcategory, onArchiveSubcategory,
 }: CategoryCardProps) {
   const translator = useI18n();
-  const [subName, setSubName] = useState('');
+  const [subName, setSubName] = useSubcategoryDraft(liveSubcategoriesOf(category).length);
 
   if (archivingOpen) {
     return (
@@ -87,11 +108,10 @@ export function CategoryCard({
 
   const subs = liveSubcategoriesOf(category);
 
-  /** Adds the typed subcategory and clears the field. */
+  /** Adds the typed subcategory; the field clears once it is listed. */
   const addSub = () => {
-    if (nonBlank(subName) !== undefined) return;
+    if (busy || nonBlank(subName) !== undefined) return;
     onAddSubcategory(category.id, subName.trim());
-    setSubName('');
   };
 
   return (
@@ -131,6 +151,7 @@ export function CategoryCard({
                 type="button"
                 aria-label={label}
                 className={SUB_ARCHIVE_CLASS}
+                disabled={busy}
                 onClick={() => onArchiveSubcategory(category.id, sub.id, sub.name)}
               >
                 <Icon name="delete-outline" className="size-4" />
