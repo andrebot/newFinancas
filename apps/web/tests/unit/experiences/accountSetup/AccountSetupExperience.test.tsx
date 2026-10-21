@@ -274,6 +274,15 @@ describe('the accounts it answers for its flow', () => {
     );
   });
 
+  it.each([
+    ['editPlain', 'PATCH /households/doe/accounts/chk', 409, 'account.archived'],
+    ['archive', 'POST /households/doe/accounts/ccr/archive', 403, 'auth.forbidden'],
+  ])('answers a failed %s with its error', async (button, route, status, code) => {
+    await renderExperience({ [route]: () => jsonResponse(status, envelope(code)) });
+    await press(button);
+    expect(outcomeOf('accounts')).toEqual({ ok: false, error: { code, params: {} } });
+  });
+
   it('creates without an opening balance when there is none', async () => {
     const { fetchFn } = await renderExperience({
       'POST /households/doe/accounts': () => jsonResponse(201, ACCOUNT),
@@ -461,6 +470,32 @@ describe('the category writes it answers for its flow', () => {
     expect(shownBy('categories')).toEqual(expect.objectContaining({
       categories: { status: 'loaded', categories: [CATEGORY] },
     }));
+  });
+
+  it.each([
+    ['editPlain', 'PATCH /households/doe/categories/cat', 422, 'field.invalid_option'],
+    ['addSub', 'PATCH /households/doe/categories/cat', 403, 'auth.forbidden'],
+    ['archiveCategory', 'POST /households/doe/categories/cat/archive', 404, 'category.not_found'],
+    [
+      'archiveSub',
+      'POST /households/doe/categories/cat/subcategories/s1/archive',
+      404,
+      'subcategory.not_found',
+    ],
+  ])('answers a failed %s with its error, and fetches nothing again', async (
+    button,
+    route,
+    status,
+    code,
+  ) => {
+    const { fetchFn } = await renderExperience({
+      'GET /households/doe/categories': CATEGORIES_LISTED,
+      [route]: () => jsonResponse(status, envelope(code)),
+    });
+    await pickCategories();
+    await press(button);
+    expect(outcomeOf('categories')).toEqual({ ok: false, error: { code, params: {} } });
+    expect(await listFetches(fetchFn)).toBe(1);
   });
 
   it('edits with its fields, address stripped out', async () => {

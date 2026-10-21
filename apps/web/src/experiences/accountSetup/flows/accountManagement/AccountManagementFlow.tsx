@@ -149,7 +149,8 @@ export function AccountManagementFlow({
     setState((current) => afterLoad(current, outcome));
   };
 
-  // The list is fetched as the Flow mounts. An answer after unmounting drops.
+  // The list is fetched as the Flow mounts (and again for a new `onLoad`). An
+  // answer that lands after unmounting, or after a newer load was asked for, drops.
   useEffect(() => {
     let mounted = true;
     onLoad().then((outcome) => {

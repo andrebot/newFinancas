@@ -341,6 +341,16 @@ describe('subcategories', () => {
     expect(toasts(queue)).toEqual(['Sub s1 archived.']);
   });
 
+  it('toasts a refused subcategory archive', async () => {
+    const { queue } = await renderFlow({
+      categories: WITH_SUB_LIST,
+      onArchiveSubcategory: vi.fn(async () => FORBIDDEN),
+    });
+    await click('sub s1');
+    expect(toasts(queue)).toEqual(["You don't have permission to do that."]);
+    expect(screen.getAllByTestId('card').map((el) => el.dataset.id)).toEqual(['cat', 'gro']);
+  });
+
   it('toasts a refused add, and leaves an open form’s banner alone', async () => {
     const { queue } = await renderFlow({ onAddSubcategory: vi.fn(async () => FORBIDDEN) });
     await click('Add category');

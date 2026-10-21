@@ -251,13 +251,23 @@ describe('loading the list', () => {
     expect(screen.queryByRole('button', { name: 'add' })).toBeNull();
   });
 
-  it('drops an answer that lands after unmount', async () => {
-    const load = pending<AccountsOutcome>();
-    const { view } = await renderFlow({ onLoad: load.request });
-    act(() => {
-      view.unmount();
+  it('drops a superseded load’s answer once a new load is asked for', async () => {
+    const stale = pending<AccountsOutcome>();
+    const { requests, queue, view } = await renderFlow({ onLoad: stale.request });
+    const fresh = vi.fn(async (): Promise<AccountsOutcome> => (
+      { ok: true, data: [account('new')] }
+    ));
+    await act(async () => {
+      view.rerenderInLocale(
+        <AlertProvider queue={queue}>
+          <AccountManagementFlow {...requests} onLoad={fresh} />
+        </AlertProvider>,
+      );
     });
-    await load.answer(LOADED);
+    expect(panel().dataset.accounts).toBe('new');
+
+    await stale.answer(LOADED);
+    expect(panel().dataset.accounts).toBe('new');
   });
 });
 
