@@ -59,7 +59,7 @@ export function Menu<Value extends string>({
             <div
               {...panelProps}
               aria-label={label}
-              className={`z-40 flex flex-col p-1.5 ${OVERLAY_SURFACE}`}
+              className={`flex flex-col p-1.5 ${OVERLAY_SURFACE}`}
               style={{ ...style, width }}
             >
               <MenuSections

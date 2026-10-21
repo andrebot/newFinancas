@@ -108,7 +108,7 @@ function FloatingPanel({
         modal={false}
         initialFocus={search ? searchRef : 0}
       >
-        <div {...list.panelProps} className={`z-40 flex flex-col gap-2 p-1.5 ${OVERLAY_SURFACE}`}>
+        <div {...list.panelProps} className={`flex flex-col gap-2 p-1.5 ${OVERLAY_SURFACE}`}>
           {search && (
             <SearchBox
               search={search}

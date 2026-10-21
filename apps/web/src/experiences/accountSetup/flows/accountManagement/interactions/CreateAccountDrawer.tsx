@@ -126,6 +126,7 @@ export function CreateAccountDrawer({
   return (
     <Drawer
       open
+      size="wide"
       onClose={onCancel}
       caption={translator.text('accountSetup', 'create.caption')}
       title={translator.text('accountSetup', 'create.title')}

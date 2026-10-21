@@ -5037,6 +5037,10 @@ not a hardcoded assumption.
   motion under `prefers-reduced-motion`. The nav drawer and the popover
   stay without animation.
 
+**Amended in FL11 (Oct 2026):**
+- **One stacking order for the kit (`LAYERS`, `kit/popover/overlay.ts`).** Bottom to top: the shell's chrome (z-20/30), the drawer's scrim and panel (z-40/50), the panels (select, menu, popover — the date input's calendar and the icon picker's "more" too), tooltips, toasts. The panels had been at z-40, under the drawer, so a Select inside a drawer opened behind it with no visible options.
+- **Two widths from `md`: `default` 520px and `wide` 640px.** The account drawers are wide: beside the 200px card preview, a 520px drawer left the card number about 160px — too narrow for a 16-digit number. Below `md` every drawer is still the full-screen sheet.
+
 **Task 107 (`K20`) is complete.**
 
 ### OQ-192: Account & Card Management (task FL11)

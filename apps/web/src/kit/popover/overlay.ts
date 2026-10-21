@@ -9,8 +9,23 @@ import { overlay } from '../../config/constants';
 // slides along when it would leave the viewport, and never grows past the
 // space the viewport has left — so a 400px panel still fits a phone.
 
-/** The panel's surface classes, from the mockups' notification inbox. */
+/**
+ * The app's stacking order above the page, bottom to top: the shell's chrome
+ * (z-20/30), the drawer's scrim and panel (K20), then what opens from
+ * anywhere — even inside a drawer — the panels (select, menu, popover), the
+ * tooltips and the toasts.
+ */
+export const LAYERS = {
+  scrim: 'z-40',
+  drawer: 'z-50',
+  panel: 'z-60',
+  tooltip: 'z-70',
+  toast: 'z-80',
+} as const;
+
+/** The panel's surface classes, from the mockups' notification inbox, on the panel layer. */
 export const OVERLAY_SURFACE = [
+  LAYERS.panel,
   'overflow-y-auto rounded-2xl border border-line bg-raised text-ink shadow-overlay',
   'outline-none',
 ].join(' ');

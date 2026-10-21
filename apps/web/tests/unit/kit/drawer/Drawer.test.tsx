@@ -95,6 +95,23 @@ describe('Drawer', () => {
     expect(screen.getByRole('button', { name: 'Salvar' })).toBeDefined();
   });
 
+  it('is 520px wide from md by default, and 640px when wide', () => {
+    const { unmount } = renderInLocale(
+      <Drawer open title="Conta" onClose={vi.fn()}>Corpo</Drawer>,
+      'pt-BR',
+    );
+    expect(screen.getByRole('dialog').className.split(' ')).toContain('md:w-[520px]');
+    unmount();
+
+    renderInLocale(
+      <Drawer open size="wide" title="Conta" onClose={vi.fn()}>Corpo</Drawer>,
+      'pt-BR',
+    );
+    const classes = screen.getByRole('dialog').className.split(' ');
+    expect(classes).toContain('md:w-[640px]');
+    expect(classes).not.toContain('md:w-[520px]');
+  });
+
   it('slides in: the status goes from initial to open', async () => {
     renderHolder();
 

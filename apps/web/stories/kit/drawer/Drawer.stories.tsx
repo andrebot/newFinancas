@@ -92,6 +92,11 @@ export const LongBody: Story = {
   },
 };
 
+/** The wide drawer (640px from `md`), for a form with a wide row such as a card number. */
+export const Wide: Story = {
+  args: { size: 'wide' },
+};
+
 /** No caption and no footer. */
 export const Plain: Story = {
   args: { caption: undefined, footer: undefined, title: 'Value history' },

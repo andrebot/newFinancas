@@ -90,7 +90,7 @@ export function Popover({
             <div
               ref={setFloating}
               aria-label={label}
-              className={`z-40 ${OVERLAY_SURFACE}`}
+              className={OVERLAY_SURFACE}
               style={{ ...floatingStyles, width }}
               {...getFloatingProps()}
             >

@@ -283,6 +283,7 @@ export function EditAccountDrawer({
   return (
     <Drawer
       open
+      size="wide"
       onClose={onCancel}
       caption={translator.text('accountSetup', 'edit.caption')}
       title={account.name}

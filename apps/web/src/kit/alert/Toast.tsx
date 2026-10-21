@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Button } from '../button/Button';
 import { IconButton } from '../button/IconButton';
 import { Icon } from '../icons/Icon';
+import { LAYERS } from '../popover/overlay';
 import {
   defaultDurationOf, roleOf, TONE_ACCENTS, TONE_ICONS, type AlertTone,
 } from './tones';
@@ -94,7 +95,7 @@ export function ToastRegion({ label, children }: ToastRegionProps) {
     <section
       aria-label={label}
       className={[
-        'pointer-events-none fixed inset-x-4 bottom-24 z-50 flex flex-col gap-2',
+        `pointer-events-none fixed inset-x-4 bottom-24 ${LAYERS.toast} flex flex-col gap-2`,
         'sm:inset-x-auto sm:right-6 sm:bottom-6 sm:w-90',
       ].join(' ')}
     >
