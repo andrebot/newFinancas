@@ -434,7 +434,7 @@ describe('the category writes it answers for its flow', () => {
     expect(await listFetches(fetchFn)).toBe(1);
   });
 
-  it('hands down the failure, not a stale list, when the fetch after a write fails', async () => {
+  it('hands down the list with its failure when the fetch after a write fails', async () => {
     const lists = vi.fn()
       .mockReturnValueOnce(CATEGORIES_LISTED())
       .mockReturnValueOnce(jsonResponse(500, envelope('internal.unexpected')))
@@ -447,7 +447,11 @@ describe('the category writes it answers for its flow', () => {
     await press('create');
     expect(outcomeOf('categories')).toEqual({ ok: true });
     expect(shownBy('categories')).toEqual(expect.objectContaining({
-      categories: { status: 'failed', error: { code: 'internal.unexpected', params: {} } },
+      categories: {
+        status: 'loaded',
+        categories: [CATEGORY],
+        refreshError: { code: 'internal.unexpected', params: {} },
+      },
     }));
     await press('retry');
     expect(await listFetches(fetchFn)).toBe(3);

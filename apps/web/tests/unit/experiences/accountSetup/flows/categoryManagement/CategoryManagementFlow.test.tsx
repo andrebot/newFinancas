@@ -235,6 +235,24 @@ describe('the list it is given', () => {
     expect(requests.onRetry).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps the list and an open form when a refresh fails, with a banner and retry', async () => {
+    const { requests } = await renderFlow({
+      categories: { ...LOADED, refreshError: { code: 'internal.unexpected' } },
+    });
+    await click('Add category');
+    expect(screen.getByTestId('form')).toBeTruthy();
+    expect(screen.getAllByTestId('card').map((el) => el.dataset.id)).toEqual(['cat', 'gro']);
+    expect(screen.getByRole('alert').textContent)
+      .toContain("Couldn't refresh the categories, so the list may be out of date.");
+    await click('Try again');
+    expect(requests.onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows no banner while the list is current', async () => {
+    await renderFlow();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
   it('hides Add from a Viewer and shows it to a Member', async () => {
     const first = await renderFlow({ role: 'Viewer' });
     expect(first.view.container.querySelector('[data-testid="form"]')).toBeNull();

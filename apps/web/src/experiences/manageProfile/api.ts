@@ -10,6 +10,7 @@ import type {
   UserPreferences,
 } from '@financas/api-types';
 import backendApi from '../../api/backendApi';
+import send from '../../api/send';
 import { identityApi } from '../../api/identityApi';
 
 // The Manage Profile Experience's endpoints (X3, OQ-159): edits to the user's
@@ -23,16 +24,6 @@ import { identityApi } from '../../api/identityApi';
 
 /** What a profile edit sends (`PATCH /users/me`). */
 export type ProfileEdit = EditCurrentUserData['body'];
-
-/**
- * Builds a request with a method and an optional JSON body.
- *
- * @param method - The HTTP method.
- * @param url - The path, relative to the API's base URL.
- * @param body - The JSON body, if any.
- * @returns The request's fetch arguments.
- */
-const send = (method: string, url: string, body?: object) => ({ url, method, body });
 
 /**
  * Builds the path that answers an invitation.

@@ -196,14 +196,19 @@ export const drawerOpened = (
 });
 
 /**
- * Closes the open drawer and its archive confirm.
+ * Closes the open drawer and its archive confirm — unless a request is out:
+ * the drawer then stays, so a failure still has its banner to show in.
  *
  * @param state - The current state.
- * @returns The state with no drawer open.
+ * @returns The state with no drawer open, or as it was while a request is out.
  */
-export const drawerClosed = (state: AccountManagementState): AccountManagementState => ({
-  ...state, drawer: undefined, archiving: undefined, lastError: undefined,
-});
+export const drawerClosed = (state: AccountManagementState): AccountManagementState => (
+  state.out
+    ? state
+    : {
+      ...state, drawer: undefined, archiving: undefined, lastError: undefined,
+    }
+);
 
 /**
  * Opens the archive confirm inside the edit drawer.

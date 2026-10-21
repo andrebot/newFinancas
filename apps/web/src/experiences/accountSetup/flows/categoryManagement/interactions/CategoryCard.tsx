@@ -166,6 +166,7 @@ export function CategoryCard({
             value={subName}
             aria-label={translator.text('categoryManagement', 'sub.add.placeholder')}
             placeholder={translator.text('categoryManagement', 'sub.add.placeholder')}
+            disabled={busy}
             onChange={(event) => setSubName(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === 'Enter') addSub();

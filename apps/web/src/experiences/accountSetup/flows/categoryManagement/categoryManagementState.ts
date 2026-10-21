@@ -35,10 +35,16 @@ export type Outgoing = { readonly kind: 'create' }
     readonly subcategoryId: string;
   };
 
-/** The list as the Experience holds it, archived included (FR-10.3). */
+/** The list as the Experience holds it, archived included (FR-10.3). A list
+ * whose latest fetch failed keeps showing, with that failure beside it. */
 export type CategoriesView = { readonly status: 'loading' }
   | { readonly status: 'failed'; readonly error: RequestFailure }
-  | { readonly status: 'loaded'; readonly categories: readonly Category[] };
+  | {
+    readonly status: 'loaded';
+    readonly categories: readonly Category[];
+    /** The latest fetch failed: the list may be out of date (OQ-193). */
+    readonly refreshError?: RequestFailure | undefined;
+  };
 
 /** The form card that is open, if any (mockup 41's dashed card). */
 export type OpenForm = { readonly mode: 'create' }

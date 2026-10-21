@@ -158,6 +158,7 @@ describe('the card', () => {
   it('waits while a request is out: no add, no subcategory archive', () => {
     const { onAddSubcategory, onArchiveSubcategory } = renderCard({ busy: true });
     const input = screen.getByRole<HTMLInputElement>('textbox', { name: 'New subcategory' });
+    expect(input.disabled).toBe(true);
     fireEvent.change(input, { target: { value: 'Parking' } });
     fireEvent.keyDown(input, { key: 'Enter' });
     expect(onAddSubcategory).not.toHaveBeenCalled();

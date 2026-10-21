@@ -5,15 +5,13 @@ import type { ApiError } from '../../api/errors';
 import {
   failureOf, toDataOutcome, toRequestOutcome, type EndpointResult,
 } from '../../api/outcome';
-import { useGetCurrentUserQuery, useHouseholds } from '../../api/identityApi';
+import { useActiveHousehold } from '../../api/activeHousehold';
 import { Button } from '../../kit/button/Button';
 import { EmptyState } from '../../kit/emptyState/EmptyState';
 import { PageHeader } from '../../kit/pageHeader/PageHeader';
 import { SegmentedControl } from '../../kit/segmentedControl/SegmentedControl';
 import { SkeletonRows } from '../../kit/skeleton/Skeleton';
 import type { ShellHousehold } from '../../shell/shellConfig';
-import { selectActiveHouseholdId } from '../../shell/shellState';
-import { useAppSelector } from '../../store';
 import { useI18n } from '../../utilities/I18nProvider';
 import type { RequestOutcome } from '../../utilities/requestOutcome';
 import {
@@ -102,17 +100,21 @@ interface CategoriesQueryState {
 }
 
 /**
- * Reads the categories query into the Flow's view: its failure while the last
- * fetch failed — even over an older list, which may lack a write that just
- * went through (OQ-193) — else its data once there is some (kept while it
- * refetches), else loading. The query keeps its error until a fetch succeeds.
+ * Reads the categories query into the Flow's view: its data once there is
+ * some (kept while it refetches), its failure, or loading. A list whose
+ * latest fetch failed carries that failure, since it may lack a write that
+ * just went through (OQ-193); the query keeps its error until a fetch succeeds.
  *
  * @param query - The query's data and error.
  * @returns The view.
  */
 export const categoriesViewOf = ({ data, error }: CategoriesQueryState): CategoriesView => {
+  if (data !== undefined) {
+    return error === undefined
+      ? { status: 'loaded', categories: data }
+      : { status: 'loaded', categories: data, refreshError: failureOf(error) };
+  }
   if (error !== undefined) return { status: 'failed', error: failureOf(error) };
-  if (data !== undefined) return { status: 'loaded', categories: data };
   return { status: 'loading' };
 };
 
@@ -121,7 +123,7 @@ export const categoriesViewOf = ({ data, error }: CategoriesQueryState): Categor
  * Flows — and builds the Category Management Flow's requests (FL12). After a
  * successful write it fetches the list again and answers only then, so the
  * Flow's spinner stops on a list that already holds the change — or, if that
- * fetch fails, on the list's failure and its retry, never on a stale list.
+ * fetch fails, on the list beside its failure and a retry.
  *
  * @param householdId - The household.
  * @returns The list and the Flow's requests.
@@ -242,23 +244,19 @@ function SetupPage({ household, userId }: SetupPageProps) {
  */
 export function AccountSetupExperience() {
   const translator = useI18n();
-  const { data: user, isError, refetch } = useGetCurrentUserQuery();
-  const households = useHouseholds();
-  const activeId = useAppSelector(selectActiveHouseholdId);
-  const household = households.status === 'ready'
-    ? households.data.find(({ id }) => id === activeId)
-    : undefined;
+  const active = useActiveHousehold();
 
-  if (user && household) {
-    return <SetupPage key={household.id} household={household} userId={user.id} />;
+  if (active.status === 'ready') {
+    const { household, userId } = active.data;
+    return <SetupPage key={household.id} household={household} userId={userId} />;
   }
-  if (isError) {
+  if (active.status === 'failed') {
     return (
       <EmptyState
         icon="error-outline"
         title={translator.text('accountSetup', 'failed')}
         action={(
-          <Button onClick={() => refetch()}>
+          <Button onClick={active.retry}>
             {translator.text('accountSetup', 'retry')}
           </Button>
         )}

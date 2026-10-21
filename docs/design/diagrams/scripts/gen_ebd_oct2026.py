@@ -707,7 +707,7 @@ opt archive (from the edit drawer's danger zone)
         Note over FLOW: toast "{name} archived."
     end
 end
-""", ["Only last4 + network leave the browser — the full number never does (NFR-SEC-7); an attached card's network and last four are fixed (OQ-192).", "One save writes the Account and every card change together, or nothing (OQ-175). The Flow patches its own list from the answer instead of reloading; the Experience's tag invalidation refreshes the shared cache behind it.", "Reused as Guided Setup step 1."]),
+""", ["Only last4 + network leave the browser — the full number never does (NFR-SEC-7); an attached card's network and last four are fixed (OQ-192).", "One save writes the Account and every card change together, or nothing (OQ-175). The Flow patches its own list from the answer instead of reloading; one request at a time, and the drawer stays open while it is out (OQ-192).", "Reused as Guided Setup step 1."]),
     ("account-setup-category-management", "Account Setup — Category Management", f"{R('GET/POST/PATCH /households/:householdId/categories')}, the category and subcategory archive endpoints. Built in FL12 (OQ-193).",
      [("CC", "Category Card"), ("IP", "Icon & Colour Picker"), ("SE", "Inline Subcategory Entry"), ("AC", "Archive Confirm"), FLOW("Category Management"), EXP("Account Setup"), API],
      """
@@ -752,7 +752,7 @@ else ok
         EXP-->>FLOW: outcome: ok, categories refreshed — form / confirm closes
     else list fetch failed
         API-->>EXP: error code
-        EXP-->>FLOW: outcome: ok, categories: failed → retry (never the stale list)
+        EXP-->>FLOW: outcome: ok, categories + refreshError — banner "may be out of date" → retry
     end
     Note over FLOW: toast "{name} created / updated / added / archived."
 end

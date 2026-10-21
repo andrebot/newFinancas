@@ -37,6 +37,11 @@ export const DeleteHousehold: Story = {
   },
 };
 
+/** While another of the caller's requests runs: the button waits. */
+export const Disabled: Story = {
+  args: { disabled: true },
+};
+
 /** After the button: the type-to-confirm in its place. */
 export const Confirming: Story = {
   args: {

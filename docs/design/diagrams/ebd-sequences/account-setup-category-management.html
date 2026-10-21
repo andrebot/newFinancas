@@ -108,7 +108,7 @@ sequenceDiagram
             EXP-->>FLOW: outcome: ok, categories refreshed — form / confirm closes
         else list fetch failed
             API-->>EXP: error code
-            EXP-->>FLOW: outcome: ok, categories: failed → retry (never the stale list)
+            EXP-->>FLOW: outcome: ok, categories + refreshError — banner "may be out of date" → retry
         end
         Note over FLOW: toast "{name} created / updated / added / archived."
     end

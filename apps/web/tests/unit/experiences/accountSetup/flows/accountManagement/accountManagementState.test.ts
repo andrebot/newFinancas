@@ -84,6 +84,11 @@ describe('the drawers and the archive confirm', () => {
     expect(drawerClosed(open)).toEqual({ ...open, drawer: undefined, archiving: undefined });
   });
 
+  it('keeps the drawer open while a request is out, so its answer has a banner', () => {
+    const open = started(drawerOpened(LOADED, { kind: 'create' }), { kind: 'create' });
+    expect(drawerClosed(open)).toBe(open);
+  });
+
   it('opens the confirm about one account', () => {
     const state = archiveConfirmOpened(LOADED, 'ccr');
     expect(state.archiving).toBe('ccr');

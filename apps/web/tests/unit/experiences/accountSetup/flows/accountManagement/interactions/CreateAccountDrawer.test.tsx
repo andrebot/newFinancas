@@ -194,10 +194,32 @@ describe('its submit', () => {
     expect(handlers.onSubmit).not.toHaveBeenCalled();
   });
 
-  it('waits while another request is out', () => {
+  it('waits while another request is out, Cancel too', () => {
     renderDrawer({ disabled: true });
     const button = screen.getByRole<HTMLButtonElement>('button', { name: 'Create account' });
     expect(button.disabled).toBe(true);
+    const cancel = screen.getByRole<HTMLButtonElement>('button', { name: 'Cancel' });
+    expect(cancel.disabled).toBe(true);
+  });
+
+  it('keeps Cancel while its own create is out, so its answer has a banner', () => {
+    renderDrawer({ busy: true, disabled: true });
+    const cancel = screen.getByRole<HTMLButtonElement>('button', { name: 'Cancel' });
+    expect(cancel.disabled).toBe(true);
+  });
+
+  it('drops one card, keeping the objection of the card left', async () => {
+    renderDrawer();
+    await pick('Type', 'Credit card only');
+    fireEvent.click(screen.getByRole('button', { name: /Add credit card/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Add credit card/ }));
+    submitNamed('Cards');
+    expect(screen.getAllByText("Complete the card's fields.").length).toBe(2);
+
+    const drop = screen.getAllByRole('button', { name: /Drop this card/ })[0];
+    if (!drop) throw new Error('the first card’s drop button is missing');
+    fireEvent.click(drop);
+    expect(screen.getAllByText("Complete the card's fields.").length).toBe(1);
   });
 
   it('clears one card’s objection when its fields pass, keeping the other’s', async () => {

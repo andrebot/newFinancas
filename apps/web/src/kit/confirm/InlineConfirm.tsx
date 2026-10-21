@@ -55,6 +55,8 @@ export interface InlineConfirmProps {
   readonly onCancel: () => void;
   /** While the caller's request runs: a spinner on confirm, cancel disabled. */
   readonly busy?: boolean | undefined;
+  /** Another of the caller's requests runs: confirm waits, cancel still closes. */
+  readonly disabled?: boolean | undefined;
   /** Replaces the tone's glyph, e.g. a revoke's own icon. */
   readonly icon?: IconName | undefined;
 }
@@ -78,11 +80,12 @@ export const cancelOnEscape = (busy: boolean, cancel: () => void) => (
  * Renders the inline confirm. It takes focus on Cancel when it opens, and a
  * cancel (the button or Escape) gives focus back to what held it before.
  *
- * @param props - The tone, the texts, the handlers, the busy state and the glyph.
+ * @param props - The tone, the texts, the handlers, the busy and disabled states and the glyph.
  * @returns The confirm box.
  */
 export function InlineConfirm({
-  tone, message, confirmLabel, cancelLabel, onConfirm, onCancel, busy = false, icon,
+  tone, message, confirmLabel, cancelLabel, onConfirm, onCancel, busy = false, disabled = false,
+  icon,
 }: InlineConfirmProps) {
   const messageId = useId();
   const { focusRef, restoreFocus } = useConfirmFocus<HTMLButtonElement>();
@@ -108,7 +111,13 @@ export function InlineConfirm({
         <Button ref={focusRef} variant="ghost" size="sm" disabled={busy} onClick={cancel}>
           {cancelLabel}
         </Button>
-        <Button variant={CONFIRM_VARIANTS[tone]} size="sm" busy={busy} onClick={onConfirm}>
+        <Button
+          variant={CONFIRM_VARIANTS[tone]}
+          size="sm"
+          busy={busy}
+          disabled={disabled && !busy}
+          onClick={onConfirm}
+        >
           {confirmLabel}
         </Button>
       </div>

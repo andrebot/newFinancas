@@ -417,6 +417,7 @@ const ptBR = {
   categoryManagement: {
     loading: 'Carregando as categorias',
     'load.failed': 'Não foi possível carregar as categorias.',
+    'refresh.failed': 'Não foi possível atualizar as categorias; a lista pode estar desatualizada.',
     retry: 'Tentar de novo',
     description: 'Com o que as despesas da sua casa são etiquetadas. Compartilhado por todos do lar.',
     add: 'Adicionar categoria',

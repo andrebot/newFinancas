@@ -7,12 +7,11 @@ import { EmptyState } from '../../kit/emptyState/EmptyState';
 import { PageHeader } from '../../kit/pageHeader/PageHeader';
 import { SkeletonRows } from '../../kit/skeleton/Skeleton';
 import type { ShellHousehold } from '../../shell/shellConfig';
-import { selectActiveHouseholdId } from '../../shell/shellState';
-import { useAppDispatch, useAppSelector } from '../../store';
+import { useAppDispatch } from '../../store';
 import { useAlerts } from '../../utilities/AlertProvider';
 import { useI18n } from '../../utilities/I18nProvider';
 import type { RequestFailure } from '../../utilities/requestOutcome';
-import { useGetCurrentUserQuery, useHouseholds } from '../../api/identityApi';
+import { useActiveHousehold } from '../../api/activeHousehold';
 import {
   useChangeMemberRoleMutation,
   useCreateInvitationMutation,
@@ -259,25 +258,21 @@ const useHouseholdExit = (): HouseholdExit => {
  */
 export function ManageHouseholdExperience() {
   const translator = useI18n();
-  const { data: user, isError, refetch } = useGetCurrentUserQuery();
-  const households = useHouseholds();
-  const activeId = useAppSelector(selectActiveHouseholdId);
+  const active = useActiveHousehold();
   const onExit = useHouseholdExit();
-  const household = households.status === 'ready'
-    ? households.data.find(({ id }) => id === activeId)
-    : undefined;
 
-  if (user && household) {
+  if (active.status === 'ready') {
+    const { household, userId } = active.data;
     return (
-      <HouseholdPage key={household.id} household={household} userId={user.id} onExit={onExit} />
+      <HouseholdPage key={household.id} household={household} userId={userId} onExit={onExit} />
     );
   }
-  if (isError) {
+  if (active.status === 'failed') {
     return (
       <EmptyState
         icon="error-outline"
         title={translator.text('household', 'failed')}
-        action={<Button onClick={() => refetch()}>{translator.text('household', 'retry')}</Button>}
+        action={<Button onClick={active.retry}>{translator.text('household', 'retry')}</Button>}
       />
     );
   }

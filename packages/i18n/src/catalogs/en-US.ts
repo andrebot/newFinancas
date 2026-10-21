@@ -402,6 +402,7 @@ const enUS: Catalog = {
   categoryManagement: {
     loading: 'Loading the categories',
     'load.failed': "Couldn't load the categories.",
+    'refresh.failed': "Couldn't refresh the categories, so the list may be out of date.",
     retry: 'Try again',
     description: "What your household's spending gets tagged with. Shared by everyone in the household.",
     add: 'Add category',

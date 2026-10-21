@@ -150,7 +150,7 @@ export interface EditAccountDrawerProps {
   readonly busy: boolean;
   /** The archive is out: the confirm spins. */
   readonly archiveBusy?: boolean | undefined;
-  /** Another request is out: the buttons wait. */
+  /** A request is out: the buttons wait — Cancel and Archive too. */
   readonly disabled: boolean;
   /** A failure of the last edit, already translated. */
   readonly alert?: string | undefined;
@@ -250,7 +250,7 @@ export function EditAccountDrawer({
   /** Removes one new card again. */
   const removeNewCard = (index: number) => {
     setNewCards((current) => current.filter((_, position) => position !== index));
-    setCardErrors(() => []);
+    setCardErrors((current) => current.filter((_, position) => position !== index));
   };
 
   /** The visibility to send up: only when its creator moved it. */
@@ -288,7 +288,7 @@ export function EditAccountDrawer({
       title={account.name}
       footer={(
         <>
-          <Button variant="secondary" onClick={onCancel}>
+          <Button variant="secondary" disabled={disabled} onClick={onCancel}>
             {translator.text('accountSetup', 'cancel')}
           </Button>
           <Button variant="primary" busy={busy} disabled={disabled && !busy} onClick={submit}>
@@ -341,6 +341,7 @@ export function EditAccountDrawer({
           description={translator.text('accountSetup', 'archive.description')}
           actionLabel={translator.text('accountSetup', 'archive.action')}
           onAction={onOpenArchive}
+          disabled={disabled}
           confirm={archiveConfirmOpen ? (
             <InlineConfirm
               tone="destructive"
@@ -348,6 +349,7 @@ export function EditAccountDrawer({
               confirmLabel={translator.text('accountSetup', 'archive.action')}
               cancelLabel={translator.text('accountSetup', 'cancel')}
               busy={archiveBusy === true}
+              disabled={disabled}
               onConfirm={onArchive}
               onCancel={onCloseArchive}
             />

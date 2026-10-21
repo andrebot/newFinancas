@@ -33,7 +33,7 @@ const VISIBILITIES: readonly Visibility[] = ['personal', 'shared'];
 export interface CreateAccountDrawerProps {
   /** The create is out: the button spins and ignores submits. */
   readonly busy: boolean;
-  /** Another request is out: the button waits. */
+  /** A request is out: the buttons wait — Cancel too, so its answer has a banner. */
   readonly disabled: boolean;
   /** A failure of the last create, already translated. */
   readonly alert?: string | undefined;
@@ -95,7 +95,7 @@ export function CreateAccountDrawer({
   /** Removes one card from the list. */
   const removeCard = (index: number) => {
     setCards((current) => current.filter((_, position) => position !== index));
-    setCardErrors(() => []);
+    setCardErrors((current) => current.filter((_, position) => position !== index));
   };
 
   const showCards = takesCards(type);
@@ -131,7 +131,7 @@ export function CreateAccountDrawer({
       title={translator.text('accountSetup', 'create.title')}
       footer={(
         <>
-          <Button variant="secondary" onClick={onCancel}>
+          <Button variant="secondary" disabled={disabled} onClick={onCancel}>
             {translator.text('accountSetup', 'cancel')}
           </Button>
           <Button variant="primary" busy={busy} disabled={disabled && !busy} onClick={submit}>

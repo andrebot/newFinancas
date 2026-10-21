@@ -19,7 +19,8 @@ import { EditAccountDrawer } from './interactions/EditAccountDrawer';
 // (add, edit field by field, remove) and archive behind a confirm. It fetches
 // the list as it mounts, owns what is out, the open drawer and its last
 // failure, and toasts each success; a failure shows only in the open drawer's
-// banner, where the form still holds what was typed (OQ-192). It never calls
+// banner, where the form still holds what was typed (OQ-192) — so while a
+// request is out, nothing else is sent and the drawer doesn't close. It never calls
 // the backend: every request
 // goes up to the Account Setup Experience, which answers an outcome; a success
 // changes the list the way the API did (OQ-175).
@@ -162,7 +163,8 @@ export function AccountManagementFlow({
   /**
    * Sends a request and applies its answer: the list moves on success and is
    * toasted; on a failure the drawer keeps what was typed and its banner shows
-   * why.
+   * why. One request at a time: while one is out, another isn't sent, so each
+   * answer lands on its own request.
    *
    * @param outgoing - Which request goes out.
    * @param subject - The account's name for the toast.
@@ -173,6 +175,7 @@ export function AccountManagementFlow({
     subject: string,
     request: () => Promise<AccountActionOutcome>,
   ) => {
+    if (state.out) return;
     setState((current) => started(current, outgoing));
     const outcome = await request();
     setState((current) => afterAction(current, outcome));

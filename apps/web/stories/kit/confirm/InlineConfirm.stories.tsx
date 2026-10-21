@@ -60,6 +60,11 @@ export const Busy: Story = {
   args: { busy: true },
 };
 
+/** While another of the caller's requests runs: confirm waits. */
+export const Disabled: Story = {
+  args: { disabled: true },
+};
+
 /** Inside its card, which takes the tone's ring while the confirm is open. */
 export const InCard: Story = {
   render: (args) => (

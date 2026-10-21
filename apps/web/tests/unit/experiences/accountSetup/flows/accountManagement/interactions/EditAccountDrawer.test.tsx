@@ -316,10 +316,27 @@ describe('its submit', () => {
     expect(screen.queryByRole('textbox', { name: 'Card number' })).toBeNull();
   });
 
-  it('waits while another request is out', () => {
+  it('waits while another request is out — Cancel and Archive too', () => {
     renderDrawer({ disabled: true });
     const button = screen.getByRole<HTMLButtonElement>('button', { name: 'Save changes' });
     expect(button.disabled).toBe(true);
+    const cancel = screen.getByRole<HTMLButtonElement>('button', { name: 'Cancel' });
+    expect(cancel.disabled).toBe(true);
+    const archive = screen.getByRole<HTMLButtonElement>('button', { name: 'Archive' });
+    expect(archive.disabled).toBe(true);
+  });
+
+  it('drops one new card, keeping the objection of the card left', () => {
+    renderDrawer();
+    fireEvent.click(screen.getByRole('button', { name: /Add credit card/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Add credit card/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+    expect(screen.getAllByText("Complete the card's fields.").length).toBe(2);
+
+    const drop = screen.getAllByRole('button', { name: /Drop this card/ })[0];
+    if (!drop) throw new Error('the first new card’s drop button is missing');
+    fireEvent.click(drop);
+    expect(screen.getAllByText("Complete the card's fields.").length).toBe(1);
   });
 });
 
@@ -359,6 +376,15 @@ describe('the archive behind its confirm', () => {
     const zone = open.getByRole('region', { name: /Archive this account/ });
     fireEvent.click(within(zone).getByRole('button', { name: 'Cancel' }));
     expect(handlers.onCloseArchive).toHaveBeenCalledTimes(1);
+  });
+
+  it('holds its confirm while an edit is out', () => {
+    const handlers = renderDrawer({ busy: true, disabled: true, archiveConfirmOpen: true });
+    const zone = screen.getByRole('region', { name: /Archive this account/ });
+    const confirm = within(zone).getByRole<HTMLButtonElement>('button', { name: 'Archive' });
+    expect(confirm.disabled).toBe(true);
+    fireEvent.click(confirm);
+    expect(handlers.onArchive).not.toHaveBeenCalled();
   });
 
   it('spins its confirm while an archive is out, not Save', () => {

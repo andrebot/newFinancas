@@ -369,6 +369,31 @@ describe('archiving an account', () => {
     expect(toasts(queue)).toEqual([]);
   });
 
+  it('sends nothing else while a request is out, so each answer lands on its own', async () => {
+    const edit = pending<AccountActionOutcome>();
+    const { requests, queue } = await renderFlow({ onEdit: edit.request });
+    await click('edit chk');
+    await click('open archive');
+    await click('save edit');
+    await click('confirm archive');
+    expect(requests.onArchive).not.toHaveBeenCalled();
+
+    await edit.answer(EDITED);
+    expect(toasts(queue)).toEqual(['Renamed updated.']);
+    expect(panel().dataset.accounts).toBe('chk|ccr');
+  });
+
+  it('keeps the drawer through a cancel while its request is out, for the failure', async () => {
+    const create = pending<AccountActionOutcome>();
+    await renderFlow({ onCreate: create.request });
+    await click('add');
+    await click('submit create');
+    await click('cancel create');
+    await create.answer(FORBIDDEN);
+    expect(screen.getByTestId('create').dataset.alert)
+      .toBe("You don't have permission to do that.");
+  });
+
   it('spins only the control whose request is out', async () => {
     const edit = pending<AccountActionOutcome>();
     const archive = pending<AccountActionOutcome>();

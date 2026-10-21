@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Category } from '@financas/api-types';
+import { InlineBanner } from '../../../../kit/alert/InlineBanner';
 import { Button } from '../../../../kit/button/Button';
 import { EmptyState } from '../../../../kit/emptyState/EmptyState';
 import { Expandable } from '../../../../kit/expandable/Expandable';
@@ -27,7 +28,8 @@ import { CategoryFormCard, type FormInitial } from './interactions/CategoryFormC
 // and its last failure. A success is toasted; a form's failure shows in its
 // banner, a card action's in a toast (OQ-193). It never calls the backend:
 // every request goes up to the Experience, which answers an outcome once the
-// list holds the change.
+// list holds the change. A list whose latest fetch failed stays, with a banner
+// and its retry above it, so an open form keeps what was typed.
 
 /** What the Flow asks of the Experience. */
 export interface CategoryManagementFlowProps {
@@ -242,6 +244,37 @@ function LoadFailed({ onRetry }: { readonly onRetry: () => void }) {
   );
 }
 
+/** What the stale-list banner needs. */
+interface RefreshFailedProps {
+  /** The list as the Experience hands it down. */
+  readonly view: CategoriesView;
+  /** Asks the Experience for the list again. */
+  readonly onRetry: () => void;
+}
+
+/**
+ * Renders the banner over a list whose latest fetch failed (OQ-193): the list
+ * stays, so an open form keeps what was typed, and the retry sits beside it.
+ *
+ * @param props - The list's view and the retry.
+ * @returns The banner, or nothing while the list is current.
+ */
+function RefreshFailed({ view, onRetry }: RefreshFailedProps) {
+  const translator = useI18n();
+  if (view.status !== 'loaded' || view.refreshError === undefined) return null;
+  return (
+    <InlineBanner
+      tone="error"
+      message={translator.text('categoryManagement', 'refresh.failed')}
+      action={(
+        <Button variant="ghost" onClick={onRetry}>
+          {translator.text('categoryManagement', 'retry')}
+        </Button>
+      )}
+    />
+  );
+}
+
 /**
  * Renders the categories panel and runs its requests.
  *
@@ -349,6 +382,7 @@ export function CategoryManagementFlow({
 
   return (
     <div className="flex flex-col gap-6">
+      <RefreshFailed view={view} onRetry={onRetry} />
       {view.status === 'loaded' && (
         <div className="flex items-center justify-between gap-4">
           <p className="text-sm text-muted">
