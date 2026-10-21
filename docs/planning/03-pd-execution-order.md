@@ -134,7 +134,7 @@ identity screens, the rest as later slices use them.
 - [x] **88.** `K9` Date input (OQ-190: typed in the interface language's order with the separators added, a `/` after one digit pads it; `YYYY-MM-DD` out, the pieces typed so far while incomplete so `isoDate` flags them; format placeholder from the catalog)
 - [x] **107.** `K20` Drawer / sheet — moved up before FL11, the first Flow whose form opens in one (OQ-191: a modal dialog on Floating UI; right-hand 520px panel under the header from `md`, full-screen sheet below; the caller holds `open`, Esc / scrim / ✕ ask it to close; focus on the body's first field and back to the opener; 200ms slide, none under reduced motion)
 - [x] **89.** `FL11` Account & Card Management (OQ-192: the Accounts tab of `/account-setup` is live, the other tabs placeholders; the opening balance is OQ-169's anchor with its hint; checking, savings and credit-card accounts carry their cards inline — the number never leaves the form, a new card is drawn live, an attached card's billing and expiry edit while its network and last four stay fixed; every member adds accounts, a Viewer's personal; type and currency lock at creation, visibility moves only in the creator's hands; archiving behind a destructive confirm; a failure shows in the drawer's banner only)
-- [ ] **90.** `FL12` Category Management
+- [x] **90.** `FL12` Category Management (OQ-193: the card turns into its form in place; a subcategory joins through the category's own atomic PATCH; archiving cascades behind a confirm that names the count)
 - [ ] **91.** `FL13` Budget Management
 - [ ] **92.** `FL14` Goal Management
 - [ ] **93.** `FL6` Guided Setup

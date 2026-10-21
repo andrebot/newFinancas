@@ -1,9 +1,10 @@
 import { act, fireEvent, screen } from '@testing-library/react';
-import type { Account } from '@financas/api-types';
+import type { Account, Category } from '@financas/api-types';
 import {
   describe, expect, it, vi,
 } from 'vitest';
 import type { AccountManagementFlowProps } from '../../../../src/experiences/accountSetup/flows/accountManagement/AccountManagementFlow';
+import type { CategoryManagementFlowProps } from '../../../../src/experiences/accountSetup/flows/categoryManagement/CategoryManagementFlow';
 import { AccountSetupExperience } from '../../../../src/experiences/accountSetup/AccountSetupExperience';
 import { householdChosen } from '../../../../src/shell/shellState';
 import { AlertProvider } from '../../../../src/utilities/AlertProvider';
@@ -56,6 +57,36 @@ vi.mock(
             accountId: 'ccr', name: 'Cards', visibility: 'personal', cards: { remove: ['card-1'] },
           }),
           archive: () => onArchive('ccr'),
+        }}
+      />
+    ),
+  }),
+);
+
+vi.mock(
+  '../../../../src/experiences/accountSetup/flows/categoryManagement/CategoryManagementFlow',
+  () => ({
+    /**
+     * The Category Management Flow's stand-in: one button per request branch.
+     *
+     * @param props - What the Experience passes.
+     * @returns The stub.
+     */
+    CategoryManagementFlow: ({
+      role, onLoad, onCreate, onEdit, onAddSubcategory, onArchiveCategory, onArchiveSubcategory,
+    }: CategoryManagementFlowProps) => (
+      <Stub
+        name="categories"
+        shows={{ role }}
+        requests={{
+          load: () => onLoad(),
+          create: () => onCreate({ name: 'Housing', icon: 'home-outline', color: 'mint' }),
+          editPlain: () => onEdit({
+            categoryId: 'cat', name: 'Renamed', icon: 'home-outline', color: 'mint',
+          }),
+          addSub: () => onAddSubcategory('cat', 'Parking'),
+          archiveCategory: () => onArchiveCategory('cat'),
+          archiveSub: () => onArchiveSubcategory('cat', 's1'),
         }}
       />
     ),
@@ -140,6 +171,15 @@ const lastBody = async (fetchFn: ReturnType<typeof fakeFetch>) => {
   return calls[calls.length - 1]?.body;
 };
 
+/**
+ * Selects the Categories tab so its stub is in front.
+ */
+const pickCategories = async () => {
+  await act(async () => {
+    fireEvent.click(screen.getByRole('radio', { name: 'Categories' }));
+  });
+};
+
 describe('the page', () => {
   it('shows the active household with its flow, signed in as its owner', async () => {
     await renderExperience();
@@ -148,7 +188,7 @@ describe('the page', () => {
     expect(screen.getByRole('radio', { name: 'Accounts' })).toBeTruthy();
   });
 
-  it('shows each unbuilt section as its empty state, and the accounts back', async () => {
+  it('shows each unbuilt section as its empty state, and the built ones back', async () => {
     await renderExperience();
     const pickTab = async (tab: string) => {
       await act(async () => {
@@ -156,7 +196,7 @@ describe('the page', () => {
       });
     };
     await pickTab('Categories');
-    expect(screen.getByText('Categories arrive in a later task.')).toBeTruthy();
+    expect(screen.getByTestId('categories')).toBeTruthy();
     await pickTab('Budgets');
     expect(screen.getByText('Budgets arrive in a later task.')).toBeTruthy();
     await pickTab('Goals');
@@ -289,5 +329,113 @@ describe('the accounts it answers for its flow', () => {
     await press('archive');
     expect(outcomeOf('accounts')).toEqual({ ok: true });
     expect(await routes(fetchFn)).toContain('POST /api/v1/households/doe/accounts/ccr/archive');
+  });
+});
+
+const SUB = {
+  id: 's1',
+  categoryId: 'cat',
+  name: 'Rent',
+  archivedAt: null,
+  createdAt: '2026-10-01T00:00:00Z',
+};
+
+const CATEGORY: Category = {
+  id: 'cat',
+  householdId: 'doe',
+  name: 'Housing',
+  icon: 'home-outline',
+  color: 'mint',
+  archivedAt: null,
+  createdAt: '2026-10-01T00:00:00Z',
+  subcategories: [SUB],
+};
+
+describe('the categories it answers for its flow', () => {
+  it('lists them through the endpoint, archived included', async () => {
+    const { fetchFn } = await renderExperience({
+      'GET /households/doe/categories': () => jsonResponse(200, { data: [CATEGORY] }),
+    });
+    await pickCategories();
+    await press('load');
+    expect(outcomeOf('categories')).toEqual({ ok: true, categories: [CATEGORY] });
+    expect(await routes(fetchFn)).toContain('GET /api/v1/households/doe/categories');
+  });
+
+  it('shows the failure when a load fails', async () => {
+    await renderExperience({
+      'GET /households/doe/categories': () => jsonResponse(500, envelope('internal.unexpected')),
+    });
+    await pickCategories();
+    await press('load');
+    expect(outcomeOf('categories')).toEqual(
+      { ok: false, error: { code: 'internal.unexpected', params: {} } },
+    );
+  });
+
+  it('creates through its endpoint with only the fields', async () => {
+    const { fetchFn } = await renderExperience({
+      'POST /households/doe/categories': () => jsonResponse(201, CATEGORY),
+    });
+    await pickCategories();
+    await press('create');
+    expect(outcomeOf('categories')).toEqual(expect.objectContaining({ ok: true }));
+    const body = await lastBody(fetchFn);
+    expect(body).toEqual({ name: 'Housing', icon: 'home-outline', color: 'mint' });
+  });
+
+  it('answers a failed create with its error', async () => {
+    await renderExperience({
+      'POST /households/doe/categories': () => jsonResponse(403, envelope('internal.unexpected')),
+    });
+    await pickCategories();
+    await press('create');
+    expect(outcomeOf('categories')).toEqual(
+      { ok: false, error: { code: 'internal.unexpected', params: {} } },
+    );
+  });
+
+  it('edits with its fields, address stripped out', async () => {
+    const renamed = { ...CATEGORY, name: 'Renamed' };
+    const { fetchFn } = await renderExperience({
+      'PATCH /households/doe/categories/cat': () => jsonResponse(200, renamed),
+    });
+    await pickCategories();
+    await press('editPlain');
+    const body = await lastBody(fetchFn);
+    expect(body).toEqual({ name: 'Renamed', icon: 'home-outline', color: 'mint' });
+  });
+
+  it('adds a subcategory in the same atomic edit (OQ-173)', async () => {
+    const grown = { ...CATEGORY, subcategories: [SUB, { ...SUB, id: 's2', name: 'Parking' }] };
+    const { fetchFn } = await renderExperience({
+      'PATCH /households/doe/categories/cat': () => jsonResponse(200, grown),
+    });
+    await pickCategories();
+    await press('addSub');
+    expect(outcomeOf('categories')).toEqual(expect.objectContaining({ ok: true }));
+    expect(await lastBody(fetchFn)).toEqual({ subcategories: [{ name: 'Parking' }] });
+  });
+
+  it('archives a category through its endpoint and shows the success', async () => {
+    const { fetchFn } = await renderExperience({
+      'POST /households/doe/categories/cat/archive': () => jsonResponse(204),
+    });
+    await pickCategories();
+    await press('archiveCategory');
+    expect(outcomeOf('categories')).toEqual({ ok: true });
+    expect(await routes(fetchFn)).toContain('POST /api/v1/households/doe/categories/cat/archive');
+  });
+
+  it('archives a subcategory through its endpoint and shows the success', async () => {
+    const { fetchFn } = await renderExperience({
+      'POST /households/doe/categories/cat/subcategories/s1/archive': () => jsonResponse(204),
+    });
+    await pickCategories();
+    await press('archiveSub');
+    expect(outcomeOf('categories')).toEqual({ ok: true });
+    expect(await routes(fetchFn)).toContain(
+      'POST /api/v1/households/doe/categories/cat/subcategories/s1/archive',
+    );
   });
 });

@@ -2909,6 +2909,7 @@ components:
 
     Subcategory:
       type: object
+      required: [id, categoryId, name, archivedAt, createdAt]
       properties:
         id: { type: string, format: uuid }
         categoryId: { type: string, format: uuid }
@@ -2918,6 +2919,7 @@ components:
 
     Category:
       type: object
+      required: [id, householdId, name, icon, color, archivedAt, createdAt, subcategories]
       properties:
         id: { type: string, format: uuid }
         householdId: { type: string, format: uuid }

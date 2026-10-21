@@ -5053,6 +5053,17 @@ not a hardcoded assumption.
 
 **Task 89 (`FL11`) is complete.**
 
+### OQ-193: Category Management (task FL12)
+**Design decisions:**
+- **The Categories tab is the live flow; Budgets and Goals stay placeholders.** The page at `/account-setup` now renders mockup 41's grid of category cards — each with its disc, name, its subcategory chips and an inline add-sub field — plus a dashed create card. Budgets and Goals keep their empty states until FL13–FL14.
+- **Editing turns the card into its form in place.** Mockup 41 draws only the create state; editing reuses the same `CategoryFormCard` pre-filled where the card stood, with Save/Cancel instead of Create/Cancel. A drawer was turned down: the grid is small and the card already holds every field, so lifting it into a sheet would move the eye for no gain.
+- **Adding a subcategory is the category's own atomic edit.** The inline add-sub sends `PATCH …/categories/:id` with `{subcategories:[{name}]}` — OQ-173's rule that unlisted subcategories are untouched makes one endpoint enough; no separate create route was added.
+- **Archiving cascades, behind a confirm that says so.** Archiving a category archives all its live subcategories server-side (FR-10.4); the card's inline confirm names the count before it goes out. A single subcategory archives on its own from its chip.
+- **Only Owner and Admin manage** (FR-1.7, OQ-174): Members and Viewers see the grid read-only — no create card, no edit or archive controls.
+- **The contract's Category and Subcategory schemas gained their `required` lists.** Every field was optional in the generated types although the server always emits them all (`toCategoryJson`); the required arrays now match what the API returns, so the web side stops treating live data as half-present.
+
+**Task 90 (`FL12`) is complete.**
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.
