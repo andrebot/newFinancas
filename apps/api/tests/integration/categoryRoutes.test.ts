@@ -143,6 +143,37 @@ describe('category routes (OQ-174: under /households/:householdId)', () => {
     expect(account.createCategory).not.toHaveBeenCalled();
   });
 
+  it('POST …/categories refuses a name over 20 characters (OQ-193)', async () => {
+    const { app, account } = setup();
+
+    const response = await send(app, 'POST', CATEGORIES, {
+      name: 'x'.repeat(21), icon: 'home-outline', color: 'coral',
+    });
+
+    expect(response.status).toBe(422);
+    const { error } = await response.json() as { error: { details: unknown[] } };
+    expect(error.details).toEqual([
+      { field: 'name', code: 'string.max', params: { max: 20 } },
+    ]);
+    expect(account.createCategory).not.toHaveBeenCalled();
+  });
+
+  it('PATCH …/categories/:categoryId refuses names over 20 characters (OQ-193)', async () => {
+    const { app, account } = setup();
+
+    const response = await send(app, 'PATCH', `${CATEGORIES}/${FOOD}`, {
+      name: 'y'.repeat(21), subcategories: [{ name: 'z'.repeat(21) }],
+    });
+
+    expect(response.status).toBe(422);
+    const { error } = await response.json() as { error: { details: unknown[] } };
+    expect(error.details).toEqual([
+      { field: 'name', code: 'string.max', params: { max: 20 } },
+      { field: 'subcategories[0].name', code: 'string.max', params: { max: 20 } },
+    ]);
+    expect(account.editCategory).not.toHaveBeenCalled();
+  });
+
   it('GET …/categories/:categoryId → 200', async () => {
     const { app, account } = setup();
     account.getCategory.mockResolvedValueOnce(CATEGORY);

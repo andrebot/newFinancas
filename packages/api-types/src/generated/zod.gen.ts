@@ -381,29 +381,29 @@ export const zCategoryColor = z.enum([
 ]);
 
 export const zSubcategory = z.object({
-    id: z.uuid().optional(),
-    categoryId: z.uuid().optional(),
-    name: z.string().optional(),
-    archivedAt: z.iso.datetime().nullish(),
-    createdAt: z.iso.datetime().optional()
+    id: z.uuid(),
+    categoryId: z.uuid(),
+    name: z.string(),
+    archivedAt: z.iso.datetime().nullable(),
+    createdAt: z.iso.datetime()
 });
 
 export const zCategory = z.object({
-    id: z.uuid().optional(),
-    householdId: z.uuid().optional(),
-    name: z.string().optional(),
-    archivedAt: z.iso.datetime().nullish(),
-    createdAt: z.iso.datetime().optional(),
-    subcategories: z.array(zSubcategory).optional(),
-    icon: zCategoryIcon.optional(),
-    color: zCategoryColor.optional()
+    id: z.uuid(),
+    householdId: z.uuid(),
+    name: z.string(),
+    archivedAt: z.iso.datetime().nullable(),
+    createdAt: z.iso.datetime(),
+    subcategories: z.array(zSubcategory),
+    icon: zCategoryIcon,
+    color: zCategoryColor
 });
 
 export const zCategoryUpdateRequest = z.object({
-    name: z.string().optional(),
+    name: z.string().max(20).optional(),
     subcategories: z.array(z.object({
         id: z.uuid().optional(),
-        name: z.string()
+        name: z.string().max(20)
     })).optional(),
     icon: zCategoryIcon.optional(),
     color: zCategoryColor.optional()
@@ -1325,7 +1325,7 @@ export const zListCategoriesResponse = z.object({
 });
 
 export const zCreateCategoryBody = z.object({
-    name: z.string(),
+    name: z.string().max(20),
     icon: zCategoryIcon,
     color: zCategoryColor
 });

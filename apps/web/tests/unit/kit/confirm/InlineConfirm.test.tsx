@@ -118,6 +118,24 @@ describe('InlineConfirm', () => {
     expect(onCancel).not.toHaveBeenCalled();
   });
 
+  it('while another request runs, confirm waits but cancel still closes', () => {
+    const { onConfirm, onCancel } = renderConfirm({ disabled: true });
+
+    const confirm = screen.getByRole<HTMLButtonElement>('button', { name: 'Arquivar' });
+    expect(confirm.disabled).toBe(true);
+    fireEvent.click(confirm);
+    expect(onConfirm).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('spins rather than greys out when busy and disabled together', () => {
+    renderConfirm({ busy: true, disabled: true });
+
+    const confirm = screen.getByRole<HTMLButtonElement>('button', { name: 'Arquivar' });
+    expect(confirm.getAttribute('aria-busy')).toBe('true');
+  });
+
   it('gives the host a ring in the tone\'s colour', () => {
     expect(CONFIRM_RINGS.destructive).toBe('ring-1 ring-coral/40');
     expect(CONFIRM_RINGS.reversible).toBe('ring-1 ring-mint/40');

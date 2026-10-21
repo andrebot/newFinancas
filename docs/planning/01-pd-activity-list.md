@@ -196,8 +196,8 @@ Experiences call.
 | FL8 | Delete Account | 3 |
 | FL9 | Membership Management (transfer to any member; revoke unconfirmed — OQ-155) | 6 |
 | FL10 | Household Deletion | 2 |
-| FL11 | Account & Card Management | 3 |
-| FL12 | Category Management | 4 |
+| FL11 | Account & Card Management (the Accounts tab of `/account-setup`: add / edit / archive accounts; checking, savings and credit-card accounts run their cards — added through their number with a live preview, billing edited, removed) — OQ-192 | 3 |
+| FL12 | Category Management (the Categories tab of `/account-setup`: create / edit / archive categories; subcategories as chips with an inline add and per-chip archive; Members create, Owner/Admin manage) — OQ-193 | 4 |
 | FL13 | Budget Management | 3 |
 | FL14 | Goal Management | 4 |
 | FL15 | Record Transaction | 4 |

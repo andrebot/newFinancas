@@ -1014,8 +1014,8 @@ paths:
         set every household is seeded with. Categories are shared
         household data with no recorded creator: any member but a Viewer
         may create one; editing and archiving are Owner/Admin (FR-1.7,
-        OQ-174). Created without Subcategories — add them with
-        `editCategory`.
+        OQ-111). Created without Subcategories — add them with
+        `editCategory`. A name is at most 20 characters (OQ-193).
       requestBody:
         required: true
         content:
@@ -1027,7 +1027,7 @@ paths:
                 - icon
                 - color
               properties:
-                name: { type: string }
+                name: { type: string, maxLength: 20 }
                 icon: { $ref: "#/components/schemas/CategoryIcon" }
                 color: { $ref: "#/components/schemas/CategoryColor" }
       responses:
@@ -2909,6 +2909,7 @@ components:
 
     Subcategory:
       type: object
+      required: [id, categoryId, name, archivedAt, createdAt]
       properties:
         id: { type: string, format: uuid }
         categoryId: { type: string, format: uuid }
@@ -2918,6 +2919,7 @@ components:
 
     Category:
       type: object
+      required: [id, householdId, name, icon, color, archivedAt, createdAt, subcategories]
       properties:
         id: { type: string, format: uuid }
         householdId: { type: string, format: uuid }
@@ -2933,7 +2935,7 @@ components:
     CategoryUpdateRequest:
       type: object
       properties:
-        name: { type: string }
+        name: { type: string, maxLength: 20 }
         subcategories:
           type: array
           items:
@@ -2941,7 +2943,7 @@ components:
             required: [name]
             properties:
               id: { type: string, format: uuid, description: "Omit to create a new Subcategory" }
-              name: { type: string }
+              name: { type: string, maxLength: 20 }
         icon: { $ref: "#/components/schemas/CategoryIcon" }
         color: { $ref: "#/components/schemas/CategoryColor" }
 

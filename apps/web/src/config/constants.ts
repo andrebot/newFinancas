@@ -105,6 +105,8 @@ export const creditCard = {
   chip: ['#E9C46A', '#B88A2E'],
   /** The digits the preview draws while fewer are typed, when the network allows that many. */
   placeholderLength: 16,
+  /** The years after this one a card's expiration may name (FL11, OQ-192). */
+  expirationYearsAhead: 15,
 } as const;
 
 /** The money input (K7, OQ-188). */
@@ -171,6 +173,12 @@ export const household = {
   managerRoles: ['Owner', 'Admin'],
   /** The members list's order: the Owner first, then by how much each role may do. */
   roleOrder: ['Owner', 'Admin', 'Member', 'Viewer'],
+} as const;
+
+/** Category Management (FL12). */
+export const categories = {
+  /** The longest category or subcategory name: the contract's `maxLength` (OQ-193). */
+  nameMaxLength: 20,
 } as const;
 
 /** Manage Profile (X3). */

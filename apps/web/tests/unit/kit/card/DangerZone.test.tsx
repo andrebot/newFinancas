@@ -46,6 +46,15 @@ describe('DangerZone', () => {
     expect(onAction).toHaveBeenCalledTimes(1);
   });
 
+  it('waits while another request runs', () => {
+    const { onAction } = renderZone({ disabled: true });
+
+    const button = actionButton() as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    fireEvent.click(button);
+    expect(onAction).not.toHaveBeenCalled();
+  });
+
   it("shows the caller's confirm in the button's place", () => {
     renderZone({ confirm: <p>the confirm</p> });
 

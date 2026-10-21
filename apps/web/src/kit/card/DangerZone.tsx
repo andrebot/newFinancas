@@ -20,6 +20,8 @@ export interface DangerZoneProps {
   readonly actionLabel: string;
   /** The user went on: the caller opens its confirm. */
   readonly onAction: () => void;
+  /** Another of the caller's requests runs: the button waits. */
+  readonly disabled?: boolean | undefined;
   /** The caller's confirm, once the user went on: it takes the button's place. */
   readonly confirm?: ReactNode;
   /** Back after a cancel: the button takes the focus as it shows again. */
@@ -30,11 +32,11 @@ export interface DangerZoneProps {
  * Renders the danger zone: the warning tile, title and description and, until
  * the user goes on, the button; afterwards, the confirm below them.
  *
- * @param props - The texts, the handler, the confirm and the focus rule.
+ * @param props - The texts, the handler, the disabled state, the confirm and the focus rule.
  * @returns The section.
  */
 export function DangerZone({
-  title, description, actionLabel, onAction, confirm, returnFocus = false,
+  title, description, actionLabel, onAction, disabled = false, confirm, returnFocus = false,
 }: DangerZoneProps) {
   const titleId = useId();
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -59,7 +61,13 @@ export function DangerZone({
           <div className="type-body-sm text-muted">{description}</div>
         </div>
         {confirm === undefined && (
-          <Button ref={buttonRef} variant="danger" size="lg" onClick={onAction}>
+          <Button
+            ref={buttonRef}
+            variant="danger"
+            size="lg"
+            disabled={disabled}
+            onClick={onAction}
+          >
             {actionLabel}
           </Button>
         )}

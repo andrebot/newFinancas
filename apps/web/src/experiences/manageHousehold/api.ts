@@ -6,6 +6,7 @@ import type {
   ListMembersResponse,
 } from '@financas/api-types';
 import backendApi from '../../api/backendApi';
+import send from '../../api/send';
 import type {
   AssignableRole, HouseholdMember, ListedInvitation,
 } from './flows/membershipManagement/membershipState';
@@ -44,16 +45,6 @@ export interface InvitationTarget {
   readonly householdId: string;
   readonly invitationId: string;
 }
-
-/**
- * Builds a request with a method and an optional JSON body.
- *
- * @param method - The HTTP method.
- * @param url - The path, relative to the API's base URL.
- * @param body - The JSON body, if any.
- * @returns The request's fetch arguments.
- */
-const send = (method: string, url: string, body?: object) => ({ url, method, body });
 
 /**
  * Builds a household's path.

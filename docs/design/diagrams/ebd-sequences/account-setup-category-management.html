@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Account Setup — Category Management</h1>
-  <p class="subtitle"><span class="route">POST/PATCH /households/:householdId/categories</span>, archive endpoints.</p>
+  <p class="subtitle"><span class="route">GET/POST/PATCH /households/:householdId/categories</span>, the category and subcategory archive endpoints. Built in FL12 (OQ-193).</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -67,29 +67,56 @@ sequenceDiagram
     participant FLOW as Category Management<br/>Flow
     participant EXP as Account Setup<br/>Experience
     participant API as Backend API
-    alt new category
+    EXP->>API: GET /households/:householdId/categories?includeArchived=true (as the page mounts)
+    API-->>EXP: categories with their subcategories
+    EXP-->>FLOW: categories (loading / failed → retry / loaded) — shared with Budget Management
+    FLOW-->>CC: live cards + archived section
+    alt new category (Owner, Admin or Member)
         User->>IP: name, icon, colour (18 palette tokens)
         IP->>FLOW: emit categoryDrafted
         FLOW->>EXP: request createCategory
         EXP->>API: POST /households/:householdId/categories
-    else add a subcategory
+    else edit in place (Owner / Admin)
+        User->>IP: the card turned into its form — name, icon, colour
+        IP->>FLOW: emit categoryEdited
+        FLOW->>EXP: request editCategory
+        EXP->>API: PATCH /households/:householdId/categories/:categoryId {name, icon, color}
+    else add a subcategory (Owner / Admin)
         User->>SE: name, ✓
         SE->>FLOW: emit subcategoryAdded
-        FLOW->>EXP: request updateCategory(subcategories)
-        EXP->>API: PATCH /households/:householdId/categories/:categoryId
-    else archive
-        User->>AC: confirm (cascades to subcategories)
+        FLOW->>EXP: request addSubcategory
+        EXP->>API: PATCH /households/:householdId/categories/:categoryId {subcategories: [{name}]}
+    else archive a subcategory (Owner / Admin)
+        User->>CC: the chip's archive
+        CC->>FLOW: emit archiveSubcategory
+        FLOW->>EXP: request archiveSubcategory
+        EXP->>API: POST …/categories/:categoryId/subcategories/:subcategoryId/archive
+    else archive a category (Owner / Admin)
+        User->>AC: confirm (names the live subcategories it cascades to)
         AC->>FLOW: emit archive
-        FLOW->>EXP: request archive
+        FLOW->>EXP: request archiveCategory
         EXP->>API: POST /households/:householdId/categories/:categoryId/archive
     end
-    API-->>EXP: done
-    EXP-->>FLOW: state refreshed
+    alt failure
+        API-->>EXP: error code
+        EXP-->>FLOW: outcome: failed(code) — a form's in its banner, typing kept, a card action's toasted
+    else ok
+        API-->>EXP: done
+        EXP->>API: GET …/categories?includeArchived=true (fetched again)
+        alt list fetched
+            API-->>EXP: categories
+            EXP-->>FLOW: outcome: ok, categories refreshed — form / confirm closes
+        else list fetch failed
+            API-->>EXP: error code
+            EXP-->>FLOW: outcome: ok, categories + refreshError — banner "may be out of date" → retry
+        end
+        Note over FLOW: toast "{name} created / updated / added / archived."
+    end
     FLOW-->>CC: re-render (colour via ThemeUtility)
     </pre>
   </div>
   <div class="notes">
-<ul><li>Colour stored as a token, resolved per theme (OQ-85).</li></ul>
+<ul><li>Colour stored as a token, resolved per theme (OQ-85).</li><li>The Experience answers after the list is fetched again, so the Flow never patches it (OQ-193).</li><li>A subcategory's add is the category's own atomic PATCH — unlisted ones untouched (OQ-173).</li></ul>
   </div>
   <script>
     mermaid.initialize({

@@ -16,3 +16,9 @@ export type RequestOutcome = { readonly ok: true } | {
   readonly ok: false;
   readonly error: RequestFailure;
 };
+
+/** What the Experience answers for a request whose success carries data. */
+export type DataOutcome<Data> = { readonly ok: true; readonly data: Data } | {
+  readonly ok: false;
+  readonly error: RequestFailure;
+};
