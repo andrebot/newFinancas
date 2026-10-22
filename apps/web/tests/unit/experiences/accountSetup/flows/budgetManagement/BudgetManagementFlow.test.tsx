@@ -23,43 +23,32 @@ import { renderInLocale } from '../../../../../support/renderInLocale';
 
 vi.mock('../../../../../../src/experiences/accountSetup/flows/budgetManagement/interactions/BudgetList', () => ({
   /**
-   * The list's stand-in: each budget's id, its manage gate and the Flow's handlers.
+   * The list's stand-in: each budget's id, its manage gate and the opener.
    *
    * @param props - What the Flow passes.
    * @returns The stub.
    */
-  BudgetList: ({
-    budgets, isManageable, busy, deleting, deletingOut, onEdit, onDeleteRequest, onConfirmDelete,
-    onCancelDelete,
-  }: BudgetListProps) => (
-    <div
-      data-testid="list"
-      data-busy={String(busy)}
-      data-deleting={deleting ?? ''}
-      data-out={deletingOut ?? ''}
-    >
+  BudgetList: ({ budgets, isManageable, onEdit }: BudgetListProps) => (
+    <div data-testid="list">
       {budgets.map((budget) => (
         <div key={budget.id} data-testid="card" data-manage={String(isManageable(budget))}>
           <button type="button" onClick={() => onEdit(budget.id)}>{`edit ${budget.id}`}</button>
-          <button type="button" onClick={() => onDeleteRequest(budget.id)}>
-            {`delete ${budget.id}`}
-          </button>
         </div>
       ))}
-      <button type="button" onClick={onConfirmDelete}>confirm delete</button>
-      <button type="button" onClick={onCancelDelete}>cancel delete</button>
     </div>
   ),
 }));
 vi.mock('../../../../../../src/experiences/accountSetup/flows/budgetManagement/interactions/BudgetDrawer', () => ({
   /**
-   * The drawer's stand-in: its budget, state and a submit of fixed fields.
+   * The drawer's stand-in: its budget, state, a submit of fixed fields and
+   * its delete zone's handlers.
    *
    * @param props - What the Flow passes.
    * @returns The stub.
    */
   BudgetDrawer: ({
-    budget, personalOnly, busy, disabled, alert, onSubmit, onCancel,
+    budget, personalOnly, busy, disabled, alert, deleteConfirmOpen, deleteBusy, onOpenDelete,
+    onDelete, onCloseDelete, onSubmit, onCancel,
   }: BudgetDrawerProps) => (
     <div
       data-testid="drawer"
@@ -68,7 +57,12 @@ vi.mock('../../../../../../src/experiences/accountSetup/flows/budgetManagement/i
       data-busy={String(busy)}
       data-disabled={String(disabled)}
       data-alert={alert ?? ''}
+      data-deleting={String(deleteConfirmOpen)}
+      data-delete-busy={String(deleteBusy)}
     >
+      <button type="button" onClick={onOpenDelete}>open delete</button>
+      <button type="button" onClick={onDelete}>confirm delete</button>
+      <button type="button" onClick={onCloseDelete}>cancel delete</button>
       <button
         type="button"
         onClick={() => onSubmit({
@@ -421,39 +415,57 @@ describe('editing a budget', () => {
 });
 
 describe('deleting a budget', () => {
-  it('opens its confirm, deletes on a yes and toasts the success', async () => {
+  /** The open drawer's stand-in. */
+  const drawer = () => screen.getByTestId('drawer');
+
+  it('opens its confirm in the edit drawer, deletes on a yes, closes and toasts', async () => {
     const { onDelete } = renderFlow();
-    await press('delete home');
-    expect(screen.getByTestId('list').dataset.deleting).toBe('home');
+    await press('edit home');
+    await press('open delete');
+    expect(drawer().dataset.deleting).toBe('true');
     await press('confirm delete');
     expect(onDelete).toHaveBeenCalledWith('home');
-    expect(screen.getByTestId('list').dataset.deleting).toBe('');
+    expect(screen.queryByTestId('drawer')).toBeNull();
     expect(toasts()).toEqual(['home deleted.']);
   });
 
-  it('marks the confirm whose delete is out', async () => {
+  it('spins the confirm while the delete is out, the drawer waiting', async () => {
     const onDelete = vi.fn(() => new Promise<RequestOutcome>(() => {}));
     renderFlow({ onDelete });
-    await press('delete home');
+    await press('edit home');
+    await press('open delete');
     await press('confirm delete');
-    expect(screen.getByTestId('list').dataset.out).toBe('home');
-    expect(screen.getByTestId('list').dataset.busy).toBe('true');
+    expect(drawer().dataset.deleteBusy).toBe('true');
+    expect(drawer().dataset.busy).toBe('false');
+    expect(drawer().dataset.disabled).toBe('true');
   });
 
-  it('toasts a failure and keeps the confirm open', async () => {
-    renderFlow({ onDelete: async () => ({ ok: false, error: { code: 'budget.not_found' } }) });
-    await press('delete home');
+  it('toasts a failure and keeps the drawer and its confirm open', async () => {
+    renderFlow({ onDelete: async () => ({ ok: false, error: { code: 'auth.forbidden' } }) });
+    await press('edit home');
+    await press('open delete');
     await press('confirm delete');
-    expect(toasts()).toEqual(['Budget not found.']);
-    expect(screen.getByTestId('list').dataset.deleting).toBe('home');
+    expect(toasts()).toEqual([translator.error('auth.forbidden')]);
+    expect(drawer().dataset.deleting).toBe('true');
+    expect(drawer().dataset.alert).toBe('');
   });
 
   it('closes the confirm on cancel, and sends nothing without one open', async () => {
     const { onDelete } = renderFlow();
-    await press('delete home');
+    await press('edit home');
+    await press('open delete');
     await press('cancel delete');
-    expect(screen.getByTestId('list').dataset.deleting).toBe('');
+    expect(drawer().dataset.deleting).toBe('false');
     await press('confirm delete');
     expect(onDelete).not.toHaveBeenCalled();
+  });
+
+  it('drops an open confirm when the drawer closes', async () => {
+    renderFlow();
+    await press('edit home');
+    await press('open delete');
+    await press('cancel drawer');
+    await press('edit home');
+    expect(drawer().dataset.deleting).toBe('false');
   });
 });

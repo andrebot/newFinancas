@@ -22,9 +22,10 @@ import { BudgetList } from './interactions/BudgetList';
 // The Budget Management Flow (FL13, mockup 42; FR-4, OQ-176, OQ-194): the
 // budgets the caller can see as cards — add one with its name, currency,
 // visibility, monthly target and the categories it covers, edit it in the
-// same drawer (currency and visibility locked), and delete it behind an
-// inline confirm (a hard delete, FR-4.10). The budgets and the categories are
-// the Account Setup Experience's and come in as display state; the Flow owns
+// same drawer (currency and visibility locked) — opened by clicking its card —
+// and delete it from there, behind an inline confirm (a hard delete,
+// FR-4.10). The budgets and the categories are the Account Setup
+// Experience's and come in as display state; the Flow owns
 // what is out, the open drawer, the delete confirm and the last failure. A
 // success is toasted; a form's failure shows in the drawer's banner — a
 // target claimed meanwhile names who took it, the list having been fetched
@@ -156,16 +157,6 @@ const editTargetOf = (budgets: readonly Budget[], state: BudgetManagementState) 
  */
 const isFormOut = (out: Outgoing | undefined) => out !== undefined && out.kind !== 'delete';
 
-/**
- * Names the budget whose delete is out, so only its confirm spins.
- *
- * @param out - The request that is out, if any.
- * @returns That budget's id, or nothing while no delete is out.
- */
-const deletingOutOf = (out: Outgoing | undefined) => (
-  out?.kind === 'delete' ? out.budgetId : undefined
-);
-
 /** The loaded panel's props: both lists, the state and the Flow's handlers. */
 interface BudgetsPanelProps {
   readonly budgets: readonly Budget[];
@@ -208,13 +199,7 @@ function BudgetsPanel({
         budgets={budgets}
         categories={categories}
         isManageable={(budget) => mayManageBudget(budget, selfUserId, role)}
-        busy={out !== undefined}
-        deletingOut={deletingOutOf(out)}
-        deleting={state.deleting}
         onEdit={onBudget((current, budgetId) => drawerOpened(current, { kind: 'edit', budgetId }))}
-        onDeleteRequest={onBudget(deleteConfirmOpened)}
-        onConfirmDelete={onConfirmDelete}
-        onCancelDelete={() => setState(deleteConfirmCancelled)}
       />
       {drawerOpen && (
         <BudgetDrawer
@@ -227,6 +212,11 @@ function BudgetsPanel({
           busy={isFormOut(out)}
           disabled={out !== undefined}
           alert={alertOf(state.lastError, { budgets, categories }, translator)}
+          deleteConfirmOpen={state.deleting !== undefined}
+          deleteBusy={out?.kind === 'delete'}
+          onOpenDelete={() => setState(deleteConfirmOpened)}
+          onDelete={onConfirmDelete}
+          onCloseDelete={() => setState(deleteConfirmCancelled)}
           onSubmit={onSubmit}
           onCancel={() => setState(drawerClosed)}
         />

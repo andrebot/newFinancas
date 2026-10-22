@@ -79,7 +79,8 @@ tailwind.config = {
     .seg { display: inline-flex; gap: 4px; padding: 4px; border-radius: 999px; background: #131917; border: 1px solid #232C28; }
     .seg > button { height: 36px; padding: 0 16px; border-radius: 999px; font-size: 14px; font-weight: 500; color: #97A39D; display: inline-flex; align-items: center; gap: 6px; }
     .seg > button[aria-selected="true"] { background: #0F3B2E; color: #5EE6B8; font-weight: 600; }
-    .acard { border-radius: 20px; background: #131917; border: 1px solid #232C28; padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+    .acard:hover { border-color: #5F6B65; }
+    .acard { cursor: pointer; transition: border-color .2s; border-radius: 20px; background: #131917; border: 1px solid #232C28; padding: 18px; display: flex; flex-direction: column; gap: 14px; }
     .tag { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 9px; border-radius: 999px; font-size: 11px; font-weight: 600; background: #1A211E; color: #97A39D; }
     .minicard { position: relative; border-radius: 14px; padding: 10px 12px; color: #E7ECE9; overflow: hidden; display: flex; align-items: center; gap: 10px; font-size: 13px; }
     .ghost { width: 32px; height: 32px; border-radius: 999px; display: grid; place-items: center; color: #5F6B65; }
@@ -144,7 +145,6 @@ tailwind.config = {
             <div class="font-semibold truncate">Main Checking</div>
             <div class="flex gap-1.5 mt-1"><span class="tag">Checking</span><span class="tag">USD</span><span class="tag text-sky bg-sky/10"><iconify-icon icon="material-symbols:group-outline" width="12"></iconify-icon>Shared</span></div>
           </div>
-          <div class="flex -mr-1"><button class="ghost" aria-label="Edit Main Checking"><iconify-icon icon="material-symbols:edit-outline" width="18"></iconify-icon></button><button class="ghost" aria-label="Archive Main Checking"><iconify-icon icon="material-symbols:archive-outline" width="18"></iconify-icon></button></div>
         </div>
         <div><div class="cap">Balance</div><div class="font-display text-[26px] font-extrabold num">$3,240.50</div></div>
         <div class="flex flex-col gap-2">
@@ -159,7 +159,6 @@ tailwind.config = {
             <div class="font-semibold truncate">Emergency Fund</div>
             <div class="flex gap-1.5 mt-1"><span class="tag">Savings</span><span class="tag">USD</span><span class="tag"><iconify-icon icon="material-symbols:person-outline" width="12"></iconify-icon>Personal</span></div>
           </div>
-          <div class="flex -mr-1"><button class="ghost" aria-label="Edit Emergency Fund"><iconify-icon icon="material-symbols:edit-outline" width="18"></iconify-icon></button><button class="ghost" aria-label="Archive Emergency Fund"><iconify-icon icon="material-symbols:archive-outline" width="18"></iconify-icon></button></div>
         </div>
         <div><div class="cap">Balance</div><div class="font-display text-[26px] font-extrabold num">$8,500.00</div></div>
         <div class="text-[13px] text-faint flex items-center gap-1.5"><iconify-icon icon="material-symbols:credit-card-off-outline" width="16"></iconify-icon>No cards on this account</div>
@@ -172,7 +171,6 @@ tailwind.config = {
             <div class="font-semibold truncate">Nubank Cartão</div>
             <div class="flex gap-1.5 mt-1"><span class="tag">Credit card only</span><span class="tag">BRL</span><span class="tag"><iconify-icon icon="material-symbols:person-outline" width="12"></iconify-icon>Personal</span></div>
           </div>
-          <div class="flex -mr-1"><button class="ghost" aria-label="Edit Nubank Cartão"><iconify-icon icon="material-symbols:edit-outline" width="18"></iconify-icon></button><button class="ghost" aria-label="Archive Nubank Cartão"><iconify-icon icon="material-symbols:archive-outline" width="18"></iconify-icon></button></div>
         </div>
         <div><div class="cap">Outstanding</div><div class="font-display text-[26px] font-extrabold num">R$450.00</div></div>
         <div class="flex flex-col gap-2">
@@ -239,6 +237,11 @@ tailwind.config = {
         </div>
         <button class="h-12 rounded-[14px] border border-dashed border-line text-muted flex items-center justify-center gap-2 hover:border-mint/50 hover:text-mint"><iconify-icon icon="material-symbols:add-card-outline" width="18"></iconify-icon>Add a credit card</button>
       </div>
+      <section class="rounded-[20px] border border-coral/30 bg-coral/[.04] px-5 py-4 flex items-center gap-4" aria-labelledby="a-danger">
+        <span class="w-10 h-10 rounded-full bg-coral/15 text-coral grid place-items-center shrink-0"><iconify-icon icon="material-symbols:warning-outline" width="20"></iconify-icon></span>
+        <div class="flex-1"><div id="a-danger" class="font-semibold">Archive this account</div><div class="text-sm text-muted">Archiving takes the account out of use; its transactions stay in the records.</div></div>
+        <button class="h-11 px-5 rounded-full border border-coral/40 text-coral font-medium hover:bg-coral/10">Archive</button>
+      </section>
     </div>
     <div class="px-6 py-4 border-t border-line flex gap-3 justify-end">
       <button class="h-10 px-5 rounded-full text-muted hover:bg-white/5">Cancel</button>

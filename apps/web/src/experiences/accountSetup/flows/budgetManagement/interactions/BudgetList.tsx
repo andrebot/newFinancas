@@ -1,8 +1,6 @@
 import type { Budget, BudgetTargetInput, Category } from '@financas/api-types';
-import { IconButton } from '../../../../../kit/button/IconButton';
-import { Card } from '../../../../../kit/card/Card';
+import { OpenableCard } from '../../../../../kit/card/OpenableCard';
 import { CategoryChip } from '../../../../../kit/categoryChip/CategoryChip';
-import { InlineConfirm } from '../../../../../kit/confirm/InlineConfirm';
 import { EmptyState } from '../../../../../kit/emptyState/EmptyState';
 import { Tag } from '../../../../../kit/tag/Tag';
 import { formatMoney } from '../../../../../utilities/formatting';
@@ -11,10 +9,10 @@ import { targetName } from '../claims';
 
 // The household's budgets as mockup 42 draws them: a grid of cards — the
 // name, its visibility and currency tags, the monthly target and the
-// categories it covers as chips — with Edit and Delete as icon buttons for
-// whoever may manage it (OQ-176). Setup shows definitions only: no spend
-// against target (stakeholder, OQ-176). While its delete confirm is open the
-// card shows that instead, coral-ringed like the category card's archive.
+// categories it covers as chips. For whoever may manage it (OQ-176) the whole
+// card opens its edit drawer, where Delete lives too — as an account's card
+// does (OQ-194). Setup shows definitions only: no spend against target
+// (stakeholder, OQ-176).
 
 /** How each visibility's tag looks: its tone, its icon and its label's key. */
 const VISIBILITY_TAGS = {
@@ -55,81 +53,36 @@ export const coverChipsOf = (
 interface BudgetCardProps {
   readonly budget: Budget;
   readonly categories: readonly Category[];
-  /** The actor may edit and delete it (OQ-176). */
-  readonly canManage: boolean;
-  /** A request is out: every control waits. */
-  readonly busy: boolean;
-  /** This card's delete is out: its confirm spins. */
-  readonly deleteBusy: boolean;
-  /** This card's delete confirm is open. */
-  readonly deletingOpen: boolean;
-  readonly onEdit: (budgetId: string) => void;
-  readonly onDeleteRequest: (budgetId: string) => void;
-  readonly onConfirmDelete: () => void;
-  readonly onCancelDelete: () => void;
+  /** Opens its edit drawer; nothing when the actor may not manage it (OQ-176). */
+  readonly onOpen?: (() => void) | undefined;
 }
 
 /**
- * Renders a budget's card — or its delete confirm while that is open.
+ * Renders a budget's card: the whole card opens its edit drawer, where Delete
+ * lives too (OQ-194) — a plain card for whoever may not manage it.
  *
- * @param props - The budget, the categories, the actor's right and the Flow's handlers.
+ * @param props - The budget, the categories and its opener, if any.
  * @returns The card.
  */
-function BudgetCard({
-  budget, categories, canManage, busy, deleteBusy, deletingOpen, onEdit, onDeleteRequest,
-  onConfirmDelete, onCancelDelete,
-}: BudgetCardProps) {
+function BudgetCard({ budget, categories, onOpen }: BudgetCardProps) {
   const translator = useI18n();
-
-  if (deletingOpen) {
-    return (
-      <div className="flex flex-col gap-4 rounded-xl2 bg-raised p-5 ring-1 ring-coral/40">
-        <InlineConfirm
-          tone="destructive"
-          message={translator.text('budgetManagement', 'delete.confirm', { name: budget.name })}
-          confirmLabel={translator.text('budgetManagement', 'delete.action')}
-          cancelLabel={translator.text('budgetManagement', 'cancel')}
-          onConfirm={onConfirmDelete}
-          onCancel={onCancelDelete}
-          busy={deleteBusy}
-          disabled={busy && !deleteBusy}
-        />
-      </div>
-    );
-  }
-
   const visibilityTag = VISIBILITY_TAGS[budget.visibility];
 
   return (
-    <Card className="flex flex-col gap-3">
-      <div className="flex items-start gap-2">
-        <span className="min-w-0 flex-1 break-words type-heading-sm">{budget.name}</span>
+    <OpenableCard
+      name={budget.name}
+      nameClassName="type-heading-sm"
+      onOpen={onOpen}
+      className="flex flex-col gap-3"
+      aside={(
         <span className="flex shrink-0 items-center gap-2 pt-1">
           <Tag size="sm" tone={visibilityTag.tone} icon={visibilityTag.icon}>
             {translator.text('budgetManagement', visibilityTag.label)}
           </Tag>
           <Tag size="sm">{budget.currency}</Tag>
         </span>
-        {canManage && (
-          <span className="-mr-1 flex shrink-0">
-            <IconButton
-              icon="edit-outline"
-              size="sm"
-              label={translator.text('budgetManagement', 'card.edit', { name: budget.name })}
-              onClick={() => onEdit(budget.id)}
-              disabled={busy}
-            />
-            <IconButton
-              icon="delete-outline"
-              size="sm"
-              className="hover:!text-coral"
-              label={translator.text('budgetManagement', 'card.delete', { name: budget.name })}
-              onClick={() => onDeleteRequest(budget.id)}
-              disabled={busy}
-            />
-          </span>
-        )}
-      </div>
+      )}
+    >
       <div className="flex items-baseline gap-2">
         <span className="type-display-sm tabular-nums">
           {formatMoney(budget.targetAmount, budget.currency)}
@@ -151,7 +104,7 @@ function BudgetCard({
           />
         ))}
       </div>
-    </Card>
+    </OpenableCard>
   );
 }
 
@@ -162,27 +115,18 @@ export interface BudgetListProps {
   readonly categories: readonly Category[];
   /** Tells whether the actor may manage one budget. */
   readonly isManageable: (budget: Budget) => boolean;
-  /** A request is out: every control waits. */
-  readonly busy: boolean;
-  /** The budget whose delete is out, so only its confirm spins. */
-  readonly deletingOut?: string | undefined;
-  /** The delete confirm open on a card, by budget id. */
-  readonly deleting?: string | undefined;
+  /** Opens a budget's edit drawer. */
   readonly onEdit: (budgetId: string) => void;
-  readonly onDeleteRequest: (budgetId: string) => void;
-  readonly onConfirmDelete: () => void;
-  readonly onCancelDelete: () => void;
 }
 
 /**
  * Renders the grid of budget cards, or its empty state.
  *
- * @param props - The budgets, the categories, the actor's rights and the Flow's handlers.
+ * @param props - The budgets, the categories, the actor's rights and the Flow's opener.
  * @returns The grid.
  */
 export function BudgetList({
-  budgets, categories, isManageable, busy, deletingOut, deleting, onEdit, onDeleteRequest,
-  onConfirmDelete, onCancelDelete,
+  budgets, categories, isManageable, onEdit,
 }: BudgetListProps) {
   const translator = useI18n();
 
@@ -199,14 +143,7 @@ export function BudgetList({
           key={budget.id}
           budget={budget}
           categories={categories}
-          canManage={isManageable(budget)}
-          busy={busy}
-          deleteBusy={deletingOut === budget.id}
-          deletingOpen={deleting === budget.id}
-          onEdit={onEdit}
-          onDeleteRequest={onDeleteRequest}
-          onConfirmDelete={onConfirmDelete}
-          onCancelDelete={onCancelDelete}
+          onOpen={isManageable(budget) ? () => onEdit(budget.id) : undefined}
         />
       ))}
     </div>

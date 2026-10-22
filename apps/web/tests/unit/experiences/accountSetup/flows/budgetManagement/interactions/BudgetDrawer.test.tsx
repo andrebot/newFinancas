@@ -1,4 +1,6 @@
-import { fireEvent, screen } from '@testing-library/react';
+import {
+  cleanup, fireEvent, screen, within,
+} from '@testing-library/react';
 import type { Budget, Category } from '@financas/api-types';
 import {
   describe, expect, it, vi,
@@ -64,7 +66,13 @@ const budget = (over: Partial<Budget> = {}): Budget => ({
  * @returns The handlers.
  */
 const renderDrawer = (props: Partial<BudgetDrawerProps> = {}) => {
-  const handlers = { onSubmit: vi.fn(), onCancel: vi.fn() };
+  const handlers = {
+    onSubmit: vi.fn(),
+    onCancel: vi.fn(),
+    onOpenDelete: vi.fn(),
+    onDelete: vi.fn(),
+    onCloseDelete: vi.fn(),
+  };
   renderInLocale(
     <BudgetDrawer
       categories={CATEGORIES}
@@ -73,6 +81,8 @@ const renderDrawer = (props: Partial<BudgetDrawerProps> = {}) => {
       personalOnly={false}
       busy={false}
       disabled={false}
+      deleteConfirmOpen={false}
+      deleteBusy={false}
       {...handlers}
       {...props}
     />,
@@ -286,6 +296,47 @@ describe('its frame', () => {
     renderDrawer({ disabled: true });
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Cancel' }).disabled).toBe(true);
     expect(screen.getByRole<HTMLInputElement>('checkbox', { name: /^Groceries/ }).disabled)
+      .toBe(true);
+  });
+});
+
+describe('its delete zone (OQ-194)', () => {
+  /**
+   * Finds the danger zone.
+   *
+   * @returns The zone.
+   */
+  const zone = () => screen.getByRole('region', { name: 'Delete this budget' });
+
+  it('is only on an edit', () => {
+    renderDrawer();
+    expect(screen.queryByRole('region', { name: 'Delete this budget' })).toBeNull();
+  });
+
+  it('asks for the confirm, then deletes or steps back', () => {
+    const closed = renderDrawer({ budget: budget() });
+    fireEvent.click(within(zone()).getByRole('button', { name: 'Delete' }));
+    expect(closed.onOpenDelete).toHaveBeenCalled();
+    cleanup();
+
+    const open = renderDrawer({ budget: budget(), deleteConfirmOpen: true });
+    expect(within(zone()).getByText("Delete Fun Money? This can't be undone.")).toBeTruthy();
+    fireEvent.click(within(zone()).getByRole('button', { name: 'Delete' }));
+    fireEvent.click(within(zone()).getByRole('button', { name: 'Cancel' }));
+    expect(open.onDelete).toHaveBeenCalled();
+    expect(open.onCloseDelete).toHaveBeenCalled();
+  });
+
+  it('spins its confirm while the delete is out, and waits while another request is', () => {
+    renderDrawer({
+      budget: budget(), deleteConfirmOpen: true, deleteBusy: true, disabled: true,
+    });
+    expect(within(zone()).getByRole('button', { name: 'Delete' }).getAttribute('aria-busy'))
+      .toBe('true');
+    cleanup();
+
+    renderDrawer({ budget: budget(), disabled: true });
+    expect(within(zone()).getByRole<HTMLButtonElement>('button', { name: 'Delete' }).disabled)
       .toBe(true);
   });
 });

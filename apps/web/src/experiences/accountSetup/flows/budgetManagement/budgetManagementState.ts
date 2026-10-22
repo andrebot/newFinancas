@@ -4,8 +4,8 @@ import type { BudgetsView } from '../../sharedLists';
 import type { Visibility } from './claims';
 
 // The Budget Management Flow's state (FL13; OQ-176, OQ-194): the request that
-// is out, the open drawer (create, or edit one budget), the delete confirm on
-// a card and the last form failure. The budgets and the categories are the
+// is out, the open drawer (create, or edit one budget), the delete confirm
+// inside the edit drawer and the last form failure. The budgets and the categories are the
 // Account Setup Experience's and come in as display state; after a write the
 // Experience answers once the budgets are fetched again — claims are shared
 // state other members change, so the list is always the server's — and the
@@ -46,7 +46,7 @@ export interface BudgetManagementState {
   /** Its control spins and the others wait while it is out. */
   readonly out?: Outgoing | undefined;
   readonly drawer?: OpenDrawer | undefined;
-  /** The delete confirm open on a card, by budget id. */
+  /** The delete confirm open inside the edit drawer, by budget id. */
   readonly deleting?: string | undefined;
   /** The last create's or edit's failure, for the open drawer's banner. */
   readonly lastError?: RequestFailure | undefined;
@@ -70,30 +70,30 @@ export const drawerOpened = (
 });
 
 /**
- * Closes the open drawer — unless a request is out: it then stays, so a
- * failure still has its banner to show in (as OQ-192).
+ * Closes the open drawer and its delete confirm — unless a request is out: it
+ * then stays, so a failure still has its banner to show in (as OQ-192).
  *
  * @param state - The current state.
  * @returns The state with no drawer, or as it was while a request is out.
  */
 export const drawerClosed = (state: BudgetManagementState): BudgetManagementState => (
-  state.out ? state : { ...state, drawer: undefined, lastError: undefined }
+  state.out ? state : {
+    ...state, drawer: undefined, deleting: undefined, lastError: undefined,
+  }
 );
 
 /**
- * Opens a card's delete confirm.
+ * Opens the delete confirm inside the edit drawer, about its budget.
  *
  * @param state - The current state.
- * @param budgetId - Which budget is deleted on a yes.
- * @returns The state with the confirm open.
+ * @returns The state with the confirm open, or as it was with no edit drawer open.
  */
-export const deleteConfirmOpened = (
-  state: BudgetManagementState,
-  budgetId: string,
-): BudgetManagementState => ({ ...state, deleting: budgetId });
+export const deleteConfirmOpened = (state: BudgetManagementState): BudgetManagementState => (
+  state.drawer?.kind === 'edit' ? { ...state, deleting: state.drawer.budgetId } : state
+);
 
 /**
- * Closes the open delete confirm; its card stays.
+ * Closes the open delete confirm; the drawer stays.
  *
  * @param state - The current state.
  * @returns The state with no confirm open.
@@ -142,10 +142,11 @@ export const toastsFailure = (out: Outgoing, failure: RequestFailure): boolean =
 
 /**
  * Applies the Experience's answer for the request that was out. A success
- * closes what it came from — the list already holds it; a form's failure
- * keeps the drawer and its typing and shows why in its banner — unless the
- * edited budget is gone, which closes the drawer (toasted by the Flow); a
- * delete's failure keeps its confirm open and is toasted by the Flow.
+ * closes the drawer it came from — a delete's with its confirm, the budget
+ * being gone; a form's failure keeps the drawer and its typing and shows why
+ * in its banner — unless the edited budget is gone, which closes the drawer
+ * (toasted by the Flow); a delete's failure keeps its confirm open and is
+ * toasted by the Flow.
  *
  * @param state - The state while the request was out.
  * @param outcome - The Experience's answer.
@@ -167,10 +168,7 @@ export const afterAction = (
     return { ...state, out: undefined, lastError: isForm ? outcome.error : undefined };
   }
   return {
-    ...state,
-    out: undefined,
-    ...(isForm ? { drawer: undefined } : { deleting: undefined }),
-    lastError: undefined,
+    ...state, out: undefined, drawer: undefined, deleting: undefined, lastError: undefined,
   };
 };
 

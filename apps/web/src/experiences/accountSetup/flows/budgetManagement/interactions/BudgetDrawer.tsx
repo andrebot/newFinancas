@@ -5,6 +5,8 @@ import type {
 import { budgets as budgetSettings } from '../../../../../config/constants';
 import { InlineBanner } from '../../../../../kit/alert/InlineBanner';
 import { Button } from '../../../../../kit/button/Button';
+import { DangerZone } from '../../../../../kit/card/DangerZone';
+import { InlineConfirm } from '../../../../../kit/confirm/InlineConfirm';
 import { Drawer } from '../../../../../kit/drawer/Drawer';
 import { LockedField } from '../../../../../kit/field/LockedField';
 import { MoneyInput } from '../../../../../kit/moneyInput/MoneyInput';
@@ -24,9 +26,11 @@ import { CoverPicker } from './CoverPicker';
 // The budget drawer (FL13, mockup 42; FR-4.1/4.2, OQ-176, OQ-194): one form
 // for Add and Edit — the name, the currency and visibility (picked on Add,
 // shown locked on Edit: they never change), the monthly target in the hero
-// money look, and the claim-aware Covers picker. The visibility picks the
-// scope the claims are weighed in, so switching it re-reads which rows are
-// free; a tick another budget took meanwhile is dropped from what is sent.
+// money look, the claim-aware Covers picker and, on Edit, Delete behind its
+// inline confirm in a danger zone — as an account's drawer holds Archive. The
+// visibility picks the scope the claims are weighed in, so switching it
+// re-reads which rows are free; a tick another budget took meanwhile is
+// dropped from what is sent.
 // It holds what is typed, checks it before emitting, and shows the server's
 // objections in its banner. The drawer itself (open/close) belongs to the Flow.
 
@@ -135,6 +139,16 @@ export interface BudgetDrawerProps {
   readonly disabled: boolean;
   /** The last request's failure, already translated. */
   readonly alert?: string | undefined;
+  /** The delete confirm is open inside this edit drawer. */
+  readonly deleteConfirmOpen: boolean;
+  /** The delete is out: the confirm spins. */
+  readonly deleteBusy: boolean;
+  /** Opens the delete confirm (an edit only). */
+  readonly onOpenDelete: () => void;
+  /** Deletes the budget; the confirm is already open. */
+  readonly onDelete: () => void;
+  /** Closes the delete confirm; the drawer stays. */
+  readonly onCloseDelete: () => void;
   /** Gets the fields once they pass (currency and visibility as they stand on an edit). */
   readonly onSubmit: (fields: NewBudget) => void;
   /** Closes the drawer. */
@@ -225,6 +239,51 @@ function ScopeFields({
   );
 }
 
+/** What the edit drawer's delete zone shows and does. */
+interface DeleteZoneProps {
+  readonly name: string;
+  readonly confirmOpen: boolean;
+  readonly busy: boolean;
+  readonly disabled: boolean;
+  readonly onOpen: () => void;
+  readonly onDelete: () => void;
+  readonly onClose: () => void;
+}
+
+/**
+ * Renders the edit drawer's danger zone: Delete behind its inline confirm, as
+ * an account's drawer holds Archive (OQ-194). A hard delete (FR-4.10).
+ *
+ * @param props - The budget's name, the confirm's state and its handlers.
+ * @returns The zone.
+ */
+function DeleteZone({
+  name, confirmOpen, busy, disabled, onOpen, onDelete, onClose,
+}: DeleteZoneProps) {
+  const translator = useI18n();
+  return (
+    <DangerZone
+      title={translator.text('budgetManagement', 'delete.title')}
+      description={translator.text('budgetManagement', 'delete.description')}
+      actionLabel={translator.text('budgetManagement', 'delete.action')}
+      onAction={onOpen}
+      disabled={disabled}
+      confirm={confirmOpen ? (
+        <InlineConfirm
+          tone="destructive"
+          message={translator.text('budgetManagement', 'delete.confirm', { name })}
+          confirmLabel={translator.text('budgetManagement', 'delete.action')}
+          cancelLabel={translator.text('budgetManagement', 'cancel')}
+          busy={busy}
+          disabled={disabled}
+          onConfirm={onDelete}
+          onCancel={onClose}
+        />
+      ) : undefined}
+    />
+  );
+}
+
 /**
  * Renders the budget form inside the drawer.
  *
@@ -232,7 +291,8 @@ function ScopeFields({
  * @returns The drawer with its form.
  */
 export function BudgetDrawer({
-  budget, categories, budgets, selfUserId, personalOnly, busy, disabled, alert, onSubmit, onCancel,
+  budget, categories, budgets, selfUserId, personalOnly, busy, disabled, alert, deleteConfirmOpen,
+  deleteBusy, onOpenDelete, onDelete, onCloseDelete, onSubmit, onCancel,
 }: BudgetDrawerProps) {
   const translator = useI18n();
   const [initial] = useState(() => initialFieldsOf(budget, personalOnly));
@@ -331,6 +391,17 @@ export function BudgetDrawer({
             changePicks(toggleSubcategory(picks, subcategoryId))
           )}
         />
+        {budget && (
+          <DeleteZone
+            name={budget.name}
+            confirmOpen={deleteConfirmOpen}
+            busy={deleteBusy}
+            disabled={disabled}
+            onOpen={onOpenDelete}
+            onDelete={onDelete}
+            onClose={onCloseDelete}
+          />
+        )}
       </div>
     </Drawer>
   );

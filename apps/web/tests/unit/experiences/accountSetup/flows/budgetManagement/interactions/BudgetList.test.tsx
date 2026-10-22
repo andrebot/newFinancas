@@ -53,15 +53,12 @@ const HOME: Budget = {
  * @returns The handlers.
  */
 const renderList = (over: Partial<BudgetListProps> = {}) => {
-  const handlers = {
-    onEdit: vi.fn(), onDeleteRequest: vi.fn(), onConfirmDelete: vi.fn(), onCancelDelete: vi.fn(),
-  };
+  const handlers = { onEdit: vi.fn() };
   renderInLocale(
     <BudgetList
       budgets={[FUN, HOME]}
       categories={[DINING, SHOPPING]}
       isManageable={(budget) => budget.id === 'fun'}
-      busy={false}
       {...handlers}
       {...over}
     />,
@@ -100,38 +97,20 @@ describe('BudgetList', () => {
     expect(screen.getAllByText('Dining › Streaming')).toHaveLength(2);
   });
 
-  it('offers Edit and Delete only on what the actor may manage', () => {
-    const { onEdit, onDeleteRequest } = renderList();
-    fireEvent.click(screen.getByRole('button', { name: 'Edit Fun Money' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Delete Fun Money' }));
+  it('opens what the actor may manage from its card, its one button (OQ-194)', () => {
+    const { onEdit } = renderList();
+    const opener = screen.getByRole('button', { name: 'Fun Money' });
+    fireEvent.click(opener);
     expect(onEdit).toHaveBeenCalledWith('fun');
-    expect(onDeleteRequest).toHaveBeenCalledWith('fun');
-    expect(screen.queryByRole('button', { name: 'Edit Home' })).toBeNull();
+    expect(opener.className).toContain('after:inset-0');
+    expect(screen.getAllByRole('button')).toHaveLength(2);
   });
 
-  it('waits while a request is out', () => {
-    renderList({ busy: true });
-    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Edit Fun Money' }).disabled)
-      .toBe(true);
-  });
-
-  it('shows the open delete confirm in place of its card', () => {
-    const { onConfirmDelete, onCancelDelete } = renderList({ deleting: 'fun' });
-    expect(screen.getByText(/Delete Fun Money\? Its categories become free/)).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-    expect(onConfirmDelete).toHaveBeenCalled();
-    expect(onCancelDelete).toHaveBeenCalled();
-  });
-
-  it('spins only the confirm whose delete is out', () => {
-    renderList({ deleting: 'fun', busy: true, deletingOut: 'fun' });
-    const confirm = screen.getByRole('button', { name: 'Delete' });
-    expect(confirm.getAttribute('aria-busy')).toBe('true');
-  });
-
-  it('holds an open confirm while another request is out', () => {
-    renderList({ deleting: 'fun', busy: true });
-    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Delete' }).disabled).toBe(true);
+  it('leaves what the actor may not manage a plain card', () => {
+    const { onEdit } = renderList();
+    const plain = screen.getByRole<HTMLButtonElement>('button', { name: 'Home' });
+    expect(plain.disabled).toBe(true);
+    fireEvent.click(plain);
+    expect(onEdit).not.toHaveBeenCalled();
   });
 });

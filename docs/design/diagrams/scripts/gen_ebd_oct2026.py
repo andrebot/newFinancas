@@ -769,7 +769,11 @@ EXP->>API: GET /households/:householdId/budgets (as the page mounts)
 API-->>EXP: every shared Budget + the caller's personal ones, with targets (unpaginated, OQ-176)
 EXP-->>FLOW: budgets + categories (loading / failed → retry / loaded) — both the Experience's
 FLOW-->>BL: cards — name, visibility, currency, target / month, covers (no spend)
-alt add (every member, a Viewer's is personal) or edit (owner / Owner, Admin, creator)
+opt edit or delete (owner / Owner, Admin, creator)
+    User->>BL: click the card (anywhere — its name is its one button)
+    BL->>FLOW: emit edit(budgetId) — the edit drawer opens
+end
+alt add (every member, a Viewer's is personal) or edit
     User->>BF: name (≤ 40), currency + visibility (locked on edit), monthly target
     FLOW-->>CP: groups weighed in the form's scope — claimed rows disabled, naming their budget
     User->>CP: tick whole categories / open a group, tick subcategories
@@ -777,8 +781,8 @@ alt add (every member, a Viewer's is personal) or edit (owner / Owner, Admin, cr
     BF->>FLOW: emit budgetSubmitted (ticks taken meanwhile dropped)
     FLOW->>EXP: request createBudget / editBudget
     EXP->>API: POST /households/:householdId/budgets (or PATCH …/:budgetId {name, targetAmount, targets})
-else delete (owner / Owner, Admin, creator)
-    User->>DC: the card's inline confirm
+else delete (from the edit drawer)
+    User->>DC: the drawer's danger zone → its inline confirm
     DC->>FLOW: emit deleteConfirmed
     FLOW->>EXP: request deleteBudget
     EXP->>API: DELETE /households/:householdId/budgets/:budgetId
@@ -802,7 +806,7 @@ else other failure
 else ok
     API-->>EXP: budget (or 204 — its claims are free again)
     EXP->>API: GET …/budgets (fetched again)
-    EXP-->>FLOW: outcome: ok, budgets refreshed — drawer / confirm closes
+    EXP-->>FLOW: outcome: ok, budgets refreshed — the drawer closes
     Note over FLOW: toast "{name} created / updated / deleted."
 end
 """, ["Setup page shows no spend progress (stakeholder) — the list carries definitions only (OQ-176).", "Claims are shared state other members change, so the budgets are the Experience's and fetched again after each write, and after a failure that says they moved (OQ-194).", "Currency and visibility can't change after creation: the edit form shows them locked."]),

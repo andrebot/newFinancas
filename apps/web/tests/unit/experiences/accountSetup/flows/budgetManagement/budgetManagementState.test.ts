@@ -40,9 +40,13 @@ describe('the drawer', () => {
     });
   });
 
-  it('closes with its failure', () => {
-    const open: BudgetManagementState = { drawer: { kind: 'create' }, lastError: FAILURE };
-    expect(drawerClosed(open)).toEqual({ drawer: undefined, lastError: undefined });
+  it('closes with its failure and its delete confirm', () => {
+    const open: BudgetManagementState = {
+      drawer: { kind: 'edit', budgetId: 'b1' }, deleting: 'b1', lastError: FAILURE,
+    };
+    expect(drawerClosed(open)).toEqual({
+      drawer: undefined, deleting: undefined, lastError: undefined,
+    });
   });
 
   it('stays while a request is out, so its answer has a banner', () => {
@@ -52,10 +56,17 @@ describe('the drawer', () => {
 });
 
 describe('the delete confirm', () => {
-  it('opens on a card and closes again', () => {
-    const open = deleteConfirmOpened(INITIAL_BUDGETS, 'b1');
-    expect(open).toEqual({ deleting: 'b1' });
-    expect(deleteConfirmCancelled(open)).toEqual({ deleting: undefined });
+  it('opens inside the edit drawer, about its budget, and closes again', () => {
+    const editing: BudgetManagementState = { drawer: { kind: 'edit', budgetId: 'b1' } };
+    const open = deleteConfirmOpened(editing);
+    expect(open).toEqual({ ...editing, deleting: 'b1' });
+    expect(deleteConfirmCancelled(open)).toEqual({ ...editing, deleting: undefined });
+  });
+
+  it('stays shut without an edit drawer', () => {
+    const creating: BudgetManagementState = { drawer: { kind: 'create' } };
+    expect(deleteConfirmOpened(creating)).toBe(creating);
+    expect(deleteConfirmOpened(INITIAL_BUDGETS)).toBe(INITIAL_BUDGETS);
   });
 });
 
@@ -71,7 +82,7 @@ describe('a request', () => {
       drawer: { kind: 'edit', budgetId: 'b1' }, out: { kind: 'edit', budgetId: 'b1' },
     };
     expect(afterAction(out, { ok: true })).toEqual({
-      out: undefined, drawer: undefined, lastError: undefined,
+      out: undefined, drawer: undefined, deleting: undefined, lastError: undefined,
     });
   });
 
@@ -82,13 +93,16 @@ describe('a request', () => {
     });
   });
 
-  it('closes its delete confirm on a success, and keeps it on a failure (toasted)', () => {
-    const out: BudgetManagementState = { deleting: 'b1', out: { kind: 'delete', budgetId: 'b1' } };
+  it('closes the drawer on a delete\'s success, keeps its confirm on a failure', () => {
+    const editing = { kind: 'edit', budgetId: 'b1' } as const;
+    const out: BudgetManagementState = {
+      drawer: editing, deleting: 'b1', out: { kind: 'delete', budgetId: 'b1' },
+    };
     expect(afterAction(out, { ok: true })).toEqual({
-      out: undefined, deleting: undefined, lastError: undefined,
+      out: undefined, drawer: undefined, deleting: undefined, lastError: undefined,
     });
     expect(afterAction(out, { ok: false, error: FAILURE })).toEqual({
-      deleting: 'b1', out: undefined, lastError: undefined,
+      drawer: editing, deleting: 'b1', out: undefined, lastError: undefined,
     });
   });
 
