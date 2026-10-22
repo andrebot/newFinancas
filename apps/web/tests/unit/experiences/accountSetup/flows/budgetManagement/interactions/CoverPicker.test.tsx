@@ -136,6 +136,7 @@ describe('CoverPicker', () => {
     const { onToggleSubcategory } = renderPicker([freeGroup(DINING)]);
     const chevron = screen.getByRole('button', { name: 'Subcategories of Dining' });
     expect(chevron.getAttribute('aria-expanded')).toBe('false');
+    expect(chevron.hasAttribute('aria-controls')).toBe(false);
     expect(screen.queryByRole('checkbox', { name: 'Streaming' })).toBeNull();
 
     fireEvent.click(chevron);
@@ -146,6 +147,7 @@ describe('CoverPicker', () => {
 
     fireEvent.click(chevron);
     expect(screen.queryByRole('checkbox', { name: 'Streaming' })).toBeNull();
+    expect(chevron.hasAttribute('aria-controls')).toBe(false);
   });
 
   it('opens a group by itself for a claimed subcategory, and shows each standing', () => {

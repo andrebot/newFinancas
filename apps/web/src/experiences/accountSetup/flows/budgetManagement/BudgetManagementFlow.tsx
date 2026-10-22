@@ -15,7 +15,7 @@ import {
   toastsFailure,
   type BudgetEdit, type BudgetManagementState, type BudgetsView, type NewBudget, type Outgoing,
 } from './budgetManagementState';
-import { targetName } from './claims';
+import { conflictKindOf, targetName } from './claims';
 import { BudgetDrawer } from './interactions/BudgetDrawer';
 import { BudgetList } from './interactions/BudgetList';
 
@@ -56,10 +56,18 @@ interface FailureContext {
   readonly categories: readonly Category[];
 }
 
+/** The banner for each way a claimed target overlaps its claimer (409). */
+const CONFLICT_KEYS = {
+  same: 'conflict',
+  partly: 'conflict.partly',
+  covered: 'conflict.covered',
+} as const;
+
 /**
  * Writes a failure for the drawer's banner. A target claimed meanwhile (409)
- * names the target and the budget that took it when both are listed; any
- * other failure is the error code's own message.
+ * names the target and the budget that took it when both are listed — and
+ * whether that budget took it, part of it, or its whole category; any other
+ * failure is the error code's own message.
  *
  * @param failure - The failure, if any.
  * @param context - The lists as they stand.
@@ -76,7 +84,8 @@ export const alertOf = (
   const target = targetName(context.categories, params);
   const budget = context.budgets.find((candidate) => candidate.id === params.budgetId);
   if (failure.code === 'budget.target_already_claimed' && target && budget) {
-    return translator.text('budgetManagement', 'conflict', { target, budget: budget.name });
+    const key = CONFLICT_KEYS[conflictKindOf(params, budget)];
+    return translator.text('budgetManagement', key, { target, budget: budget.name });
   }
   return translator.error(failure.code, failure.params);
 };

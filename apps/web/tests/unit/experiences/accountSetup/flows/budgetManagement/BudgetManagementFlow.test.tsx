@@ -190,7 +190,10 @@ describe('jointViewOf', () => {
 });
 
 describe('alertOf', () => {
-  const lists = { budgets: [budget('home', { name: 'Home' })], categories: [FOOD] };
+  const lists = {
+    budgets: [budget('home', { name: 'Home', targets: [{ categoryId: 'food' }] })],
+    categories: [FOOD],
+  };
 
   it('names the target and the budget that took it (409)', () => {
     const failure = {
@@ -198,6 +201,24 @@ describe('alertOf', () => {
     };
     expect(alertOf(failure, lists, translator))
       .toBe('Food was just added to Home. The list is up to date: pick again.');
+  });
+
+  it('says when the budget took part of the category, or its whole category (FR-4.7)', () => {
+    const snacks = {
+      id: 'snacks', categoryId: 'food', name: 'Snacks', archivedAt: null, createdAt: FOOD.createdAt,
+    };
+    const categories = [{ ...FOOD, subcategories: [snacks] }];
+    const conflict = (target: object, held: Budget['targets']) => alertOf(
+      { code: 'budget.target_already_claimed', params: { ...target, budgetId: 'home' } },
+      { budgets: [budget('home', { name: 'Home', targets: held })], categories },
+      translator,
+    );
+    expect(conflict({ categoryId: 'food' }, [{ subcategoryId: 'snacks' }]))
+      .toBe('Part of Food was just added to Home. The list is up to date: pick again.');
+    expect(conflict({ subcategoryId: 'snacks' }, [{ categoryId: 'food' }])).toBe(
+      'Food › Snacks was just covered by Home, which took its whole category. '
+      + 'The list is up to date: pick again.',
+    );
   });
 
   it('falls back to the code\'s own message when either can\'t be named', () => {
@@ -346,7 +367,12 @@ describe('editing a budget', () => {
       },
     }));
     renderFlow({
-      budgets: { status: 'loaded', budgets: [budget('fun'), budget('home', { name: 'Home' })] },
+      budgets: {
+        status: 'loaded',
+        budgets: [
+          budget('fun'), budget('home', { name: 'Home', targets: [{ categoryId: 'food' }] }),
+        ],
+      },
       onEdit,
     });
     await press('edit fun');

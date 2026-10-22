@@ -292,6 +292,33 @@ export const opensByItself = (group: PickerGroup): boolean => group.subcategorie
   row.standing.kind === 'picked' || row.standing.kind === 'claimed'
 ));
 
+/** How a target refused as claimed (409) overlaps the budget that took it. */
+export type ConflictKind = 'same'
+  /** The whole category was sent; the other budget holds one of its subcategories. */
+  | 'partly'
+  /** A subcategory was sent; the other budget holds its whole category. */
+  | 'covered';
+
+/**
+ * Tells how a refused target overlaps the budget that took it. The server
+ * names the target that was sent, also when the clash is a level up or down
+ * its category tree (FR-4.7), so the claimer's targets tell which.
+ *
+ * @param target - The refused target, as the 409's params carry it.
+ * @param claimer - The budget that took it, as fetched again.
+ * @returns Whether it holds that very target, part of it, or all around it.
+ */
+export const conflictKindOf = (
+  target: { readonly categoryId?: unknown; readonly subcategoryId?: unknown },
+  claimer: Budget,
+): ConflictKind => {
+  const sentId = target.categoryId ?? target.subcategoryId;
+  if (claimer.targets.some((held) => (held.categoryId ?? held.subcategoryId) === sentId)) {
+    return 'same';
+  }
+  return target.categoryId === undefined ? 'covered' : 'partly';
+};
+
 /**
  * Names a target for a message, from the categories the picker lists.
  *

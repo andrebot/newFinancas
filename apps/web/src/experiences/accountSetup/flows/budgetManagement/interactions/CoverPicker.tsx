@@ -139,6 +139,38 @@ const withArchived = (note: string | undefined, archived: boolean, translate: Tr
   return note ? `${note} · ${mark}` : mark;
 };
 
+/**
+ * Renders the chevron that opens and closes a group's subcategory rows.
+ *
+ * @param props - Its label, whether the group is open, the panel's id and the toggle.
+ * @returns The chevron.
+ */
+function Chevron({
+  label, open, panelId, onToggleOpen,
+}: {
+  readonly label: string;
+  readonly open: boolean;
+  readonly panelId: string;
+  readonly onToggleOpen: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-expanded={open}
+      // Points at the panel only while it is drawn.
+      aria-controls={open ? panelId : undefined}
+      aria-label={label}
+      onClick={onToggleOpen}
+      className={CHEVRON_CLASS}
+    >
+      <Icon
+        name="expand-more"
+        className={`size-5 transition-transform ${open ? 'rotate-180' : ''}`}
+      />
+    </button>
+  );
+}
+
 /** One group's props. */
 interface GroupProps {
   readonly group: PickerGroup;
@@ -183,19 +215,12 @@ function Group({
           disc={category}
         />
         {subcategories.length > 0 && (
-          <button
-            type="button"
-            aria-expanded={open}
-            aria-controls={panelId}
-            aria-label={translate('cover.expand', { name: category.name })}
-            onClick={onToggleOpen}
-            className={CHEVRON_CLASS}
-          >
-            <Icon
-              name="expand-more"
-              className={`size-5 transition-transform ${open ? 'rotate-180' : ''}`}
-            />
-          </button>
+          <Chevron
+            label={translate('cover.expand', { name: category.name })}
+            open={open}
+            panelId={panelId}
+            onToggleOpen={onToggleOpen}
+          />
         )}
       </div>
       {open && subcategories.length > 0 && (

@@ -1,7 +1,7 @@
 import type { Budget, Category, Subcategory } from '@financas/api-types';
 import { describe, expect, it } from 'vitest';
 import {
-  availablePicks, categoryStanding, claimsIn, isEmptyPick, NO_PICKS, opensByItself,
+  availablePicks, categoryStanding, claimsIn, conflictKindOf, isEmptyPick, NO_PICKS, opensByItself,
   pickerGroupsOf, picksOf, subcategoryStanding, targetName, targetsOf, toggleCategory,
   toggleSubcategory, type Picks, type ScopeClaims,
 } from '../../../../../../src/experiences/accountSetup/flows/budgetManagement/claims';
@@ -270,5 +270,25 @@ describe('targetName', () => {
     expect(targetName([FOOD], { categoryId: 'nope' })).toBeUndefined();
     expect(targetName([FOOD], { subcategoryId: 'nope' })).toBeUndefined();
     expect(targetName([FOOD], {})).toBeUndefined();
+  });
+});
+
+describe('conflictKindOf', () => {
+  it('tells a claimer holding the very target sent', () => {
+    expect(conflictKindOf(
+      { categoryId: 'food' },
+      budget('b', { targets: [{ categoryId: 'food' }] }),
+    )).toBe('same');
+    expect(conflictKindOf(
+      { subcategoryId: 'bakery' },
+      budget('b', { targets: [{ subcategoryId: 'bakery' }] }),
+    )).toBe('same');
+  });
+
+  it('tells part of a whole category sent from all around a subcategory sent (FR-4.7)', () => {
+    const holdsBakery = budget('b', { targets: [{ subcategoryId: 'bakery' }] });
+    const holdsFood = budget('b', { targets: [{ categoryId: 'food' }] });
+    expect(conflictKindOf({ categoryId: 'food' }, holdsBakery)).toBe('partly');
+    expect(conflictKindOf({ subcategoryId: 'bakery' }, holdsFood)).toBe('covered');
   });
 });

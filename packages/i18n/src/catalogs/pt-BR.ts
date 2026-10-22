@@ -496,6 +496,8 @@ const ptBR = {
     'error.target': 'Informe uma meta mensal acima de zero.',
     'error.covers': 'Escolha pelo menos uma categoria ou subcategoria.',
     conflict: '{target} acabou de entrar em {budget}. A lista foi atualizada: escolha de novo.',
+    'conflict.partly': 'Parte de {target} acabou de entrar em {budget}. A lista foi atualizada: escolha de novo.',
+    'conflict.covered': '{target} acabou de ficar coberta por {budget}, que pegou a categoria inteira. A lista foi atualizada: escolha de novo.',
     'create.done': '{name} criado.',
     'edit.done': '{name} atualizado.',
     'edit.gone': '{name} foi excluído por outra pessoa, então suas alterações não foram salvas.',

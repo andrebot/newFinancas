@@ -14,7 +14,7 @@ import { AlertProvider } from '../../../../src/utilities/AlertProvider';
 import { createAlertQueue } from '../../../../src/utilities/alerts';
 import { envelope, jsonResponse } from '../../api/fakes';
 import {
-  deferred, fakeFetch, outcomeOf, press, sent, settle, shownBy, Stub, type Answers,
+  deferred, fakeFetch, outcomeOf, press, sent, settle, settleWith, shownBy, Stub, type Answers,
 } from '../experienceFakes';
 import { fakeStore, renderWithShell } from '../../shell/shellFakes';
 
@@ -704,6 +704,24 @@ describe('the budget writes it answers for their flow', () => {
     expect(await fetchesOf(fetchFn, 'categories')).toBe(1);
   });
 
+  it('holds the answer until the budgets fetched again are in (OQ-194)', async () => {
+    const refetch = deferred();
+    let listed = 0;
+    await renderExperience({
+      ...LISTS,
+      'GET /households/doe/budgets': () => {
+        listed += 1;
+        return listed === 1 ? BUDGETS_LISTED() : refetch.promise;
+      },
+      'POST /households/doe/budgets': () => jsonResponse(201, BUDGET),
+    });
+    await pickBudgets();
+    await press('createBudget');
+    expect(screen.getByTestId('budgets-outcome').textContent).toBe('');
+    await settleWith(refetch, BUDGETS_LISTED());
+    expect(outcomeOf('budgets')).toEqual({ ok: true });
+  });
+
   it('edits its budget with the changes, address stripped out', async () => {
     const { fetchFn } = await renderExperience({
       ...LISTS, 'PATCH /households/doe/budgets/fun': () => jsonResponse(200, BUDGET),
@@ -716,6 +734,7 @@ describe('the budget writes it answers for their flow', () => {
     expect(patch?.body).toEqual({
       name: 'Fun', targetAmount: 20000, targets: [{ subcategoryId: 's1' }],
     });
+    expect(await fetchesOf(fetchFn, 'budgets')).toBe(2);
   });
 
   it('deletes its budget and fetches the budgets again', async () => {

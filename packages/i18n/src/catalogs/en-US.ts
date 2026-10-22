@@ -481,6 +481,8 @@ const enUS: Catalog = {
     'error.target': 'Enter a monthly target above zero.',
     'error.covers': 'Pick at least one category or subcategory.',
     conflict: '{target} was just added to {budget}. The list is up to date: pick again.',
+    'conflict.partly': 'Part of {target} was just added to {budget}. The list is up to date: pick again.',
+    'conflict.covered': '{target} was just covered by {budget}, which took its whole category. The list is up to date: pick again.',
     'create.done': '{name} created.',
     'edit.done': '{name} updated.',
     'edit.gone': "{name} was deleted by someone else, so your changes weren't saved.",
