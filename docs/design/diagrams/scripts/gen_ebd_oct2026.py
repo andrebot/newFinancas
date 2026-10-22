@@ -44,10 +44,10 @@ EXPERIENCES = [
      [("Registration", ["Registration Form Entry"], "registration"),
       ("MFA Enrollment", ["MFA Method Selection", "MFA Setup Verification", "Backup Codes Acknowledgement"], "mfa-enrollment"),
       ("Household Setup", ["Household Name Entry"], "household-setup"),
-      ("Guided Setup", ["First Account Entry", "Budget Entry", "Wizard Navigation", "Setup Complete Summary"], "guided-setup")],
+      ("Guided Setup", ["First Account Entry", "Account Cards Field", "Budget Entry", "Setup Done Row", "Wizard Navigation", "Setup Complete Summary"], "guided-setup")],
      [], ["ValidationUtility", "PasswordStrengthUtility", "AlertUtility", "I18nUtility", "FormattingUtility",
           "ClipboardUtility", "DownloadUtility"],
-     "Guided Setup (FL6, OQ-196) walks a new household through mockups 11–14: the first account (mandatory, no Skip — FR-1.22) and a budget in inline forms of its own, built from Account Setup's card fields and claim-aware picker, and the seeded categories through Account Setup's Category Management Flow, hosted as it is. Each route opens one stretch: /register runs Registration + MFA Enrollment; /setup (the household gate's) and /households/new (an additional household, OQ-81) run Household Setup, with Cancel only on the latter. The server's state is the progression (OQ-158)."),
+     "Guided Setup (FL6, OQ-196) walks a new household through mockups 11–14: the first account (mandatory, no Skip — FR-1.22) and a budget in inline forms of its own, built from Account Setup's card fields and claim-aware picker, and the seeded categories through Account Setup's Category Management Flow, which Onboard renders and hands into the wizard's categories step (Experiences compose Flows; a Flow never hosts one). Each route opens one stretch: /register runs Registration + MFA Enrollment; /setup (the household gate's) and /households/new (an additional household, OQ-81) run Household Setup, with Cancel only on the latter. The server's state is the progression (OQ-158)."),
     ("Manage Profile", "manage-profile", "Look after my own account",
      [("Security", ["Password Change", "Session List", "Sign Out All Others"], "security"),
       ("Delete Account", ["Consequences Review", "Type-to-Confirm"], "delete-account")],
@@ -385,6 +385,9 @@ FLOW->>EXP: request loadAccounts() (on mount)
 EXP->>API: GET /households/:householdId/accounts
 API-->>EXP: accounts
 EXP-->>FLOW: outcome
+opt the load failed
+    FLOW->>EXP: request loadAccounts() again (Try again) — no form until a load succeeds
+end
 FLOW-->>FAE: step 1 — the accounts in use, then the form inline (no Skip — FR-1.22)
 FAE->>FLOW: emit submit {account, cards}
 FLOW->>EXP: request createAccount(account)
@@ -397,8 +400,8 @@ else created
     API-->>EXP: 201 account
     EXP-->>FLOW: outcome {ok, account} → step 2
 end
-FLOW-->>CF: step 2 — the seeded categories (Category Management, hosted as it is)
-Note over CF,EXP: its writes go up through the Flow to Onboard (POST / PATCH …/categories)
+EXP-->>CF: render the seeded categories, handed into step 2's slot
+CF->>EXP: emit category writes (POST / PATCH …/categories) — straight to Onboard, not via this Flow
 User->>WN: Looks good, continue
 FLOW-->>BE: step 3 — the budgets made so far, then the form (optional)
 loop each budget created, or loaded back from its Edit

@@ -78,7 +78,9 @@ describe('the accounts', () => {
     expect(loaded.accounts).toEqual({ status: 'loaded', accounts: [account('a1')] });
     const failed = afterAccountsLoad(INITIAL_GUIDED_SETUP, { ok: false, error: FAILURE });
     expect(failed.accounts).toEqual({ status: 'failed', error: FAILURE });
-    expect(loadingAccounts(failed).accounts).toEqual({ status: 'loading' });
+    const retried = loadingAccounts(failed);
+    expect(retried.accounts).toEqual({ status: 'loading' });
+    expect(retried.accountsLoad).toBe(failed.accountsLoad + 1);
   });
 
   it('count only those in use', () => {
@@ -97,8 +99,17 @@ describe('the account step (FR-1.22)', () => {
     expect(hasAccount(LOADED)).toBe(true);
   });
 
+  it('shows the form only once the accounts are in', () => {
+    expect(showsAccountForm(INITIAL_GUIDED_SETUP)).toBe(false);
+    const failed = stateWith({
+      accounts: { status: 'failed', error: FAILURE }, addingAccount: true,
+    });
+    expect(showsAccountForm(failed)).toBe(false);
+  });
+
   it('shows the form until there is an account, then only when asked', () => {
-    expect(showsAccountForm(INITIAL_GUIDED_SETUP)).toBe(true);
+    const empty = stateWith({ accounts: { status: 'loaded', accounts: [] } });
+    expect(showsAccountForm(empty)).toBe(true);
     expect(showsAccountForm(LOADED)).toBe(false);
     const adding = accountFormToggled({ ...LOADED, lastError: FAILURE }, true);
     expect(showsAccountForm(adding)).toBe(true);
@@ -123,10 +134,10 @@ describe('the account step (FR-1.22)', () => {
     expect(liveAccountsOf(after.accounts).map((item) => item.id)).toEqual(['a1', 'a2']);
   });
 
-  it('counts a created account even when the first load failed', () => {
+  it('leaves a list that isn’t loaded as it is', () => {
     const failed = stateWith({ accounts: { status: 'failed', error: FAILURE }, out: 'account' });
     const after = afterAccountCreate(failed, { ok: true, data: account('a1') });
-    expect(after.accounts).toEqual({ status: 'loaded', accounts: [account('a1')] });
+    expect(after.accounts).toBe(failed.accounts);
   });
 
   it('keeps the list as it is when the answer carries no account', () => {

@@ -15,11 +15,11 @@ import type { RequestOutcome } from '../../../../../../src/utilities/requestOutc
 import { renderInLocale } from '../../../../../support/renderInLocale';
 import { deferred } from '../../../experienceFakes';
 
-// The Guided Setup Flow (BDT: Flow, unit, the Interactions beneath mocked —
-// and the Category Management Flow it hosts). Each stub shows the props it got
-// as data attributes and emits its events from plain buttons; the Experience
-// is represented by stub requests answering outcomes. FR-1.22: the account
-// step has no way on without an account; the other two do.
+// The Guided Setup Flow (BDT: Flow, unit, only the Interactions beneath
+// mocked). Each stub shows the props it got as data attributes and emits its
+// events from plain buttons; the Experience is represented by stub requests
+// answering outcomes, and by the Category Management it hands in (OQ-196).
+// FR-1.22: the account step has no way on without an account; the other two do.
 
 vi.mock('../../../../../../src/experiences/onboard/flows/guidedSetup/interactions/FirstAccountEntry', () => ({
   /**
@@ -182,18 +182,6 @@ vi.mock('../../../../../../src/experiences/onboard/flows/guidedSetup/interaction
   ),
 }));
 
-vi.mock('../../../../../../src/experiences/accountSetup/flows/categoryManagement/CategoryManagementFlow', () => ({
-  /**
-   * The hosted Category Management Flow's stand-in.
-   *
-   * @param props - What the Flow passes.
-   * @returns The stub.
-   */
-  CategoryManagementFlow: ({ role }: { role?: string }) => (
-    <div data-testid="categories-flow" data-role={role ?? ''} />
-  ),
-}));
-
 /**
  * Builds an account.
  *
@@ -255,31 +243,23 @@ const renderFlow = (props: Partial<GuidedSetupFlowProps> = {}) => {
     onLoadAccounts: vi.fn(async () => ({ ok: true as const, data: [] as Account[] })),
     onCreateAccount: vi.fn(async () => ({ ok: true as const, data: account('Main') })),
     onRetryBudgets: vi.fn(),
+    onRetryCategories: vi.fn(),
     onCreateBudget: vi.fn(async () => OK),
     onEditBudget: vi.fn(async () => OK),
     onFinish: vi.fn(),
     ...props,
-  };
-  const categories = {
-    categories: CATEGORIES,
-    onRetry: vi.fn(),
-    onCreate: vi.fn(),
-    onEdit: vi.fn(),
-    onAddSubcategory: vi.fn(),
-    onArchiveCategory: vi.fn(),
-    onArchiveSubcategory: vi.fn(),
-    ...props.categories,
   };
   renderInLocale(
     <GuidedSetupFlow
       householdName="The Doe Family"
       {...OWNER}
       budgets={BUDGETS}
+      categories={CATEGORIES}
+      categoryManagement={<div data-testid="categories-flow" />}
       {...stubs}
-      categories={categories}
     />,
   );
-  return { ...stubs, categories };
+  return stubs;
 };
 
 /** Lets the pending answers land. */
@@ -324,7 +304,7 @@ describe('the account step (FR-1.22)', () => {
     await press('submit account');
     expect(stubs.onCreateAccount).toHaveBeenCalledWith(expect.objectContaining({ name: 'Main' }));
     expect(screen.getByText('Getting started · step 2 of 3')).toBeTruthy();
-    expect(screen.getByTestId('categories-flow').dataset.role).toBe('Owner');
+    expect(screen.getByTestId('categories-flow')).toBeTruthy();
   });
 
   it('keeps the form with the failure in its banner', async () => {
@@ -362,22 +342,26 @@ describe('the account step (FR-1.22)', () => {
     expect(screen.getByTestId('account-entry').dataset.personal).toBe('true');
   });
 
-  it('says when the accounts can’t be loaded, and loads them again', async () => {
+  it('says when the accounts can’t be loaded, with no form, and loads them again', async () => {
     const onLoadAccounts = vi.fn()
       .mockResolvedValueOnce({ ok: false, error: { code: 'network.unavailable' } })
       .mockResolvedValueOnce({ ok: true, data: [account('Main')] });
     renderFlow({ onLoadAccounts });
     await settle();
     expect(screen.getByText('Couldn’t load your accounts.'.replace('’', "'"))).toBeTruthy();
-    expect(screen.getByTestId('account-entry')).toBeTruthy();
+    expect(screen.queryByTestId('account-entry')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Continue' })).toBeNull();
     await press('Try again');
     expect(onLoadAccounts).toHaveBeenCalledTimes(2);
     expect(screen.getByTestId('done-row').textContent).toContain('Main');
+    expect(screen.queryByTestId('account-entry')).toBeNull();
   });
 
-  it('shows the loading accounts while they are fetched', () => {
+  it('shows the accounts loading, and neither the form nor a way on until they are in', () => {
     renderFlow({ onLoadAccounts: vi.fn(() => new Promise<never>(() => {})) });
     expect(screen.getByRole('status', { name: 'Loading your accounts' })).toBeTruthy();
+    expect(screen.queryByTestId('account-entry')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Continue' })).toBeNull();
   });
 
   it('drops an answer that lands after the Flow is gone', async () => {
@@ -392,7 +376,9 @@ describe('the account step (FR-1.22)', () => {
           return { ok: true, data: [] };
         }}
         onCreateAccount={vi.fn()}
-        categories={{ categories: CATEGORIES } as GuidedSetupFlowProps['categories']}
+        categories={CATEGORIES}
+        onRetryCategories={vi.fn()}
+        categoryManagement={null}
         onRetryBudgets={vi.fn()}
         onCreateBudget={vi.fn()}
         onEditBudget={vi.fn()}
@@ -534,7 +520,7 @@ describe('the budget step', () => {
     const stubs = await toBudgetStep({ budgets: { status: 'failed', error: { code: 'x' } } });
     await press('Try again');
     expect(stubs.onRetryBudgets).toHaveBeenCalledOnce();
-    expect(stubs.categories.onRetry).toHaveBeenCalledOnce();
+    expect(stubs.onRetryCategories).toHaveBeenCalledOnce();
   });
 
   it('goes back to the categories', async () => {

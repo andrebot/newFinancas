@@ -1,7 +1,7 @@
 import type { Budget, BudgetTargetInput, Currency } from '@financas/api-types';
 import type { RequestFailure, RequestOutcome } from '../../../../utilities/requestOutcome';
 import type { BudgetsView } from '../../sharedLists';
-import type { Visibility } from './claims';
+import type { Visibility } from '../../budgetClaims';
 
 // The Budget Management Flow's state (FL13; OQ-176, OQ-194): the request that
 // is out, the open drawer (create, or edit one budget), the delete confirm

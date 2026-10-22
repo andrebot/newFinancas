@@ -72,6 +72,9 @@ sequenceDiagram
     EXP->>API: GET /households/:householdId/accounts
     API-->>EXP: accounts
     EXP-->>FLOW: outcome
+    opt the load failed
+        FLOW->>EXP: request loadAccounts() again (Try again) — no form until a load succeeds
+    end
     FLOW-->>FAE: step 1 — the accounts in use, then the form inline (no Skip — FR-1.22)
     FAE->>FLOW: emit submit {account, cards}
     FLOW->>EXP: request createAccount(account)
@@ -84,8 +87,8 @@ sequenceDiagram
         API-->>EXP: 201 account
         EXP-->>FLOW: outcome {ok, account} → step 2
     end
-    FLOW-->>CF: step 2 — the seeded categories (Category Management, hosted as it is)
-    Note over CF,EXP: its writes go up through the Flow to Onboard (POST / PATCH …/categories)
+    EXP-->>CF: render the seeded categories, handed into step 2's slot
+    CF->>EXP: emit category writes (POST / PATCH …/categories) — straight to Onboard, not via this Flow
     User->>WN: Looks good, continue
     FLOW-->>BE: step 3 — the budgets made so far, then the form (optional)
     loop each budget created, or loaded back from its Edit

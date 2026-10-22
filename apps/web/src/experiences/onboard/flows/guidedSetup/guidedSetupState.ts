@@ -15,8 +15,11 @@ import type { RequestFailure, RequestOutcome } from '../../../../utilities/reque
 /** The wizard's steps, then the summary. */
 export type SetupStep = 'account' | 'categories' | 'budget' | 'complete';
 
+/** A step the stepper lists: every one but the summary. */
+export type SteppedStep = Exclude<SetupStep, 'complete'>;
+
 /** The steps the stepper lists (the summary isn't one). */
-export const STEPPED: readonly SetupStep[] = ['account', 'categories', 'budget'];
+export const STEPPED: readonly SteppedStep[] = ['account', 'categories', 'budget'];
 
 /** Where the summary sends the user next (mockup 14). */
 export type SetupDestination = 'dashboard' | 'transactions' | 'household' | 'goals';
@@ -28,6 +31,8 @@ export type Outgoing = 'account' | 'budget';
 export interface GuidedSetupState {
   readonly step: SetupStep;
   readonly accounts: AccountsView;
+  /** Counts the accounts' fetches: a retry bumps it, and the Flow fetches again. */
+  readonly accountsLoad: number;
   readonly out?: Outgoing | undefined;
   /** The last request's failure, shown in the open form until it moves on. */
   readonly lastError?: RequestFailure | undefined;
@@ -45,19 +50,21 @@ export interface GuidedSetupState {
 export const INITIAL_GUIDED_SETUP: GuidedSetupState = {
   step: 'account',
   accounts: { status: 'loading' },
+  accountsLoad: 0,
   addingAccount: false,
   budgetFormKey: 0,
   discardConfirmOpen: false,
 };
 
 /**
- * Marks the accounts as loading again (a retry).
+ * Asks for the accounts again (a retry): they show as loading, and the bumped
+ * count has the Flow fetch them.
  *
  * @param state - The current state.
  * @returns The state while they are fetched.
  */
 export const loadingAccounts = (state: GuidedSetupState): GuidedSetupState => ({
-  ...state, accounts: { status: 'loading' },
+  ...state, accounts: { status: 'loading' }, accountsLoad: state.accountsLoad + 1,
 });
 
 /**
@@ -98,14 +105,16 @@ export const hasAccount = (state: GuidedSetupState): boolean => (
 );
 
 /**
- * Tells whether the account step shows its form: always until there is an
- * account, then only once the user asks to add another.
+ * Tells whether the account step shows its form: once the accounts have
+ * loaded — so a household that has some never sees it flash up, and a create
+ * never stands in for a list that failed — always until there is an account,
+ * then only once the user asks to add another.
  *
  * @param state - The current state.
  * @returns Whether the form shows.
  */
 export const showsAccountForm = (state: GuidedSetupState): boolean => (
-  !hasAccount(state) || state.addingAccount
+  state.accounts.status === 'loaded' && (!hasAccount(state) || state.addingAccount)
 );
 
 /**
@@ -174,18 +183,18 @@ export const started = (state: GuidedSetupState, out: Outgoing): GuidedSetupStat
 });
 
 /**
- * Adds a created account to the list, which then counts as loaded: the
- * account is there whatever the first load answered.
+ * Adds a created account to the loaded list. The form only shows once the
+ * list has loaded, so there is always one to add it to.
  *
  * @param view - The accounts' view.
  * @param account - The account the API wrote, if it answered one.
- * @returns The view with it.
+ * @returns The view with it, or as it was.
  */
-const withAccount = (view: AccountsView, account: Account | undefined): AccountsView => {
-  if (account === undefined) return view;
-  const accounts = view.status === 'loaded' ? view.accounts : [];
-  return { status: 'loaded', accounts: [...accounts, account] };
-};
+const withAccount = (view: AccountsView, account: Account | undefined): AccountsView => (
+  account !== undefined && view.status === 'loaded'
+    ? { ...view, accounts: [...view.accounts, account] }
+    : view
+);
 
 /**
  * Applies a create's answer: on success the account joins the list and the

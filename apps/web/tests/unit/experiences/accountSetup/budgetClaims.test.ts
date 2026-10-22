@@ -4,7 +4,7 @@ import {
   availablePicks, categoryStanding, claimsIn, conflictKindOf, isEmptyPick, NO_PICKS, opensByItself,
   pickerGroupsOf, picksOf, subcategoryStanding, targetName, targetsOf, toggleCategory,
   toggleSubcategory, type Picks, type ScopeClaims,
-} from '../../../../../../src/experiences/accountSetup/flows/budgetManagement/claims';
+} from '../../../../src/experiences/accountSetup/budgetClaims';
 
 // The claim-aware picker's rules (BDT: Flow-tier pure logic, unit; nothing
 // mocked). FR-4.6: a whole category covers its subcategories; FR-4.7: one

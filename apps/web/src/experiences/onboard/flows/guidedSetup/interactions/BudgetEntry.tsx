@@ -14,10 +14,11 @@ import type {
 import {
   availablePicks, claimsIn, pickerGroupsOf, targetsOf, toggleCategory, toggleSubcategory,
   type Picks,
-} from '../../../../accountSetup/flows/budgetManagement/claims';
+} from '../../../../accountSetup/budgetClaims';
 import {
-  initialFieldsOf, objectionsOf, ScopeFields, type InitialFields,
-} from '../../../../accountSetup/flows/budgetManagement/interactions/BudgetDrawer';
+  initialFieldsOf, objectionsOf, type InitialFields, type Objections,
+} from '../../../../accountSetup/budgetForm';
+import { ScopeFields } from '../../../../accountSetup/flows/budgetManagement/interactions/BudgetDrawer';
 import { CoverPicker } from '../../../../accountSetup/flows/budgetManagement/interactions/CoverPicker';
 import { WizardNavigation } from './WizardNavigation';
 
@@ -114,7 +115,7 @@ export function BudgetEntry({
   const [visibility, setVisibility] = useState(initial.visibility);
   const [target, setTarget] = useState(initial.target);
   const [picks, setPicks] = useState(initial.held);
-  const [objections, setObjections] = useState<ReturnType<typeof objectionsOf>>({});
+  const [objections, setObjections] = useState<Objections>({});
   const [refusals, setRefusals] = useState(0);
   useFocusFirstInvalid(refusals);
 

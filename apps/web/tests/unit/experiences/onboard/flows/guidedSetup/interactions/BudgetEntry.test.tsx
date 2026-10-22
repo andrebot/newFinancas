@@ -3,7 +3,7 @@ import type { Budget, Category } from '@financas/api-types';
 import {
   describe, expect, it, vi,
 } from 'vitest';
-import { NO_PICKS } from '../../../../../../../src/experiences/accountSetup/flows/budgetManagement/claims';
+import { NO_PICKS } from '../../../../../../../src/experiences/accountSetup/budgetClaims';
 import {
   BudgetEntry, isUnsaved, type BudgetEntryProps,
 } from '../../../../../../../src/experiences/onboard/flows/guidedSetup/interactions/BudgetEntry';

@@ -13,23 +13,17 @@ import useFormatter from '../../../../utilities/useFormatter';
 import type {
   AccountActionOutcome, AccountsOutcome, NewAccount,
 } from '../../../accountSetup/flows/accountManagement/accountManagementState';
-import {
-  alertOf, jointViewOf,
-} from '../../../accountSetup/flows/budgetManagement/BudgetManagementFlow';
 import type {
   BudgetEdit, NewBudget,
 } from '../../../accountSetup/flows/budgetManagement/budgetManagementState';
-import { coverChipsOf } from '../../../accountSetup/flows/budgetManagement/interactions/BudgetList';
-import {
-  CategoryManagementFlow, type CategoryManagementFlowProps,
-} from '../../../accountSetup/flows/categoryManagement/CategoryManagementFlow';
+import { alertOf, coverChipsOf, jointViewOf } from '../../../accountSetup/budgetForm';
 import { mayManageOwned, mayShareOwned } from '../../../accountSetup/ownership';
-import type { BudgetsView } from '../../../accountSetup/sharedLists';
+import type { BudgetsView, CategoriesView } from '../../../accountSetup/sharedLists';
 import {
   accountFormToggled, afterAccountCreate, afterAccountsLoad, afterBudgetWrite, budgetFormOpened,
   discardCancelled, finishRequested, INITIAL_GUIDED_SETUP, liveAccountsOf, loadingAccounts,
   nextStep, previousStep, showsAccountForm, started, stepMoved, STEPPED, summaryOf,
-  type GuidedSetupState, type SetupDestination, type SetupStep,
+  type GuidedSetupState, type SetupDestination, type SteppedStep,
 } from './guidedSetupState';
 import { BudgetEntry } from './interactions/BudgetEntry';
 import { FirstAccountEntry } from './interactions/FirstAccountEntry';
@@ -42,8 +36,9 @@ import { WizardNavigation } from './interactions/WizardNavigation';
 // stepper — add an account (mandatory: there is no way on until the household
 // has one), review the seeded categories, set a budget (both optional) — then
 // the summary with the next steps. The account and budget steps hold their
-// forms inline, as the mockups draw them; the categories step hosts Account
-// Setup's Category Management Flow as it is. It owns the step, the accounts
+// forms inline, as the mockups draw them; the categories step shows Account
+// Setup's Category Management Flow, which the Experience renders and hands in
+// (EBD: Experiences compose Flows). It owns the step, the accounts
 // (loaded once, then grown by each create), what is out and the last failure;
 // the categories and budgets are the Experience's, handed down. It never calls
 // the backend: every request goes up to the Experience hosting it (Onboard),
@@ -61,8 +56,12 @@ export interface GuidedSetupFlowProps {
   readonly onLoadAccounts: () => Promise<AccountsOutcome>;
   /** `POST /households/:id/accounts`. */
   readonly onCreateAccount: (account: NewAccount) => Promise<AccountActionOutcome>;
-  /** The Category Management Flow's list and requests, hosted on the categories step. */
-  readonly categories: Omit<CategoryManagementFlowProps, 'role'>;
+  /** The household's categories: the budget step's picker and the summary's count. */
+  readonly categories: CategoriesView;
+  /** Fetches the categories again after a failed load. */
+  readonly onRetryCategories: () => void;
+  /** The Category Management Flow as the Experience renders it, for the categories step. */
+  readonly categoryManagement: ReactNode;
   /** The budgets the caller can see: the budget step's list and its claims. */
   readonly budgets: BudgetsView;
   /** Fetches the budgets again after a failed load. */
@@ -94,7 +93,7 @@ const STEP_KEYS = {
  * @param props - The open step.
  * @returns The aside.
  */
-function SetupAside({ step }: { readonly step: SetupStep }) {
+function SetupAside({ step }: { readonly step: SteppedStep }) {
   const translator = useI18n();
   const current = STEPPED.indexOf(step);
   return (
@@ -107,7 +106,7 @@ function SetupAside({ step }: { readonly step: SetupStep }) {
         })}
         current={current}
         steps={STEPPED.map((stepped) => {
-          const key = STEP_KEYS[stepped as keyof typeof STEP_KEYS];
+          const key = STEP_KEYS[stepped];
           return {
             label: translator.text('guidedSetup', key),
             hint: translator.text('guidedSetup', `${key}.hint`),
@@ -222,12 +221,8 @@ function AccountStep({
   /** Closes the form beside the accounts already added. */
   const closeForm = () => setState((current) => accountFormToggled(current, false));
 
-  /** Fetches the accounts again (a retry). */
-  const reload = async () => {
-    setState(loadingAccounts);
-    const outcome = await flow.onLoadAccounts();
-    setState((current) => afterAccountsLoad(current, outcome));
-  };
+  /** Fetches the accounts again (a retry): the Flow's load effect sends it. */
+  const reload = () => setState(loadingAccounts);
 
   return (
     <StepCard
@@ -246,7 +241,7 @@ function AccountStep({
           onSubmit={create}
           onCancel={added ? closeForm : undefined}
         />
-      ) : (
+      ) : state.accounts.status === 'loaded' && (
         <WizardNavigation
           secondary={{
             label: translator.text('guidedSetup', 'account.addAnother'),
@@ -264,8 +259,8 @@ function AccountStep({
 }
 
 /**
- * Renders the categories step: Category Management as Account Setup has it,
- * then Back and "Looks good, continue".
+ * Renders the categories step: Category Management as the Experience hands it
+ * in, then Back and "Looks good, continue".
  *
  * @param props - The Flow's props and handlers.
  * @returns The step's card.
@@ -277,7 +272,7 @@ function CategoriesStep({ flow, setState }: Pick<StepProps, 'flow' | 'setState'>
       title={translator.text('guidedSetup', 'categories.title')}
       subtitle={translator.text('guidedSetup', 'categories.subtitle')}
     >
-      <CategoryManagementFlow {...flow.categories} role={flow.role} />
+      {flow.categoryManagement}
       <WizardNavigation
         onBack={() => setState((current) => stepMoved(current, previousStep(current.step)))}
         primary={{
@@ -302,7 +297,7 @@ function BudgetStepBody({
 }: StepProps) {
   const translator = useI18n();
   const formatter = useFormatter();
-  const view = jointViewOf(flow.budgets, flow.categories.categories);
+  const view = jointViewOf(flow.budgets, flow.categories);
   if (view.status === 'failed') {
     return (
       <EmptyState
@@ -311,7 +306,7 @@ function BudgetStepBody({
         action={(
           <Button onClick={() => {
             flow.onRetryBudgets();
-            flow.categories.onRetry();
+            flow.onRetryCategories();
           }}
           >
             {translator.text('budgetManagement', 'retry')}
@@ -415,26 +410,25 @@ function OpenStep({
  * @param props - The Experience's lists, requests and way out.
  * @returns The page.
  */
-export function GuidedSetupFlow({
-  householdName, onLoadAccounts, categories, budgets, onFinish, ...requests
-}: GuidedSetupFlowProps) {
-  // The steps read the props whole; the rest are the requests they send.
-  const flow: GuidedSetupFlowProps = {
-    householdName, onLoadAccounts, categories, budgets, onFinish, ...requests,
-  };
+export function GuidedSetupFlow(flow: GuidedSetupFlowProps) {
+  const {
+    householdName, onLoadAccounts, categories, budgets, onFinish,
+  } = flow;
   const [state, setState] = useState<GuidedSetupState>(INITIAL_GUIDED_SETUP);
+  const { accountsLoad } = state;
 
-  // The accounts are fetched as the Flow mounts (and again for a new
-  // `onLoadAccounts`). An answer that lands after unmounting drops.
+  // The accounts are fetched as the Flow mounts, on each retry (a bumped
+  // `accountsLoad`) and for a new `onLoadAccounts`. An answer that lands after
+  // unmounting, or after a newer fetch was asked for, drops.
   useEffect(() => {
-    let mounted = true;
+    let current = true;
     onLoadAccounts().then((outcome) => {
-      if (mounted) setState((current) => afterAccountsLoad(current, outcome));
+      if (current) setState((latest) => afterAccountsLoad(latest, outcome));
     });
     return () => {
-      mounted = false;
+      current = false;
     };
-  }, [onLoadAccounts]);
+  }, [onLoadAccounts, accountsLoad]);
 
   /**
    * Sends a request and applies its answer. One at a time: while one is
@@ -456,7 +450,7 @@ export function GuidedSetupFlow({
       <WizardLayout width="wide">
         <SetupCompleteSummary
           householdName={householdName}
-          summary={summaryOf(state.accounts, categories.categories, budgets)}
+          summary={summaryOf(state.accounts, categories, budgets)}
           onFinish={onFinish}
         />
       </WizardLayout>

@@ -15,7 +15,7 @@ import {
   INITIAL_BUDGETS, isEditOfGone, started, toastsFailure,
   type BudgetEdit, type BudgetManagementState, type BudgetsView, type NewBudget, type Outgoing,
 } from './budgetManagementState';
-import { conflictKindOf, targetName } from './claims';
+import { alertOf, jointViewOf } from '../../budgetForm';
 import { BudgetDrawer } from './interactions/BudgetDrawer';
 import { BudgetList } from './interactions/BudgetList';
 
@@ -51,46 +51,6 @@ export interface BudgetManagementFlowProps {
   readonly onDelete: (budgetId: string) => Promise<RequestOutcome>;
 }
 
-/** What a failure is written from: the lists, to name a 409's target and budget. */
-interface FailureContext {
-  readonly budgets: readonly Budget[];
-  readonly categories: readonly Category[];
-}
-
-/** The banner for each way a claimed target overlaps its claimer (409). */
-const CONFLICT_KEYS = {
-  same: 'conflict',
-  partly: 'conflict.partly',
-  covered: 'conflict.covered',
-} as const;
-
-/**
- * Writes a failure for the drawer's banner. A target claimed meanwhile (409)
- * names the target and the budget that took it when both are listed — and
- * whether that budget took it, part of it, or its whole category; any other
- * failure is the error code's own message.
- *
- * @param failure - The failure, if any.
- * @param context - The lists as they stand.
- * @param translator - The texts.
- * @returns The message, or nothing without a failure.
- */
-export const alertOf = (
-  failure: RequestFailure | undefined,
-  context: FailureContext,
-  translator: Translator,
-): string | undefined => {
-  if (failure === undefined) return undefined;
-  const params = failure.params ?? {};
-  const target = targetName(context.categories, params);
-  const budget = context.budgets.find((candidate) => candidate.id === params.budgetId);
-  if (failure.code === 'budget.target_already_claimed' && target && budget) {
-    const key = CONFLICT_KEYS[conflictKindOf(params, budget)];
-    return translator.text('budgetManagement', key, { target, budget: budget.name });
-  }
-  return translator.error(failure.code, failure.params);
-};
-
 /**
  * Writes a toasted failure: an edit whose budget is gone says so by the name
  * it had, as its drawer closes (OQ-194); any other is the error code's own
@@ -112,29 +72,6 @@ export const failureToastOf = (
     ? translator.text('budgetManagement', 'edit.gone', { name })
     : translator.error(failure.code, failure.params)
 );
-
-/**
- * Reads the two lists together: loaded once both are, failed if either's
- * first load failed, loading otherwise.
- *
- * @param budgets - The budgets' view.
- * @param categories - The categories' view.
- * @returns Both lists with the latest refetch failure, or the joint status.
- */
-export const jointViewOf = (budgets: BudgetsView, categories: CategoriesView) => {
-  if (budgets.status === 'failed' || categories.status === 'failed') {
-    return { status: 'failed' } as const;
-  }
-  if (budgets.status === 'loading' || categories.status === 'loading') {
-    return { status: 'loading' } as const;
-  }
-  return {
-    status: 'loaded',
-    budgets: budgets.budgets,
-    categories: categories.categories,
-    stale: budgets.refreshError !== undefined || categories.refreshError !== undefined,
-  } as const;
-};
 
 /**
  * Finds the budget the open edit drawer is about.

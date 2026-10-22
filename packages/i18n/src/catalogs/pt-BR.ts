@@ -277,7 +277,7 @@ const ptBR = {
     'discard.message': 'Você começou um orçamento que não foi salvo. Concluir sem ele?',
     'discard.confirm': 'Descartar e concluir',
     'discard.cancel': 'Continuar editando',
-    'complete.title': '{household} está pronta',
+    'complete.title': 'Tudo pronto em {household}',
     'complete.subtitle': 'Veja o que você configurou. Tudo pode ser alterado depois.',
     'complete.accounts': '{count, plural, one {conta} other {contas}} · {cards, plural, one {# cartão} other {# cartões}}',
     'complete.categories': '{count, plural, one {categoria} other {categorias}}',
