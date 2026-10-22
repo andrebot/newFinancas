@@ -5,14 +5,17 @@ import {
 import { renderInLocale } from '../../../../../../support/renderInLocale';
 import { creditCard } from '../../../../../../../src/config/constants';
 import {
-  EMPTY_CARD_FORM, CardFields, cardDraftOf, dayOption, draftsOf, expirationYears, expiryOf,
-  selectValue, type CardFormState,
+  EMPTY_CARD_FORM, CardFields, cardDraftOf, cardObjectionsOf, dayOption, draftsOf,
+  expirationYears, expiryOf, numberObjection, selectValue, withoutObjections, type CardFormState,
 } from '../../../../../../../src/experiences/accountSetup/flows/accountManagement/interactions/CardFields';
 
 // One card's fields (BDT: unit): the pure read of a draft and the form's
 // display; only the caller's change handler is a stand-in.
 
 const VISA = '4111111111111111';
+
+/** A test Amex number: 15 digits. */
+const AMEX = '378282246310005';
 
 /**
  * Builds a filled form over the empty one.
@@ -67,14 +70,67 @@ describe('draftsOf', () => {
     const good = form({
       digits: VISA, closingDay: 10, dueDay: 20, expirationMonth: 8, expirationYear: 2030,
     });
-    const { drafts, errors } = draftsOf([EMPTY_CARD_FORM, good], 'incomplete');
+    const { drafts, errors } = draftsOf([EMPTY_CARD_FORM, good]);
     expect(drafts).toEqual([cardDraftOf(good)]);
     expect(drafts[0]?.last4).toBe('1111');
-    expect(errors).toEqual(['incomplete', undefined]);
+    expect(errors).toEqual([cardObjectionsOf(EMPTY_CARD_FORM), undefined]);
   });
 
   it('reads nothing from no forms', () => {
-    expect(draftsOf([], 'incomplete')).toEqual({ drafts: [], errors: [] });
+    expect(draftsOf([])).toEqual({ drafts: [], errors: [] });
+  });
+});
+
+describe('numberObjection', () => {
+  it('passes a valid number', () => {
+    expect(numberObjection(VISA)).toBeUndefined();
+    expect(numberObjection(AMEX)).toBeUndefined();
+  });
+
+  it('asks for a missing number', () => {
+    expect(numberObjection('')).toBe('number.required');
+  });
+
+  it('refuses a length its network never has: short, or 16 digits on an Amex', () => {
+    expect(numberObjection('4111')).toBe('number.length');
+    expect(numberObjection(`${AMEX}0`)).toBe('number.length');
+  });
+
+  it('refuses a number of the right length whose checksum fails — a typo', () => {
+    expect(numberObjection('4111111111111112')).toBe('number.invalid');
+  });
+});
+
+describe('cardObjectionsOf', () => {
+  it('names every failing field of an empty card', () => {
+    expect(cardObjectionsOf(EMPTY_CARD_FORM)).toEqual({
+      digits: 'number.required',
+      closingDay: 'pick.day',
+      dueDay: 'pick.day',
+      expirationMonth: 'pick.month',
+      expirationYear: 'pick.year',
+    });
+  });
+
+  it('names only what is left, and nothing for a card that passes', () => {
+    const complete = form({
+      digits: VISA, closingDay: 10, dueDay: 20, expirationMonth: 8, expirationYear: 2030,
+    });
+    expect(cardObjectionsOf({ ...complete, expirationYear: null }))
+      .toEqual({ expirationYear: 'pick.year' });
+    expect(cardObjectionsOf(complete)).toEqual({});
+  });
+});
+
+describe('withoutObjections', () => {
+  it('drops the objections of the fields a change touched, keeping the rest', () => {
+    expect(withoutObjections({ digits: 'number.invalid', dueDay: 'pick.day' }, { dueDay: 5 }))
+      .toEqual({ digits: 'number.invalid' });
+  });
+
+  it('leaves nothing once none is left, or when there was none', () => {
+    expect(withoutObjections({ dueDay: 'pick.day' }, { dueDay: 5 })).toBeUndefined();
+    expect(withoutObjections(undefined, { dueDay: 5 })).toBeUndefined();
   });
 });
 
@@ -146,11 +202,35 @@ describe('the fields', () => {
     expect(screen.getByText('08/30')).toBeTruthy();
   });
 
-  it('names no network while the number is empty or objected to', () => {
+  it('names no network while the number is objected to', () => {
     renderInLocale(
-      <CardFields form={form({ digits: VISA })} digitsError="Bad" onChange={vi.fn()} />,
+      <CardFields
+        form={form({ digits: VISA })}
+        errors={{ digits: 'number.invalid' }}
+        onChange={vi.fn()}
+      />,
     );
     expect(screen.queryByText(/detected from the number/)).toBeNull();
+  });
+
+  it('shows each objection under its own field, naming the network for a length', () => {
+    renderInLocale(
+      <CardFields
+        form={form({ digits: `${AMEX}0` })}
+        errors={{ digits: 'number.length', closingDay: 'pick.day', expirationYear: 'pick.year' }}
+        onChange={vi.fn()}
+      />,
+    );
+    const number = screen.getByRole('textbox', { name: 'Card number' });
+    expect(number.getAttribute('aria-invalid')).toBe('true');
+    expect(screen.getByText("American Express numbers don't have this many digits."))
+      .toBeTruthy();
+    expect(screen.getByRole('combobox', { name: 'Closing day' }).getAttribute('aria-invalid'))
+      .toBe('true');
+    expect(screen.getByRole('combobox', { name: 'Due day' }).getAttribute('aria-invalid'))
+      .toBeNull();
+    expect(screen.getByText('Pick a day.')).toBeTruthy();
+    expect(screen.getByText('Pick the year.')).toBeTruthy();
   });
 
   it('shows a picked day on its combobox and reports the pick', async () => {

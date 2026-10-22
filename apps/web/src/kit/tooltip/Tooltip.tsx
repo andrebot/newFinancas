@@ -12,7 +12,7 @@ import {
 } from '@floating-ui/react';
 import { useState, type ReactNode } from 'react';
 import { tooltip } from '../../config/constants';
-import { overlayMiddleware } from '../popover/overlay';
+import { LAYERS, overlayMiddleware } from '../popover/overlay';
 
 // The kit's tooltip (K24, OQ-160): a short line naming what a control does —
 // an icon button's purpose, a disabled control's reason. It is an inverted
@@ -56,7 +56,7 @@ export interface TooltipProps {
 }
 
 const SURFACE = [
-  'pointer-events-none z-50 max-w-64 rounded-lg bg-ink px-2 py-1',
+  `pointer-events-none ${LAYERS.tooltip} max-w-64 rounded-lg bg-ink px-2 py-1`,
   'type-caption font-medium text-bg shadow-overlay',
 ].join(' ');
 

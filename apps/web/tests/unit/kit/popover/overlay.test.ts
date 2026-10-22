@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { overlay } from '../../../../src/config/constants';
 import {
-  fitToViewport, fitToViewportAndReference, OVERLAY_SURFACE, overlayMiddleware,
+  fitToViewport, fitToViewportAndReference, LAYERS, OVERLAY_SURFACE, overlayMiddleware,
 } from '../../../../src/kit/popover/overlay';
 
 // Kit helper (BDT: Utility → unit, nothing mocked): the shared positioning
@@ -80,5 +80,18 @@ describe('OVERLAY_SURFACE', () => {
       'bg-raised', 'border-line', 'rounded-2xl', 'shadow-overlay', 'overflow-y-auto',
     ];
     expected.forEach((token) => expect(classes).toContain(token));
+  });
+
+  it('sits on the panel layer', () => {
+    expect(OVERLAY_SURFACE.split(' ')).toContain(LAYERS.panel);
+  });
+});
+
+describe('LAYERS', () => {
+  it('stacks a panel over the drawer, a tooltip over a panel and a toast over all', () => {
+    const order = Object.values(LAYERS).map((layer) => Number(layer.replace('z-', '')));
+    expect(Object.keys(LAYERS)).toEqual(['scrim', 'drawer', 'panel', 'tooltip', 'toast']);
+    expect(order).toEqual([...order].sort((first, second) => first - second));
+    expect(new Set(order).size).toBe(order.length);
   });
 });

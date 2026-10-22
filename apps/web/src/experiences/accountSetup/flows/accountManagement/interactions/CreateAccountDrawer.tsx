@@ -8,12 +8,14 @@ import { Select } from '../../../../../kit/select/Select';
 import { TextField } from '../../../../../kit/textField/TextField';
 import { InlineBanner } from '../../../../../kit/alert/InlineBanner';
 import { useI18n } from '../../../../../utilities/I18nProvider';
+import useFocusFirstInvalid from '../../../../../utilities/useFocusFirstInvalid';
 import { nonBlank } from '../../../../../utilities/validation';
 import {
   takesCards, type AccountType, type NewAccount, type Visibility,
 } from '../accountManagementState';
 import {
-  CardFields, draftsOf, EMPTY_CARD_FORM, type CardFormState,
+  CardFields, draftsOf, EMPTY_CARD_FORM, withoutObjections, type CardFormState,
+  type CardObjections,
 } from './CardFields';
 import { LockedField } from './LockedField';
 
@@ -62,7 +64,9 @@ export function CreateAccountDrawer({
   const [openingBalance, setOpeningBalance] = useState<number | null>(null);
   const [cards, setCards] = useState<readonly CardFormState[]>([]);
   const [nameError, setNameError] = useState<string>();
-  const [cardErrors, setCardErrors] = useState<readonly (string | undefined)[]>([]);
+  const [cardErrors, setCardErrors] = useState<readonly (CardObjections | undefined)[]>([]);
+  const [refusals, setRefusals] = useState(0);
+  useFocusFirstInvalid(refusals);
 
   /**
    * Keeps the typed name and drops its error.
@@ -84,9 +88,9 @@ export function CreateAccountDrawer({
     setCards((current) => current.map((form, position) => (
       position === index ? { ...form, ...patch } : form
     )));
-    setCardErrors(
-      (current) => current.map((error, position) => (position === index ? undefined : error)),
-    );
+    setCardErrors((current) => current.map((error, position) => (
+      position === index ? withoutObjections(error, patch) : error
+    )));
   };
 
   /** Adds an empty card to the list. */
@@ -102,17 +106,18 @@ export function CreateAccountDrawer({
 
   /**
    * Checks the fields and emits the account when they pass. A card that
-   * fails its checks keeps an error under it; cards hidden by the type are
-   * left out.
+   * fails its checks shows why under each failing field, and the first
+   * problem takes the focus; cards hidden by the type are left out.
    */
   const submit = () => {
     const foundName = nonBlank(name);
     setNameError(foundName && translator.field(foundName.code, foundName.params));
-    if (foundName) return;
-    const incomplete = translator.text('accountSetup', 'card.incomplete');
-    const { drafts, errors } = draftsOf(showCards ? cards : [], incomplete);
+    const { drafts, errors } = draftsOf(showCards ? cards : []);
     setCardErrors(errors);
-    if (errors.some((error) => error !== undefined)) return;
+    if (foundName || errors.some((error) => error !== undefined)) {
+      setRefusals((count) => count + 1);
+      return;
+    }
     onSubmit({
       name: name.trim(),
       type,
@@ -126,6 +131,7 @@ export function CreateAccountDrawer({
   return (
     <Drawer
       open
+      size="wide"
       onClose={onCancel}
       caption={translator.text('accountSetup', 'create.caption')}
       title={translator.text('accountSetup', 'create.title')}
@@ -199,7 +205,7 @@ export function CreateAccountDrawer({
               <div key={index} className="flex flex-col gap-3 rounded-lg border border-line p-4">
                 <CardFields
                   form={form}
-                  digitsError={cardErrors[index]}
+                  errors={cardErrors[index]}
                   onChange={(patch) => changeCard(index, patch)}
                 />
                 <Button variant="ghost" onClick={() => removeCard(index)}>

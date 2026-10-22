@@ -8,6 +8,7 @@ import {
 import { drawer } from '../../config/constants';
 import { useI18n } from '../../utilities/I18nProvider';
 import { Icon } from '../icons/Icon';
+import { LAYERS } from '../popover/overlay';
 
 // The kit's drawer (K20, OQ-191): the right-side panel every focused form
 // opens in — Record, Filter, Edit, Add Budget / Goal, Value history (mockups
@@ -32,7 +33,18 @@ export interface DrawerProps {
   readonly children: ReactNode;
   /** The pinned actions row, e.g. Cancel / Save. */
   readonly footer?: ReactNode;
+  /** Its width from `md` up: 520px, or 640px for a form with a wide row (a card number). */
+  readonly size?: DrawerSize | undefined;
 }
+
+/** The drawer's width from `md` up; below it, every drawer is a full-screen sheet. */
+export type DrawerSize = 'default' | 'wide';
+
+/** The panel's width per size, from `md` up. */
+export const DRAWER_WIDTHS: Record<DrawerSize, string> = {
+  default: 'md:w-[520px]',
+  wide: 'md:w-[640px]',
+};
 
 /** What can take focus when the drawer opens: the body's first field or control. */
 const FOCUSABLE = [
@@ -42,16 +54,16 @@ const FOCUSABLE = [
 
 /** The scrim, fading in and out. */
 export const SCRIM = [
-  'z-40 bg-scrim transition-opacity ease-out motion-reduce:transition-none md:top-16',
+  `${LAYERS.scrim} bg-scrim transition-opacity ease-out motion-reduce:transition-none md:top-16`,
   'data-[status=initial]:opacity-0 data-[status=close]:opacity-0',
 ].join(' ');
 
 /** The panel: a full-screen sheet rising below `md`, the right-hand drawer from it. */
 export const PANEL = [
-  'fixed inset-0 z-50 flex flex-col bg-card outline-none',
+  `fixed inset-0 ${LAYERS.drawer} flex flex-col bg-card outline-none`,
   'transition-transform ease-out motion-reduce:transition-none',
   'data-[status=initial]:translate-y-full data-[status=close]:translate-y-full',
-  'md:top-16 md:left-auto md:w-[520px] md:border-l md:border-line',
+  'md:top-16 md:left-auto md:border-l md:border-line',
   'md:data-[status=initial]:translate-x-full md:data-[status=initial]:translate-y-0',
   'md:data-[status=close]:translate-x-full md:data-[status=close]:translate-y-0',
 ].join(' ');
@@ -82,11 +94,11 @@ export const focusFirstField = (
 /**
  * Renders the drawer while it is open, and while it slides out.
  *
- * @param props - The open state, the close request, the heading, the body and the footer.
+ * @param props - The open state, the close request, the heading, the body, the footer and the size.
  * @returns The scrim and panel in a portal, or nothing while closed.
  */
 export function Drawer({
-  open, onClose, title, caption, children, footer,
+  open, onClose, title, caption, children, footer, size = 'default',
 }: DrawerProps) {
   const translator = useI18n();
   const titleId = useId();
@@ -116,7 +128,7 @@ export function Drawer({
           ref={setFloating}
           aria-labelledby={titleId}
           aria-modal="true"
-          className={PANEL}
+          className={`${PANEL} ${DRAWER_WIDTHS[size]}`}
           data-status={status}
           style={timing}
           {...getFloatingProps()}

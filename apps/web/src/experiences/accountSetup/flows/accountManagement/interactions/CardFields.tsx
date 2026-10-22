@@ -1,4 +1,6 @@
-import { detectCardNetwork, isValidCardNumber } from '@financas/reference';
+import {
+  CARD_NUMBER_FORMATS, detectCardNetwork, isValidCardNumber,
+} from '@financas/reference';
 import { creditCard } from '../../../../../config/constants';
 import { CardNumberInput } from '../../../../../kit/creditCard/CardNumberInput';
 import { CardPreview } from '../../../../../kit/creditCard/CardPreview';
@@ -104,38 +106,100 @@ export const cardDraftOf = (form: CardFormState): CardDraft | undefined => {
   };
 };
 
-/** What the new cards' fields read into, with an error for each that fails. */
+/** Why one of a card's fields doesn't pass; each has its own message. */
+export type CardObjection = 'number.required' | 'number.length' | 'number.invalid'
+  | 'pick.day' | 'pick.month' | 'pick.year';
+
+/** A card's failing fields, each with its objection; empty when the card passes. */
+export type CardObjections = Partial<Record<keyof CardFormState, CardObjection>>;
+
+/** The picks a card needs, with the objection each raises while empty. */
+const PICKS: readonly (readonly [keyof CardFormState, CardObjection])[] = [
+  ['closingDay', 'pick.day'],
+  ['dueDay', 'pick.day'],
+  ['expirationMonth', 'pick.month'],
+  ['expirationYear', 'pick.year'],
+];
+
+/**
+ * Names what is wrong with a card number: missing, a length its network (read
+ * from the first digits) never has, or a checksum that fails — a typo.
+ *
+ * @param digits - The digits as typed.
+ * @returns The objection, or nothing when the number is valid.
+ */
+export const numberObjection = (digits: string): CardObjection | undefined => {
+  if (digits.length === 0) return 'number.required';
+  if (isValidCardNumber(digits)) return undefined;
+  const { lengths } = CARD_NUMBER_FORMATS[detectCardNetwork(digits)];
+  return lengths.includes(digits.length) ? 'number.invalid' : 'number.length';
+};
+
+/**
+ * Names each of a card's fields that doesn't pass, so each shows its own message.
+ *
+ * @param form - What is typed and picked.
+ * @returns The failing fields and why; empty when the card passes.
+ */
+export const cardObjectionsOf = (form: CardFormState): CardObjections => {
+  const entries = [
+    ['digits', numberObjection(form.digits)] as const,
+    ...PICKS.map(([field, objection]) => (
+      [field, form[field] === null ? objection : undefined] as const
+    )),
+  ];
+  return Object.fromEntries(entries.filter(([, objection]) => objection !== undefined));
+};
+
+/** What the new cards' fields read into, with the objections of each that fails. */
 export interface DraftsResult {
   /** The drafts that passed. */
   readonly drafts: CardDraft[];
-  /** One per form: its objection, or nothing when it passed. */
-  readonly errors: (string | undefined)[];
+  /** One per form: its failing fields, or nothing when it passed. */
+  readonly errors: (CardObjections | undefined)[];
 }
 
 /**
- * Reads the cards' fields into their drafts, naming each one that fails.
+ * Reads the cards' fields into their drafts, naming what fails in each.
  *
  * @param forms - What is typed in each card.
- * @param incomplete - The objection for a card whose fields don't pass.
- * @returns Its drafts and its errors, per form.
+ * @returns Its drafts and its objections, per form.
  */
-export const draftsOf = (forms: readonly CardFormState[], incomplete: string): DraftsResult => {
+export const draftsOf = (forms: readonly CardFormState[]): DraftsResult => {
   const drafts: CardDraft[] = [];
   const errors = forms.map((form) => {
     const draft = cardDraftOf(form);
-    if (draft === undefined) return incomplete;
+    if (draft === undefined) return cardObjectionsOf(form);
     drafts.push(draft);
     return undefined;
   });
   return { drafts, errors };
 };
 
+/**
+ * Drops the objections of the fields a change touched; the others stay.
+ *
+ * @param objections - The card's objections, if any.
+ * @param patch - The fields that changed.
+ * @returns What is left, or nothing when none is.
+ */
+export const withoutObjections = (
+  objections: CardObjections | undefined,
+  patch: Partial<CardFormState>,
+): CardObjections | undefined => {
+  if (objections === undefined) return undefined;
+  const left = Object.fromEntries(
+    Object.entries(objections).filter(([field]) => !(field in patch)),
+  );
+  return Object.keys(left).length === 0 ? undefined : left;
+};
+
 /** CardFields' props. */
 export interface CardFieldsProps {
   /** What is typed and picked. */
   readonly form: CardFormState;
-  /** The number's objection, already translated, under the field. */
-  readonly digitsError?: string | undefined;
+  /** The fields that failed the last submit, each shown under its field. */
+  readonly errors?: CardObjections | undefined;
   /** Gets a change to one of the fields. */
   readonly onChange: (patch: Partial<CardFormState>) => void;
 }
@@ -144,12 +208,20 @@ export interface CardFieldsProps {
  * Renders one card's fields: the number beside its live preview, the billing
  * days and the expiration.
  *
- * @param props - The form state, the field error and the change handler.
+ * @param props - The form state, the fields' objections and the change handler.
  * @returns The fields.
  */
-export function CardFields({ form, digitsError, onChange }: CardFieldsProps) {
+export function CardFields({ form, errors = {}, onChange }: CardFieldsProps) {
   const translator = useI18n();
   const network = detectCardNetwork(form.digits);
+  /** Translates a field's objection, naming the network for a length. */
+  const errorOf = (field: keyof CardFormState) => {
+    const objection = errors[field];
+    return objection && translator.text('accountSetup', `card.error.${objection}`, {
+      network: translator.text('cardNetworks', network),
+    });
+  };
+  const digitsError = errorOf('digits');
   const caption = form.digits.length > 0 && !digitsError
     ? translator.text('creditCard', 'detected', {
       network: translator.text('cardNetworks', network),
@@ -184,6 +256,7 @@ export function CardFields({ form, digitsError, onChange }: CardFieldsProps) {
           options={DAYS.map(dayOption)}
           placeholder={translator.text('accountSetup', 'card.pickDay')}
           value={selectValue(form.closingDay)}
+          error={errorOf('closingDay')}
           onChange={(value) => onChange({ closingDay: Number(value) })}
         />
         <Select
@@ -191,6 +264,7 @@ export function CardFields({ form, digitsError, onChange }: CardFieldsProps) {
           options={DAYS.map(dayOption)}
           placeholder={translator.text('accountSetup', 'card.pickDay')}
           value={selectValue(form.dueDay)}
+          error={errorOf('dueDay')}
           onChange={(value) => onChange({ dueDay: Number(value) })}
         />
       </div>
@@ -200,6 +274,7 @@ export function CardFields({ form, digitsError, onChange }: CardFieldsProps) {
           options={MONTHS.map(dayOption)}
           placeholder={translator.text('accountSetup', 'card.pickMonth')}
           value={selectValue(form.expirationMonth)}
+          error={errorOf('expirationMonth')}
           onChange={(value) => onChange({ expirationMonth: Number(value) })}
         />
         <Select
@@ -207,6 +282,7 @@ export function CardFields({ form, digitsError, onChange }: CardFieldsProps) {
           options={expirationYears(new Date().getFullYear()).map(dayOption)}
           placeholder={translator.text('accountSetup', 'card.pickYear')}
           value={selectValue(form.expirationYear)}
+          error={errorOf('expirationYear')}
           onChange={(value) => onChange({ expirationYear: Number(value) })}
         />
       </div>

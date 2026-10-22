@@ -5037,6 +5037,10 @@ not a hardcoded assumption.
   motion under `prefers-reduced-motion`. The nav drawer and the popover
   stay without animation.
 
+**Amended in FL11 (Oct 2026):**
+- **One stacking order for the kit (`LAYERS`, `kit/popover/overlay.ts`).** Bottom to top: the shell's chrome (z-20/30), the drawer's scrim and panel (z-40/50), the panels (select, menu, popover — the date input's calendar and the icon picker's "more" too), tooltips, toasts. The panels had been at z-40, under the drawer, so a Select inside a drawer opened behind it with no visible options.
+- **Two widths from `md`: `default` 520px and `wide` 640px.** The account drawers are wide: beside the 200px card preview, a 520px drawer left the card number about 160px — too narrow for a 16-digit number. Below `md` every drawer is still the full-screen sheet.
+
 **Task 107 (`K20`) is complete.**
 
 ### OQ-192: Account & Card Management (task FL11)
@@ -5050,6 +5054,8 @@ not a hardcoded assumption.
 - **Archiving sits behind an inline confirm** — the kit's danger zone with a destructive confirm, as mockup 40 draws it — and an archived account leaves the list for its own section.
 - **A failure shows once, where the form is.** A create, edit or archive that fails shows in the open drawer's banner with what was typed kept; it isn't also toasted. Successes toast. Only the control whose request is out spins (Save for an edit, the confirm for an archive). One request at a time: while one is out, every other control waits (Archive and its confirm included) and the drawer doesn't close (Cancel, Esc and the backdrop wait too), so each answer lands on its own request and a failure always has its banner.
 - **The Flow keeps its own list.** It loads once as it mounts and applies each success from the answer (append, replace, stamp `archivedAt`). Nothing else reads the accounts list, so the writes invalidate no cache tag; a reader added later brings its own refresh.
+- **A card's billing days and expiry are picked from dropdowns, not typed** (a deliberate divergence from mockup 11, which draws three text fields with expiry as one `MM/YYYY`). Closing and due day offer 1–28 (OQ-170), the expiry a month and a year from a window, so nothing invalid can be entered and no format has to be explained.
+- **A refused card says what is wrong, field by field.** A missing number, a length its network never has (read from the first digits: an Amex has 15, a Diners 14), a checksum that fails (a typo) and each unpicked day, month or year get their own message under their own field — one catch-all under the number read as "type more digits". The name's error and the cards' show together, the first problem takes the focus (`useFocusFirstInvalid`), and changing a field clears only its own message.
 - **An expired card is accepted.** The expiration is recorded as the card prints it and isn't checked against today, in the form or the API: an expired card is legitimately recorded (an old card whose past transactions are being entered).
 
 **Task 89 (`FL11`) is complete.**

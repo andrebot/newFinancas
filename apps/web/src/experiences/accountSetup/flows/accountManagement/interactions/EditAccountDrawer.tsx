@@ -8,13 +8,15 @@ import { InlineConfirm } from '../../../../../kit/confirm/InlineConfirm';
 import { SegmentedControl } from '../../../../../kit/segmentedControl/SegmentedControl';
 import { TextField } from '../../../../../kit/textField/TextField';
 import { useI18n } from '../../../../../utilities/I18nProvider';
+import useFocusFirstInvalid from '../../../../../utilities/useFocusFirstInvalid';
 import { nonBlank } from '../../../../../utilities/validation';
 import type { AccountEdit, CardSlot, Visibility } from '../accountManagementState';
 import { cardChangesOf, sparseCardChanges, takesCards } from '../accountManagementState';
 import { AttachedCardFields } from './AttachedCardFields';
 import { LockedField } from './LockedField';
 import {
-  CardFields, draftsOf, EMPTY_CARD_FORM, type CardFormState,
+  CardFields, draftsOf, EMPTY_CARD_FORM, withoutObjections, type CardFormState,
+  type CardObjections,
 } from './CardFields';
 
 // The edit-account drawer (FL11, mockup 40; OQ-35): the name, the locked-in
@@ -32,8 +34,8 @@ interface CardsSectionProps {
   readonly slots: CardSlot[];
   /** The new cards being typed. */
   readonly newCards: readonly CardFormState[];
-  /** One per new card: its number's objection, if any. */
-  readonly cardErrors: readonly (string | undefined)[];
+  /** One per new card: its failing fields, if any. */
+  readonly cardErrors: readonly (CardObjections | undefined)[];
   /** Changes one attached card's fields. */
   readonly changeSlot: (index: number, patch: Partial<CardSlot>) => void;
   /** Marks one attached card for removal. */
@@ -75,7 +77,7 @@ function CardsSection({
         <div key={`new-${index}`} className="flex flex-col gap-3 rounded-lg border border-line p-4">
           <CardFields
             form={form}
-            digitsError={cardErrors[index]}
+            errors={cardErrors[index]}
             onChange={(patch) => changeNewCard(index, patch)}
           />
           <Button variant="ghost" onClick={() => removeNewCard(index)}>
@@ -200,7 +202,9 @@ export function EditAccountDrawer({
   const [slots, setSlots] = useState<CardSlot[]>(() => slotsOf(account));
   const [newCards, setNewCards] = useState<readonly CardFormState[]>([]);
   const [nameError, setNameError] = useState<string>();
-  const [cardErrors, setCardErrors] = useState<readonly (string | undefined)[]>([]);
+  const [cardErrors, setCardErrors] = useState<readonly (CardObjections | undefined)[]>([]);
+  const [refusals, setRefusals] = useState(0);
+  useFocusFirstInvalid(refusals);
 
   const isCreator = account.ownerUserId === selfUserId;
   const showCards = takesCards(account.type);
@@ -239,9 +243,9 @@ export function EditAccountDrawer({
     setNewCards((current) => current.map((form, position) => (
       position === index ? { ...form, ...patch } : form
     )));
-    setCardErrors(
-      (current) => current.map((error, position) => (position === index ? undefined : error)),
-    );
+    setCardErrors((current) => current.map((error, position) => (
+      position === index ? withoutObjections(error, patch) : error
+    )));
   };
 
   /** Adds an empty new card. */
@@ -266,11 +270,12 @@ export function EditAccountDrawer({
   const submit = () => {
     const foundName = nonBlank(name);
     setNameError(foundName && translator.field(foundName.code, foundName.params));
-    if (foundName) return;
-    const incomplete = translator.text('accountSetup', 'card.incomplete');
-    const { drafts, errors } = draftsOf(newCards, incomplete);
+    const { drafts, errors } = draftsOf(newCards);
     setCardErrors(errors);
-    if (errors.some((error) => error !== undefined)) return;
+    if (foundName || errors.some((error) => error !== undefined)) {
+      setRefusals((count) => count + 1);
+      return;
+    }
     const changes = sparseCardChanges(cardChangesOf([...slots, ...drafts], account.cards));
     onSubmit({
       accountId: account.id,
@@ -283,6 +288,7 @@ export function EditAccountDrawer({
   return (
     <Drawer
       open
+      size="wide"
       onClose={onCancel}
       caption={translator.text('accountSetup', 'edit.caption')}
       title={account.name}

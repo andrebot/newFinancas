@@ -231,7 +231,9 @@ describe('its submit', () => {
     fireEvent.change(input, { target: { value: '5105105105101000' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
     expect(handlers.onSubmit).not.toHaveBeenCalled();
-    expect(screen.getByText("Complete the card's fields.")).toBeTruthy();
+    expect(screen.getAllByText('Pick a day.').length).toBe(2);
+    expect(screen.getByText('Pick the month.')).toBeTruthy();
+    expect(screen.getByText('Pick the year.')).toBeTruthy();
   });
 
   it('waits while a request is out', () => {
@@ -295,7 +297,7 @@ describe('its submit', () => {
     if (!firstNumber) throw new Error('both new cards’ number fields are missing');
     fireEvent.change(firstNumber, { target: { value: '5105105105101000' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
-    expect(screen.getAllByText("Complete the card's fields.").length).toBe(2);
+    expect(screen.getAllByText('Pick a day.').length).toBe(4);
 
     // The attached card’s selects come first, then the two new cards’.
     const closings = screen.getAllByRole('combobox', { name: 'Closing day' });
@@ -305,7 +307,7 @@ describe('its submit', () => {
       fireEvent.click(secondNew);
     });
     fireEvent.click(screen.getByRole('option', { name: '10' }));
-    expect(screen.getAllByText("Complete the card's fields.").length).toBe(1);
+    expect(screen.getAllByText('Pick a day.').length).toBe(3);
   });
 
   it('drops a new card again before submitting', () => {
@@ -331,12 +333,12 @@ describe('its submit', () => {
     fireEvent.click(screen.getByRole('button', { name: /Add credit card/ }));
     fireEvent.click(screen.getByRole('button', { name: /Add credit card/ }));
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
-    expect(screen.getAllByText("Complete the card's fields.").length).toBe(2);
+    expect(screen.getAllByText('Enter the card number.').length).toBe(2);
 
     const drop = screen.getAllByRole('button', { name: /Drop this card/ })[0];
     if (!drop) throw new Error('the first new card’s drop button is missing');
     fireEvent.click(drop);
-    expect(screen.getAllByText("Complete the card's fields.").length).toBe(1);
+    expect(screen.getAllByText('Enter the card number.').length).toBe(1);
   });
 });
 

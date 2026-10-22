@@ -172,7 +172,7 @@ describe('the card', () => {
     openEntry();
     rerender({ busy: true });
     const input = field();
-    expect(input.disabled).toBe(true);
+    expect(input.readOnly).toBe(true);
     fireEvent.change(input, { target: { value: 'Parking' } });
     fireEvent.keyDown(input, { key: 'Enter' });
     expect(onAddSubcategory).not.toHaveBeenCalled();
@@ -207,6 +207,24 @@ describe('the card', () => {
     expect(document.activeElement).toBe(field());
     expect(field().maxLength).toBe(20);
     expect(screen.queryByRole('button', { name: 'Subcategory' })).toBeNull();
+  });
+
+  it('keeps the field focused through an add, for the next one', () => {
+    const { rerender } = renderCard();
+    openEntry();
+    fireEvent.change(field(), { target: { value: 'Parking' } });
+    fireEvent.keyDown(field(), { key: 'Enter' });
+    rerender({ busy: true });
+    // A browser drops the focus from a disabled field (jsdom doesn't), so it stays enabled.
+    expect(field().disabled).toBe(false);
+    expect(document.activeElement).toBe(field());
+    const parking = { ...HOUSING.subcategories[0]!, id: 's4', name: 'Parking' };
+    rerender({
+      busy: false, category: { ...HOUSING, subcategories: [...HOUSING.subcategories, parking] },
+    });
+    expect(document.activeElement).toBe(field());
+    expect(field().value).toBe('');
+    expect(field().readOnly).toBe(false);
   });
 
   it('closes the field on Escape, dropping what was typed', () => {
