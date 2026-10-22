@@ -115,7 +115,7 @@ Diagram: `docs/design/diagrams/ebd-tiers/app-shell.html`; sequence:
 | Account & Card Management | Account Form, Card Entry with Live Preview, Archive Confirm | `docs/design/diagrams/ebd-sequences/account-setup-account-card-management.html` |
 | Category Management | Category Card, Icon & Colour Picker, Inline Subcategory Entry, Archive Confirm | `docs/design/diagrams/ebd-sequences/account-setup-category-management.html` |
 | Budget Management | Budget Cards, Budget Form, Claim-Aware Category Picker, Delete Confirm (OQ-194) | `docs/design/diagrams/ebd-sequences/account-setup-budget-management.html` |
-| Goal Management | Goal Form, Goal Progress Card, Exchange-Rate Calculator, Complete / Reopen Confirm | `docs/design/diagrams/ebd-sequences/account-setup-goal-management.html` |
+| Goal Management | Goal Cards, Goal Form, Goal Progress Card, Exchange-Rate Calculator, Complete / Reopen / Delete Confirm | `docs/design/diagrams/ebd-sequences/account-setup-goal-management.html` |
 
 **Utilities:** ValidationUtility, AlertUtility, ThemeUtility, I18nUtility, FormattingUtility. Tier diagram: `docs/design/diagrams/ebd-tiers/account-setup.html`.
 

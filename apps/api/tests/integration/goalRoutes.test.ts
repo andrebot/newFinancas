@@ -170,6 +170,28 @@ describe('goal routes (OQ-174: under /households/:householdId)', () => {
     expect(account.editGoal).not.toHaveBeenCalled();
   });
 
+  it('POST …/goals refuses a name over 40 characters (OQ-195)', async () => {
+    const { app, account } = setup();
+
+    const response = await send(app, 'POST', GOALS, { ...NEW_GOAL, name: 'x'.repeat(41) });
+
+    expect(response.status).toBe(422);
+    const { error } = await response.json() as { error: { details: unknown[] } };
+    expect(error.details).toEqual([{ field: 'name', code: 'string.max', params: { max: 40 } }]);
+    expect(account.createGoal).not.toHaveBeenCalled();
+  });
+
+  it('PATCH …/goals/:goalId refuses a name over 40 characters (OQ-195)', async () => {
+    const { app, account } = setup();
+
+    const response = await send(app, 'PATCH', `${GOALS}/${HOUSE}`, { name: 'y'.repeat(41) });
+
+    expect(response.status).toBe(422);
+    const { error } = await response.json() as { error: { details: unknown[] } };
+    expect(error.details).toEqual([{ field: 'name', code: 'string.max', params: { max: 40 } }]);
+    expect(account.editGoal).not.toHaveBeenCalled();
+  });
+
   it('DELETE …/goals/:goalId → 204', async () => {
     const { app, account } = setup();
     account.deleteGoal.mockResolvedValueOnce(undefined);

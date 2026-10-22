@@ -191,6 +191,25 @@ describe('NumberInput', () => {
     expect(screen.queryByText('%')).toBeNull();
   });
 
+  it('takes an exchange rate × 10,000, with no suffix (OQ-195)', () => {
+    const onChange = renderHolder({ kind: 'exchange' });
+
+    typeTo('5,2');
+
+    expect(onChange).toHaveBeenLastCalledWith(52000);
+    expect(numberBox().inputMode).toBe('decimal');
+    expect(screen.queryByText('%')).toBeNull();
+  });
+
+  it('stops an exchange rate at four whole digits', () => {
+    const onChange = renderHolder({ kind: 'exchange', value: 12340000 });
+
+    typeTo('12345');
+
+    expect(onChange).not.toHaveBeenCalled();
+    expect(numberBox().value).toBe('1234');
+  });
+
   it('takes a whole percent on a numeric keypad, ignoring separators', () => {
     const onChange = renderHolder({ kind: 'percent' });
 

@@ -719,19 +719,19 @@ export type IndexRateSeries = {
 };
 
 export type Goal = {
-    id?: string;
-    householdId?: string;
-    ownerUserId?: string | null;
-    name?: string;
-    targetAmount?: Money;
-    targetCurrency?: Currency;
-    dueDate?: string;
-    visibility?: 'personal' | 'shared';
-    createdAt?: string;
+    id: string;
+    householdId: string;
+    ownerUserId: string | null;
+    name: string;
+    targetAmount: Money;
+    targetCurrency: Currency;
+    dueDate: string;
+    visibility: 'personal' | 'shared';
+    createdAt: string;
     /**
      * Complete sets it, reopen nulls it — the one reversible lifecycle flag (FR-8.8/8.9, OQ-78)
      */
-    completedAt?: string | null;
+    completedAt: string | null;
 };
 
 export type GoalCreateRequest = {
@@ -764,18 +764,18 @@ export type GoalUpdateRequest = {
 };
 
 export type GoalWithProgress = Goal & {
-    contributions?: Array<{
-        holdingId?: string;
-        currency?: Currency;
-        amount?: Money;
+    contributions: Array<{
+        holdingId: string;
+        currency: Currency;
+        amount: Money;
     }>;
-    fundedBy?: Array<{
-        holdingId?: string;
-        name?: string;
+    fundedBy: Array<{
+        holdingId: string;
+        name: string;
         /**
          * Whole percent (60 = 60%) — integer, no floats; contribution = value × pct / 100, rounded half-up to the cent (OQ-87)
          */
-        percentage?: number;
+        percentage: number;
     }>;
 };
 

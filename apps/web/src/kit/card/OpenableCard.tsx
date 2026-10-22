@@ -2,14 +2,22 @@ import type { ReactNode } from 'react';
 import { Card } from './Card';
 
 // The kit's openable card (OQ-194): a card the whole of which opens its item —
-// an account's or a budget's edit drawer (FL11, FL13), where Edit and the
-// destructive action live. Its name is its one button, the hit area stretched
-// over the card, so a screen reader hears a single button by the name. The
-// rest of the card is display only: a card with controls of its own (a
-// category's) can't be one. Without a way to open it, it is a plain card.
+// an account's, a budget's or a goal's edit drawer (FL11, FL13, FL14), where
+// Edit and the other actions live. Its name is its one button, the hit area
+// stretched over the card, so a screen reader hears a single button by the
+// name. The rest of the card is display only, but for the odd control the
+// caller lifts above the hit area with `ABOVE_OPENER` — a goal's rate field
+// (OQ-195). A card made of controls (a category's) still can't be one. Without
+// a way to open it, it is a plain card.
 
 /** The name button's hit area, stretched over its card while it opens one. */
 const STRETCHED = "after:absolute after:inset-0 after:rounded-card after:content-['']";
+
+/**
+ * Lifts a control inside the card above the stretched hit area, so it takes
+ * its own clicks and typing instead of opening the item (OQ-195).
+ */
+export const ABOVE_OPENER = 'relative z-10';
 
 /**
  * Builds the classes of an openable card: lifted on hover while it opens.
@@ -41,6 +49,8 @@ export interface OpenableCardProps {
   readonly name: string;
   /** The name's type, e.g. `type-heading-sm`. */
   readonly nameClassName?: string | undefined;
+  /** Shown before the name, e.g. a goal's disc. Display only. */
+  readonly leading?: ReactNode;
   /** Shown beside the name, e.g. its tags. Display only. */
   readonly aside?: ReactNode;
   /** Opens the item; without it the card is plain and its name a disabled button. */
@@ -54,16 +64,17 @@ export interface OpenableCardProps {
 /**
  * Renders a card that opens its item from anywhere on it.
  *
- * @param props - The name, what sits beside it, the opener, the layout and the content.
+ * @param props - The name, what sits before and beside it, the opener, the layout and the content.
  * @returns The card.
  */
 export function OpenableCard({
-  name, nameClassName, aside, onOpen, className, children,
+  name, nameClassName, leading, aside, onOpen, className, children,
 }: OpenableCardProps) {
   const openable = onOpen !== undefined;
   return (
     <Card className={openableCardClasses(openable, className)}>
       <div className="flex items-start gap-2">
+        {leading}
         <button
           type="button"
           onClick={onOpen}

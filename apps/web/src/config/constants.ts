@@ -2,6 +2,7 @@
 // only in code, grouped by area. Facts that belong to an algorithm (a regular
 // expression, a date format) stay next to the code that implements it.
 
+import type { Currency } from '@financas/api-types';
 import type { CardNetwork, CategoryIcon } from '@financas/reference';
 
 /** Form field rules (FU1 ValidationUtility). */
@@ -41,6 +42,12 @@ export const theme = {
 export const i18n = {
   /** Where the last applied locale is remembered, so a reload starts in it. */
   storageKey: 'financas.locale',
+} as const;
+
+/** Money (FR-9): the currencies it is kept in. */
+export const money = {
+  /** Every currency, in the order a currency picker offers them. */
+  currencies: ['BRL', 'USD'] satisfies readonly Currency[],
 } as const;
 
 /** Money, rates, percents, dates and lists (FU6 FormattingUtility, NFR-I18N-2, OQ-179). */
@@ -124,6 +131,8 @@ export const numberInput = {
     rate: 4,
     /** Up to 100%, and ValidationUtility holds the 1–100 range (OQ-87). */
     percent: 3,
+    /** Up to 9,999.9999 of one currency per unit of another (OQ-195). */
+    exchange: 4,
   },
 } as const;
 
@@ -185,6 +194,18 @@ export const categories = {
 export const budgets = {
   /** The longest budget name: the contract's `maxLength` (OQ-194). */
   nameMaxLength: 40,
+} as const;
+
+/** Goal Management (FL14). */
+export const goals = {
+  /** The longest goal name: the contract's `maxLength` (OQ-195). */
+  nameMaxLength: 40,
+  /**
+   * Which currency of a pair a rate counts in units of: the first one listed
+   * here, so the calculator reads "1 USD = 5.20 BRL" whichever is the target
+   * (OQ-195).
+   */
+  rateBaseOrder: ['USD', 'BRL'],
 } as const;
 
 /** Manage Profile (X3). */

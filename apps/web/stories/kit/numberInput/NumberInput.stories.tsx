@@ -64,6 +64,11 @@ export const Quantity: Story = {
   args: { label: 'Quantity', kind: 'quantity', value: 1000000 },
 };
 
+/** A Goal's exchange rate, 1 USD = 5.20 BRL: no suffix, never sent (OQ-195). */
+export const ExchangeRate: Story = {
+  args: { label: 'BRL per USD', kind: 'exchange', value: 52000 },
+};
+
 /** A Goal allocation row's compact whole percent (mockups 32, 51). */
 export const CompactPercent: Story = {
   args: {

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Currency } from '@financas/api-types';
+import { money } from '../../../../../config/constants';
 import { Button } from '../../../../../kit/button/Button';
 import { Drawer } from '../../../../../kit/drawer/Drawer';
 import { MoneyInput } from '../../../../../kit/moneyInput/MoneyInput';
@@ -28,7 +29,6 @@ import { LockedField } from '../../../../../kit/field/LockedField';
 // belongs to the Flow; this renders its content.
 
 const TYPES: readonly AccountType[] = ['checking', 'savings', 'credit_card_only', 'investment'];
-const CURRENCIES: readonly Currency[] = ['BRL', 'USD'];
 const VISIBILITIES: readonly Visibility[] = ['personal', 'shared'];
 
 /** CreateAccountDrawer's props. */
@@ -164,7 +164,7 @@ export function CreateAccountDrawer({
         />
         <SegmentedControl
           label={translator.text('accountSetup', 'field.currency')}
-          options={CURRENCIES.map((value) => ({ value, label: value }))}
+          options={money.currencies.map((value) => ({ value, label: value }))}
           value={currency}
           onChange={setCurrency}
         />

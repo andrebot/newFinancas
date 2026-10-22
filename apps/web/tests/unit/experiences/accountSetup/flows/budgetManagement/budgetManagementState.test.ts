@@ -2,14 +2,13 @@ import type { Budget } from '@financas/api-types';
 import { describe, expect, it } from 'vitest';
 import {
   afterAction, budgetIn, deleteConfirmCancelled, deleteConfirmOpened, drawerClosed, drawerOpened,
-  INITIAL_BUDGETS, isEditOfGone, mayCreateBudget, mayManageBudget, mayShareBudget, started,
-  toastsFailure,
+  INITIAL_BUDGETS, isEditOfGone, started, toastsFailure,
   type BudgetManagementState, type BudgetsView,
 } from '../../../../../../src/experiences/accountSetup/flows/budgetManagement/budgetManagementState';
 
 // The Budget Management Flow's state (BDT: Flow-tier pure logic, unit; nothing
 // mocked): the open drawer, the delete confirm, what is out and the last
-// form failure; the permission rules of OQ-176.
+// form failure.
 
 const FAILURE = { code: 'budget.target_already_claimed', params: { budgetId: 'b2' } };
 
@@ -158,31 +157,5 @@ describe('budgetIn', () => {
     expect(budgetIn(loaded, undefined)).toBeUndefined();
     expect(budgetIn({ status: 'loading' }, 'b1')).toBeUndefined();
     expect(budgetIn(loaded, 'gone')).toBeUndefined();
-  });
-});
-
-describe('who may do what (OQ-176)', () => {
-  it('lets every member create, but only non-Viewers share', () => {
-    expect(mayCreateBudget('Viewer')).toBe(true);
-    expect(mayCreateBudget(undefined)).toBe(false);
-    expect(mayShareBudget('Member')).toBe(true);
-    expect(mayShareBudget('Viewer')).toBe(false);
-    expect(mayShareBudget(undefined)).toBe(false);
-  });
-
-  it('leaves a personal budget to its owner, whatever their role', () => {
-    const mine = budget({ visibility: 'personal', ownerUserId: 'jane' });
-    expect(mayManageBudget(mine, 'jane', 'Viewer')).toBe(true);
-    expect(mayManageBudget(mine, 'ben', 'Owner')).toBe(false);
-  });
-
-  it('lets an Owner or Admin manage a shared budget, and a Member only their own', () => {
-    const shared = budget({ ownerUserId: 'jane' });
-    expect(mayManageBudget(shared, 'ben', 'Owner')).toBe(true);
-    expect(mayManageBudget(shared, 'ben', 'Admin')).toBe(true);
-    expect(mayManageBudget(shared, 'jane', 'Member')).toBe(true);
-    expect(mayManageBudget(shared, 'ben', 'Member')).toBe(false);
-    expect(mayManageBudget(shared, 'jane', 'Viewer')).toBe(false);
-    expect(mayManageBudget(shared, 'jane', undefined)).toBe(false);
   });
 });

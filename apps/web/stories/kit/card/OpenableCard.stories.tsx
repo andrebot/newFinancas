@@ -1,6 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { fn } from 'storybook/test';
-import { OpenableCard, type OpenableCardProps } from '../../../src/kit/card/OpenableCard';
+import {
+  ABOVE_OPENER, OpenableCard, type OpenableCardProps,
+} from '../../../src/kit/card/OpenableCard';
+import { Icon } from '../../../src/kit/icons/Icon';
 import { Tag } from '../../../src/kit/tag/Tag';
 
 // The kit's openable card (OQ-194): the account cards of mockup 40 and the
@@ -35,4 +38,27 @@ export const Openable: Story = {};
 /** A card the actor may not manage: plain, its name a disabled button. */
 export const Plain: Story = {
   render: ({ onOpen: _, ...args }) => <OpenableCard {...args} />,
+};
+
+/** A goal card (mockup 43): its disc before the name, a rate field lifted above the hit area. */
+export const WithLiftedControl: Story = {
+  args: {
+    name: 'Trip to Japan',
+    leading: (
+      <span className="grid size-10 shrink-0 place-items-center rounded-full bg-sky/15 text-sky">
+        <Icon name="flag-outline" />
+      </span>
+    ),
+    children: (
+      <span className={`${ABOVE_OPENER} flex items-center gap-2 type-body-sm`}>
+        1 USD =
+        <input
+          aria-label="BRL per USD"
+          className="w-16 rounded border border-line bg-bg px-2"
+          defaultValue="5.20"
+        />
+        BRL
+      </span>
+    ),
+  },
 };

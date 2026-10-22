@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import type {
   Budget, Category, Currency,
 } from '@financas/api-types';
-import { budgets as budgetSettings } from '../../../../../config/constants';
+import { budgets as budgetSettings, money } from '../../../../../config/constants';
 import { InlineBanner } from '../../../../../kit/alert/InlineBanner';
 import { Button } from '../../../../../kit/button/Button';
 import { DangerZone } from '../../../../../kit/card/DangerZone';
@@ -33,8 +33,6 @@ import { CoverPicker } from './CoverPicker';
 // dropped from what is sent.
 // It holds what is typed, checks it before emitting, and shows the server's
 // objections in its banner. The drawer itself (open/close) belongs to the Flow.
-
-const CURRENCIES: readonly Currency[] = ['BRL', 'USD'];
 
 /** How each visibility's pill looks (mockup 42). */
 const VISIBILITY_OPTIONS = [
@@ -206,7 +204,7 @@ function ScopeFields({
           <LabelledPills label={translator.text('budgetManagement', 'field.currency')}>
             <SegmentedControl
               label={translator.text('budgetManagement', 'field.currency')}
-              options={CURRENCIES.map((value) => ({ value, label: value }))}
+              options={money.currencies.map((value) => ({ value, label: value }))}
               value={currency}
               onChange={onCurrency}
             />

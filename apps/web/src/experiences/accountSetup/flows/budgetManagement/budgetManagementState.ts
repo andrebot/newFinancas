@@ -183,39 +183,3 @@ export const budgetIn = (view: BudgetsView, budgetId: string | undefined): Budge
   if (budgetId === undefined || view.status !== 'loaded') return undefined;
   return view.budgets.find((budget) => budget.id === budgetId);
 };
-
-/**
- * Tells whether a role may create a budget (FR-1.7): every member — a Viewer
- * too, as a personal budget is its owner's whatever their role (OQ-194).
- *
- * @param role - The actor's role.
- * @returns Whether the Add Budget button shows.
- */
-export const mayCreateBudget = (role: string | undefined) => role !== undefined;
-
-/**
- * Tells whether a role may create a shared budget: everyone but a Viewer.
- *
- * @param role - The actor's role.
- * @returns Whether the create form offers Shared.
- */
-export const mayShareBudget = (role: string | undefined) => (
-  role !== undefined && role !== 'Viewer'
-);
-
-/**
- * Tells whether the actor may edit and delete a budget (OQ-176, OQ-111): a
- * personal one only its owner; a shared one an Owner/Admin, or the Member who
- * created it.
- *
- * @param budget - The budget.
- * @param selfUserId - The signed-in user's id.
- * @param role - Their role in the household.
- * @returns Whether its card shows Edit and Delete.
- */
-export const mayManageBudget = (budget: Budget, selfUserId: string, role: string | undefined) => {
-  if (!role) return false;
-  if (budget.visibility === 'personal') return budget.ownerUserId === selfUserId;
-  if (role === 'Owner' || role === 'Admin') return true;
-  return role === 'Member' && budget.ownerUserId === selfUserId;
-};

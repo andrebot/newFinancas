@@ -697,20 +697,20 @@ export const zIndexRateSeries = z.object({
 });
 
 export const zGoal = z.object({
-    id: z.uuid().optional(),
-    householdId: z.uuid().optional(),
-    ownerUserId: z.uuid().nullish(),
-    name: z.string().optional(),
-    targetAmount: zMoney.optional(),
-    targetCurrency: zCurrency.optional(),
-    dueDate: z.iso.date().optional(),
-    visibility: z.enum(['personal', 'shared']).optional(),
-    createdAt: z.iso.datetime().optional(),
-    completedAt: z.iso.datetime().nullish()
+    id: z.uuid(),
+    householdId: z.uuid(),
+    ownerUserId: z.uuid().nullable(),
+    name: z.string(),
+    targetAmount: zMoney,
+    targetCurrency: zCurrency,
+    dueDate: z.iso.date(),
+    visibility: z.enum(['personal', 'shared']),
+    createdAt: z.iso.datetime(),
+    completedAt: z.iso.datetime().nullable()
 });
 
 export const zGoalCreateRequest = z.object({
-    name: z.string(),
+    name: z.string().max(40),
     targetAmount: zPositiveMoney,
     targetCurrency: zCurrency,
     dueDate: z.iso.date(),
@@ -732,7 +732,7 @@ export const zGoalProgress = z.object({
 });
 
 export const zGoalUpdateRequest = z.object({
-    name: z.string().optional(),
+    name: z.string().max(40).optional(),
     targetAmount: zPositiveMoney.optional(),
     targetCurrency: zCurrency.optional(),
     dueDate: z.iso.date().optional()
@@ -740,15 +740,15 @@ export const zGoalUpdateRequest = z.object({
 
 export const zGoalWithProgress = zGoal.and(z.object({
     contributions: z.array(z.object({
-        holdingId: z.uuid().optional(),
-        currency: zCurrency.optional(),
-        amount: zMoney.optional()
-    })).optional(),
+        holdingId: z.uuid(),
+        currency: zCurrency,
+        amount: zMoney
+    })),
     fundedBy: z.array(z.object({
-        holdingId: z.uuid().optional(),
-        name: z.string().optional(),
-        percentage: z.int().gte(1).lte(100).optional()
-    })).optional()
+        holdingId: z.uuid(),
+        name: z.string(),
+        percentage: z.int().gte(1).lte(100)
+    }))
 }));
 
 /**
