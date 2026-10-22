@@ -6,6 +6,7 @@ import {
 import { formatMoney } from '../../../../../../../src/utilities/formatting';
 import { renderInLocale } from '../../../../../../support/renderInLocale';
 import {
+  accountCardClasses,
   AccountList, outstandingOf, type AccountListProps,
 } from '../../../../../../../src/experiences/accountSetup/flows/accountManagement/interactions/AccountList';
 
@@ -161,6 +162,22 @@ describe('the accounts’ cards', () => {
     const PERSONAL = account('per', { name: 'Personal Checking', visibility: 'personal' });
     renderPanel({ view: { status: 'loaded', accounts: [PERSONAL] } });
     expect(screen.getByText('Personal')).toBeTruthy();
+  });
+
+  it('lifts only a card that opens on hover', () => {
+    expect(accountCardClasses(true)).toBe(
+      'relative flex flex-col gap-3 cursor-pointer transition-colors hover:border-muted',
+    );
+    expect(accountCardClasses(false)).toBe('relative flex flex-col gap-3');
+  });
+
+  it('stretches an editable card\'s name button over the whole card', () => {
+    renderPanel();
+    const editable = screen.getByRole('button', { name: 'Main Checking' });
+    const locked = screen.getByRole('button', { name: 'Cards' });
+    expect(editable.className).toContain('after:inset-0');
+    expect(editable.closest('section')?.className).toContain('relative');
+    expect(locked.className).not.toContain('after:inset-0');
   });
 
   it('opens the edit drawer only for an editable account', () => {
