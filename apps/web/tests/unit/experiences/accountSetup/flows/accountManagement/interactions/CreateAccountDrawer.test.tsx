@@ -147,7 +147,34 @@ describe('its submit', () => {
     submitNamed('Cards');
 
     expect(handlers.onSubmit).not.toHaveBeenCalled();
-    expect(screen.getByText("Complete the card's fields.")).toBeTruthy();
+    expect(screen.queryByText('Enter the card number.')).toBeNull();
+    expect(screen.getAllByText('Pick a day.').length).toBe(2);
+    expect(screen.getByText('Pick the month.')).toBeTruthy();
+    expect(screen.getByText('Pick the year.')).toBeTruthy();
+    expect(document.activeElement).toBe(screen.getByRole('combobox', { name: 'Closing day' }));
+  });
+
+  it('says why a number of the right length is refused: a failed checksum', async () => {
+    renderDrawer();
+    await pick('Type', 'Credit card only');
+    fireEvent.click(screen.getByRole('button', { name: /Add credit card/ }));
+    const input = screen.getByRole('textbox', { name: 'Card number' });
+    fireEvent.change(input, { target: { value: '4111111111111112' } });
+    submitNamed('Cards');
+
+    expect(screen.getByText("This card number isn't valid. Check the digits.")).toBeTruthy();
+    expect(document.activeElement).toBe(input);
+  });
+
+  it('shows the name’s error and the cards’ together, the name taking the focus', async () => {
+    const handlers = renderDrawer();
+    await pick('Type', 'Credit card only');
+    fireEvent.click(screen.getByRole('button', { name: /Add credit card/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+
+    expect(handlers.onSubmit).not.toHaveBeenCalled();
+    expect(screen.getByText('Enter the card number.')).toBeTruthy();
+    expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Name' }));
   });
 
   it('leaves out cards typed before switching to a type without them', async () => {
@@ -214,12 +241,12 @@ describe('its submit', () => {
     fireEvent.click(screen.getByRole('button', { name: /Add credit card/ }));
     fireEvent.click(screen.getByRole('button', { name: /Add credit card/ }));
     submitNamed('Cards');
-    expect(screen.getAllByText("Complete the card's fields.").length).toBe(2);
+    expect(screen.getAllByText('Enter the card number.').length).toBe(2);
 
     const drop = screen.getAllByRole('button', { name: /Drop this card/ })[0];
     if (!drop) throw new Error('the first card’s drop button is missing');
     fireEvent.click(drop);
-    expect(screen.getAllByText("Complete the card's fields.").length).toBe(1);
+    expect(screen.getAllByText('Enter the card number.').length).toBe(1);
   });
 
   it('clears one card’s objection when its fields pass, keeping the other’s', async () => {
@@ -232,7 +259,7 @@ describe('its submit', () => {
     if (!firstNumber) throw new Error('both cards’ number fields are missing');
     fireEvent.change(firstNumber, { target: { value: VISA } });
     submitNamed('Cards');
-    expect(screen.getAllByText("Complete the card's fields.").length).toBe(2);
+    expect(screen.getAllByText('Pick a day.').length).toBe(4);
 
     const closings = screen.getAllByRole('combobox', { name: 'Closing day' });
     const firstClosing = closings[0];
@@ -241,6 +268,7 @@ describe('its submit', () => {
       fireEvent.click(firstClosing);
     });
     fireEvent.click(screen.getByRole('option', { name: '10' }));
-    expect(screen.getAllByText("Complete the card's fields.").length).toBe(1);
+    expect(screen.getAllByText('Pick a day.').length).toBe(3);
+    expect(screen.getAllByText('Enter the card number.').length).toBe(1);
   });
 });
