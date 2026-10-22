@@ -756,6 +756,10 @@ else ok
     end
     Note over FLOW: toast "{name} created / updated / added / archived."
 end
+opt an open edit form's category shows archived in a list fetched again (someone else archived it)
+    FLOW-->>IP: form closes
+    Note over FLOW: toast "{name} was archived by someone else…" (OQ-194)
+end
 FLOW-->>CC: re-render (colour via ThemeUtility)
 """, ["Colour stored as a token, resolved per theme (OQ-85).", "The Experience answers after the list is fetched again, so the Flow never patches it (OQ-193).", "A subcategory's add is the category's own atomic PATCH — unlisted ones untouched (OQ-173)."]),
     ("account-setup-budget-management", "Account Setup — Budget Management", f"{R('GET/POST/PATCH/DELETE /households/:householdId/budgets')}, with the categories the Experience already holds. Built in FL13 (OQ-194).",
@@ -779,10 +783,15 @@ else delete (owner / Owner, Admin, creator)
     FLOW->>EXP: request deleteBudget
     EXP->>API: DELETE /households/:householdId/budgets/:budgetId
 end
-alt 409 budget.target_already_claimed / 404 budget.not_found
+alt 409 budget.target_already_claimed
     API-->>EXP: error code (+ params {categoryId | subcategoryId, budgetId})
     EXP->>API: GET …/budgets (fetched again)
     EXP-->>FLOW: outcome: failed — banner names the target and its budget, picker shows it taken
+else 404 budget.not_found (deleted meanwhile)
+    API-->>EXP: error code
+    EXP->>API: GET …/budgets (fetched again — the budget is gone)
+    EXP-->>FLOW: outcome: failed — an edit's drawer closes, a delete's confirm stays
+    Note over FLOW: toast "{name} was deleted by someone else…" (edit) / the error (delete)
 else 422 validation.failed (a category archived meanwhile)
     API-->>EXP: error code
     EXP->>API: GET …/budgets + GET …/categories?includeArchived=true

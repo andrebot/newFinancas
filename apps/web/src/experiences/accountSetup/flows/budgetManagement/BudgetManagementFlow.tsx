@@ -11,7 +11,8 @@ import type { RequestFailure, RequestOutcome } from '../../../../utilities/reque
 import type { CategoriesView } from '../../sharedLists';
 import {
   afterAction, budgetIn, deleteConfirmCancelled, deleteConfirmOpened, drawerClosed, drawerOpened,
-  INITIAL_BUDGETS, mayCreateBudget, mayManageBudget, mayShareBudget, started,
+  INITIAL_BUDGETS, isEditOfGone, mayCreateBudget, mayManageBudget, mayShareBudget, started,
+  toastsFailure,
   type BudgetEdit, type BudgetManagementState, type BudgetsView, type NewBudget, type Outgoing,
 } from './budgetManagementState';
 import { targetName } from './claims';
@@ -79,6 +80,28 @@ export const alertOf = (
   }
   return translator.error(failure.code, failure.params);
 };
+
+/**
+ * Writes a toasted failure: an edit whose budget is gone says so by the name
+ * it had, as its drawer closes (OQ-194); any other is the error code's own
+ * message.
+ *
+ * @param outgoing - The request that failed.
+ * @param failure - Why.
+ * @param name - The budget's name before the request went out.
+ * @param translator - The texts.
+ * @returns The toast's message.
+ */
+export const failureToastOf = (
+  outgoing: Outgoing,
+  failure: RequestFailure,
+  name: string,
+  translator: Translator,
+): string => (
+  isEditOfGone(outgoing, failure)
+    ? translator.text('budgetManagement', 'edit.gone', { name })
+    : translator.error(failure.code, failure.params)
+);
 
 /**
  * Reads the two lists together: loaded once both are, failed if either's
@@ -220,11 +243,11 @@ export function BudgetManagementFlow({
 
   /**
    * Sends a request and applies its answer: a success closes what it came
-   * from and is toasted; a form's failure stays in its banner, a delete's is
-   * toasted. One request at a time.
+   * from and is toasted; a form's failure stays in its banner, a delete's —
+   * and an edit's whose budget is gone — is toasted. One request at a time.
    *
    * @param outgoing - Which request goes out.
-   * @param subject - The budget's name for the toast.
+   * @param subject - The budget's name for the toast, as sent.
    * @param request - The Experience's request for it.
    */
   const run = async (
@@ -233,6 +256,10 @@ export function BudgetManagementFlow({
     request: () => Promise<RequestOutcome>,
   ) => {
     if (state.out) return;
+    // Read before the request: the list fetched again may no longer hold it.
+    // A create has no budget yet, so its name is the one sent.
+    const budgetId = 'budgetId' in outgoing ? outgoing.budgetId : undefined;
+    const former = budgetIn(budgetsView, budgetId)?.name ?? subject;
     setState((current) => started(current, outgoing));
     const outcome = await request();
     setState((current) => afterAction(current, outcome));
@@ -240,8 +267,8 @@ export function BudgetManagementFlow({
       alerts.success(
         translator.text('budgetManagement', `${outgoing.kind}.done`, { name: subject }),
       );
-    } else if (outgoing.kind === 'delete') {
-      alerts.error(translator.error(outcome.error.code, outcome.error.params));
+    } else if (toastsFailure(outgoing, outcome.error)) {
+      alerts.error(failureToastOf(outgoing, outcome.error, former, translator));
     }
   };
 

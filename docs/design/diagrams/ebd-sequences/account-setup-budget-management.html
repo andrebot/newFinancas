@@ -85,10 +85,15 @@ sequenceDiagram
         FLOW->>EXP: request deleteBudget
         EXP->>API: DELETE /households/:householdId/budgets/:budgetId
     end
-    alt 409 budget.target_already_claimed / 404 budget.not_found
+    alt 409 budget.target_already_claimed
         API-->>EXP: error code (+ params {categoryId | subcategoryId, budgetId})
         EXP->>API: GET …/budgets (fetched again)
         EXP-->>FLOW: outcome: failed — banner names the target and its budget, picker shows it taken
+    else 404 budget.not_found (deleted meanwhile)
+        API-->>EXP: error code
+        EXP->>API: GET …/budgets (fetched again — the budget is gone)
+        EXP-->>FLOW: outcome: failed — an edit's drawer closes, a delete's confirm stays
+        Note over FLOW: toast "{name} was deleted by someone else…" (edit) / the error (delete)
     else 422 validation.failed (a category archived meanwhile)
         API-->>EXP: error code
         EXP->>API: GET …/budgets + GET …/categories?includeArchived=true

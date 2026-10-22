@@ -449,6 +449,7 @@ const ptBR = {
     'archive.action': 'Arquivar',
     'create.done': '{name} criada.',
     'edit.done': '{name} atualizada.',
+    'edit.archived': '{name} foi arquivada por outra pessoa, então suas alterações não foram salvas.',
     'archiveCategory.done': '{name} arquivada.',
     'addSubcategory.done': '{name} adicionada.',
     'archiveSubcategory.done': '{name} arquivada.',
@@ -497,6 +498,7 @@ const ptBR = {
     conflict: '{target} acabou de entrar em {budget}. A lista foi atualizada: escolha de novo.',
     'create.done': '{name} criado.',
     'edit.done': '{name} atualizado.',
+    'edit.gone': '{name} foi excluído por outra pessoa, então suas alterações não foram salvas.',
     'delete.done': '{name} excluído.',
   },
   shell: {

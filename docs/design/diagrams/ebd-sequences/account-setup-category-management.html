@@ -112,6 +112,10 @@ sequenceDiagram
         end
         Note over FLOW: toast "{name} created / updated / added / archived."
     end
+    opt an open edit form's category shows archived in a list fetched again (someone else archived it)
+        FLOW-->>IP: form closes
+        Note over FLOW: toast "{name} was archived by someone else…" (OQ-194)
+    end
     FLOW-->>CC: re-render (colour via ThemeUtility)
     </pre>
   </div>

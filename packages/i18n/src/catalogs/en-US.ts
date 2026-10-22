@@ -434,6 +434,7 @@ const enUS: Catalog = {
     'archive.action': 'Archive',
     'create.done': '{name} created.',
     'edit.done': '{name} updated.',
+    'edit.archived': "{name} was archived by someone else, so your changes weren't saved.",
     'archiveCategory.done': '{name} archived.',
     'addSubcategory.done': '{name} added.',
     'archiveSubcategory.done': '{name} archived.',
@@ -482,6 +483,7 @@ const enUS: Catalog = {
     conflict: '{target} was just added to {budget}. The list is up to date: pick again.',
     'create.done': '{name} created.',
     'edit.done': '{name} updated.',
+    'edit.gone': "{name} was deleted by someone else, so your changes weren't saved.",
     'delete.done': '{name} deleted.',
   },
   shell: {

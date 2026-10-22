@@ -115,10 +115,37 @@ export const started = (
 ): BudgetManagementState => ({ ...state, out: outgoing, lastError: undefined });
 
 /**
+ * Tells whether a failure says the edited budget is gone: deleted meanwhile
+ * (404). The list fetched again no longer holds it, so its drawer has nothing
+ * left to show a banner about (OQ-194).
+ *
+ * @param out - The request that was out.
+ * @param failure - Why it failed.
+ * @returns Whether it was an edit of a budget that no longer exists.
+ */
+export const isEditOfGone = (out: Outgoing, failure: RequestFailure): boolean => (
+  out.kind === 'edit' && failure.code === 'budget.not_found'
+);
+
+/**
+ * Tells whether the Flow toasts a failure: a delete's, which has no banner,
+ * or an edit's whose budget is gone, whose drawer closes. Any other form
+ * failure shows in the drawer's banner instead — once, where it belongs.
+ *
+ * @param out - The request that was out.
+ * @param failure - Why it failed.
+ * @returns Whether it is toasted.
+ */
+export const toastsFailure = (out: Outgoing, failure: RequestFailure): boolean => (
+  out.kind === 'delete' || isEditOfGone(out, failure)
+);
+
+/**
  * Applies the Experience's answer for the request that was out. A success
  * closes what it came from — the list already holds it; a form's failure
- * keeps the drawer and its typing and shows why in its banner; a delete's
- * failure keeps its confirm open and is toasted by the Flow.
+ * keeps the drawer and its typing and shows why in its banner — unless the
+ * edited budget is gone, which closes the drawer (toasted by the Flow); a
+ * delete's failure keeps its confirm open and is toasted by the Flow.
  *
  * @param state - The state while the request was out.
  * @param outcome - The Experience's answer.
@@ -132,6 +159,11 @@ export const afterAction = (
   if (!out) return state;
   const isForm = out.kind !== 'delete';
   if (!outcome.ok) {
+    if (isEditOfGone(out, outcome.error)) {
+      return {
+        ...state, out: undefined, drawer: undefined, lastError: undefined,
+      };
+    }
     return { ...state, out: undefined, lastError: isForm ? outcome.error : undefined };
   }
   return {

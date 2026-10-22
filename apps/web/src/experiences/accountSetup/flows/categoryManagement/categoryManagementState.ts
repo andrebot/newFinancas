@@ -52,6 +52,11 @@ export interface CategoryManagementState {
   readonly archiving?: string | undefined;
   /** The last create's or edit's failure, for the open form's banner. */
   readonly lastError?: RequestFailure | undefined;
+  /**
+   * The toast owed for an edit form closed because its category was archived
+   * meanwhile (OQ-194): a fresh object each time, so it is toasted once.
+   */
+  readonly notice?: { readonly message: string } | undefined;
 }
 
 /** The Flow as it opens: nothing out, nothing open. */
@@ -163,6 +168,40 @@ export const archivingTarget = (
   if (archiving === undefined || view.status !== 'loaded') return undefined;
   return view.categories.find((category) => category.id === archiving);
 };
+
+/**
+ * Finds the category an open edit form outlived: archived by someone else and
+ * seen in a list fetched again for another reason (a retry, another card's
+ * write). Its card has left the live grid, so the form can't stay (OQ-194).
+ * Nothing while a request is out: its answer decides what the form does.
+ *
+ * @param state - The Flow's state.
+ * @param view - The Experience's list.
+ * @returns The archived category under the open edit form, or nothing.
+ */
+export const archivedUnderForm = (
+  state: CategoryManagementState,
+  view: CategoriesView,
+): Category | undefined => {
+  const { form } = state;
+  if (form?.mode !== 'edit' || state.out || view.status !== 'loaded') return undefined;
+  const edited = view.categories.find((category) => category.id === form.categoryId);
+  return edited?.archivedAt ? edited : undefined;
+};
+
+/**
+ * Closes an edit form its category outlived, owing a toast that says why.
+ *
+ * @param state - The current state.
+ * @param message - The toast's text, already translated.
+ * @returns The state with no form open and the notice to toast.
+ */
+export const formOutlived = (
+  state: CategoryManagementState,
+  message: string,
+): CategoryManagementState => ({
+  ...formClosed(state), notice: { message },
+});
 
 /**
  * Applies the Experience's answer for the request that was out. A success

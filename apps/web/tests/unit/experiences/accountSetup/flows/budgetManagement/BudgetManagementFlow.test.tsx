@@ -1,10 +1,11 @@
 import { act, fireEvent, screen } from '@testing-library/react';
+import { useState } from 'react';
 import type { Budget, Category } from '@financas/api-types';
 import {
   beforeEach, describe, expect, it, vi,
 } from 'vitest';
 import {
-  alertOf, BudgetManagementFlow, jointViewOf, type BudgetManagementFlowProps,
+  alertOf, BudgetManagementFlow, failureToastOf, jointViewOf, type BudgetManagementFlowProps,
 } from '../../../../../../src/experiences/accountSetup/flows/budgetManagement/BudgetManagementFlow';
 import type { BudgetDrawerProps } from '../../../../../../src/experiences/accountSetup/flows/budgetManagement/interactions/BudgetDrawer';
 import type { BudgetListProps } from '../../../../../../src/experiences/accountSetup/flows/budgetManagement/interactions/BudgetList';
@@ -215,6 +216,20 @@ describe('alertOf', () => {
   });
 });
 
+describe('failureToastOf', () => {
+  it('says an edited budget was deleted meanwhile, by the name it had (OQ-194)', () => {
+    const edit = { kind: 'edit', budgetId: 'fun' } as const;
+    expect(failureToastOf(edit, { code: 'budget.not_found' }, 'Fun Money', translator))
+      .toBe("Fun Money was deleted by someone else, so your changes weren't saved.");
+  });
+
+  it('writes any other failure from its code', () => {
+    const remove = { kind: 'delete', budgetId: 'fun' } as const;
+    expect(failureToastOf(remove, { code: 'budget.not_found' }, 'Fun Money', translator))
+      .toBe('Budget not found.');
+  });
+});
+
 describe('its panel', () => {
   it('shows a skeleton while a list loads', () => {
     renderFlow({ budgets: { status: 'loading' } });
@@ -274,10 +289,11 @@ describe('creating a budget', () => {
   });
 
   it('keeps the drawer with its failure in the banner, not toasted', async () => {
-    renderFlow({ onCreate: async () => ({ ok: false, error: { code: 'budget.not_found' } }) });
+    renderFlow({ onCreate: async () => ({ ok: false, error: { code: 'auth.forbidden' } }) });
     await press('Add budget');
     await press('submit');
-    expect(screen.getByTestId('drawer').dataset.alert).toBe('Budget not found.');
+    expect(screen.getByTestId('drawer').dataset.alert)
+      .toBe(translator.error('auth.forbidden'));
     expect(toasts()).toEqual([]);
   });
 
@@ -322,31 +338,59 @@ describe('editing a budget', () => {
     expect(toasts()).toEqual(['Home updated.']);
   });
 
-  it('closes the drawer when its budget leaves the list', async () => {
-    const requests = {
-      onRetry: vi.fn(), onCreate: vi.fn(), onEdit: vi.fn(), onDelete: vi.fn(),
-    };
-    /**
-     * Builds the Flow over a list.
-     *
-     * @param budgets - The list.
-     * @returns The Flow.
-     */
-    const flow = (budgets: BudgetsView) => (
-      <AlertProvider queue={queue}>
-        <BudgetManagementFlow
-          {...OWNER}
-          budgets={budgets}
-          categories={CATEGORIES}
-          {...requests}
-        />
-      </AlertProvider>
-    );
-    const { rerenderInLocale } = renderInLocale(flow(BUDGETS));
+  it('keeps the drawer on a target claimed meanwhile, naming who took it (409)', async () => {
+    const onEdit = vi.fn(async (): Promise<RequestOutcome> => ({
+      ok: false,
+      error: {
+        code: 'budget.target_already_claimed', params: { categoryId: 'food', budgetId: 'home' },
+      },
+    }));
+    renderFlow({
+      budgets: { status: 'loaded', budgets: [budget('fun'), budget('home', { name: 'Home' })] },
+      onEdit,
+    });
     await press('edit fun');
-    expect(screen.getByTestId('drawer')).toBeTruthy();
-    rerenderInLocale(flow({ status: 'loaded', budgets: [budget('home')] }));
+    await press('submit');
+    expect(onEdit).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('drawer').dataset.alert)
+      .toBe('Food was just added to Home. The list is up to date: pick again.');
+    expect(toasts()).toEqual([]);
+  });
+
+  it('closes the drawer and says so when its budget was deleted meanwhile (404)', async () => {
+    /**
+     * Holds the list as the Experience does: an edit's 404 fetches it again,
+     * now without the budget, before the Flow is answered.
+     *
+     * @returns The Flow over that list.
+     */
+    function Harness() {
+      const [budgets, setBudgets] = useState<BudgetsView>(BUDGETS);
+      const onEdit = async (): Promise<RequestOutcome> => {
+        setBudgets({ status: 'loaded', budgets: [budget('home')] });
+        return { ok: false, error: { code: 'budget.not_found' } };
+      };
+      return (
+        <AlertProvider queue={queue}>
+          <BudgetManagementFlow
+            {...OWNER}
+            budgets={budgets}
+            categories={CATEGORIES}
+            onRetry={vi.fn()}
+            onCreate={vi.fn()}
+            onEdit={onEdit}
+            onDelete={vi.fn()}
+          />
+        </AlertProvider>
+      );
+    }
+    renderInLocale(<Harness />);
+    await press('edit fun');
+    await press('submit');
     expect(screen.queryByTestId('drawer')).toBeNull();
+    expect(toasts()).toEqual(["fun was deleted by someone else, so your changes weren't saved."]);
+    await press('Add budget');
+    expect(screen.getByTestId('drawer').dataset.alert).toBe('');
   });
 });
 

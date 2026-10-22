@@ -2,7 +2,8 @@ import type { Budget } from '@financas/api-types';
 import { describe, expect, it } from 'vitest';
 import {
   afterAction, budgetIn, deleteConfirmCancelled, deleteConfirmOpened, drawerClosed, drawerOpened,
-  INITIAL_BUDGETS, mayCreateBudget, mayManageBudget, mayShareBudget, started,
+  INITIAL_BUDGETS, isEditOfGone, mayCreateBudget, mayManageBudget, mayShareBudget, started,
+  toastsFailure,
   type BudgetManagementState, type BudgetsView,
 } from '../../../../../../src/experiences/accountSetup/flows/budgetManagement/budgetManagementState';
 
@@ -91,9 +92,44 @@ describe('a request', () => {
     });
   });
 
+  it('closes the drawer of an edit whose budget is gone, with no banner (OQ-194)', () => {
+    const out: BudgetManagementState = {
+      drawer: { kind: 'edit', budgetId: 'b1' }, out: { kind: 'edit', budgetId: 'b1' },
+    };
+    expect(afterAction(out, { ok: false, error: { code: 'budget.not_found' } })).toEqual({
+      out: undefined, drawer: undefined, lastError: undefined,
+    });
+  });
+
+  it('keeps the drawer of a create, even on a 404', () => {
+    const out: BudgetManagementState = { drawer: { kind: 'create' }, out: { kind: 'create' } };
+    const gone = { code: 'budget.not_found' };
+    expect(afterAction(out, { ok: false, error: gone })).toEqual({
+      drawer: { kind: 'create' }, out: undefined, lastError: gone,
+    });
+  });
+
   it('ignores an answer with nothing out', () => {
     const idle: BudgetManagementState = { drawer: { kind: 'create' } };
     expect(afterAction(idle, { ok: true })).toBe(idle);
+  });
+});
+
+describe('which failures are toasted (OQ-194)', () => {
+  const gone = { code: 'budget.not_found' };
+  const edit = { kind: 'edit', budgetId: 'b1' } as const;
+
+  it('tells an edit of a budget gone meanwhile from any other failure', () => {
+    expect(isEditOfGone(edit, gone)).toBe(true);
+    expect(isEditOfGone(edit, FAILURE)).toBe(false);
+    expect(isEditOfGone({ kind: 'create' }, gone)).toBe(false);
+  });
+
+  it('toasts a delete\'s failure and an edit of a gone budget, not a banner\'s', () => {
+    expect(toastsFailure({ kind: 'delete', budgetId: 'b1' }, FAILURE)).toBe(true);
+    expect(toastsFailure(edit, gone)).toBe(true);
+    expect(toastsFailure(edit, FAILURE)).toBe(false);
+    expect(toastsFailure({ kind: 'create' }, gone)).toBe(false);
   });
 });
 
