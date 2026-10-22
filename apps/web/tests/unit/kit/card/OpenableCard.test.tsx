@@ -3,7 +3,7 @@ import {
   describe, expect, it, vi,
 } from 'vitest';
 import {
-  OpenableCard, openableCardClasses, openerClasses,
+  ABOVE_OPENER, OpenableCard, openableCardClasses, openerClasses,
 } from '../../../../src/kit/card/OpenableCard';
 
 // Kit component (BDT: Interaction tier → unit): pure rendering, nothing mocked
@@ -49,6 +49,24 @@ describe('OpenableCard', () => {
     expect(screen.getByText('Fun Money').className).toBe('type-heading-sm');
     expect(screen.getByText('USD')).toBeTruthy();
     expect(screen.getByText('Covers')).toBeTruthy();
+  });
+
+  it('shows a leading item before the name, and lets a lifted control take its own clicks', () => {
+    const onOpen = vi.fn();
+    const onType = vi.fn();
+    render(
+      <OpenableCard name="Trip" leading={<span>flag</span>} onOpen={onOpen}>
+        <input aria-label="Rate" className={ABOVE_OPENER} onChange={onType} />
+      </OpenableCard>,
+    );
+    const rate = screen.getByRole('textbox', { name: 'Rate' });
+
+    fireEvent.change(rate, { target: { value: '5' } });
+    expect(onType).toHaveBeenCalled();
+    expect(onOpen).not.toHaveBeenCalled();
+    expect(rate.className).toBe('relative z-10');
+    expect(screen.getByText('flag').nextElementSibling)
+      .toBe(screen.getByRole('button', { name: 'Trip' }));
   });
 
   it('is a plain card without an opener: its name a disabled button', () => {

@@ -44,8 +44,11 @@ export function Stub({
   );
 }
 
-/** A canned answer per `METHOD path`; a function so each call gets a fresh body. */
-export type Answers = Readonly<Record<string, () => Response | Promise<Response>>>;
+/**
+ * A canned answer per `METHOD path`; a function so each call gets a fresh
+ * body. It gets the request, for an answer that reads its query.
+ */
+export type Answers = Readonly<Record<string, (request: Request) => Response | Promise<Response>>>;
 
 /**
  * Builds a fake `fetch` answering each method and path from a table.
@@ -58,7 +61,7 @@ export const fakeFetch = (answers: Answers) => vi.fn<typeof fetch>(async (input)
   const route = `${request.method} ${new URL(request.url).pathname.replace('/api/v1', '')}`;
   const answer = answers[route];
   if (!answer) throw new Error(`No answer for ${route}`);
-  return answer();
+  return answer(request);
 });
 
 /**

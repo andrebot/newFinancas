@@ -62,7 +62,7 @@ EXPERIENCES = [
      [("Account & Card Management", ["Account Form", "Card Entry with Live Preview", "Archive Confirm"], "account-card-management"),
       ("Category Management", ["Category Card", "Icon & Colour Picker", "Inline Subcategory Entry", "Archive Confirm"], "category-management"),
       ("Budget Management", ["Budget Cards", "Budget Form", "Claim-Aware Category Picker", "Delete Confirm"], "budget-management"),
-      ("Goal Management", ["Goal Form", "Goal Progress Card", "Exchange-Rate Calculator", "Complete / Reopen Confirm"], "goal-management")],
+      ("Goal Management", ["Goal Cards", "Goal Form", "Goal Progress Card", "Exchange-Rate Calculator", "Complete / Reopen / Delete Confirm"], "goal-management")],
      [], ["ValidationUtility", "AlertUtility", "ThemeUtility", "I18nUtility", "FormattingUtility"],
      "Holding Management left this Experience (holdings are created by transactions, maintained in Track Investments). The Exchange-Rate Calculator is client-side only (FR-9)."),
     ("Manage Finances", "manage-finances", "Record and review day-to-day money",
@@ -810,36 +810,60 @@ else ok
     Note over FLOW: toast "{name} created / updated / deleted."
 end
 """, ["Setup page shows no spend progress (stakeholder) — the list carries definitions only (OQ-176).", "Claims are shared state other members change, so the budgets are the Experience's and fetched again after each write, and after a failure that says they moved (OQ-194).", "Currency and visibility can't change after creation: the edit form shows them locked."]),
-    ("account-setup-goal-management", "Account Setup — Goal Management", f"{R('POST/PATCH/DELETE /households/:householdId/goals')}, {R('POST /households/:householdId/goals/:id/complete|reopen')}, {R('GET /households/:householdId/goals')} (definitions, AccountManager) + {R('GET /households/:householdId/goal-progress')} (progress, InsightsManager — OQ-177).",
-     [("GF", "Goal Form"), ("GP", "Goal Progress Card"), ("FX", "Exchange-Rate<br/>Calculator"), ("CR", "Complete / Reopen<br/>Confirm"), FLOW("Goal Management"), EXP("Account Setup"), API],
+    ("account-setup-goal-management", "Account Setup — Goal Management", f"{R('GET/POST/PATCH/DELETE /households/:householdId/goals')}, {R('POST /households/:householdId/goals/:goalId/complete|reopen')} (definitions, AccountManager) + {R('GET /households/:householdId/goal-progress')} (progress, InsightsManager — OQ-177). Built in FL14 (OQ-195).",
+     [("GL", "Goal Cards"), ("GF", "Goal Form"), ("GP", "Goal Progress Card"), ("FX", "Exchange-Rate<br/>Calculator"), ("CR", "Complete / Reopen /<br/>Delete Confirm"), FLOW("Goal Management"), EXP("Account Setup"), API],
      """
-FLOW->>EXP: request goals(status)
-par definitions
-    EXP->>API: GET /households/:householdId/goals?status=active
-    API-->>EXP: goals (name, target, due date, visibility)
-and progress
-    EXP->>API: GET /households/:householdId/goal-progress?status=active
+par definitions, both statuses (as the Goals tab opens)
+    EXP->>API: GET /households/:householdId/goals?status=active (and ?status=completed)
+    API-->>EXP: goals (name, target + currency, due date, visibility, completedAt)
+and progress, both statuses
+    EXP->>API: GET /households/:householdId/goal-progress?status=active (and completed)
     API-->>EXP: per-currency contributions + funded by, per goal
 end
-EXP-->>FLOW: state (progress joined by goal id)
-FLOW-->>GP: render progress
-opt goal mixes currencies
-    User->>FX: '1 USD = 5.20 BRL'
-    FX->>FLOW: emit rateEntered (kept in Flow state only)
-    FLOW-->>GP: re-render blended estimate (nothing sent)
+alt progress read failed (404 until M4 builds it)
+    EXP-->>FLOW: goals by status, no funding, progress: failed
+    FLOW-->>GL: definition cards under a "progress couldn't load" banner + retry
+else both loaded
+    EXP-->>FLOW: goals by status, funding joined by goal id
+    FLOW-->>GP: target, due countdown, progress pill, funded by
 end
-alt create / edit
-    User->>GF: name, currency, visibility, target, due date
+User->>GL: Active / Completed (counts on each)
+GL->>FLOW: emit status (local — nothing fetched)
+opt goal funded in another currency
+    User->>FX: '1 USD = 5.20 BRL' (the field sits above the card's hit area)
+    FX->>FLOW: emit rateEntered (kept in Flow state only, by pair)
+    FLOW-->>GP: ≈ estimate re-rendered (nothing sent)
+end
+opt edit or a step (owner / Owner, Admin, creator)
+    User->>GP: click the card (anywhere — its name is its one button)
+    GP->>FLOW: emit edit(goalId) — the edit drawer opens
+end
+alt add (every member, a Viewer's is personal) or edit
+    User->>GF: name (≤ 40), target currency, visibility (locked on edit), target, due date
     GF->>FLOW: emit goalSubmitted
-    FLOW->>EXP: request saveGoal
-    EXP->>API: POST /households/:householdId/goals (or PATCH)
-else complete / reopen
-    User->>CR: confirm
-    CR->>FLOW: emit transition
-    FLOW->>EXP: request complete or reopen
-    EXP->>API: POST /households/:householdId/goals/:goalId/complete (or /reopen)
+    FLOW->>EXP: request createGoal / editGoal
+    EXP->>API: POST /households/:householdId/goals (or PATCH …/:goalId — no visibility)
+else complete / reopen / delete (from the edit drawer)
+    User->>CR: the drawer's step → its inline confirm (mint, or coral for delete in the danger zone)
+    CR->>FLOW: emit confirmed
+    FLOW->>EXP: request completeGoal / reopenGoal / deleteGoal
+    EXP->>API: POST …/:goalId/complete (or /reopen) — or DELETE …/:goalId
 end
-""", ["Allocations are never edited here — always from the Holding (OQ-48).", "FX never leaves the browser (FR-9).", "Definitions and progress are two reads (OQ-177): the Goal list is AccountManager's own; progress, a reshaped read, is InsightsManager's. A completed Goal can still be edited."]),
+alt 404 goal.not_found (deleted meanwhile)
+    API-->>EXP: error code
+    EXP->>API: GET …/goals + …/goal-progress (fetched again — the goal is gone)
+    EXP-->>FLOW: outcome: failed — the drawer closes
+    Note over FLOW: toast "{name} was deleted by someone else…"
+else other failure
+    API-->>EXP: error code
+    EXP-->>FLOW: outcome: failed — a form's in its banner, typing kept — a step's toasted, confirm kept
+else ok
+    API-->>EXP: goal (or 204)
+    EXP->>API: GET …/goals + …/goal-progress (fetched again)
+    EXP-->>FLOW: outcome: ok, goals refreshed — the drawer closes
+    Note over FLOW: toast "{name} created / updated / marked completed / reopened / deleted."
+end
+""", ["Allocations are never edited here — always from the Holding (OQ-48).", "FX never leaves the browser (FR-9): the rate lives in the Flow's state, keyed by pair, and every card needing it reads it.", "Definitions and progress are two reads (OQ-177); the definitions show alone when progress fails (OQ-195). A completed Goal can still be edited."]),
     ("manage-finances-record-transaction", "Manage Finances — Record Transaction", f"{R('POST /households/:householdId/transactions')}; edit reuses it with {R('PATCH /households/:householdId/transactions/:id')}.",
      [("KS", "Kind Group &<br/>Kind Selection"), ("TE", "Transaction Entry"), ("IB", "Investment Buy Entry"), ("GA", "Goal Allocation Entry"), FLOW("Record Transaction"), EXP("Manage Finances"), API],
      """

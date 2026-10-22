@@ -9,14 +9,17 @@ import type { Mask } from '../maskedInput/useMaskedInput';
 // as the API's fixed-point integer.
 
 /** The kinds of number the input takes. */
-export type NumberKind = 'quantity' | 'rate' | 'percent';
+export type NumberKind = 'quantity' | 'rate' | 'percent' | 'exchange';
 
 /**
  * The decimals each kind's integer carries on the wire: a Quantity is units ×
  * 10⁸ (8 decimals), a rate percent × 10,000 (OQ-86), a whole percent has
- * none (OQ-87).
+ * none (OQ-87). An exchange rate never reaches the wire (FR-9.1): it is × 10,000
+ * too, a plain factor rather than a percent (OQ-195).
  */
-export const KIND_SCALE: Record<NumberKind, number> = { quantity: 8, rate: 4, percent: 0 };
+export const KIND_SCALE: Record<NumberKind, number> = {
+  quantity: 8, rate: 4, percent: 0, exchange: 4,
+};
 
 /** The true minus sign, as the design writes negatives. */
 const MINUS = '−';

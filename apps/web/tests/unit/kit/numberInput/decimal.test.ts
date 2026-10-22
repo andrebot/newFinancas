@@ -8,7 +8,9 @@ import {
 
 describe('KIND_SCALE', () => {
   it('matches the wire: Quantity × 10⁸, rate × 10,000, whole percent', () => {
-    expect(KIND_SCALE).toEqual({ quantity: 8, rate: 4, percent: 0 });
+    expect(KIND_SCALE).toEqual({
+      quantity: 8, rate: 4, percent: 0, exchange: 4,
+    });
   });
 });
 

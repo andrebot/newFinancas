@@ -80,7 +80,8 @@ tailwind.config = {
     .seg > button { height: 36px; padding: 0 16px; border-radius: 999px; font-size: 14px; font-weight: 500; color: #97A39D; display: inline-flex; align-items: center; gap: 6px; }
     .seg > button[aria-selected="true"] { background: #0F3B2E; color: #5EE6B8; font-weight: 600; }
     .seg.sm > button { height: 30px; padding: 0 12px; font-size: 13px; }
-    .ocard { border-radius: 20px; background: #131917; border: 1px solid #232C28; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+    .ocard { cursor: pointer; transition: border-color .2s; border-radius: 20px; background: #131917; border: 1px solid #232C28; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+    .ocard:hover { border-color: #5F6B65; }
     .hold { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 12px; background: #1A211E; font-size: 13px; }
   </style>
 </head>
@@ -141,11 +142,6 @@ tailwind.config = {
             <div class="font-semibold truncate">Emergency Fund</div>
             <div class="flex gap-1.5 mt-1"><span class="tag"><iconify-icon icon="material-symbols:person-outline" width="12"></iconify-icon>Personal</span><span class="tag">USD</span></div>
           </div>
-          <div class="flex -mr-1">
-            <button class="ghost" aria-label="Edit Emergency Fund"><iconify-icon icon="material-symbols:edit-outline" width="18"></iconify-icon></button>
-            <button class="ghost" aria-label="Mark Emergency Fund completed"><iconify-icon icon="material-symbols:check-circle-outline" width="18"></iconify-icon></button>
-            <button class="ghost" aria-label="Delete Emergency Fund"><iconify-icon icon="material-symbols:delete-outline" width="18"></iconify-icon></button>
-          </div>
         </div>
         <div class="flex items-end justify-between">
           <div><div class="cap">Target</div><div class="font-display text-[26px] font-extrabold num">$10,000.00</div></div>
@@ -161,18 +157,13 @@ tailwind.config = {
         </div>
       </article>
 
-      <!-- House: mark-completed confirmation shown inline (reversible, so mint not red) -->
+      <!-- House: the card that is open — clicking any card opens its Edit drawer (OQ-195) -->
       <article class="ocard ring-1 ring-mint/40">
         <div class="flex items-start gap-3">
           <div class="w-10 h-10 rounded-full bg-sky/15 text-sky grid place-items-center shrink-0"><iconify-icon icon="material-symbols:flag-outline" width="20"></iconify-icon></div>
           <div class="flex-1 min-w-0">
             <div class="font-semibold truncate">House Down Payment</div>
             <div class="flex gap-1.5 mt-1"><span class="tag text-sky bg-sky/10"><iconify-icon icon="material-symbols:group-outline" width="12"></iconify-icon>Shared</span><span class="tag">BRL</span></div>
-          </div>
-          <div class="flex -mr-1">
-            <button class="ghost" aria-label="Edit House Down Payment"><iconify-icon icon="material-symbols:edit-outline" width="18"></iconify-icon></button>
-            <button class="ghost !text-mint" aria-label="Mark House Down Payment completed"><iconify-icon icon="material-symbols:check-circle-outline" width="18"></iconify-icon></button>
-            <button class="ghost" aria-label="Delete House Down Payment"><iconify-icon icon="material-symbols:delete-outline" width="18"></iconify-icon></button>
           </div>
         </div>
         <div class="flex items-end justify-between">
@@ -188,10 +179,6 @@ tailwind.config = {
           <div class="hold"><iconify-icon icon="material-symbols:account-balance-outline" width="16" class="text-muted"></iconify-icon><span class="flex-1 truncate">Tesouro Selic 2029</span><span class="tag !bg-sky/10 !text-sky num">45%</span></div>
           <div class="hold"><iconify-icon icon="material-symbols:apartment" width="16" class="text-muted"></iconify-icon><span class="flex-1 truncate">XP FII Fund</span><span class="tag !bg-sky/10 !text-sky num">20%</span></div>
         </div>
-        <div class="rounded-2xl bg-mint/10 border border-mint/30 p-3 flex flex-col gap-2.5">
-          <div class="text-sm flex items-start gap-2"><iconify-icon icon="material-symbols:check-circle-outline" width="18" class="text-mint shrink-0 mt-px"></iconify-icon><span>Mark <b>House Down Payment</b> as completed? You can reopen it later from the Completed list.</span></div>
-          <div class="flex gap-2 justify-end"><button class="h-8 px-3 rounded-full text-sm text-muted hover:bg-white/5">Cancel</button><button class="h-8 px-4 rounded-full text-sm bg-mint text-[#062A1F] font-semibold">Mark completed</button></div>
-        </div>
       </article>
 
       <article class="ocard">
@@ -200,11 +187,6 @@ tailwind.config = {
           <div class="flex-1 min-w-0">
             <div class="font-semibold truncate">New Laptop Fund</div>
             <div class="flex gap-1.5 mt-1"><span class="tag"><iconify-icon icon="material-symbols:person-outline" width="12"></iconify-icon>Personal</span><span class="tag">USD</span></div>
-          </div>
-          <div class="flex -mr-1">
-            <button class="ghost" aria-label="Edit New Laptop Fund"><iconify-icon icon="material-symbols:edit-outline" width="18"></iconify-icon></button>
-            <button class="ghost" aria-label="Mark New Laptop Fund completed"><iconify-icon icon="material-symbols:check-circle-outline" width="18"></iconify-icon></button>
-            <button class="ghost" aria-label="Delete New Laptop Fund"><iconify-icon icon="material-symbols:delete-outline" width="18"></iconify-icon></button>
           </div>
         </div>
         <div class="flex items-end justify-between">
@@ -229,11 +211,6 @@ tailwind.config = {
             <div class="font-semibold truncate">Trip to Japan</div>
             <div class="flex gap-1.5 mt-1"><span class="tag text-sky bg-sky/10"><iconify-icon icon="material-symbols:group-outline" width="12"></iconify-icon>Shared</span><span class="tag">USD</span><span class="tag !bg-sun/10 !text-sun"><iconify-icon icon="material-symbols:currency-exchange" width="12"></iconify-icon>Mixed currencies</span></div>
           </div>
-          <div class="flex -mr-1">
-            <button class="ghost" aria-label="Edit Trip to Japan"><iconify-icon icon="material-symbols:edit-outline" width="18"></iconify-icon></button>
-            <button class="ghost" aria-label="Mark Trip to Japan completed"><iconify-icon icon="material-symbols:check-circle-outline" width="18"></iconify-icon></button>
-            <button class="ghost" aria-label="Delete Trip to Japan"><iconify-icon icon="material-symbols:delete-outline" width="18"></iconify-icon></button>
-          </div>
         </div>
         <div class="grid grid-cols-[1fr_1.1fr] gap-6">
           <div class="flex flex-col gap-4">
@@ -251,7 +228,7 @@ tailwind.config = {
             <div class="flabel !mb-0">Funded by</div>
             <div class="hold"><iconify-icon icon="material-symbols:candlestick-chart-outline" width="16" class="text-muted"></iconify-icon><span class="flex-1 truncate">AAPL · 10%</span><span class="num font-semibold">$482.00</span></div>
             <div class="hold"><iconify-icon icon="material-symbols:apartment" width="16" class="text-muted"></iconify-icon><span class="flex-1 truncate">XPML11 · 15%</span><span class="num font-semibold">R$16,500.00</span><span class="text-xs text-muted num w-[84px] text-right">≈ $3,173.08</span></div>
-            <!-- exchange rate calculator input -->
+            <!-- exchange rate calculator input: sits above the card's click area, so typing never opens the drawer -->
             <div class="rounded-xl border border-sun/40 bg-sun/[.06] px-3 py-2.5 flex items-center gap-2 text-sm">
               <iconify-icon icon="material-symbols:currency-exchange" width="18" class="text-sun"></iconify-icon>
               <span class="text-muted">Rate</span>
@@ -266,42 +243,52 @@ tailwind.config = {
     </div>
   </main>
 
-  <!-- Add Goal drawer (same pattern as Add Budget) -->
+  <!-- Edit Goal drawer: opened by clicking the card; the goal's steps live here (OQ-195) -->
   <div class="drawer-scrim"></div>
-  <aside class="drawer" aria-label="Add Goal">
+  <aside class="drawer" aria-label="Edit Goal">
     <div class="flex items-center justify-between px-6 py-5 border-b border-line">
-      <div><div class="cap">New</div><div class="font-display text-xl font-bold">Add Goal</div></div>
+      <div><div class="cap">Edit</div><div class="font-display text-xl font-bold">Edit Goal</div></div>
       <button class="ghost !w-10 !h-10" aria-label="Close"><iconify-icon icon="material-symbols:close" width="22"></iconify-icon></button>
     </div>
     <div class="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-5">
-      <div class="field"><label for="o-name">Goal name</label><input id="o-name" value="Trip to Japan"></div>
+      <div class="field"><label for="o-name">Goal name</label><input id="o-name" value="House Down Payment"></div>
 
       <div class="grid grid-cols-2 gap-3">
         <div>
           <span class="flabel">Target currency</span>
-          <div class="flex gap-2"><button class="opt" aria-pressed="false">BRL</button><button class="opt" aria-pressed="true">USD</button></div>
+          <div class="flex gap-2"><button class="opt" aria-pressed="true">BRL</button><button class="opt" aria-pressed="false">USD</button></div>
         </div>
-        <div>
-          <span class="flabel">Visibility</span>
-          <div class="flex gap-2"><button class="opt" aria-pressed="false"><iconify-icon icon="material-symbols:person-outline" width="16"></iconify-icon>Personal</button><button class="opt" aria-pressed="true"><iconify-icon icon="material-symbols:group-outline" width="16"></iconify-icon>Shared</button></div>
-        </div>
+        <div class="rounded-2xl bg-raised px-4 py-3"><div class="cap flex items-center gap-1"><iconify-icon icon="material-symbols:lock-outline" width="12"></iconify-icon>Visibility</div><div class="mt-0.5">Shared</div></div>
       </div>
+      <span class="text-xs text-muted -mt-3">Visibility can't be changed after the goal is created.</span>
 
       <div class="rounded-2xl bg-bg border border-line px-5 py-4 flex flex-col gap-1">
         <span class="flabel !mb-0">Target amount</span>
-        <div class="flex items-baseline gap-2"><span class="font-display text-2xl font-bold text-muted">$</span><input class="bg-transparent font-display text-[36px] leading-[44px] font-extrabold num w-full outline-none" value="6,000.00" aria-label="Target amount"></div>
+        <div class="flex items-baseline gap-2"><span class="font-display text-2xl font-bold text-muted">R$</span><input class="bg-transparent font-display text-[36px] leading-[44px] font-extrabold num w-full outline-none" value="150,000.00" aria-label="Target amount"></div>
       </div>
 
-      <div class="field w-48"><label for="o-due">Due date</label><input id="o-due" value="01/04/2028" class="num"></div>
+      <div class="field w-48"><label for="o-due">Due date</label><input id="o-due" value="30/06/2029" class="num"></div>
 
-      <div class="rounded-2xl border border-dashed border-line px-4 py-3 text-[13px] text-muted flex items-start gap-2">
-        <iconify-icon icon="material-symbols:info-outline" width="18" class="shrink-0 mt-px"></iconify-icon>
-        <span>Fund it later by assigning a share of an investment to this goal — when recording a Buy, or from the holding on the Investments page.</span>
-      </div>
+      <!-- Lifecycle step: Mark completed (Reopen on a completed goal), confirm shown open — reversible, so mint -->
+      <section class="rounded-[20px] border border-line px-5 py-4 flex flex-col gap-4" aria-labelledby="o-complete">
+        <div class="flex items-center gap-4">
+          <div class="flex-1"><div id="o-complete" class="font-semibold">Mark as completed</div><div class="text-sm text-muted">It moves to the Completed list, its history kept. You can reopen it later.</div></div>
+        </div>
+        <div class="rounded-2xl bg-mint/10 border border-mint/30 p-3 flex flex-col gap-2.5">
+          <div class="text-sm flex items-start gap-2"><iconify-icon icon="material-symbols:check-circle-outline" width="18" class="text-mint shrink-0 mt-px"></iconify-icon><span>Mark <b>House Down Payment</b> as completed? You can reopen it later from the Completed list.</span></div>
+          <div class="flex gap-2 justify-end"><button class="h-8 px-3 rounded-full text-sm text-muted hover:bg-white/5">Cancel</button><button class="h-8 px-4 rounded-full text-sm bg-mint text-[#062A1F] font-semibold">Mark completed</button></div>
+        </div>
+      </section>
+
+      <section class="rounded-[20px] border border-coral/30 bg-coral/[.04] px-5 py-4 flex items-center gap-4" aria-labelledby="o-danger">
+        <span class="w-10 h-10 rounded-full bg-coral/15 text-coral grid place-items-center shrink-0"><iconify-icon icon="material-symbols:warning-outline" width="20"></iconify-icon></span>
+        <div class="flex-1"><div id="o-danger" class="font-semibold">Delete this goal</div><div class="text-sm text-muted">No history is kept. The holdings funding it stay; only their share of it goes.</div></div>
+        <button class="h-11 px-5 rounded-full border border-coral/40 text-coral font-medium hover:bg-coral/10">Delete</button>
+      </section>
     </div>
     <div class="px-6 py-4 border-t border-line flex gap-3 justify-end">
       <button class="h-10 px-5 rounded-full text-muted hover:bg-white/5">Cancel</button>
-      <button class="h-10 px-6 rounded-full bg-mint text-[#062A1F] font-semibold">Create Goal</button>
+      <button class="h-10 px-6 rounded-full bg-mint text-[#062A1F] font-semibold">Save changes</button>
     </div>
   </aside>
 </div>

@@ -1,13 +1,16 @@
 import { act, fireEvent, screen } from '@testing-library/react';
-import type { Account, Budget, Category } from '@financas/api-types';
+import type {
+  Account, Budget, Category, Goal, GoalWithProgress,
+} from '@financas/api-types';
 import {
   describe, expect, it, vi,
 } from 'vitest';
 import type { AccountManagementFlowProps } from '../../../../src/experiences/accountSetup/flows/accountManagement/AccountManagementFlow';
 import type { BudgetManagementFlowProps } from '../../../../src/experiences/accountSetup/flows/budgetManagement/BudgetManagementFlow';
 import type { CategoryManagementFlowProps } from '../../../../src/experiences/accountSetup/flows/categoryManagement/CategoryManagementFlow';
+import type { GoalManagementFlowProps } from '../../../../src/experiences/accountSetup/flows/goalManagement/GoalManagementFlow';
 import {
-  AccountSetupExperience, listsToRefresh, listViewOf,
+  AccountSetupExperience, goalListViewOf, listsToRefresh, listViewOf, progressStatusOf,
 } from '../../../../src/experiences/accountSetup/AccountSetupExperience';
 import { householdChosen } from '../../../../src/shell/shellState';
 import { AlertProvider } from '../../../../src/utilities/AlertProvider';
@@ -133,6 +136,46 @@ vi.mock(
   }),
 );
 
+vi.mock(
+  '../../../../src/experiences/accountSetup/flows/goalManagement/GoalManagementFlow',
+  () => ({
+    /**
+     * The Goal Management Flow's stand-in: one button per request branch.
+     *
+     * @param props - What the Experience passes.
+     * @returns The stub.
+     */
+    GoalManagementFlow: ({
+      selfUserId, role, goals, onRetry, onCreate, onEdit, onDelete, onComplete, onReopen,
+    }: GoalManagementFlowProps) => (
+      <Stub
+        name="goals"
+        shows={{ selfUserId, role, goals }}
+        events={{ retry: onRetry }}
+        requests={{
+          createGoal: () => onCreate({
+            name: 'Trip',
+            targetAmount: 600000,
+            targetCurrency: 'USD',
+            dueDate: '2028-04-01',
+            visibility: 'shared',
+          }),
+          editGoal: () => onEdit({
+            goalId: 'trip',
+            name: 'Japan',
+            targetAmount: 700000,
+            targetCurrency: 'BRL',
+            dueDate: '2028-05-01',
+          }),
+          deleteGoal: () => onDelete('trip'),
+          completeGoal: () => onComplete('trip'),
+          reopenGoal: () => onReopen('trip'),
+        }}
+      />
+    ),
+  }),
+);
+
 const USER = {
   id: 'jane',
   email: 'jane@example.com',
@@ -228,8 +271,13 @@ describe('the page', () => {
     expect(screen.getByRole('radio', { name: 'Accounts' })).toBeTruthy();
   });
 
-  it('shows each unbuilt section as its empty state, and the built ones back', async () => {
-    await renderExperience();
+  it('shows each section’s flow under its tab', async () => {
+    await renderExperience({
+      'GET /households/doe/categories': () => jsonResponse(200, { data: [] }),
+      'GET /households/doe/budgets': () => jsonResponse(200, { data: [] }),
+      'GET /households/doe/goals': () => jsonResponse(200, { data: [] }),
+      'GET /households/doe/goal-progress': () => jsonResponse(200, { data: [] }),
+    });
     const pickTab = async (tab: string) => {
       await act(async () => {
         fireEvent.click(screen.getByRole('radio', { name: tab }));
@@ -240,7 +288,7 @@ describe('the page', () => {
     await pickTab('Budgets');
     expect(screen.getByTestId('budgets')).toBeTruthy();
     await pickTab('Goals');
-    expect(screen.getByText('Goals arrive in a later task.')).toBeTruthy();
+    expect(screen.getByTestId('goals')).toBeTruthy();
     await pickTab('Accounts');
     expect(screen.getByTestId('accounts')).toBeTruthy();
   });
@@ -793,5 +841,243 @@ describe('the budget writes it answers for their flow', () => {
     });
     expect(await fetchesOf(fetchFn, 'budgets')).toBe(1);
     expect(await fetchesOf(fetchFn, 'categories')).toBe(1);
+  });
+});
+
+const TRIP: Goal = {
+  id: 'trip',
+  householdId: 'doe',
+  ownerUserId: 'jane',
+  name: 'Trip',
+  targetAmount: 600000,
+  targetCurrency: 'USD',
+  dueDate: '2028-04-01',
+  visibility: 'shared',
+  createdAt: '2026-10-01T00:00:00Z',
+  completedAt: null,
+};
+
+const CAR: Goal = {
+  ...TRIP, id: 'car', name: 'Car', completedAt: '2026-10-10T00:00:00Z',
+};
+
+const FUNDING = {
+  contributions: [{ holdingId: 'aapl', currency: 'USD' as const, amount: 48200 }],
+  fundedBy: [{ holdingId: 'aapl', name: 'AAPL', percentage: 10 }],
+};
+
+const TRIP_PROGRESS: GoalWithProgress = { ...TRIP, ...FUNDING };
+
+/**
+ * Answers a goal read by its `status` query: the active list or the completed one.
+ *
+ * @param active - The active list's items.
+ * @param completed - The completed list's items.
+ * @returns The answer.
+ */
+const byStatus = (active: unknown[], completed: unknown[]) => (request: Request) => (
+  jsonResponse(200, {
+    data: new URL(request.url).searchParams.get('status') === 'active' ? active : completed,
+  })
+);
+
+/** Answers for a Goals tab whose four reads load. */
+const GOAL_READS: Answers = {
+  'GET /households/doe/goals': byStatus([TRIP], [CAR]),
+  'GET /households/doe/goal-progress': byStatus([TRIP_PROGRESS], []),
+};
+
+/** Selects the Goals tab so its stub is in front. */
+const pickGoals = async () => {
+  await act(async () => {
+    fireEvent.click(screen.getByRole('radio', { name: 'Goals' }));
+  });
+  await settle();
+};
+
+/**
+ * Lists the goal reads `fetch` got, with their status.
+ *
+ * @param fetchFn - The fake `fetch`.
+ * @returns Each goal read's path and status, e.g. `goals?active`.
+ */
+const goalReadsOf = (fetchFn: ReturnType<typeof fakeFetch>) => (
+  fetchFn.mock.calls.flatMap(([input]) => {
+    const request = input as Request;
+    const url = new URL(request.url);
+    const read = url.pathname.split('/').pop();
+    return request.method === 'GET' && (read === 'goals' || read === 'goal-progress')
+      ? [`${read}?${url.searchParams.get('status')}`]
+      : [];
+  })
+);
+
+describe('goalListViewOf / progressStatusOf', () => {
+  it('joins each goal to its progress by id, and leaves one without it bare', () => {
+    expect(goalListViewOf({ data: [TRIP, CAR] }, { data: [TRIP_PROGRESS] })).toEqual({
+      status: 'loaded', goals: [{ goal: TRIP, funding: FUNDING }, { goal: CAR }],
+    });
+  });
+
+  it('shows the definitions alone while the progress read loads or fails (OQ-195)', () => {
+    const failure = { status: 404, data: envelope('route.not_found') } as never;
+    expect(goalListViewOf({ data: [TRIP] }, { error: failure })).toEqual({
+      status: 'loaded', goals: [{ goal: TRIP }],
+    });
+    expect(goalListViewOf({ data: [TRIP] }, {})).toEqual({
+      status: 'loaded', goals: [{ goal: TRIP }],
+    });
+  });
+
+  it('reads the definitions’ loading and failure as the list’s', () => {
+    expect(goalListViewOf({}, { data: [] })).toEqual({ status: 'loading' });
+    const failure = { status: 'FETCH_ERROR', error: 'down' } as never;
+    expect(goalListViewOf({ error: failure }, { data: [] }).status).toBe('failed');
+  });
+
+  it('reads the progress as failed if either failed, loading while either loads', () => {
+    const failure = { status: 404, data: {} } as never;
+    expect(progressStatusOf({ data: [] }, { error: failure })).toBe('failed');
+    expect(progressStatusOf({ data: [] }, {})).toBe('loading');
+    expect(progressStatusOf({ data: [] }, { data: [] })).toBe('loaded');
+  });
+});
+
+describe('the goals it holds for their flow', () => {
+  it('reads nothing until the Goals tab opens, then both statuses and their progress', async () => {
+    const { fetchFn } = await renderExperience(GOAL_READS);
+    expect(goalReadsOf(fetchFn)).toEqual([]);
+    await pickGoals();
+    expect(goalReadsOf(fetchFn).sort()).toEqual([
+      'goal-progress?active', 'goal-progress?completed', 'goals?active', 'goals?completed',
+    ]);
+  });
+
+  it('hands down both statuses joined to their progress, with the actor', async () => {
+    await renderExperience(GOAL_READS);
+    await pickGoals();
+    expect(shownBy('goals')).toEqual({
+      selfUserId: 'jane',
+      role: 'Owner',
+      goals: {
+        active: { status: 'loaded', goals: [{ goal: TRIP, funding: FUNDING }] },
+        completed: { status: 'loaded', goals: [{ goal: CAR }] },
+        progress: 'loaded',
+      },
+    });
+  });
+
+  it('hands down the definitions alone while the progress read fails (OQ-195)', async () => {
+    await renderExperience({
+      ...GOAL_READS,
+      'GET /households/doe/goal-progress': () => jsonResponse(404, envelope('route.not_found')),
+    });
+    await pickGoals();
+    expect(shownBy('goals')).toMatchObject({
+      goals: {
+        active: { status: 'loaded', goals: [{ goal: TRIP }] },
+        progress: 'failed',
+      },
+    });
+  });
+
+  it('fetches all four reads again on a retry', async () => {
+    const { fetchFn } = await renderExperience(GOAL_READS);
+    await pickGoals();
+    await press('retry');
+    expect(goalReadsOf(fetchFn)).toHaveLength(8);
+  });
+});
+
+describe('the goal writes it answers for their flow', () => {
+  it('creates with only the fields, and answers once the goals are fetched again', async () => {
+    const { fetchFn } = await renderExperience({
+      ...GOAL_READS, 'POST /households/doe/goals': () => jsonResponse(201, TRIP),
+    });
+    await pickGoals();
+    await press('createGoal');
+    expect(outcomeOf('goals')).toEqual({ ok: true });
+    const post = (await sent(fetchFn)).find(({ route }) => route.startsWith('POST'));
+    expect(post?.body).toEqual({
+      name: 'Trip',
+      targetAmount: 600000,
+      targetCurrency: 'USD',
+      dueDate: '2028-04-01',
+      visibility: 'shared',
+    });
+    expect(goalReadsOf(fetchFn)).toHaveLength(8);
+  });
+
+  it('holds the answer until the goals fetched again are in', async () => {
+    const refetch = deferred();
+    let listed = 0;
+    await renderExperience({
+      ...GOAL_READS,
+      'GET /households/doe/goals': (request) => {
+        listed += 1;
+        return listed <= 2 ? byStatus([TRIP], [CAR])(request) : refetch.promise;
+      },
+      'POST /households/doe/goals': () => jsonResponse(201, TRIP),
+    });
+    await pickGoals();
+    await press('createGoal');
+    expect(screen.getByTestId('goals-outcome').textContent).toBe('');
+    await settleWith(refetch, jsonResponse(200, { data: [TRIP] }));
+    expect(outcomeOf('goals')).toEqual({ ok: true });
+  });
+
+  it('edits its goal with the changes, address stripped out', async () => {
+    const { fetchFn } = await renderExperience({
+      ...GOAL_READS, 'PATCH /households/doe/goals/trip': () => jsonResponse(200, TRIP),
+    });
+    await pickGoals();
+    await press('editGoal');
+    expect(outcomeOf('goals')).toEqual({ ok: true });
+    const patch = (await sent(fetchFn)).find(({ route }) => route.startsWith('PATCH'));
+    expect(patch?.body).toEqual({
+      name: 'Japan', targetAmount: 700000, targetCurrency: 'BRL', dueDate: '2028-05-01',
+    });
+  });
+
+  it.each([
+    ['deleteGoal', 'DELETE /households/doe/goals/trip'],
+    ['completeGoal', 'POST /households/doe/goals/trip/complete'],
+    ['reopenGoal', 'POST /households/doe/goals/trip/reopen'],
+  ])('%s goes to its endpoint and fetches the goals again', async (request, route) => {
+    const { fetchFn } = await renderExperience({ ...GOAL_READS, [route]: () => jsonResponse(204) });
+    await pickGoals();
+    await press(request);
+    expect(outcomeOf('goals')).toEqual({ ok: true });
+    const [method, path] = route.split(' ');
+    expect(await routes(fetchFn)).toContain(`${method} /api/v1${path}`);
+    expect(goalReadsOf(fetchFn)).toHaveLength(8);
+  });
+
+  it('fetches the goals again when the goal is gone (404)', async () => {
+    const { fetchFn } = await renderExperience({
+      ...GOAL_READS,
+      'POST /households/doe/goals/trip/complete': () => (
+        jsonResponse(404, envelope('goal.not_found'))
+      ),
+    });
+    await pickGoals();
+    await press('completeGoal');
+    expect(outcomeOf('goals')).toEqual({
+      ok: false, error: { code: 'goal.not_found', params: {} },
+    });
+    expect(goalReadsOf(fetchFn)).toHaveLength(8);
+  });
+
+  it('fetches nothing again after a failure that moved nothing', async () => {
+    const { fetchFn } = await renderExperience({
+      ...GOAL_READS,
+      'DELETE /households/doe/goals/trip': () => jsonResponse(403, envelope('auth.forbidden')),
+    });
+    await pickGoals();
+    await press('deleteGoal');
+    expect(outcomeOf('goals')).toEqual({
+      ok: false, error: { code: 'auth.forbidden', params: {} },
+    });
+    expect(goalReadsOf(fetchFn)).toHaveLength(4);
   });
 });

@@ -1,15 +1,17 @@
 import type {
   Account, AccountCreateRequest, ListAccountsResponse, AccountUpdateRequest, Budget,
   BudgetCreateRequest, BudgetUpdateRequest, Category, CategoryColor, CategoryIcon,
-  CategoryUpdateRequest, ListBudgetsResponse, ListCategoriesResponse,
+  CategoryUpdateRequest, Goal, GoalCreateRequest, GoalUpdateRequest, GoalWithProgress,
+  ListBudgetsResponse, ListCategoriesResponse, ListGoalProgressResponse, ListGoalsResponse,
 } from '@financas/api-types';
 import backendApi from '../../api/backendApi';
 import send from '../../api/send';
 
-// The Account Setup Experience's endpoints (X5; OQ-175, OQ-193, OQ-194). No
+// The Account Setup Experience's endpoints (X5; OQ-175, OQ-193..195). No
 // tags: the accounts are the Account Management Flow's own list, fetched as it
 // mounts and patched with what each write returns; the categories (Category
-// and Budget Management read them) and the budgets are the Experience's
+// and Budget Management read them), the budgets and the goals — definitions
+// and progress, two reads joined by goal id (OQ-177) — are the Experience's
 // shared lists, fetched again by the Experience itself after each write before
 // it answers the Flow. Nothing else reads them, so invalidating would only
 // fetch them twice. The request shapes come straight from the contract
@@ -61,6 +63,24 @@ export type CreateBudgetInput = BudgetCreateRequest & { readonly householdId: st
 /** An edit — name, target and/or targets, addressed to its budget (OQ-176). */
 export type EditBudgetInput = BudgetUpdateRequest & BudgetTarget;
 
+/** What addresses a goal inside its household (FL14). */
+export interface GoalTarget {
+  readonly householdId: string;
+  readonly goalId: string;
+}
+
+/** Which of a household's goals to list: one status at a time (OQ-177). */
+export interface GoalListInput {
+  readonly householdId: string;
+  readonly status: 'active' | 'completed';
+}
+
+/** A create, addressed to its household (FR-8.1). */
+export type CreateGoalInput = GoalCreateRequest & { readonly householdId: string };
+
+/** An edit — name, target, target currency and/or due date, addressed to its goal (OQ-177). */
+export type EditGoalInput = GoalUpdateRequest & GoalTarget;
+
 /**
  * Builds a household's accounts path.
  *
@@ -94,6 +114,14 @@ const budgetsPath = (householdId: string) => (
 /** Builds one budget's path inside its household. */
 const budgetPath = ({ householdId, budgetId }: BudgetTarget) => (
   `${budgetsPath(householdId)}/${encodeURIComponent(budgetId)}`);
+
+/** Builds a household's goals path (FL14). */
+const goalsPath = (householdId: string) => (
+  `/households/${encodeURIComponent(householdId)}/goals`);
+
+/** Builds one goal's path inside its household. */
+const goalPath = ({ householdId, goalId }: GoalTarget) => (
+  `${goalsPath(householdId)}/${encodeURIComponent(goalId)}`);
 
 /** The Experience's slice of the backend API. */
 export const accountSetupApi = backendApi.injectEndpoints({
@@ -149,6 +177,35 @@ export const accountSetupApi = backendApi.injectEndpoints({
     deleteBudget: build.mutation<void, BudgetTarget>({
       query: (target) => send('DELETE', budgetPath(target)),
     }),
+    listGoals: build.query<readonly Goal[], GoalListInput>({
+      query: ({ householdId, status }) => `${goalsPath(householdId)}?status=${status}`,
+      transformResponse: (response: ListGoalsResponse) => response.data ?? [],
+    }),
+    // InsightsManager's reshaped read (OQ-177), built with M4: until then it
+    // fails and the Flow shows the definitions alone (OQ-195).
+    listGoalProgress: build.query<readonly GoalWithProgress[], GoalListInput>({
+      query: ({ householdId, status }) => (
+        `/households/${encodeURIComponent(householdId)}/goal-progress?status=${status}`
+      ),
+      transformResponse: (response: ListGoalProgressResponse) => response.data ?? [],
+    }),
+    createGoal: build.mutation<Goal, CreateGoalInput>({
+      query: ({ householdId, ...request }) => send('POST', goalsPath(householdId), request),
+    }),
+    editGoal: build.mutation<Goal, EditGoalInput>({
+      query: ({ householdId, goalId, ...changes }) => (
+        send('PATCH', goalPath({ householdId, goalId }), changes)
+      ),
+    }),
+    deleteGoal: build.mutation<void, GoalTarget>({
+      query: (target) => send('DELETE', goalPath(target)),
+    }),
+    completeGoal: build.mutation<void, GoalTarget>({
+      query: (target) => send('POST', `${goalPath(target)}/complete`),
+    }),
+    reopenGoal: build.mutation<void, GoalTarget>({
+      query: (target) => send('POST', `${goalPath(target)}/reopen`),
+    }),
   }),
 });
 
@@ -166,4 +223,11 @@ export const {
   useCreateBudgetMutation,
   useEditBudgetMutation,
   useDeleteBudgetMutation,
+  useListGoalsQuery,
+  useListGoalProgressQuery,
+  useCreateGoalMutation,
+  useEditGoalMutation,
+  useDeleteGoalMutation,
+  useCompleteGoalMutation,
+  useReopenGoalMutation,
 } = accountSetupApi;

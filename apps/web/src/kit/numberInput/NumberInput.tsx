@@ -17,10 +17,14 @@ import {
 // The number input (K8, OQ-189): a quantity, a rate or a whole percent, typed
 // with its decimal point in the interface language, giving the caller the
 // API's fixed-point integer — units × 10⁸, percent × 10,000 (OQ-86), or the
-// percent itself (OQ-87). Rates and percents carry a `%` after the number;
-// the label says the rest ("% a.a.", "% of CDI"). Two sizes: the kit's
+// percent itself (OQ-87) — or an exchange rate, × 10,000 and never sent
+// (OQ-195). Rates and percents carry a `%` after the number; the label says
+// the rest ("% a.a.", "% of CDI"). A quantity and an exchange rate carry none. Two sizes: the kit's
 // `field`, and the `compact` box of a Goal allocation row (mockups 32, 51),
 // its label for screen readers only.
+
+/** The kinds that are percents: they carry a `%` after the number. */
+const PERCENT_KINDS: ReadonlySet<NumberKind> = new Set(['rate', 'percent']);
 
 /** The number input's props: the field texts, the number, its kind and the size. */
 export interface NumberInputProps
@@ -33,7 +37,10 @@ export interface NumberInputProps
   readonly value: number | null;
   /** Gets the new integer, or `null` once nothing but a sign or a point is left. */
   readonly onChange: (value: number | null) => void;
-  /** `quantity` (units × 10⁸), `rate` (percent × 10,000) or `percent` (whole). */
+  /**
+   * `quantity` (units × 10⁸), `rate` (percent × 10,000), `percent` (whole) or
+   * `exchange` (× 10,000).
+   */
   readonly kind: NumberKind;
   /** Lets `-` flip the sign, e.g. an index in deflation. Off by default. */
   readonly allowNegative?: boolean | undefined;
@@ -173,7 +180,7 @@ export function NumberInput({
       ref={ref}
       shown={shown}
       change={change}
-      suffix={kind === 'quantity' ? undefined : '%'}
+      suffix={PERCENT_KINDS.has(kind) ? '%' : undefined}
     />
   );
 }

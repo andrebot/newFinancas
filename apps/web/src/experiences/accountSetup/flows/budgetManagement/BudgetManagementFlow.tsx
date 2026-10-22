@@ -8,11 +8,11 @@ import { useAlerts } from '../../../../utilities/AlertProvider';
 import { useI18n } from '../../../../utilities/I18nProvider';
 import type { Translator } from '../../../../utilities/i18n';
 import type { RequestFailure, RequestOutcome } from '../../../../utilities/requestOutcome';
+import { mayCreateOwned, mayManageOwned, mayShareOwned } from '../../ownership';
 import type { CategoriesView } from '../../sharedLists';
 import {
   afterAction, budgetIn, deleteConfirmCancelled, deleteConfirmOpened, drawerClosed, drawerOpened,
-  INITIAL_BUDGETS, isEditOfGone, mayCreateBudget, mayManageBudget, mayShareBudget, started,
-  toastsFailure,
+  INITIAL_BUDGETS, isEditOfGone, started, toastsFailure,
   type BudgetEdit, type BudgetManagementState, type BudgetsView, type NewBudget, type Outgoing,
 } from './budgetManagementState';
 import { conflictKindOf, targetName } from './claims';
@@ -198,7 +198,7 @@ function BudgetsPanel({
       <BudgetList
         budgets={budgets}
         categories={categories}
-        isManageable={(budget) => mayManageBudget(budget, selfUserId, role)}
+        isManageable={(budget) => mayManageOwned(budget, selfUserId, role)}
         onEdit={onBudget((current, budgetId) => drawerOpened(current, { kind: 'edit', budgetId }))}
       />
       {drawerOpen && (
@@ -208,7 +208,7 @@ function BudgetsPanel({
           categories={categories}
           budgets={budgets}
           selfUserId={selfUserId}
-          personalOnly={!mayShareBudget(role)}
+          personalOnly={!mayShareOwned(role)}
           busy={isFormOut(out)}
           disabled={out !== undefined}
           alert={alertOf(state.lastError, { budgets, categories }, translator)}
@@ -328,7 +328,7 @@ export function BudgetManagementFlow({
         <p className="type-body-sm text-muted">
           {translator.text('budgetManagement', 'description')}
         </p>
-        {mayCreateBudget(role) && (
+        {mayCreateOwned(role) && (
           <Button
             variant="primary"
             leadingIcon="add"

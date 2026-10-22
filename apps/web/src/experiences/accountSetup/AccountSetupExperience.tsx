@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import type { SerializedError } from '@reduxjs/toolkit';
-import type { Account } from '@financas/api-types';
+import type { Account, Goal, GoalWithProgress } from '@financas/api-types';
 import type { ApiError } from '../../api/errors';
 import {
   failureOf, toDataOutcome, toRequestOutcome, type EndpointResult,
@@ -19,6 +19,8 @@ import {
   useLazyListAccountsQuery, useListCategoriesQuery, useCreateCategoryMutation,
   useEditCategoryMutation, useArchiveCategoryMutation, useArchiveSubcategoryMutation,
   useListBudgetsQuery, useCreateBudgetMutation, useEditBudgetMutation, useDeleteBudgetMutation,
+  useListGoalsQuery, useListGoalProgressQuery, useCreateGoalMutation, useEditGoalMutation,
+  useDeleteGoalMutation, useCompleteGoalMutation, useReopenGoalMutation,
 } from './api';
 import {
   AccountManagementFlow, type AccountManagementFlowProps,
@@ -29,17 +31,22 @@ import {
 import {
   CategoryManagementFlow, type CategoryManagementFlowProps,
 } from './flows/categoryManagement/CategoryManagementFlow';
-import type { SharedListView } from './sharedLists';
+import {
+  GoalManagementFlow, type GoalManagementFlowProps,
+} from './flows/goalManagement/GoalManagementFlow';
+import type {
+  GoalEntry, GoalsView, ProgressStatus, SharedListView,
+} from './sharedLists';
 
 // The Account Setup Experience (X5, EBD; OQ-175): the household's setup page,
 // as mockup 40 lays it out — a header with its tabs and, under each tab, that
-// section's flow. Accounts (FL11), Categories (FL12) and Budgets (FL13) are
-// live; Goals shows an empty state until FL14. It is the only tier here that
-// calls the backend: it answers the Flows' requests with outcomes, and owns
-// the open tab, the household's category list — shared read-only data
-// Category Management writes and Budget Management reads (EBD) — and the
-// budgets, whose claims other members change too (OQ-194). The page is keyed
-// on the household, so a switch starts it afresh.
+// section's flow: Accounts (FL11), Categories (FL12), Budgets (FL13) and Goals
+// (FL14). It is the only tier here that calls the backend: it answers the
+// Flows' requests with outcomes, and owns the open tab, the household's
+// category list — shared read-only data Category Management writes and Budget
+// Management reads (EBD) — the budgets, whose claims other members change too
+// (OQ-194), and the goals, their definitions joined to their progress (OQ-177,
+// OQ-195). The page is keyed on the household, so a switch starts it afresh.
 
 /** The tabs between the setup sections (mockup 40). */
 type SetupTab = 'accounts' | 'categories' | 'budgets' | 'goals';
@@ -257,6 +264,100 @@ const useBudgets = (
   };
 };
 
+/**
+ * Joins a status's goals to their progress by goal id (OQ-177): each goal gets
+ * its funding once the progress read holds it, and none while that read is
+ * loading or has failed — the definitions show on their own (OQ-195).
+ *
+ * @param goals - The definitions' query.
+ * @param progress - The progress read's query.
+ * @returns The status's list as Goal Management sees it.
+ */
+export const goalListViewOf = (
+  goals: ListQueryState<Goal>,
+  progress: ListQueryState<GoalWithProgress>,
+): SharedListView<'goals', GoalEntry> => {
+  const byId = new Map((progress.data ?? []).map((item) => [item.id, item]));
+  const entries = goals.data?.map((goal): GoalEntry => {
+    const found = byId.get(goal.id);
+    return found
+      ? { goal, funding: { contributions: found.contributions, fundedBy: found.fundedBy } }
+      : { goal };
+  });
+  return listViewOf('goals', { data: entries, error: goals.error });
+};
+
+/**
+ * Reads how the progress read went, both statuses together: failed if either
+ * failed, loading while either has no data yet, loaded otherwise.
+ *
+ * @param queries - Each status's progress query.
+ * @returns The joint status.
+ */
+export const progressStatusOf = (
+  ...queries: readonly ListQueryState<GoalWithProgress>[]
+): ProgressStatus => {
+  if (queries.some((query) => query.error !== undefined)) return 'failed';
+  if (queries.some((query) => query.data === undefined)) return 'loading';
+  return 'loaded';
+};
+
+/**
+ * Holds the goals the caller can see — both statuses, each joined to its
+ * progress — and builds the Goal Management Flow's requests (FL14). After a
+ * success, or a failure that says a goal is gone (404), it fetches the
+ * definitions and the progress again and answers only then.
+ *
+ * @param householdId - The household.
+ * @returns The goals' view and the Flow's requests.
+ */
+const useGoals = (householdId: string): Omit<GoalManagementFlowProps, 'selfUserId' | 'role'> => {
+  const activeGoals = useListGoalsQuery({ householdId, status: 'active' });
+  const completedGoals = useListGoalsQuery({ householdId, status: 'completed' });
+  const activeProgress = useListGoalProgressQuery({ householdId, status: 'active' });
+  const completedProgress = useListGoalProgressQuery({ householdId, status: 'completed' });
+  const [createGoal] = useCreateGoalMutation();
+  const [editGoal] = useEditGoalMutation();
+  const [deleteGoal] = useDeleteGoalMutation();
+  const [completeGoal] = useCompleteGoalMutation();
+  const [reopenGoal] = useReopenGoalMutation();
+  const queries = [activeGoals, completedGoals, activeProgress, completedProgress];
+
+  /** Fetches every goal read again, once all have settled. */
+  const refetchAll = () => Promise.all(queries.map((query) => query.refetch()));
+
+  /**
+   * Answers a write once the goals are fetched again, when it went through or
+   * says its goal is gone. The write's outcome stands either way.
+   *
+   * @param result - What the write's trigger resolved to.
+   * @returns Its outcome.
+   */
+  const answer = async (result: EndpointResult<unknown>): Promise<RequestOutcome> => {
+    const outcome = toRequestOutcome(result);
+    if (outcome.ok || outcome.error.code === 'goal.not_found') await refetchAll();
+    return outcome;
+  };
+
+  return {
+    goals: {
+      active: goalListViewOf(activeGoals, activeProgress),
+      completed: goalListViewOf(completedGoals, completedProgress),
+      progress: progressStatusOf(activeProgress, completedProgress),
+    } satisfies GoalsView,
+    onRetry: () => {
+      refetchAll();
+    },
+    onCreate: async (goal) => answer(await createGoal({ householdId, ...goal })),
+    onEdit: async ({ goalId, ...changes }) => answer(
+      await editGoal({ householdId, goalId, ...changes }),
+    ),
+    onDelete: async (goalId) => answer(await deleteGoal({ householdId, goalId })),
+    onComplete: async (goalId) => answer(await completeGoal({ householdId, goalId })),
+    onReopen: async (goalId) => answer(await reopenGoal({ householdId, goalId })),
+  };
+};
+
 /** The setup page's props. */
 interface SetupPageProps extends AccountPanelProps {
   /** The signed-in user's id. */
@@ -264,8 +365,20 @@ interface SetupPageProps extends AccountPanelProps {
 }
 
 /**
+ * Renders the Goals tab: its own component, so the goal reads start only once
+ * the tab is opened.
+ *
+ * @param props - The household and the signed-in user.
+ * @returns The Goal Management Flow.
+ */
+function GoalsTab({ household, userId }: SetupPageProps) {
+  const goals = useGoals(household.id);
+  return <GoalManagementFlow selfUserId={userId} role={household.role} {...goals} />;
+}
+
+/**
  * Renders the active household's setup page: its header with the tabs and,
- * under each tab, that section's flow (an empty state until it is built).
+ * under each tab, that section's flow.
  *
  * @param props - The household and the signed-in user.
  * @returns The page.
@@ -305,9 +418,7 @@ function SetupPage({ household, userId }: SetupPageProps) {
         />
       );
     }
-    return (
-      <EmptyState icon="info-outline" title={translator.text('accountSetup', `tab.${tab}.soon`)} />
-    );
+    return <GoalsTab key={household.id} household={household} userId={userId} />;
   };
 
   return (
