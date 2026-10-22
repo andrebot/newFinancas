@@ -16,12 +16,28 @@ import { expiryOf } from './CardFields';
 // card strip (K48) — with an Add button
 // above and the archived ones in their own section below. A card is clickable
 // only when the actor may edit that account; the Flow decides that per row.
+// The whole card opens it: the name is its one button, its hit area stretched
+// over the card, so a screen reader still hears a single button by the name.
 
 /** How each visibility's tag looks: its tone, its icon and its label's key. */
 const VISIBILITY_TAGS = {
   personal: { tone: 'neutral', icon: 'person-outline', label: 'visibility.personal' },
   shared: { tone: 'sky', icon: 'group-outline', label: 'visibility.shared' },
 } as const;
+
+/** The name button's hit area, stretched over its card while it opens one. */
+const STRETCHED = "after:absolute after:inset-0 after:rounded-card after:content-['']";
+
+/**
+ * Builds the classes of an account's card: lifted on hover while it opens.
+ *
+ * @param editable - Whether the card opens the edit drawer.
+ * @returns The card's layout classes.
+ */
+export const accountCardClasses = (editable: boolean) => [
+  'relative flex flex-col gap-3',
+  editable ? 'cursor-pointer transition-colors hover:border-muted' : '',
+].filter(Boolean).join(' ');
 
 /** The tags one account's card shows, already translated by the caller. */
 interface AccountCardProps {
@@ -58,12 +74,12 @@ function AccountCard({ account, editable, onEdit }: AccountCardProps) {
     : formatMoney(account.currentBalance, account.currency);
 
   return (
-    <Card className="flex flex-col gap-3">
+    <Card className={accountCardClasses(editable)}>
       <button
         type="button"
         onClick={onEdit}
         disabled={!editable}
-        className={`text-left ${editable ? 'cursor-pointer' : ''}`}
+        className={`text-left ${editable ? `cursor-pointer ${STRETCHED}` : ''}`}
       >
         <span className="block text-base font-semibold">{account.name}</span>
       </button>
