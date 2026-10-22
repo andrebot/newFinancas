@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Category } from '@financas/api-types';
 import { InlineBanner } from '../../../../kit/alert/InlineBanner';
 import { Button } from '../../../../kit/button/Button';
@@ -10,9 +10,9 @@ import { useI18n } from '../../../../utilities/I18nProvider';
 import type { Translator } from '../../../../utilities/i18n';
 import type { RequestFailure, RequestOutcome } from '../../../../utilities/requestOutcome';
 import {
-  afterAction, archiveConfirmCancelled, archiveConfirmOpened, archivingTarget, formClosed,
-  formOpened, INITIAL_CATEGORIES, isFormRequest, mayCreateCategory, mayManageCategories,
-  started, splitCategories,
+  afterAction, archiveConfirmCancelled, archiveConfirmOpened, archivedUnderForm, archivingTarget,
+  formClosed, formOpened, formOutlived, INITIAL_CATEGORIES, isFormRequest, mayCreateCategory,
+  mayManageCategories, started, splitCategories,
   type CategoriesView, type CategoryEdit, type CategoryManagementState,
   type NewCategory, type OpenForm, type Outgoing,
 } from './categoryManagementState';
@@ -276,6 +276,34 @@ function RefreshFailed({ view, onRetry }: RefreshFailedProps) {
 }
 
 /**
+ * Closes an edit form whose category someone else archived, and says why: its
+ * card left the live grid, so the typing has nowhere to go (OQ-194). The form
+ * closes while rendering, as the list came in as a prop; the toast goes out
+ * once, after.
+ *
+ * @param state - The Flow's state.
+ * @param view - The Experience's list.
+ * @param setState - The Flow's state setter.
+ */
+const useOutlivedForm = (
+  state: CategoryManagementState,
+  view: CategoriesView,
+  setState: (update: (current: CategoryManagementState) => CategoryManagementState) => void,
+) => {
+  const translator = useI18n();
+  const alerts = useAlerts();
+  const outlived = archivedUnderForm(state, view);
+  if (outlived) {
+    const message = translator.text('categoryManagement', 'edit.archived', { name: outlived.name });
+    setState((current) => formOutlived(current, message));
+  }
+  const { notice } = state;
+  useEffect(() => {
+    if (notice) alerts.error(notice.message);
+  }, [notice, alerts]);
+};
+
+/**
  * Renders the categories panel and runs its requests.
  *
  * @param props - The actor's role, the Experience's list and its requests.
@@ -288,6 +316,7 @@ export function CategoryManagementFlow({
   const translator = useI18n();
   const alerts = useAlerts();
   const [state, setState] = useState<CategoryManagementState>(INITIAL_CATEGORIES);
+  useOutlivedForm(state, view, setState);
 
   /**
    * Toasts an outcome for its subject: every success, and a card action's

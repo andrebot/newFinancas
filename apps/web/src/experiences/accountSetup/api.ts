@@ -1,17 +1,19 @@
 import type {
-  Account, AccountCreateRequest, ListAccountsResponse, AccountUpdateRequest, Category,
-  CategoryColor, CategoryIcon, CategoryUpdateRequest, ListCategoriesResponse,
+  Account, AccountCreateRequest, ListAccountsResponse, AccountUpdateRequest, Budget,
+  BudgetCreateRequest, BudgetUpdateRequest, Category, CategoryColor, CategoryIcon,
+  CategoryUpdateRequest, ListBudgetsResponse, ListCategoriesResponse,
 } from '@financas/api-types';
 import backendApi from '../../api/backendApi';
 import send from '../../api/send';
 
-// The Account Setup Experience's endpoints (X5; OQ-175, OQ-193). No tags: the
-// accounts are the Account Management Flow's own list, fetched as it mounts and
-// patched with what each write returns; the categories are the Experience's
-// shared list (Category and Budget Management read it), fetched again by the
-// Experience itself after each write before it answers the Flow. Nothing else
-// reads either, so invalidating would only fetch them twice. The request
-// shapes come straight from the contract (`@financas/api-types`).
+// The Account Setup Experience's endpoints (X5; OQ-175, OQ-193, OQ-194). No
+// tags: the accounts are the Account Management Flow's own list, fetched as it
+// mounts and patched with what each write returns; the categories (Category
+// and Budget Management read them) and the budgets are the Experience's
+// shared lists, fetched again by the Experience itself after each write before
+// it answers the Flow. Nothing else reads them, so invalidating would only
+// fetch them twice. The request shapes come straight from the contract
+// (`@financas/api-types`).
 
 /** What addresses an account inside its household. */
 export interface AccountTarget {
@@ -47,6 +49,18 @@ export interface CreateCategoryInput {
 /** An edit — fields and/or subcategories, addressed to its category (OQ-173). */
 export type EditCategoryInput = CategoryUpdateRequest & CategoryTarget;
 
+/** What addresses a budget inside its household (FL13). */
+export interface BudgetTarget {
+  readonly householdId: string;
+  readonly budgetId: string;
+}
+
+/** A create, addressed to its household (FR-4.1). */
+export type CreateBudgetInput = BudgetCreateRequest & { readonly householdId: string };
+
+/** An edit — name, target and/or targets, addressed to its budget (OQ-176). */
+export type EditBudgetInput = BudgetUpdateRequest & BudgetTarget;
+
 /**
  * Builds a household's accounts path.
  *
@@ -72,6 +86,14 @@ const categoriesPath = (householdId: string) => (
 /** Builds one category's path inside its household. */
 const categoryPath = ({ householdId, categoryId }: CategoryTarget) => (
   `${categoriesPath(householdId)}/${encodeURIComponent(categoryId)}`);
+
+/** Builds a household's budgets path (FL13). */
+const budgetsPath = (householdId: string) => (
+  `/households/${encodeURIComponent(householdId)}/budgets`);
+
+/** Builds one budget's path inside its household. */
+const budgetPath = ({ householdId, budgetId }: BudgetTarget) => (
+  `${budgetsPath(householdId)}/${encodeURIComponent(budgetId)}`);
 
 /** The Experience's slice of the backend API. */
 export const accountSetupApi = backendApi.injectEndpoints({
@@ -112,6 +134,21 @@ export const accountSetupApi = backendApi.injectEndpoints({
         return send('POST', `${base}/subcategories/${encodeURIComponent(subcategoryId)}/archive`);
       },
     }),
+    listBudgets: build.query<readonly Budget[], string>({
+      query: budgetsPath,
+      transformResponse: (response: ListBudgetsResponse) => response.data ?? [],
+    }),
+    createBudget: build.mutation<Budget, CreateBudgetInput>({
+      query: ({ householdId, ...request }) => send('POST', budgetsPath(householdId), request),
+    }),
+    editBudget: build.mutation<Budget, EditBudgetInput>({
+      query: ({ householdId, budgetId, ...changes }) => (
+        send('PATCH', budgetPath({ householdId, budgetId }), changes)
+      ),
+    }),
+    deleteBudget: build.mutation<void, BudgetTarget>({
+      query: (target) => send('DELETE', budgetPath(target)),
+    }),
   }),
 });
 
@@ -125,4 +162,8 @@ export const {
   useEditCategoryMutation,
   useArchiveCategoryMutation,
   useArchiveSubcategoryMutation,
+  useListBudgetsQuery,
+  useCreateBudgetMutation,
+  useEditBudgetMutation,
+  useDeleteBudgetMutation,
 } = accountSetupApi;

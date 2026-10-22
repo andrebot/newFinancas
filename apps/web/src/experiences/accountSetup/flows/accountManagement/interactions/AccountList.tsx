@@ -3,6 +3,7 @@ import { formatMoney } from '../../../../../utilities/formatting';
 import { useI18n } from '../../../../../utilities/I18nProvider';
 import { Button } from '../../../../../kit/button/Button';
 import { Card } from '../../../../../kit/card/Card';
+import { OpenableCard } from '../../../../../kit/card/OpenableCard';
 import { CardRow } from '../../../../../kit/creditCard/CardRow';
 import { SectionHeader } from '../../../../../kit/sectionHeader/SectionHeader';
 import { Tag } from '../../../../../kit/tag/Tag';
@@ -16,28 +17,13 @@ import { expiryOf } from './CardFields';
 // card strip (K48) — with an Add button
 // above and the archived ones in their own section below. A card is clickable
 // only when the actor may edit that account; the Flow decides that per row.
-// The whole card opens it: the name is its one button, its hit area stretched
-// over the card, so a screen reader still hears a single button by the name.
+// The whole card opens it (the kit's OpenableCard, as the budget cards do).
 
 /** How each visibility's tag looks: its tone, its icon and its label's key. */
 const VISIBILITY_TAGS = {
   personal: { tone: 'neutral', icon: 'person-outline', label: 'visibility.personal' },
   shared: { tone: 'sky', icon: 'group-outline', label: 'visibility.shared' },
 } as const;
-
-/** The name button's hit area, stretched over its card while it opens one. */
-const STRETCHED = "after:absolute after:inset-0 after:rounded-card after:content-['']";
-
-/**
- * Builds the classes of an account's card: lifted on hover while it opens.
- *
- * @param editable - Whether the card opens the edit drawer.
- * @returns The card's layout classes.
- */
-export const accountCardClasses = (editable: boolean) => [
-  'relative flex flex-col gap-3',
-  editable ? 'cursor-pointer transition-colors hover:border-muted' : '',
-].filter(Boolean).join(' ');
 
 /** The tags one account's card shows, already translated by the caller. */
 interface AccountCardProps {
@@ -74,15 +60,12 @@ function AccountCard({ account, editable, onEdit }: AccountCardProps) {
     : formatMoney(account.currentBalance, account.currency);
 
   return (
-    <Card className={accountCardClasses(editable)}>
-      <button
-        type="button"
-        onClick={onEdit}
-        disabled={!editable}
-        className={`text-left ${editable ? `cursor-pointer ${STRETCHED}` : ''}`}
-      >
-        <span className="block text-base font-semibold">{account.name}</span>
-      </button>
+    <OpenableCard
+      name={account.name}
+      nameClassName="block text-base font-semibold"
+      onOpen={editable ? onEdit : undefined}
+      className="flex flex-col gap-3"
+    >
       <div className="flex flex-wrap items-center gap-2">
         <Tag>{typeLabel}</Tag>
         <Tag>{account.currency}</Tag>
@@ -117,7 +100,7 @@ function AccountCard({ account, editable, onEdit }: AccountCardProps) {
           />
         ))}
       </div>
-    </Card>
+    </OpenableCard>
   );
 }
 

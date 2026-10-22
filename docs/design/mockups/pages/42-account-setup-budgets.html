@@ -79,7 +79,8 @@ tailwind.config = {
     .seg { display: inline-flex; gap: 4px; padding: 4px; border-radius: 999px; background: #131917; border: 1px solid #232C28; }
     .seg > button { height: 36px; padding: 0 16px; border-radius: 999px; font-size: 14px; font-weight: 500; color: #97A39D; display: inline-flex; align-items: center; gap: 6px; }
     .seg > button[aria-selected="true"] { background: #0F3B2E; color: #5EE6B8; font-weight: 600; }
-    .bgcard { border-radius: 20px; background: #131917; border: 1px solid #232C28; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+    .bgcard { cursor: pointer; transition: border-color .2s; border-radius: 20px; background: #131917; border: 1px solid #232C28; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+    .bgcard:hover { border-color: #5F6B65; }
     .catpill { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px 0 6px; border-radius: 999px; background: #1A211E; font-size: 13px; }
     .catpill .dot { width: 20px; height: 20px; border-radius: 999px; display: grid; place-items: center; }
     .ring-lg { width: 88px; height: 88px; border-radius: 999px; flex-shrink: 0; display: grid; place-items: center; }
@@ -140,8 +141,7 @@ tailwind.config = {
             <div class="flex items-center gap-2"><span class="font-display text-lg font-bold truncate">Fun Money</span><span class="tag"><iconify-icon icon="material-symbols:person-outline" width="12"></iconify-icon>Personal</span><span class="tag">USD</span></div>
             <div class="mt-1"><span class="font-display text-[26px] font-extrabold num">$300.00</span> <span class="text-muted text-sm">/ month</span></div>
           </div>
-          <div class="flex -mr-1"><button class="ghost" aria-label="Edit Fun Money"><iconify-icon icon="material-symbols:edit-outline" width="18"></iconify-icon></button><button class="ghost" aria-label="Delete Fun Money"><iconify-icon icon="material-symbols:delete-outline" width="18"></iconify-icon></button></div>
-        </div>
+                  </div>
         <div>
           <div class="flabel">Covers</div>
           <div class="flex flex-wrap gap-2">
@@ -151,14 +151,13 @@ tailwind.config = {
         </div>
       </article>
 
-      <article class="bgcard">
+      <article class="bgcard ring-1 ring-mint/40">
         <div class="flex items-start gap-3">
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2"><span class="font-display text-lg font-bold truncate">Household Essentials</span><span class="tag text-sky bg-sky/10"><iconify-icon icon="material-symbols:group-outline" width="12"></iconify-icon>Shared</span><span class="tag">BRL</span></div>
             <div class="mt-1"><span class="font-display text-[26px] font-extrabold num">R$4,000.00</span> <span class="text-muted text-sm">/ month</span></div>
           </div>
-          <div class="flex -mr-1"><button class="ghost" aria-label="Edit Household Essentials"><iconify-icon icon="material-symbols:edit-outline" width="18"></iconify-icon></button><button class="ghost" aria-label="Delete Household Essentials"><iconify-icon icon="material-symbols:delete-outline" width="18"></iconify-icon></button></div>
-        </div>
+                  </div>
         <div>
           <div class="flabel">Covers</div>
           <div class="flex flex-wrap gap-2">
@@ -171,47 +170,47 @@ tailwind.config = {
     </div>
   </main>
 
-  <!-- Add Budget drawer -->
+  <!-- Edit Budget drawer: opened by clicking the card; Delete lives in its danger zone -->
   <div class="drawer-scrim"></div>
-  <aside class="drawer" aria-label="Add Budget">
+  <aside class="drawer" aria-label="Edit Budget">
     <div class="flex items-center justify-between px-6 py-5 border-b border-line">
-      <div><div class="cap">New</div><div class="font-display text-xl font-bold">Add Budget</div></div>
+      <div><div class="cap">Edit budget</div><div class="font-display text-xl font-bold">Household Essentials</div></div>
       <button class="ghost !w-10 !h-10" aria-label="Close"><iconify-icon icon="material-symbols:close" width="22"></iconify-icon></button>
     </div>
     <div class="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-5">
-      <div class="field"><label for="b-name">Budget name</label><input id="b-name" value="Health & Wellness"></div>
+      <div class="field"><label for="b-name">Budget name</label><input id="b-name" value="Household Essentials"></div>
 
       <div class="grid grid-cols-2 gap-3">
-        <div>
-          <span class="flabel">Currency</span>
-          <div class="flex gap-2"><button class="opt" aria-pressed="true">BRL</button><button class="opt" aria-pressed="false">USD</button></div>
-        </div>
-        <div>
-          <span class="flabel">Visibility</span>
-          <div class="flex gap-2"><button class="opt" aria-pressed="false"><iconify-icon icon="material-symbols:person-outline" width="16"></iconify-icon>Personal</button><button class="opt" aria-pressed="true"><iconify-icon icon="material-symbols:group-outline" width="16"></iconify-icon>Shared</button></div>
-        </div>
+        <div class="rounded-2xl bg-raised px-4 py-3"><div class="cap flex items-center gap-1"><iconify-icon icon="material-symbols:lock-outline" width="12"></iconify-icon>Currency</div><div class="mt-0.5">BRL</div></div>
+        <div class="rounded-2xl bg-raised px-4 py-3"><div class="cap flex items-center gap-1"><iconify-icon icon="material-symbols:lock-outline" width="12"></iconify-icon>Visibility</div><div class="mt-0.5">Shared</div></div>
       </div>
       <p class="text-xs text-faint -mt-3">Currency and visibility can't be changed after the budget is created.</p>
 
       <div class="rounded-2xl bg-bg border border-line px-5 py-4 flex flex-col gap-1">
         <span class="flabel !mb-0">Monthly target</span>
-        <div class="flex items-baseline gap-2"><span class="font-display text-2xl font-bold text-muted">R$</span><input class="bg-transparent font-display text-[36px] leading-[44px] font-extrabold num w-full outline-none" value="600,00" aria-label="Monthly target"></div>
+        <div class="flex items-baseline gap-2"><span class="font-display text-2xl font-bold text-muted">R$</span><input class="bg-transparent font-display text-[36px] leading-[44px] font-extrabold num w-full outline-none" value="4.000,00" aria-label="Monthly target"></div>
       </div>
 
       <div class="flex flex-col gap-2">
         <div class="flex items-center justify-between"><span class="flabel !mb-0">Covers</span><span class="text-xs text-faint">Whole categories or single subcategories</span></div>
         <div class="flex flex-col gap-1.5">
-          <button class="pick" aria-pressed="true"><span class="box"><iconify-icon icon="material-symbols:check" width="14"></iconify-icon></span><span class="w-6 h-6 rounded-full bg-coral/15 text-coral grid place-items-center"><iconify-icon icon="material-symbols:medical-services-outline" width="14"></iconify-icon></span>Healthcare<span class="ml-auto text-xs text-faint">all subcategories</span></button>
-          <button class="pick" aria-disabled="true"><span class="box"></span><span class="w-6 h-6 rounded-full bg-sun/15 text-sun grid place-items-center"><iconify-icon icon="material-symbols:restaurant" width="14"></iconify-icon></span>Dining & Entertainment › Streaming Services<span class="ml-auto text-xs text-faint">covered by Fun Money</span></button>
-          <button class="pick" aria-disabled="true"><span class="box"></span><span class="w-6 h-6 rounded-full bg-mint/15 text-mint grid place-items-center"><iconify-icon icon="material-symbols:shopping-cart-outline" width="14"></iconify-icon></span>Groceries<span class="ml-auto text-xs text-faint">in Household Essentials</span></button>
-          <button class="pick" aria-disabled="true"><span class="box"></span><span class="w-6 h-6 rounded-full bg-lilac/15 text-lilac grid place-items-center"><iconify-icon icon="material-symbols:shopping-bag-outline" width="14"></iconify-icon></span>Shopping<span class="ml-auto text-xs text-faint">in Fun Money</span></button>
+          <button class="pick" aria-pressed="true"><span class="box"><iconify-icon icon="material-symbols:check" width="14"></iconify-icon></span><span class="w-6 h-6 rounded-full bg-mint/15 text-mint grid place-items-center"><iconify-icon icon="material-symbols:shopping-cart-outline" width="14"></iconify-icon></span>Groceries<span class="ml-auto text-xs text-faint">all subcategories</span></button>
+          <button class="pick" aria-pressed="true"><span class="box"><iconify-icon icon="material-symbols:check" width="14"></iconify-icon></span><span class="w-6 h-6 rounded-full bg-sky/15 text-sky grid place-items-center"><iconify-icon icon="material-symbols:directions-car-outline" width="14"></iconify-icon></span>Transportation<span class="ml-auto text-xs text-faint">all subcategories</span></button>
+          <button class="pick" aria-pressed="true"><span class="box"><iconify-icon icon="material-symbols:check" width="14"></iconify-icon></span><span class="w-6 h-6 rounded-full bg-peach/15 text-peach grid place-items-center"><iconify-icon icon="material-symbols:home-outline" width="14"></iconify-icon></span>Housing<span class="ml-auto text-xs text-faint">all subcategories</span></button>
+          <button class="pick" aria-pressed="false"><span class="box"></span><span class="w-6 h-6 rounded-full bg-coral/15 text-coral grid place-items-center"><iconify-icon icon="material-symbols:medical-services-outline" width="14"></iconify-icon></span>Healthcare</button>
+          <button class="pick" aria-disabled="true"><span class="box"></span><span class="w-6 h-6 rounded-full bg-sun/15 text-sun grid place-items-center"><iconify-icon icon="material-symbols:restaurant" width="14"></iconify-icon></span>Dining & Entertainment<span class="ml-auto text-xs text-faint">in Fun Money</span></button>
         </div>
         <p class="text-xs text-faint">Each category or subcategory can belong to only one budget. Claimed ones show where they already live.</p>
       </div>
+      <section class="rounded-[20px] border border-coral/30 bg-coral/[.04] px-5 py-4 flex items-center gap-4" aria-labelledby="b-danger">
+        <span class="w-10 h-10 rounded-full bg-coral/15 text-coral grid place-items-center shrink-0"><iconify-icon icon="material-symbols:warning-outline" width="20"></iconify-icon></span>
+        <div class="flex-1"><div id="b-danger" class="font-semibold">Delete this budget</div><div class="text-sm text-muted">Its categories become free for another budget; past months keep their history.</div></div>
+        <button class="h-11 px-5 rounded-full border border-coral/40 text-coral font-medium hover:bg-coral/10">Delete</button>
+      </section>
     </div>
     <div class="px-6 py-4 border-t border-line flex gap-3 justify-end">
       <button class="h-10 px-5 rounded-full text-muted hover:bg-white/5">Cancel</button>
-      <button class="h-10 px-6 rounded-full bg-mint text-[#062A1F] font-semibold">Create Budget</button>
+      <button class="h-10 px-6 rounded-full bg-mint text-[#062A1F] font-semibold">Save changes</button>
     </div>
   </aside>
 </div>

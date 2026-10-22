@@ -2,8 +2,9 @@ import type { Category, Subcategory } from '@financas/api-types';
 import { describe, expect, it } from 'vitest';
 import {
   INITIAL_CATEGORIES, afterAction, archiveConfirmCancelled, archiveConfirmOpened,
-  archivingTarget, formClosed, formOpened, isFormRequest, liveSubcategoriesOf, mayCreateCategory,
-  mayManageCategories, splitCategories, started, type CategoriesView,
+  archivedUnderForm, archivingTarget, formClosed, formOpened, formOutlived, isFormRequest,
+  liveSubcategoriesOf, mayCreateCategory, mayManageCategories, splitCategories, started,
+  type CategoriesView,
 } from '../../../../../../src/experiences/accountSetup/flows/categoryManagement/categoryManagementState';
 
 // The Flow's state (BDT: pure transitions → unit, nothing mocked). The list
@@ -109,6 +110,36 @@ describe('the archive target lookup', () => {
 
   it('is undefined while the list isn’t loaded', () => {
     expect(archivingTarget({ status: 'loading' }, 'cat')).toBeUndefined();
+  });
+});
+
+describe('an edit form whose category was archived meanwhile (OQ-194)', () => {
+  const editing = { form: { mode: 'edit', categoryId: 'cat' } } as const;
+  const archived = category('cat', { archivedAt: '2026-10-05T00:00:00Z' });
+  const listing = (...categories: Category[]): CategoriesView => ({ status: 'loaded', categories });
+
+  it('finds the archived category under the open edit form', () => {
+    expect(archivedUnderForm(editing, listing(archived, GROCERIES))).toBe(archived);
+  });
+
+  it('finds nothing while the category is live, or no edit form is open', () => {
+    expect(archivedUnderForm(editing, listing(HOUSING))).toBeUndefined();
+    expect(archivedUnderForm({ form: { mode: 'create' } }, listing(archived))).toBeUndefined();
+    expect(archivedUnderForm(INITIAL_CATEGORIES, listing(archived))).toBeUndefined();
+  });
+
+  it('closes the form and owes a fresh notice each time', () => {
+    const first = formOutlived({ ...editing, lastError: { code: 'x' } }, 'gone');
+    expect(first).toEqual({
+      form: undefined, archiving: undefined, lastError: undefined, notice: { message: 'gone' },
+    });
+    expect(formOutlived(first, 'gone').notice).not.toBe(first.notice);
+  });
+
+  it('finds nothing while a request is out, or the list isn\'t loaded', () => {
+    const out = { ...editing, out: { kind: 'edit', categoryId: 'cat' } } as const;
+    expect(archivedUnderForm(out, listing(archived))).toBeUndefined();
+    expect(archivedUnderForm(editing, { status: 'loading' })).toBeUndefined();
   });
 });
 

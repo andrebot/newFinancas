@@ -13,7 +13,7 @@ import { nonBlank } from '../../../../../utilities/validation';
 import type { AccountEdit, CardSlot, Visibility } from '../accountManagementState';
 import { cardChangesOf, sparseCardChanges, takesCards } from '../accountManagementState';
 import { AttachedCardFields } from './AttachedCardFields';
-import { LockedField } from './LockedField';
+import { LockedField } from '../../../../../kit/field/LockedField';
 import {
   CardFields, draftsOf, EMPTY_CARD_FORM, withoutObjections, type CardFormState,
   type CardObjections,

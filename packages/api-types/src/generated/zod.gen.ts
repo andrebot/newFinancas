@@ -419,19 +419,19 @@ export const zBudgetTargetInput = z.object({
 });
 
 export const zBudget = z.object({
-    id: z.uuid().optional(),
-    householdId: z.uuid().optional(),
-    ownerUserId: z.uuid().nullish(),
-    name: z.string().optional(),
-    targetAmount: zMoney.optional(),
-    currency: zCurrency.optional(),
-    visibility: z.enum(['personal', 'shared']).optional(),
-    targets: z.array(zBudgetTargetInput).optional(),
-    createdAt: z.iso.datetime().optional()
+    id: z.uuid(),
+    householdId: z.uuid(),
+    ownerUserId: z.uuid().nullable(),
+    name: z.string(),
+    targetAmount: zMoney,
+    currency: zCurrency,
+    visibility: z.enum(['personal', 'shared']),
+    targets: z.array(zBudgetTargetInput),
+    createdAt: z.iso.datetime()
 });
 
 export const zBudgetCreateRequest = z.object({
-    name: z.string(),
+    name: z.string().max(40),
     targetAmount: zPositiveMoney,
     currency: zCurrency,
     visibility: z.enum(['personal', 'shared']),
@@ -439,7 +439,7 @@ export const zBudgetCreateRequest = z.object({
 });
 
 export const zBudgetUpdateRequest = z.object({
-    name: z.string().optional(),
+    name: z.string().max(40).optional(),
     targetAmount: zPositiveMoney.optional(),
     targets: z.array(zBudgetTargetInput).min(1).optional()
 });

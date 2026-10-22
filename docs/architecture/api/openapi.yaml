@@ -1153,7 +1153,8 @@ paths:
         `budget.target_already_claimed`, with `params` naming the target
         and the claiming `budgetId`; one that isn't this household's, or
         is archived, is 422 `field.invalid_option` on `targets[i]`
-        (OQ-176). A target sent twice counts once.
+        (OQ-176). A target sent twice counts once. A name is at most 40
+        characters (OQ-194).
       requestBody:
         required: true
         content:
@@ -2963,6 +2964,7 @@ components:
 
     Budget:
       type: object
+      required: [id, householdId, ownerUserId, name, targetAmount, currency, visibility, targets, createdAt]
       properties:
         id: { type: string, format: uuid }
         householdId: { type: string, format: uuid }
@@ -2980,7 +2982,7 @@ components:
       type: object
       required: [name, targetAmount, currency, visibility, targets]
       properties:
-        name: { type: string }
+        name: { type: string, maxLength: 40 }
         targetAmount: { $ref: "#/components/schemas/PositiveMoney" }
         currency: { $ref: "#/components/schemas/Currency" }
         visibility: { type: string, enum: [personal, shared] }
@@ -2992,7 +2994,7 @@ components:
     BudgetUpdateRequest:
       type: object
       properties:
-        name: { type: string }
+        name: { type: string, maxLength: 40 }
         targetAmount: { $ref: "#/components/schemas/PositiveMoney" }
         targets:
           type: array

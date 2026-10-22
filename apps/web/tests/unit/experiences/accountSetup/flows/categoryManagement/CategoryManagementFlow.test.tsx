@@ -212,6 +212,25 @@ const click = async (name: string) => {
   });
 };
 
+/**
+ * Hands the rendered Flow a list fetched again, as the Experience would.
+ *
+ * @param rendered - What `renderFlow` returned.
+ * @param categories - The list as it now stands.
+ */
+const relist = async (
+  { requests, queue, view }: Awaited<ReturnType<typeof renderFlow>>,
+  categories: Category[],
+) => {
+  await act(async () => {
+    view.rerenderInLocale(
+      <AlertProvider queue={queue}>
+        <CategoryManagementFlow {...requests} categories={{ status: 'loaded', categories }} />
+      </AlertProvider>,
+    );
+  });
+};
+
 beforeEach(() => vi.clearAllMocks());
 
 describe('the list it is given', () => {
@@ -315,6 +334,30 @@ describe('editing a category', () => {
     });
     expect(toasts(queue)).toEqual(['New Name updated.']);
     expect(screen.queryByTestId('form')).toBeNull();
+  });
+
+  it('closes the form, saying why, when someone else archived its category (OQ-194)', async () => {
+    const { requests, queue, view } = await renderFlow();
+    await click('edit cat');
+    const archived = cat('cat', { name: 'Housing', archivedAt: '2026-10-05T00:00:00Z' });
+    // The list fetched again for another reason (a retry, another card's write).
+    await relist({ requests, queue, view }, [archived, GROCERIES]);
+    expect(screen.queryByTestId('form')).toBeNull();
+    expect(toasts(queue)).toEqual([
+      "Housing was archived by someone else, so your changes weren't saved.",
+    ]);
+  });
+
+  it('leaves a save in flight to its own answer, even if the list shows it archived', async () => {
+    const save = pending<RequestOutcome>();
+    const { requests, queue, view } = await renderFlow({ onEdit: save.request });
+    await click('edit cat');
+    await click('submit form');
+    const archived = cat('cat', { name: 'Housing', archivedAt: '2026-10-05T00:00:00Z' });
+    await relist({ requests, queue, view }, [archived, GROCERIES]);
+    expect(toasts(queue)).toEqual([]);
+    await save.answer(OK);
+    expect(toasts(queue)).toEqual(['New Name updated.']);
   });
 
   it('keeps the edit card open on failure with its error in the banner only', async () => {

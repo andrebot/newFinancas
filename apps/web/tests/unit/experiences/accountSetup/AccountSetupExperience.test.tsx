@@ -1,17 +1,20 @@
 import { act, fireEvent, screen } from '@testing-library/react';
-import type { Account, Category } from '@financas/api-types';
+import type { Account, Budget, Category } from '@financas/api-types';
 import {
   describe, expect, it, vi,
 } from 'vitest';
 import type { AccountManagementFlowProps } from '../../../../src/experiences/accountSetup/flows/accountManagement/AccountManagementFlow';
+import type { BudgetManagementFlowProps } from '../../../../src/experiences/accountSetup/flows/budgetManagement/BudgetManagementFlow';
 import type { CategoryManagementFlowProps } from '../../../../src/experiences/accountSetup/flows/categoryManagement/CategoryManagementFlow';
-import { AccountSetupExperience } from '../../../../src/experiences/accountSetup/AccountSetupExperience';
+import {
+  AccountSetupExperience, listsToRefresh, listViewOf,
+} from '../../../../src/experiences/accountSetup/AccountSetupExperience';
 import { householdChosen } from '../../../../src/shell/shellState';
 import { AlertProvider } from '../../../../src/utilities/AlertProvider';
 import { createAlertQueue } from '../../../../src/utilities/alerts';
 import { envelope, jsonResponse } from '../../api/fakes';
 import {
-  deferred, fakeFetch, outcomeOf, press, sent, settle, shownBy, Stub, type Answers,
+  deferred, fakeFetch, outcomeOf, press, sent, settle, settleWith, shownBy, Stub, type Answers,
 } from '../experienceFakes';
 import { fakeStore, renderWithShell } from '../../shell/shellFakes';
 
@@ -88,6 +91,42 @@ vi.mock(
           addSub: () => onAddSubcategory('cat', 'Parking'),
           archiveCategory: () => onArchiveCategory('cat'),
           archiveSub: () => onArchiveSubcategory('cat', 's1'),
+        }}
+      />
+    ),
+  }),
+);
+
+vi.mock(
+  '../../../../src/experiences/accountSetup/flows/budgetManagement/BudgetManagementFlow',
+  () => ({
+    /**
+     * The Budget Management Flow's stand-in: one button per request branch.
+     *
+     * @param props - What the Experience passes.
+     * @returns The stub.
+     */
+    BudgetManagementFlow: ({
+      selfUserId, role, budgets, categories, onRetry, onCreate, onEdit, onDelete,
+    }: BudgetManagementFlowProps) => (
+      <Stub
+        name="budgets"
+        shows={{
+          selfUserId, role, budgets, categories,
+        }}
+        events={{ retry: onRetry }}
+        requests={{
+          createBudget: () => onCreate({
+            name: 'Fun Money',
+            targetAmount: 30000,
+            currency: 'USD',
+            visibility: 'personal',
+            targets: [{ categoryId: 'cat' }],
+          }),
+          editBudget: () => onEdit({
+            budgetId: 'fun', name: 'Fun', targetAmount: 20000, targets: [{ subcategoryId: 's1' }],
+          }),
+          deleteBudget: () => onDelete('fun'),
         }}
       />
     ),
@@ -199,7 +238,7 @@ describe('the page', () => {
     await pickTab('Categories');
     expect(screen.getByTestId('categories')).toBeTruthy();
     await pickTab('Budgets');
-    expect(screen.getByText('Budgets arrive in a later task.')).toBeTruthy();
+    expect(screen.getByTestId('budgets')).toBeTruthy();
     await pickTab('Goals');
     expect(screen.getByText('Goals arrive in a later task.')).toBeTruthy();
     await pickTab('Accounts');
@@ -549,5 +588,210 @@ describe('the category writes it answers for its flow', () => {
     expect(await routes(fetchFn)).toContain(
       'POST /api/v1/households/doe/categories/cat/subcategories/s1/archive',
     );
+  });
+});
+
+describe('listViewOf', () => {
+  it('reads a list under its field, its latest failure beside it, or its first failure', () => {
+    const failure = {
+      status: 500, code: 'internal.unexpected', params: {}, details: [], correlationId: 'c',
+    };
+    expect(listViewOf('budgets', {})).toEqual({ status: 'loading' });
+    expect(listViewOf('budgets', { data: [] })).toEqual({ status: 'loaded', budgets: [] });
+    expect(listViewOf('budgets', { data: [], error: failure })).toEqual({
+      status: 'loaded', budgets: [], refreshError: { code: 'internal.unexpected', params: {} },
+    });
+    expect(listViewOf('budgets', { error: failure })).toEqual({
+      status: 'failed', error: { code: 'internal.unexpected', params: {} },
+    });
+  });
+});
+
+describe('listsToRefresh', () => {
+  it('fetches the budgets again after a success', () => {
+    expect(listsToRefresh({ ok: true })).toEqual({ budgets: true, categories: false });
+  });
+
+  it.each([
+    ['budget.target_already_claimed', { budgets: true, categories: false }],
+    ['budget.not_found', { budgets: true, categories: false }],
+    ['validation.failed', { budgets: true, categories: true }],
+    ['auth.forbidden', { budgets: false, categories: false }],
+  ])('after a %s, fetches what moved (OQ-194)', (code, lists) => {
+    expect(listsToRefresh({ ok: false, error: { code } })).toEqual(lists);
+  });
+});
+
+const BUDGET: Budget = {
+  id: 'fun',
+  householdId: 'doe',
+  ownerUserId: 'jane',
+  name: 'Fun Money',
+  targetAmount: 30000,
+  currency: 'USD',
+  visibility: 'personal',
+  targets: [{ categoryId: 'cat' }],
+  createdAt: '2026-10-01T00:00:00Z',
+};
+
+/** The list the budgets endpoint answers. */
+const BUDGETS_LISTED = () => jsonResponse(200, { data: [BUDGET] });
+
+/**
+ * Counts the times a list was fetched.
+ *
+ * @param fetchFn - The fake `fetch`.
+ * @param list - Which: `budgets` or `categories`.
+ * @returns How many `GET …/<list>` went out.
+ */
+const fetchesOf = async (fetchFn: ReturnType<typeof fakeFetch>, list: string) => (
+  (await routes(fetchFn)).filter((route) => route === `GET /api/v1/households/doe/${list}`)
+    .length
+);
+
+/** Selects the Budgets tab so its stub is in front. */
+const pickBudgets = async () => {
+  await act(async () => {
+    fireEvent.click(screen.getByRole('radio', { name: 'Budgets' }));
+  });
+};
+
+/** Answers for a page whose two lists load. */
+const LISTS: Answers = {
+  'GET /households/doe/categories': CATEGORIES_LISTED,
+  'GET /households/doe/budgets': BUDGETS_LISTED,
+};
+
+describe('the budgets it holds for their flow', () => {
+  it('hands down the budgets and the categories, with the actor', async () => {
+    await renderExperience(LISTS);
+    await pickBudgets();
+    expect(shownBy('budgets')).toEqual({
+      selfUserId: 'jane',
+      role: 'Owner',
+      budgets: { status: 'loaded', budgets: [BUDGET] },
+      categories: { status: 'loaded', categories: [CATEGORY] },
+    });
+  });
+
+  it('fetches both lists again on a retry', async () => {
+    const { fetchFn } = await renderExperience(LISTS);
+    await pickBudgets();
+    await press('retry');
+    expect(await fetchesOf(fetchFn, 'budgets')).toBe(2);
+    expect(await fetchesOf(fetchFn, 'categories')).toBe(2);
+  });
+});
+
+describe('the budget writes it answers for their flow', () => {
+  it('creates with only the fields, and answers once the budgets are fetched again', async () => {
+    const { fetchFn } = await renderExperience({
+      ...LISTS, 'POST /households/doe/budgets': () => jsonResponse(201, BUDGET),
+    });
+    await pickBudgets();
+    await press('createBudget');
+    expect(outcomeOf('budgets')).toEqual({ ok: true });
+    const calls = await sent(fetchFn);
+    const post = calls.find(({ route }) => route === 'POST /api/v1/households/doe/budgets');
+    expect(post?.body).toEqual({
+      name: 'Fun Money',
+      targetAmount: 30000,
+      currency: 'USD',
+      visibility: 'personal',
+      targets: [{ categoryId: 'cat' }],
+    });
+    expect(await fetchesOf(fetchFn, 'budgets')).toBe(2);
+    expect(await fetchesOf(fetchFn, 'categories')).toBe(1);
+  });
+
+  it('holds the answer until the budgets fetched again are in (OQ-194)', async () => {
+    const refetch = deferred();
+    let listed = 0;
+    await renderExperience({
+      ...LISTS,
+      'GET /households/doe/budgets': () => {
+        listed += 1;
+        return listed === 1 ? BUDGETS_LISTED() : refetch.promise;
+      },
+      'POST /households/doe/budgets': () => jsonResponse(201, BUDGET),
+    });
+    await pickBudgets();
+    await press('createBudget');
+    expect(screen.getByTestId('budgets-outcome').textContent).toBe('');
+    await settleWith(refetch, BUDGETS_LISTED());
+    expect(outcomeOf('budgets')).toEqual({ ok: true });
+  });
+
+  it('edits its budget with the changes, address stripped out', async () => {
+    const { fetchFn } = await renderExperience({
+      ...LISTS, 'PATCH /households/doe/budgets/fun': () => jsonResponse(200, BUDGET),
+    });
+    await pickBudgets();
+    await press('editBudget');
+    expect(outcomeOf('budgets')).toEqual({ ok: true });
+    const calls = await sent(fetchFn);
+    const patch = calls.find(({ route }) => route.startsWith('PATCH'));
+    expect(patch?.body).toEqual({
+      name: 'Fun', targetAmount: 20000, targets: [{ subcategoryId: 's1' }],
+    });
+    expect(await fetchesOf(fetchFn, 'budgets')).toBe(2);
+  });
+
+  it('deletes its budget and fetches the budgets again', async () => {
+    const { fetchFn } = await renderExperience({
+      ...LISTS, 'DELETE /households/doe/budgets/fun': () => jsonResponse(204),
+    });
+    await pickBudgets();
+    await press('deleteBudget');
+    expect(outcomeOf('budgets')).toEqual({ ok: true });
+    expect(await routes(fetchFn)).toContain('DELETE /api/v1/households/doe/budgets/fun');
+    expect(await fetchesOf(fetchFn, 'budgets')).toBe(2);
+  });
+
+  it('answers a target claimed meanwhile once the budgets are fetched again (409)', async () => {
+    const { fetchFn } = await renderExperience({
+      ...LISTS,
+      'POST /households/doe/budgets': () => jsonResponse(
+        409,
+        envelope('budget.target_already_claimed', {
+          params: { categoryId: 'cat', budgetId: 'home' },
+        }),
+      ),
+    });
+    await pickBudgets();
+    await press('createBudget');
+    expect(outcomeOf('budgets')).toEqual({
+      ok: false,
+      error: {
+        code: 'budget.target_already_claimed', params: { categoryId: 'cat', budgetId: 'home' },
+      },
+    });
+    expect(await fetchesOf(fetchFn, 'budgets')).toBe(2);
+    expect(await fetchesOf(fetchFn, 'categories')).toBe(1);
+  });
+
+  it('fetches the categories too when a target was refused as gone (422)', async () => {
+    const { fetchFn } = await renderExperience({
+      ...LISTS,
+      'PATCH /households/doe/budgets/fun': () => jsonResponse(422, envelope('validation.failed')),
+    });
+    await pickBudgets();
+    await press('editBudget');
+    expect(await fetchesOf(fetchFn, 'budgets')).toBe(2);
+    expect(await fetchesOf(fetchFn, 'categories')).toBe(2);
+  });
+
+  it('fetches nothing again after a failure that moved nothing', async () => {
+    const { fetchFn } = await renderExperience({
+      ...LISTS,
+      'DELETE /households/doe/budgets/fun': () => jsonResponse(403, envelope('auth.forbidden')),
+    });
+    await pickBudgets();
+    await press('deleteBudget');
+    expect(outcomeOf('budgets')).toEqual({
+      ok: false, error: { code: 'auth.forbidden', params: {} },
+    });
+    expect(await fetchesOf(fetchFn, 'budgets')).toBe(1);
+    expect(await fetchesOf(fetchFn, 'categories')).toBe(1);
   });
 });

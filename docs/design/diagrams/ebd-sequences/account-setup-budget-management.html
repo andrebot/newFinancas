@@ -55,50 +55,66 @@
 </head>
 <body>
   <h1>Account Setup — Budget Management</h1>
-  <p class="subtitle"><span class="route">GET/POST/PATCH/DELETE /households/:householdId/budgets</span>.</p>
+  <p class="subtitle"><span class="route">GET/POST/PATCH/DELETE /households/:householdId/budgets</span>, with the categories the Experience already holds. Built in FL13 (OQ-194).</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
     actor User
+    participant BL as Budget Cards
     participant BF as Budget Form
     participant CP as Claim-Aware<br/>Category Picker
     participant DC as Delete Confirm
     participant FLOW as Budget Management<br/>Flow
     participant EXP as Account Setup<br/>Experience
     participant API as Backend API
-    FLOW->>EXP: request budgets
-    EXP->>API: GET /households/:householdId/budgets
-    API-->>EXP: every Budget the caller can see, with its targets (unpaginated, OQ-176)
-    EXP-->>FLOW: state
-    FLOW-->>CP: render categories — claimed ones in this scope disabled, showing which budget owns them
-    User->>BF: name, currency, visibility, monthly target
-    User->>CP: pick free categories / subcategories
-    CP->>FLOW: emit coverChosen
-    BF->>FLOW: emit budgetSubmitted
-    FLOW->>EXP: request saveBudget
-    EXP->>API: POST /households/:householdId/budgets (or PATCH)
-    alt 409 budget.target_already_claimed
-        API-->>EXP: error code + params {target, budgetId} (claimed meanwhile)
-        EXP-->>FLOW: state: error — picker refreshes
-    else 422 field.invalid_option on targets[i]
-        API-->>EXP: a category archived meanwhile
-        EXP-->>FLOW: state: error on that target
-    else saved
-        API-->>EXP: budget
-        EXP-->>FLOW: state refreshed
+    EXP->>API: GET /households/:householdId/budgets (as the page mounts)
+    API-->>EXP: every shared Budget + the caller's personal ones, with targets (unpaginated, OQ-176)
+    EXP-->>FLOW: budgets + categories (loading / failed → retry / loaded) — both the Experience's
+    FLOW-->>BL: cards — name, visibility, currency, target / month, covers (no spend)
+    opt edit or delete (owner / Owner, Admin, creator)
+        User->>BL: click the card (anywhere — its name is its one button)
+        BL->>FLOW: emit edit(budgetId) — the edit drawer opens
     end
-    opt delete
-        User->>DC: confirm
+    alt add (every member, a Viewer's is personal) or edit
+        User->>BF: name (≤ 40), currency + visibility (locked on edit), monthly target
+        FLOW-->>CP: groups weighed in the form's scope — claimed rows disabled, naming their budget
+        User->>CP: tick whole categories / open a group, tick subcategories
+        CP->>BF: emit toggle
+        BF->>FLOW: emit budgetSubmitted (ticks taken meanwhile dropped)
+        FLOW->>EXP: request createBudget / editBudget
+        EXP->>API: POST /households/:householdId/budgets (or PATCH …/:budgetId {name, targetAmount, targets})
+    else delete (from the edit drawer)
+        User->>DC: the drawer's danger zone → its inline confirm
         DC->>FLOW: emit deleteConfirmed
         FLOW->>EXP: request deleteBudget
         EXP->>API: DELETE /households/:householdId/budgets/:budgetId
-        API-->>EXP: 204 — its claims are free again
-        EXP-->>FLOW: state refreshed
+    end
+    alt 409 budget.target_already_claimed
+        API-->>EXP: error code (+ params {categoryId | subcategoryId, budgetId})
+        EXP->>API: GET …/budgets (fetched again)
+        EXP-->>FLOW: outcome: failed — banner names the target and its budget, picker shows it taken
+    else 404 budget.not_found (deleted meanwhile)
+        API-->>EXP: error code
+        EXP->>API: GET …/budgets (fetched again — the budget is gone)
+        EXP-->>FLOW: outcome: failed — an edit's drawer closes, a delete's confirm stays
+        Note over FLOW: toast "{name} was deleted by someone else…" (edit) / the error (delete)
+    else 422 validation.failed (a category archived meanwhile)
+        API-->>EXP: error code
+        EXP->>API: GET …/budgets + GET …/categories?includeArchived=true
+        EXP-->>FLOW: outcome: failed — banner, picker drops what is gone
+    else other failure
+        API-->>EXP: error code
+        EXP-->>FLOW: outcome: failed — a form's in its banner, typing kept, a delete's toasted
+    else ok
+        API-->>EXP: budget (or 204 — its claims are free again)
+        EXP->>API: GET …/budgets (fetched again)
+        EXP-->>FLOW: outcome: ok, budgets refreshed — the drawer closes
+        Note over FLOW: toast "{name} created / updated / deleted."
     end
     </pre>
   </div>
   <div class="notes">
-<ul><li>Setup page shows no spend progress (stakeholder) — the list carries definitions only (OQ-176).</li><li>Currency and visibility can't change after creation: the edit form shows them read-only.</li></ul>
+<ul><li>Setup page shows no spend progress (stakeholder) — the list carries definitions only (OQ-176).</li><li>Claims are shared state other members change, so the budgets are the Experience's and fetched again after each write, and after a failure that says they moved (OQ-194).</li><li>Currency and visibility can't change after creation: the edit form shows them locked.</li></ul>
   </div>
   <script>
     mermaid.initialize({

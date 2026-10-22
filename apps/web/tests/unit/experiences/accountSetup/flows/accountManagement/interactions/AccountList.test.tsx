@@ -6,7 +6,6 @@ import {
 import { formatMoney } from '../../../../../../../src/utilities/formatting';
 import { renderInLocale } from '../../../../../../support/renderInLocale';
 import {
-  accountCardClasses,
   AccountList, outstandingOf, type AccountListProps,
 } from '../../../../../../../src/experiences/accountSetup/flows/accountManagement/interactions/AccountList';
 
@@ -152,7 +151,7 @@ describe('the accounts’ cards', () => {
       cards: CREDIT.cards.slice(0, 1),
     });
     renderPanel({ view: { status: 'loaded', accounts: [WITH_CARD] } });
-    const card = screen.getByRole('button', { name: 'Checking with card' }).parentElement;
+    const card = screen.getByRole('button', { name: 'Checking with card' }).closest('section');
     expect(card?.textContent).toContain('Balance');
     expect(card?.textContent).toContain(formatMoney(99_00, 'BRL'));
     expect(screen.getByText('1234')).toBeTruthy();
@@ -162,13 +161,6 @@ describe('the accounts’ cards', () => {
     const PERSONAL = account('per', { name: 'Personal Checking', visibility: 'personal' });
     renderPanel({ view: { status: 'loaded', accounts: [PERSONAL] } });
     expect(screen.getByText('Personal')).toBeTruthy();
-  });
-
-  it('lifts only a card that opens on hover', () => {
-    expect(accountCardClasses(true)).toBe(
-      'relative flex flex-col gap-3 cursor-pointer transition-colors hover:border-muted',
-    );
-    expect(accountCardClasses(false)).toBe('relative flex flex-col gap-3');
   });
 
   it('stretches an editable card\'s name button over the whole card', () => {
