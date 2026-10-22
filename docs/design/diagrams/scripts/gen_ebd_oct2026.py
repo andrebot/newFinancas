@@ -61,7 +61,7 @@ EXPERIENCES = [
     ("Account Setup", "account-setup", "Configure the containers and rules everything else runs on",
      [("Account & Card Management", ["Account Form", "Card Entry with Live Preview", "Archive Confirm"], "account-card-management"),
       ("Category Management", ["Category Card", "Icon & Colour Picker", "Inline Subcategory Entry", "Archive Confirm"], "category-management"),
-      ("Budget Management", ["Budget Form", "Claim-Aware Category Picker", "Delete Confirm"], "budget-management"),
+      ("Budget Management", ["Budget Cards", "Budget Form", "Claim-Aware Category Picker", "Delete Confirm"], "budget-management"),
       ("Goal Management", ["Goal Form", "Goal Progress Card", "Exchange-Rate Calculator", "Complete / Reopen Confirm"], "goal-management")],
      [], ["ValidationUtility", "AlertUtility", "ThemeUtility", "I18nUtility", "FormattingUtility"],
      "Holding Management left this Experience (holdings are created by transactions, maintained in Track Investments). The Exchange-Rate Calculator is client-side only (FR-9)."),
@@ -758,39 +758,45 @@ else ok
 end
 FLOW-->>CC: re-render (colour via ThemeUtility)
 """, ["Colour stored as a token, resolved per theme (OQ-85).", "The Experience answers after the list is fetched again, so the Flow never patches it (OQ-193).", "A subcategory's add is the category's own atomic PATCH — unlisted ones untouched (OQ-173)."]),
-    ("account-setup-budget-management", "Account Setup — Budget Management", f"{R('GET/POST/PATCH/DELETE /households/:householdId/budgets')}.",
-     [("BF", "Budget Form"), ("CP", "Claim-Aware<br/>Category Picker"), ("DC", "Delete Confirm"), FLOW("Budget Management"), EXP("Account Setup"), API],
+    ("account-setup-budget-management", "Account Setup — Budget Management", f"{R('GET/POST/PATCH/DELETE /households/:householdId/budgets')}, with the categories the Experience already holds. Built in FL13 (OQ-194).",
+     [("BL", "Budget Cards"), ("BF", "Budget Form"), ("CP", "Claim-Aware<br/>Category Picker"), ("DC", "Delete Confirm"), FLOW("Budget Management"), EXP("Account Setup"), API],
      """
-FLOW->>EXP: request budgets
-EXP->>API: GET /households/:householdId/budgets
-API-->>EXP: every Budget the caller can see, with its targets (unpaginated, OQ-176)
-EXP-->>FLOW: state
-FLOW-->>CP: render categories — claimed ones in this scope disabled, showing which budget owns them
-User->>BF: name, currency, visibility, monthly target
-User->>CP: pick free categories / subcategories
-CP->>FLOW: emit coverChosen
-BF->>FLOW: emit budgetSubmitted
-FLOW->>EXP: request saveBudget
-EXP->>API: POST /households/:householdId/budgets (or PATCH)
-alt 409 budget.target_already_claimed
-    API-->>EXP: error code + params {target, budgetId} (claimed meanwhile)
-    EXP-->>FLOW: state: error — picker refreshes
-else 422 field.invalid_option on targets[i]
-    API-->>EXP: a category archived meanwhile
-    EXP-->>FLOW: state: error on that target
-else saved
-    API-->>EXP: budget
-    EXP-->>FLOW: state refreshed
-end
-opt delete
-    User->>DC: confirm
+EXP->>API: GET /households/:householdId/budgets (as the page mounts)
+API-->>EXP: every shared Budget + the caller's personal ones, with targets (unpaginated, OQ-176)
+EXP-->>FLOW: budgets + categories (loading / failed → retry / loaded) — both the Experience's
+FLOW-->>BL: cards — name, visibility, currency, target / month, covers (no spend)
+alt add (every member, a Viewer's is personal) or edit (owner / Owner, Admin, creator)
+    User->>BF: name (≤ 40), currency + visibility (locked on edit), monthly target
+    FLOW-->>CP: groups weighed in the form's scope — claimed rows disabled, naming their budget
+    User->>CP: tick whole categories / open a group, tick subcategories
+    CP->>BF: emit toggle
+    BF->>FLOW: emit budgetSubmitted (ticks taken meanwhile dropped)
+    FLOW->>EXP: request createBudget / editBudget
+    EXP->>API: POST /households/:householdId/budgets (or PATCH …/:budgetId {name, targetAmount, targets})
+else delete (owner / Owner, Admin, creator)
+    User->>DC: the card's inline confirm
     DC->>FLOW: emit deleteConfirmed
     FLOW->>EXP: request deleteBudget
     EXP->>API: DELETE /households/:householdId/budgets/:budgetId
-    API-->>EXP: 204 — its claims are free again
-    EXP-->>FLOW: state refreshed
 end
-""", ["Setup page shows no spend progress (stakeholder) — the list carries definitions only (OQ-176).", "Currency and visibility can't change after creation: the edit form shows them read-only."]),
+alt 409 budget.target_already_claimed / 404 budget.not_found
+    API-->>EXP: error code (+ params {categoryId | subcategoryId, budgetId})
+    EXP->>API: GET …/budgets (fetched again)
+    EXP-->>FLOW: outcome: failed — banner names the target and its budget, picker shows it taken
+else 422 validation.failed (a category archived meanwhile)
+    API-->>EXP: error code
+    EXP->>API: GET …/budgets + GET …/categories?includeArchived=true
+    EXP-->>FLOW: outcome: failed — banner, picker drops what is gone
+else other failure
+    API-->>EXP: error code
+    EXP-->>FLOW: outcome: failed — a form's in its banner, typing kept, a delete's toasted
+else ok
+    API-->>EXP: budget (or 204 — its claims are free again)
+    EXP->>API: GET …/budgets (fetched again)
+    EXP-->>FLOW: outcome: ok, budgets refreshed — drawer / confirm closes
+    Note over FLOW: toast "{name} created / updated / deleted."
+end
+""", ["Setup page shows no spend progress (stakeholder) — the list carries definitions only (OQ-176).", "Claims are shared state other members change, so the budgets are the Experience's and fetched again after each write, and after a failure that says they moved (OQ-194).", "Currency and visibility can't change after creation: the edit form shows them locked."]),
     ("account-setup-goal-management", "Account Setup — Goal Management", f"{R('POST/PATCH/DELETE /households/:householdId/goals')}, {R('POST /households/:householdId/goals/:id/complete|reopen')}, {R('GET /households/:householdId/goals')} (definitions, AccountManager) + {R('GET /households/:householdId/goal-progress')} (progress, InsightsManager — OQ-177).",
      [("GF", "Goal Form"), ("GP", "Goal Progress Card"), ("FX", "Exchange-Rate<br/>Calculator"), ("CR", "Complete / Reopen<br/>Confirm"), FLOW("Goal Management"), EXP("Account Setup"), API],
      """

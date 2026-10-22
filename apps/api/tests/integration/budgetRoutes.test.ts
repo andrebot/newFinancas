@@ -119,6 +119,7 @@ describe('budget routes (OQ-174: under /households/:householdId)', () => {
     ['a zero target', { targetAmount: 0 }, 'targetAmount'],
     ['no targets', { targets: [] }, 'targets'],
     ['an unknown currency', { currency: 'EUR' }, 'currency'],
+    ['a name over 40 characters (OQ-194)', { name: 'x'.repeat(41) }, 'name'],
     ['a target id that is not a UUID', { targets: [{ categoryId: 'food' }] },
       'targets[0].categoryId'],
   ])('POST …/budgets refuses %s before the Manager', async (_, change, field) => {
@@ -161,6 +162,17 @@ describe('budget routes (OQ-174: under /households/:householdId)', () => {
 
     expect(response.status).toBe(422);
     expect(await failingFields(response)).toEqual(['targets']);
+    expect(account.editBudget).not.toHaveBeenCalled();
+  });
+
+  it('PATCH …/budgets/:budgetId refuses a name over 40 characters (OQ-194)', async () => {
+    const { app, account } = setup();
+
+    const response = await send(app, 'PATCH', `${BUDGETS}/${GROCERIES}`, { name: 'y'.repeat(41) });
+
+    expect(response.status).toBe(422);
+    const { error } = await response.json() as { error: { details: unknown[] } };
+    expect(error.details).toEqual([{ field: 'name', code: 'string.max', params: { max: 40 } }]);
     expect(account.editBudget).not.toHaveBeenCalled();
   });
 

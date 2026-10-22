@@ -17,7 +17,7 @@ import {
   CardFields, draftsOf, EMPTY_CARD_FORM, withoutObjections, type CardFormState,
   type CardObjections,
 } from './CardFields';
-import { LockedField } from './LockedField';
+import { LockedField } from '../../../../../kit/field/LockedField';
 
 // The create-account drawer (FL11, mockup 40; OQ-169): the name, the type and
 // currency — locked in once created — the visibility (fixed at Personal for a

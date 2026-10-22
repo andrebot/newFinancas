@@ -5076,6 +5076,22 @@ not a hardcoded assumption.
 
 **Task 90 (`FL12`) is complete.**
 
+### OQ-194: Budget Management (task FL13)
+**Design decisions:**
+- **The Budgets tab is the live flow; Goals stays a placeholder.** The page at `/account-setup` now renders mockup 42's grid of budget cards — the name, its visibility and currency tags, the monthly target and the categories it covers as chips, with Edit and Delete as icon buttons — and an Add Budget button beside the section's description. No spend shows: setup carries definitions only (OQ-176).
+- **One drawer for Add and Edit** (mockup 42's): the name, the currency and visibility (picked on Add — BRL and Shared to start, as drawn — and shown locked on Edit, with the mockup's note), the monthly target in the hero money look, and the Covers picker. Edit sends only the name, the target and the whole target set (OQ-176).
+- **The picker groups subcategories under their category** (a divergence from mockup 42, which draws a flat list where a subcategory appears only as `Category › Subcategory`): one row per category — ticking it takes the whole category, noted "all subcategories" (FR-4.6) — with a chevron that reveals its subcategory rows, indented. A group opens by itself when one of its subcategories is ticked on its own or claimed elsewhere; the chevron opens and closes the rest. Every row visible at once grew too long with the seeded categories' subcategories.
+- **Claims are weighed in the form's scope** (FR-4.7): the household's shared budgets when the visibility is Shared, the caller's own personal ones when Personal — switching the visibility re-reads which rows are free. A row another budget holds is disabled and names it ("in Fun Money"; "covered by Fun Money" for a subcategory whose whole category is held; "partly in Fun Money" for a category one of whose subcategories is held, which can't be taken whole). Ticking a whole category drops the single subcategories under it, now covered. A tick that another budget took meanwhile is dropped from what is sent.
+- **Only open categories are listed**, plus the archived ones the edited budget already holds, marked "archived": they stay ticked and can be let go (OQ-176 keeps such a claim). An archived category listed only for a subcategory the budget holds can't be ticked whole.
+- **The budgets are the Experience's, like the categories** (OQ-193), not the Flow's own list as FL11's accounts are: claims are shared state other members change, so the list must be the server's. The Experience subscribes to `GET …/budgets` and, after a write, fetches it again before it answers — and also after a failure that says the lists moved: a target claimed meanwhile (409 `budget.target_already_claimed`) or a budget deleted meanwhile (404 `budget.not_found`) fetch the budgets again; a target refused as gone (422 `validation.failed`, a category archived meanwhile) fetches the categories too. The picker then shows what is free now, and the 409's banner names the target and the budget that took it.
+- **A failure shows once, where it belongs** (as OQ-192/193): a create's or edit's in the drawer's banner, with what was typed kept; a delete's toasted, its confirm staying open. Successes toast. One request at a time: while one is out every control waits and the drawer doesn't close.
+- **Delete sits behind the card's inline destructive confirm**, the category card's pattern: a hard delete (FR-4.10), so the copy says its categories become free for another budget and past months keep their history.
+- **Every member may add a budget; a Viewer's is personal** (as OQ-192's accounts): the visibility is locked at Personal for them. Edit and Delete show on a personal budget to its owner, and on a shared one to an Owner or Admin, or the Member who created it (OQ-176).
+- **Budget names are at most 40 characters.** The contract's create and update requests carry `maxLength: 40` (a longer one is a 422 `string.max`), and the form stops typing there (`config/constants.ts` → `budgets.nameMaxLength`). The contract's `Budget` schema gained its `required` list, as Category's did (OQ-193).
+- **`LockedField` moved into the kit** (`kit/field/`, with its story): the budget drawer uses it too, and a Flow doesn't import from a sibling Flow.
+
+**Task 91 (`FL13`) is complete.**
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.

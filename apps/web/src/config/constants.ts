@@ -181,6 +181,12 @@ export const categories = {
   nameMaxLength: 20,
 } as const;
 
+/** Budget Management (FL13). */
+export const budgets = {
+  /** The longest budget name: the contract's `maxLength` (OQ-194). */
+  nameMaxLength: 40,
+} as const;
+
 /** Manage Profile (X3). */
 export const profile = {
   /**

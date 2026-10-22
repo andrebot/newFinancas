@@ -1,5 +1,6 @@
 import type { Category, CategoryColor, CategoryIcon } from '@financas/api-types';
 import type { RequestFailure, RequestOutcome } from '../../../../utilities/requestOutcome';
+import type { CategoriesView } from '../../sharedLists';
 
 // The Category Management Flow's state (FL12; OQ-193): the request that is
 // out, the open form card (create, or edit one category in place), the
@@ -35,16 +36,8 @@ export type Outgoing = { readonly kind: 'create' }
     readonly subcategoryId: string;
   };
 
-/** The list as the Experience holds it, archived included (FR-10.3). A list
- * whose latest fetch failed keeps showing, with that failure beside it. */
-export type CategoriesView = { readonly status: 'loading' }
-  | { readonly status: 'failed'; readonly error: RequestFailure }
-  | {
-    readonly status: 'loaded';
-    readonly categories: readonly Category[];
-    /** The latest fetch failed: the list may be out of date (OQ-193). */
-    readonly refreshError?: RequestFailure | undefined;
-  };
+/** The list as the Experience holds it (OQ-193). */
+export type { CategoriesView };
 
 /** The form card that is open, if any (mockup 41's dashed card). */
 export type OpenForm = { readonly mode: 'create' }

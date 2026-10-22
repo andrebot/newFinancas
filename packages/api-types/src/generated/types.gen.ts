@@ -394,15 +394,15 @@ export type BudgetTargetInput = {
 };
 
 export type Budget = {
-    id?: string;
-    householdId?: string;
-    ownerUserId?: string | null;
-    name?: string;
-    targetAmount?: Money;
-    currency?: Currency;
-    visibility?: 'personal' | 'shared';
-    targets?: Array<BudgetTargetInput>;
-    createdAt?: string;
+    id: string;
+    householdId: string;
+    ownerUserId: string | null;
+    name: string;
+    targetAmount: Money;
+    currency: Currency;
+    visibility: 'personal' | 'shared';
+    targets: Array<BudgetTargetInput>;
+    createdAt: string;
 };
 
 export type BudgetCreateRequest = {

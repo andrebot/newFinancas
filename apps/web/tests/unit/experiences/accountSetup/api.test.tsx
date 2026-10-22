@@ -1,4 +1,6 @@
-import type { Account, Category, Subcategory } from '@financas/api-types';
+import type {
+  Account, Budget, Category, Subcategory,
+} from '@financas/api-types';
 import { describe, expect, it } from 'vitest';
 import { accountSetupApi } from '../../../../src/experiences/accountSetup/api';
 import { jsonResponse } from '../../api/fakes';
@@ -243,6 +245,103 @@ describe('archiveSubcategory', () => {
     expect(calls[0]).toEqual({
       route: 'POST /api/v1/households/doe/categories/cat/subcategories/s1/archive',
       body: undefined,
+    });
+  });
+});
+
+const BUDGET: Budget = {
+  id: 'fun',
+  householdId: 'doe',
+  ownerUserId: 'jane',
+  name: 'Fun Money',
+  targetAmount: 30000,
+  currency: 'USD',
+  visibility: 'personal',
+  targets: [{ categoryId: 'cat' }],
+  createdAt: '2026-10-01T00:00:00Z',
+};
+
+describe('listBudgets', () => {
+  it('reads the list out of its envelope', async () => {
+    const fetchFn = fakeFetch({
+      'GET /households/doe/budgets': () => jsonResponse(200, { data: [BUDGET] }),
+    });
+    const { store } = fakeStore({ refreshToken: 'r-0', fetchFn });
+    const list = store.dispatch(accountSetupApi.endpoints.listBudgets.initiate('doe'));
+
+    expect((await list).data).toEqual([BUDGET]);
+    list.unsubscribe();
+  });
+
+  it('reads an answer with no list as none', async () => {
+    const fetchFn = fakeFetch({ 'GET /households/doe/budgets': () => jsonResponse(200, {}) });
+    const { store } = fakeStore({ refreshToken: 'r-0', fetchFn });
+    const list = store.dispatch(accountSetupApi.endpoints.listBudgets.initiate('doe'));
+
+    expect((await list).data).toEqual([]);
+    list.unsubscribe();
+  });
+});
+
+describe('createBudget', () => {
+  it('posts the request without its address and returns what was written', async () => {
+    const fetchFn = fakeFetch({ 'POST /households/doe/budgets': () => jsonResponse(201, BUDGET) });
+    const { store } = fakeStore({ refreshToken: 'r-0', fetchFn });
+    const created = store.dispatch(accountSetupApi.endpoints.createBudget.initiate({
+      householdId: 'doe',
+      name: 'Fun Money',
+      targetAmount: 30000,
+      currency: 'USD',
+      visibility: 'personal',
+      targets: [{ categoryId: 'cat' }],
+    }));
+
+    expect((await created).data).toEqual(BUDGET);
+    const calls = await sent(fetchFn);
+    expect(calls[0]).toEqual({
+      route: 'POST /api/v1/households/doe/budgets',
+      body: {
+        name: 'Fun Money',
+        targetAmount: 30000,
+        currency: 'USD',
+        visibility: 'personal',
+        targets: [{ categoryId: 'cat' }],
+      },
+    });
+  });
+});
+
+describe('editBudget', () => {
+  it('patches the budget with only its changes, address stripped out', async () => {
+    const fetchFn = fakeFetch({
+      'PATCH /households/doe/budgets/fun': () => jsonResponse(200, BUDGET),
+    });
+    const { store } = fakeStore({ refreshToken: 'r-0', fetchFn });
+    const edited = store.dispatch(accountSetupApi.endpoints.editBudget.initiate({
+      householdId: 'doe', budgetId: 'fun', name: 'Fun', targets: [{ subcategoryId: 's1' }],
+    }));
+
+    expect((await edited).data).toEqual(BUDGET);
+    const calls = await sent(fetchFn);
+    expect(calls[0]).toEqual({
+      route: 'PATCH /api/v1/households/doe/budgets/fun',
+      body: { name: 'Fun', targets: [{ subcategoryId: 's1' }] },
+    });
+  });
+});
+
+describe('deleteBudget', () => {
+  it('deletes the budget with no body and returns nothing', async () => {
+    const fetchFn = fakeFetch({ 'DELETE /households/doe/budgets/fun': () => jsonResponse(204) });
+    const { store } = fakeStore({ refreshToken: 'r-0', fetchFn });
+    const deleted = store.dispatch(accountSetupApi.endpoints.deleteBudget.initiate({
+      householdId: 'doe', budgetId: 'fun',
+    }));
+
+    expect((await deleted).data).toBeNull();
+    const calls = await sent(fetchFn);
+    expect(calls[0]).toEqual({
+      route: 'DELETE /api/v1/households/doe/budgets/fun', body: undefined,
     });
   });
 });

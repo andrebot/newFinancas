@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { LockedField } from '../../../../../../../src/experiences/accountSetup/flows/accountManagement/interactions/LockedField';
+import { LockedField } from '../../../../src/kit/field/LockedField';
 
 // A locked field (BDT: unit, display only): its label and its value, nothing to change.
 
