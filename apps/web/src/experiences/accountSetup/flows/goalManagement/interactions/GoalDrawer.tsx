@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import type { Currency, Goal } from '@financas/api-types';
-import { goals as goalSettings } from '../../../../../config/constants';
+import { goals as goalSettings, money } from '../../../../../config/constants';
 import { InlineBanner } from '../../../../../kit/alert/InlineBanner';
 import { Button } from '../../../../../kit/button/Button';
 import { DangerZone } from '../../../../../kit/card/DangerZone';
@@ -30,8 +30,6 @@ import type { GoalAction, NewGoal } from '../goalManagementState';
 // here — it is the Holding's (OQ-48), as the form's note says. It holds what
 // is typed, checks it before emitting, and shows the server's objections in
 // its banner. The drawer itself (open/close) belongs to the Flow.
-
-const CURRENCIES: readonly Currency[] = ['BRL', 'USD'];
 
 /** How each visibility's pill looks (mockup 43). */
 const VISIBILITY_OPTIONS = [
@@ -394,7 +392,7 @@ export function GoalDrawer({
             <LabelledPills label={translator.text('goalManagement', 'field.currency')}>
               <SegmentedControl
                 label={translator.text('goalManagement', 'field.currency')}
-                options={CURRENCIES.map((value) => ({ value, label: value }))}
+                options={money.currencies.map((value) => ({ value, label: value }))}
                 value={currency}
                 onChange={setCurrency}
               />

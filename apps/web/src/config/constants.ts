@@ -2,6 +2,7 @@
 // only in code, grouped by area. Facts that belong to an algorithm (a regular
 // expression, a date format) stay next to the code that implements it.
 
+import type { Currency } from '@financas/api-types';
 import type { CardNetwork, CategoryIcon } from '@financas/reference';
 
 /** Form field rules (FU1 ValidationUtility). */
@@ -41,6 +42,12 @@ export const theme = {
 export const i18n = {
   /** Where the last applied locale is remembered, so a reload starts in it. */
   storageKey: 'financas.locale',
+} as const;
+
+/** Money (FR-9): the currencies it is kept in. */
+export const money = {
+  /** Every currency, in the order a currency picker offers them. */
+  currencies: ['BRL', 'USD'] satisfies readonly Currency[],
 } as const;
 
 /** Money, rates, percents, dates and lists (FU6 FormattingUtility, NFR-I18N-2, OQ-179). */

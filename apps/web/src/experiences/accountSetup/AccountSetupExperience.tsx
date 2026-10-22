@@ -265,9 +265,27 @@ const useBudgets = (
 };
 
 /**
+ * Tells which failure a status's list carries: its definitions', or — once
+ * both have loaded — a progress refetch's, since the funding it shows may then
+ * be out of date (OQ-193).
+ *
+ * @param goals - The definitions' query.
+ * @param progress - The progress read's query.
+ * @returns The failure, if any.
+ */
+const goalListErrorOf = (
+  goals: ListQueryState<Goal>,
+  progress: ListQueryState<GoalWithProgress>,
+) => {
+  if (goals.error !== undefined || goals.data === undefined) return goals.error;
+  return progress.data === undefined ? undefined : progress.error;
+};
+
+/**
  * Joins a status's goals to their progress by goal id (OQ-177): each goal gets
  * its funding once the progress read holds it, and none while that read is
- * loading or has failed — the definitions show on their own (OQ-195).
+ * loading or never loaded — the definitions show on their own (OQ-195). A
+ * progress refetch that failed keeps the funding and marks the list stale.
  *
  * @param goals - The definitions' query.
  * @param progress - The progress read's query.
@@ -284,22 +302,20 @@ export const goalListViewOf = (
       ? { goal, funding: { contributions: found.contributions, fundedBy: found.fundedBy } }
       : { goal };
   });
-  return listViewOf('goals', { data: entries, error: goals.error });
+  return listViewOf('goals', { data: entries, error: goalListErrorOf(goals, progress) });
 };
 
 /**
- * Reads how the progress read went, both statuses together: failed if either
- * failed, loading while either has no data yet, loaded otherwise.
+ * Reads how a status's progress read went: loaded once it holds data (a later
+ * failure marks the list stale instead), failed if it never loaded, loading
+ * otherwise.
  *
- * @param queries - Each status's progress query.
- * @returns The joint status.
+ * @param query - The status's progress query.
+ * @returns Its status.
  */
-export const progressStatusOf = (
-  ...queries: readonly ListQueryState<GoalWithProgress>[]
-): ProgressStatus => {
-  if (queries.some((query) => query.error !== undefined)) return 'failed';
-  if (queries.some((query) => query.data === undefined)) return 'loading';
-  return 'loaded';
+export const progressStatusOf = (query: ListQueryState<GoalWithProgress>): ProgressStatus => {
+  if (query.data !== undefined) return 'loaded';
+  return query.error === undefined ? 'loading' : 'failed';
 };
 
 /**
@@ -321,10 +337,23 @@ const useGoals = (householdId: string): Omit<GoalManagementFlowProps, 'selfUserI
   const [deleteGoal] = useDeleteGoalMutation();
   const [completeGoal] = useCompleteGoalMutation();
   const [reopenGoal] = useReopenGoalMutation();
-  const queries = [activeGoals, completedGoals, activeProgress, completedProgress];
+  const progressQueries = [activeProgress, completedProgress];
 
-  /** Fetches every goal read again, once all have settled. */
-  const refetchAll = () => Promise.all(queries.map((query) => query.refetch()));
+  /** Fetches every goal read again, once all have settled (a retry). */
+  const refetchAll = () => Promise.all(
+    [activeGoals, completedGoals, ...progressQueries].map((query) => query.refetch()),
+  );
+
+  /**
+   * Fetches the goals again after a write, once all have settled: a progress
+   * read that never loaded is left to Retry, since it would only fail again
+   * (until `M4` builds it, OQ-195).
+   */
+  const refetchAfterWrite = () => Promise.all(
+    [activeGoals, completedGoals, ...progressQueries.filter(
+      (query) => progressStatusOf(query) !== 'failed',
+    )].map((query) => query.refetch()),
+  );
 
   /**
    * Answers a write once the goals are fetched again, when it went through or
@@ -335,7 +364,7 @@ const useGoals = (householdId: string): Omit<GoalManagementFlowProps, 'selfUserI
    */
   const answer = async (result: EndpointResult<unknown>): Promise<RequestOutcome> => {
     const outcome = toRequestOutcome(result);
-    if (outcome.ok || outcome.error.code === 'goal.not_found') await refetchAll();
+    if (outcome.ok || outcome.error.code === 'goal.not_found') await refetchAfterWrite();
     return outcome;
   };
 
@@ -343,7 +372,10 @@ const useGoals = (householdId: string): Omit<GoalManagementFlowProps, 'selfUserI
     goals: {
       active: goalListViewOf(activeGoals, activeProgress),
       completed: goalListViewOf(completedGoals, completedProgress),
-      progress: progressStatusOf(activeProgress, completedProgress),
+      progress: {
+        active: progressStatusOf(activeProgress),
+        completed: progressStatusOf(completedProgress),
+      },
     } satisfies GoalsView,
     onRetry: () => {
       refetchAll();

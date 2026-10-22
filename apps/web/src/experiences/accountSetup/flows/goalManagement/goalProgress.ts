@@ -1,5 +1,6 @@
 import type { Currency, GoalWithProgress } from '@financas/api-types';
 import { goals as goalSettings } from '../../../../config/constants';
+import { KIND_SCALE } from '../../../../kit/numberInput/decimal';
 
 // A Goal's progress as its card shows it (FL14; FR-8.4/8.5, FR-9, OQ-195):
 // the progress read gives each funding Holding's contribution in its own
@@ -54,7 +55,8 @@ export type DueIn = { readonly kind: 'overdue' }
   | { readonly kind: 'thisMonth' }
   | { readonly kind: 'ahead'; readonly years: number; readonly months: number };
 
-const RATE_SCALE = 10_000;
+/** A rate's fixed-point factor: the number input's `exchange` decimals. */
+const RATE_SCALE = 10 ** KIND_SCALE.exchange;
 
 /**
  * Orders a pair the way its rate is typed: the base is whichever of the two
@@ -168,8 +170,9 @@ export const progressOf = (goal: GoalWithProgress, rates: EnteredRates): Progres
 };
 
 /**
- * Tells when a Goal is due, in whole months from today: a due date in the past
- * is overdue (a display state, OQ-177); one this month is this month.
+ * Tells when a Goal is due, in calendar months from today: a due date in the
+ * past is overdue (a display state, OQ-177); one in this calendar month is this
+ * month, and one in the next is a month ahead, whatever its day.
  *
  * @param dueDate - The Goal's due date, `YYYY-MM-DD`.
  * @param today - Today, `YYYY-MM-DD`.
@@ -177,21 +180,9 @@ export const progressOf = (goal: GoalWithProgress, rates: EnteredRates): Progres
  */
 export const dueInOf = (dueDate: string, today: string): DueIn => {
   if (dueDate < today) return { kind: 'overdue' };
-  const [dueYear, dueMonth, dueDay] = dueDate.split('-').map(Number) as [number, number, number];
-  const [year, month, day] = today.split('-').map(Number) as [number, number, number];
-  const months = (dueYear - year) * 12 + (dueMonth - month) - (dueDay < day ? 1 : 0);
+  const [dueYear, dueMonth] = dueDate.split('-').map(Number) as [number, number];
+  const [year, month] = today.split('-').map(Number) as [number, number];
+  const months = (dueYear - year) * 12 + (dueMonth - month);
   if (months === 0) return { kind: 'thisMonth' };
   return { kind: 'ahead', years: Math.floor(months / 12), months: months % 12 };
 };
-
-/**
- * Writes a moment's local calendar date, as `dueInOf` compares it.
- *
- * @param date - The moment, e.g. now.
- * @returns Its local date, `YYYY-MM-DD`.
- */
-export const isoDateOf = (date: Date): string => [
-  String(date.getFullYear()).padStart(4, '0'),
-  String(date.getMonth() + 1).padStart(2, '0'),
-  String(date.getDate()).padStart(2, '0'),
-].join('-');

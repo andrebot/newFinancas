@@ -127,7 +127,7 @@ const GOALS: GoalsView = {
   completed: {
     status: 'loaded', goals: [{ goal: goal('car', { completedAt: '2026-10-10T00:00:00Z' }) }],
   },
-  progress: 'loaded',
+  progress: { active: 'loaded', completed: 'loaded' },
 };
 const translator = createTranslator('en-US');
 // Passed as a spread: a literal `role` attribute reads as an ARIA role to the linter.
@@ -227,11 +227,23 @@ describe('the panel', () => {
   });
 
   it('says the progress is unavailable, with a retry, when its read failed (OQ-195)', async () => {
-    const { onRetry } = renderFlow({ goals: { ...GOALS, progress: 'failed' } });
+    const { onRetry } = renderFlow({
+      goals: { ...GOALS, progress: { active: 'failed', completed: 'failed' } },
+    });
     expect(screen.getByText(translator.text('goalManagement', 'progress.failed'))).toBeTruthy();
     expect(list().progress).toBe('failed');
     await press('Try again');
     expect(onRetry).toHaveBeenCalled();
+  });
+
+  it('reads the progress of the status shown, banner and all', async () => {
+    renderFlow({ goals: { ...GOALS, progress: { active: 'failed', completed: 'loaded' } } });
+    const banner = translator.text('goalManagement', 'progress.failed');
+    expect(screen.getByText(banner)).toBeTruthy();
+    expect(list().progress).toBe('failed');
+    await press('show completed');
+    expect(screen.queryByText(banner)).toBeNull();
+    expect(list().progress).toBe('loaded');
   });
 
   it('shows the active goals with both counts, and switches to the completed', async () => {
@@ -293,6 +305,14 @@ describe('creating and editing a goal', () => {
     });
     expect(screen.queryByTestId('drawer')).toBeNull();
     expect(toasts()).toEqual(['Home created.']);
+  });
+
+  it('shows the Active list, where the new goal is, after a create from Completed', async () => {
+    renderFlow();
+    await press('show completed');
+    await press('Add goal');
+    await press('submit');
+    expect(list().status).toBe('active');
   });
 
   it('keeps the drawer with its failure in the banner, not toasted', async () => {

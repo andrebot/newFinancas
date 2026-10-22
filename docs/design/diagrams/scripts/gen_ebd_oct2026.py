@@ -820,9 +820,9 @@ and progress, both statuses
     EXP->>API: GET /households/:householdId/goal-progress?status=active (and completed)
     API-->>EXP: per-currency contributions + funded by, per goal
 end
-alt progress read failed (404 until M4 builds it)
-    EXP-->>FLOW: goals by status, no funding, progress: failed
-    FLOW-->>GL: definition cards under a "progress couldn't load" banner + retry
+alt a status's progress never loaded (404 until M4 builds it)
+    EXP-->>FLOW: goals by status, no funding there, progress: failed for that status
+    FLOW-->>GL: that status's definition cards under a "progress couldn't load" banner + retry
 else both loaded
     EXP-->>FLOW: goals by status, funding joined by goal id
     FLOW-->>GP: target, due countdown, progress pill, funded by
@@ -851,7 +851,7 @@ else complete / reopen / delete (from the edit drawer)
 end
 alt 404 goal.not_found (deleted meanwhile)
     API-->>EXP: error code
-    EXP->>API: GET …/goals + …/goal-progress (fetched again — the goal is gone)
+    EXP->>API: GET …/goals + each …/goal-progress that loaded (fetched again — the goal is gone)
     EXP-->>FLOW: outcome: failed — the drawer closes
     Note over FLOW: toast "{name} was deleted by someone else…"
 else other failure
@@ -859,8 +859,11 @@ else other failure
     EXP-->>FLOW: outcome: failed — a form's in its banner, typing kept — a step's toasted, confirm kept
 else ok
     API-->>EXP: goal (or 204)
-    EXP->>API: GET …/goals + …/goal-progress (fetched again)
-    EXP-->>FLOW: outcome: ok, goals refreshed — the drawer closes
+    EXP->>API: GET …/goals + each …/goal-progress that loaded (fetched again — one that never loaded waits for Retry)
+    opt a refetch fails
+        EXP-->>FLOW: last good goals and funding kept, marked stale — "may be out of date" banner + retry
+    end
+    EXP-->>FLOW: outcome: ok, goals refreshed — the drawer closes (a create shows the Active list)
     Note over FLOW: toast "{name} created / updated / marked completed / reopened / deleted."
 end
 """, ["Allocations are never edited here — always from the Holding (OQ-48).", "FX never leaves the browser (FR-9): the rate lives in the Flow's state, keyed by pair, and every card needing it reads it.", "Definitions and progress are two reads (OQ-177); the definitions show alone when progress fails (OQ-195). A completed Goal can still be edited."]),

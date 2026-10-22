@@ -37,7 +37,7 @@ const goal = (over: Partial<Goal> = {}): Goal => ({
 const LOADED: GoalsView = {
   active: { status: 'loaded', goals: [{ goal: goal() }] },
   completed: { status: 'loaded', goals: [{ goal: goal({ id: 'car', name: 'Car' }) }] },
-  progress: 'loaded',
+  progress: { active: 'loaded', completed: 'loaded' },
 };
 
 /**
@@ -102,10 +102,13 @@ describe('rateEntered (FR-9.1)', () => {
     expect(rateEntered(once, USD_BRL, 53000).rates).toEqual({ 'USD/BRL': 53000 });
   });
 
-  it('forgets a rate once cleared or zero', () => {
+  it('forgets a rate once cleared', () => {
     const once = rateEntered(INITIAL_GOALS, USD_BRL, 52000);
     expect(rateEntered(once, USD_BRL, null).rates).toEqual({});
-    expect(rateEntered(once, USD_BRL, 0).rates).toEqual({});
+  });
+
+  it('keeps a zero, the start of a rate under 1 (0,19)', () => {
+    expect(rateEntered(INITIAL_GOALS, USD_BRL, 0).rates).toEqual({ 'USD/BRL': 0 });
   });
 });
 
@@ -139,6 +142,29 @@ describe('afterAction', () => {
   it('closes the drawer on a form success', () => {
     const busy = outState({ drawer: { kind: 'create' }, out: { kind: 'create' } });
     expect(afterAction(busy, { ok: true })).toEqual(INITIAL_GOALS);
+  });
+
+  it('shows the Active list once a goal is created from the Completed one', () => {
+    const busy = outState({
+      status: 'completed', drawer: { kind: 'create' }, out: { kind: 'create' },
+    });
+    expect(afterAction(busy, { ok: true })).toEqual(INITIAL_GOALS);
+  });
+
+  it('keeps the list shown after an edit', () => {
+    const busy = outState({
+      status: 'completed',
+      drawer: { kind: 'edit', goalId: 'house' },
+      out: { kind: 'edit', goalId: 'house' },
+    });
+    expect(afterAction(busy, { ok: true })).toEqual(outState({ status: 'completed' }));
+  });
+
+  it('keeps the list shown when a create fails', () => {
+    const busy = outState({
+      status: 'completed', drawer: { kind: 'create' }, out: { kind: 'create' },
+    });
+    expect(afterAction(busy, { ok: false, error: BLANK }).status).toBe('completed');
   });
 
   it('keeps the drawer with the failure for its banner', () => {

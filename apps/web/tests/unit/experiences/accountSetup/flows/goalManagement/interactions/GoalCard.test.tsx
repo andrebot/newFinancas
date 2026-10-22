@@ -139,7 +139,7 @@ describe('the card', () => {
     expect(screen.getByText('USD')).toBeTruthy();
     expect(screen.getByText('$6,000.00')).toBeTruthy();
     expect(screen.getByText('04/01/2028')).toBeTruthy();
-    expect(screen.getByText('in 1 yr 5 mo')).toBeTruthy();
+    expect(screen.getByText('in 1 yr 6 mo')).toBeTruthy();
   });
 
   it('shows a single-currency goal\'s progress and who funds it', () => {

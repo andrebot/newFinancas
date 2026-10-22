@@ -7,14 +7,15 @@ import { useAlerts } from '../../../../utilities/AlertProvider';
 import { useI18n } from '../../../../utilities/I18nProvider';
 import type { Translator } from '../../../../utilities/i18n';
 import type { RequestFailure, RequestOutcome } from '../../../../utilities/requestOutcome';
+import useToday from '../../../../utilities/useToday';
 import { mayCreateOwned, mayManageOwned, mayShareOwned } from '../../ownership';
+import type { ProgressStatus } from '../../sharedLists';
 import {
   afterAction, confirmCancelled, confirmOpened, drawerClosed, drawerOpened, entriesOf, goalIn,
   INITIAL_GOALS, isGoalAction, isGone, jointStatusOf, rateEntered, started, statusChanged,
   toastsFailure, type GoalAction, type GoalEdit, type GoalManagementState, type GoalsView,
   type NewGoal, type Outgoing,
 } from './goalManagementState';
-import { isoDateOf } from './goalProgress';
 import { GoalDrawer, type GoalSteps } from './interactions/GoalDrawer';
 import { GoalList } from './interactions/GoalList';
 
@@ -139,15 +140,16 @@ const stepsOf = (
 });
 
 /**
- * Renders the banners over the list: a refetch that failed, and the progress
- * read that failed — the cards then show their definitions alone (OQ-195).
+ * Renders the banners over the list: a refetch that failed, and the shown
+ * status's progress read that never loaded — its cards then show their
+ * definitions alone (OQ-195).
  *
- * @param props - Whether the lists are stale, how the progress read went, and the retry.
+ * @param props - Whether the lists are stale, how the shown progress read went, and the retry.
  * @returns The banners, if any.
  */
 function Banners({ stale, progress, onRetry }: {
   readonly stale: boolean;
-  readonly progress: GoalsView['progress'];
+  readonly progress: ProgressStatus;
   readonly onRetry: () => void;
 }) {
   const translator = useI18n();
@@ -231,7 +233,7 @@ function GoalsPanel({
 
   return (
     <div className="flex flex-col gap-6">
-      <Banners stale={stale} progress={goals.progress} onRetry={onRetry} />
+      <Banners stale={stale} progress={goals.progress[state.status]} onRetry={onRetry} />
       <div className="flex items-center justify-between gap-4">
         <p className="type-body-sm text-muted">
           {translator.text('goalManagement', 'description')}
@@ -256,7 +258,7 @@ function GoalsPanel({
         entries={entriesOf(goals, state.status)}
         today={today}
         rates={state.rates}
-        progress={goals.progress}
+        progress={goals.progress[state.status]}
         isManageable={(goal) => mayManageOwned(goal, selfUserId, role)}
         onStatus={(status) => apply((current) => statusChanged(current, status))}
         onEdit={(goalId) => apply((current) => drawerOpened(current, { kind: 'edit', goalId }))}
@@ -286,7 +288,7 @@ export function GoalManagementFlow({
   const translator = useI18n();
   const alerts = useAlerts();
   const [state, setState] = useState<GoalManagementState>(INITIAL_GOALS);
-  const [today] = useState(() => isoDateOf(new Date()));
+  const today = useToday();
   const joint = jointStatusOf(goals);
 
   /**

@@ -919,7 +919,7 @@ describe('goalListViewOf / progressStatusOf', () => {
     });
   });
 
-  it('shows the definitions alone while the progress read loads or fails (OQ-195)', () => {
+  it('shows the definitions alone while the progress read loads or never loaded (OQ-195)', () => {
     const failure = { status: 404, data: envelope('route.not_found') } as never;
     expect(goalListViewOf({ data: [TRIP] }, { error: failure })).toEqual({
       status: 'loaded', goals: [{ goal: TRIP }],
@@ -929,17 +929,28 @@ describe('goalListViewOf / progressStatusOf', () => {
     });
   });
 
-  it('reads the definitions’ loading and failure as the list’s', () => {
-    expect(goalListViewOf({}, { data: [] })).toEqual({ status: 'loading' });
+  it('keeps the funding of a progress refetch that failed, and marks the list stale', () => {
     const failure = { status: 'FETCH_ERROR', error: 'down' } as never;
+    expect(goalListViewOf({ data: [TRIP] }, { data: [TRIP_PROGRESS], error: failure })).toEqual({
+      status: 'loaded',
+      goals: [{ goal: TRIP, funding: FUNDING }],
+      refreshError: { code: 'internal.unexpected' },
+    });
+  });
+
+  it('reads the definitions’ loading and failure as the list’s', () => {
+    const failure = { status: 'FETCH_ERROR', error: 'down' } as never;
+    expect(goalListViewOf({}, { data: [] })).toEqual({ status: 'loading' });
+    expect(goalListViewOf({}, { data: [], error: failure })).toEqual({ status: 'loading' });
     expect(goalListViewOf({ error: failure }, { data: [] }).status).toBe('failed');
   });
 
-  it('reads the progress as failed if either failed, loading while either loads', () => {
+  it('reads a status’s progress as loaded once it holds data, failed if it never did', () => {
     const failure = { status: 404, data: {} } as never;
-    expect(progressStatusOf({ data: [] }, { error: failure })).toBe('failed');
-    expect(progressStatusOf({ data: [] }, {})).toBe('loading');
-    expect(progressStatusOf({ data: [] }, { data: [] })).toBe('loaded');
+    expect(progressStatusOf({ data: [] })).toBe('loaded');
+    expect(progressStatusOf({ data: [], error: failure })).toBe('loaded');
+    expect(progressStatusOf({ error: failure })).toBe('failed');
+    expect(progressStatusOf({})).toBe('loading');
   });
 });
 
@@ -962,7 +973,7 @@ describe('the goals it holds for their flow', () => {
       goals: {
         active: { status: 'loaded', goals: [{ goal: TRIP, funding: FUNDING }] },
         completed: { status: 'loaded', goals: [{ goal: CAR }] },
-        progress: 'loaded',
+        progress: { active: 'loaded', completed: 'loaded' },
       },
     });
   });
@@ -976,7 +987,7 @@ describe('the goals it holds for their flow', () => {
     expect(shownBy('goals')).toMatchObject({
       goals: {
         active: { status: 'loaded', goals: [{ goal: TRIP }] },
-        progress: 'failed',
+        progress: { active: 'failed', completed: 'failed' },
       },
     });
   });
@@ -1066,6 +1077,30 @@ describe('the goal writes it answers for their flow', () => {
       ok: false, error: { code: 'goal.not_found', params: {} },
     });
     expect(goalReadsOf(fetchFn)).toHaveLength(8);
+  });
+
+  it('leaves a progress read that never loaded to Retry after a write (OQ-195)', async () => {
+    const { fetchFn } = await renderExperience({
+      ...GOAL_READS,
+      'GET /households/doe/goal-progress': () => jsonResponse(404, envelope('route.not_found')),
+      'DELETE /households/doe/goals/trip': () => jsonResponse(204),
+    });
+    await pickGoals();
+    await press('deleteGoal');
+    expect(outcomeOf('goals')).toEqual({ ok: true });
+    expect(goalReadsOf(fetchFn).slice(4).sort()).toEqual(['goals?active', 'goals?completed']);
+  });
+
+  it('leaves a progress read that never loaded to Retry after a write (OQ-195)', async () => {
+    const { fetchFn } = await renderExperience({
+      ...GOAL_READS,
+      'GET /households/doe/goal-progress': () => jsonResponse(404, envelope('route.not_found')),
+      'DELETE /households/doe/goals/trip': () => jsonResponse(204),
+    });
+    await pickGoals();
+    await press('deleteGoal');
+    expect(outcomeOf('goals')).toEqual({ ok: true });
+    expect(goalReadsOf(fetchFn).slice(4).sort()).toEqual(['goals?active', 'goals?completed']);
   });
 
   it('fetches nothing again after a failure that moved nothing', async () => {

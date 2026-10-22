@@ -124,8 +124,9 @@ export const confirmCancelled = (state: GoalManagementState): GoalManagementStat
 );
 
 /**
- * Keeps a rate typed for a pair, or forgets it once cleared or zero — a zero
- * rate would divide by zero and converts nothing anyway.
+ * Keeps a rate typed for a pair, or forgets it once cleared. A zero is kept,
+ * so the field holds the `0` of `0,19` while it is typed; progress reads it as
+ * no rate (it would divide by zero).
  *
  * @param state - The current state.
  * @param pair - The currency pair.
@@ -139,7 +140,7 @@ export const rateEntered = (
 ): GoalManagementState => {
   const key = pairKey(pair);
   const others = Object.fromEntries(Object.entries(state.rates).filter(([held]) => held !== key));
-  return { ...state, rates: rate ? { ...others, [key]: rate } : others };
+  return { ...state, rates: rate === null ? others : { ...others, [key]: rate } };
 };
 
 /**
@@ -189,17 +190,22 @@ export const toastsFailure = (out: Outgoing, failure: RequestFailure): boolean =
 
 /**
  * Applies the answer to a form's request: a success, or its goal gone, closes
- * the drawer; any other failure keeps it, with its typing, and shows why.
+ * the drawer — a created goal is active, so the Active list shows, where it
+ * landed; any other failure keeps the drawer, with its typing, and shows why.
  *
  * @param state - The state while it was out, already cleared of `out`.
+ * @param out - The request that was out.
  * @param outcome - The Experience's answer.
  * @returns The next state.
  */
-const afterForm = (state: GoalManagementState, outcome: RequestOutcome): GoalManagementState => {
-  if (outcome.ok || isGone(outcome.error)) {
-    return { ...state, drawer: undefined, lastError: undefined };
-  }
-  return { ...state, lastError: outcome.error };
+const afterForm = (
+  state: GoalManagementState,
+  out: Outgoing,
+  outcome: RequestOutcome,
+): GoalManagementState => {
+  if (!outcome.ok && !isGone(outcome.error)) return { ...state, lastError: outcome.error };
+  const closed = { ...state, drawer: undefined, lastError: undefined };
+  return outcome.ok && out.kind === 'create' ? { ...closed, status: 'active' } : closed;
 };
 
 /**
@@ -233,7 +239,7 @@ export const afterAction = (
   const { out } = state;
   if (!out) return state;
   const settled = { ...state, out: undefined };
-  return isGoalAction(out) ? afterStep(settled, outcome) : afterForm(settled, outcome);
+  return isGoalAction(out) ? afterStep(settled, outcome) : afterForm(settled, out, outcome);
 };
 
 /**

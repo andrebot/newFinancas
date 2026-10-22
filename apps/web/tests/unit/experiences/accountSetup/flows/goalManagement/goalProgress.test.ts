@@ -1,7 +1,7 @@
 import type { GoalWithProgress } from '@financas/api-types';
 import { describe, expect, it } from 'vitest';
 import {
-  convert, dueInOf, fundingRowsOf, isoDateOf, pairKey, progressOf, ratePairOf,
+  convert, dueInOf, fundingRowsOf, pairKey, progressOf, ratePairOf,
 } from '../../../../../../src/experiences/accountSetup/flows/goalManagement/goalProgress';
 
 // A Goal's progress (BDT: Flow-tier pure logic, unit; nothing mocked) — the
@@ -143,25 +143,29 @@ describe('progressOf', () => {
 });
 
 describe('dueInOf', () => {
-  it('counts whole months and years ahead (mockup 43)', () => {
+  it('counts calendar months and years ahead (mockup 43)', () => {
     expect(dueInOf('2027-12-31', '2026-09-30')).toEqual({ kind: 'ahead', years: 1, months: 3 });
-    expect(dueInOf('2027-03-01', '2026-09-30')).toEqual({ kind: 'ahead', years: 0, months: 5 });
+    expect(dueInOf('2027-03-01', '2026-09-30')).toEqual({ kind: 'ahead', years: 0, months: 6 });
     expect(dueInOf('2029-06-30', '2026-09-30')).toEqual({ kind: 'ahead', years: 2, months: 9 });
   });
 
-  it('reads a date later this month, or under a month away, as this month', () => {
+  it('reads a date later this calendar month as this month', () => {
     expect(dueInOf('2026-09-30', '2026-09-01')).toEqual({ kind: 'thisMonth' });
-    expect(dueInOf('2026-10-05', '2026-09-30')).toEqual({ kind: 'thisMonth' });
+  });
+
+  it('reads any day of next month as a month ahead, however near', () => {
+    expect(dueInOf('2026-10-01', '2026-09-30')).toEqual({ kind: 'ahead', years: 0, months: 1 });
+    expect(dueInOf('2026-11-05', '2026-10-22')).toEqual({ kind: 'ahead', years: 0, months: 1 });
+    expect(dueInOf('2026-11-30', '2026-10-01')).toEqual({ kind: 'ahead', years: 0, months: 1 });
+  });
+
+  it('counts a year across December by its months', () => {
+    expect(dueInOf('2027-01-02', '2026-12-31')).toEqual({ kind: 'ahead', years: 0, months: 1 });
+    expect(dueInOf('2027-12-01', '2026-12-31')).toEqual({ kind: 'ahead', years: 1, months: 0 });
   });
 
   it('reads today as this month and yesterday as overdue', () => {
     expect(dueInOf('2026-09-30', '2026-09-30')).toEqual({ kind: 'thisMonth' });
     expect(dueInOf('2026-09-29', '2026-09-30')).toEqual({ kind: 'overdue' });
-  });
-});
-
-describe('isoDateOf', () => {
-  it('writes the local calendar date, padded', () => {
-    expect(isoDateOf(new Date(2026, 0, 5, 23, 59))).toBe('2026-01-05');
   });
 });

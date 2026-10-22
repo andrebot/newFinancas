@@ -39,16 +39,20 @@ export interface GoalEntry {
   readonly funding?: GoalFunding | undefined;
 }
 
-/** The progress read's state, both statuses together. */
+/**
+ * One status's progress read: loading, loaded once it holds data — even if a
+ * later fetch failed, which marks its list stale instead — or failed when it
+ * never loaded.
+ */
 export type ProgressStatus = 'loading' | 'loaded' | 'failed';
 
 /**
  * Every shared goal and the caller's personal ones (OQ-177), by status, each
- * list soonest due first, and how the progress read went: the definitions
- * show on their own when it fails (OQ-195).
+ * list soonest due first, and how each status's progress read went: the
+ * definitions show on their own when it fails (OQ-195).
  */
 export interface GoalsView {
   readonly active: SharedListView<'goals', GoalEntry>;
   readonly completed: SharedListView<'goals', GoalEntry>;
-  readonly progress: ProgressStatus;
+  readonly progress: Readonly<Record<'active' | 'completed', ProgressStatus>>;
 }
