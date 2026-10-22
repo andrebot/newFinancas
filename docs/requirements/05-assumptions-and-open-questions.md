@@ -5109,6 +5109,23 @@ not a hardcoded assumption.
 
 **Task 92 (`FL14`) is complete.**
 
+### OQ-196: Guided Setup (task FL6)
+**Confirmed with the stakeholder (Oct 2026):**
+- **The wizard follows mockups 11–14 in Superdesign; the forms are inline, not in drawers.** Account Setup opens its forms in drawers because that page is busy; the wizard holds the user's hand one step at a time, so the account form (step 1) and the budget form (step 3) sit in the step card as the mockups draw them. Weighed and rejected: hosting the Account and Budget Management Flows as they are (cards plus drawers, every rule for free, but a different flow from the approved screens), with or without the create drawer opening by itself.
+- **Both forms carry a Personal / Shared field**, which mockups 11 and 13 leave out: every account and budget has a visibility. It starts at Shared — setup creates the household's own — and is locked at Personal for a Viewer, who can't share (OQ-192, OQ-194). The stakeholder will review the screens later; the mockups weren't regenerated.
+- **A budget typed and not saved is asked about before finishing.** "Finish setup" with anything typed in the budget form (or changed in an edit) opens an inline confirm, "Discard and finish" / "Keep editing"; with nothing typed it finishes at once.
+- **A card's billing days and expiry are picked from dropdowns** (OQ-192's `CardFields`), not typed as mockup 11 draws them; the stakeholder will review it.
+
+**Design decisions:**
+- **Three steps beside the K49 stepper, then the summary** (`onboard/flows/guidedSetup/`, `WizardLayout` with the stepper and its dashed tip as the `aside`). The Flow owns the step, the accounts, what is out, the last failure and the budget form's state; the categories and budgets are the Experience's (as on Account Setup, OQ-193/194), handed down. It never calls the backend: each request goes up to the Experience hosting it (Onboard, X2G), and the summary emits where to go (`dashboard`, `transactions`, `household`, `goals`).
+- **Step 1, First Account Entry (mandatory, FR-1.22):** the name, the type as four K14 tiles with their hints, the currency, the visibility, today's balance (the hero money look, with its hint) and the box on why earlier transactions never change it (OQ-169), always shown here. On a type that takes them, the cards: each saved card as its K48 strip with its ✕, and one "New credit card" form at a time with Cancel and Save card. A card left open in its form goes with the account once it passes, is refused field by field if it doesn't, and is ignored when blank. "Add account & continue" creates the account and moves on; a failure shows in the card's banner with the typing kept. The accounts are loaded as the Flow mounts: once one is in use (on Back, or a household that already has one), the step lists them and offers "Add another account" and Continue instead of the form.
+- **Step 2 hosts Category Management as it is** (mockup 12 is its grid), with Back and "Looks good, continue".
+- **Step 3, Budget Entry (optional):** the budgets made so far as done rows (name · target / month, what they cover), each with an Edit pencil (for whoever may manage it, OQ-177) that loads it back into the form — currency and visibility then locked, "Save budget" and Cancel. Below them, the form: name, monthly target, currency and visibility (the budget drawer's `ScopeFields`, now exported), and the claim-aware Covers picker. "Create budget" saves and starts the form afresh for the next one; a failure keeps it, a 409 naming the budget that took the target (`alertOf`, OQ-194).
+- **The summary** names the household, counts the accounts in use and their cards, the categories in use and the budgets, and offers mockup 14's three next steps and Go to Dashboard.
+- **One request at a time**, as every setup Flow: while one is out, another isn't sent and Back and Finish wait.
+
+**Task 93 (`FL6`) is complete.**
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.

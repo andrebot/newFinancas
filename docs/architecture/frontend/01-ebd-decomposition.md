@@ -70,14 +70,14 @@ Diagram: `docs/design/diagrams/ebd-tiers/app-shell.html`; sequence:
 
 ### Onboard
 
-**Purpose:** Set up a household from nothing. Guided Setup composes Account Setup's Account & Card (mandatory, no Skip — FR-1.22), Category and Budget Flows. Each route opens one stretch: /register runs Registration + MFA Enrollment; /setup (the household gate's) and /households/new (an additional household, OQ-81) run Household Setup, with Cancel only on the latter. The server's state is the progression (OQ-158).
+**Purpose:** Set up a household from nothing. Guided Setup (FL6, OQ-196) walks a new household through mockups 11–14: the first account (mandatory, no Skip — FR-1.22) and a budget in inline forms of its own, built from Account Setup's card fields and claim-aware picker, and the seeded categories through Account Setup's Category Management Flow, hosted as it is. Each route opens one stretch: /register runs Registration + MFA Enrollment; /setup (the household gate's) and /households/new (an additional household, OQ-81) run Household Setup, with Cancel only on the latter. The server's state is the progression (OQ-158).
 
 | Flow | Interactions | Sequence |
 |---|---|---|
 | Registration | Registration Form Entry | `docs/design/diagrams/ebd-sequences/onboard-registration.html` |
 | MFA Enrollment | MFA Method Selection, MFA Setup Verification, Backup Codes Acknowledgement | `docs/design/diagrams/ebd-sequences/onboard-mfa-enrollment.html` |
 | Household Setup | Household Name Entry | `docs/design/diagrams/ebd-sequences/onboard-household-setup.html` |
-| Guided Setup | Wizard Navigation, Setup Complete Summary | `docs/design/diagrams/ebd-sequences/onboard-guided-setup.html` |
+| Guided Setup | First Account Entry, Budget Entry, Wizard Navigation, Setup Complete Summary | `docs/design/diagrams/ebd-sequences/onboard-guided-setup.html` |
 
 **Utilities:** ValidationUtility, PasswordStrengthUtility, AlertUtility, I18nUtility, FormattingUtility, ClipboardUtility, DownloadUtility. Tier diagram: `docs/design/diagrams/ebd-tiers/onboard.html`.
 

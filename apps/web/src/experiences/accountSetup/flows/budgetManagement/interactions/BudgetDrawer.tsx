@@ -173,12 +173,13 @@ function LabelledPills({ label, children }: {
 }
 
 /**
- * Renders the currency and visibility: picked on a create, locked on an edit.
+ * Renders the currency and visibility: picked on a create, locked on an edit
+ * (Guided Setup's budget step uses it too, OQ-196).
  *
  * @param props - The values, whether they are locked, who may share, and the setters.
  * @returns The two fields and their note.
  */
-function ScopeFields({
+export function ScopeFields({
   locked, personalOnly, currency, visibility, onCurrency, onVisibility,
 }: {
   readonly locked: boolean;

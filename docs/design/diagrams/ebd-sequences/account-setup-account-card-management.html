@@ -110,7 +110,7 @@ sequenceDiagram
     </pre>
   </div>
   <div class="notes">
-<ul><li>Only last4 + network leave the browser — the full number never does (NFR-SEC-7); an attached card's network and last four are fixed (OQ-192).</li><li>One save writes the Account and every card change together, or nothing (OQ-175). The Flow patches its own list from the answer instead of reloading; one request at a time, and the drawer stays open while it is out (OQ-192).</li><li>Reused as Guided Setup step 1.</li></ul>
+<ul><li>Only last4 + network leave the browser — the full number never does (NFR-SEC-7); an attached card's network and last four are fixed (OQ-192).</li><li>One save writes the Account and every card change together, or nothing (OQ-175). The Flow patches its own list from the answer instead of reloading; one request at a time, and the drawer stays open while it is out (OQ-192).</li><li>Guided Setup's step 1 is its own inline form (First Account Entry), built from the same card fields (OQ-196).</li></ul>
   </div>
   <script>
     mermaid.initialize({
