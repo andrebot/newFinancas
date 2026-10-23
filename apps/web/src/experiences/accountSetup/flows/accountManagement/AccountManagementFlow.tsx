@@ -10,6 +10,7 @@ import {
   type NewAccount, type Outgoing,
 } from './accountManagementState';
 import { AccountList } from './interactions/AccountList';
+import useDrawerClosedOnHide from '../../hiddenTab';
 import { CreateAccountDrawer } from './interactions/CreateAccountDrawer';
 import { EditAccountDrawer } from './interactions/EditAccountDrawer';
 
@@ -41,6 +42,8 @@ export interface AccountManagementFlowProps {
   readonly onEdit: (edit: AccountEdit) => Promise<AccountActionOutcome>;
   /** `POST /households/:id/accounts/:accountId/archive`. */
   readonly onArchive: (accountId: string) => Promise<RequestOutcome>;
+  /** Whether its tab is the open one: hidden, it shows no drawer (OQ-197). Open by default. */
+  readonly active?: boolean;
 }
 
 /**
@@ -135,11 +138,12 @@ function OpenDrawers({
  * @returns The panel with whatever drawer is open.
  */
 export function AccountManagementFlow({
-  selfUserId, role, onLoad, onCreate, onEdit, onArchive,
+  selfUserId, role, onLoad, onCreate, onEdit, onArchive, active = true,
 }: AccountManagementFlowProps) {
   const translator = useI18n();
   const alerts = useAlerts();
   const [state, setState] = useState<AccountManagementState>(INITIAL_ACCOUNTS);
+  useDrawerClosedOnHide(active, setState, drawerClosed);
   const { view } = state;
 
   /** Fetches the list again (a retry). */
@@ -234,18 +238,20 @@ export function AccountManagementFlow({
         onEdit={openEdit}
         onRetry={reload}
       />
-      <OpenDrawers
-        state={state}
-        alert={alert}
-        selfUserId={selfUserId}
-        personalOnly={!mayShare(role)}
-        submitCreate={submitCreate}
-        submitEdit={submitEdit}
-        archive={archive}
-        closeDrawer={() => setState(drawerClosed)}
-        openArchive={openArchive}
-        closeArchive={() => setState(archiveConfirmCancelled)}
-      />
+      {active && (
+        <OpenDrawers
+          state={state}
+          alert={alert}
+          selfUserId={selfUserId}
+          personalOnly={!mayShare(role)}
+          submitCreate={submitCreate}
+          submitEdit={submitEdit}
+          archive={archive}
+          closeDrawer={() => setState(drawerClosed)}
+          openArchive={openArchive}
+          closeArchive={() => setState(archiveConfirmCancelled)}
+        />
+      )}
     </div>
   );
 }

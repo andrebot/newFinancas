@@ -415,12 +415,14 @@ interface SetupPageProps extends AccountPanelProps {
  * Renders the Goals tab: its own component, so the goal reads start only once
  * the tab is opened.
  *
- * @param props - The household and the signed-in user.
+ * @param props - The household, the signed-in user and whether the tab is open.
  * @returns The Goal Management Flow.
  */
-function GoalsTab({ household, userId }: SetupPageProps) {
+function GoalsTab({ household, userId, active }: SetupPageProps & { readonly active: boolean }) {
   const goals = useGoals(household.id);
-  return <GoalManagementFlow selfUserId={userId} role={household.role} {...goals} />;
+  return (
+    <GoalManagementFlow selfUserId={userId} role={household.role} active={active} {...goals} />
+  );
 }
 
 /**
@@ -443,7 +445,12 @@ const useSetupTabs = () => {
    * @param next - The tab to open.
    */
   const openTab = (next: SetupTab) => {
-    setSearchParams({ [shell.tabParam]: next }, { replace: true });
+    // Only the tab moves: the address's other parameters stay as they were.
+    setSearchParams((current) => {
+      const params = new URLSearchParams(current);
+      params.set(shell.tabParam, next);
+      return params;
+    }, { replace: true });
   };
 
   return { tab, opened, openTab };
@@ -472,7 +479,14 @@ function SetupPage({ household, userId }: SetupPageProps) {
    */
   const renderPanel = (value: SetupTab) => {
     if (value === 'accounts') {
-      return <AccountManagementFlow selfUserId={userId} role={household.role} {...requests} />;
+      return (
+        <AccountManagementFlow
+          selfUserId={userId}
+          role={household.role}
+          active={value === tab}
+          {...requests}
+        />
+      );
     }
     if (value === 'categories') {
       return <CategoryManagementFlow role={household.role} {...categories} />;
@@ -482,12 +496,13 @@ function SetupPage({ household, userId }: SetupPageProps) {
         <BudgetManagementFlow
           selfUserId={userId}
           role={household.role}
+          active={value === tab}
           categories={categories.categories}
           {...budgets}
         />
       );
     }
-    return <GoalsTab household={household} userId={userId} />;
+    return <GoalsTab household={household} userId={userId} active={value === tab} />;
   };
 
   return (

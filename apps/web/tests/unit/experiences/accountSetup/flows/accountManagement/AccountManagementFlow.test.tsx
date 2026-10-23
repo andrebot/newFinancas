@@ -437,3 +437,42 @@ describe('archiving an account', () => {
     await archive.answer(OK);
   });
 });
+
+describe('a hidden tab (OQ-197)', () => {
+  /**
+   * Renders the Flow again with its tab open or hidden.
+   *
+   * @param rendered - What `renderFlow` returned.
+   * @param active - Whether its tab is open.
+   */
+  const showTab = async (rendered: Awaited<ReturnType<typeof renderFlow>>, active: boolean) => {
+    await act(async () => {
+      rendered.view.rerenderInLocale(
+        <AlertProvider queue={rendered.queue}>
+          <AccountManagementFlow {...rendered.requests} active={active} />
+        </AlertProvider>,
+      );
+    });
+  };
+
+  it('closes its drawer once hidden, and shows none when back', async () => {
+    const rendered = await renderFlow();
+    await click('add');
+    await showTab(rendered, false);
+    expect(screen.queryByTestId('create')).toBeNull();
+    await showTab(rendered, true);
+    expect(screen.queryByTestId('create')).toBeNull();
+  });
+
+  it('hides a drawer whose request is out, and shows it with its answer when back', async () => {
+    const create = pending<AccountActionOutcome>();
+    const rendered = await renderFlow({ onCreate: create.request });
+    await click('add');
+    await click('submit create');
+    await showTab(rendered, false);
+    expect(screen.queryByTestId('create')).toBeNull();
+    await create.answer(FORBIDDEN);
+    await showTab(rendered, true);
+    expect(screen.getByTestId('create').dataset.alert).not.toBe('');
+  });
+});

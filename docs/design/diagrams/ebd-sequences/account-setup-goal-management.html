@@ -121,6 +121,10 @@ sequenceDiagram
         EXP-->>FLOW: outcome: ok, goals refreshed — the drawer closes (a create shows the Active list)
         Note over FLOW: toast "{name} created / updated / marked completed / reopened / deleted."
     end
+    opt the tab is hidden — Back or a link, the Flow stays mounted (OQ-197)
+        EXP-->>FLOW: active: false
+        FLOW-->>GF: the open drawer closes — kept, unseen, while its request is out
+    end
     </pre>
   </div>
   <div class="notes">

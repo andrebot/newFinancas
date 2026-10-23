@@ -412,16 +412,11 @@ export function CategoryManagementFlow({
   return (
     <div className="flex flex-col gap-6">
       <RefreshFailed view={view} onRetry={onRetry} />
-      {view.status === 'loaded' && (
-        <div className="flex items-center justify-between gap-4">
-          <p className="text-sm text-muted">
-            {translator.text('categoryManagement', 'description')}
-          </p>
-          {showAdd && (
-            <Button variant="ghost" onClick={openCreate} disabled={state.out !== undefined}>
-              {translator.text('categoryManagement', 'add')}
-            </Button>
-          )}
+      {view.status === 'loaded' && showAdd && (
+        <div className="flex justify-end">
+          <Button variant="ghost" onClick={openCreate} disabled={state.out !== undefined}>
+            {translator.text('categoryManagement', 'add')}
+          </Button>
         </div>
       )}
       {view.status === 'loading' ? (

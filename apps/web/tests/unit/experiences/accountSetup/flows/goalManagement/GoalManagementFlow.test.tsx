@@ -143,7 +143,7 @@ beforeEach(() => {
  * Renders the Flow with its requests spied.
  *
  * @param over - The props over the defaults.
- * @returns The requests.
+ * @returns The requests, and a rerender with its tab open or hidden.
  */
 const renderFlow = (over: Partial<GoalManagementFlowProps> = {}) => {
   const ok = async (): Promise<RequestOutcome> => ({ ok: true });
@@ -155,12 +155,24 @@ const renderFlow = (over: Partial<GoalManagementFlowProps> = {}) => {
     onComplete: vi.fn(ok),
     onReopen: vi.fn(ok),
   };
-  renderInLocale(
+  /**
+   * Builds the Flow with its tab open or hidden.
+   *
+   * @param active - Whether its tab is open.
+   * @returns The element.
+   */
+  const flow = (active: boolean) => (
     <AlertProvider queue={queue}>
-      <GoalManagementFlow {...OWNER} goals={GOALS} {...requests} {...over} />
-    </AlertProvider>,
+      <GoalManagementFlow {...OWNER} goals={GOALS} {...requests} {...over} active={active} />
+    </AlertProvider>
   );
-  return requests;
+  const view = renderInLocale(flow(true));
+  return {
+    ...requests,
+    showTab: async (active: boolean) => {
+      await act(async () => view.rerenderInLocale(flow(active)));
+    },
+  };
 };
 
 /**
@@ -286,7 +298,8 @@ describe('the panel', () => {
     const requests = renderFlow();
     await press('rate');
     expect(JSON.parse(list().rates ?? '')).toEqual({ 'USD/BRL': 52000 });
-    Object.values(requests).forEach((request) => expect(request).not.toHaveBeenCalled());
+    Object.values(requests).filter((value) => vi.isMockFunction(value))
+      .forEach((request) => expect(request).not.toHaveBeenCalled());
   });
 });
 
@@ -467,5 +480,21 @@ describe('a goal\'s steps, in its edit drawer (OQ-195)', () => {
     await press('cancel drawer');
     await press('edit trip');
     expect(drawer().confirm).toBe('');
+  });
+});
+
+describe('a hidden tab (OQ-197)', () => {
+  it('leaves the description to the page header', () => {
+    renderFlow();
+    expect(screen.queryByText(/Savings and investment goals/)).toBeNull();
+  });
+
+  it('closes its drawer once hidden, and shows none when back', async () => {
+    const { showTab } = renderFlow();
+    await press('Add goal');
+    await showTab(false);
+    expect(screen.queryByTestId('drawer')).toBeNull();
+    await showTab(true);
+    expect(screen.queryByTestId('drawer')).toBeNull();
   });
 });

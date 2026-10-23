@@ -35,11 +35,11 @@ vi.mock(
      * @returns The stub.
      */
     AccountManagementFlow: ({
-      selfUserId, role, onLoad, onCreate, onEdit, onArchive,
+      selfUserId, role, active, onLoad, onCreate, onEdit, onArchive,
     }: AccountManagementFlowProps) => (
       <Stub
         name="accounts"
-        shows={{ selfUserId, role }}
+        shows={{ selfUserId, role, active }}
         requests={{
           load: () => onLoad(),
           createZero: () => onCreate({
@@ -110,12 +110,12 @@ vi.mock(
      * @returns The stub.
      */
     BudgetManagementFlow: ({
-      selfUserId, role, budgets, categories, onRetry, onCreate, onEdit, onDelete,
+      selfUserId, role, active, budgets, categories, onRetry, onCreate, onEdit, onDelete,
     }: BudgetManagementFlowProps) => (
       <Stub
         name="budgets"
         shows={{
-          selfUserId, role, budgets, categories,
+          selfUserId, role, active, budgets, categories,
         }}
         events={{ retry: onRetry }}
         requests={{
@@ -146,11 +146,13 @@ vi.mock(
      * @returns The stub.
      */
     GoalManagementFlow: ({
-      selfUserId, role, goals, onRetry, onCreate, onEdit, onDelete, onComplete, onReopen,
+      selfUserId, role, active, goals, onRetry, onCreate, onEdit, onDelete, onComplete, onReopen,
     }: GoalManagementFlowProps) => (
       <Stub
         name="goals"
-        shows={{ selfUserId, role, goals }}
+        shows={{
+          selfUserId, role, active, goals,
+        }}
         events={{ retry: onRetry }}
         requests={{
           createGoal: () => onCreate({
@@ -275,7 +277,7 @@ describe('the page', () => {
     expect(screen.getByText(
       'Your checking, savings and credit card accounts — and the cards attached to them.',
     )).toBeTruthy();
-    expect(shownBy('accounts')).toEqual({ selfUserId: 'jane', role: 'Owner' });
+    expect(shownBy('accounts')).toEqual({ selfUserId: 'jane', role: 'Owner', active: true });
     expect(screen.getByRole('radio', { name: 'Accounts' })).toBeTruthy();
   });
 
@@ -725,6 +727,7 @@ describe('the budgets it holds for their flow', () => {
     expect(shownBy('budgets')).toEqual({
       selfUserId: 'jane',
       role: 'Owner',
+      active: true,
       budgets: { status: 'loaded', budgets: [BUDGET] },
       categories: { status: 'loaded', categories: [CATEGORY] },
     });
@@ -978,6 +981,7 @@ describe('the goals it holds for their flow', () => {
     expect(shownBy('goals')).toEqual({
       selfUserId: 'jane',
       role: 'Owner',
+      active: true,
       goals: {
         active: { status: 'loaded', goals: [{ goal: TRIP, funding: FUNDING }] },
         completed: { status: 'loaded', goals: [{ goal: CAR }] },
@@ -1165,6 +1169,29 @@ describe('the tabs (OQ-197)', () => {
     const location = screen.getByTestId('location');
     expect(location.textContent).toBe('/account-setup?tab=budgets');
     expect(location.dataset.navigation).toBe('REPLACE');
+  });
+
+  it('keeps the address’s other parameters on a switch', async () => {
+    await renderExperience(LISTS, true, '/account-setup?tab=accounts&goalId=trip');
+    await pickBudgets();
+    expect(screen.getByTestId('location').textContent)
+      .toBe('/account-setup?tab=budgets&goalId=trip');
+  });
+
+  it('tells each opened flow whether its tab is the open one, for its drawers', async () => {
+    await renderExperience({
+      ...LISTS,
+      'GET /households/doe/goals': () => jsonResponse(200, { data: [] }),
+      'GET /households/doe/goal-progress': () => jsonResponse(200, { data: [] }),
+    });
+    await pickBudgets();
+    expect(shownBy('accounts')).toEqual(expect.objectContaining({ active: false }));
+    expect(shownBy('budgets')).toEqual(expect.objectContaining({ active: true }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('radio', { name: 'Goals' }));
+    });
+    expect(shownBy('budgets')).toEqual(expect.objectContaining({ active: false }));
+    expect(shownBy('goals')).toEqual(expect.objectContaining({ active: true }));
   });
 
   it('keeps a tab as it was across a switch, fetching nothing again', async () => {

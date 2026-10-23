@@ -107,6 +107,10 @@ sequenceDiagram
             Note over FLOW: toast "{name} archived."
         end
     end
+    opt the tab is hidden — Back or a link, the Flow stays mounted (OQ-197)
+        EXP-->>FLOW: active: false
+        FLOW-->>AF: the open drawer closes — kept, unseen, while its request is out
+    end
     </pre>
   </div>
   <div class="notes">

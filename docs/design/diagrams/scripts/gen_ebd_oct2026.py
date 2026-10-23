@@ -783,6 +783,10 @@ opt archive (from the edit drawer's danger zone)
         Note over FLOW: toast "{name} archived."
     end
 end
+opt the tab is hidden — Back or a link, the Flow stays mounted (OQ-197)
+    EXP-->>FLOW: active: false
+    FLOW-->>AF: the open drawer closes — kept, unseen, while its request is out
+end
 """, ["Only last4 + network leave the browser — the full number never does (NFR-SEC-7); an attached card's network and last four are fixed (OQ-192).", "One save writes the Account and every card change together, or nothing (OQ-175). The Flow patches its own list from the answer instead of reloading; one request at a time, and the drawer stays open while it is out (OQ-192).", "Guided Setup's step 1 is its own inline form (First Account Entry), built from the same card fields (OQ-196)."]),
     ("account-setup-category-management", "Account Setup — Category Management", f"{R('GET/POST/PATCH /households/:householdId/categories')}, the category and subcategory archive endpoints. Built in FL12 (OQ-193).",
      [("CC", "Category Card"), ("IP", "Icon & Colour Picker"), ("SE", "Inline Subcategory Entry"), ("AC", "Archive Confirm"), FLOW("Category Management"), EXP("Account Setup"), API],
@@ -885,6 +889,10 @@ else ok
     EXP-->>FLOW: outcome: ok, budgets refreshed — the drawer closes
     Note over FLOW: toast "{name} created / updated / deleted."
 end
+opt the tab is hidden — Back or a link, the Flow stays mounted (OQ-197)
+    EXP-->>FLOW: active: false
+    FLOW-->>BF: the open drawer closes — kept, unseen, while its request is out
+end
 """, ["Setup page shows no spend progress (stakeholder) — the list carries definitions only (OQ-176).", "Claims are shared state other members change, so the budgets are the Experience's and fetched again after each write, and after a failure that says they moved (OQ-194).", "Currency and visibility can't change after creation: the edit form shows them locked."]),
     ("account-setup-goal-management", "Account Setup — Goal Management", f"{R('GET/POST/PATCH/DELETE /households/:householdId/goals')}, {R('POST /households/:householdId/goals/:goalId/complete|reopen')} (definitions, AccountManager) + {R('GET /households/:householdId/goal-progress')} (progress, InsightsManager — OQ-177). Built in FL14 (OQ-195).",
      [("GL", "Goal Cards"), ("GF", "Goal Form"), ("GP", "Goal Progress Card"), ("FX", "Exchange-Rate<br/>Calculator"), ("CR", "Complete / Reopen /<br/>Delete Confirm"), FLOW("Goal Management"), EXP("Account Setup"), API],
@@ -941,6 +949,10 @@ else ok
     end
     EXP-->>FLOW: outcome: ok, goals refreshed — the drawer closes (a create shows the Active list)
     Note over FLOW: toast "{name} created / updated / marked completed / reopened / deleted."
+end
+opt the tab is hidden — Back or a link, the Flow stays mounted (OQ-197)
+    EXP-->>FLOW: active: false
+    FLOW-->>GF: the open drawer closes — kept, unseen, while its request is out
 end
 """, ["Allocations are never edited here — always from the Holding (OQ-48).", "FX never leaves the browser (FR-9): the rate lives in the Flow's state, keyed by pair, and every card needing it reads it.", "Definitions and progress are two reads (OQ-177); the definitions show alone when progress fails (OQ-195). A completed Goal can still be edited."]),
     ("manage-finances-record-transaction", "Manage Finances — Record Transaction", f"{R('POST /households/:householdId/transactions')}; edit reuses it with {R('PATCH /households/:householdId/transactions/:id')}.",

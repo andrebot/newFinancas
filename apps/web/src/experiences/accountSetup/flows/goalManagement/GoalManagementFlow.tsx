@@ -8,6 +8,7 @@ import { useI18n } from '../../../../utilities/I18nProvider';
 import type { Translator } from '../../../../utilities/i18n';
 import type { RequestFailure, RequestOutcome } from '../../../../utilities/requestOutcome';
 import useToday from '../../../../utilities/useToday';
+import useDrawerClosedOnHide from '../../hiddenTab';
 import { mayCreateOwned, mayManageOwned, mayShareOwned } from '../../ownership';
 import type { ProgressStatus } from '../../sharedLists';
 import {
@@ -51,6 +52,8 @@ export interface GoalManagementFlowProps {
   readonly onComplete: (goalId: string) => Promise<RequestOutcome>;
   /** `POST /households/:id/goals/:goalId/reopen`. */
   readonly onReopen: (goalId: string) => Promise<RequestOutcome>;
+  /** Whether its tab is the open one: hidden, it shows no drawer (OQ-197). Open by default. */
+  readonly active?: boolean;
 }
 
 /**
@@ -216,17 +219,19 @@ interface GoalsPanelProps {
   readonly onSubmit: (fields: NewGoal) => void;
   readonly onConfirm: () => void;
   readonly apply: Apply;
+  /** Whether the Flow's tab is the open one: hidden, no drawer shows. */
+  readonly active: boolean;
 }
 
 /**
- * Renders the loaded panel: the banners, the description with Add goal, the
- * list and whatever drawer is open.
+ * Renders the loaded panel: the banners, Add goal, the list and whatever
+ * drawer is open while the tab is.
  *
  * @param props - The goals, the state, the actor and the handlers.
  * @returns The panel.
  */
 function GoalsPanel({
-  goals, stale, state, today, selfUserId, role, onRetry, onSubmit, onConfirm, apply,
+  goals, stale, state, today, selfUserId, role, onRetry, onSubmit, onConfirm, apply, active,
 }: GoalsPanelProps) {
   const translator = useI18n();
   const { out } = state;
@@ -234,11 +239,8 @@ function GoalsPanel({
   return (
     <div className="flex flex-col gap-6">
       <Banners stale={stale} progress={goals.progress[state.status]} onRetry={onRetry} />
-      <div className="flex items-center justify-between gap-4">
-        <p className="type-body-sm text-muted">
-          {translator.text('goalManagement', 'description')}
-        </p>
-        {mayCreateOwned(role) && (
+      {mayCreateOwned(role) && (
+        <div className="flex justify-end">
           <Button
             variant="primary"
             leadingIcon="add"
@@ -247,8 +249,8 @@ function GoalsPanel({
           >
             {translator.text('goalManagement', 'add')}
           </Button>
-        )}
-      </div>
+        </div>
+      )}
       <GoalList
         status={state.status}
         counts={{
@@ -264,14 +266,16 @@ function GoalsPanel({
         onEdit={(goalId) => apply((current) => drawerOpened(current, { kind: 'edit', goalId }))}
         onRate={(pair, rate) => apply((current) => rateEntered(current, pair, rate))}
       />
-      <PanelDrawer
-        goals={goals}
-        state={state}
-        role={role}
-        onSubmit={onSubmit}
-        onConfirm={onConfirm}
-        apply={apply}
-      />
+      {active && (
+        <PanelDrawer
+          goals={goals}
+          state={state}
+          role={role}
+          onSubmit={onSubmit}
+          onConfirm={onConfirm}
+          apply={apply}
+        />
+      )}
     </div>
   );
 }
@@ -284,10 +288,12 @@ function GoalsPanel({
  */
 export function GoalManagementFlow({
   selfUserId, role, goals, onRetry, onCreate, onEdit, onDelete, onComplete, onReopen,
+  active = true,
 }: GoalManagementFlowProps) {
   const translator = useI18n();
   const alerts = useAlerts();
   const [state, setState] = useState<GoalManagementState>(INITIAL_GOALS);
+  useDrawerClosedOnHide(active, setState, drawerClosed);
   const today = useToday();
   const joint = jointStatusOf(goals);
 
@@ -373,6 +379,7 @@ export function GoalManagementFlow({
       onSubmit={submit}
       onConfirm={confirm}
       apply={setState}
+      active={active}
     />
   );
 }
