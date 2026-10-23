@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { createBudget, listBudgets, seededCategories } from '../support/accountApi';
+import { cardNamed } from '../support/controls';
 import { createHousehold, registerUser } from '../support/identityApi';
 import { signInThroughUi } from '../support/signIn';
 import text from '../support/text';
@@ -31,7 +32,7 @@ test('an Owner creates a budget, edits it and deletes it', async ({ page, reques
   });
   expect(living!.targets).toHaveLength(1);
 
-  await page.getByRole('button', { name: /Living/ }).click();
+  await cardNamed(page, 'Living').click();
   const edit = page.getByRole('dialog', { name: text('budgetManagement', 'edit.title') });
   await edit.getByLabel(text('budgetManagement', 'field.name')).fill('Home & Food');
   await edit.getByText('Healthcare', { exact: true }).click();
@@ -42,7 +43,7 @@ test('an Owner creates a budget, edits it and deletes it', async ({ page, reques
   expect(edited).toMatchObject({ id: living!.id, name: 'Home & Food' });
   expect(edited!.targets).toHaveLength(2);
 
-  await page.getByRole('button', { name: /Home & Food/ }).click();
+  await cardNamed(page, 'Home & Food').click();
   const remove = page.getByRole('dialog', { name: text('budgetManagement', 'edit.title') });
   await remove.getByRole('button', { name: text('budgetManagement', 'delete.action') }).click();
   await expect(remove.getByText(text('budgetManagement', 'delete.confirm', {

@@ -35,3 +35,16 @@ export const choose = async (
 export const pick = (scope: Locator, label: string, option: string): Promise<void> => (
   scope.getByRole('radiogroup', { name: label }).getByText(option, { exact: true }).click()
 );
+
+/**
+ * Finds a card that opens its item: a button holding the item's name as one
+ * exact text, among the rest of the card's text (its tags, its amounts). The
+ * name is matched whole, so `Trip` never finds `Japan Trip`.
+ *
+ * @param page - The browser page.
+ * @param name - The item's name.
+ * @returns The card's button.
+ */
+export const cardNamed = (page: Page, name: string): Locator => (
+  page.getByRole('button').filter({ has: page.getByText(name, { exact: true }) })
+);

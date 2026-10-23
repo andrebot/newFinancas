@@ -18,38 +18,55 @@ export interface CategoryShape {
   readonly subcategories: readonly string[];
 }
 
+/** One of a household's collections, as its route names it. */
+type Collection = 'accounts' | 'categories' | 'budgets' | 'goals';
+
 /**
  * Lists one of a household's collections, as a member sees it.
  *
  * @param request - Playwright's API client.
  * @param member - A member of the household.
- * @param path - The collection under the household, e.g. `budgets`.
+ * @param householdId - The household.
+ * @param collection - The collection, e.g. `budgets`.
+ * @param query - Its query parameters, if any.
  * @returns Its items.
  */
 const listOf = async <Item>(
   request: APIRequestContext,
   member: Pick<TestUser, 'accessToken'>,
-  path: string,
+  householdId: string,
+  collection: Collection,
+  query: Readonly<Record<string, string>> = {},
 ): Promise<readonly Item[]> => {
-  const list = await send<{ data?: Item[] }>(request, 'GET', `/households/${path}`, {
+  const search = new URLSearchParams(query).toString();
+  const path = `/households/${householdId}/${collection}${search ? `?${search}` : ''}`;
+  const list = await send<{ data?: Item[] }>(request, 'GET', path, {
     accessToken: member.accessToken,
   });
   return list.data ?? [];
 };
 
 /**
- * Lists a household's active Categories with their Subcategories.
+ * Lists a household's Categories with their Subcategories.
  *
  * @param request - Playwright's API client.
  * @param member - A member of the household.
  * @param householdId - The household.
+ * @param includeArchived - Whether archived ones are listed too: only active ones unless asked.
  * @returns Its Categories.
  */
 export const listCategories = (
   request: APIRequestContext,
   member: Pick<TestUser, 'accessToken'>,
   householdId: string,
-): Promise<readonly Category[]> => listOf(request, member, `${householdId}/categories`);
+  includeArchived = false,
+): Promise<readonly Category[]> => listOf(
+  request,
+  member,
+  householdId,
+  'categories',
+  { includeArchived: String(includeArchived) },
+);
 
 /**
  * Lists the Accounts a member sees — open ones first — with their cards.
@@ -63,7 +80,7 @@ export const listAccounts = (
   request: APIRequestContext,
   member: Pick<TestUser, 'accessToken'>,
   householdId: string,
-): Promise<readonly Account[]> => listOf(request, member, `${householdId}/accounts`);
+): Promise<readonly Account[]> => listOf(request, member, householdId, 'accounts');
 
 /**
  * Lists the Budgets a member sees: every shared one and their personal ones.
@@ -77,7 +94,7 @@ export const listBudgets = (
   request: APIRequestContext,
   member: Pick<TestUser, 'accessToken'>,
   householdId: string,
-): Promise<readonly Budget[]> => listOf(request, member, `${householdId}/budgets`);
+): Promise<readonly Budget[]> => listOf(request, member, householdId, 'budgets');
 
 /**
  * Lists the Goals a member sees in one status.
@@ -93,7 +110,7 @@ export const listGoals = (
   member: Pick<TestUser, 'accessToken'>,
   householdId: string,
   status: 'active' | 'completed' = 'active',
-): Promise<readonly Goal[]> => listOf(request, member, `${householdId}/goals?status=${status}`);
+): Promise<readonly Goal[]> => listOf(request, member, householdId, 'goals', { status });
 
 /**
  * Waits until a new household holds its default Categories, seeded through
@@ -109,9 +126,13 @@ export const seededCategories = async (
   member: Pick<TestUser, 'accessToken'>,
   householdId: string,
 ): Promise<readonly Category[]> => {
-  await expect.poll(async () => (await listCategories(request, member, householdId)).length)
-    .toBeGreaterThan(0);
-  return listCategories(request, member, householdId);
+  // The last list read is kept, so the poll's own answer is the one returned.
+  let categories: readonly Category[] = [];
+  await expect.poll(async () => {
+    categories = await listCategories(request, member, householdId);
+    return categories.length;
+  }).toBeGreaterThan(0);
+  return categories;
 };
 
 /**

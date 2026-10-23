@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { listGoals } from '../support/accountApi';
-import { pick } from '../support/controls';
+import { cardNamed, pick } from '../support/controls';
 import { createHousehold, registerUser } from '../support/identityApi';
 import { signInThroughUi } from '../support/signIn';
 import text from '../support/text';
@@ -23,7 +23,7 @@ const takeStep = async (
   name: string,
   action: 'complete' | 'reopen' | 'delete',
 ): Promise<void> => {
-  await page.getByRole('button', { name: new RegExp(name) }).click();
+  await cardNamed(page, name).click();
   const drawer = page.getByRole('dialog', { name: text('goalManagement', 'edit.title') });
   await drawer.getByRole('button', { name: text('goalManagement', `${action}.action`) }).click();
   await expect(drawer.getByText(text('goalManagement', `${action}.confirm`, { name })))
@@ -62,7 +62,7 @@ test('an Owner creates a goal, edits it, completes, reopens and deletes it', asy
     completedAt: null,
   });
 
-  await page.getByRole('button', { name: /Trip/ }).click();
+  await cardNamed(page, 'Trip').click();
   const edit = page.getByRole('dialog', { name: text('goalManagement', 'edit.title') });
   await edit.getByLabel(text('goalManagement', 'field.name')).fill('Japan Trip');
   await edit.getByRole('button', { name: text('goalManagement', 'edit.submit') }).click();

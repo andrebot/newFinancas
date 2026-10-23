@@ -1,7 +1,6 @@
 import { expect, test } from '@playwright/test';
-import type { MyHousehold } from '@financas/api-types';
 import { listAccounts, listBudgets, seededCategories } from '../support/accountApi';
-import { registerUser, send } from '../support/identityApi';
+import { createHousehold, registerUser } from '../support/identityApi';
 import { signInThroughUi } from '../support/signIn';
 import text from '../support/text';
 
@@ -15,10 +14,7 @@ test('an Owner who dropped off resumes Guided Setup and sets a budget', async ({
 }) => {
   const owner = await registerUser(request, { firstName: 'Dora', lastName: 'Dropoff' });
   // The household Household Setup created, before any account.
-  const household = await send<MyHousehold>(request, 'POST', '/households', {
-    data: { name: 'Dropoff Home' },
-    accessToken: owner.accessToken,
-  });
+  const household = await createHousehold(request, owner, 'Dropoff Home', 'none');
   await seededCategories(request, owner, household.id);
 
   await signInThroughUi(page, owner);

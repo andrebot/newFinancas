@@ -5229,6 +5229,12 @@ Reference Rate treatment, FR-9).
 - **Not here:** core journey #10 (allocations need Holdings, slice 4) and goal progress (`M4`, OQ-195).
 - **The kit's controls are driven as a user drives them** (`tests/e2e/support/controls.ts`). `choose` opens a Select and picks from its listbox; `pick` clicks a segment's label. A colour swatch is clicked through its label, since the radio inside is visually hidden.
 - **Nothing in the app changed.** No bug was found, so no call, route or step moved and no diagram is redrawn.
+- **PR #118 review:**
+  - **The card number check compares the card's fields exactly**, so a stored or echoed number fails the journey. A `toMatchObject` ignored extra fields.
+  - **The Category archive check lists archived ones too** (`includeArchived`). It checks that the Subcategory is archived with its Category, not just that the Category left the active list.
+  - **Cards are found by their exact name** (`cardNamed`): the button holding the name as one text. A budget's or goal's card is named by all its text, so the unescaped, unanchored pattern also matched other names.
+  - **`listOf` takes the household and the collection.** `seededCategories` returns the list its poll read, and `createHousehold` can skip the first account (`none`), so the household request is written once.
+  - **E2E code stays untested, as OQ-161 already decided.** CLAUDE.md named only OQ-91's config-file exception, so it now cites OQ-161 too.
 
 **Task 98 (`I8`) is complete.**
 

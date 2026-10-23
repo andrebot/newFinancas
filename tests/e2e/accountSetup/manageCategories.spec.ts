@@ -66,6 +66,14 @@ test('an Owner adds a category and a subcategory, renames it and archives both',
   await expect(page.getByText(text('categoryManagement', 'archiveCategory.done', {
     name: 'Hobbies & Crafts',
   }))).toBeVisible();
+  // Archived, not deleted: the Category and its Subcategory are both kept,
+  // each with its own archive date.
+  const archived = (await listCategories(request, owner, household.id, true))
+    .find((category) => category.id === hobbies!.id);
+  expect(archived).toMatchObject({
+    archivedAt: expect.any(String),
+    subcategories: [{ name: 'Painting', archivedAt: expect.any(String) }],
+  });
   expect((await listCategories(request, owner, household.id))
     .map((category) => category.id)).not.toContain(hobbies!.id);
 });

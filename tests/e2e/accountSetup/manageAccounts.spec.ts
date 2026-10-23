@@ -54,8 +54,13 @@ test('an Owner adds an account with a card, edits it and archives it', async ({
       expirationYear: Number(expiryYear),
     }],
   });
+  // The number itself never reaches the API: the card carries no field for it.
+  expect(Object.keys(created!.cards[0]!).sort()).toEqual([
+    'accountId', 'closingDay', 'createdAt', 'dueDay', 'expirationMonth', 'expirationYear', 'id',
+    'last4', 'network', 'outstandingBalance',
+  ]);
 
-  await page.getByRole('button', { name: 'Travel Checking' }).click();
+  await page.getByRole('button', { name: 'Travel Checking', exact: true }).click();
   const edit = page.getByRole('dialog', { name: 'Travel Checking' });
   await edit.getByLabel(text('accountSetup', 'field.name')).fill('Travel Account');
   await choose(page, edit, text('accountSetup', 'card.closingDay'), '8');
@@ -66,7 +71,7 @@ test('an Owner adds an account with a card, edits it and archives it', async ({
     .find((account) => account.id === created!.id))
     .toMatchObject({ name: 'Travel Account', cards: [{ last4: '1111', closingDay: 8 }] });
 
-  await page.getByRole('button', { name: 'Travel Account' }).click();
+  await page.getByRole('button', { name: 'Travel Account', exact: true }).click();
   const archive = page.getByRole('dialog', { name: 'Travel Account' });
   await archive.getByRole('button', { name: text('accountSetup', 'archive.action') }).click();
   await expect(archive.getByText(text('accountSetup', 'archive.confirm', {
