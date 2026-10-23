@@ -79,13 +79,16 @@ for (const locale of ['en-US', 'pt-BR'] as const) {
   }
 }
 
-test('a new household holds the default Categories', { tag: '@smoke' }, async ({ request }) => {
-  const user = await registerUser(request, { firstName: 'Sol', lastName: 'Smoke' });
+test('a new household holds the default Categories in its creator\'s language', {
+  tag: '@smoke',
+}, async ({ request }) => {
+  // pt-BR, the primary locale; core journey #1 checks en-US (OQ-117).
+  const user = await registerUser(request, { firstName: 'Sol', lastName: 'Smoke' }, 'pt-BR');
 
   const household = await createHousehold(request, user, 'Smoke Home');
 
   // Seeded by AccountManager once the bus delivers household.created, after
   // the household's 201 (I5): wait for it.
   await expect.poll(() => categoryShapes(request, user, household.id))
-    .toEqual(defaultCategoryShapes('en-US'));
+    .toEqual(defaultCategoryShapes('pt-BR'));
 });

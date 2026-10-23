@@ -141,9 +141,9 @@ identity screens, the rest as later slices use them.
 - [x] **94.** `X5` Account Setup (OQ-197: the header after the open section, Add kept in each Flow; the open tab in the address, `?tab=`, replaced on a switch; a tab mounted at first opening and only hidden after, so a switch keeps its state)
 - [x] **95.** `X2G` Onboard: Guided Setup step (explain the starting balance on Add Account — OQ-169) (OQ-198: its own address, `/setup/guided`, replacing Household Setup in the history; the household gate opens it for an active household with no account in use, so the first account is enforced after a drop-off (FR-1.22) — the rule kept in the frontend, read through `AccountManager`'s plain accounts list, not a `MyHousehold` field; Account Setup's account, category and budget requests shared through `setupRequests.ts`)
 - [x] **96.** `I2` AccountManager seam suite (the M2 suites already cover 100% of the Manager; I2 adds the permission matrix across all 39 use cases — a refusal reads only what decides access — and the route refusing a fifth Account type)
-- [x] **97.** `I5` Manager pub/sub (household.created, holding.matured) (OQ-199: the real bus between the real Managers in `tests/integration/managers/pubsub.test.ts`, `holding.matured` published as the daily job will until N9; the default Categories checked through the API in core journey #1 and Smoke #3, polled after the household's 201)
+- [x] **97.** `I5` Manager pub/sub (household.created, holding.matured) (OQ-199: the real bus between the real Managers, built and subscribed by `createManagers`, in `tests/integration/managers/pubsub.test.ts`, `holding.matured` published as the daily job will until N9; the default Categories checked through the API in core journey #1 (en-US) and Smoke #3 (pt-BR), polled after the household's 201)
 - [ ] **98.** `I8` Frontend ↔ backend: account setup
-- [ ] **R2.** Slice 2 review (gate — `docs/architecture/13-slice-review.md`)
+- [ ] **R2.** Slice 2 review (gate — `docs/architecture/13-slice-review.md`). Carry-over (PR #117, OQ-199): a test whose awaited call throws skips `logs.stop()`, so the logger stays on for the rest of its file — decide repo-wide whether `captureLogs` cleans up after itself (e.g. registering its own Vitest clean-up) rather than each test remembering `stop()`
 
 ## Slice 3 — Day-to-day finances
 

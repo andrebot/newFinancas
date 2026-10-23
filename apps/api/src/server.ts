@@ -27,10 +27,8 @@ import { logging } from './config/constants';
 import loadEnv from './config/env';
 import { createNotificationEngine } from './engines/notification';
 import type { Database } from './db/database';
-import {
-  createAccountManager, subscribeAccountManager, type AccountStores,
-} from './managers/account';
-import { createIdentityManager } from './managers/identity';
+import { createManagers } from './managers';
+import type { AccountStores } from './managers/account';
 import { createAuthenticationUtility } from './utilities/authentication';
 import { createAuthorizationUtility } from './utilities/authorization';
 import { createServiceBus } from './utilities/serviceBus';
@@ -74,18 +72,6 @@ const bus = createServiceBus({
   ),
 });
 const authorization = createAuthorizationUtility({ findMembership: households.findMembership });
-const identity = createIdentityManager({
-  users: createUserAccessor(db),
-  sessions: createSessionAccessor(db),
-  households,
-  invitations: createInvitationAccessor(db),
-  authentication,
-  authorization,
-  bus,
-  notifications,
-  webAppUrl: env.webAppUrl,
-  now: () => new Date(),
-});
 
 /**
  * AccountManager's Accessors over a database or one transaction (OQ-175).
@@ -100,18 +86,31 @@ const accountStoresOver = (over: Database): AccountStores => ({
   budgets: createBudgetAccessor(over),
   goals: createGoalAccessor(over),
 });
-const account = createAccountManager({
-  ...accountStoresOver(db),
-  holdings: createInvestmentHoldingAccessor(db),
-  valuations: createValuationSnapshotAccessor(db),
-  indexRates: createIndexRateAccessor(db),
-  households,
-  notifications,
-  authorization,
-  inTransaction: createUnitOfWork(db, accountStoresOver),
-  now: () => new Date(),
+const { identity, account } = createManagers({
+  bus,
+  identity: {
+    users: createUserAccessor(db),
+    sessions: createSessionAccessor(db),
+    households,
+    invitations: createInvitationAccessor(db),
+    authentication,
+    authorization,
+    notifications,
+    webAppUrl: env.webAppUrl,
+    now: () => new Date(),
+  },
+  account: {
+    ...accountStoresOver(db),
+    holdings: createInvestmentHoldingAccessor(db),
+    valuations: createValuationSnapshotAccessor(db),
+    indexRates: createIndexRateAccessor(db),
+    households,
+    notifications,
+    authorization,
+    inTransaction: createUnitOfWork(db, accountStoresOver),
+    now: () => new Date(),
+  },
 });
-subscribeAccountManager(bus, account);
 
 serve({
   fetch: createApp({

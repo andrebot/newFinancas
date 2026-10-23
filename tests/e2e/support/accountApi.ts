@@ -38,13 +38,19 @@ export const listCategories = async (
 };
 
 /**
- * Sorts Category shapes by name, so two lists compare whatever their order.
+ * Sorts Category shapes by name, and each one's Subcategories, so two lists
+ * compare whatever order the API or the definitions keep.
  *
  * @param categories - The Categories.
  * @returns A sorted copy.
  */
 const byName = (categories: readonly CategoryShape[]): CategoryShape[] => (
-  [...categories].sort((left, right) => left.name.localeCompare(right.name))
+  categories
+    .map((category) => ({
+      ...category,
+      subcategories: [...category.subcategories].sort((left, right) => left.localeCompare(right)),
+    }))
+    .sort((left, right) => left.name.localeCompare(right.name))
 );
 
 /**
@@ -53,7 +59,7 @@ const byName = (categories: readonly CategoryShape[]): CategoryShape[] => (
  * @param request - Playwright's API client.
  * @param member - A member of the household.
  * @param householdId - The household.
- * @returns Name, icon, colour and Subcategory names of each, by name.
+ * @returns Name, icon, colour and Subcategory names of each, both by name.
  */
 export const categoryShapes = async (
   request: APIRequestContext,
