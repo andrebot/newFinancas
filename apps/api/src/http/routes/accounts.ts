@@ -1,7 +1,8 @@
 import {
   zArchiveAccountPath, zCreateAccountBody, zCreateAccountPath, zEditAccountBody,
   zEditAccountPath, zGetAccountBalancesPath, zGetAccountBalancesQuery, zGetAccountPath,
-  zGetCreditCardBalancesPath, zGetCreditCardBalancesQuery, zListAccountsPath, zListAccountsQuery,
+  zGetAccountStatusPath, zGetCreditCardBalancesPath, zGetCreditCardBalancesQuery, zListAccountsPath,
+  zListAccountsQuery,
 } from '@financas/api-types/zod';
 import { Hono } from 'hono';
 import type { AccountManager, MonthRange } from '../../managers/account';
@@ -20,6 +21,7 @@ import { signedInContextOf } from './requestContext';
 const ACCOUNTS_PATH = '/households/:householdId/accounts';
 const ACCOUNT_PATH = `${ACCOUNTS_PATH}/:accountId`;
 const CARD_BALANCES_PATH = '/households/:householdId/credit-cards/:creditCardId/balances';
+const STATUS_PATH = '/households/:householdId/account-status';
 
 /**
  * Reads a `YYYY-MM` query value (the contract checked its shape).
@@ -64,6 +66,11 @@ const createAccountRoutes = (account: AccountManager) => new Hono<AppEnv>()
       return httpContext.json({ data: accounts.map(toAccountJson) });
     },
   )
+  .get(STATUS_PATH, validate('param', zGetAccountStatusPath), async (httpContext) => {
+    const { householdId } = httpContext.req.valid('param');
+    const context = signedInContextOf(httpContext);
+    return httpContext.json(await account.getAccountStatus(context, householdId));
+  })
   .post(
     ACCOUNTS_PATH,
     validate('param', zCreateAccountPath),

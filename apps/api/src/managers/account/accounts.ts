@@ -245,6 +245,27 @@ const createAccounts = (deps: AccountDeps) => ({
   },
 
   /**
+   * Whether the household has an Account in use, whatever its visibility —
+   * the household gate's question (FR-1.22, OQ-198). Any member may ask; it
+   * reveals no Account, only that one exists.
+   *
+   * @param context - The signed-in request.
+   * @param householdId - The household.
+   * @returns Whether one is in use.
+   * @throws {ApiError} 404 `household.not_found`.
+   */
+  getAccountStatus: async (
+    context: SignedInContext,
+    householdId: string,
+  ): Promise<{ inUse: boolean }> => {
+    await requireAccess(deps.authorization, context.actor.userId, householdId, accessToOwned(
+      undefined,
+      'data.view',
+    ));
+    return { inUse: await deps.accounts.hasAccountInUse(householdId) };
+  },
+
+  /**
    * One Account the caller can see, as it stands today.
    *
    * @param context - The signed-in request.

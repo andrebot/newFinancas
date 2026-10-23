@@ -21,7 +21,10 @@ import {
 // on (to where Sign In was asked for, else the Dashboard); every other page
 // sends a signed-out user to Sign In, remembering where they were going. The
 // household pages also wait for the user's households: none → Onboard; else
-// the remembered or first one becomes active and the chrome appears.
+// the remembered or first one becomes active. The chrome appears once that
+// household has an account in use; without one, Guided Setup opens — the
+// first account is mandatory and the main navigation waits for it (FR-1.22,
+// OQ-198).
 
 /**
  * Lets only a signed-out user through. Once a session starts — Sign In or
@@ -85,24 +88,119 @@ export const householdGate = (
     : { state: 'settling' };
 };
 
-/** The gate's props. */
-interface HouseholdGateProps {
-  readonly config: ShellConfig;
+/**
+ * Shows that the gate can't go on, with a retry.
+ *
+ * @param props - What failed, and how to try again.
+ * @returns The failure, full-page.
+ */
+function GateFailure({ title, retry }: { readonly title: string; readonly retry: () => void }) {
+  const translator = useI18n();
+  return (
+    <div className="grid min-h-screen place-items-center bg-bg text-ink">
+      <EmptyState
+        icon="error-outline"
+        title={title}
+        action={<Button onClick={retry}>{translator.text('shell', 'households.retry')}</Button>}
+      />
+    </div>
+  );
 }
 
 /**
- * Shows the household pages inside the chrome once a household is active.
+ * Shows that the gate is waiting for its answer.
  *
- * @param props - The shell's configuration.
- * @returns The chrome and page, a loading or failure state, or a redirect to Onboard.
+ * @param props - What it waits for.
+ * @returns The skeleton, full-page.
  */
-export function HouseholdGate({ config }: HouseholdGateProps) {
+function GateLoading({ label }: { readonly label: string }) {
+  return (
+    <div className="mx-auto min-h-screen w-full max-w-md bg-bg px-4 pt-24 text-ink">
+      <SkeletonRows label={label} />
+    </div>
+  );
+}
+
+/** The account gate's props: the settled households, the active one and its answer. */
+interface AccountGateProps {
+  readonly config: ShellConfig;
+  readonly households: readonly ShellHousehold[];
+  readonly active: ShellHousehold;
+  /** Whether the active household has an account in use. */
+  readonly accountInUse: SourceState<boolean>;
+}
+
+/**
+ * Shows the chrome once the active household has an account in use;
+ * without one, opens Guided Setup (FR-1.22, OQ-198), carrying the page asked
+ * for so the wizard's finish can return to it.
+ *
+ * @param props - The shell's configuration, the settled households and the answer.
+ * @returns The chrome and page, a loading or failure state, or a redirect to Guided Setup.
+ */
+function AccountGate({
+  config, households, active, accountInUse,
+}: AccountGateProps) {
+  const translator = useI18n();
+  const location = useLocation();
+  if (accountInUse.status === 'failed') {
+    return (
+      <GateFailure
+        title={translator.text('shell', 'household.failed')}
+        retry={accountInUse.retry}
+      />
+    );
+  }
+  if (accountInUse.status === 'loading') {
+    return <GateLoading label={translator.text('shell', 'household.loading')} />;
+  }
+  if (!accountInUse.data) {
+    const state: ReturnState = { from: `${location.pathname}${location.search}` };
+    return <Navigate to={shell.paths.guidedSetup} replace state={state} />;
+  }
+  return <AppShell config={config} households={households} active={active} />;
+}
+
+/**
+ * Tells which household the account check asks about: the active one, as
+ * soon as there is one — none for a setup page, which isn't gated on it.
+ *
+ * @param setup - Whether the page is a setup page.
+ * @param activeId - The active household's id, if one is chosen.
+ * @returns The household to ask about, or none.
+ */
+export const accountQuestionOf = (setup: boolean, activeId: string | null) => (
+  setup || activeId === null ? undefined : activeId
+);
+
+/** The gate's props. */
+interface HouseholdGateProps {
+  readonly config: ShellConfig;
+  /**
+   * A setup page (Guided Setup): shown bare once a household is active,
+   * without the chrome or the account check.
+   */
+  readonly setup?: boolean | undefined;
+}
+
+/**
+ * Settles the active household, then shows a setup page as it is or leaves
+ * the rest to the account gate.
+ *
+ * @param props - The shell's configuration, and whether the page is a setup page.
+ * @returns The setup page or the account gate, a loading or failure state, or
+ *   a redirect to Onboard.
+ */
+export function HouseholdGate({ config, setup = false }: HouseholdGateProps) {
   const translator = useI18n();
   const dispatch = useAppDispatch();
   const households = config.sources.useHouseholds();
   const activeId = useAppSelector(selectActiveHouseholdId);
   const list = households.status === 'ready' ? households.data : undefined;
   const gate = householdGate(households, activeId);
+  // Asked as soon as a household is active, beside the households list rather
+  // than after it, so a switch waits for one round trip, not two.
+  const accountInUse = config.sources.useAccountInUse(accountQuestionOf(setup, activeId));
 
   useEffect(() => {
     if (list) {
@@ -115,27 +213,24 @@ export function HouseholdGate({ config }: HouseholdGateProps) {
   }
   if (households.status === 'failed') {
     return (
-      <div className="grid min-h-screen place-items-center bg-bg text-ink">
-        <EmptyState
-          icon="error-outline"
-          title={translator.text('shell', 'households.failed')}
-          action={(
-            <Button onClick={households.retry}>
-              {translator.text('shell', 'households.retry')}
-            </Button>
-          )}
-        />
-      </div>
+      <GateFailure
+        title={translator.text('shell', 'households.failed')}
+        retry={households.retry}
+      />
     );
   }
   if (gate.state !== 'ready') {
-    return (
-      <div className="mx-auto min-h-screen w-full max-w-md bg-bg px-4 pt-24 text-ink">
-        <SkeletonRows label={translator.text('shell', 'households.loading')} />
-      </div>
-    );
+    return <GateLoading label={translator.text('shell', 'households.loading')} />;
   }
-  return <AppShell config={config} households={gate.households} active={gate.active} />;
+  if (setup) return <Outlet />;
+  return (
+    <AccountGate
+      config={config}
+      households={gate.households}
+      active={gate.active}
+      accountInUse={accountInUse}
+    />
+  );
 }
 
 /** The routes' props. */
@@ -163,6 +258,11 @@ export function AppRoutes({ config }: AppRoutesProps) {
         {routesFor('signedIn').map((route) => (
           <Route key={route.id} path={route.path} element={pages[route.id]} />
         ))}
+        <Route element={<HouseholdGate config={config} setup />}>
+          {routesFor('householdSetup').map((route) => (
+            <Route key={route.id} path={route.path} element={pages[route.id]} />
+          ))}
+        </Route>
         <Route element={<HouseholdGate config={config} />}>
           {routesFor('household').map((route) => (
             <Route key={route.id} path={route.path} element={pages[route.id]} />

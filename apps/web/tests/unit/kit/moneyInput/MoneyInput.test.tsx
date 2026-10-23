@@ -80,6 +80,10 @@ describe('heroClasses', () => {
     expect(heroClasses(false)).toContain('border-line focus-within:border-mint');
     expect(heroClasses(true)).toContain('border-coral focus-within:ring-coral/15');
   });
+
+  it('lets its column, not its input, set its width', () => {
+    expect(heroClasses(false).split(' ')).toContain('min-w-0');
+  });
 });
 
 describe('MoneyInput', () => {

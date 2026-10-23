@@ -1,13 +1,18 @@
 import { expect, test } from '@playwright/test';
-import { currentUser, newCredentials, signInThroughApi } from '../support/identityApi';
+import {
+  addMember, createHousehold, currentUser, newCredentials, registerUser, signInThroughApi,
+} from '../support/identityApi';
+import { signInThroughUi } from '../support/signIn';
 import text from '../support/text';
 import totpCode from '../support/totp';
 
 // I7 — Onboard (X2) against the real API: registration, MFA enrollment with a
-// real authenticator code, and the first household. Core E2E journey #1 (BDT
-// plan); its "default Categories exist" check joins once Categories do.
+// real authenticator code, the first household and its Guided Setup (X2G):
+// the mandatory first account, then the optional steps passed by. Core E2E
+// journey #1 (BDT plan); its "default Categories exist" check joins once
+// Categories do.
 
-test('a new user registers, enrolls MFA and creates their first household', {
+test('a new user registers, enrolls MFA, creates and sets up their first household', {
   tag: '@core',
 }, async ({ page, request }) => {
   const user = newCredentials({ firstName: 'Olivia', lastName: 'Onboard' });
@@ -37,6 +42,17 @@ test('a new user registers, enrolls MFA and creates their first household', {
   await page.getByLabel(text('householdSetup', 'name')).fill('Onboard Home');
   await page.getByRole('button', { name: text('householdSetup', 'submit') }).click();
 
+  // Guided Setup: the first account is mandatory, the rest is optional.
+  await expect(page).toHaveURL(/\/setup\/guided$/);
+  await page.getByLabel(text('guidedSetup', 'account.name')).fill('Main Checking');
+  await page.getByRole('button', { name: text('guidedSetup', 'account.submit') }).click();
+  await page.getByRole('button', { name: text('guidedSetup', 'categories.continue') }).click();
+  await page.getByRole('button', { name: text('guidedSetup', 'finish') }).click();
+  await expect(page.getByRole('heading', {
+    name: text('guidedSetup', 'complete.title', { household: 'Onboard Home' }),
+  })).toBeVisible();
+  await page.getByRole('button', { name: text('guidedSetup', 'complete.dashboard') }).click();
+
   // On the Dashboard.
   await expect(page).toHaveURL(/\/$/);
   await page.getByRole('button', { name: text('shell', 'header.openMenu') }).click();
@@ -49,4 +65,20 @@ test('a new user registers, enrolls MFA and creates their first household', {
   // default (OQ-161) — read from the API, since the page shows en-US either way.
   const tokens = await signInThroughApi(request, { ...user, totpSecret: setupKey });
   expect((await currentUser(request, tokens.accessToken!)).preferences.language).toBe('en-US');
+});
+
+test('a member of a household with only the Owner\'s personal accounts skips Guided Setup', async ({
+  page, request,
+}) => {
+  // The gate asks whether the household has an account of any visibility,
+  // not whether the member can see one (OQ-198).
+  const owner = await registerUser(request, { firstName: 'Paula', lastName: 'Private' });
+  const household = await createHousehold(request, owner, 'Private Home', 'personal');
+  const member = await registerUser(request, { firstName: 'Mia', lastName: 'Member' });
+  await addMember(request, owner, household.id, { user: member, role: 'Member' });
+
+  await signInThroughUi(page, member);
+
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole('button', { name: text('shell', 'header.openMenu') })).toBeVisible();
 });

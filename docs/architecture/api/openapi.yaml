@@ -802,6 +802,28 @@ paths:
               schema: { $ref: "#/components/schemas/Error" }
 
   # =========================================================== ACCOUNTS
+  /households/{householdId}/account-status:
+    parameters:
+      - $ref: "#/components/parameters/HouseholdId"
+    get:
+      tags: [Accounts]
+      operationId: getAccountStatus
+      summary: Whether the household has an account in use
+      description: >
+        FR-1.22, OQ-198. True while any Account of the household, of any
+        visibility, isn't archived. It is a fact about the household, not
+        about what the caller can see, so an invited member of a household
+        whose Accounts are all someone else's personal ones gets `true`;
+        nothing about those Accounts is revealed. Any member may read it.
+        The App Shell's household gate opens Guided Setup while it is
+        `false`.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AccountStatus" }
+        "404": { $ref: "#/components/responses/NotFound" }
   /households/{householdId}/accounts:
     parameters:
       - $ref: "#/components/parameters/HouseholdId"
@@ -2636,6 +2658,13 @@ components:
             inviteeFirstName: { type: string }
             inviteeLastName: { type: string }
             inviteeEmail: { type: string, format: email }
+
+    AccountStatus:
+      type: object
+      description: Whether a household has an Account in use, whatever its visibility (OQ-198).
+      required: [inUse]
+      properties:
+        inUse: { type: boolean }
 
     MyHousehold:
       description: A household the current user belongs to, with their role in it (OQ-116).

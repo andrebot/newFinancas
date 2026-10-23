@@ -47,7 +47,7 @@ EXPERIENCES = [
       ("Guided Setup", ["First Account Entry", "Account Cards Field", "Budget Entry", "Setup Done Row", "Wizard Navigation", "Setup Complete Summary"], "guided-setup")],
      [], ["ValidationUtility", "PasswordStrengthUtility", "AlertUtility", "I18nUtility", "FormattingUtility",
           "ClipboardUtility", "DownloadUtility"],
-     "Guided Setup (FL6, OQ-196) walks a new household through mockups 11–14: the first account (mandatory, no Skip — FR-1.22) and a budget in inline forms of its own, built from Account Setup's card fields and claim-aware picker, and the seeded categories through Account Setup's Category Management Flow, which Onboard renders and hands into the wizard's categories step (Experiences compose Flows; a Flow never hosts one). Each route opens one stretch: /register runs Registration + MFA Enrollment; /setup (the household gate's) and /households/new (an additional household, OQ-81) run Household Setup, with Cancel only on the latter. The server's state is the progression (OQ-158)."),
+     "Guided Setup (FL6, OQ-196) walks a new household through mockups 11–14: the first account (mandatory, no Skip — FR-1.22) and a budget in inline forms of its own, built from Account Setup's card fields and claim-aware picker, and the seeded categories through Account Setup's Category Management Flow, which Onboard renders and hands into the wizard's categories step (Experiences compose Flows; a Flow never hosts one). Each route opens one stretch: /register runs Registration + MFA Enrollment; /setup (the household gate's) and /households/new (an additional household, OQ-81) run Household Setup, with Cancel only on the latter; /setup/guided runs Guided Setup on the active household (X2G, OQ-198) — a new household opens it, and so does the gate for a household with no account in use, so a drop-off resumes there. Its requests are the shared setup requests Account Setup answers too (api/setupRequests.ts). The server's state is the progression (OQ-158)."),
     ("Manage Profile", "manage-profile", "Look after my own account",
      [("Security", ["Password Change", "Session List", "Sign Out All Others"], "security"),
       ("Delete Account", ["Consequences Review", "Type-to-Confirm"], "delete-account")],
@@ -203,7 +203,8 @@ def shell_page():
     """App Shell: a layout, not an Experience — hosts chrome and routes events."""
     rows = [("Header", ["Logo", "Notification Bell → Review Insights' Notification Inbox"]),
             ("Nav drawer", ["Identity", "Household Switcher (the shell's own switch — OQ-156)", "Pending invitations → Manage Profile", "Create household → Onboard", "Main nav (one entry per Experience)", "Export audit log → Review Insights", "Profile / Sign out"]),
-            ("Routing config", ["invitation.received → Manage Profile (Respond to Invitation)", "holding.matured → Track Investments (Archive Matured Holding)", "active household → every Experience (read-only context)"])]
+            ("Routing config", ["invitation.received → Manage Profile (Respond to Invitation)", "holding.matured → Track Investments (Archive Matured Holding)", "active household → every Experience (read-only context)"]),
+            ("Household gate", ["No household → Onboard (/setup)", "No account in use, of any visibility → Onboard's Guided Setup (/setup/guided — FR-1.22, OQ-198), asked through the shared useAccountInUse (GET …/account-status)", "Otherwise → the page inside the chrome"])]
     cols = len(rows)
     grid = f'style="grid-template-columns: repeat({cols}, 1fr);"'
     labels = "".join(f'<div class="col-label">{r[0]}</div>' for r in rows)
@@ -427,7 +428,7 @@ else 201 MyHousehold
     API-->>EXP: household + role Owner (default categories seeded via household.created)
     EXP-->>FLOW: outcome: ok (Flow stays busy)
     EXP->>SHELL: switchHousehold(id) — active, remembered, API cache reset
-    EXP->>EXP: open the Dashboard (Guided Setup comes in between with X2G)
+    EXP->>SHELL: open Guided Setup — /setup/guided, replacing this entry (X2G, OQ-198)
 end
 opt /households/new (onCancel given)
     User->>HN: Cancel
@@ -437,9 +438,17 @@ end
 """, ["Default categories arrive with preset icons and colours (OQ-85).",
         "No \"Ideas\" chips: mockup 10's suggestions are dropped; the field starts empty (OQ-150).",
         "/setup gives no way out — a new user must create a household; Cancel appears only on /households/new."]),
-    ("onboard-guided-setup", "Onboard — Guided Setup", f"{R('GET /households/:householdId/accounts')}, {R('POST /households/:householdId/accounts')}, {R('POST / PATCH /households/:householdId/budgets')}. Mockups 11–14 (OQ-196); the account step is mandatory.",
-     [("FAE", "First Account<br/>Entry"), ("CF", "Category<br/>Management Flow"), ("BE", "Budget<br/>Entry"), ("WN", "Wizard<br/>Navigation"), ("SC", "Setup Complete<br/>Summary"), FLOW("Guided Setup"), EXP("Onboard"), API],
+    ("onboard-guided-setup", "Onboard — Guided Setup", f"{R('GET /households/:householdId/accounts')}, {R('POST /households/:householdId/accounts')}, {R('POST / PATCH /households/:householdId/budgets')}, the gate's {R('GET /households/:householdId/account-status')}. /setup/guided — mockups 11–14 (OQ-196, OQ-198); the account step is mandatory.",
+     [("FAE", "First Account<br/>Entry"), ("CF", "Category<br/>Management Flow"), ("BE", "Budget<br/>Entry"), ("WN", "Wizard<br/>Navigation"), ("SC", "Setup Complete<br/>Summary"), FLOW("Guided Setup"), EXP("Onboard"), ("SHELL", "App Shell"), API],
      """
+alt opened by Household Setup
+    SHELL->>EXP: /setup/guided — the new household active
+else resumed (a drop-off before the first account)
+    SHELL->>API: household gate: GET /households/:householdId/account-status — beside GET /households
+    API-->>SHELL: inUse false (no Account of any visibility, or all archived)
+    SHELL->>EXP: /setup/guided instead of the chrome, carrying {from} (FR-1.22, OQ-198)
+end
+EXP->>EXP: wait for the user and the active household — a skeleton, a retry on failure
 FLOW->>EXP: request loadAccounts() (on mount)
 EXP->>API: GET /households/:householdId/accounts
 API-->>EXP: accounts
@@ -476,8 +485,11 @@ opt a budget typed and not saved
 end
 FLOW-->>SC: render the counts + next steps
 SC->>FLOW: emit destination
-FLOW->>EXP: finish(destination) → navigate
-""", ["Steps 1 and 3 are this Flow's own inline forms, as mockups 11 and 13 draw them; the drawers are kept for Account Setup's busier page (OQ-196).", "Both forms carry a Personal / Shared field — Shared to start, Personal for a Viewer — which the mockups leave out (OQ-196).", "The Flow never calls the backend: Onboard hosts it and answers each request (X2G). Main nav stays hidden until this completes."]),
+FLOW->>EXP: finish(destination)
+EXP->>SHELL: navigate, replacing the wizard — Transactions, Manage Household, Account Setup ?tab=goals, or the Dashboard (the page held back in {from}, if any)
+SHELL->>API: household gate: GET /households/:householdId/account-status (asked again: the create invalidated it)
+API-->>SHELL: inUse true → the page inside the chrome
+""", ["Steps 1 and 3 are this Flow's own inline forms, as mockups 11 and 13 draw them; the drawers are kept for Account Setup's busier page (OQ-196).", "Both forms carry a Personal / Shared field — Shared to start, Personal for a Viewer — which the mockups leave out (OQ-196).", "The Flow never calls the backend: Onboard hosts it and answers each request through the shared setup requests (api/setupRequests.ts — X2G, OQ-198).", "Main nav stays hidden until the household has an account in use, of any visibility: the household gate opens Guided Setup for one that hasn't, so a drop-off resumes here (FR-1.22, OQ-198)."]),
     ("manage-profile-security", "Manage Profile — Security", f"{R('GET /users/me/sessions')}, {R('DELETE /users/me/sessions[/:sessionId]')}, {R('POST /auth/change-password')}. Both panels at once (mockup 70, OQ-154).",
      [("PC", "Password Change"), ("SL", "Session List"), ("SO", "Sign Out All Others"), FLOW("Security"), EXP("Manage Profile"), API],
      """

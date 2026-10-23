@@ -78,7 +78,7 @@ sequenceDiagram
         API-->>EXP: household + role Owner (default categories seeded via household.created)
         EXP-->>FLOW: outcome: ok (Flow stays busy)
         EXP->>SHELL: switchHousehold(id) — active, remembered, API cache reset
-        EXP->>EXP: open the Dashboard (Guided Setup comes in between with X2G)
+        EXP->>SHELL: open Guided Setup — /setup/guided, replacing this entry (X2G, OQ-198)
     end
     opt /households/new (onCancel given)
         User->>HN: Cancel

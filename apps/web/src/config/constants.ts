@@ -272,6 +272,7 @@ export const shell = {
     resetPassword: '/reset-password',
     onboard: '/setup',
     createHousehold: '/households/new',
+    guidedSetup: '/setup/guided',
     dashboard: '/',
     transactions: '/transactions',
     accountSetup: '/account-setup',
@@ -281,4 +282,18 @@ export const shell = {
   },
   /** The search parameter naming a page's open section, e.g. `/account-setup?tab=budgets`. */
   tabParam: 'tab',
+} as const;
+
+/**
+ * Onboard's Guided Setup (X2G, mockup 14; OQ-198): where each of the summary's
+ * next steps leads — a page, and the section it opens. The Dashboard step
+ * returns instead to the page the household gate held back, if any.
+ */
+export const guidedSetup = {
+  destinations: {
+    dashboard: { path: shell.paths.dashboard },
+    transactions: { path: shell.paths.transactions },
+    household: { path: shell.paths.household },
+    goals: { path: shell.paths.accountSetup, tab: 'goals' },
+  },
 } as const;

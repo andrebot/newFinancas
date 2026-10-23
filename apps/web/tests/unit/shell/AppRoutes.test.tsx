@@ -6,7 +6,7 @@ import {
 } from 'vitest';
 import backendApi from '../../../src/api/backendApi';
 import { sessionEnded } from '../../../src/api/baseQuery';
-import { AppRoutes, householdGate } from '../../../src/shell/AppRoutes';
+import { accountQuestionOf, AppRoutes, householdGate } from '../../../src/shell/AppRoutes';
 import { canExportAuditLog } from '../../../src/shell/AppShell';
 import type { InboxPanelProps, ShellConfig } from '../../../src/shell/shellConfig';
 import {
@@ -145,6 +145,89 @@ describe('AppRoutes — household gate', () => {
     expect(await screen.findByRole('heading', { name: 'page:transactions' })).toBeTruthy();
     expect(screen.getByRole('banner')).toBeTruthy();
     expect(selectActiveHouseholdId(store.getState())).toBe('rivera');
+  });
+
+  it('asks about the active household, waiting for its answer (OQ-198)', async () => {
+    const useAccountInUse = vi.fn(() => ({ status: 'loading' }) as const);
+    const config = fakeConfig({ sources: { ...fakeConfig().sources, useAccountInUse } });
+    renderRoutes(config, signedIn('rivera').store, '/');
+
+    expect(await screen.findByRole('status', { name: 'Loading your household' })).toBeTruthy();
+    expect(useAccountInUse).toHaveBeenLastCalledWith('rivera');
+    expect(screen.queryByRole('banner')).toBeNull();
+  });
+
+  it('asks beside the households list once a household is active, not after it', () => {
+    const useAccountInUse = vi.fn(() => ({ status: 'loading' }) as const);
+    const config = fakeConfig({
+      sources: {
+        ...fakeConfig().sources, useHouseholds: () => ({ status: 'loading' }), useAccountInUse,
+      },
+    });
+    const { store } = signedIn();
+    store.dispatch(householdChosen('doe'));
+    renderRoutes(config, store, '/');
+
+    expect(screen.getByRole('status', { name: 'Loading your households' })).toBeTruthy();
+    expect(useAccountInUse).toHaveBeenLastCalledWith('doe');
+  });
+
+  it('offers a retry when that answer fails', async () => {
+    const retry = vi.fn();
+    const config = fakeConfig({
+      sources: {
+        ...fakeConfig().sources, useAccountInUse: () => ({ status: 'failed', retry }),
+      },
+    });
+    renderRoutes(config, signedIn().store, '/');
+
+    expect(await screen.findByText("Couldn't load this household.")).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(retry).toHaveBeenCalledOnce();
+  });
+
+  it('opens Guided Setup, without the chrome, for a household with no account in use', async () => {
+    const config = fakeConfig({
+      sources: {
+        ...fakeConfig().sources, useAccountInUse: () => ({ status: 'ready', data: false }),
+      },
+    });
+    renderRoutes(config, signedIn().store, '/transactions');
+
+    expect(await screen.findByRole('heading', { name: 'page:guidedSetup' })).toBeTruthy();
+    expect(location().textContent).toBe('/setup/guided');
+    expect(JSON.parse(location().dataset.state ?? 'null')).toEqual({ from: '/transactions' });
+    expect(screen.queryByRole('banner')).toBeNull();
+  });
+
+  it('shows Guided Setup in the settled household, whether or not it has an account', async () => {
+    const { store } = signedIn('rivera');
+    const useAccountInUse = vi.fn(() => ({ status: 'ready', data: false }) as const);
+    renderRoutes(
+      fakeConfig({ sources: { ...fakeConfig().sources, useAccountInUse } }),
+      store,
+      '/setup/guided',
+    );
+
+    expect(await screen.findByRole('heading', { name: 'page:guidedSetup' })).toBeTruthy();
+    expect(screen.queryByRole('banner')).toBeNull();
+    expect(selectActiveHouseholdId(store.getState())).toBe('rivera');
+    expect(useAccountInUse).not.toHaveBeenCalledWith('rivera');
+  });
+
+  it('asks about no household for a setup page, or before one is active', () => {
+    expect(accountQuestionOf(true, 'doe')).toBeUndefined();
+    expect(accountQuestionOf(false, null)).toBeUndefined();
+    expect(accountQuestionOf(false, 'doe')).toBe('doe');
+  });
+
+  it('sends a user with no household from Guided Setup to Onboard', () => {
+    const empty: never[] = [];
+    const config = fakeConfig({
+      sources: { ...fakeConfig().sources, useHouseholds: () => ({ status: 'ready', data: empty }) },
+    });
+    renderRoutes(config, signedIn().store, '/setup/guided');
+    expect(screen.getByRole('heading', { name: 'page:onboard' })).toBeTruthy();
   });
 
   it('decides each state from the households and the active one', () => {

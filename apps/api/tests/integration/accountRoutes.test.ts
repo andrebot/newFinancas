@@ -125,6 +125,17 @@ describe('account routes (OQ-174: under /households/:householdId)', () => {
     });
   });
 
+  it('GET …/account-status → 200, whether one is in use (OQ-198)', async () => {
+    const { app, account } = setup();
+    account.getAccountStatus.mockResolvedValue({ inUse: true });
+
+    const response = await send(app, 'GET', `/households/${HOME}/account-status`);
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ inUse: true });
+    expect(account.getAccountStatus).toHaveBeenCalledWith(signedIn(), HOME);
+  });
+
   it('POST …/accounts → 201, cards inline', async () => {
     const { app, account } = setup();
     account.createAccount.mockResolvedValueOnce({ ...ACCOUNT, archivedAt: null });

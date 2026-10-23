@@ -3496,8 +3496,7 @@ not a hardcoded assumption.
     then.
 - **A new household becomes the active one.** `switchHousehold(id)`
   remembers it and resets the API cache, so the gate fetches the list
-  again. Then the Dashboard opens. Guided Setup is added in between with
-  X2G (task 95).
+  again. Then Guided Setup opens (X2G, OQ-198).
 - **The MFA enrollment step is Onboard's, and Authenticate hosts it.**
   `experiences/onboard/MfaEnrollmentStep.tsx` holds the following, moved
   out of Authenticate:
@@ -5179,6 +5178,29 @@ automated/fetched) interest rate applied to it — consistent with the
 system's broader "manual over automated" stance (see the Currency
 Reference Rate treatment, FR-9).
 **Affects:** FR-2.10, FR-3.7.
+
+### OQ-198: Onboard's Guided Setup step (task X2G)
+**Confirmed with the stakeholder (Oct 2026):**
+- **Guided Setup has its own address, `/setup/guided`.** Household Setup creates the household, makes it the active one and opens it, replacing itself in the history, so Back can't create a second household. A refresh resumes the wizard on the active household; FL6's account step already lists the accounts in use with Continue. It is a new access level in the routing table, `householdSetup`: a session and a settled active household, no chrome and no account check. With no household, the gate sends the user to `/setup`. Weighed and rejected: holding the wizard in Onboard's memory, where a refresh lands back on Household Setup.
+- **The first account is enforced after a drop-off (FR-1.22).** Once a household is active, the household gate asks whether it has an account in use, meaning one of *any* visibility that isn't archived. Without one, it opens Guided Setup instead of the chrome. So a user who leaves before the mandatory step, then comes back on any page, is sent back to it, and the main navigation waits. A household whose accounts are all archived goes back to the wizard too: it has no account to work with.
+- **The answer is a household fact, from `AccountManager` (PR #115 review).** The first cut read the accounts list, which holds only what the caller can see: shared accounts plus their own personal ones. An invited Member of a household whose Owner had only personal accounts saw an empty list. They were locked into the wizard, which has no chrome and no switcher. `GET /households/:householdId/account-status` → `{ inUse }` (`AccountManager.getAccountStatus` → `AccountAccessor.hasAccountInUse`) counts every visibility. Any member may read it, and it reveals only that some account exists, never which. It is a plain read of `AccountManager`'s own entities (VBD §3), and the gate no longer downloads the whole list.
+- **The journey rule stays in the frontend.** "A usable household has an account" changes with onboarding (requiring a budget too, letting invited members skip it), so it is decided by the App Shell's gate and Onboard; the backend only states the fact. Weighed and rejected:
+  - `hasAccounts` on `MyHousehold`, computed by `IdentityManager` through `AccountAccessor`. Any Manager may call any Accessor; that wasn't the objection. The objection was putting a rule that moves with the onboarding journey into the identity contract.
+  - A sticky `households.setupCompletedAt`, set by an `account.created` event. It needs a migration, an event and a contract change, and the asynchronous event leaves a race between finishing the wizard and the gate.
+  - Gating only the Owner.
+  - Deferring enforcement.
+
+**Design decisions:**
+- **Onboard hosts the wizard and answers its requests** (`OnboardExperience.tsx`, entry `guidedSetup`). It waits for the user and the active household: a skeleton while loading, a retry if the user can't be loaded. It renders the Guided Setup Flow keyed on the household, and hands in the Category Management Flow for the categories step.
+- **Finishing replaces the wizard in the history** (PR #115 review), as entering it does, so Back from where it leads can't reopen a finished wizard. The summary's next steps lead to Transactions, Manage Household, Account Setup's Goals tab, or the Dashboard (`config/constants.ts` `guidedSetup.destinations`, OQ-101). The Goals link is built from `shell.tabParam` and a tab id typed against Account Setup's tabs. When the gate held a page back, it carries it as `{ from }`, as `RequireSession` does, and the Dashboard step returns there instead.
+- **The shared requests live in no Experience** (PR #115 review). The accounts', categories' and budgets' endpoints, the account status and its shell source (`useAccountInUse`) are in `api/setupApi.ts`. The requests both hosts answer with (`useAccountRequests`, `useCategories`, `useBudgets`, with `listViewOf` and `listsToRefresh`) are in `api/setupRequests.ts`, next to the shared identity reads (`api/identityApi.ts`). So neither Experience depends on the other's endpoints, and a rule on how a write is answered lives in one place. Account Setup's `api.ts` keeps only the goals. Each Experience is still the only tier on its page that calls the backend.
+- **The account status has its own cache tag.** `AccountStatus` is invalidated by a create or archive that went through; a failed one changes nothing. So after the wizard's first account, the gate's next read sees it, and archiving the last account on Account Setup opens the wizard.
+- **The gate asks beside the households list** (PR #115 review). The status is asked as soon as a household is active, so a household switch waits for one round trip, not two. A switch already showed the full-page skeleton before this task, because resetting the API cache empties the households list.
+- **The starting balance is explained where the wizard adds the account** (OQ-169). FL6's step 1 already carries the hint and the box on earlier transactions; X2G only hosts it.
+- **The kit's hero money panel never widens its column** (`min-w-0`). Its display-size input made the Starting balance panel overflow the account step's card.
+- **The E2E suite creates households as Guided Setup leaves them.** The API helper `createHousehold` adds a first account, so specs about other pages still open inside the chrome. The core onboarding journey goes through the wizard: the first account, then Continue, Finish and Go to Dashboard.
+
+**Task 95 (`X2G`) is complete.**
 
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 

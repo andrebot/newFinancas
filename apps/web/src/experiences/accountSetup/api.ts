@@ -1,67 +1,15 @@
 import type {
-  Account, AccountCreateRequest, ListAccountsResponse, AccountUpdateRequest, Budget,
-  BudgetCreateRequest, BudgetUpdateRequest, Category, CategoryColor, CategoryIcon,
-  CategoryUpdateRequest, Goal, GoalCreateRequest, GoalUpdateRequest, GoalWithProgress,
-  ListBudgetsResponse, ListCategoriesResponse, ListGoalProgressResponse, ListGoalsResponse,
+  Goal, GoalCreateRequest, GoalUpdateRequest, GoalWithProgress, ListGoalProgressResponse,
+  ListGoalsResponse,
 } from '@financas/api-types';
 import backendApi from '../../api/backendApi';
 import send from '../../api/send';
 
-// The Account Setup Experience's endpoints (X5; OQ-175, OQ-193..195). No
-// tags: the accounts are the Account Management Flow's own list, fetched as it
-// mounts and patched with what each write returns; the categories (Category
-// and Budget Management read them), the budgets and the goals — definitions
-// and progress, two reads joined by goal id (OQ-177) — are the Experience's
-// shared lists, fetched again by the Experience itself after each write before
-// it answers the Flow. Nothing else reads them, so invalidating would only
-// fetch them twice. The request shapes come straight from the contract
-// (`@financas/api-types`).
-
-/** What addresses an account inside its household. */
-export interface AccountTarget {
-  readonly householdId: string;
-  readonly accountId: string;
-}
-
-/** A create, addressed to its household. */
-export type CreateAccountInput = AccountCreateRequest & { readonly householdId: string };
-
-/** An edit, addressed to its account. */
-export type EditAccountInput = AccountUpdateRequest & AccountTarget;
-
-/** What addresses a category inside its household (FL12). */
-export interface CategoryTarget {
-  readonly householdId: string;
-  readonly categoryId: string;
-}
-
-/** What addresses a subcategory under its category. */
-export interface SubcategoryTarget extends CategoryTarget {
-  readonly subcategoryId: string;
-}
-
-/** A create, addressed to its household (FR-10.1). */
-export interface CreateCategoryInput {
-  readonly householdId: string;
-  readonly name: string;
-  readonly icon: CategoryIcon;
-  readonly color: CategoryColor;
-}
-
-/** An edit — fields and/or subcategories, addressed to its category (OQ-173). */
-export type EditCategoryInput = CategoryUpdateRequest & CategoryTarget;
-
-/** What addresses a budget inside its household (FL13). */
-export interface BudgetTarget {
-  readonly householdId: string;
-  readonly budgetId: string;
-}
-
-/** A create, addressed to its household (FR-4.1). */
-export type CreateBudgetInput = BudgetCreateRequest & { readonly householdId: string };
-
-/** An edit — name, target and/or targets, addressed to its budget (OQ-176). */
-export type EditBudgetInput = BudgetUpdateRequest & BudgetTarget;
+// The Account Setup Experience's own endpoints (X5; OQ-177, OQ-195): the goals —
+// definitions and progress, two reads joined by goal id (OQ-177) — a shared
+// list the Experience fetches again after each write before it answers the
+// Flow. The accounts, categories and budgets it shares with Onboard and the
+// App Shell are in `api/setupApi.ts` (OQ-198).
 
 /** What addresses a goal inside its household (FL14). */
 export interface GoalTarget {
@@ -81,40 +29,6 @@ export type CreateGoalInput = GoalCreateRequest & { readonly householdId: string
 /** An edit — name, target, target currency and/or due date, addressed to its goal (OQ-177). */
 export type EditGoalInput = GoalUpdateRequest & GoalTarget;
 
-/**
- * Builds a household's accounts path.
- *
- * @param householdId - The household.
- * @returns Its accounts' path.
- */
-const accountsPath = (householdId: string) => (
-  `/households/${encodeURIComponent(householdId)}/accounts`);
-
-/**
- * Builds one account's path inside its household.
- *
- * @param target - The household and the account.
- * @returns The account's path.
- */
-const accountPath = ({ householdId, accountId }: AccountTarget) => (
-  `${accountsPath(householdId)}/${encodeURIComponent(accountId)}`);
-
-/** Builds a household's categories path (FL12). */
-const categoriesPath = (householdId: string) => (
-  `/households/${encodeURIComponent(householdId)}/categories`);
-
-/** Builds one category's path inside its household. */
-const categoryPath = ({ householdId, categoryId }: CategoryTarget) => (
-  `${categoriesPath(householdId)}/${encodeURIComponent(categoryId)}`);
-
-/** Builds a household's budgets path (FL13). */
-const budgetsPath = (householdId: string) => (
-  `/households/${encodeURIComponent(householdId)}/budgets`);
-
-/** Builds one budget's path inside its household. */
-const budgetPath = ({ householdId, budgetId }: BudgetTarget) => (
-  `${budgetsPath(householdId)}/${encodeURIComponent(budgetId)}`);
-
 /** Builds a household's goals path (FL14). */
 const goalsPath = (householdId: string) => (
   `/households/${encodeURIComponent(householdId)}/goals`);
@@ -126,57 +40,6 @@ const goalPath = ({ householdId, goalId }: GoalTarget) => (
 /** The Experience's slice of the backend API. */
 export const accountSetupApi = backendApi.injectEndpoints({
   endpoints: (build) => ({
-    listAccounts: build.query<readonly Account[], string>({
-      query: accountsPath,
-      transformResponse: (response: ListAccountsResponse) => response.data ?? [],
-    }),
-    createAccount: build.mutation<Account, CreateAccountInput>({
-      query: ({ householdId, ...request }) => send('POST', accountsPath(householdId), request),
-    }),
-    editAccount: build.mutation<Account, EditAccountInput>({
-      query: ({ householdId, accountId, ...changes }) => (
-        send('PATCH', accountPath({ householdId, accountId }), changes)
-      ),
-    }),
-    archiveAccount: build.mutation<void, AccountTarget>({
-      query: (target) => send('POST', `${accountPath(target)}/archive`),
-    }),
-    listCategories: build.query<readonly Category[], string>({
-      query: (householdId) => `${categoriesPath(householdId)}?includeArchived=true`,
-      transformResponse: (response: ListCategoriesResponse) => response.data ?? [],
-    }),
-    createCategory: build.mutation<Category, CreateCategoryInput>({
-      query: ({ householdId, ...request }) => send('POST', categoriesPath(householdId), request),
-    }),
-    editCategory: build.mutation<Category, EditCategoryInput>({
-      query: ({ householdId, categoryId, ...changes }) => (
-        send('PATCH', categoryPath({ householdId, categoryId }), changes)
-      ),
-    }),
-    archiveCategory: build.mutation<void, CategoryTarget>({
-      query: (target) => send('POST', `${categoryPath(target)}/archive`),
-    }),
-    archiveSubcategory: build.mutation<void, SubcategoryTarget>({
-      query: ({ householdId, categoryId, subcategoryId }) => {
-        const base = categoryPath({ householdId, categoryId });
-        return send('POST', `${base}/subcategories/${encodeURIComponent(subcategoryId)}/archive`);
-      },
-    }),
-    listBudgets: build.query<readonly Budget[], string>({
-      query: budgetsPath,
-      transformResponse: (response: ListBudgetsResponse) => response.data ?? [],
-    }),
-    createBudget: build.mutation<Budget, CreateBudgetInput>({
-      query: ({ householdId, ...request }) => send('POST', budgetsPath(householdId), request),
-    }),
-    editBudget: build.mutation<Budget, EditBudgetInput>({
-      query: ({ householdId, budgetId, ...changes }) => (
-        send('PATCH', budgetPath({ householdId, budgetId }), changes)
-      ),
-    }),
-    deleteBudget: build.mutation<void, BudgetTarget>({
-      query: (target) => send('DELETE', budgetPath(target)),
-    }),
     listGoals: build.query<readonly Goal[], GoalListInput>({
       query: ({ householdId, status }) => `${goalsPath(householdId)}?status=${status}`,
       transformResponse: (response: ListGoalsResponse) => response.data ?? [],
@@ -210,19 +73,6 @@ export const accountSetupApi = backendApi.injectEndpoints({
 });
 
 export const {
-  useLazyListAccountsQuery,
-  useCreateAccountMutation,
-  useEditAccountMutation,
-  useArchiveAccountMutation,
-  useListCategoriesQuery,
-  useCreateCategoryMutation,
-  useEditCategoryMutation,
-  useArchiveCategoryMutation,
-  useArchiveSubcategoryMutation,
-  useListBudgetsQuery,
-  useCreateBudgetMutation,
-  useEditBudgetMutation,
-  useDeleteBudgetMutation,
   useListGoalsQuery,
   useListGoalProgressQuery,
   useCreateGoalMutation,

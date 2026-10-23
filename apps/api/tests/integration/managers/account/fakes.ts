@@ -185,6 +185,7 @@ export const fakeDeps = () => {
     insert: vi.fn(async () => ACCOUNT),
     findById: vi.fn(async (): Promise<typeof ACCOUNT | undefined> => ACCOUNT),
     list: vi.fn(async () => [ACCOUNT]),
+    hasAccountInUse: vi.fn(async () => true),
     update: vi.fn(async (): Promise<typeof ACCOUNT | undefined> => ACCOUNT),
     archive: vi.fn(async () => true),
     listBalances: vi.fn(async () => [accountBalance(ACCOUNT.id, 5000)]),

@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router';
 import { AuthenticateExperience } from './experiences/authenticate/AuthenticateExperience';
 import signOut from './experiences/authenticate/signOut';
 import { useHouseholds } from './api/identityApi';
+import { useAccountInUse } from './api/setupApi';
 import { AccountSetupExperience } from './experiences/accountSetup/AccountSetupExperience';
 import { ManageHouseholdExperience } from './experiences/manageHousehold/ManageHouseholdExperience';
 import { ManageProfileExperience } from './experiences/manageProfile/ManageProfileExperience';
@@ -54,11 +55,14 @@ export const shellConfigFor = (
     register: <OnboardExperience entry="registration" />,
     onboard: <OnboardExperience entry="household" />,
     createHousehold: <OnboardExperience entry="additionalHousehold" />,
+    guidedSetup: <OnboardExperience entry="guidedSetup" />,
     household: <ManageHouseholdExperience />,
     profile: <ManageProfileExperience />,
     accountSetup: <AccountSetupExperience />,
   },
-  sources: { useIdentity, useHouseholds, usePendingInvitationCount },
+  sources: {
+    useIdentity, useHouseholds, usePendingInvitationCount, useAccountInUse,
+  },
   actions: {
     ...placeholderActions,
     signOut: () => {

@@ -202,6 +202,8 @@ const enUS: Catalog = {
     cancel: 'Cancel',
   },
   guidedSetup: {
+    loading: 'Opening your setup',
+    failed: "Couldn't open your setup.",
     caption: 'Getting started · step {current} of {total}',
     'stepper.label': 'Setup steps',
     'stepper.completed': 'completed',
@@ -659,6 +661,8 @@ const enUS: Catalog = {
     'households.loading': 'Loading your households',
     'households.failed': "Couldn't load your households.",
     'households.retry': 'Try again',
+    'household.loading': 'Loading your household',
+    'household.failed': "Couldn't load this household.",
     'placeholder.title': 'Coming soon',
     'placeholder.description': 'This page arrives in a later release.',
   },

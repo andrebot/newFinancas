@@ -69,13 +69,16 @@ export const prefixOf = (symbol: string, direction?: MoneyDirection) => {
 
 /**
  * Builds the classes of the hero panel: the field's border and focus halo
- * (mint, or coral while invalid) on the mockups' amount panel.
+ * (mint, or coral while invalid) on the mockups' amount panel. It never
+ * widens its container: the amount's input, at display size, is wider than
+ * most columns, and a grid or flex item otherwise takes its content's width
+ * as its minimum.
  *
  * @param invalid - Whether the amount shows an error.
  * @returns The panel's classes.
  */
 export const heroClasses = (invalid: boolean) => [
-  'flex flex-col gap-1 rounded-2xl border bg-bg px-5 py-4',
+  'flex min-w-0 flex-col gap-1 rounded-2xl border bg-bg px-5 py-4',
   'transition-[border-color,box-shadow] duration-150 focus-within:ring-3',
   invalid
     ? 'border-coral focus-within:ring-coral/15'

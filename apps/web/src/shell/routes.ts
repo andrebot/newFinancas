@@ -16,9 +16,12 @@ export type RouteId = keyof typeof shell.paths;
  * - `signedOut` — only without a session (Sign In, Registration, recovery);
  *   a signed-in user goes to the Dashboard;
  * - `signedIn` — a session, no household needed and no chrome (Onboard);
- * - `household` — a session and an active household, inside the shell's chrome.
+ * - `householdSetup` — a session and an active household, no chrome, whether
+ *   or not it has an account yet (Guided Setup, OQ-198);
+ * - `household` — a session and an active household with an account in use,
+ *   inside the shell's chrome.
  */
-export type RouteAccess = 'signedOut' | 'signedIn' | 'household';
+export type RouteAccess = 'signedOut' | 'signedIn' | 'householdSetup' | 'household';
 
 /** A main-nav label in the catalog's `shell` section. */
 export type NavLabelKey = Extract<keyof Catalog['shell'], `nav.${string}`>;
@@ -46,6 +49,7 @@ export const ROUTES: readonly RouteEntry[] = [
   { id: 'resetPassword', path: shell.paths.resetPassword, access: 'signedOut' },
   { id: 'onboard', path: shell.paths.onboard, access: 'signedIn' },
   { id: 'createHousehold', path: shell.paths.createHousehold, access: 'signedIn' },
+  { id: 'guidedSetup', path: shell.paths.guidedSetup, access: 'householdSetup' },
   {
     id: 'dashboard',
     path: shell.paths.dashboard,

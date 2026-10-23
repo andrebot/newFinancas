@@ -170,6 +170,7 @@ const PATHS: Readonly<Record<OnboardEntry, string>> = {
   registration: '/register',
   household: '/setup',
   additionalHousehold: '/households/new',
+  guidedSetup: '/setup/guided',
 };
 
 /**
@@ -341,7 +342,7 @@ describe('OnboardExperience — household setup', () => {
     expect(shownBy('household')).toEqual({ cancellable: false });
   });
 
-  it('creates the household, works in it and opens the Dashboard', async () => {
+  it('creates the household, works in it and opens its Guided Setup in place', async () => {
     const { store, fetchFn, householdMemory } = renderExperience('household', {
       '/households': () => jsonResponse(201, CREATED),
     });
@@ -353,7 +354,8 @@ describe('OnboardExperience — household setup', () => {
     });
     expect(selectActiveHouseholdId(store.getState())).toBe('doe');
     expect(householdMemory.value).toBe('doe');
-    expect(location().path).toBe('/');
+    expect(location().path).toBe('/setup/guided');
+    expect(screen.getByTestId('location').dataset.navigation).toBe('REPLACE');
   });
 
   it('answers a failure with its code and stays', async () => {
