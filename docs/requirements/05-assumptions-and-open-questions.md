@@ -5216,6 +5216,22 @@ Reference Rate treatment, FR-9).
 
 **Task 97 (`I5`) is complete.**
 
+### OQ-200: The account setup seam, end to end (task I8)
+**Design decisions** (I8 raised no blocking questions; it follows I7's method, OQ-161):
+- **I8 drives the real web app against the real API** for X5 and X2G, in `tests/e2e/accountSetup/`. Each journey arranges its household through the API, does only the journey in the browser, and checks the end state through the API (`tests/e2e/support/accountApi.ts`):
+  - **Accounts (FL11):** a shared USD checking Account with a starting balance and a Visa card added, renamed with the card's closing day changed, then archived. The API holds the card's network and last four, never the number.
+  - **Categories (FL12):** a Category with a chosen colour, a Subcategory added through its card, a rename, then the archive behind the confirm that counts its one Subcategory.
+  - **Budgets (FL13):** a non-conflicting Budget created, edited (renamed, a second Category claimed) and deleted.
+  - **Goals (FL14):** a USD Goal created, renamed, marked completed, reopened and deleted. The status lists are read separately, since `listGoals` returns the active ones unless asked.
+  - **Guided Setup (FL6 in X2G):** an Owner whose household has no account yet is brought back to `/setup/guided` on sign-in (FR-1.22, OQ-198), then adds the account, passes the categories and sets a budget in the inline form.
+- **Core E2E journey #9 is the one `@core` journey here.** The Budget form is open with Groceries ticked when another Budget claiming Groceries is created through the API. The picker still shows it free, so only the partial unique index can refuse the send. The drawer's banner names the Budget that took it, and the API holds only that one. Weighed and rejected: checking that the picker marks a claimed row, which tests the frontend's pre-check, not the constraint.
+- **Full E2E, untagged** for the rest (nightly), as the BDT plan's coverage-completion policy lists them.
+- **Not here:** core journey #10 (allocations need Holdings, slice 4) and goal progress (`M4`, OQ-195).
+- **The kit's controls are driven as a user drives them** (`tests/e2e/support/controls.ts`). `choose` opens a Select and picks from its listbox; `pick` clicks a segment's label. A colour swatch is clicked through its label, since the radio inside is visually hidden.
+- **Nothing in the app changed.** No bug was found, so no call, route or step moved and no diagram is redrawn.
+
+**Task 98 (`I8`) is complete.**
+
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
 *(None currently — OQ-29, the last item here, was resolved during data
