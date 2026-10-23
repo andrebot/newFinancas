@@ -56,7 +56,7 @@ flowchart LR
         BE1["Scheduled trigger (daily)"]
         BE2["Find fixed-term holdings with a cash event<br/>due today (interest / redemption / tax)"]
         BE3["For each: re-enter the Record Transaction<br/>pipeline (target = the holding's account,<br/>linked to the holding)"]
-        BE4["Tax amount comes from the engine's coded<br/>rules for the instrument type; US: none<br/>estimated in v1"]
+        BE4["Amounts and tax come from the engine at<br/>buy time (index-linked: projections the<br/>user corrects); at maturity interest, tax<br/>and redemption post as three entries"]
         BE5["Redemption brings quantity to 0 →<br/>auto-archive the Holding"]
         BE6["Save the transaction record"]
         BE7["Record the action (log)"]

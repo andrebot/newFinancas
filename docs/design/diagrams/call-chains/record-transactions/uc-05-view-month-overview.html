@@ -135,7 +135,7 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain:</strong> <code>InsightsManager</code> ① <code>AuthorizationUtility</code> → ② <code>ReportingEngine.monthOverview(householdId, year, month)</code> → ③ reads ledgers (in/out/net per currency, 12-month strip — excluding own-account transfers and bill payments via the persisted <code>effect</code>), balances, budget periods, goal progress.</p>
+    <p><strong>Chain:</strong> <code>InsightsManager</code> ① <code>AuthorizationUtility</code> → ② <code>ReportingEngine.monthOverview(householdId, year, month)</code> → ③ reads ledgers (in/out/net per currency, 12-month strip — excluding own-account transfers and bill payments via the persisted <code>effect</code>), month-end Account balances and card outstanding (OQ-201), the Budgets with their target in effect and spend, goal progress.</p>
     <p>Real transformation (aggregation across ledgers and months) — that's why this one goes through the Engine while Browse doesn't.</p>
   </div>
 

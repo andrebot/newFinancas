@@ -67,6 +67,7 @@ sequenceDiagram
     participant ATA as AccountTransactionAccessor
     participant CTA as CardTransactionAccessor
     participant AA as AccountAccessor
+    participant CCA as CreditCardAccessor
     participant BA as BudgetAccessor
     participant GA as GoalAccessor
     participant VSA as ValuationSnapshotAccessor
@@ -79,8 +80,9 @@ sequenceDiagram
     RE->>ATA: sums by currency and effect, per month of the year
     RE->>CTA: charge/refund sums by currency, per month
     Note over RE: in / out / net per currency &mdash; excluding own-account<br/>transfers and bill payments (effect column, FR-3.6/3.11)
-    RE->>AA: balances at month end (derived from dated ledger, FR-6.6)
-    RE->>BA: budget periods for the month (over-budget first)
+    RE->>AA: balancesAsOf(accountIds, month) &mdash; month-end balances (FR-6.6)
+    RE->>CCA: balancesAsOf(cardIds, month) &mdash; month-end outstanding (OQ-201)
+    RE->>BA: the visible Budgets and their target in effect that month, with spend (over-budget first)
     RE->>GA: goals + allocations
     RE->>VSA: latestAsOf(allocated holdingIds, monthEnd)
     RE-->>IM: {summaryByCurrency, yearStrip, balances, budgets, goals}
@@ -92,6 +94,7 @@ sequenceDiagram
     <ul>
       <li><strong>Route under <code>/reports</code></strong> by stakeholder decision (sequence review Q1): month overview is a report, and reports expand in v2 (ad-hoc types, CSV export).</li>
       <li>One currency is shown at a time in the UI ($/R$ switch) &mdash; the response carries every currency, never summed (FR-2.2).</li>
+      <li><strong>OQ-201:</strong> In/Out count card charges and refunds and investment buys and sells, leave out transfers and bill payments; a card shows its outstanding balance at the month&#39;s end; each Budget item carries its id, name, currency and visibility, and one with no period opened that month shows the target in effect and zero spend; Goals come per currency &mdash; the frontend shows the Goal&#39;s own currency and a note when others fund it. Archived Accounts are left out.</li>
       <li>See FR-6.11, FR-6.6, FR-4.3, FR-8.5, OQ-74.</li>
     </ul>
   </div>

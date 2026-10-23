@@ -135,7 +135,7 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain:</strong> <code>TransactionManager</code> ① <code>AuthorizationUtility</code> (personal/shared visibility) → ② <code>AccountTransactionAccessor.list(filter, cursor)</code> + <code>CardTransactionAccessor.list(filter, cursor)</code>, merged newest-first.</p>
+    <p><strong>Chain:</strong> <code>TransactionManager</code> ① <code>AuthorizationUtility</code> (personal/shared visibility) → ② <code>AccountTransactionAccessor.list(filter, cursor)</code> + <code>CardTransactionAccessor.list(filter, cursor)</code>, merged newest-first, with day totals and month counts over the whole filtered set (OQ-201).</p>
     <p><strong>Owner: TransactionManager, not InsightsManager</strong> (stakeholder, review Q1): it's a simple filter over the ledger it owns — no transformation worth an Engine. Filters: kinds, accounts, cards, categories, holding, any date range.</p>
   </div>
 

@@ -1,4 +1,4 @@
-import { zError, zGoalCreateRequest, zListCardTransactionsQuery } from '@financas/api-types/zod';
+import { zError, zGoalCreateRequest, zListTransactionsQuery } from '@financas/api-types/zod';
 import { Hono } from 'hono';
 import { describe, expect, it } from 'vitest';
 import { isApiError } from '../../../src/http/apiError';
@@ -24,7 +24,7 @@ const buildApp = () => {
   app.post('/goals', validate('json', zGoalCreateRequest), (httpContext) => (
     httpContext.json(httpContext.req.valid('json'))
   ));
-  app.get('/transactions', validate('query', zListCardTransactionsQuery), (httpContext) => (
+  app.get('/transactions', validate('query', zListTransactionsQuery), (httpContext) => (
     httpContext.json(httpContext.req.valid('query'))
   ));
   return app;
@@ -109,10 +109,10 @@ describe('validate', () => {
   });
 
   it('converts query values using the schema before validating', async () => {
-    const response = await buildApp().request('/transactions?limit=50&startDate=2026-01-01');
+    const response = await buildApp().request('/transactions?limit=50&from=2026-01-01');
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ limit: 50, offset: 0, startDate: '2026-01-01' });
+    expect(await response.json()).toEqual({ limit: 50, from: '2026-01-01' });
   });
 
   it('rejects an out-of-range query value with a field detail', async () => {

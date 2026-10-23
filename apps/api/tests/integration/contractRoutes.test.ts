@@ -25,11 +25,15 @@ const NOT_YET_ROUTED: readonly { readonly matches: RegExp; readonly lands: strin
     lands: 'task 104 (M4, InsightsManager — Holdings carry projections, OQ-178)',
   },
   {
-    matches: /^\w+ \/households\/[^/]+\/(transactions|credit-cards\/[^/]+\/transactions)(\/|$)/,
-    lands: 'slice 3',
+    matches: /^\w+ \/households\/[^/]+\/transactions(\/|$)/,
+    lands: 'task 103 (M3, TransactionManager)',
   },
   {
-    matches: /^\w+ \/households\/\{householdId\}\/(dashboard|reports)(\/|$)/,
+    matches: /^GET \/households\/\{householdId\}\/reports\/\{reportType\}$/,
+    lands: 'task 104 (M4, month-overview); investments-overview, payouts: task 133 (OQ-201)',
+  },
+  {
+    matches: /^\w+ \/households\/\{householdId\}\/(dashboard|reports\/transactions)(\/|$)/,
     lands: 'slice 5',
   },
   { matches: /^\w+ \/notifications(\/|$)/, lands: 'slice 5' },

@@ -69,7 +69,7 @@ flowchart LR
         BE1["Receive request"]
         BE2["Apply visibility rules (personal / shared)"]
         BE3["Apply filters"]
-        BE4["Return newest-first page from both<br/>ledgers merged, with day totals"]
+        BE4["Return newest-first page from both<br/>ledgers merged, with day totals and<br/>month counts"]
         BE5["Send response"]
         BE1 --> BE2 --> BE3 --> BE4 --> BE5
     end

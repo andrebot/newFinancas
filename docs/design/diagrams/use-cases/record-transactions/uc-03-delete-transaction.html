@@ -68,8 +68,8 @@ flowchart LR
     subgraph BE["Backend"]
         direction TB
         BE1["Receive request"]
-        BE2["Verify the transaction is manual"]
-        BE3["Reverse its effect<br/>(account / card / holding)"]
+        BE2["Verify it can go (a started schedule's buy,<br/>or a buy whose Holding is still referenced,<br/>can't)"]
+        BE3["Reverse its effect<br/>(account / card / holding; a trade's cash)<br/>— the buy that created an unused Holding<br/>takes the Holding with it"]
         BE4["Delete its automatic valuation snapshot,<br/>if investment"]
         BE5["If it had auto-archived a Holding:<br/>un-archive it"]
         BE6["Reverse budget accrual, if counted"]
@@ -87,6 +87,7 @@ flowchart LR
 
   <div class="notes">
     <p><strong>Auto-unarchive (OQ-80):</strong> deleting the sell/redemption that zeroed a Holding brings the Holding back.</p>
+    <p><strong>OQ-201:</strong> a deleted transaction the schedule posted isn't posted again.</p>
   </div>
 
   <script>

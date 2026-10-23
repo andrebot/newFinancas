@@ -217,7 +217,8 @@ no toggle at all.
 deleting a transaction is the same flow whether the target is a Financial
 Account or a Credit Card — target is just another data field, like kind,
 that narrows what's valid (a Credit Card target only offers charge/refund
-kinds; investment kinds only apply to investment-account targets). This
+kinds; investment kinds apply to any account but a credit-card-only one —
+OQ-76, which replaced "investment accounts only"). This
 is a distinct decision from OQ-16 (the two ledgers stay separate storage/
 display) — collapsing the *entry point* doesn't reopen the ledger-
 separation question. See FR-3.1/FR-3.2/FR-3.9.
@@ -5237,6 +5238,59 @@ Reference Rate treatment, FR-9).
   - **E2E code stays untested, as OQ-161 already decided.** CLAUDE.md named only OQ-91's config-file exception, so it now cites OQ-161 too.
 
 **Task 98 (`I8`) is complete.**
+
+### OQ-201: Slice 3 readiness — transactions, fixed income and Month Overview
+**Confirmed with the stakeholder (Oct 2026), before task 99.** A pass over
+everything slice 3 builds on found these open; the full list, with the
+fixes and doc drift they bring, is `docs/planning/04-slice-3-readiness.md`.
+- **An investment trade moves the account's cash** (D1): a buy also
+  debits the account (`AccountAccessor.applyMovement`, −amount), a sell or
+  redemption credits it — the OQ-169 anchor applies, so a buy dated before
+  the starting balance only fills history. Corrects VBD §3.1, where
+  `investment_trade` reached only `applyTrade` (FR-6.11, OQ-74, mockup 32).
+- **Transfers stay two separate entries** (D2): `transfer_sent` on one
+  account and `transfer_received` on the other, unlinked, each in its own
+  currency; `effect = transfer` keeps both out of In/Out (FR-3.6). A
+  paired single entry was weighed and declined.
+- **Every kind may take a category, and money coming in reduces spend**
+  (D4): a Budget's spend is out − in per claimed category (a refund or a
+  categorized receipt lowers it). A categorized bill payment would count
+  its charges twice — left to the user, as the data model already says.
+- **A `credit_card_only` account takes no cash kinds** (D5): only bill
+  payments to its cards (from another account) and its cards' charges and
+  refunds.
+- **Edit changes values, never identity** (D6): date, amount, category,
+  description; a buy/sell also its quantity; a fixed-term buy also its
+  rate, due date and debenture flag, its schedule recomputed. Kind and
+  account/card/Holding never change. Allocations stay Edit Holding's.
+- **Deleting the buy that created a Holding removes the Holding** (D7)
+  with its snapshots, schedule and Goal split, when no other transaction
+  references it; otherwise the delete is refused (409).
+- **Once a fixed-term buy's schedule has started** (D8), its amount, date,
+  rate and due date can't change and it can't be deleted (409
+  `transaction.schedule_started`); description and category still edit.
+- **Auto-posted transactions are ordinary** (D9): editable (the projected
+  amount becomes the real one) and deletable; a deleted one isn't re-posted.
+- **Sell, redemption, dividend, interest and tax take a `holdingId`**
+  (D10), picked from the account's Holdings; only a buy takes asset type
+  and ticker (a ticker can match several fixed-term Holdings, OQ-50).
+- **A fixed-term buy's quantity is optional, default 1 unit** (D11).
+- **Fixed income (`InvestmentProductEngine`):** the buy carries
+  `interestPayment` — `at_maturity` (default), `monthly`, `semiannual`
+  (D12); Brazil accrues over business days (252/year, national holidays
+  coded, Easter-based ones computed), the US over actual/365 (D13);
+  index-linked amounts are projected at buy time from the latest index
+  value, posted as projected and corrected by the user; at maturity
+  interest (gross), tax and redemption (principal) post as three entries;
+  IOF isn't modelled in v1 (D14).
+- **Month Overview** (D15, D16): a Goal funded in other currencies shows
+  the progress of its own currency plus a "needs an exchange rate" note
+  (the rate stays on the Goals page, FR-9); a credit card shows its
+  outstanding balance at the month's end.
+- **The fixes F1–F15 and drift R1–R5 are approved as written** — among
+  them a creator column on both ledgers (OQ-111's Member rule needs it),
+  a bill payment carrying `accountId` + `creditCardId`, `M4` split across
+  slices 3–5, and the unused per-card list endpoint dropped.
 
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 

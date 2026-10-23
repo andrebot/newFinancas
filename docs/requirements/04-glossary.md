@@ -28,11 +28,18 @@
 - **Transaction Kind** — The specific label on a Transaction (withdrawal,
   boleto, Pix, dividend, ...), stored as reference data rather than a
   hardcoded enum, so new kinds don't require schema/logic changes.
-- **Transaction Effect** — The small, stable set of behaviors a Transaction
-  can have beyond a simple cash movement: paired transfer, investment trade
-  (changes a Holding's quantity), or investment cash event (references a
-  Holding, no quantity change). This is what Engine logic branches on —
-  Kind is just a label for categorization/display.
+- **Transaction Effect** — The small, closed set of write behaviours an
+  Account Transaction's kind maps to (`EFFECT_BY_KIND`), persisted with
+  it: `movement` (a cash ± movement — incl. dividend, interest and tax,
+  which also reference a Holding), `transfer` (a cash movement left out of
+  income/expense), `bill_payment` (debits the account and lowers its card)
+  and `investment_trade` (moves the account's cash and changes a Holding's
+  quantity — OQ-201). This is what `TransactionManager` dispatches on and
+  reporting classifies by — Kind is the label for display.
+- **Transfer** — Money moved between two of the household's own accounts,
+  recorded as two separate, unlinked entries: a *transfer sent* where it
+  left and a *transfer received* where it arrived, each in its account's
+  currency; neither counts as income or expense (FR-3.6, OQ-201).
 - **Category** — A top-level classification label applied to a transaction
   for budgeting and reporting purposes; household-scoped (shared, not
   personal-per-user), predefined-or-custom, with an icon and colour that
@@ -46,7 +53,8 @@
   Subcategories (FR-4.6); a given Category/Subcategory can be claimed by
   at most one Budget per scope/period, to keep "actual spend" unambiguous
   (FR-4.7). Tracked on an accrual basis — a credit card charge counts
-  immediately, its later bill payment does not count again (FR-4.5).
+  immediately, its later bill payment does not count again; money coming
+  back in a claimed category (a refund) lowers the spend (FR-4.5, OQ-201).
 - **Budget Period** — An immutable, per-month record of the target
   amount(s) a Budget actually had in effect that month (FR-4.9). Editing a
   Budget only changes current/future periods; past Budget Periods never

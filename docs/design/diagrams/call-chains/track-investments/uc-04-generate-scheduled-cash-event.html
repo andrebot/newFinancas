@@ -136,7 +136,7 @@
 
   <div class="notes">
     <p><strong>Chain:</strong> <code>investmentsDaily</code> (one daily cron for cash events + matured holdings, Manager review M6) → ① <code>InvestmentHoldingAccessor.findDueScheduleEntries(today)</code> → <code>ServiceBusUtility.publish("transaction.import.requested")</code> (async) → ② <code>TransactionManager</code> subscribes → ③ <code>InvestmentHoldingAccessor.markEntryPosted(entryId)</code> (once — a repeated delivery stops here, OQ-171) → ④ the full Record Transaction pipeline (see that chain) in the same database transaction, incl. auto-archive when a redemption zeroes the Holding → ⑤ <code>LoggingUtility</code> (async).</p>
-    <p>Tax amounts were computed by <code>InvestmentProductEngine</code> at buy time and stored with the schedule — the trigger never calls the Engine. The recurring-schedule trigger that used to share this shape is gone (OQ-55).</p>
+    <p>Amounts and taxes were computed by <code>InvestmentProductEngine</code> at buy time and stored with the schedule — index-linked ones are projections the user corrects once posted (OQ-201); at maturity interest, tax and redemption post as three entries. The trigger never calls the Engine. The recurring-schedule trigger that used to share this shape is gone (OQ-55).</p>
   </div>
 
   <script>

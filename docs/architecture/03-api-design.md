@@ -128,8 +128,8 @@ exist for either.
 - **Pagination**: `limit`/`offset` query params (default `limit=20`,
   max `100`), response shape `{"data": [...], "pagination": {"limit",
   "offset", "total"}}`. Applied to every collection that can plausibly
-  grow large (accounts, budgets, goals, transactions of both
-  ledgers) — not applied to collections that are structurally small by
+  grow large (accounts, budgets, goals — the transaction ledgers use the
+  cursor above) — not applied to collections that are structurally small by
   construction (a household's members, a category's subcategories, a
   budget's targets), which return a bare `{"data": [...]}` with no
   pagination envelope at all.
@@ -232,8 +232,15 @@ itself when it was first introduced:
   /goals/{id}/allocations` was dropped.
 - `GET /transactions` — **Oct 2026:** Browse & Filter over **both**
   ledgers merged (kinds, accounts, cards, categories, holding, any date
-  range; cursor pagination). `GET /credit-cards/{id}/transactions` stays
-  for a single card's ledger. Storage stays two ledgers (OQ-16).
+  range; cursor pagination). Storage stays two ledgers (OQ-16).
+  **OQ-201:** `GET /credit-cards/{id}/transactions` was dropped — no v1
+  screen calls it, and Browse with `creditCardIds` covers it. The page
+  carries day totals and month counts over the whole filtered set;
+  `GET`/`PATCH /transactions/{id}` answer either ledger (`LedgerItem`).
+  One request shape records every kind, its fields following the kind: a
+  card kind takes `creditCardId`, everything else `accountId` (a bill
+  payment both); a buy names `assetType` + `ticker`, the other investment
+  kinds a `holdingId`; an edit changes values, never kind or target.
 - **New in Oct 2026:** `POST/PATCH/DELETE /holdings/{id}/valuation-snapshots[/{snapshotId}]`
   (manual market values, OQ-56), `GET /index-rates` and
   `POST/PATCH/DELETE /index-rates/{index}/values[/{valueId}]` (FR-11.6),
@@ -244,6 +251,8 @@ itself when it was first introduced:
 - `GET /reports/{reportType}` — **v1 (Oct 2026):** the fixed types
   `month-overview`, `investments-overview` and `payouts` (sequence review
   Q1 — reports expand later); ad-hoc types below are **v2** (OQ-71).
+  Months in report series are `YYYY-MM` strings (OQ-201); `month-overview`
+  is built in slice 3, the other two with `X7` in slice 4.
   Originally: one generic endpoint standing in for
   every FR-6.7 Widget-backed report (spend-by-category, income-vs-expense,
   account-balance-by-month, net-worth-trend, budget-status); `reportType`

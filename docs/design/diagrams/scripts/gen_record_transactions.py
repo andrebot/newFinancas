@@ -40,8 +40,9 @@ sequenceDiagram
     participant CTA as CardTransactionAccessor
     participant LOG as LoggingUtility
 
-    User->>API: POST /households/:householdId/transactions {target, kind, date, amount, currency, categoryId, description, assetType?, ticker?, quantity?, rate?, dueDate?, incentivised?, allocations?}
+    User->>API: POST /households/:householdId/transactions {accountId | creditCardId, kind, date, amount, currency, categoryId?, description, holdingId? | assetType + ticker?, quantity?, rate?, dueDate?, interestPayment?, incentivised?, allocations?}
     API->>TM: record(actor, input)
+    Note over TM: loads the target (Account or card + its Account) and, if given, the Category &mdash;<br/>an archived Account or a newly used archived Category is refused (OQ-169, OQ-201)
     TM->>AZ: canWrite(actor, targetId)?
     alt not authorized
         AZ-->>TM: denied
@@ -56,9 +57,9 @@ sequenceDiagram
             TM->>CCA: applyMovement(cardId, {signedAmount, currency, date})
             Note over CCA: positive for a charge, negative for a refund (the Manager signs it),<br/>lands in the billing cycle the date falls in (OQ-170)
             CCA-->>TM: outstanding balance updated
-            TM->>BA: accrueIfClaimed({accountScope, currency, categoryId, subcategoryId, amount, date})
-            BA-->>TM: spend updated (no-op if unclaimed)
-            TM->>CTA: insert(cardTransaction)
+            TM->>BA: accrueIfClaimed({accountScope, currency, categoryId, subcategoryId, &plusmn;amount, date})
+            BA-->>TM: spend updated (no-op if unclaimed, a refund subtracts &mdash; OQ-201)
+            TM->>CTA: insert(cardTransaction, createdBy)
             CTA-->>TM: transactionId
         end
     else authorized, target is an Account
@@ -70,6 +71,9 @@ sequenceDiagram
         else investment kind on a credit-card-only account
             TM-->>API: ValidationError (OQ-76 &mdash; investments live in checking, savings or investment accounts)
             API-->>User: 422 transaction.investment_not_allowed_on_account
+        else cash kind on a credit-card-only account
+            TM-->>API: ValidationError (OQ-201 &mdash; it takes only bill payments to its cards)
+            API-->>User: 422 transaction.kind_not_allowed_for_target
         else effect = movement or transfer
             TM->>AA: applyMovement(accountId, {amount, currency, date})
             AA-->>TM: new balance
@@ -79,7 +83,9 @@ sequenceDiagram
             TM->>CCA: applyMovement(cardId, {-amount, currency, date})
             CCA-->>TM: outstanding balance reduced
         else effect = investment_trade
-            Note over TM: quantityDelta and costBasisDelta computed here (FR-3.8):<br/>a buy adds what was paid, a sell or redemption removes its average cost (OQ-171)
+            Note over TM: quantityDelta and costBasisDelta computed here (FR-3.8):<br/>a buy adds what was paid, a sell or redemption removes its average cost (OQ-171),<br/>a sell or redemption names its Holding by holdingId (OQ-201)
+            TM->>AA: applyMovement(accountId, {&minus;amount for a buy, +amount for a sell or redemption, currency, date})
+            AA-->>TM: cash moved (OQ-201 &mdash; history only when dated before the starting balance, OQ-169)
             opt kind = investment buy
                 alt assetType is one of FR-11.1's fixed-term instruments
                     TM->>IHA: insert(holding) &mdash; a new Holding, always (OQ-50)
@@ -109,8 +115,9 @@ sequenceDiagram
             end
             opt assetType is a defined FR-11.1 instrument type
                 Note over TM,IPE: dueDate, rate and the debenture incentivised flag are<br/>user-supplied &mdash; not derivable from assetType alone (OQ-50, OQ-79)
-                TM->>IPE: schedule(assetType, incentivised, dueDate, rate, purchaseDate, amount)
-                IPE-->>TM: {cashEvents[], taxes} &mdash; tax rules coded per type, US = none estimated
+                TM->>IPE: schedule(householdId, {assetType, incentivised, date, amount, dueDate, rate, interestPayment})
+                Note over IPE: reads the latest index value itself for an index-linked rate &mdash; amounts are projections,<br/>BR business days (252), US actual/365, at maturity interest + tax + redemption (OQ-201)
+                IPE-->>TM: entries &mdash; tax rules coded per type, US = none estimated
                 TM->>IHA: applySchedule(holdingId, schedule)
                 IHA-->>TM: schedule stored (replace-all, refused once an entry posted, OQ-171)
             end
@@ -135,9 +142,9 @@ sequenceDiagram
                 end
             end
         end
-        TM->>BA: accrueIfClaimed({accountScope, currency, categoryId, subcategoryId, amount, date})
-        BA-->>TM: spend updated
-        TM->>ATA: insert(accountTransaction, effect)
+        TM->>BA: accrueIfClaimed({accountScope, currency, categoryId, subcategoryId, &plusmn;amount, date})
+        BA-->>TM: spend updated (any kind may carry a category, money in subtracts &mdash; OQ-201)
+        TM->>ATA: insert(accountTransaction, effect, {quantityDelta, costBasisDelta}, createdBy)
         ATA-->>TM: transactionId
     end
     TM-->>LOG: logActivity(correlationId, actor, "RecordTransaction")
@@ -154,7 +161,9 @@ sequenceDiagram
       <li><strong>Re-buying a zeroed Holding (OQ-171):</strong> a market-priced buy reopens the system-archived Holding of its ticker. Its old Goal split is worth 0 at quantity 0, so the buy's re-weighting (OQ-168) drops every old share &mdash; the new buy's split is the only one left; undoing the zeroing sell instead restores the old split intact.</li>
       <li><strong>Goal allocation can be bundled here (OQ-54, added after the API coverage audit):</strong> one call in, no separate <code>PATCH /households/:householdId/holdings/{holdingId}</code> follow-up required &mdash; same 100%-cap rejection as that endpoint's own allocation edit (FR-8.3), just reachable from this pipeline too. Direction of control is unchanged (OQ-48): still written from the Holding's side, never the Goal's.</li>
       <li><strong>The buy's split is the purchase's (OQ-168):</strong> buying into a Holding that already funds Goals re-weights its whole split by value at this buy's unit price, so every Goal keeps exactly its money (900 at Retirement 60% / Trip 20%, plus 100 for Car 100% &rarr; 54% / 18% / 10%). One replace-all write, so a refusal never leaves half a split behind.</li>
-      <li>See FR-3.1, FR-3.6&ndash;3.9, FR-5.2, FR-5.8, FR-8.2, FR-8.3, FR-11.1&ndash;11.3, OQ-16, OQ-39, OQ-48, OQ-50, OQ-51, OQ-54, OQ-56, OQ-72, OQ-76, OQ-79, OQ-83.</li>
+      <li><strong>Slice 3 readiness (OQ-201):</strong> every trade moves the account&#39;s cash (a buy debits it, a sell or redemption credits it); sell, redemption, dividend, interest and tax name their Holding by <code>holdingId</code>; a credit-card-only account takes only bill payments to its cards; any kind may carry a category and money in reduces the claiming Budget&#39;s spend; the trade&#39;s deltas and the recorder are stored with the transaction. Transfers are two unlinked entries &mdash; each is an ordinary <code>transfer</code>-effect movement.</li>
+      <li>All writes share one database transaction (<code>UnitOfWorkUtility</code>) &mdash; any refusal rolls every one back.</li>
+      <li>See FR-3.1, FR-3.6&ndash;3.9, FR-5.2, FR-5.8, FR-8.2, FR-8.3, FR-11.1&ndash;11.3, OQ-16, OQ-39, OQ-48, OQ-50, OQ-51, OQ-54, OQ-56, OQ-72, OQ-76, OQ-79, OQ-83, OQ-201.</li>
     </ul>
 """,
 ))
@@ -170,6 +179,7 @@ sequenceDiagram
     participant AZ as AuthorizationUtility
     participant AA as AccountAccessor
     participant IHA as InvestmentHoldingAccessor
+    participant IPE as InvestmentProductEngine
     participant CCA as CreditCardAccessor
     participant VSA as ValuationSnapshotAccessor
     participant BA as BudgetAccessor
@@ -177,27 +187,33 @@ sequenceDiagram
     participant CTA as CardTransactionAccessor
     participant LOG as LoggingUtility
 
-    User->>API: PATCH /households/:householdId/transactions/:transactionId {amount, date, categoryId, description}
+    User->>API: PATCH /households/:householdId/transactions/:transactionId {date?, amount?, categoryId?, subcategoryId?, description?, quantity?, rate?, dueDate?, interestPayment?, incentivised?}
     API->>TM: edit(actor, transactionId, input)
+    TM->>ATA: findById(householdId, transactionId) (else the card ledger)
+    ATA-->>TM: the stored transaction &mdash; kind, target, trade deltas, recorder
     TM->>AZ: canWrite(actor, transactionId)?
     alt not authorized
         AZ-->>TM: denied
         TM-->>API: Forbidden
         API-->>User: 403 auth.forbidden
+    else a fixed-term buy whose schedule has posted, and amount, date or terms change
+        TM-->>API: Conflict
+        API-->>User: 409 transaction.schedule_started (OQ-201 &mdash; description and category still edit)
     else authorized
         AZ-->>TM: allowed
-        Note over TM: reverse the OLD effect first, using the transaction's<br/>current stored values
+        Note over TM: values change, never identity: kind, account, card and Holding stay (OQ-201).<br/>Reverse the OLD effect first, using the transaction's current stored values
         alt was a balance movement or bill payment
             TM->>AA: applyMovement(accountId, {-oldAmount, currency, oldDate})
             opt was a bill payment
                 TM->>CCA: applyMovement(cardId, {+oldAmount, currency, oldDate})
             end
         else was an investment trade
+            TM->>AA: applyMovement(accountId, {&plusmn;oldAmount reversed, currency, oldDate})
             TM->>IHA: applyTrade(holdingId, {-oldQuantityDelta, -oldCostBasisDelta})
         else was a card charge/refund
             TM->>CCA: applyMovement(cardId, {-oldSignedAmount, currency, oldDate})
         end
-        TM->>BA: accrueIfClaimed({accountScope, currency, oldCategoryId, oldSubcategoryId, -oldAmount, oldDate})
+        TM->>BA: accrueIfClaimed({accountScope, currency, oldCategoryId, oldSubcategoryId, &mp;oldAmount, oldDate})
         Note over TM: then reapply the NEW values &mdash; same dispatch as<br/>Record Transaction, on the new amount/date/category
         alt new effect is a balance movement or bill payment
             TM->>AA: applyMovement(accountId, {newAmount, currency, newDate})
@@ -205,9 +221,17 @@ sequenceDiagram
                 TM->>CCA: applyMovement(cardId, {-newAmount, currency, newDate})
             end
         else new effect is an investment trade
+            TM->>AA: applyMovement(accountId, {&mp;newAmount, currency, newDate})
             TM->>IHA: applyTrade(holdingId, {newQuantityDelta, newCostBasisDelta})
             IHA-->>TM: {quantity, costBasis}
-            TM->>VSA: updateAutomatic(transactionId, newValuation, newDate)
+            opt market-priced
+                TM->>VSA: updateAutomatic(transactionId, newValuation, newDate)
+            end
+            opt a fixed-term buy whose terms, amount or date changed (schedule not started)
+                TM->>IPE: schedule(householdId, {new terms})
+                IPE-->>TM: entries
+                TM->>IHA: applySchedule(holdingId, entries) &mdash; replace-all (OQ-171)
+            end
             alt quantity = 0
                 TM->>IHA: archive(holdingId, by = system)
             else quantity > 0
@@ -217,8 +241,8 @@ sequenceDiagram
         else new effect is a card charge/refund
             TM->>CCA: applyMovement(cardId, {newSignedAmount, currency, newDate})
         end
-        TM->>BA: accrueIfClaimed({accountScope, currency, newCategoryId, newSubcategoryId, newAmount, newDate})
-        TM->>ATA: update(transactionId, input)
+        TM->>BA: accrueIfClaimed({accountScope, currency, newCategoryId, newSubcategoryId, &plusmn;newAmount, newDate})
+        TM->>ATA: update(transactionId, input, {newQuantityDelta, newCostBasisDelta})
         ATA-->>TM: updated
         TM-->>LOG: logActivity(correlationId, actor, "EditTransaction")
         TM-->>LOG: recordAudit(actor, "Transaction", transactionId)
@@ -231,7 +255,8 @@ sequenceDiagram
       <li><strong>Reverse-then-reapply, all inside one transaction</strong> &mdash; the same complexity flagged in <code>02-data-model.md</code>&#39;s Transactions domain, now traced call-by-call. If the edit only changes the <code>date</code> to a different month, the reverse/reapply pair is what actually drives the backdated-balance cascade documented in the Accounts domain (shift every subsequent month&#39;s opening/ending balance by one delta).</li>
       <li><code>CardTransactionAccessor.update</code> path (not shown, same shape) applies when the target was a Card Transaction instead of an Account Transaction.</li>
       <li><strong>Oct 2026 review:</strong> the automatic snapshot follows the edit; the Holding is re-archived or un-archived to match the new quantity (OQ-72, OQ-80).</li>
-      <li>See FR-3.2, FR-5.8.</li>
+      <li><strong>OQ-201:</strong> the trade&#39;s cash leg is undone and redone with it; a buy or sell may change its quantity, a fixed-term buy its rate, due date, interest payment and debenture flag &mdash; and its schedule is recomputed while no entry has posted. Once one has, its amount, date and terms are locked (409). The Budget accrual is undone and redone with its sign (money in subtracts). Transactions the schedule posted edit like any other.</li>
+      <li>See FR-3.2, FR-5.8, OQ-201.</li>
     </ul>
 """,
 ))
@@ -251,15 +276,26 @@ sequenceDiagram
     participant VSA as ValuationSnapshotAccessor
     participant BA as BudgetAccessor
     participant ATA as AccountTransactionAccessor
+    participant GA as GoalAccessor
     participant LOG as LoggingUtility
 
     User->>API: DELETE /households/:householdId/transactions/:transactionId
     API->>TM: delete(actor, transactionId)
+    TM->>ATA: findById(householdId, transactionId) (else the card ledger)
+    ATA-->>TM: the stored transaction
     TM->>AZ: canWrite(actor, transactionId)?
     alt not authorized
         AZ-->>TM: denied
         TM-->>API: Forbidden
         API-->>User: 403 auth.forbidden
+    else a fixed-term buy whose schedule has posted
+        TM-->>API: Conflict
+        API-->>User: 409 transaction.schedule_started (OQ-201)
+    else the buy that created its Holding, and other transactions reference it
+        TM->>ATA: countForHolding(holdingId)
+        ATA-->>TM: n &gt; 1
+        TM-->>API: Conflict
+        API-->>User: 409 transaction.holding_in_use {count} (OQ-201)
     else authorized
         AZ-->>TM: allowed
         alt was a balance movement or bill payment
@@ -268,14 +304,21 @@ sequenceDiagram
                 TM->>CCA: applyMovement(cardId, {+amount, currency, date})
             end
         else was an investment trade
-            TM->>IHA: applyTrade(holdingId, {-quantityDelta, -costBasisDelta})
-            TM->>VSA: deleteAutomatic(transactionId)
-            TM->>IHA: unarchiveIfSystemArchived(holdingId)
-            Note over IHA: if this was the sell/redemption that zeroed the<br/>Holding, it comes back (OQ-80)
+            TM->>AA: applyMovement(accountId, {&plusmn;amount reversed, currency, date})
+            alt the buy that created its Holding, nothing else references it
+                TM->>GA: replaceAllocations(householdId, holdingId, [])
+                TM->>IHA: delete(holdingId)
+                Note over IHA: the Holding goes with its buy &mdash; snapshots and schedule cascade (OQ-201)
+            else
+                TM->>IHA: applyTrade(holdingId, {-quantityDelta, -costBasisDelta})
+                TM->>VSA: deleteAutomatic(transactionId)
+                TM->>IHA: unarchiveIfSystemArchived(holdingId)
+                Note over IHA: if this was the sell/redemption that zeroed the<br/>Holding, it comes back (OQ-80)
+            end
         else was a card charge/refund
             TM->>CCA: applyMovement(cardId, {-signedAmount, currency, date})
         end
-        TM->>BA: accrueIfClaimed({accountScope, currency, categoryId, subcategoryId, -amount, date})
+        TM->>BA: accrueIfClaimed({accountScope, currency, categoryId, subcategoryId, &mp;amount, date})
         TM->>ATA: delete(transactionId)
         ATA-->>TM: deleted
         TM-->>LOG: logActivity(correlationId, actor, "DeleteTransaction")
@@ -287,7 +330,8 @@ sequenceDiagram
     notes="""
     <ul>
       <li>A deleted, backdated transaction runs the balance cascade in reverse across every subsequent month, same mechanic as Edit (UC-02) minus the reapply half.</li>
-      <li>See FR-3.2.</li>
+      <li><strong>OQ-201:</strong> a trade&#39;s cash leg is reversed too. Deleting the buy that created a Holding deletes the Holding (its Goal split, snapshots and schedule with it) when no other transaction references it, and is refused otherwise; a fixed-term buy whose schedule has posted can&#39;t be deleted. A deleted transaction the schedule posted isn&#39;t posted again &mdash; its entry stays marked.</li>
+      <li>See FR-3.2, OQ-201.</li>
     </ul>
 """,
 ))
@@ -315,14 +359,15 @@ sequenceDiagram
         TM->>CTA: list(filters within scope, cursor, limit)
         CTA-->>TM: page
     end
-    Note over TM: merge newest-first, cut to limit, compute day totals<br/>per currency and the next cursor
-    TM-->>API: {items, dayTotals, nextCursor}
+    Note over TM: merge newest-first, cut to limit, the next cursor, day totals and month counts<br/>for the days and months in the page, over the whole filtered set (OQ-201)
+    TM-->>API: {items, dayTotals, monthCounts, nextCursor}
     API-->>User: 200 OK
 """,
     notes="""
     <ul>
       <li><strong>Not scoped to the period bar (OQ-61):</strong> any date range, including none.</li>
       <li>Filtering by <code>holdingId</code> returns the investment transactions linked to it &mdash; the holding row's "See in Transactions" link.</li>
+      <li><strong>Filters (OQ-201):</strong> combined with AND; accounts and cards are one picker (a row matches when its account or card is selected; none = all); a Category includes its Subcategories.</li>
       <li>No logging/audit &mdash; a plain read (FR-7.1 audits mutations only).</li>
       <li>See FR-3.12, OQ-61; read-ownership rule, VBD &sect;3.</li>
     </ul>
@@ -344,6 +389,7 @@ sequenceDiagram
     participant ATA as AccountTransactionAccessor
     participant CTA as CardTransactionAccessor
     participant AA as AccountAccessor
+    participant CCA as CreditCardAccessor
     participant BA as BudgetAccessor
     participant GA as GoalAccessor
     participant VSA as ValuationSnapshotAccessor
@@ -356,8 +402,9 @@ sequenceDiagram
     RE->>ATA: sums by currency and effect, per month of the year
     RE->>CTA: charge/refund sums by currency, per month
     Note over RE: in / out / net per currency &mdash; excluding own-account<br/>transfers and bill payments (effect column, FR-3.6/3.11)
-    RE->>AA: balances at month end (derived from dated ledger, FR-6.6)
-    RE->>BA: budget periods for the month (over-budget first)
+    RE->>AA: balancesAsOf(accountIds, month) &mdash; month-end balances (FR-6.6)
+    RE->>CCA: balancesAsOf(cardIds, month) &mdash; month-end outstanding (OQ-201)
+    RE->>BA: the visible Budgets and their target in effect that month, with spend (over-budget first)
     RE->>GA: goals + allocations
     RE->>VSA: latestAsOf(allocated holdingIds, monthEnd)
     RE-->>IM: {summaryByCurrency, yearStrip, balances, budgets, goals}
@@ -368,6 +415,7 @@ sequenceDiagram
     <ul>
       <li><strong>Route under <code>/reports</code></strong> by stakeholder decision (sequence review Q1): month overview is a report, and reports expand in v2 (ad-hoc types, CSV export).</li>
       <li>One currency is shown at a time in the UI ($/R$ switch) &mdash; the response carries every currency, never summed (FR-2.2).</li>
+      <li><strong>OQ-201:</strong> In/Out count card charges and refunds and investment buys and sells, leave out transfers and bill payments; a card shows its outstanding balance at the month&#39;s end; each Budget item carries its id, name, currency and visibility, and one with no period opened that month shows the target in effect and zero spend; Goals come per currency &mdash; the frontend shows the Goal&#39;s own currency and a note when others fund it. Archived Accounts are left out.</li>
       <li>See FR-6.11, FR-6.6, FR-4.3, FR-8.5, OQ-74.</li>
     </ul>
 """,

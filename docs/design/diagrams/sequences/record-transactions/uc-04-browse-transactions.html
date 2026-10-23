@@ -77,8 +77,8 @@ sequenceDiagram
         TM->>CTA: list(filters within scope, cursor, limit)
         CTA-->>TM: page
     end
-    Note over TM: merge newest-first, cut to limit, compute day totals<br/>per currency and the next cursor
-    TM-->>API: {items, dayTotals, nextCursor}
+    Note over TM: merge newest-first, cut to limit, the next cursor, day totals and month counts<br/>for the days and months in the page, over the whole filtered set (OQ-201)
+    TM-->>API: {items, dayTotals, monthCounts, nextCursor}
     API-->>User: 200 OK
     </pre>
   </div>
@@ -86,6 +86,7 @@ sequenceDiagram
     <ul>
       <li><strong>Not scoped to the period bar (OQ-61):</strong> any date range, including none.</li>
       <li>Filtering by <code>holdingId</code> returns the investment transactions linked to it &mdash; the holding row's "See in Transactions" link.</li>
+      <li><strong>Filters (OQ-201):</strong> combined with AND; accounts and cards are one picker (a row matches when its account or card is selected; none = all); a Category includes its Subcategories.</li>
       <li>No logging/audit &mdash; a plain read (FR-7.1 audits mutations only).</li>
       <li>See FR-3.12, OQ-61; read-ownership rule, VBD &sect;3.</li>
     </ul>

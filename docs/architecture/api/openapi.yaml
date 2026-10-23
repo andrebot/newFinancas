@@ -1503,6 +1503,9 @@ paths:
       summary: Browse & filter all transactions (both ledgers, newest first)
       description: >-
         FR-3.12 / OQ-61 — not limited to a month; cursor pagination on (date, id). Owned by TransactionManager (read-ownership rule).
+        Only what the caller may see (others' personal Accounts are left out before filtering).
+        Filters combine with AND; `accountIds` and `creditCardIds` are one picker — a row matches when its account or card is among the selected (both empty = all); a Category includes its Subcategories (OQ-201).
+        `dayTotals` and `monthCounts` cover the days and months present in the page, computed over the whole filtered set, not only the page's rows.
       parameters:
         - name: kinds
           in: query
@@ -1595,8 +1598,16 @@ paths:
         separate PATCH /holdings/{holdingId} follow-up required.
         No recurring option (FR-3.5 removed, OQ-55). Investment kinds are
         rejected on credit-card-only accounts (422
-        `transaction.investment_not_allowed_on_account`, OQ-76); a full
-        sell/redemption auto-archives the Holding (OQ-72). See
+        `transaction.investment_not_allowed_on_account`, OQ-76), and so are
+        cash kinds — such an account takes only bill payments to its cards
+        (`transaction.kind_not_allowed_for_target`, OQ-201); a full
+        sell/redemption auto-archives the Holding (OQ-72).
+        **OQ-201:** every investment kind moves the account's cash (buy −,
+        sell/redemption/dividend/interest +, tax −); sell, redemption,
+        dividend, interest and tax name their Holding by `holdingId`, only a
+        buy by `assetType` + `ticker`; a bill payment carries `accountId`
+        (the paying account) and `creditCardId`; any kind may carry a
+        category — money in reduces the claiming Budget's spend. See
         docs/design/diagrams/sequences/record-transactions/uc-01-record-transaction.html.
       requestBody:
         required: true
@@ -1613,15 +1624,25 @@ paths:
                   - $ref: "#/components/schemas/AccountTransaction"
                   - $ref: "#/components/schemas/CardTransaction"
         "403": { $ref: "#/components/responses/Forbidden" }
+        "404":
+          description: '`account.not_found`, `credit_card.not_found`, `holding.not_found`, `category.not_found`, `goal.not_found` — or the caller may not see it.'
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
         "409":
-          description: The purchase's own split exceeds 100% (FR-8.3), or names a completed Goal (`goal.completed`). The split applies to the purchase; buying into a funded Holding re-weights its existing split by value (OQ-168).
+          description: The purchase's own split exceeds 100% (FR-8.3), or names a completed Goal (`goal.completed`). The split applies to the purchase; buying into a funded Holding re-weights its existing split by value (OQ-168). Also `account.archived` (OQ-169), `holding.archived` (a sell or cash event on a user-archived Holding), `holding.insufficient_quantity`, `holding.cost_basis_below_zero` (OQ-171).
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
         "422":
           description: >
-            Validation failure — includes currency mismatch (FR-2.2) and
-            kind invalid for the target's type (FR-3.1).
+            Validation failure — `transaction.currency_mismatch` (FR-2.2),
+            `transaction.kind_not_allowed_for_target` (FR-3.1, OQ-201),
+            `transaction.investment_not_allowed_on_account` (OQ-76),
+            `transaction.subcategory_mismatch` (FR-3.4),
+            `category.archived` (a new transaction can't use an archived
+            Category — OQ-201), or `validation.failed` with `details[]`
+            (missing fields per kind).
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
@@ -1633,13 +1654,15 @@ paths:
     get:
       tags: [Transactions]
       operationId: getTransaction
-      summary: Get an Account Transaction
+      summary: Get a transaction (either ledger)
+      description: Ids are UUIDs across both ledgers; the answer says which by `ledger` (OQ-201).
       responses:
         "200":
           description: OK
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/AccountTransaction" }
+              schema: { $ref: "#/components/schemas/LedgerItem" }
+        "404": { $ref: "#/components/responses/NotFound" }
     patch:
       tags: [Transactions]
       operationId: editTransaction
@@ -1650,7 +1673,10 @@ paths:
         accrual) is reversed using the old values, then reapplied with
         the new ones, inside one write — the same mechanic that drives
         the backdated-balance cascade if the date moves to a different
-        month. See
+        month. **OQ-201:** an edit changes values, never identity — kind
+        and target (account, card, Holding) never change; a fixed-term
+        buy's terms edit only while its schedule hasn't started, and its
+        schedule is recomputed. See
         docs/design/diagrams/sequences/record-transactions/uc-02-edit-transaction.html.
       requestBody:
         required: true
@@ -1662,45 +1688,41 @@ paths:
           description: OK
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/AccountTransaction" }
+              schema: { $ref: "#/components/schemas/LedgerItem" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "404":
+          description: '`transaction.not_found`, `category.not_found`.'
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "409":
+          description: '`transaction.schedule_started` (a fixed-term buy whose schedule has posted keeps its amount, date and terms), `account.archived`, `holding.insufficient_quantity`, `holding.cost_basis_below_zero`.'
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "422":
+          description: '`validation.failed` — e.g. a field the kind has no use for (quantity on a cash kind, rate on a market-priced buy); `transaction.subcategory_mismatch`; `category.archived` (a newly chosen archived Category — the one it already has may stay).'
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
     delete:
       tags: [Transactions]
       operationId: deleteTransaction
       summary: Delete a transaction
       description: >
         FR-3.2. Same reverse-effect complexity as Edit, without a
-        reapply half.
+        reapply half. Deleting the buy that created a Holding deletes the
+        Holding (snapshots, schedule, Goal split) when no other transaction
+        references it (OQ-201); a deleted scheduled post isn't re-posted.
       responses:
         "204": { description: No Content }
         "403": { $ref: "#/components/responses/Forbidden" }
-
-  /households/{householdId}/credit-cards/{creditCardId}/transactions:
-    parameters:
-      - $ref: "#/components/parameters/HouseholdId"
-      - $ref: "#/components/parameters/CreditCardId"
-    get:
-      tags: [Transactions]
-      operationId: listCardTransactions
-      summary: List Card Transactions for a credit card
-      description: FR-3.9. Its own ledger, separate from Account Transactions (OQ-16).
-      parameters:
-        - $ref: "#/components/parameters/StartDate"
-        - $ref: "#/components/parameters/EndDate"
-        - $ref: "#/components/parameters/Limit"
-        - $ref: "#/components/parameters/Offset"
-      responses:
-        "200":
-          description: OK
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: '`transaction.schedule_started`, `transaction.holding_in_use` (the buy created a Holding other transactions still reference — params: `count`), `holding.insufficient_quantity` (undoing the buy would take the Holding below zero).'
           content:
             application/json:
-              schema:
-                type: object
-                properties:
-                  data:
-                    type: array
-                    items: { $ref: "#/components/schemas/CardTransaction" }
-                  pagination: { $ref: "#/components/schemas/Pagination" }
+              schema: { $ref: "#/components/schemas/Error" }
 
   # =========================================================== INSIGHTS
   /households/{householdId}/dashboard:
@@ -1763,21 +1785,6 @@ paths:
   /households/{householdId}/reports/{reportType}:
     parameters:
       - $ref: "#/components/parameters/HouseholdId"
-      - name: reportType
-        in: path
-        required: true
-        schema:
-          type: string
-          enum:
-            - spend-by-category
-            - income-vs-expense
-            - account-balance-by-month
-            - net-worth-trend
-            - budget-status
-        description: >
-          Reference data (FR-6.7's Widget library), not a hardcoded
-          branch — this enum lists the current v1 set; a new report
-          type is additive.
     get:
       tags:
         - Reports
@@ -2375,10 +2382,6 @@ components:
       name: limit
       in: query
       schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
-    Offset:
-      name: offset
-      in: query
-      schema: { type: integer, minimum: 0, default: 0 }
     StartDate:
       name: startDate
       in: query
@@ -2470,17 +2473,17 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
     NotFound:
-      description: 'Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `holding.not_found`, `snapshot.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `budget.not_found`, `goal.not_found`, `invitation.invitee_not_registered`.'
+      description: 'Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `holding.not_found`, `snapshot.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `budget.not_found`, `goal.not_found`, `transaction.not_found`, `invitation.invitee_not_registered`.'
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
     Conflict:
-      description: "The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed` (params: the target and the claiming `budgetId` — OQ-176), `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `holding.archived` (OQ-178), `holding.not_matured` (OQ-178), `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107)."
+      description: "The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed` (params: the target and the claiming `budgetId` — OQ-176), `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `holding.archived` (OQ-178), `holding.not_matured` (OQ-178), `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107), `holding.insufficient_quantity`, `holding.cost_basis_below_zero` (OQ-171), `transaction.schedule_started`, `transaction.holding_in_use` (OQ-201)."
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
     ValidationError:
-      description: 'Request body failed validation. Codes: `validation.failed` with `details[]`, or specific codes such as `password.too_short`, `transaction.investment_not_allowed_on_account`, `account.cards_not_allowed` (FR-2.7).'
+      description: 'Request body failed validation. Codes: `validation.failed` with `details[]`, or specific codes such as `password.too_short`, `transaction.investment_not_allowed_on_account`, `transaction.kind_not_allowed_for_target`, `transaction.currency_mismatch`, `transaction.subcategory_mismatch`, `category.archived` (OQ-201), `account.cards_not_allowed` (FR-2.7).'
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
@@ -2535,13 +2538,6 @@ components:
             correlationId:
               type: string
               description: Matches the server logs (NFR-OBS-1)
-
-    Pagination:
-      type: object
-      properties:
-        limit: { type: integer }
-        offset: { type: integer }
-        total: { type: integer }
 
     Currency:
       type: string
@@ -3086,6 +3082,11 @@ components:
         incentivised:
           type: [boolean, "null"]
           description: Debentures only — incentivised debentures are income-tax exempt for individuals (OQ-79)
+        interestPayment:
+          oneOf:
+            - $ref: '#/components/schemas/InterestPayment'
+            - type: "null"
+          description: Fixed-term only — when the contract pays interest (OQ-201)
         archivedBy:
           type: [string, "null"]
           enum:
@@ -3171,26 +3172,38 @@ components:
     TransactionCreateRequest:
       type: object
       required: [kind, date, amount, currency]
+      description: >
+        One request for every kind (FR-3.1/OQ-39); which fields apply
+        follows the kind (OQ-201). A card kind (charge/refund) takes
+        `creditCardId` alone; every other kind takes `accountId`, and a
+        bill payment also its `creditCardId`. A buy takes `assetType` +
+        `ticker` (+ `quantity`, optional for fixed-term — 1 unit) and, for a
+        fixed-term type, `rate`, `dueDate` and `interestPayment`; sell and
+        redemption take `holdingId` + `quantity`; dividend, interest and tax
+        take `holdingId`. A field the kind has no use for is a 422.
       properties:
-        accountId: { type: string, format: uuid, description: "Exactly one of accountId/creditCardId" }
-        creditCardId: { type: string, format: uuid }
-        kind: { type: string, description: "Reference data, e.g. withdrawal, deposit, transfer sent/received, investment buy, card charge, ... FR-3.1" }
+        accountId: { type: string, format: uuid, description: "Every kind but charge/refund — for a bill payment, the paying account" }
+        creditCardId: { type: string, format: uuid, description: "charge/refund: the card; a bill payment: the card it pays (FR-3.7)" }
+        kind: { type: string, description: "Reference data (`@financas/reference`, OQ-98), e.g. withdrawal, pix_payment, transfer_sent, credit_card_bill_payment, charge, investment_buy — FR-3.1" }
         date: { type: string, format: date }
-        amount: { $ref: "#/components/schemas/Money" }
+        amount: { $ref: "#/components/schemas/PositiveMoney" }
         currency: { $ref: "#/components/schemas/Currency" }
-        categoryId: { type: string, format: uuid }
+        categoryId: { type: string, format: uuid, description: "Any kind (OQ-201); money in reduces the claiming Budget's spend" }
         subcategoryId: { type: string, format: uuid }
         description: { type: string }
-        assetType: { type: string, description: "Investment kinds only, required for investment_buy (FR-5.1) — stock/FII/CDB-fixed-income/fund/other." }
-        ticker: { type: string, description: "Investment kinds only, required (FR-5.1) — matches an existing Holding in this account by ticker; a new ticker on investment_buy creates one." }
-        quantity: { $ref: "#/components/schemas/Quantity" }
+        holdingId: { type: string, format: uuid, description: "Sell, redemption, dividend, interest and tax — the Holding, picked from the account's (OQ-201); a ticker can match several fixed-term Holdings (OQ-50)" }
+        assetType: { type: string, description: "investment_buy only, required (FR-5.1) — the InvestmentHolding assetType list (OQ-79)." }
+        ticker: { type: string, description: "investment_buy only, required (FR-5.1) — a market-priced buy accumulates into this account's Holding of the same asset type and ticker (a zeroed one reopens, OQ-171); a fixed-term buy always creates a new Holding (OQ-50)." }
+        quantity: { $ref: "#/components/schemas/Quantity", description: "Buy, sell, redemption. Optional on a fixed-term buy — 1 unit (OQ-201)." }
         rate:
           type: [object, "null"]
-          description: "Fixed-term instrument types only, investment_buy only (OQ-50) — this purchase's own immutable rate, set at creation and never recomputed."
+          description: "Fixed-term investment_buy only, required (OQ-50) — this purchase's own rate; edited only through this buy while its schedule hasn't started (OQ-201)."
           properties:
             type: { type: string, enum: [fixed, cdi, ipca, igpm, selic] }
             value: { type: integer, description: "Percent × 10,000 — 10.50% = 105000 (bigint fixed-point, OQ-86, OQ-189). Fixed: annual % rate. CDI/Selic: % of the index (110% of CDI = 1100000). IPCA/IGP-M: spread above the index." }
-        dueDate: { type: string, format: date, description: "Fixed-term instrument types only, required for investment_buy (FR-11.1/FR-11.2) — the contract's maturity date. Not derivable from assetType alone (a CDB's term is negotiated per contract); InvestmentProductEngine uses it, alongside date and rate, to compute the interest-payment schedule between purchase and maturity, never to derive maturity itself." }
+        dueDate: { type: string, format: date, description: "Fixed-term investment_buy only, required (FR-11.1/FR-11.2) — the contract's maturity date. Not derivable from assetType alone (a CDB's term is negotiated per contract); InvestmentProductEngine uses it, alongside date, rate and interestPayment, to compute the cash events between purchase and maturity." }
+        interestPayment:
+          $ref: '#/components/schemas/InterestPayment'
         allocations:
           type: array
           description: "investment_buy only, optional (FR-8.2/OQ-54) — allocate this purchase across one or more Goals in the same call that creates/updates the Holding, instead of a separate PATCH /holdings/{holdingId} afterward. The Holding is still the entry point (OQ-48); this is the same write, just bundled at creation time."
@@ -3212,14 +3225,37 @@ components:
           type: boolean
           description: Debenture buys only (OQ-79)
 
+    InterestPayment:
+      type: string
+      enum: [at_maturity, monthly, semiannual]
+      default: at_maturity
+      description: When a fixed-term contract pays interest (FR-11.2, OQ-201) — part of the contract, entered on the buy; InvestmentProductEngine builds the schedule from it.
+
     TransactionUpdateRequest:
       type: object
+      description: >
+        Values only, never identity (OQ-201): kind, account, card and
+        Holding don't change — delete and record again. A field left out
+        keeps its value; `null` clears an optional one (category,
+        subcategory, description). A fixed-term buy whose schedule has
+        started takes only `categoryId`, `subcategoryId`, `description`
+        (409 `transaction.schedule_started` otherwise).
       properties:
         date: { type: string, format: date }
-        amount: { $ref: "#/components/schemas/Money" }
-        categoryId: { type: string, format: uuid }
-        subcategoryId: { type: string, format: uuid }
-        description: { type: string }
+        amount: { $ref: "#/components/schemas/PositiveMoney" }
+        categoryId: { type: [string, "null"], format: uuid }
+        subcategoryId: { type: [string, "null"], format: uuid }
+        description: { type: [string, "null"] }
+        quantity: { $ref: "#/components/schemas/Quantity", description: "Buy, sell, redemption only" }
+        rate:
+          type: object
+          description: Fixed-term buy only — recomputes the schedule
+          properties:
+            type: { type: string, enum: [fixed, cdi, ipca, igpm, selic] }
+            value: { type: integer, description: "Percent × 10,000" }
+        dueDate: { type: string, format: date, description: Fixed-term buy only — recomputes the schedule }
+        interestPayment: { $ref: '#/components/schemas/InterestPayment' }
+        incentivised: { type: boolean, description: Debenture buy only }
 
     AccountTransaction:
       type: object
@@ -3235,7 +3271,19 @@ components:
         subcategoryId: { type: [string, "null"], format: uuid }
         description: { type: string }
         holdingId: { type: [string, "null"], format: uuid, description: "Investment kinds only" }
+        holding:
+          type: [object, "null"]
+          description: Investment kinds only — what the ledger row and the edit form show (OQ-201)
+          properties:
+            ticker: { type: string }
+            assetType: { type: string }
+        quantity:
+          oneOf:
+            - $ref: "#/components/schemas/Quantity"
+            - type: "null"
+          description: Buy, sell, redemption — the units traded (positive)
         creditCardId: { type: [string, "null"], format: uuid, description: "Bill payment only — the one bridge between the two ledgers" }
+        createdByUserId: { type: [string, "null"], format: uuid, description: "Who recorded it — null for schedule posts and after the recorder's account is deleted (OQ-201, FR-1.17)" }
         source:
           type: string
           enum:
@@ -3260,6 +3308,7 @@ components:
         categoryId: { type: [string, "null"], format: uuid }
         subcategoryId: { type: [string, "null"], format: uuid }
         description: { type: string }
+        createdByUserId: { type: [string, "null"], format: uuid, description: "Who recorded it (OQ-201)" }
         createdAt: { type: string, format: date-time }
         ledger:
           type: string
@@ -3493,6 +3542,17 @@ components:
                     $ref: '#/components/schemas/Currency'
                   net:
                     $ref: '#/components/schemas/Money'
+            monthCounts:
+              type: array
+              description: Transactions per month for the months in this page, over the whole filtered set — the month header's count (mockup 30, OQ-201)
+              items:
+                type: object
+                properties:
+                  month:
+                    type: string
+                    pattern: "^[0-9]{4}-(0[1-9]|1[0-2])$"
+                  count:
+                    type: integer
     MoneyByCurrency:
       type: object
       properties:
@@ -3528,7 +3588,9 @@ components:
             type: object
             properties:
               month:
-                type: integer
+                type: string
+                pattern: "^[0-9]{4}-(0[1-9]|1[0-2])$"
+                description: YYYY-MM, as every other month in the reports (OQ-201)
               currency:
                 $ref: '#/components/schemas/Currency'
               in:
@@ -3537,6 +3599,7 @@ components:
                 $ref: '#/components/schemas/Money'
         balances:
           type: array
+          description: Each visible, unarchived Account's balance at the month's end, and each of its cards' outstanding balance at the month's end (OQ-201)
           items:
             type: object
             properties:
@@ -3552,11 +3615,19 @@ components:
                 $ref: '#/components/schemas/Money'
         budgets:
           type: array
-          description: Over-budget first
+          description: The visible Budgets active that month, over-budget first; one with no period opened that month shows the target in effect then (OQ-166) and zero spend (OQ-201)
           items:
-            $ref: '#/components/schemas/BudgetPeriod'
+            type: object
+            properties:
+              budgetId: { type: string, format: uuid }
+              name: { type: string }
+              currency: { $ref: "#/components/schemas/Currency" }
+              visibility: { type: string, enum: [personal, shared] }
+              targetAmount: { $ref: "#/components/schemas/Money" }
+              spendAmount: { $ref: "#/components/schemas/Money", description: "Money out − money in across its claimed categories (OQ-201)" }
         goals:
           type: array
+          description: Progress at the month's end (FR-8.7), per currency as always; the frontend shows the Goal's own currency and notes when others fund it (OQ-201 — the exchange rate stays on the Goals page)
           items:
             $ref: '#/components/schemas/GoalWithProgress'
     InvestmentsOverviewReport:

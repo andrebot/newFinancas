@@ -66,11 +66,11 @@ EXPERIENCES = [
      [], ["ValidationUtility", "AlertUtility", "ThemeUtility", "I18nUtility", "FormattingUtility"],
      "Holding Management left this Experience (holdings are created by transactions, maintained in Track Investments). The Exchange-Rate Calculator is client-side only (FR-9)."),
     ("Manage Finances", "manage-finances", "Record and review day-to-day money",
-     [("Record Transaction", ["Kind Group & Kind Selection", "Transaction Entry", "Investment Buy Entry", "Goal Allocation Entry"], "record-transaction"),
+     [("Record Transaction", ["Kind Group & Kind Selection", "Transaction Entry", "Holding Selection", "Investment Buy Entry", "Goal Allocation Entry"], "record-transaction"),
       ("Browse Transactions", ["Filter Panel", "Ledger (lazy, grouped by month/day)", "Expanded Row", "Delete Confirm"], "browse-transactions"),
       ("Month Overview", ["Period Bar", "Currency Switch", "Balance Rail", "Budget Rail", "Goal Rail"], "month-overview")],
      [], ["ValidationUtility", "AlertUtility", "ThemeUtility", "I18nUtility", "FormattingUtility"],
-     "Transaction Correction Flow removed — editing reuses Record Transaction's entry Interactions from an expanded ledger row. Month Overview stays here (Q4): same page, same period state."),
+     "Transaction Correction Flow removed — editing reuses Record Transaction's entry Interactions from an expanded ledger row, kind and target shown read-only (OQ-201). Month Overview stays here (Q4): same page, same period state. Transfers are two separate entries (OQ-201)."),
     ("Track Investments", "track-investments", "Follow and maintain investments",
      [("Portfolio Overview", ["Net Worth Cards", "Payout This Month", "Payout Holding Selector", "Payout Chart", "Allocation Cards", "Coming Due"], "portfolio-overview"),
       ("Holding Maintenance", ["Account Picker", "Holdings Table", "Goal Allocation Editor", "Market Value Entry", "Value History Editor"], "holding-maintenance"),
@@ -968,33 +968,42 @@ opt the tab is hidden — Back or a link, the Flow stays mounted (OQ-197)
 end
 """, ["Allocations are never edited here — always from the Holding (OQ-48).", "FX never leaves the browser (FR-9): the rate lives in the Flow's state, keyed by pair, and every card needing it reads it.", "Definitions and progress are two reads (OQ-177); the definitions show alone when progress fails (OQ-195). A completed Goal can still be edited."]),
     ("manage-finances-record-transaction", "Manage Finances — Record Transaction", f"{R('POST /households/:householdId/transactions')}; edit reuses it with {R('PATCH /households/:householdId/transactions/:id')}.",
-     [("KS", "Kind Group &<br/>Kind Selection"), ("TE", "Transaction Entry"), ("IB", "Investment Buy Entry"), ("GA", "Goal Allocation Entry"), FLOW("Record Transaction"), EXP("Manage Finances"), API],
+     [("KS", "Kind Group &<br/>Kind Selection"), ("TE", "Transaction Entry"), ("HS", "Holding Selection"), ("IB", "Investment Buy Entry"), ("GA", "Goal Allocation Entry"), FLOW("Record Transaction"), EXP("Manage Finances"), API],
      """
-User->>KS: group (Cash / Transfer / Credit card / Investment), then kind
-KS->>FLOW: emit kindSelected
+alt record
+    User->>KS: group (Cash / Transfer / Credit card / Investment), then kind
+    KS->>FLOW: emit kindSelected
+else edit (from a ledger row, via the Experience)
+    EXP-->>FLOW: state: the transaction, pre-filled
+    FLOW-->>KS: kind and target read-only (OQ-201)
+end
 alt investment buy
-    FLOW-->>IB: render asset type, ticker, quantity, rate + due date (fixed-term), incentivised (debenture)
+    FLOW-->>IB: render asset type, ticker, quantity (optional for fixed-term), rate + due date + interest payment (fixed-term), incentivised (debenture)
     User->>IB: fill in
     IB->>FLOW: emit tradeFields
     opt assign to goals
         User->>GA: goal rows with whole %
         GA->>FLOW: emit allocations (Flow keeps the total ≤ 100)
     end
+else sell, redemption, dividend, interest or tax
+    FLOW-->>HS: render the chosen account's Holdings (from the Experience)
+    User->>HS: pick one (+ quantity for a sell or redemption)
+    HS->>FLOW: emit holdingSelected (holdingId, quantity?)
 else any other kind
-    FLOW-->>TE: render fields for the kind (account narrows by kind)
+    FLOW-->>TE: render fields for the kind (account narrows by kind, a credit-card-only account offers only bill payments)
 end
 User->>TE: amount (currency from account), date, category, description
 TE->>FLOW: emit fields
-FLOW->>EXP: request record(transaction)
-EXP->>API: POST /households/:householdId/transactions
-alt 4xx (e.g. goal.allocation_exceeds_100, transaction.investment_not_allowed_on_account)
+FLOW->>EXP: request record(transaction) or save(id, changes)
+EXP->>API: POST /households/:householdId/transactions (or PATCH …/transactions/:id)
+alt 4xx (e.g. goal.allocation_exceeds_100, transaction.investment_not_allowed_on_account, transaction.schedule_started)
     API-->>EXP: error code + params
     EXP-->>FLOW: state: error — I18nUtility renders it
 else 201
     API-->>EXP: transactionId
     EXP-->>FLOW: complete → Experience refreshes Browse + Month Overview
 end
-""", ["No recurring option (OQ-55).", "The Experience, not this Flow, refreshes the sibling Flows on completion."]),
+""", ["No recurring option (OQ-55).", "The Experience, not this Flow, refreshes the sibling Flows on completion.", "OQ-201: the Holding is picked, never typed, for every investment kind but a buy; a category is offered for every kind; a transfer is one side, recorded on its own account."]),
     ("manage-finances-browse-transactions", "Manage Finances — Browse Transactions", f"{R('GET /households/:householdId/transactions?…&cursor=')}, {R('DELETE /households/:householdId/transactions/:id')}.",
      [("FP", "Filter Panel"), ("LG", "Ledger"), ("XR", "Expanded Row"), ("DC", "Delete Confirm"), FLOW("Browse Transactions"), EXP("Manage Finances"), API],
      """
@@ -1025,7 +1034,7 @@ else delete
     FLOW->>EXP: request delete(id)
     EXP->>API: DELETE /households/:householdId/transactions/:transactionId
 end
-""", ["Not scoped to the period bar (OQ-61).", "Edit goes through the Experience to Record Transaction — no Flow-to-Flow call."]),
+""", ["Not scoped to the period bar (OQ-61).", "Edit goes through the Experience to Record Transaction — no Flow-to-Flow call.", "OQ-201: month headers show the month's count (monthCounts); accounts and cards are one filter picker; a Category includes its Subcategories."]),
     ("manage-finances-month-overview", "Manage Finances — Month Overview", f"{R('GET /households/:householdId/reports/month-overview?year=&month=')}.",
      [("PB", "Period Bar"), ("CS", "Currency Switch"), ("RL", "Balance / Budget /<br/>Goal Rails"), FLOW("Month Overview"), EXP("Manage Finances"), API],
      """
@@ -1044,7 +1053,7 @@ else switch currency
     User->>CS: $ or R$
     CS->>FLOW: emit currencyChanged (local — no request)
 end
-""", ["FormattingUtility formats every amount in its own currency; nothing is summed across currencies."]),
+""", ["FormattingUtility formats every amount in its own currency; nothing is summed across currencies.", "OQ-201: a Goal funded in other currencies shows its own currency's progress and a note pointing to Goals (the exchange rate lives there); a card shows its outstanding at the month's end."]),
     ("track-investments-portfolio-overview", "Track Investments — Portfolio Overview", f"{R('GET /households/:householdId/reports/investments-overview')}, {R('GET /households/:householdId/reports/payouts?holdingIds=')}.",
      [("NW", "Net Worth / Allocation /<br/>Coming Due cards"), ("PT", "Payout This Month"), ("HS", "Payout Holding Selector"), ("PC", "Payout Chart"), FLOW("Portfolio Overview"), EXP("Track Investments"), API],
      """

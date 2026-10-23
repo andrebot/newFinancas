@@ -19,12 +19,6 @@ export const zError = z.object({
     })
 });
 
-export const zPagination = z.object({
-    limit: z.int().optional(),
-    offset: z.int().optional(),
-    total: z.int().optional()
-});
-
 /**
  * ISO 4217 code of a currency the app supports — BRL and USD in v1. Money is never converted between them (FR-2.2); adding a currency means adding it here and to the formatting it needs.
  *
@@ -459,54 +453,6 @@ export const zBudgetPeriod = z.object({
     createdAt: z.iso.datetime().optional()
 });
 
-export const zInvestmentHolding = z.object({
-    id: z.uuid().optional(),
-    accountId: z.uuid().optional(),
-    assetType: z.enum([
-        'stock',
-        'fii',
-        'fund',
-        'mutual_fund',
-        'currency',
-        'crypto',
-        'real_estate',
-        'other',
-        'cdb',
-        'lc',
-        'lf',
-        'lci',
-        'lca',
-        'cra',
-        'cri',
-        'debenture',
-        'tesouro_direto',
-        'cd',
-        'treasury'
-    ]).optional(),
-    ticker: z.string().optional(),
-    quantity: zQuantity.optional(),
-    costBasis: zMoney.optional(),
-    rate: z.object({
-        type: z.enum([
-            'fixed',
-            'cdi',
-            'ipca',
-            'igpm',
-            'selic'
-        ]).optional(),
-        value: z.int().optional()
-    }).nullish(),
-    archivedAt: z.iso.datetime().nullish(),
-    createdAt: z.iso.datetime().optional(),
-    incentivised: z.boolean().nullish(),
-    archivedBy: z.enum(['system', 'user']).nullish(),
-    expectedPayout: zMoney.optional(),
-    expectedTaxes: z.object({
-        estimated: z.boolean().optional(),
-        amount: zMoney.optional()
-    }).nullish()
-});
-
 export const zHoldingAllocation = z.object({
     goalId: z.uuid(),
     percentage: z.int().gte(1).lte(100)
@@ -550,16 +496,79 @@ export const zInvestmentScheduleEntry = z.object({
     createdAt: z.iso.datetime().optional()
 });
 
+/**
+ * When a fixed-term contract pays interest (FR-11.2, OQ-201) — part of the contract, entered on the buy; InvestmentProductEngine builds the schedule from it.
+ */
+export const zInterestPayment = z.enum([
+    'at_maturity',
+    'monthly',
+    'semiannual'
+]).default('at_maturity');
+
+export const zInvestmentHolding = z.object({
+    id: z.uuid().optional(),
+    accountId: z.uuid().optional(),
+    assetType: z.enum([
+        'stock',
+        'fii',
+        'fund',
+        'mutual_fund',
+        'currency',
+        'crypto',
+        'real_estate',
+        'other',
+        'cdb',
+        'lc',
+        'lf',
+        'lci',
+        'lca',
+        'cra',
+        'cri',
+        'debenture',
+        'tesouro_direto',
+        'cd',
+        'treasury'
+    ]).optional(),
+    ticker: z.string().optional(),
+    quantity: zQuantity.optional(),
+    costBasis: zMoney.optional(),
+    rate: z.object({
+        type: z.enum([
+            'fixed',
+            'cdi',
+            'ipca',
+            'igpm',
+            'selic'
+        ]).optional(),
+        value: z.int().optional()
+    }).nullish(),
+    archivedAt: z.iso.datetime().nullish(),
+    createdAt: z.iso.datetime().optional(),
+    incentivised: z.boolean().nullish(),
+    interestPayment: zInterestPayment.nullish(),
+    archivedBy: z.enum(['system', 'user']).nullish(),
+    expectedPayout: zMoney.optional(),
+    expectedTaxes: z.object({
+        estimated: z.boolean().optional(),
+        amount: zMoney.optional()
+    }).nullish()
+});
+
+/**
+ * One request for every kind (FR-3.1/OQ-39); which fields apply follows the kind (OQ-201). A card kind (charge/refund) takes `creditCardId` alone; every other kind takes `accountId`, and a bill payment also its `creditCardId`. A buy takes `assetType` + `ticker` (+ `quantity`, optional for fixed-term — 1 unit) and, for a fixed-term type, `rate`, `dueDate` and `interestPayment`; sell and redemption take `holdingId` + `quantity`; dividend, interest and tax take `holdingId`. A field the kind has no use for is a 422.
+ *
+ */
 export const zTransactionCreateRequest = z.object({
     accountId: z.uuid().optional(),
     creditCardId: z.uuid().optional(),
     kind: z.string(),
     date: z.iso.date(),
-    amount: zMoney,
+    amount: zPositiveMoney,
     currency: zCurrency,
     categoryId: z.uuid().optional(),
     subcategoryId: z.uuid().optional(),
     description: z.string().optional(),
+    holdingId: z.uuid().optional(),
     assetType: z.string().optional(),
     ticker: z.string().optional(),
     quantity: zQuantity.optional(),
@@ -574,6 +583,7 @@ export const zTransactionCreateRequest = z.object({
         value: z.int().optional()
     }).nullish(),
     dueDate: z.iso.date().optional(),
+    interestPayment: zInterestPayment.optional(),
     allocations: z.array(z.object({
         goalId: z.uuid(),
         percentage: z.int().gte(1).lte(100)
@@ -581,12 +591,30 @@ export const zTransactionCreateRequest = z.object({
     incentivised: z.boolean().optional()
 });
 
+/**
+ * Values only, never identity (OQ-201): kind, account, card and Holding don't change — delete and record again. A field left out keeps its value; `null` clears an optional one (category, subcategory, description). A fixed-term buy whose schedule has started takes only `categoryId`, `subcategoryId`, `description` (409 `transaction.schedule_started` otherwise).
+ *
+ */
 export const zTransactionUpdateRequest = z.object({
     date: z.iso.date().optional(),
-    amount: zMoney.optional(),
-    categoryId: z.uuid().optional(),
-    subcategoryId: z.uuid().optional(),
-    description: z.string().optional()
+    amount: zPositiveMoney.optional(),
+    categoryId: z.uuid().nullish(),
+    subcategoryId: z.uuid().nullish(),
+    description: z.string().nullish(),
+    quantity: zQuantity.optional(),
+    rate: z.object({
+        type: z.enum([
+            'fixed',
+            'cdi',
+            'ipca',
+            'igpm',
+            'selic'
+        ]).optional(),
+        value: z.int().optional()
+    }).optional(),
+    dueDate: z.iso.date().optional(),
+    interestPayment: zInterestPayment.optional(),
+    incentivised: z.boolean().optional()
 });
 
 export const zAccountTransaction = z.object({
@@ -606,7 +634,13 @@ export const zAccountTransaction = z.object({
     subcategoryId: z.uuid().nullish(),
     description: z.string().optional(),
     holdingId: z.uuid().nullish(),
+    holding: z.object({
+        ticker: z.string().optional(),
+        assetType: z.string().optional()
+    }).nullish(),
+    quantity: zQuantity.nullish(),
     creditCardId: z.uuid().nullish(),
+    createdByUserId: z.uuid().nullish(),
     source: z.enum(['manual', 'schedule']).optional(),
     createdAt: z.iso.datetime().optional(),
     ledger: z.enum(['account']).optional()
@@ -622,6 +656,7 @@ export const zCardTransaction = z.object({
     categoryId: z.uuid().nullish(),
     subcategoryId: z.uuid().nullish(),
     description: z.string().optional(),
+    createdByUserId: z.uuid().nullish(),
     createdAt: z.iso.datetime().optional(),
     ledger: z.enum(['card']).optional()
 });
@@ -772,6 +807,10 @@ export const zTransactionPage = zCursorPage.and(z.object({
         date: z.iso.date().optional(),
         currency: zCurrency.optional(),
         net: zMoney.optional()
+    })).optional(),
+    monthCounts: z.array(z.object({
+        month: z.string().regex(/^[0-9]{4}-(0[1-9]|1[0-2])$/).optional(),
+        count: z.int().optional()
     })).optional()
 }));
 
@@ -792,7 +831,7 @@ export const zMonthOverviewReport = z.object({
         net: zMoney.optional()
     })).optional(),
     yearStrip: z.array(z.object({
-        month: z.int().optional(),
+        month: z.string().regex(/^[0-9]{4}-(0[1-9]|1[0-2])$/).optional(),
         currency: zCurrency.optional(),
         in: zMoney.optional(),
         out: zMoney.optional()
@@ -803,7 +842,14 @@ export const zMonthOverviewReport = z.object({
         currency: zCurrency.optional(),
         amount: zMoney.optional()
     })).optional(),
-    budgets: z.array(zBudgetPeriod).optional(),
+    budgets: z.array(z.object({
+        budgetId: z.uuid().optional(),
+        name: z.string().optional(),
+        currency: zCurrency.optional(),
+        visibility: z.enum(['personal', 'shared']).optional(),
+        targetAmount: zMoney.optional(),
+        spendAmount: zMoney.optional()
+    })).optional(),
     goals: z.array(zGoalWithProgress).optional()
 });
 
@@ -918,8 +964,6 @@ export const zTransactionId = z.uuid();
 export const zNotificationId = z.uuid();
 
 export const zLimit = z.int().gte(1).lte(100).default(20);
-
-export const zOffset = z.int().gte(0).default(0);
 
 /**
  * Inclusive, ISO 8601 date (YYYY-MM-DD).
@@ -1625,7 +1669,7 @@ export const zGetTransactionPath = z.object({
 /**
  * OK
  */
-export const zGetTransactionResponse = zAccountTransaction;
+export const zGetTransactionResponse = zLedgerItem;
 
 export const zEditTransactionBody = zTransactionUpdateRequest;
 
@@ -1637,27 +1681,7 @@ export const zEditTransactionPath = z.object({
 /**
  * OK
  */
-export const zEditTransactionResponse = zAccountTransaction;
-
-export const zListCardTransactionsPath = z.object({
-    householdId: z.uuid(),
-    creditCardId: z.uuid()
-});
-
-export const zListCardTransactionsQuery = z.object({
-    startDate: z.iso.date().optional(),
-    endDate: z.iso.date().optional(),
-    limit: z.int().gte(1).lte(100).optional().default(20),
-    offset: z.int().gte(0).optional().default(0)
-});
-
-/**
- * OK
- */
-export const zListCardTransactionsResponse = z.object({
-    data: z.array(zCardTransaction).optional(),
-    pagination: zPagination.optional()
-});
+export const zEditTransactionResponse = zLedgerItem;
 
 export const zGetDashboardPath = z.object({
     householdId: z.uuid()
@@ -1690,7 +1714,14 @@ export const zGetDashboardResponse = z.object({
         currency: zCurrency.optional(),
         amount: zMoney.optional()
     })).optional(),
-    budgets: z.array(zBudgetPeriod).optional(),
+    budgets: z.array(z.object({
+        budgetId: z.uuid().optional(),
+        name: z.string().optional(),
+        currency: zCurrency.optional(),
+        visibility: z.enum(['personal', 'shared']).optional(),
+        targetAmount: zMoney.optional(),
+        spendAmount: zMoney.optional()
+    })).optional(),
     goals: z.array(zGoalWithProgress).optional()
 });
 
