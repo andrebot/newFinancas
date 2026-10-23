@@ -5202,6 +5202,18 @@ Reference Rate treatment, FR-9).
 
 **Task 95 (`X2G`) is complete.**
 
+### OQ-199: Manager pub/sub verified across the bus (task I5)
+**Confirmed with the stakeholder (Oct 2026):**
+- **Both a backend seam test and the E2E checks.** Each side's suite mocks the bus, so a renamed topic or a lost subscription passed both. `tests/integration/managers/pubsub.test.ts` puts the real bus between the real Managers, each on its own mocked tier, and runs with every `pnpm test`. The E2E checks are the only ones that cover `server.ts`'s wiring and the real database. Weighed and rejected: the E2E checks alone, which catch drift only when Playwright runs.
+- **`holding.matured` is covered on the bus now.** Its publisher, the daily job (N9), lands in slice 4: the seam test publishes the payload the bus types, standing in for it. The run end to end stays with I6 and core journey #13.
+
+**Design decisions:**
+- **The defaults are checked through the API, as the end state of a journey** (OQ-161). Core journey #1 compares the household's Categories with `defaultCategoriesFor('en-US')`, the language the user registered in; Smoke #3 does the same for a household created through the API. Both compare name, icon, colour and Subcategory names, sorted by name (`tests/e2e/support/accountApi.ts`).
+- **Smoke waits for the seeding.** The bus delivers `household.created` after the household's 201, so the check polls; the onboarding journey reads it at its end, long after.
+- **The `@financas/reference` package is a root dev dependency**, so E2E reads the defaults from the same list the seed uses rather than a copy.
+
+**Task 97 (`I5`) is complete.**
+
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
 *(None currently — OQ-29, the last item here, was resolved during data

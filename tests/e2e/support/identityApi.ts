@@ -55,7 +55,7 @@ export const newCredentials = (name: TestUserName) => ({
  * @param options - The JSON body and the access token, when needed.
  * @returns The response body (`undefined` for an empty one).
  */
-const send = async <Body>(
+export const send = async <Body>(
   request: APIRequestContext,
   method: string,
   path: string,
@@ -215,7 +215,7 @@ export const pendingInvitations = async (
  */
 export const listHouseholds = async (
   request: APIRequestContext,
-  user: TestUser,
+  user: Pick<TestUser, 'accessToken'>,
 ): Promise<readonly MyHousehold[]> => {
   const households = await send<{ data?: MyHousehold[] }>(request, 'GET', '/households', {
     accessToken: user.accessToken,
