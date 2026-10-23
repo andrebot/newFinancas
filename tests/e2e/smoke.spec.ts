@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
-import { registerUser, signInThroughApi } from './support/identityApi';
+import { categoryShapes, defaultCategoryShapes } from './support/accountApi';
+import { createHousehold, registerUser, signInThroughApi } from './support/identityApi';
 
 // Smoke (BDT plan): is the system fundamentally wired — not business rules.
-// Run on every PR. The plan's household-Categories and transaction checks
-// join once those features exist.
+// Run on every PR. The plan's transaction check joins once transactions exist.
 
 test('web app sends a signed-out visitor to Sign In', { tag: '@smoke' }, async ({ page }) => {
   await page.goto('/');
@@ -78,3 +78,17 @@ for (const locale of ['en-US', 'pt-BR'] as const) {
     });
   }
 }
+
+test('a new household holds the default Categories in its creator\'s language', {
+  tag: '@smoke',
+}, async ({ request }) => {
+  // pt-BR, the primary locale; core journey #1 checks en-US (OQ-117).
+  const user = await registerUser(request, { firstName: 'Sol', lastName: 'Smoke' }, 'pt-BR');
+
+  const household = await createHousehold(request, user, 'Smoke Home');
+
+  // Seeded by AccountManager once the bus delivers household.created, after
+  // the household's 201 (I5): wait for it.
+  await expect.poll(() => categoryShapes(request, user, household.id))
+    .toEqual(defaultCategoryShapes('pt-BR'));
+});

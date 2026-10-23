@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test';
+import { categoryShapes, defaultCategoryShapes } from '../support/accountApi';
 import {
-  addMember, createHousehold, currentUser, newCredentials, registerUser, signInThroughApi,
+  addMember, createHousehold, currentUser, listHouseholds, newCredentials, registerUser,
+  signInThroughApi,
 } from '../support/identityApi';
 import { signInThroughUi } from '../support/signIn';
 import text from '../support/text';
@@ -9,8 +11,8 @@ import totpCode from '../support/totp';
 // I7 — Onboard (X2) against the real API: registration, MFA enrollment with a
 // real authenticator code, the first household and its Guided Setup (X2G):
 // the mandatory first account, then the optional steps passed by. Core E2E
-// journey #1 (BDT plan); its "default Categories exist" check joins once
-// Categories do.
+// journey #1 (BDT plan), with I5's check: the household.created event reached
+// AccountManager, so the household holds the defaults in the creator's language.
 
 test('a new user registers, enrolls MFA, creates and sets up their first household', {
   tag: '@core',
@@ -65,6 +67,13 @@ test('a new user registers, enrolls MFA, creates and sets up their first househo
   // default (OQ-161) — read from the API, since the page shows en-US either way.
   const tokens = await signInThroughApi(request, { ...user, totpSecret: setupKey });
   expect((await currentUser(request, tokens.accessToken!)).preferences.language).toBe('en-US');
+
+  // Seeded through the bus after the household's 201 (I5), in the language
+  // they registered in: wait for it.
+  const signedIn = { accessToken: tokens.accessToken! };
+  const [household] = await listHouseholds(request, signedIn);
+  await expect.poll(() => categoryShapes(request, signedIn, household!.id))
+    .toEqual(defaultCategoryShapes('en-US'));
 });
 
 test('a member of a household with only the Owner\'s personal accounts skips Guided Setup', async ({

@@ -4,6 +4,7 @@ import type {
   AuthTokens, HouseholdMembership, Invitation, MfaEnrollmentStart, MyHousehold,
   ReceivedInvitation, User,
 } from '@financas/api-types';
+import type { Locale } from '@financas/i18n';
 import totpCode from './totp';
 
 // Arranging through the API (I7): a journey's preconditions — another user, a
@@ -55,7 +56,7 @@ export const newCredentials = (name: TestUserName) => ({
  * @param options - The JSON body and the access token, when needed.
  * @returns The response body (`undefined` for an empty one).
  */
-const send = async <Body>(
+export const send = async <Body>(
   request: APIRequestContext,
   method: string,
   path: string,
@@ -78,16 +79,18 @@ const send = async <Body>(
  *
  * @param request - Playwright's API client.
  * @param name - The user's first and last name.
+ * @param language - The language registered in: by default the one the journeys
+ *   run in, as Onboard would send it (OQ-161).
  * @returns The signed-in user.
  */
 export const registerUser = async (
   request: APIRequestContext,
   name: TestUserName,
+  language: Locale = 'en-US',
 ): Promise<TestUser> => {
   const credentials = newCredentials(name);
-  // In the locale the journeys run in, as Onboard would send it (OQ-161).
   const enrollment = await send<MfaEnrollmentStart>(request, 'POST', '/auth/register', {
-    data: { ...credentials, language: 'en-US' },
+    data: { ...credentials, language },
   });
   const tokens = await send<AuthTokens>(request, 'POST', '/auth/mfa/enrollment/confirm', {
     data: {
@@ -215,7 +218,7 @@ export const pendingInvitations = async (
  */
 export const listHouseholds = async (
   request: APIRequestContext,
-  user: TestUser,
+  user: Pick<TestUser, 'accessToken'>,
 ): Promise<readonly MyHousehold[]> => {
   const households = await send<{ data?: MyHousehold[] }>(request, 'GET', '/households', {
     accessToken: user.accessToken,
