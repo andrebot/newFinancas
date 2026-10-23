@@ -176,6 +176,18 @@ describe('account routes (OQ-174: under /households/:householdId)', () => {
     expect(account.createAccount).not.toHaveBeenCalled();
   });
 
+  it('POST …/accounts refuses a type outside the four before the Manager (OQ-76)', async () => {
+    const { app, account } = setup();
+
+    const response = await send(app, 'POST', ACCOUNTS, {
+      name: 'Main', type: 'cash', currency: 'BRL', visibility: 'shared',
+    });
+
+    expect(response.status).toBe(422);
+    expect(await failingFields(response)).toEqual(['type']);
+    expect(account.createAccount).not.toHaveBeenCalled();
+  });
+
   it('GET …/accounts/:accountId → 200', async () => {
     const { app, account } = setup();
     account.getAccount.mockResolvedValueOnce(ACCOUNT);
