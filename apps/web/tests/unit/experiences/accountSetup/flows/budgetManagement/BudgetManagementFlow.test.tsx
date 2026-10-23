@@ -127,7 +127,7 @@ beforeEach(() => {
  * Renders the Flow with its requests spied.
  *
  * @param over - The props over the defaults.
- * @returns The requests.
+ * @returns The requests, and a rerender with its tab open or hidden.
  */
 const renderFlow = (over: Partial<BudgetManagementFlowProps> = {}) => {
   const requests = {
@@ -136,7 +136,13 @@ const renderFlow = (over: Partial<BudgetManagementFlowProps> = {}) => {
     onEdit: vi.fn(async (): Promise<RequestOutcome> => ({ ok: true })),
     onDelete: vi.fn(async (): Promise<RequestOutcome> => ({ ok: true })),
   };
-  renderInLocale(
+  /**
+   * Builds the Flow with its tab open or hidden.
+   *
+   * @param active - Whether its tab is open.
+   * @returns The element.
+   */
+  const flow = (active: boolean) => (
     <AlertProvider queue={queue}>
       <BudgetManagementFlow
         {...OWNER}
@@ -144,10 +150,17 @@ const renderFlow = (over: Partial<BudgetManagementFlowProps> = {}) => {
         categories={CATEGORIES}
         {...requests}
         {...over}
+        active={active}
       />
-    </AlertProvider>,
+    </AlertProvider>
   );
-  return requests;
+  const view = renderInLocale(flow(true));
+  return {
+    ...requests,
+    showTab: async (active: boolean) => {
+      await act(async () => view.rerenderInLocale(flow(active)));
+    },
+  };
 };
 
 /**
@@ -400,5 +413,36 @@ describe('deleting a budget', () => {
     await press('cancel drawer');
     await press('edit home');
     expect(drawer().dataset.deleting).toBe('false');
+  });
+});
+
+describe('a hidden tab (OQ-197)', () => {
+  it('leaves the description to the page header', () => {
+    renderFlow();
+    expect(screen.queryByText(/Group categories under one monthly spending target/)).toBeNull();
+  });
+
+  it('closes its drawer once hidden, and shows none when back', async () => {
+    const { showTab } = renderFlow();
+    await press('edit fun');
+    await showTab(false);
+    expect(screen.queryByTestId('drawer')).toBeNull();
+    await showTab(true);
+    expect(screen.queryByTestId('drawer')).toBeNull();
+  });
+
+  it('hides a drawer whose request is out, and shows it with its answer when back', async () => {
+    let answer: (outcome: RequestOutcome) => void = () => {};
+    const onCreate = vi.fn(() => new Promise<RequestOutcome>((resolve) => {
+      answer = resolve;
+    }));
+    const { showTab } = renderFlow({ onCreate });
+    await press('Add budget');
+    await press('submit');
+    await showTab(false);
+    expect(screen.queryByTestId('drawer')).toBeNull();
+    await act(async () => answer({ ok: false, error: { code: 'auth.forbidden' } }));
+    await showTab(true);
+    expect(screen.getByTestId('drawer').dataset.alert).toBe(translator.error('auth.forbidden'));
   });
 });

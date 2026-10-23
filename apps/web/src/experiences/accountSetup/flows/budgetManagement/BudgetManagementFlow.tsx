@@ -16,6 +16,7 @@ import {
   type BudgetEdit, type BudgetManagementState, type BudgetsView, type NewBudget, type Outgoing,
 } from './budgetManagementState';
 import { alertOf, jointViewOf } from '../../budgetForm';
+import useDrawerClosedOnHide from '../../hiddenTab';
 import { BudgetDrawer } from './interactions/BudgetDrawer';
 import { BudgetList } from './interactions/BudgetList';
 
@@ -49,6 +50,8 @@ export interface BudgetManagementFlowProps {
   readonly onEdit: (edit: BudgetEdit) => Promise<RequestOutcome>;
   /** `DELETE /households/:id/budgets/:budgetId`. */
   readonly onDelete: (budgetId: string) => Promise<RequestOutcome>;
+  /** Whether its tab is the open one: hidden, it shows no drawer (OQ-197). Open by default. */
+  readonly active?: boolean;
 }
 
 /**
@@ -94,6 +97,17 @@ const editTargetOf = (budgets: readonly Budget[], state: BudgetManagementState) 
  */
 const isFormOut = (out: Outgoing | undefined) => out !== undefined && out.kind !== 'delete';
 
+/**
+ * Tells whether a drawer shows: Add, or Edit while its budget is still listed.
+ *
+ * @param state - The Flow's state.
+ * @param editTarget - The budget the edit drawer is about, if still listed.
+ * @returns Whether the drawer renders.
+ */
+const isDrawerShown = (state: BudgetManagementState, editTarget: Budget | undefined) => (
+  state.drawer?.kind === 'create' || editTarget !== undefined
+);
+
 /** The loaded panel's props: both lists, the state and the Flow's handlers. */
 interface BudgetsPanelProps {
   readonly budgets: readonly Budget[];
@@ -104,21 +118,23 @@ interface BudgetsPanelProps {
   readonly onSubmit: (fields: NewBudget) => void;
   readonly onConfirmDelete: () => void;
   readonly setState: (update: (state: BudgetManagementState) => BudgetManagementState) => void;
+  /** Whether the Flow's tab is the open one: hidden, no drawer shows. */
+  readonly active: boolean;
 }
 
 /**
- * Renders the loaded grid and whatever drawer is open.
+ * Renders the loaded grid and whatever drawer is open while the tab is.
  *
  * @param props - The lists, the state, the actor and the handlers.
  * @returns The grid and its drawer.
  */
 function BudgetsPanel({
-  budgets, categories, state, selfUserId, role, onSubmit, onConfirmDelete, setState,
+  budgets, categories, state, selfUserId, role, onSubmit, onConfirmDelete, setState, active,
 }: BudgetsPanelProps) {
   const translator = useI18n();
   const { out } = state;
   const editTarget = editTargetOf(budgets, state);
-  const drawerOpen = state.drawer?.kind === 'create' || editTarget !== undefined;
+  const drawerOpen = active && isDrawerShown(state, editTarget);
 
   /**
    * Applies one transition to the Flow's state.
@@ -170,11 +186,12 @@ function BudgetsPanel({
  */
 export function BudgetManagementFlow({
   selfUserId, role, budgets: budgetsView, categories: categoriesView, onRetry, onCreate, onEdit,
-  onDelete,
+  onDelete, active = true,
 }: BudgetManagementFlowProps) {
   const translator = useI18n();
   const alerts = useAlerts();
   const [state, setState] = useState<BudgetManagementState>(INITIAL_BUDGETS);
+  useDrawerClosedOnHide(active, setState, drawerClosed);
   const view = jointViewOf(budgetsView, categoriesView);
 
   /**
@@ -261,11 +278,8 @@ export function BudgetManagementFlow({
           )}
         />
       )}
-      <div className="flex items-center justify-between gap-4">
-        <p className="type-body-sm text-muted">
-          {translator.text('budgetManagement', 'description')}
-        </p>
-        {mayCreateOwned(role) && (
+      {mayCreateOwned(role) && (
+        <div className="flex justify-end">
           <Button
             variant="primary"
             leadingIcon="add"
@@ -274,8 +288,8 @@ export function BudgetManagementFlow({
           >
             {translator.text('budgetManagement', 'add')}
           </Button>
-        )}
-      </div>
+        </div>
+      )}
       <BudgetsPanel
         budgets={view.budgets}
         categories={view.categories}
@@ -285,6 +299,7 @@ export function BudgetManagementFlow({
         onSubmit={submit}
         onConfirmDelete={confirmDelete}
         setState={setState}
+        active={active}
       />
     </div>
   );

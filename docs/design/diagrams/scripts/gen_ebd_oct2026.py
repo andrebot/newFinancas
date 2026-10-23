@@ -85,9 +85,64 @@ EXPERIENCES = [
 
 
 # ---------------------------------------------------------------- tier pages
-_tpl = (TIERS / "authenticate.html").read_text()
-HEAD = _tpl[: _tpl.index("<body>") + len("<body>")]
-TAIL = _tpl[_tpl.index('  <div class="legend">'):]
+# The pages' styles live beside this script, never read back from an output page.
+STYLE = (pathlib.Path(__file__).parent / "ebd_tier_style.css").read_text()
+
+LEGEND = """  <div class="legend">
+    <div class="legend-item"><span class="swatch" style="background:var(--experience); border-color:var(--experience-border);"></span> Experience</div>
+    <div class="legend-item"><span class="swatch" style="background:var(--flow); border-color:var(--flow-border);"></span> Flow</div>
+    <div class="legend-item"><span class="swatch" style="background:var(--interaction); border-color:var(--interaction-border);"></span> Interaction</div>
+    <div class="legend-item"><span class="swatch" style="background:var(--utility); border-color:var(--utility-border);"></span> Utility</div>
+  </div>
+"""
+
+
+def _head(title):
+    """The document head, titled after its page."""
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>{title} — New Finance App</title>
+<style>
+{STYLE}</style>
+</head>
+<body>"""
+
+
+def _tail(notes):
+    """The legend, the page's notes and the document's end."""
+    paragraphs = "".join(f"\n    <p>{note}</p>" for note in notes)
+    return f"""{LEGEND}
+  <div class="notes">{paragraphs}
+  </div>
+</body>
+</html>
+"""
+
+
+def _and_list(items):
+    """Joins names as prose: "A", "A and B", "A, B and C"."""
+    return items[0] if len(items) == 1 else f"{', '.join(items[:-1])} and {items[-1]}"
+
+
+def _tier_notes(name, slug, standalone):
+    """A tier page's notes: why its standalone Interactions have no Flow, and where its wiring is."""
+    notes = []
+    if standalone:
+        one = len(standalone) == 1
+        subject, verb, each = ("it's", "has", "it") if one else ("each is", "have", "each")
+        notes.append(
+            f"<strong>{_and_list(standalone)} {verb} no Flow column, deliberately:</strong> {subject} a "
+            "single atomic action with no accumulated state — wrapping it in a Flow would be the "
+            f"\"Flow Proliferation\" smell (a step mistaken for a Flow). The Experience hosts {each} directly, "
+            "one Interaction, no intermediate tier.")
+    notes.append(
+        "<strong>No wiring shown, same discipline as the backend's layered diagram:</strong> this page "
+        "answers \"what exists, in which tier\" — the sequence diagrams "
+        f"(<code>docs/design/diagrams/ebd-sequences/{slug}-*.html</code>) are where {name}'s "
+        "state-down/events-up wiring is traced in detail, one Flow at a time.")
+    return notes
 
 
 def _box(cls, text):
@@ -140,7 +195,8 @@ def tier_page(name, slug, purpose, flows, standalone, utils, note):
   </div>
 
 """
-    (TIERS / f"{slug}.html").write_text(HEAD + body + TAIL)
+    (TIERS / f"{slug}.html").write_text(
+        _head(f"EBD Tiers — {name}") + body + _tail(_tier_notes(name, slug, standalone)))
 
 
 def shell_page():
@@ -181,7 +237,10 @@ def shell_page():
   </div>
 
 """
-    (TIERS / "app-shell.html").write_text(HEAD + body + TAIL)
+    (TIERS / "app-shell.html").write_text(_head("App Shell") + body + _tail([
+        "<strong>No wiring shown:</strong> this page answers \"what the shell hosts\" — the sequence "
+        "diagram (<code>docs/design/diagrams/ebd-sequences/app-shell-notification-routing.html</code>) "
+        "traces how a chrome event is routed to the Experience that owns it."]))
 
 
 def tier_markdown():
@@ -724,6 +783,10 @@ opt archive (from the edit drawer's danger zone)
         Note over FLOW: toast "{name} archived."
     end
 end
+opt the tab is hidden — Back or a link, the Flow stays mounted (OQ-197)
+    EXP-->>FLOW: active: false
+    FLOW-->>AF: the open drawer closes — kept, unseen, while its request is out
+end
 """, ["Only last4 + network leave the browser — the full number never does (NFR-SEC-7); an attached card's network and last four are fixed (OQ-192).", "One save writes the Account and every card change together, or nothing (OQ-175). The Flow patches its own list from the answer instead of reloading; one request at a time, and the drawer stays open while it is out (OQ-192).", "Guided Setup's step 1 is its own inline form (First Account Entry), built from the same card fields (OQ-196)."]),
     ("account-setup-category-management", "Account Setup — Category Management", f"{R('GET/POST/PATCH /households/:householdId/categories')}, the category and subcategory archive endpoints. Built in FL12 (OQ-193).",
      [("CC", "Category Card"), ("IP", "Icon & Colour Picker"), ("SE", "Inline Subcategory Entry"), ("AC", "Archive Confirm"), FLOW("Category Management"), EXP("Account Setup"), API],
@@ -826,6 +889,10 @@ else ok
     EXP-->>FLOW: outcome: ok, budgets refreshed — the drawer closes
     Note over FLOW: toast "{name} created / updated / deleted."
 end
+opt the tab is hidden — Back or a link, the Flow stays mounted (OQ-197)
+    EXP-->>FLOW: active: false
+    FLOW-->>BF: the open drawer closes — kept, unseen, while its request is out
+end
 """, ["Setup page shows no spend progress (stakeholder) — the list carries definitions only (OQ-176).", "Claims are shared state other members change, so the budgets are the Experience's and fetched again after each write, and after a failure that says they moved (OQ-194).", "Currency and visibility can't change after creation: the edit form shows them locked."]),
     ("account-setup-goal-management", "Account Setup — Goal Management", f"{R('GET/POST/PATCH/DELETE /households/:householdId/goals')}, {R('POST /households/:householdId/goals/:goalId/complete|reopen')} (definitions, AccountManager) + {R('GET /households/:householdId/goal-progress')} (progress, InsightsManager — OQ-177). Built in FL14 (OQ-195).",
      [("GL", "Goal Cards"), ("GF", "Goal Form"), ("GP", "Goal Progress Card"), ("FX", "Exchange-Rate<br/>Calculator"), ("CR", "Complete / Reopen /<br/>Delete Confirm"), FLOW("Goal Management"), EXP("Account Setup"), API],
@@ -882,6 +949,10 @@ else ok
     end
     EXP-->>FLOW: outcome: ok, goals refreshed — the drawer closes (a create shows the Active list)
     Note over FLOW: toast "{name} created / updated / marked completed / reopened / deleted."
+end
+opt the tab is hidden — Back or a link, the Flow stays mounted (OQ-197)
+    EXP-->>FLOW: active: false
+    FLOW-->>GF: the open drawer closes — kept, unseen, while its request is out
 end
 """, ["Allocations are never edited here — always from the Holding (OQ-48).", "FX never leaves the browser (FR-9): the rate lives in the Flow's state, keyed by pair, and every card needing it reads it.", "Definitions and progress are two reads (OQ-177); the definitions show alone when progress fails (OQ-195). A completed Goal can still be edited."]),
     ("manage-finances-record-transaction", "Manage Finances — Record Transaction", f"{R('POST /households/:householdId/transactions')}; edit reuses it with {R('PATCH /households/:householdId/transactions/:id')}.",

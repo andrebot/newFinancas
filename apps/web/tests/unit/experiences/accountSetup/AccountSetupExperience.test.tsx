@@ -10,7 +10,7 @@ import type { BudgetManagementFlowProps } from '../../../../src/experiences/acco
 import type { CategoryManagementFlowProps } from '../../../../src/experiences/accountSetup/flows/categoryManagement/CategoryManagementFlow';
 import type { GoalManagementFlowProps } from '../../../../src/experiences/accountSetup/flows/goalManagement/GoalManagementFlow';
 import {
-  AccountSetupExperience, goalListViewOf, listsToRefresh, listViewOf, progressStatusOf,
+  AccountSetupExperience, goalListViewOf, listsToRefresh, listViewOf, progressStatusOf, tabOf,
 } from '../../../../src/experiences/accountSetup/AccountSetupExperience';
 import { householdChosen } from '../../../../src/shell/shellState';
 import { AlertProvider } from '../../../../src/utilities/AlertProvider';
@@ -35,11 +35,11 @@ vi.mock(
      * @returns The stub.
      */
     AccountManagementFlow: ({
-      selfUserId, role, onLoad, onCreate, onEdit, onArchive,
+      selfUserId, role, active, onLoad, onCreate, onEdit, onArchive,
     }: AccountManagementFlowProps) => (
       <Stub
         name="accounts"
-        shows={{ selfUserId, role }}
+        shows={{ selfUserId, role, active }}
         requests={{
           load: () => onLoad(),
           createZero: () => onCreate({
@@ -110,12 +110,12 @@ vi.mock(
      * @returns The stub.
      */
     BudgetManagementFlow: ({
-      selfUserId, role, budgets, categories, onRetry, onCreate, onEdit, onDelete,
+      selfUserId, role, active, budgets, categories, onRetry, onCreate, onEdit, onDelete,
     }: BudgetManagementFlowProps) => (
       <Stub
         name="budgets"
         shows={{
-          selfUserId, role, budgets, categories,
+          selfUserId, role, active, budgets, categories,
         }}
         events={{ retry: onRetry }}
         requests={{
@@ -146,11 +146,13 @@ vi.mock(
      * @returns The stub.
      */
     GoalManagementFlow: ({
-      selfUserId, role, goals, onRetry, onCreate, onEdit, onDelete, onComplete, onReopen,
+      selfUserId, role, active, goals, onRetry, onCreate, onEdit, onDelete, onComplete, onReopen,
     }: GoalManagementFlowProps) => (
       <Stub
         name="goals"
-        shows={{ selfUserId, role, goals }}
+        shows={{
+          selfUserId, role, active, goals,
+        }}
         events={{ retry: onRetry }}
         requests={{
           createGoal: () => onCreate({
@@ -215,9 +217,14 @@ const LOADED: Answers = {
  *
  * @param answers - The API's answers, over the loaded page's.
  * @param loads - Whether to wait for the page to show.
+ * @param path - The address it opens on.
  * @returns The store and the fake `fetch`.
  */
-const renderExperience = async (answers: Answers = {}, loads = true) => {
+const renderExperience = async (
+  answers: Answers = {},
+  loads = true,
+  path = '/account-setup',
+) => {
   const fetchFn = fakeFetch({ ...LOADED, ...answers });
   const { store } = fakeStore({ fetchFn, refreshToken: 'r-0' });
   store.dispatch(householdChosen('doe'));
@@ -226,7 +233,7 @@ const renderExperience = async (answers: Answers = {}, loads = true) => {
       <AccountSetupExperience />
     </AlertProvider>,
     store,
-    { path: '/account-setup' },
+    { path },
   );
   if (loads) await screen.findByRole('heading', { level: 1 });
   await settle();
@@ -264,10 +271,13 @@ const pickCategories = async () => {
 };
 
 describe('the page', () => {
-  it('shows the active household with its flow, signed in as its owner', async () => {
+  it('opens on Accounts with its flow, signed in as the household’s owner', async () => {
     await renderExperience();
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('The Doe Household');
-    expect(shownBy('accounts')).toEqual({ selfUserId: 'jane', role: 'Owner' });
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Accounts');
+    expect(screen.getByText(
+      'Your checking, savings and credit card accounts — and the cards attached to them.',
+    )).toBeTruthy();
+    expect(shownBy('accounts')).toEqual({ selfUserId: 'jane', role: 'Owner', active: true });
     expect(screen.getByRole('radio', { name: 'Accounts' })).toBeTruthy();
   });
 
@@ -717,6 +727,7 @@ describe('the budgets it holds for their flow', () => {
     expect(shownBy('budgets')).toEqual({
       selfUserId: 'jane',
       role: 'Owner',
+      active: true,
       budgets: { status: 'loaded', budgets: [BUDGET] },
       categories: { status: 'loaded', categories: [CATEGORY] },
     });
@@ -970,6 +981,7 @@ describe('the goals it holds for their flow', () => {
     expect(shownBy('goals')).toEqual({
       selfUserId: 'jane',
       role: 'Owner',
+      active: true,
       goals: {
         active: { status: 'loaded', goals: [{ goal: TRIP, funding: FUNDING }] },
         completed: { status: 'loaded', goals: [{ goal: CAR }] },
@@ -1114,5 +1126,113 @@ describe('the goal writes it answers for their flow', () => {
       ok: false, error: { code: 'auth.forbidden', params: {} },
     });
     expect(goalReadsOf(fetchFn)).toHaveLength(4);
+  });
+});
+
+describe('tabOf', () => {
+  it('reads the tab the address names, or Accounts for none or an unknown one', () => {
+    expect(tabOf('goals')).toBe('goals');
+    expect(tabOf(null)).toBe('accounts');
+    expect(tabOf('holdings')).toBe('accounts');
+  });
+});
+
+/**
+ * Tells whether a stub's flow is hidden behind another tab.
+ *
+ * @param name - The stub's name.
+ * @returns Whether its panel is hidden.
+ */
+const isHidden = (name: string) => screen.getByTestId(name).closest('[hidden]') !== null;
+
+describe('the tabs (OQ-197)', () => {
+  it('titles and describes the page after the open section (mockups 40–43)', async () => {
+    await renderExperience(LISTS);
+    await pickBudgets();
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Budgets');
+    expect(screen.getByText(
+      'Group categories under one monthly spending target. '
+      + 'A category can belong to only one budget at a time.',
+    )).toBeTruthy();
+  });
+
+  it('opens on the tab the address names, mounting no other', async () => {
+    await renderExperience(LISTS, true, '/account-setup?tab=budgets');
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Budgets');
+    expect(isHidden('budgets')).toBe(false);
+    expect(screen.queryByTestId('accounts')).toBeNull();
+  });
+
+  it('writes the open tab into the address, replacing the entry', async () => {
+    await renderExperience(LISTS);
+    await pickBudgets();
+    const location = screen.getByTestId('location');
+    expect(location.textContent).toBe('/account-setup?tab=budgets');
+    expect(location.dataset.navigation).toBe('REPLACE');
+  });
+
+  it('keeps the address’s other parameters on a switch', async () => {
+    await renderExperience(LISTS, true, '/account-setup?tab=accounts&goalId=trip');
+    await pickBudgets();
+    expect(screen.getByTestId('location').textContent)
+      .toBe('/account-setup?tab=budgets&goalId=trip');
+  });
+
+  it('tells each opened flow whether its tab is the open one, for its drawers', async () => {
+    await renderExperience({
+      ...LISTS,
+      'GET /households/doe/goals': () => jsonResponse(200, { data: [] }),
+      'GET /households/doe/goal-progress': () => jsonResponse(200, { data: [] }),
+    });
+    await pickBudgets();
+    expect(shownBy('accounts')).toEqual(expect.objectContaining({ active: false }));
+    expect(shownBy('budgets')).toEqual(expect.objectContaining({ active: true }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('radio', { name: 'Goals' }));
+    });
+    expect(shownBy('budgets')).toEqual(expect.objectContaining({ active: false }));
+    expect(shownBy('goals')).toEqual(expect.objectContaining({ active: true }));
+  });
+
+  it('keeps a tab as it was across a switch, fetching nothing again', async () => {
+    const { fetchFn } = await renderExperience({
+      ...LISTS,
+      'GET /households/doe/accounts': () => jsonResponse(200, { data: [ACCOUNT] }),
+    });
+    await press('load');
+    await pickBudgets();
+    expect(isHidden('accounts')).toBe(true);
+    expect(isHidden('budgets')).toBe(false);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('radio', { name: 'Accounts' }));
+    });
+    expect(isHidden('accounts')).toBe(false);
+    expect(outcomeOf('accounts')).toEqual({ ok: true, data: [ACCOUNT] });
+    expect((await routes(fetchFn)).filter(
+      (route) => route === 'GET /api/v1/households/doe/accounts',
+    )).toHaveLength(1);
+  });
+
+  it('shows Budget Management a category Category Management just wrote', async () => {
+    const listed = vi.fn()
+      .mockReturnValueOnce(jsonResponse(200, { data: [] }))
+      .mockImplementation(CATEGORIES_LISTED);
+    await renderExperience({
+      ...LISTS,
+      'GET /households/doe/categories': listed,
+      'POST /households/doe/categories': () => jsonResponse(201, CATEGORY),
+    });
+    await pickBudgets();
+    expect(shownBy('budgets')).toEqual(expect.objectContaining({
+      categories: { status: 'loaded', categories: [] },
+    }));
+
+    await pickCategories();
+    await press('create');
+    await pickBudgets();
+    expect(shownBy('budgets')).toEqual(expect.objectContaining({
+      categories: { status: 'loaded', categories: [CATEGORY] },
+    }));
   });
 });

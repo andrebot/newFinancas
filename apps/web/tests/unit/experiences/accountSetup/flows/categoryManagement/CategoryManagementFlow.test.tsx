@@ -454,3 +454,10 @@ describe('a confirm with nothing open', () => {
     expect(toasts(queue)).toEqual([]);
   });
 });
+
+describe('its toolbar', () => {
+  it('leaves the description to the page header (OQ-197)', async () => {
+    await renderFlow();
+    expect(screen.queryByText(/What your household's spending gets tagged with/)).toBeNull();
+  });
+});
