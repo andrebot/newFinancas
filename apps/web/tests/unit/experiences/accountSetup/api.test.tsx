@@ -1,9 +1,11 @@
 import type {
   Account, Budget, Category, Goal, GoalWithProgress, Subcategory,
 } from '@financas/api-types';
-import { describe, expect, it } from 'vitest';
+import {
+  describe, expect, it, vi,
+} from 'vitest';
 import { accountSetupApi } from '../../../../src/experiences/accountSetup/api';
-import { jsonResponse } from '../../api/fakes';
+import { envelope, jsonResponse } from '../../api/fakes';
 import { fakeFetch, sent } from '../experienceFakes';
 import { fakeStore } from '../../shell/shellFakes';
 
@@ -47,6 +49,68 @@ describe('listAccounts', () => {
 
     expect((await list).data).toEqual([]);
     list.unsubscribe();
+  });
+});
+
+describe('hasAccountInUse', () => {
+  it.each([
+    [[ACCOUNT], true],
+    [[{ ...ACCOUNT, archivedAt: '2026-10-02T00:00:00Z' }], false],
+    [undefined, false],
+  ])('reads %j as whether one is in use: %s', async (data, inUse) => {
+    const fetchFn = fakeFetch({
+      'GET /households/doe/accounts': () => jsonResponse(200, data ? { data } : {}),
+    });
+    const { store } = fakeStore({ refreshToken: 'r-0', fetchFn });
+    const read = store.dispatch(accountSetupApi.endpoints.hasAccountInUse.initiate('doe'));
+
+    expect((await read).data).toBe(inUse);
+    read.unsubscribe();
+  });
+
+  it.each([
+    ['a create', 'POST /households/doe/accounts', () => jsonResponse(201, ACCOUNT)],
+    ['an archive', 'POST /households/doe/accounts/chk/archive', () => jsonResponse(204)],
+  ])('is asked again after %s goes through, not after one fails (OQ-198)', async (
+    _write,
+    route,
+    succeed,
+  ) => {
+    let fails = true;
+    const fetchFn = fakeFetch({
+      'GET /households/doe/accounts': () => jsonResponse(200, { data: [] }),
+      [route]: () => (fails ? jsonResponse(422, envelope('validation.failed')) : succeed()),
+    });
+    const { store } = fakeStore({ refreshToken: 'r-0', fetchFn });
+    const read = store.dispatch(accountSetupApi.endpoints.hasAccountInUse.initiate('doe'));
+    await read;
+    /**
+     * Sends the write.
+     *
+     * @returns Its result.
+     */
+    const write = () => (route.endsWith('archive')
+      ? store.dispatch(accountSetupApi.endpoints.archiveAccount.initiate({
+        householdId: 'doe', accountId: 'chk',
+      }))
+      : store.dispatch(accountSetupApi.endpoints.createAccount.initiate({
+        householdId: 'doe',
+        name: 'Main',
+        type: 'checking',
+        currency: 'BRL',
+        visibility: 'shared',
+        cards: [],
+      })));
+    /** Counts the reads sent so far. */
+    const reads = async () => (await sent(fetchFn))
+      .filter((call) => call.route === 'GET /api/v1/households/doe/accounts').length;
+
+    await write();
+    expect(await reads()).toBe(1);
+    fails = false;
+    await write();
+    await vi.waitFor(async () => expect(await reads()).toBe(2));
+    read.unsubscribe();
   });
 });
 

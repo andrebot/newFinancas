@@ -272,6 +272,7 @@ export const shell = {
     resetPassword: '/reset-password',
     onboard: '/setup',
     createHousehold: '/households/new',
+    guidedSetup: '/setup/guided',
     dashboard: '/',
     transactions: '/transactions',
     accountSetup: '/account-setup',

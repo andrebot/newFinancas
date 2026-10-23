@@ -42,6 +42,12 @@ export interface ShellSources {
   readonly useHouseholds: () => SourceState<readonly ShellHousehold[]>;
   /** Manage Profile: invitations waiting for the user's answer (`GET /users/me/invitations`). */
   readonly usePendingInvitationCount: () => number;
+  /**
+   * Account Setup: whether a household has an account in use
+   * (`GET /households/:id/accounts`); without one the gate opens Guided Setup
+   * (FR-1.22, OQ-198).
+   */
+  readonly useAccountInUse: (householdId: string) => SourceState<boolean>;
 }
 
 /** Chrome events that aren't a page change, each to the Experience that owns it. */

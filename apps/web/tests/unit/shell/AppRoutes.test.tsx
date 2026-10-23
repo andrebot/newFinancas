@@ -147,6 +147,61 @@ describe('AppRoutes — household gate', () => {
     expect(selectActiveHouseholdId(store.getState())).toBe('rivera');
   });
 
+  it('asks about the active household, waiting for its answer (OQ-198)', async () => {
+    const useAccountInUse = vi.fn(() => ({ status: 'loading' }) as const);
+    const config = fakeConfig({ sources: { ...fakeConfig().sources, useAccountInUse } });
+    renderRoutes(config, signedIn('rivera').store, '/');
+
+    expect(await screen.findByRole('status', { name: 'Loading your household' })).toBeTruthy();
+    expect(useAccountInUse).toHaveBeenLastCalledWith('rivera');
+    expect(screen.queryByRole('banner')).toBeNull();
+  });
+
+  it('offers a retry when that answer fails', async () => {
+    const retry = vi.fn();
+    const config = fakeConfig({
+      sources: {
+        ...fakeConfig().sources, useAccountInUse: () => ({ status: 'failed', retry }),
+      },
+    });
+    renderRoutes(config, signedIn().store, '/');
+
+    expect(await screen.findByText("Couldn't load this household.")).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(retry).toHaveBeenCalledOnce();
+  });
+
+  it('opens Guided Setup, without the chrome, for a household with no account in use', async () => {
+    const config = fakeConfig({
+      sources: {
+        ...fakeConfig().sources, useAccountInUse: () => ({ status: 'ready', data: false }),
+      },
+    });
+    renderRoutes(config, signedIn().store, '/transactions');
+
+    expect(await screen.findByRole('heading', { name: 'page:guidedSetup' })).toBeTruthy();
+    expect(location().textContent).toBe('/setup/guided');
+    expect(screen.queryByRole('banner')).toBeNull();
+  });
+
+  it('shows Guided Setup in the settled household, whether or not it has an account', async () => {
+    const { store } = signedIn('rivera');
+    renderRoutes(fakeConfig(), store, '/setup/guided');
+
+    expect(await screen.findByRole('heading', { name: 'page:guidedSetup' })).toBeTruthy();
+    expect(screen.queryByRole('banner')).toBeNull();
+    expect(selectActiveHouseholdId(store.getState())).toBe('rivera');
+  });
+
+  it('sends a user with no household from Guided Setup to Onboard', () => {
+    const empty: never[] = [];
+    const config = fakeConfig({
+      sources: { ...fakeConfig().sources, useHouseholds: () => ({ status: 'ready', data: empty }) },
+    });
+    renderRoutes(config, signedIn().store, '/setup/guided');
+    expect(screen.getByRole('heading', { name: 'page:onboard' })).toBeTruthy();
+  });
+
   it('decides each state from the households and the active one', () => {
     expect(householdGate({ status: 'loading' }, null)).toEqual({ state: 'loading' });
     expect(householdGate({ status: 'failed', retry: vi.fn() }, null)).toEqual({ state: 'failed' });

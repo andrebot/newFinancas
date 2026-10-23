@@ -4,10 +4,12 @@ import text from '../support/text';
 import totpCode from '../support/totp';
 
 // I7 — Onboard (X2) against the real API: registration, MFA enrollment with a
-// real authenticator code, and the first household. Core E2E journey #1 (BDT
-// plan); its "default Categories exist" check joins once Categories do.
+// real authenticator code, the first household and its Guided Setup (X2G):
+// the mandatory first account, then the optional steps passed by. Core E2E
+// journey #1 (BDT plan); its "default Categories exist" check joins once
+// Categories do.
 
-test('a new user registers, enrolls MFA and creates their first household', {
+test('a new user registers, enrolls MFA, creates and sets up their first household', {
   tag: '@core',
 }, async ({ page, request }) => {
   const user = newCredentials({ firstName: 'Olivia', lastName: 'Onboard' });
@@ -36,6 +38,17 @@ test('a new user registers, enrolls MFA and creates their first household', {
 
   await page.getByLabel(text('householdSetup', 'name')).fill('Onboard Home');
   await page.getByRole('button', { name: text('householdSetup', 'submit') }).click();
+
+  // Guided Setup: the first account is mandatory, the rest is optional.
+  await expect(page).toHaveURL(/\/setup\/guided$/);
+  await page.getByLabel(text('guidedSetup', 'account.name')).fill('Main Checking');
+  await page.getByRole('button', { name: text('guidedSetup', 'account.submit') }).click();
+  await page.getByRole('button', { name: text('guidedSetup', 'categories.continue') }).click();
+  await page.getByRole('button', { name: text('guidedSetup', 'finish') }).click();
+  await expect(page.getByRole('heading', {
+    name: text('guidedSetup', 'complete.title', { household: 'Onboard Home' }),
+  })).toBeVisible();
+  await page.getByRole('button', { name: text('guidedSetup', 'complete.dashboard') }).click();
 
   // On the Dashboard.
   await expect(page).toHaveURL(/\/$/);

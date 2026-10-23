@@ -7,10 +7,13 @@ import type {
 import backendApi from '../../api/backendApi';
 import send from '../../api/send';
 
-// The Account Setup Experience's endpoints (X5; OQ-175, OQ-193..195). No
-// tags: the accounts are the Account Management Flow's own list, fetched as it
-// mounts and patched with what each write returns; the categories (Category
-// and Budget Management read them), the budgets and the goals — definitions
+// The Account Setup Experience's endpoints (X5; OQ-175, OQ-193..195). The
+// accounts are the Account Management Flow's own list, fetched as it mounts
+// and patched with what each write returns; the App Shell's household gate
+// reads them apart — only whether one is in use (FR-1.22, OQ-198) — in its own
+// cache entry, under the one tag here, which a create or archive that went
+// through invalidates; the Flow's list isn't fetched again. The categories
+// (Category and Budget Management read them), the budgets and the goals — definitions
 // and progress, two reads joined by goal id (OQ-177) — are the Experience's
 // shared lists, fetched again by the Experience itself after each write before
 // it answers the Flow. Nothing else reads them, so invalidating would only
@@ -123,15 +126,38 @@ const goalsPath = (householdId: string) => (
 const goalPath = ({ householdId, goalId }: GoalTarget) => (
   `${goalsPath(householdId)}/${encodeURIComponent(goalId)}`);
 
+/**
+ * Names whether a household has an account in use, once a write went
+ * through; a failed one changed nothing.
+ *
+ * @param error - The write's failure, if any.
+ * @param householdId - The household it wrote to.
+ * @returns The tag to invalidate, or none.
+ */
+const accountsInUseTag = (error: unknown, householdId: string) => (
+  error ? [] : [{ type: 'AccountsInUse' as const, id: householdId }]
+);
+
 /** The Experience's slice of the backend API. */
-export const accountSetupApi = backendApi.injectEndpoints({
+export const accountSetupApi = backendApi.enhanceEndpoints({
+  addTagTypes: ['AccountsInUse'],
+}).injectEndpoints({
   endpoints: (build) => ({
     listAccounts: build.query<readonly Account[], string>({
       query: accountsPath,
       transformResponse: (response: ListAccountsResponse) => response.data ?? [],
     }),
+    // The household gate's read: whether any account isn't archived.
+    hasAccountInUse: build.query<boolean, string>({
+      query: accountsPath,
+      transformResponse: (response: ListAccountsResponse) => (
+        (response.data ?? []).some((account) => account.archivedAt === null)
+      ),
+      providesTags: (_result, _error, householdId) => accountsInUseTag(undefined, householdId),
+    }),
     createAccount: build.mutation<Account, CreateAccountInput>({
       query: ({ householdId, ...request }) => send('POST', accountsPath(householdId), request),
+      invalidatesTags: (_result, error, { householdId }) => accountsInUseTag(error, householdId),
     }),
     editAccount: build.mutation<Account, EditAccountInput>({
       query: ({ householdId, accountId, ...changes }) => (
@@ -140,6 +166,7 @@ export const accountSetupApi = backendApi.injectEndpoints({
     }),
     archiveAccount: build.mutation<void, AccountTarget>({
       query: (target) => send('POST', `${accountPath(target)}/archive`),
+      invalidatesTags: (_result, error, { householdId }) => accountsInUseTag(error, householdId),
     }),
     listCategories: build.query<readonly Category[], string>({
       query: (householdId) => `${categoriesPath(householdId)}?includeArchived=true`,
@@ -211,6 +238,7 @@ export const accountSetupApi = backendApi.injectEndpoints({
 
 export const {
   useLazyListAccountsQuery,
+  useHasAccountInUseQuery,
   useCreateAccountMutation,
   useEditAccountMutation,
   useArchiveAccountMutation,

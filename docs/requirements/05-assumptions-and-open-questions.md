@@ -3496,8 +3496,7 @@ not a hardcoded assumption.
     then.
 - **A new household becomes the active one.** `switchHousehold(id)`
   remembers it and resets the API cache, so the gate fetches the list
-  again. Then the Dashboard opens. Guided Setup is added in between with
-  X2G (task 95).
+  again. Then Guided Setup opens (X2G, OQ-198).
 - **The MFA enrollment step is Onboard's, and Authenticate hosts it.**
   `experiences/onboard/MfaEnrollmentStep.tsx` holds the following, moved
   out of Authenticate:
@@ -5179,6 +5178,24 @@ automated/fetched) interest rate applied to it — consistent with the
 system's broader "manual over automated" stance (see the Currency
 Reference Rate treatment, FR-9).
 **Affects:** FR-2.10, FR-3.7.
+
+### OQ-198: Onboard's Guided Setup step (task X2G)
+**Confirmed with the stakeholder (Oct 2026):**
+- **Guided Setup has its own address, `/setup/guided`.** Household Setup creates the household, makes it the active one and opens it, replacing itself in the history, so Back can't create a second household. A refresh resumes the wizard on the active household; FL6's account step already lists the accounts in use with Continue. It is a new access level in the routing table, `householdSetup`: a session and a settled active household, no chrome and no account check. With no household, the gate sends the user to `/setup`. Weighed and rejected: holding the wizard in Onboard's memory, where a refresh lands back on Household Setup.
+- **The first account is enforced after a drop-off (FR-1.22).** The household gate first settles the active household. Then it asks whether that household has an account in use, meaning one that isn't archived. Without one, it opens Guided Setup instead of the chrome. So a user who leaves before the mandatory step, then comes back on any page, is sent back to it, and the main navigation waits. A household whose accounts are all archived goes back to the wizard too: it has no account to work with.
+- **The rule lives in the frontend, with the journey that owns it.** The gate reads `GET /households/:id/accounts`, `AccountManager`'s plain read, through a source Account Setup hands the shell (`ShellSources.useAccountInUse`, `accountSetup/shellSources.ts`). Weighed and rejected:
+  - `hasAccounts` on `MyHousehold`, which `IdentityManager` would compute through `AccountAccessor`. Any Manager may call any Accessor; that wasn't the objection. It would put a rule that changes with the onboarding journey ("what makes a household usable") in the identity contract and its Manager. Examples: requiring a budget too, or letting invited members skip it.
+  - A sticky `households.setupCompletedAt`, set by an `account.created` event. It needs a migration, an event and a contract change, and the asynchronous event leaves a race between finishing the wizard and the gate.
+  - Deferring enforcement.
+
+**Design decisions:**
+- **Onboard hosts the wizard and answers its requests** (`OnboardExperience.tsx`, entry `guidedSetup`). It waits for the user and the active household: a skeleton while loading, a retry if the user can't be loaded. It renders the Guided Setup Flow keyed on the household, and hands in the Category Management Flow for the categories step. The summary's next steps lead to the Dashboard, Transactions, Manage Household and Account Setup's Goals tab (`?tab=goals`).
+- **The requests are shared, not copied.** The accounts', categories' and budgets' requests moved from the Account Setup Experience into `accountSetup/setupRequests.ts` (`useAccountRequests`, `useCategories`, `useBudgets`, with `listViewOf` and `listsToRefresh`). Both Experiences call it, so a rule on how a write is answered (what is fetched again before answering) lives in one place. Each Experience is still the only tier on its page that calls the backend.
+- **The gate's read has its own cache entry.** `hasAccountInUse` reads the same endpoint as the Account Management Flow's list but caches a boolean under an `AccountsInUse` tag. A create or archive that went through invalidates it; a failed one changes nothing. So after the wizard's first account, the gate's next read sees it, and archiving the last account on Account Setup opens the wizard. The Flow's own list isn't fetched twice (its endpoint carries no tag, OQ-192).
+- **The starting balance is explained where the wizard adds the account** (OQ-169). FL6's step 1 already carries the hint and the box on earlier transactions; X2G only hosts it.
+- **The E2E suite creates households as Guided Setup leaves them.** The API helper `createHousehold` adds a first account, so specs about other pages still open inside the chrome. The core onboarding journey goes through the wizard: the first account, then Continue, Finish and Go to Dashboard.
+
+**Task 95 (`X2G`) is complete.**
 
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 

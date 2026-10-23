@@ -5,6 +5,7 @@ import {
 import App, { shellConfigFor } from '../../src/App';
 import { AuthenticateExperience } from '../../src/experiences/authenticate/AuthenticateExperience';
 import { useHouseholds } from '../../src/api/identityApi';
+import useAccountInUse from '../../src/experiences/accountSetup/shellSources';
 import {
   ManageHouseholdExperience,
 } from '../../src/experiences/manageHousehold/ManageHouseholdExperience';
@@ -60,9 +61,11 @@ describe('shellConfigFor', () => {
     const { store } = fakeStore();
     const config = shellConfigFor(store, themeController, feedback);
 
-    expect(Object.keys(config.pages)).toHaveLength(12);
+    expect(Object.keys(config.pages)).toHaveLength(13);
     expect(config.themeController).toBe(themeController);
-    expect(config.sources).toEqual({ useIdentity, useHouseholds, usePendingInvitationCount });
+    expect(config.sources).toEqual({
+      useIdentity, useHouseholds, usePendingInvitationCount, useAccountInUse,
+    });
     expect(Object.keys(config.notificationRoutes)).toEqual(['invitation.received']);
     expect(config.inbox).toBeUndefined();
     expect(config.pages.profile).toEqual(<ManageProfileExperience />);
@@ -76,6 +79,7 @@ describe('shellConfigFor', () => {
     expect(config.pages.createHousehold).toEqual(
       <OnboardExperience entry="additionalHousehold" />,
     );
+    expect(config.pages.guidedSetup).toEqual(<OnboardExperience entry="guidedSetup" />);
   });
 
   it('signs out through Authenticate: the server first, then this browser', async () => {

@@ -89,6 +89,7 @@ export const fakeConfig = (overrides: Partial<ShellConfig> = {}): ShellConfig =>
     useIdentity: () => ({ status: 'ready', data: JANE }),
     useHouseholds: () => ({ status: 'ready', data: HOUSEHOLDS }),
     usePendingInvitationCount: () => 0,
+    useAccountInUse: () => ({ status: 'ready', data: true }),
   },
   actions: { signOut: vi.fn(), exportAuditLog: vi.fn() },
   notificationRoutes: {},

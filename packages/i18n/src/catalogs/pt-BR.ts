@@ -217,6 +217,8 @@ const ptBR = {
     cancel: 'Cancelar',
   },
   guidedSetup: {
+    loading: 'Carregando sua casa',
+    failed: 'Não foi possível carregar sua casa.',
     caption: 'Primeiros passos · etapa {current} de {total}',
     'stepper.label': 'Etapas da configuração',
     'stepper.completed': 'concluída',
@@ -674,6 +676,8 @@ const ptBR = {
     'households.loading': 'Carregando suas casas',
     'households.failed': 'Não foi possível carregar suas casas.',
     'households.retry': 'Tentar de novo',
+    'household.loading': 'Carregando sua casa',
+    'household.failed': 'Não foi possível carregar esta casa.',
     'placeholder.title': 'Em breve',
     'placeholder.description': 'Esta página chega numa próxima versão.',
   },

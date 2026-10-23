@@ -224,21 +224,32 @@ export const listHouseholds = async (
 };
 
 /**
- * Creates a household owned by the user.
+ * Creates a household owned by the user, set up as Guided Setup leaves it:
+ * with a first account, so its pages open inside the chrome rather than in
+ * Guided Setup (FR-1.22, OQ-198).
  *
  * @param request - Playwright's API client.
  * @param owner - The user who creates it.
  * @param name - The household's name.
  * @returns The new household.
  */
-export const createHousehold = (
+export const createHousehold = async (
   request: APIRequestContext,
   owner: TestUser,
   name: string,
-): Promise<MyHousehold> => send(request, 'POST', '/households', {
-  data: { name },
-  accessToken: owner.accessToken,
-});
+): Promise<MyHousehold> => {
+  const household = await send<MyHousehold>(request, 'POST', '/households', {
+    data: { name },
+    accessToken: owner.accessToken,
+  });
+  await send(request, 'POST', `/households/${household.id}/accounts`, {
+    data: {
+      name: 'Main Checking', type: 'checking', currency: 'BRL', visibility: 'shared', cards: [],
+    },
+    accessToken: owner.accessToken,
+  });
+  return household;
+};
 
 /**
  * Invites a registered user into a household.
