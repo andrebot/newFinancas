@@ -155,6 +155,13 @@ export type HouseholdInvitation = Invitation & {
 };
 
 /**
+ * Whether a household has an Account in use, whatever its visibility (OQ-198).
+ */
+export type AccountStatus = {
+    inUse: boolean;
+};
+
+/**
  * A household the current user belongs to, with their role in it (OQ-116).
  */
 export type MyHousehold = Household & {
@@ -1831,6 +1838,33 @@ export type DeclineInvitationResponses = {
      */
     200: unknown;
 };
+
+export type GetAccountStatusData = {
+    body?: never;
+    path: {
+        householdId: string;
+    };
+    query?: never;
+    url: '/households/{householdId}/account-status';
+};
+
+export type GetAccountStatusErrors = {
+    /**
+     * Resource does not exist, or does not belong to the caller. Codes: e.g. `household.not_found` (also when the caller is not a member — OQ-117), `household.member_not_found`, `session.not_found`, `notification.not_found`, `index_rate.not_found`, `holding.not_found`, `snapshot.not_found`, `category.not_found`, `subcategory.not_found`, `account.not_found`, `credit_card.not_found`, `budget.not_found`, `goal.not_found`, `invitation.invitee_not_registered`.
+     */
+    404: Error;
+};
+
+export type GetAccountStatusError = GetAccountStatusErrors[keyof GetAccountStatusErrors];
+
+export type GetAccountStatusResponses = {
+    /**
+     * OK
+     */
+    200: AccountStatus;
+};
+
+export type GetAccountStatusResponse = GetAccountStatusResponses[keyof GetAccountStatusResponses];
 
 export type ListAccountsData = {
     body?: never;

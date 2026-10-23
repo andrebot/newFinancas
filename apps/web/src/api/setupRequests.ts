@@ -1,28 +1,29 @@
 import { useCallback } from 'react';
 import type { SerializedError } from '@reduxjs/toolkit';
 import type { Account } from '@financas/api-types';
-import type { ApiError } from '../../api/errors';
+import type { ApiError } from './errors';
 import {
   failureOf, toDataOutcome, toRequestOutcome, type EndpointResult,
-} from '../../api/outcome';
-import type { RequestOutcome } from '../../utilities/requestOutcome';
+} from './outcome';
+import type { RequestOutcome } from '../utilities/requestOutcome';
 import {
   useArchiveAccountMutation, useCreateAccountMutation, useEditAccountMutation,
   useLazyListAccountsQuery, useListCategoriesQuery, useCreateCategoryMutation,
   useEditCategoryMutation, useArchiveCategoryMutation, useArchiveSubcategoryMutation,
   useListBudgetsQuery, useCreateBudgetMutation, useEditBudgetMutation, useDeleteBudgetMutation,
-} from './api';
-import type { AccountManagementFlowProps } from './flows/accountManagement/AccountManagementFlow';
-import type { BudgetManagementFlowProps } from './flows/budgetManagement/BudgetManagementFlow';
-import type { CategoryManagementFlowProps } from './flows/categoryManagement/CategoryManagementFlow';
-import type { SharedListView } from './sharedLists';
+} from './setupApi';
+import type { AccountManagementFlowProps } from '../experiences/accountSetup/flows/accountManagement/AccountManagementFlow';
+import type { BudgetManagementFlowProps } from '../experiences/accountSetup/flows/budgetManagement/BudgetManagementFlow';
+import type { CategoryManagementFlowProps } from '../experiences/accountSetup/flows/categoryManagement/CategoryManagementFlow';
+import type { SharedListView } from '../experiences/accountSetup/sharedLists';
 
 // The setup requests both hosts of Account Setup's Flows answer (X5, X2G;
 // OQ-198): the accounts, the category list and the budgets, each bound to one
 // household. The Account Setup Experience and Onboard (its Guided Setup step)
 // call them — each still the only tier on its page that reaches the backend —
 // so a rule on how a write is answered (what is fetched again, and when) lives
-// in one place.
+// in one place that neither Experience owns. They answer in the shapes the
+// Flows both Experiences compose ask for.
 
 /**
  * Builds the Account Management Flow's requests for one household. The load

@@ -24,7 +24,7 @@ import {
 } from './flows/goalManagement/GoalManagementFlow';
 import {
   listViewOf, useAccountRequests, useBudgets, useCategories, type ListQueryState,
-} from './setupRequests';
+} from '../../api/setupRequests';
 import type {
   GoalEntry, GoalsView, ProgressStatus, SharedListView,
 } from './sharedLists';

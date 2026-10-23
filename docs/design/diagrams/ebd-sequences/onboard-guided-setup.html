@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Onboard — Guided Setup</h1>
-  <p class="subtitle"><span class="route">GET /households/:householdId/accounts</span>, <span class="route">POST /households/:householdId/accounts</span>, <span class="route">POST / PATCH /households/:householdId/budgets</span>. /setup/guided — mockups 11–14 (OQ-196, OQ-198); the account step is mandatory.</p>
+  <p class="subtitle"><span class="route">GET /households/:householdId/accounts</span>, <span class="route">POST /households/:householdId/accounts</span>, <span class="route">POST / PATCH /households/:householdId/budgets</span>, the gate's <span class="route">GET /households/:householdId/account-status</span>. /setup/guided — mockups 11–14 (OQ-196, OQ-198); the account step is mandatory.</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -72,9 +72,9 @@ sequenceDiagram
     alt opened by Household Setup
         SHELL->>EXP: /setup/guided — the new household active
     else resumed (a drop-off before the first account)
-        SHELL->>API: household gate: GET /households/:householdId/accounts
-        API-->>SHELL: none in use (none, or all archived)
-        SHELL->>EXP: /setup/guided instead of the chrome (FR-1.22, OQ-198)
+        SHELL->>API: household gate: GET /households/:householdId/account-status — beside GET /households
+        API-->>SHELL: inUse false (no Account of any visibility, or all archived)
+        SHELL->>EXP: /setup/guided instead of the chrome, carrying {from} (FR-1.22, OQ-198)
     end
     EXP->>EXP: wait for the user and the active household — a skeleton, a retry on failure
     FLOW->>EXP: request loadAccounts() (on mount)
@@ -114,13 +114,13 @@ sequenceDiagram
     FLOW-->>SC: render the counts + next steps
     SC->>FLOW: emit destination
     FLOW->>EXP: finish(destination)
-    EXP->>SHELL: navigate — Dashboard, Transactions, Manage Household or Account Setup ?tab=goals
-    SHELL->>API: household gate: GET /households/:householdId/accounts (asked again: the create invalidated it)
-    API-->>SHELL: one in use → the page inside the chrome
+    EXP->>SHELL: navigate, replacing the wizard — Transactions, Manage Household, Account Setup ?tab=goals, or the Dashboard (the page held back in {from}, if any)
+    SHELL->>API: household gate: GET /households/:householdId/account-status (asked again: the create invalidated it)
+    API-->>SHELL: inUse true → the page inside the chrome
     </pre>
   </div>
   <div class="notes">
-<ul><li>Steps 1 and 3 are this Flow's own inline forms, as mockups 11 and 13 draw them; the drawers are kept for Account Setup's busier page (OQ-196).</li><li>Both forms carry a Personal / Shared field — Shared to start, Personal for a Viewer — which the mockups leave out (OQ-196).</li><li>The Flow never calls the backend: Onboard hosts it and answers each request through the setup requests it shares with Account Setup (X2G, OQ-198).</li><li>Main nav stays hidden until the household has an account in use: the household gate opens Guided Setup for one that hasn't, so a drop-off resumes here (FR-1.22, OQ-198).</li></ul>
+<ul><li>Steps 1 and 3 are this Flow's own inline forms, as mockups 11 and 13 draw them; the drawers are kept for Account Setup's busier page (OQ-196).</li><li>Both forms carry a Personal / Shared field — Shared to start, Personal for a Viewer — which the mockups leave out (OQ-196).</li><li>The Flow never calls the backend: Onboard hosts it and answers each request through the shared setup requests (api/setupRequests.ts — X2G, OQ-198).</li><li>Main nav stays hidden until the household has an account in use, of any visibility: the household gate opens Guided Setup for one that hasn't, so a drop-off resumes here (FR-1.22, OQ-198).</li></ul>
   </div>
   <script>
     mermaid.initialize({

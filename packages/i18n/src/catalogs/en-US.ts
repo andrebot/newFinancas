@@ -202,8 +202,8 @@ const enUS: Catalog = {
     cancel: 'Cancel',
   },
   guidedSetup: {
-    loading: 'Loading your household',
-    failed: "Couldn't load your household.",
+    loading: 'Opening your setup',
+    failed: "Couldn't open your setup.",
     caption: 'Getting started · step {current} of {total}',
     'stepper.label': 'Setup steps',
     'stepper.completed': 'completed',

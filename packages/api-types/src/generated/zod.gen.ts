@@ -92,6 +92,13 @@ export const zHousehold = z.object({
 });
 
 /**
+ * Whether a household has an Account in use, whatever its visibility (OQ-198).
+ */
+export const zAccountStatus = z.object({
+    inUse: z.boolean()
+});
+
+/**
  * A household the current user belongs to, with their role in it (OQ-116).
  */
 export const zMyHousehold = zHousehold.and(z.object({
@@ -1216,6 +1223,15 @@ export const zAcceptInvitationResponse = z.object({
 export const zDeclineInvitationPath = z.object({
     invitationId: z.uuid()
 });
+
+export const zGetAccountStatusPath = z.object({
+    householdId: z.uuid()
+});
+
+/**
+ * OK
+ */
+export const zGetAccountStatusResponse = zAccountStatus;
 
 export const zListAccountsPath = z.object({
     householdId: z.uuid()

@@ -119,6 +119,25 @@ describe('AccountManager — view Accounts (FR-2.3/2.4, OQ-175)', () => {
     expect(accounts.list).not.toHaveBeenCalled();
   });
 
+  it('tells any member whether the household has an Account in use (OQ-198)', async () => {
+    const { deps, accounts, authorization } = fakeDeps();
+    accounts.hasAccountInUse.mockResolvedValueOnce(false);
+
+    await expect(createAccountManager(deps).getAccountStatus(CONTEXT, HOUSEHOLD_ID))
+      .resolves.toEqual({ inUse: false });
+    expect(authorization.authorize).toHaveBeenCalledWith(ANA_ID, HOUSEHOLD_ID, MEMBERS_ONLY);
+    expect(accounts.hasAccountInUse).toHaveBeenCalledWith(HOUSEHOLD_ID);
+  });
+
+  it('answers a non-member\'s status question 404 household.not_found', async () => {
+    const { deps, accounts, authorization } = fakeDeps();
+    authorization.authorize.mockResolvedValueOnce({ outcome: 'not_member' });
+
+    await expect(createAccountManager(deps).getAccountStatus(CONTEXT, HOUSEHOLD_ID))
+      .rejects.toMatchObject(HOUSEHOLD_NOT_FOUND);
+    expect(accounts.hasAccountInUse).not.toHaveBeenCalled();
+  });
+
   it('gets one Account, checked against its own visibility and owner', async () => {
     const { deps, accounts, authorization } = fakeDeps();
 

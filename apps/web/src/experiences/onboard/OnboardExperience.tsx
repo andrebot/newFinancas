@@ -2,21 +2,23 @@ import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { useActiveHousehold } from '../../api/activeHousehold';
 import { toRequestOutcome } from '../../api/outcome';
-import { shell } from '../../config/constants';
+import { guidedSetup, shell } from '../../config/constants';
 import { Button } from '../../kit/button/Button';
 import { EmptyState } from '../../kit/emptyState/EmptyState';
 import { AuthLayout } from '../../kit/layouts/AuthLayout';
 import { WizardLayout } from '../../kit/layouts/WizardLayout';
 import { SkeletonRows } from '../../kit/skeleton/Skeleton';
+import { returnPathOf } from '../../shell/routes';
 import type { ShellHousehold } from '../../shell/shellConfig';
 import { switchHousehold } from '../../shell/shellState';
 import { useAppDispatch } from '../../store';
 import { useI18n, useLocaleController } from '../../utilities/I18nProvider';
 import type { RequestOutcome } from '../../utilities/requestOutcome';
 import { CategoryManagementFlow } from '../accountSetup/flows/categoryManagement/CategoryManagementFlow';
-import { useAccountRequests, useBudgets, useCategories } from '../accountSetup/setupRequests';
+import { useAccountRequests, useBudgets, useCategories } from '../../api/setupRequests';
 import { useCreateHouseholdMutation, useRegisterUserMutation } from './api';
 import { GuidedSetupFlow } from './flows/guidedSetup/GuidedSetupFlow';
+import type { SetupTab } from '../accountSetup/AccountSetupExperience';
 import type { SetupDestination } from './flows/guidedSetup/guidedSetupState';
 import { HouseholdSetupFlow } from './flows/householdSetup/HouseholdSetupFlow';
 import { RegistrationFlow } from './flows/registration/RegistrationFlow';
@@ -44,7 +46,7 @@ import { MfaEnrollmentStep, type PendingEnrollment } from './MfaEnrollmentStep';
 //   opens it too for a household with no account in use, so a drop-off
 //   resumes here, and the main navigation waits for that first account
 //   (FR-1.22). Its requests are the ones Account Setup answers
-//   (`accountSetup/setupRequests.ts`).
+//   (`api/setupRequests.ts`).
 
 /** Which stretch of the journey the page opens. */
 export type OnboardEntry = 'registration' | 'household' | 'additionalHousehold' | 'guidedSetup';
@@ -143,12 +145,29 @@ function HouseholdJourney({ cancellable }: HouseholdJourneyProps) {
   return <HouseholdSetupFlow onCreate={create} onCancel={cancellable ? toDashboard : undefined} />;
 }
 
-/** Where each of the summary's next steps leads (mockup 14). */
-const DESTINATIONS: Readonly<Record<SetupDestination, string>> = {
-  dashboard: shell.paths.dashboard,
-  transactions: shell.paths.transactions,
-  household: shell.paths.household,
-  goals: `${shell.paths.accountSetup}?${shell.tabParam}=goals`,
+/** A next step's page, and the section it opens (an Account Setup tab). */
+interface SetupDestinationPath {
+  readonly path: string;
+  readonly tab?: SetupTab | undefined;
+}
+
+// Typed here, so a renamed tab breaks the build rather than the link.
+const DESTINATIONS: Readonly<Record<SetupDestination, SetupDestinationPath>> = (
+  guidedSetup.destinations
+);
+
+/**
+ * Builds the address a next step leads to. The Dashboard returns instead to
+ * the page the household gate held back, if any (OQ-198).
+ *
+ * @param destination - The step picked.
+ * @param state - The navigation's state, which may name that page.
+ * @returns The address.
+ */
+export const destinationPathOf = (destination: SetupDestination, state: unknown): string => {
+  if (destination === 'dashboard') return returnPathOf(state);
+  const { path, tab } = DESTINATIONS[destination];
+  return tab === undefined ? path : `${path}?${new URLSearchParams({ [shell.tabParam]: tab })}`;
 };
 
 /** Guided Setup's props: the household it sets up and who sets it up. */
@@ -167,6 +186,7 @@ interface GuidedSetupHostProps {
  */
 function GuidedSetupHost({ household, userId }: GuidedSetupHostProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const accounts = useAccountRequests(household.id);
   const categories = useCategories(household.id);
   const budgets = useBudgets(household.id);
@@ -185,7 +205,11 @@ function GuidedSetupHost({ household, userId }: GuidedSetupHostProps) {
       onRetryBudgets={budgets.onRetry}
       onCreateBudget={budgets.onCreate}
       onEditBudget={budgets.onEdit}
-      onFinish={(destination) => navigate(DESTINATIONS[destination])}
+      // The wizard is done: Back from where it leads mustn't reopen it.
+      onFinish={(destination) => navigate(
+        destinationPathOf(destination, location.state),
+        { replace: true },
+      )}
     />
   );
 }

@@ -6,7 +6,9 @@ import {
 import type {
   CategoryManagementFlowProps,
 } from '../../../../src/experiences/accountSetup/flows/categoryManagement/CategoryManagementFlow';
-import { OnboardExperience } from '../../../../src/experiences/onboard/OnboardExperience';
+import {
+  destinationPathOf, OnboardExperience,
+} from '../../../../src/experiences/onboard/OnboardExperience';
 import type {
   GuidedSetupFlowProps,
 } from '../../../../src/experiences/onboard/flows/guidedSetup/GuidedSetupFlow';
@@ -166,7 +168,7 @@ const LOADED: Answers = {
  * @param answers - The API's answers, over the loaded wizard's.
  * @returns The fake `fetch`.
  */
-const renderGuidedSetup = async (answers: Answers = {}) => {
+const renderGuidedSetup = async (answers: Answers = {}, state?: unknown) => {
   const fetchFn = fakeFetch({ ...LOADED, ...answers });
   const { store } = fakeStore({ fetchFn, refreshToken: 'r-0' });
   store.dispatch(householdChosen('doe'));
@@ -175,7 +177,7 @@ const renderGuidedSetup = async (answers: Answers = {}) => {
       <OnboardExperience entry="guidedSetup" />
     </AlertProvider>,
     store,
-    { path: '/setup/guided' },
+    { path: '/setup/guided', state },
   );
   await settle();
   return { fetchFn };
@@ -203,8 +205,11 @@ const fetchesOf = async (fetchFn: ReturnType<typeof fakeFetch>, list: string) =>
     .length
 );
 
-/** The address the router is at. */
+/** The address the router is at, and how it was reached. */
 const location = () => screen.getByTestId('location').textContent;
+
+/** How the router reached its address: `PUSH`, `REPLACE` or `POP`. */
+const navigation = () => screen.getByTestId('location').dataset.navigation;
 
 describe('OnboardExperience — Guided Setup', () => {
   it('waits for the household and the user, then sets the household up', async () => {
@@ -213,7 +218,7 @@ describe('OnboardExperience — Guided Setup', () => {
     store.dispatch(householdChosen('doe'));
     renderWithShell(<OnboardExperience entry="guidedSetup" />, store, { path: '/setup/guided' });
 
-    expect(screen.getByRole('status', { name: 'Loading your household' })).toBeTruthy();
+    expect(screen.getByRole('status', { name: 'Opening your setup' })).toBeTruthy();
     await settle();
     // The lists are asked for once the wizard shows: one more round trip.
     await settle();
@@ -236,7 +241,7 @@ describe('OnboardExperience — Guided Setup', () => {
       ),
     });
 
-    expect(screen.getByText("Couldn't load your household.")).toBeTruthy();
+    expect(screen.getByText("Couldn't open your setup.")).toBeTruthy();
     fails = false;
     await press('Try again');
 
@@ -322,11 +327,33 @@ describe('OnboardExperience — Guided Setup', () => {
     ['toTransactions', '/transactions'],
     ['toHousehold', '/household'],
     ['toGoals', '/account-setup?tab=goals'],
-  ])('leaves through %s for %s (mockup 14)', async (way, path) => {
+  ])('leaves through %s for %s, in place of the wizard (mockup 14)', async (way, path) => {
     await renderGuidedSetup();
 
     await press(way);
 
     expect(location()).toBe(path);
+    expect(navigation()).toBe('REPLACE');
+  });
+
+  it('returns to the page the household gate held back (OQ-198)', async () => {
+    await renderGuidedSetup({}, { from: '/account-setup?tab=budgets' });
+
+    await press('toDashboard');
+
+    expect(location()).toBe('/account-setup?tab=budgets');
+  });
+});
+
+describe('destinationPathOf', () => {
+  it('builds each next step\'s address, its section in the tab parameter', () => {
+    expect(destinationPathOf('goals', null)).toBe('/account-setup?tab=goals');
+    expect(destinationPathOf('household', { from: '/transactions' })).toBe('/household');
+  });
+
+  it('takes the Dashboard step back to a page held back, on this site only', () => {
+    expect(destinationPathOf('dashboard', { from: '/investments' })).toBe('/investments');
+    expect(destinationPathOf('dashboard', { from: '//elsewhere.example' })).toBe('/');
+    expect(destinationPathOf('dashboard', undefined)).toBe('/');
   });
 });

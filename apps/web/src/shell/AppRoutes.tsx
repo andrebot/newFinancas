@@ -121,24 +121,28 @@ function GateLoading({ label }: { readonly label: string }) {
   );
 }
 
-/** The account gate's props: the settled households and the active one. */
+/** The account gate's props: the settled households, the active one and its answer. */
 interface AccountGateProps {
   readonly config: ShellConfig;
   readonly households: readonly ShellHousehold[];
   readonly active: ShellHousehold;
+  /** Whether the active household has an account in use. */
+  readonly accountInUse: SourceState<boolean>;
 }
 
 /**
  * Shows the chrome once the active household has an account in use;
- * without one, opens Guided Setup (FR-1.22, OQ-198). Keyed on the household,
- * so a switch asks afresh.
+ * without one, opens Guided Setup (FR-1.22, OQ-198), carrying the page asked
+ * for so the wizard's finish can return to it.
  *
- * @param props - The shell's configuration and the settled households.
+ * @param props - The shell's configuration, the settled households and the answer.
  * @returns The chrome and page, a loading or failure state, or a redirect to Guided Setup.
  */
-function AccountGate({ config, households, active }: AccountGateProps) {
+function AccountGate({
+  config, households, active, accountInUse,
+}: AccountGateProps) {
   const translator = useI18n();
-  const accountInUse = config.sources.useAccountInUse(active.id);
+  const location = useLocation();
   if (accountInUse.status === 'failed') {
     return (
       <GateFailure
@@ -151,10 +155,23 @@ function AccountGate({ config, households, active }: AccountGateProps) {
     return <GateLoading label={translator.text('shell', 'household.loading')} />;
   }
   if (!accountInUse.data) {
-    return <Navigate to={shell.paths.guidedSetup} replace />;
+    const state: ReturnState = { from: `${location.pathname}${location.search}` };
+    return <Navigate to={shell.paths.guidedSetup} replace state={state} />;
   }
   return <AppShell config={config} households={households} active={active} />;
 }
+
+/**
+ * Tells which household the account check asks about: the active one, as
+ * soon as there is one — none for a setup page, which isn't gated on it.
+ *
+ * @param setup - Whether the page is a setup page.
+ * @param activeId - The active household's id, if one is chosen.
+ * @returns The household to ask about, or none.
+ */
+export const accountQuestionOf = (setup: boolean, activeId: string | null) => (
+  setup || activeId === null ? undefined : activeId
+);
 
 /** The gate's props. */
 interface HouseholdGateProps {
@@ -181,6 +198,9 @@ export function HouseholdGate({ config, setup = false }: HouseholdGateProps) {
   const activeId = useAppSelector(selectActiveHouseholdId);
   const list = households.status === 'ready' ? households.data : undefined;
   const gate = householdGate(households, activeId);
+  // Asked as soon as a household is active, beside the households list rather
+  // than after it, so a switch waits for one round trip, not two.
+  const accountInUse = config.sources.useAccountInUse(accountQuestionOf(setup, activeId));
 
   useEffect(() => {
     if (list) {
@@ -205,10 +225,10 @@ export function HouseholdGate({ config, setup = false }: HouseholdGateProps) {
   if (setup) return <Outlet />;
   return (
     <AccountGate
-      key={gate.active.id}
       config={config}
       households={gate.households}
       active={gate.active}
+      accountInUse={accountInUse}
     />
   );
 }

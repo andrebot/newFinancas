@@ -49,9 +49,9 @@ notification type needs one routing entry and one catalog string.
 Built in S1 (OQ-156, `apps/web/src/shell/`): a routing table with its
 guards (signed-out pages, signed-in pages without chrome, household setup
 pages without chrome, household pages inside the chrome), a household gate
-(no household → Onboard; an active household with no account in use →
-Guided Setup, FR-1.22, OQ-198, asked through Account Setup's
-`useAccountInUse`), and a
+(no household → Onboard; an active household with no account in use, of
+any visibility → Guided Setup, FR-1.22, OQ-198, asked through the shared
+`useAccountInUse`, `GET …/account-status`), and a
 `ShellConfig` through which the owning Experiences hand the chrome its data
 as hooks — the shell never calls the backend.
 Diagram: `docs/design/diagrams/ebd-tiers/app-shell.html`; sequence:
@@ -73,7 +73,7 @@ Diagram: `docs/design/diagrams/ebd-tiers/app-shell.html`; sequence:
 
 ### Onboard
 
-**Purpose:** Set up a household from nothing. Guided Setup (FL6, OQ-196) walks a new household through mockups 11–14: the first account (mandatory, no Skip — FR-1.22) and a budget in inline forms of its own, built from Account Setup's card fields and claim-aware picker, and the seeded categories through Account Setup's Category Management Flow, which Onboard renders and hands into the wizard's categories step (Experiences compose Flows; a Flow never hosts one). Each route opens one stretch: /register runs Registration + MFA Enrollment; /setup (the household gate's) and /households/new (an additional household, OQ-81) run Household Setup, with Cancel only on the latter; /setup/guided runs Guided Setup on the active household (X2G, OQ-198). A new household opens it, and so does the gate for a household with no account in use, so a drop-off resumes there. Its requests are the ones Account Setup answers (`accountSetup/setupRequests.ts`). The server's state is the progression (OQ-158).
+**Purpose:** Set up a household from nothing. Guided Setup (FL6, OQ-196) walks a new household through mockups 11–14: the first account (mandatory, no Skip — FR-1.22) and a budget in inline forms of its own, built from Account Setup's card fields and claim-aware picker, and the seeded categories through Account Setup's Category Management Flow, which Onboard renders and hands into the wizard's categories step (Experiences compose Flows; a Flow never hosts one). Each route opens one stretch: /register runs Registration + MFA Enrollment; /setup (the household gate's) and /households/new (an additional household, OQ-81) run Household Setup, with Cancel only on the latter; /setup/guided runs Guided Setup on the active household (X2G, OQ-198). A new household opens it, and so does the gate for a household with no account in use, so a drop-off resumes there. Its requests are the shared setup requests Account Setup answers too (`api/setupRequests.ts`, `api/setupApi.ts` — no Experience owns them). The server's state is the progression (OQ-158).
 
 | Flow | Interactions | Sequence |
 |---|---|---|

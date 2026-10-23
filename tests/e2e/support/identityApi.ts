@@ -231,12 +231,14 @@ export const listHouseholds = async (
  * @param request - Playwright's API client.
  * @param owner - The user who creates it.
  * @param name - The household's name.
+ * @param accountVisibility - The first account's: shared unless asked.
  * @returns The new household.
  */
 export const createHousehold = async (
   request: APIRequestContext,
   owner: TestUser,
   name: string,
+  accountVisibility: 'personal' | 'shared' = 'shared',
 ): Promise<MyHousehold> => {
   const household = await send<MyHousehold>(request, 'POST', '/households', {
     data: { name },
@@ -244,7 +246,11 @@ export const createHousehold = async (
   });
   await send(request, 'POST', `/households/${household.id}/accounts`, {
     data: {
-      name: 'Main Checking', type: 'checking', currency: 'BRL', visibility: 'shared', cards: [],
+      name: 'Main Checking',
+      type: 'checking',
+      currency: 'BRL',
+      visibility: accountVisibility,
+      cards: [],
     },
     accessToken: owner.accessToken,
   });

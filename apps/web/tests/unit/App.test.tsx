@@ -5,7 +5,7 @@ import {
 import App, { shellConfigFor } from '../../src/App';
 import { AuthenticateExperience } from '../../src/experiences/authenticate/AuthenticateExperience';
 import { useHouseholds } from '../../src/api/identityApi';
-import useAccountInUse from '../../src/experiences/accountSetup/shellSources';
+import { useAccountInUse } from '../../src/api/setupApi';
 import {
   ManageHouseholdExperience,
 } from '../../src/experiences/manageHousehold/ManageHouseholdExperience';

@@ -217,8 +217,8 @@ const ptBR = {
     cancel: 'Cancelar',
   },
   guidedSetup: {
-    loading: 'Carregando sua casa',
-    failed: 'Não foi possível carregar sua casa.',
+    loading: 'Abrindo a configuração',
+    failed: 'Não foi possível abrir a configuração.',
     caption: 'Primeiros passos · etapa {current} de {total}',
     'stepper.label': 'Etapas da configuração',
     'stepper.completed': 'concluída',

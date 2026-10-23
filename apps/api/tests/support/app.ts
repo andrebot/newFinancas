@@ -60,6 +60,7 @@ export const mockAccount = (): MockedAccount => ({
   archiveCategory: vi.fn(),
   archiveSubcategory: vi.fn(),
   listAccounts: vi.fn(),
+  getAccountStatus: vi.fn(),
   getAccount: vi.fn(),
   createAccount: vi.fn(),
   editAccount: vi.fn(),

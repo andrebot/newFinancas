@@ -191,6 +191,27 @@ describe('list', () => {
   }));
 });
 
+describe('hasAccountInUse', () => {
+  it('sees an Account of any visibility, someone else\'s personal one included', scenario(async ({
+    accessor, casa, bruno, create,
+  }) => {
+    await create({ name: 'Bruno\'s', visibility: 'personal', ownerUserId: bruno });
+
+    expect(await accessor.hasAccountInUse(casa)).toBe(true);
+  }));
+
+  it('counts none in a household with no Account, or only archived ones', scenario(async ({
+    accessor, casa, ana, other, create,
+  }) => {
+    expect(await accessor.hasAccountInUse(casa)).toBe(false);
+    await accessor.insert({ ...accountOf(other, ana), name: 'Elsewhere' });
+    const old = await create({ name: 'Old' });
+    await accessor.archive(casa, old);
+
+    expect(await accessor.hasAccountInUse(casa)).toBe(false);
+  }));
+});
+
 describe('update', () => {
   it('renames an Account and turns it personal, back to its creator', scenario(async ({
     accessor, casa, bruno, create,

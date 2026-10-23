@@ -1,5 +1,5 @@
 import {
-  and, asc, desc, eq, inArray, or, sql,
+  and, asc, desc, eq, inArray, isNull, or, sql,
 } from 'drizzle-orm';
 import type { Database } from '../db/database';
 import { accountMonthBalances, accounts } from '../db/schema';
@@ -328,6 +328,21 @@ const createAccountAccessor = (db: Database) => ({
       .where(visibleTo(householdId, viewerUserId, filter))
       .orderBy(sql`${accounts.archivedAt} IS NOT NULL`, asc(accounts.name), asc(accounts.id));
     return rows.map(toAccount);
+  },
+
+  /**
+   * Tells whether a household has an Account that isn't archived, of any
+   * visibility — a fact about the household, not about what a member can see
+   * (FR-1.22, OQ-198).
+   *
+   * @param householdId - The household.
+   * @returns Whether one is in use.
+   */
+  hasAccountInUse: async (householdId: string): Promise<boolean> => {
+    const [row] = await db.select({ id: accounts.id }).from(accounts)
+      .where(and(eq(accounts.householdId, householdId), isNull(accounts.archivedAt)))
+      .limit(1);
+    return row !== undefined;
   },
 
   /**

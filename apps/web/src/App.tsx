@@ -4,8 +4,8 @@ import { BrowserRouter } from 'react-router';
 import { AuthenticateExperience } from './experiences/authenticate/AuthenticateExperience';
 import signOut from './experiences/authenticate/signOut';
 import { useHouseholds } from './api/identityApi';
+import { useAccountInUse } from './api/setupApi';
 import { AccountSetupExperience } from './experiences/accountSetup/AccountSetupExperience';
-import useAccountInUse from './experiences/accountSetup/shellSources';
 import { ManageHouseholdExperience } from './experiences/manageHousehold/ManageHouseholdExperience';
 import { ManageProfileExperience } from './experiences/manageProfile/ManageProfileExperience';
 import {
