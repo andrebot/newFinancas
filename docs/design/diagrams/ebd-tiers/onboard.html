@@ -167,7 +167,7 @@
   <p class="subtitle">
     Set up a household from nothing. Static structure only — no state/event wiring. Oct 2026 re-decomposition
     (<code>docs/architecture/11-ebd-review-2026-10.md</code>); full reasoning in
-    <code>docs/architecture/frontend/01-ebd-decomposition.md</code>. Guided Setup composes Account Setup's Account & Card (mandatory, no Skip — FR-1.22), Category and Budget Flows. Each route opens one stretch: /register runs Registration + MFA Enrollment; /setup (the household gate's) and /households/new (an additional household, OQ-81) run Household Setup, with Cancel only on the latter. The server's state is the progression (OQ-158).
+    <code>docs/architecture/frontend/01-ebd-decomposition.md</code>. Guided Setup (FL6, OQ-196) walks a new household through mockups 11–14: the first account (mandatory, no Skip — FR-1.22) and a budget in inline forms of its own, built from Account Setup's card fields and claim-aware picker, and the seeded categories through Account Setup's Category Management Flow, which Onboard renders and hands into the wizard's categories step (Experiences compose Flows; a Flow never hosts one). Each route opens one stretch: /register runs Registration + MFA Enrollment; /setup (the household gate's) and /households/new (an additional household, OQ-81) run Household Setup, with Cancel only on the latter. The server's state is the progression (OQ-158).
   </p>
 
   <div class="architecture">
@@ -186,7 +186,7 @@
         </div>
         <div class="tier-row">
           <div class="tier-label">Interactions</div>
-          <div class="tier-grid" style="grid-template-columns: repeat(4, 1fr);"><div class="interaction-column"><div class="box interaction">Registration Form Entry</div></div><div class="interaction-column"><div class="box interaction">MFA Method Selection</div><div class="box interaction">MFA Setup Verification</div><div class="box interaction">Backup Codes Acknowledgement</div></div><div class="interaction-column"><div class="box interaction">Household Name Entry</div></div><div class="interaction-column"><div class="box interaction">Wizard Navigation</div><div class="box interaction">Setup Complete Summary</div></div></div>
+          <div class="tier-grid" style="grid-template-columns: repeat(4, 1fr);"><div class="interaction-column"><div class="box interaction">Registration Form Entry</div></div><div class="interaction-column"><div class="box interaction">MFA Method Selection</div><div class="box interaction">MFA Setup Verification</div><div class="box interaction">Backup Codes Acknowledgement</div></div><div class="interaction-column"><div class="box interaction">Household Name Entry</div></div><div class="interaction-column"><div class="box interaction">First Account Entry</div><div class="box interaction">Account Cards Field</div><div class="box interaction">Budget Entry</div><div class="box interaction">Setup Done Row</div><div class="box interaction">Wizard Navigation</div><div class="box interaction">Setup Complete Summary</div></div></div>
         </div>
       </div>
     </div>

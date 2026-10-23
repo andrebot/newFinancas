@@ -4,7 +4,7 @@ import {
   describe, expect, it, vi,
 } from 'vitest';
 import {
-  BudgetList, coverChipsOf, type BudgetListProps,
+  BudgetList, type BudgetListProps,
 } from '../../../../../../../src/experiences/accountSetup/flows/budgetManagement/interactions/BudgetList';
 import { renderInLocale } from '../../../../../../support/renderInLocale';
 
@@ -65,19 +65,6 @@ const renderList = (over: Partial<BudgetListProps> = {}) => {
   );
   return handlers;
 };
-
-describe('coverChipsOf', () => {
-  it('names each target, a subcategory under its category, with its category\'s look', () => {
-    expect(coverChipsOf(FUN.targets, [DINING, SHOPPING])).toEqual([
-      { key: 'shopping', name: 'Shopping', category: SHOPPING },
-      { key: 'streaming', name: 'Dining › Streaming', category: DINING },
-    ]);
-  });
-
-  it('leaves out a target it can\'t find', () => {
-    expect(coverChipsOf([{ categoryId: 'gone' }, { subcategoryId: 'gone' }], [DINING])).toEqual([]);
-  });
-});
 
 describe('BudgetList', () => {
   it('says there are none yet', () => {

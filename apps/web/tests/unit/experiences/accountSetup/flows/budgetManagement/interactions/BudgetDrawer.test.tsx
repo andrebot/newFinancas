@@ -6,7 +6,7 @@ import {
   describe, expect, it, vi,
 } from 'vitest';
 import {
-  BudgetDrawer, initialFieldsOf, type BudgetDrawerProps,
+  BudgetDrawer, type BudgetDrawerProps,
 } from '../../../../../../../src/experiences/accountSetup/flows/budgetManagement/interactions/BudgetDrawer';
 import { renderInLocale } from '../../../../../../support/renderInLocale';
 
@@ -125,29 +125,6 @@ const tick = (name: string) => {
 const submit = () => {
   fireEvent.click(screen.getByRole('button', { name: /Create budget|Save changes/ }));
 };
-
-describe('initialFieldsOf', () => {
-  it('opens a create empty, in BRL, shared — or personal for an actor who can\'t share', () => {
-    expect(initialFieldsOf(undefined, false)).toEqual({
-      name: '',
-      currency: 'BRL',
-      visibility: 'shared',
-      target: null,
-      held: { categoryIds: [], subcategoryIds: [] },
-    });
-    expect(initialFieldsOf(undefined, true).visibility).toBe('personal');
-  });
-
-  it('opens an edit with the budget\'s fields and what it holds', () => {
-    expect(initialFieldsOf(budget(), true)).toEqual({
-      name: 'Fun Money',
-      currency: 'USD',
-      visibility: 'personal',
-      target: 30000,
-      held: { categoryIds: [], subcategoryIds: ['Streaming'] },
-    });
-  });
-});
 
 describe('adding a budget', () => {
   it('opens as Add, with currency and visibility to pick', () => {

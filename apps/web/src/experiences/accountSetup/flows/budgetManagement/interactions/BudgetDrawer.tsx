@@ -13,14 +13,15 @@ import { MoneyInput } from '../../../../../kit/moneyInput/MoneyInput';
 import { SegmentedControl } from '../../../../../kit/segmentedControl/SegmentedControl';
 import { TextField } from '../../../../../kit/textField/TextField';
 import { useI18n } from '../../../../../utilities/I18nProvider';
-import type { Translator } from '../../../../../utilities/i18n';
 import useFocusFirstInvalid from '../../../../../utilities/useFocusFirstInvalid';
-import { nonBlank } from '../../../../../utilities/validation';
 import type { NewBudget } from '../budgetManagementState';
 import {
-  availablePicks, claimsIn, isEmptyPick, NO_PICKS, pickerGroupsOf, picksOf, targetsOf,
-  toggleCategory, toggleSubcategory, type Picks, type Visibility,
-} from '../claims';
+  availablePicks, claimsIn, pickerGroupsOf, targetsOf, toggleCategory, toggleSubcategory,
+  type Picks, type Visibility,
+} from '../../../budgetClaims';
+import {
+  initialFieldsOf, objectionsOf, passes, type Objections,
+} from '../../../budgetForm';
 import { CoverPicker } from './CoverPicker';
 
 // The budget drawer (FL13, mockup 42; FR-4.1/4.2, OQ-176, OQ-194): one form
@@ -39,85 +40,6 @@ const VISIBILITY_OPTIONS = [
   { value: 'personal', icon: 'person-outline', label: 'visibility.personal' },
   { value: 'shared', icon: 'group-outline', label: 'visibility.shared' },
 ] as const;
-
-/** The form's refusals, already translated, by field. */
-interface Objections {
-  readonly name?: string | undefined;
-  readonly target?: string | undefined;
-  readonly covers?: string | undefined;
-}
-
-/**
- * Checks the form before it is sent.
- *
- * @param name - The typed name.
- * @param target - The monthly target in minor units, or nothing typed.
- * @param picks - What is ticked and still free.
- * @param translator - The texts.
- * @returns Each field's refusal, if any.
- */
-export const objectionsOf = (
-  name: string,
-  target: number | null,
-  picks: Picks,
-  translator: Translator,
-): Objections => {
-  const blank = nonBlank(name);
-  return {
-    name: blank && translator.field(blank.code, blank.params),
-    target: target === null || target < 1
-      ? translator.text('budgetManagement', 'error.target')
-      : undefined,
-    covers: isEmptyPick(picks) ? translator.text('budgetManagement', 'error.covers') : undefined,
-  };
-};
-
-/**
- * Tells whether the form may be sent.
- *
- * @param objections - The form's refusals.
- * @returns Whether none is set.
- */
-const passes = (objections: Objections) => Object.values(objections).every(
-  (objection) => objection === undefined,
-);
-
-/** What the form starts from. */
-export interface InitialFields {
-  readonly name: string;
-  readonly currency: Currency;
-  readonly visibility: Visibility;
-  readonly target: number | null;
-  /** What the edited budget holds on the server: nothing on a create. */
-  readonly held: Picks;
-}
-
-/**
- * Builds the form's starting fields: the budget's on an edit; on a create, an
- * empty form in BRL, shared unless the actor can't share (mockup 42).
- *
- * @param budget - The budget an edit is about, if any.
- * @param personalOnly - The actor can't share (a Viewer).
- * @returns The fields the form opens with.
- */
-export const initialFieldsOf = (
-  budget: Budget | undefined,
-  personalOnly: boolean,
-): InitialFields => (budget
-  ? {
-    name: budget.name,
-    currency: budget.currency,
-    visibility: budget.visibility,
-    target: budget.targetAmount,
-    held: picksOf(budget.targets),
-  }
-  : {
-    name: '',
-    currency: 'BRL',
-    visibility: personalOnly ? 'personal' : 'shared',
-    target: null,
-    held: NO_PICKS,
-  });
 
 /** BudgetDrawer's props. */
 export interface BudgetDrawerProps {
@@ -173,12 +95,13 @@ function LabelledPills({ label, children }: {
 }
 
 /**
- * Renders the currency and visibility: picked on a create, locked on an edit.
+ * Renders the currency and visibility: picked on a create, locked on an edit
+ * (Guided Setup's budget step uses it too, OQ-196).
  *
  * @param props - The values, whether they are locked, who may share, and the setters.
  * @returns The two fields and their note.
  */
-function ScopeFields({
+export function ScopeFields({
   locked, personalOnly, currency, visibility, onCurrency, onVisibility,
 }: {
   readonly locked: boolean;

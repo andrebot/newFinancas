@@ -6,7 +6,7 @@ import {
 import {
   CoverPicker, type CoverPickerProps,
 } from '../../../../../../../src/experiences/accountSetup/flows/budgetManagement/interactions/CoverPicker';
-import type { PickerGroup } from '../../../../../../../src/experiences/accountSetup/flows/budgetManagement/claims';
+import type { PickerGroup } from '../../../../../../../src/experiences/accountSetup/budgetClaims';
 import { renderInLocale } from '../../../../../../support/renderInLocale';
 
 // The claim-aware picker (BDT: Interaction, unit — the drawer's handlers

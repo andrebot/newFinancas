@@ -7,7 +7,7 @@ import { Icon } from '../../../../../kit/icons/Icon';
 import { useI18n } from '../../../../../utilities/I18nProvider';
 import {
   opensByItself, type CategoryStanding, type PickerGroup, type SubcategoryStanding,
-} from '../claims';
+} from '../../../budgetClaims';
 
 // The claim-aware category picker (FL13, mockup 42; FR-4.6/4.7, OQ-194): the
 // budget's "Covers" as one group per category — a whole-category row, with a

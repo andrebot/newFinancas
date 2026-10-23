@@ -44,10 +44,10 @@ EXPERIENCES = [
      [("Registration", ["Registration Form Entry"], "registration"),
       ("MFA Enrollment", ["MFA Method Selection", "MFA Setup Verification", "Backup Codes Acknowledgement"], "mfa-enrollment"),
       ("Household Setup", ["Household Name Entry"], "household-setup"),
-      ("Guided Setup", ["Wizard Navigation", "Setup Complete Summary"], "guided-setup")],
+      ("Guided Setup", ["First Account Entry", "Account Cards Field", "Budget Entry", "Setup Done Row", "Wizard Navigation", "Setup Complete Summary"], "guided-setup")],
      [], ["ValidationUtility", "PasswordStrengthUtility", "AlertUtility", "I18nUtility", "FormattingUtility",
           "ClipboardUtility", "DownloadUtility"],
-     "Guided Setup composes Account Setup's Account & Card (mandatory, no Skip — FR-1.22), Category and Budget Flows. Each route opens one stretch: /register runs Registration + MFA Enrollment; /setup (the household gate's) and /households/new (an additional household, OQ-81) run Household Setup, with Cancel only on the latter. The server's state is the progression (OQ-158)."),
+     "Guided Setup (FL6, OQ-196) walks a new household through mockups 11–14: the first account (mandatory, no Skip — FR-1.22) and a budget in inline forms of its own, built from Account Setup's card fields and claim-aware picker, and the seeded categories through Account Setup's Category Management Flow, which Onboard renders and hands into the wizard's categories step (Experiences compose Flows; a Flow never hosts one). Each route opens one stretch: /register runs Registration + MFA Enrollment; /setup (the household gate's) and /households/new (an additional household, OQ-81) run Household Setup, with Cancel only on the latter. The server's state is the progression (OQ-158)."),
     ("Manage Profile", "manage-profile", "Look after my own account",
      [("Security", ["Password Change", "Session List", "Sign Out All Others"], "security"),
       ("Delete Account", ["Consequences Review", "Type-to-Confirm"], "delete-account")],
@@ -378,30 +378,47 @@ end
 """, ["Default categories arrive with preset icons and colours (OQ-85).",
         "No \"Ideas\" chips: mockup 10's suggestions are dropped; the field starts empty (OQ-150).",
         "/setup gives no way out — a new user must create a household; Cancel appears only on /households/new."]),
-    ("onboard-guided-setup", "Onboard — Guided Setup", "Composes Account Setup's Flows as wizard steps; the account step is mandatory.",
-     [("WN", "Wizard Navigation"), ("ACF", "Account & Card<br/>Management Flow"), ("CF", "Category<br/>Management Flow"), ("BF", "Budget<br/>Management Flow"), ("SC", "Setup Complete<br/>Summary"), FLOW("Guided Setup"), EXP("Onboard"), API],
+    ("onboard-guided-setup", "Onboard — Guided Setup", f"{R('GET /households/:householdId/accounts')}, {R('POST /households/:householdId/accounts')}, {R('POST / PATCH /households/:householdId/budgets')}. Mockups 11–14 (OQ-196); the account step is mandatory.",
+     [("FAE", "First Account<br/>Entry"), ("CF", "Category<br/>Management Flow"), ("BE", "Budget<br/>Entry"), ("WN", "Wizard<br/>Navigation"), ("SC", "Setup Complete<br/>Summary"), FLOW("Guided Setup"), EXP("Onboard"), API],
      """
-FLOW-->>ACF: step 1 (no Skip — FR-1.22)
-ACF->>FLOW: emit accountSubmitted {account, cards}
-FLOW->>EXP: request createAccount(...)
-EXP->>API: POST /households/:householdId/accounts
-API-->>EXP: created
-FLOW-->>CF: step 2 — review seeded categories
-CF->>FLOW: emit categoriesReviewed {changes}
-FLOW->>EXP: request apply category changes
-EXP->>API: POST / PATCH /households/:householdId/categories
-FLOW-->>BF: step 3 — optional budget(s)
-alt user creates a budget
-    BF->>FLOW: emit budgetSubmitted
-    FLOW->>EXP: request createBudget
-    EXP->>API: POST /households/:householdId/budgets
-else Finish
-    User->>WN: Finish setup
-    WN->>FLOW: emit finish
+FLOW->>EXP: request loadAccounts() (on mount)
+EXP->>API: GET /households/:householdId/accounts
+API-->>EXP: accounts
+EXP-->>FLOW: outcome
+opt the load failed
+    FLOW->>EXP: request loadAccounts() again (Try again) — no form until a load succeeds
 end
-FLOW-->>SC: render summary + next steps
-FLOW->>EXP: complete → App Shell (Dashboard)
-""", ["A composed Flow's backend calls route through whichever Experience hosts it — here Onboard (convention kept from the original decomposition).", "Main nav stays hidden until this completes."]),
+FLOW-->>FAE: step 1 — the accounts in use, then the form inline (no Skip — FR-1.22)
+FAE->>FLOW: emit submit {account, cards}
+FLOW->>EXP: request createAccount(account)
+EXP->>API: POST /households/:householdId/accounts
+alt failure
+    API-->>EXP: error
+    EXP-->>FLOW: outcome {ok: false}
+    FLOW-->>FAE: alert in its banner, typing kept
+else created
+    API-->>EXP: 201 account
+    EXP-->>FLOW: outcome {ok, account} → step 2
+end
+EXP-->>CF: render the seeded categories, handed into step 2's slot
+CF->>EXP: emit category writes (POST / PATCH …/categories) — straight to Onboard, not via this Flow
+User->>WN: Looks good, continue
+FLOW-->>BE: step 3 — the budgets made so far, then the form (optional)
+loop each budget created, or loaded back from its Edit
+    BE->>FLOW: emit create / edit
+    FLOW->>EXP: request createBudget / editBudget
+    EXP->>API: POST / PATCH /households/:householdId/budgets[/:budgetId]
+    API-->>EXP: saved, or 409 budget.target_already_claimed
+    EXP-->>FLOW: outcome, once the budgets are fetched again
+end
+User->>WN: Finish setup
+opt a budget typed and not saved
+    FLOW-->>BE: discard confirm (Discard and finish / Keep editing)
+end
+FLOW-->>SC: render the counts + next steps
+SC->>FLOW: emit destination
+FLOW->>EXP: finish(destination) → navigate
+""", ["Steps 1 and 3 are this Flow's own inline forms, as mockups 11 and 13 draw them; the drawers are kept for Account Setup's busier page (OQ-196).", "Both forms carry a Personal / Shared field — Shared to start, Personal for a Viewer — which the mockups leave out (OQ-196).", "The Flow never calls the backend: Onboard hosts it and answers each request (X2G). Main nav stays hidden until this completes."]),
     ("manage-profile-security", "Manage Profile — Security", f"{R('GET /users/me/sessions')}, {R('DELETE /users/me/sessions[/:sessionId]')}, {R('POST /auth/change-password')}. Both panels at once (mockup 70, OQ-154).",
      [("PC", "Password Change"), ("SL", "Session List"), ("SO", "Sign Out All Others"), FLOW("Security"), EXP("Manage Profile"), API],
      """
@@ -707,7 +724,7 @@ opt archive (from the edit drawer's danger zone)
         Note over FLOW: toast "{name} archived."
     end
 end
-""", ["Only last4 + network leave the browser — the full number never does (NFR-SEC-7); an attached card's network and last four are fixed (OQ-192).", "One save writes the Account and every card change together, or nothing (OQ-175). The Flow patches its own list from the answer instead of reloading; one request at a time, and the drawer stays open while it is out (OQ-192).", "Reused as Guided Setup step 1."]),
+""", ["Only last4 + network leave the browser — the full number never does (NFR-SEC-7); an attached card's network and last four are fixed (OQ-192).", "One save writes the Account and every card change together, or nothing (OQ-175). The Flow patches its own list from the answer instead of reloading; one request at a time, and the drawer stays open while it is out (OQ-192).", "Guided Setup's step 1 is its own inline form (First Account Entry), built from the same card fields (OQ-196)."]),
     ("account-setup-category-management", "Account Setup — Category Management", f"{R('GET/POST/PATCH /households/:householdId/categories')}, the category and subcategory archive endpoints. Built in FL12 (OQ-193).",
      [("CC", "Category Card"), ("IP", "Icon & Colour Picker"), ("SE", "Inline Subcategory Entry"), ("AC", "Archive Confirm"), FLOW("Category Management"), EXP("Account Setup"), API],
      """

@@ -5,7 +5,7 @@ import {
   beforeEach, describe, expect, it, vi,
 } from 'vitest';
 import {
-  alertOf, BudgetManagementFlow, failureToastOf, jointViewOf, type BudgetManagementFlowProps,
+  BudgetManagementFlow, failureToastOf, type BudgetManagementFlowProps,
 } from '../../../../../../src/experiences/accountSetup/flows/budgetManagement/BudgetManagementFlow';
 import type { BudgetDrawerProps } from '../../../../../../src/experiences/accountSetup/flows/budgetManagement/interactions/BudgetDrawer';
 import type { BudgetListProps } from '../../../../../../src/experiences/accountSetup/flows/budgetManagement/interactions/BudgetList';
@@ -163,73 +163,6 @@ const press = async (name: string) => {
 
 /** The toasts on screen, by text. */
 const toasts = () => queue.visible().map(({ message }) => message);
-
-describe('jointViewOf', () => {
-  it('fails if either list\'s first load failed, else loads until both are in', () => {
-    const failed = { status: 'failed', error: { code: 'x' } } as const;
-    expect(jointViewOf(failed, CATEGORIES)).toEqual({ status: 'failed' });
-    expect(jointViewOf(BUDGETS, failed)).toEqual({ status: 'failed' });
-    expect(jointViewOf({ status: 'loading' }, CATEGORIES)).toEqual({ status: 'loading' });
-    expect(jointViewOf(BUDGETS, { status: 'loading' })).toEqual({ status: 'loading' });
-  });
-
-  it('is stale when either list\'s latest fetch failed', () => {
-    const refreshError = { code: 'internal.unexpected' };
-    expect(jointViewOf(BUDGETS, CATEGORIES)).toEqual(expect.objectContaining({ stale: false }));
-    expect(jointViewOf({ ...BUDGETS, refreshError }, CATEGORIES))
-      .toEqual(expect.objectContaining({ stale: true }));
-    expect(jointViewOf(BUDGETS, { ...CATEGORIES, refreshError }))
-      .toEqual(expect.objectContaining({ stale: true }));
-  });
-});
-
-describe('alertOf', () => {
-  const lists = {
-    budgets: [budget('home', { name: 'Home', targets: [{ categoryId: 'food' }] })],
-    categories: [FOOD],
-  };
-
-  it('names the target and the budget that took it (409)', () => {
-    const failure = {
-      code: 'budget.target_already_claimed', params: { categoryId: 'food', budgetId: 'home' },
-    };
-    expect(alertOf(failure, lists, translator))
-      .toBe('Food was just added to Home. The list is up to date: pick again.');
-  });
-
-  it('says when the budget took part of the category, or its whole category (FR-4.7)', () => {
-    const snacks = {
-      id: 'snacks', categoryId: 'food', name: 'Snacks', archivedAt: null, createdAt: FOOD.createdAt,
-    };
-    const categories = [{ ...FOOD, subcategories: [snacks] }];
-    const conflict = (target: object, held: Budget['targets']) => alertOf(
-      { code: 'budget.target_already_claimed', params: { ...target, budgetId: 'home' } },
-      { budgets: [budget('home', { name: 'Home', targets: held })], categories },
-      translator,
-    );
-    expect(conflict({ categoryId: 'food' }, [{ subcategoryId: 'snacks' }]))
-      .toBe('Part of Food was just added to Home. The list is up to date: pick again.');
-    expect(conflict({ subcategoryId: 'snacks' }, [{ categoryId: 'food' }])).toBe(
-      'Food › Snacks was just covered by Home, which took its whole category. '
-      + 'The list is up to date: pick again.',
-    );
-  });
-
-  it('falls back to the code\'s own message when either can\'t be named', () => {
-    const unknownBudget = {
-      code: 'budget.target_already_claimed', params: { categoryId: 'food', budgetId: 'x' },
-    };
-    const unknownTarget = { code: 'budget.target_already_claimed', params: { budgetId: 'home' } };
-    const fallback = 'This category already belongs to another budget.';
-    expect(alertOf(unknownBudget, lists, translator)).toBe(fallback);
-    expect(alertOf(unknownTarget, lists, translator)).toBe(fallback);
-  });
-
-  it('writes any other failure from its code, and nothing without one', () => {
-    expect(alertOf({ code: 'budget.not_found' }, lists, translator)).toBe('Budget not found.');
-    expect(alertOf(undefined, lists, translator)).toBeUndefined();
-  });
-});
 
 describe('failureToastOf', () => {
   it('says an edited budget was deleted meanwhile, by the name it had (OQ-194)', () => {
