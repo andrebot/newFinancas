@@ -74,8 +74,9 @@ sequenceDiagram
     participant CTA as CardTransactionAccessor
     participant LOG as LoggingUtility
 
-    User->>API: POST /households/:householdId/transactions {target, kind, date, amount, currency, categoryId, description, assetType?, ticker?, quantity?, rate?, dueDate?, incentivised?, allocations?}
+    User->>API: POST /households/:householdId/transactions {accountId | creditCardId, kind, date, amount, currency, categoryId?, description, holdingId? | assetType + ticker?, quantity?, rate?, dueDate?, interestPayment?, incentivised?, allocations?}
     API->>TM: record(actor, input)
+    Note over TM: loads the target (Account or card + its Account) and, if given, the Category &mdash;<br/>an archived Account or a newly used archived Category is refused (OQ-169, OQ-201)
     TM->>AZ: canWrite(actor, targetId)?
     alt not authorized
         AZ-->>TM: denied
@@ -90,9 +91,9 @@ sequenceDiagram
             TM->>CCA: applyMovement(cardId, {signedAmount, currency, date})
             Note over CCA: positive for a charge, negative for a refund (the Manager signs it),<br/>lands in the billing cycle the date falls in (OQ-170)
             CCA-->>TM: outstanding balance updated
-            TM->>BA: accrueIfClaimed({accountScope, currency, categoryId, subcategoryId, amount, date})
-            BA-->>TM: spend updated (no-op if unclaimed)
-            TM->>CTA: insert(cardTransaction)
+            TM->>BA: accrueIfClaimed({accountScope, currency, categoryId, subcategoryId, &plusmn;amount, date})
+            BA-->>TM: spend updated (no-op if unclaimed, a refund subtracts &mdash; OQ-201)
+            TM->>CTA: insert(cardTransaction, createdBy)
             CTA-->>TM: transactionId
         end
     else authorized, target is an Account
@@ -104,6 +105,9 @@ sequenceDiagram
         else investment kind on a credit-card-only account
             TM-->>API: ValidationError (OQ-76 &mdash; investments live in checking, savings or investment accounts)
             API-->>User: 422 transaction.investment_not_allowed_on_account
+        else cash kind on a credit-card-only account
+            TM-->>API: ValidationError (OQ-201 &mdash; it takes only bill payments to its cards)
+            API-->>User: 422 transaction.kind_not_allowed_for_target
         else effect = movement or transfer
             TM->>AA: applyMovement(accountId, {amount, currency, date})
             AA-->>TM: new balance
@@ -113,7 +117,9 @@ sequenceDiagram
             TM->>CCA: applyMovement(cardId, {-amount, currency, date})
             CCA-->>TM: outstanding balance reduced
         else effect = investment_trade
-            Note over TM: quantityDelta and costBasisDelta computed here (FR-3.8):<br/>a buy adds what was paid, a sell or redemption removes its average cost (OQ-171)
+            Note over TM: quantityDelta and costBasisDelta computed here (FR-3.8):<br/>a buy adds what was paid, a sell or redemption removes its average cost (OQ-171),<br/>a sell or redemption names its Holding by holdingId (OQ-201)
+            TM->>AA: applyMovement(accountId, {&minus;amount for a buy, +amount for a sell or redemption, currency, date})
+            AA-->>TM: cash moved (OQ-201 &mdash; history only when dated before the starting balance, OQ-169)
             opt kind = investment buy
                 alt assetType is one of FR-11.1's fixed-term instruments
                     TM->>IHA: insert(holding) &mdash; a new Holding, always (OQ-50)
@@ -143,8 +149,9 @@ sequenceDiagram
             end
             opt assetType is a defined FR-11.1 instrument type
                 Note over TM,IPE: dueDate, rate and the debenture incentivised flag are<br/>user-supplied &mdash; not derivable from assetType alone (OQ-50, OQ-79)
-                TM->>IPE: schedule(assetType, incentivised, dueDate, rate, purchaseDate, amount)
-                IPE-->>TM: {cashEvents[], taxes} &mdash; tax rules coded per type, US = none estimated
+                TM->>IPE: schedule(householdId, {assetType, incentivised, date, amount, dueDate, rate, interestPayment})
+                Note over IPE: reads the latest index value itself for an index-linked rate &mdash; amounts are projections,<br/>BR business days (252), US actual/365, at maturity interest + tax + redemption (OQ-201)
+                IPE-->>TM: entries &mdash; tax rules coded per type, US = none estimated
                 TM->>IHA: applySchedule(holdingId, schedule)
                 IHA-->>TM: schedule stored (replace-all, refused once an entry posted, OQ-171)
             end
@@ -169,9 +176,9 @@ sequenceDiagram
                 end
             end
         end
-        TM->>BA: accrueIfClaimed({accountScope, currency, categoryId, subcategoryId, amount, date})
-        BA-->>TM: spend updated
-        TM->>ATA: insert(accountTransaction, effect)
+        TM->>BA: accrueIfClaimed({accountScope, currency, categoryId, subcategoryId, &plusmn;amount, date})
+        BA-->>TM: spend updated (any kind may carry a category, money in subtracts &mdash; OQ-201)
+        TM->>ATA: insert(accountTransaction, effect, {quantityDelta, costBasisDelta}, createdBy)
         ATA-->>TM: transactionId
     end
     TM-->>LOG: logActivity(correlationId, actor, "RecordTransaction")
@@ -189,7 +196,9 @@ sequenceDiagram
       <li><strong>Re-buying a zeroed Holding (OQ-171):</strong> a market-priced buy reopens the system-archived Holding of its ticker. Its old Goal split is worth 0 at quantity 0, so the buy's re-weighting (OQ-168) drops every old share &mdash; the new buy's split is the only one left; undoing the zeroing sell instead restores the old split intact.</li>
       <li><strong>Goal allocation can be bundled here (OQ-54, added after the API coverage audit):</strong> one call in, no separate <code>PATCH /households/:householdId/holdings/{holdingId}</code> follow-up required &mdash; same 100%-cap rejection as that endpoint's own allocation edit (FR-8.3), just reachable from this pipeline too. Direction of control is unchanged (OQ-48): still written from the Holding's side, never the Goal's.</li>
       <li><strong>The buy's split is the purchase's (OQ-168):</strong> buying into a Holding that already funds Goals re-weights its whole split by value at this buy's unit price, so every Goal keeps exactly its money (900 at Retirement 60% / Trip 20%, plus 100 for Car 100% &rarr; 54% / 18% / 10%). One replace-all write, so a refusal never leaves half a split behind.</li>
-      <li>See FR-3.1, FR-3.6&ndash;3.9, FR-5.2, FR-5.8, FR-8.2, FR-8.3, FR-11.1&ndash;11.3, OQ-16, OQ-39, OQ-48, OQ-50, OQ-51, OQ-54, OQ-56, OQ-72, OQ-76, OQ-79, OQ-83.</li>
+      <li><strong>Slice 3 readiness (OQ-201):</strong> every trade moves the account&#39;s cash (a buy debits it, a sell or redemption credits it); sell, redemption, dividend, interest and tax name their Holding by <code>holdingId</code>; a credit-card-only account takes only bill payments to its cards; any kind may carry a category and money in reduces the claiming Budget&#39;s spend; the trade&#39;s deltas and the recorder are stored with the transaction. Transfers are two unlinked entries &mdash; each is an ordinary <code>transfer</code>-effect movement.</li>
+      <li>All writes share one database transaction (<code>UnitOfWorkUtility</code>) &mdash; any refusal rolls every one back.</li>
+      <li>See FR-3.1, FR-3.6&ndash;3.9, FR-5.2, FR-5.8, FR-8.2, FR-8.3, FR-11.1&ndash;11.3, OQ-16, OQ-39, OQ-48, OQ-50, OQ-51, OQ-54, OQ-56, OQ-72, OQ-76, OQ-79, OQ-83, OQ-201.</li>
     </ul>
   </div>
   <script>

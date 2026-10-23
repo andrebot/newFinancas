@@ -503,8 +503,12 @@ Backs `AccountManager`'s `InvestmentHoldingAccessor`,
   `quantity`, `cost_basis`, `rate_type`/`rate_value` (nullable —
   fixed-term types only, OQ-50; `rate_type` one of
   fixed/cdi/ipca/igpm/selic, `rate_value` **`bigint` percent × 10,000**
-  (OQ-86), immutable once set at purchase), **`incentivised`** (boolean,
-  nullable — debentures only, OQ-79), `archived_at` (nullable, one-way
+  (OQ-86), set at purchase — edited only through its buy while the
+  schedule hasn't started, OQ-201), **`incentivised`** (boolean,
+  nullable — debentures only, OQ-79), **`interest_payment`**
+  (`at_maturity` | `monthly` | `semiannual`, nullable — fixed-term types
+  only, from the buy, OQ-201; the Engine needs it to recompute the
+  schedule when the buy is edited), `archived_at` (nullable, one-way
   for user archives, FR-5.8/OQ-43), **`archived_by`** (`system` |
   `user`, nullable — a `system` archive is undone automatically if its
   zeroing transaction is edited/deleted, OQ-80), **`matured_notified_at`**
@@ -559,7 +563,12 @@ Backs `AccountManager`'s `InvestmentHoldingAccessor`,
   whole by `applySchedule` until one of its entries posts (OQ-171).
   **No separate `maturity_date`
   column anywhere** — it's just the `date` of the row whose `kind` is
-  `redemption`; one source of truth instead of two.
+  `redemption`; one source of truth instead of two. **Index-linked amounts
+  are projections (OQ-201)** — computed at buy time from the latest index
+  value; whether an entry is an estimate follows from its Holding's
+  `rate_type` (anything but `fixed`), so no column records it. At maturity
+  three entries share the date: `interest_payment` (gross), `tax`,
+  `redemption` (the principal).
 - **`index_rate_values`** *(new, Oct 2026 — FR-11.6/OQ-59)* — `id` (PK),
   `household_id` (FK → `households`), `index_code` (`selic` | `cdi` |
   `ipca` | `igpm` — reference data, in-code list; unit follows from the
@@ -674,7 +683,13 @@ events only (recurring transactions dropped, OQ-55).
   `description`, `holding_id` (FK → `investment_holdings`, **nullable**,
   set only for the 6 investment kinds, FR-3.8), `credit_card_id` (FK →
   `credit_cards`, **nullable**, set only for Credit Card Bill Payment,
-  FR-3.7), `source` (reference data: `manual` | `schedule` —
+  FR-3.7), **`quantity_delta`** / **`cost_basis_delta`** (nullable — set
+  only for the trade kinds: the signed changes this transaction made to its
+  Holding, so an edit or delete undoes exactly them, OQ-171),
+  **`created_by_user_id`** (FK → `users`, nullable — the member who
+  recorded it, for OQ-111's "a Member edits what they created"; null for
+  schedule posts and after FR-1.17's anonymization, OQ-201),
+  `source` (reference data: `manual` | `schedule` —
   `schedule` = posted by `investmentsDaily` from
   `investment_schedule_entries`; was `manual`/`recurring` until OQ-55; no
   `open_banking` value until v2), `created_at`. **Indexes (Browse &
@@ -684,7 +699,8 @@ events only (recurring transactions dropped, OQ-55).
   `credit_cards`), `kind` (`charge`/`refund` — reference data,
   extendable, per FR-3.1's explicit "not a hardcoded enum"), `date`,
   `amount`, `currency`, `category_id`/`subcategory_id` (nullable FKs),
-  `description`, `created_at`. **No `effect` column** —
+  `description`, **`created_by_user_id`** (as on `account_transactions`,
+  OQ-201), `created_at`. **No `effect` column** —
   `TransactionManager` signs the amount from `kind` (charge +, refund −)
   for `CreditCardAccessor.applyMovement` (OQ-170); with only two kinds an
   indirection layer buys nothing. **No `source` column** — sync (FR-3.3, v2) is
@@ -720,7 +736,9 @@ history.
   **application-level** — same precedent as FR-2.7: a cross-table
   condition no `CHECK` can express without a trigger.
 - **Kind validity narrowed by target** — investment kinds for any
-  account except `credit_card_only` (OQ-76, Oct 2026); a Credit Card target only offers
+  account except `credit_card_only` (OQ-76, Oct 2026); a `credit_card_only`
+  account takes no cash kinds either — only bill payments to its cards
+  (OQ-201); a Credit Card target only offers
   charge/refund (FR-3.1) → **application-level** — another cross-table
   condition (needs `accounts.type`), and deliberately *not* a hardcoded
   `CHECK (kind IN (...))` either, since FR-3.1 explicitly wants `kind`
@@ -730,13 +748,27 @@ history.
   *and* the budget accrual — → **application-level**, real complexity
   worth flagging: the same reverse/reapply shape as the Accounts domain's
   backdated-balance cascade, just now touching two or three Accessors
-  atomically instead of one.
+  atomically instead of one. **OQ-201:** every trade also moves the
+  account's cash (buy −, sell/redemption +), so a trade's undo touches the
+  Account, the Holding, its automatic snapshot and the Budget. Kind and
+  target never change on an edit; a fixed-term buy whose schedule has
+  started keeps its amount, date and terms; deleting the buy that created a
+  Holding deletes the Holding (snapshots, schedule, Goal split) when no
+  other transaction references it, and is refused otherwise.
+- **Budget accrual is signed by direction (OQ-201)** → every kind may
+  carry a category; money out adds to the claiming Budget's spend, money in
+  (a refund, a categorized receipt) subtracts — `accrueIfClaimed` gets the
+  signed amount from the Manager.
 - **Bill payment doesn't double-count as budget spend (FR-4.5)** → not a
   special-cased skip anywhere in the pipeline; `accrueIfClaimed` is
   unconditionally called either way, but a bill payment transaction
   simply wouldn't be tagged with a Budget-claimed spend category, so
   FR-4.8's own "uncategorized-for-budgets is just not tracked" rule
   handles it without any extra mechanism.
+- **A transfer is two unlinked rows (OQ-201)** — `transfer_sent` on one
+  account, `transfer_received` on the other, each in its own currency; no
+  pairing column. `effect = transfer` is what keeps both out of
+  income/expense (FR-3.6).
 - **Two separate ledgers, one bridge (OQ-16/FR-3.7)** — not really an
   "invariant" to enforce so much as a structural fact: `account_
   transactions` and `card_transactions` are two distinct tables with no

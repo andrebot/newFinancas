@@ -62,29 +62,39 @@ sequenceDiagram
     actor User
     participant KS as Kind Group &<br/>Kind Selection
     participant TE as Transaction Entry
+    participant HS as Holding Selection
     participant IB as Investment Buy Entry
     participant GA as Goal Allocation Entry
     participant FLOW as Record Transaction<br/>Flow
     participant EXP as Manage Finances<br/>Experience
     participant API as Backend API
-    User->>KS: group (Cash / Transfer / Credit card / Investment), then kind
-    KS->>FLOW: emit kindSelected
+    alt record
+        User->>KS: group (Cash / Transfer / Credit card / Investment), then kind
+        KS->>FLOW: emit kindSelected
+    else edit (from a ledger row, via the Experience)
+        EXP-->>FLOW: state: the transaction, pre-filled
+        FLOW-->>KS: kind and target read-only (OQ-201)
+    end
     alt investment buy
-        FLOW-->>IB: render asset type, ticker, quantity, rate + due date (fixed-term), incentivised (debenture)
+        FLOW-->>IB: render asset type, ticker, quantity (optional for fixed-term), rate + due date + interest payment (fixed-term), incentivised (debenture)
         User->>IB: fill in
         IB->>FLOW: emit tradeFields
         opt assign to goals
             User->>GA: goal rows with whole %
             GA->>FLOW: emit allocations (Flow keeps the total ≤ 100)
         end
+    else sell, redemption, dividend, interest or tax
+        FLOW-->>HS: render the chosen account's Holdings (from the Experience)
+        User->>HS: pick one (+ quantity for a sell or redemption)
+        HS->>FLOW: emit holdingSelected (holdingId, quantity?)
     else any other kind
-        FLOW-->>TE: render fields for the kind (account narrows by kind)
+        FLOW-->>TE: render fields for the kind (account narrows by kind, a credit-card-only account offers only bill payments)
     end
     User->>TE: amount (currency from account), date, category, description
     TE->>FLOW: emit fields
-    FLOW->>EXP: request record(transaction)
-    EXP->>API: POST /households/:householdId/transactions
-    alt 4xx (e.g. goal.allocation_exceeds_100, transaction.investment_not_allowed_on_account)
+    FLOW->>EXP: request record(transaction) or save(id, changes)
+    EXP->>API: POST /households/:householdId/transactions (or PATCH …/transactions/:id)
+    alt 4xx (e.g. goal.allocation_exceeds_100, transaction.investment_not_allowed_on_account, transaction.schedule_started)
         API-->>EXP: error code + params
         EXP-->>FLOW: state: error — I18nUtility renders it
     else 201
@@ -94,7 +104,7 @@ sequenceDiagram
     </pre>
   </div>
   <div class="notes">
-<ul><li>No recurring option (OQ-55).</li><li>The Experience, not this Flow, refreshes the sibling Flows on completion.</li></ul>
+<ul><li>No recurring option (OQ-55).</li><li>The Experience, not this Flow, refreshes the sibling Flows on completion.</li><li>OQ-201: the Holding is picked, never typed, for every investment kind but a buy; a category is offered for every kind; a transfer is one side, recorded on its own account.</li></ul>
   </div>
   <script>
     mermaid.initialize({

@@ -179,8 +179,8 @@ three patterns aren't:
 |---|---|---|
 | `IdentityManager` | User establishes or exercises who-they-are | Auth, MFA, sessions, household creation/membership/roles (CUC-1, CUC-2, FR-1) **Implementation (M1, in five PRs):** PR 1 — register, login (with the per-address lockout), refresh (replay ends that session only), logout, sessions, and the request-authentication middleware (OQ-114). A Manager rejects by throwing the contract's code and status (OQ-114). PR 2 — change password, reset password (link emailed through `NotificationEngine`), MFA recovery sharing Login's authentication step (OQ-115). PR 3 — view/edit profile, list my households (with role) and invitations (with names) (OQ-116). PR 4 — create/view/delete households, list members, remove/leave (succession, guarded `dissolve`, up to 3 attempts), change role, transfer ownership (OQ-117). PR 5 — invite, list a household's invitations, revoke, accept (resolve, then join), decline (OQ-118). **M1 complete** except Delete User's cascade (M1D, slice 5). |
 | `AccountManager` | User sets something up — or maintains something — ahead of any actual cash-flow event | Financial Accounts (4 types, OQ-76), Credit Cards, Open Banking connection setup (parked, v2), Categories (icon/colour), Budgets, Goals (create/edit/complete/reopen/delete), **investment administration** — Holding goal allocations, **manual market values** (Valuation Snapshots: record/edit/delete, OQ-56), **Index Rates** (FR-11.6), archiving a matured Holding from its notification, and the `holding.matured` subscription that sends that notification; never invokes `InvestmentProductEngine`; no Holding creation path (OQ-53); Portfolio Builder (parked, v2) (CUC-3 config side, CUC-5, CUC-6 admin side, CUC-7, CUC-10, FR-2/4/5/8/10/11.6). **OQ-174 (as built, in parts):** every route is under `/households/{householdId}`; Categories are shared data nobody owns (create: any member but a Viewer; edit/archive: Owner/Admin); serves plain Goal definitions, while Goal progress stays `InsightsManager`'s; `household.created` → `seedDefaults` runs as the system. **OQ-175 (part 2):** an Account read carries `currentBalance` and its `cards` with `outstandingBalance` (stored rows, a plain read); card changes ride the Account edit as `{add, edit, remove}`; writes across AccountAccessor and CreditCardAccessor run in one transaction (`UnitOfWorkUtility`); an archived Account can't be edited (409). **OQ-176 (part 3):** Budgets follow the Account access rules (personal: the owner's alone; shared: the table, plus a Member's own); an edit's name/target and targets are one transaction; a new target must be an open Category/Subcategory (read through `CategoryAccessor.list`), a held one stays; the list is unpaginated and returns definitions only — spend vs. target is the Budget status read. **OQ-177 (part 4):** Goals follow the same access rules; a completed Goal stays editable (FR-8.9 closes only new funding); complete/reopen are idempotent, unaudited when nothing changes; `GET …/goals` returns definitions, progress moved to `GET …/goal-progress` (`InsightsManager`) and `GET …/goals/{id}/allocations` was dropped (`fundedBy` covers it). **OQ-178 (part 5):** a Holding takes its Account's access (allocations and market values `data.edit`, archive `data.delete`); an archived Holding takes no change (409 `holding.archived`); Edit Holding replaces the split over the Goals the caller can see and carries the hidden shares over (they still count toward 100%), its split read is `GET …/holdings/{id}/allocations`; only a matured Holding (fixed-term, position, past its redemption date) is archived by hand; index rates are shared data whose recorder is their creator; dates after today are `date.max`; `holding.matured` carries the Holding and the Manager picks the recipients, marking it only when every delivery succeeded. The Holding reads with projections (`GET …/accounts/{id}/holdings`, `GET …/holdings/{id}`) stay `InsightsManager`'s |
-| `TransactionManager` | A cash-flow event just happened — and the ledger those events form | All transaction orchestration — Account Transactions and Card Transactions, across every asset type, incl. Holding auto-archive/unarchive (OQ-72/80) — see §3.1; plus **Browse & Filter Transactions** (FR-3.12), a plain read of the ledger it owns (§3 read-ownership rule) (CUC-4, FR-3) |
-| `InsightsManager` | User wants to see the state of things, aggregated or reshaped | Dashboard (fixed in v1; widgets v3), Month Overview, View Investments, View Goals, notification inbox (list, mark seen, delete), audit-log export; ad-hoc reports + CSV export (v2) (CUC-8, CUC-9, FR-6/7) |
+| `TransactionManager` | A cash-flow event just happened — and the ledger those events form | All transaction orchestration — Account Transactions and Card Transactions, across every asset type, incl. Holding auto-archive/unarchive (OQ-72/80) — see §3.1; plus **Browse & Filter Transactions** (FR-3.12), a plain read of the ledger it owns (§3 read-ownership rule) (CUC-4, FR-3). **OQ-201 (slice 3 readiness):** every trade also moves the account's cash; non-buy investment kinds name their Holding by id; Budget accrual is signed by direction; an edit changes values, never identity; deleting the buy that created a Holding deletes the Holding when nothing else references it; a started schedule locks its buy's terms |
+| `InsightsManager` | User wants to see the state of things, aggregated or reshaped | Dashboard (fixed in v1; widgets v3), Month Overview, View Investments, View Goals, notification inbox (list, mark seen, delete), audit-log export; ad-hoc reports + CSV export (v2) (CUC-8, CUC-9, FR-6/7). **Built across three slices (OQ-201):** slice 3 (`M4`) — Month Overview, Goal progress (current and by month) and the Holding reads with projections; slice 4 (with `X7`) — `investments-overview` and `payouts`; slice 5 — the Dashboard, the notification inbox and the audit-log export routes |
 
 The stakeholder's own framing of these four: `IdentityManager` captures
 authentication and access together (one concern: who is this and what can
@@ -217,8 +217,8 @@ clears the bar.
 
 | Engine | Owns | Reads (Accessors) | Justifying note |
 |---|---|---|---|
-| `ReportingEngine` | Transforms raw ledger/holding data into every read-side output shape: net worth (current + by-month, per currency), Goal progress (current + by-month — returns each Holding's contribution in its own native currency, per OQ-49; cross-currency blending is now a frontend concern, not this Engine's), Budget status (actual vs. target), spend-by-category/subcategory, income-vs-expense (excluding transfers via the persisted `effect` column, FR-3.6), account-balance-by-month, and export formatting (CSV — v2, OQ-71 — PDF later; **the audit-log CSV, FR-7.2, is implemented early with A15 — OQ-104**: `auditLogCsv(entries)` over a shared RFC 4180 writer, formula-injection safe). **Round 9:** payout this month + 12-month payout series per Holding (dividend/interest Account Transactions linked to the Holding — the only payout source, FR-5.9), month overview (inflow/outflow/net per currency + 12-month strip, excluding own-account transfers and bill payments via `effect`, FR-6.11), net-worth change vs previous month (FR-5.3). **Round 8/OQ-51:** a Holding's contribution to net worth/Goal progress branches on `assetType` — market-priced Holdings (stock/FII/fund/other) read `ValuationSnapshotAccessor`'s latest snapshot as before; a fixed-term instrument (FR-11.1) has none to read, so its contribution is simply `InvestmentHoldingAccessor`'s `cost_basis` column instead | `AccountAccessor`, `ValuationSnapshotAccessor`, `InvestmentHoldingAccessor` *(new, Round 8 — reads `cost_basis` for fixed-term Holdings, OQ-51)*, `AccountTransactionAccessor`, `CardTransactionAccessor`, `BudgetAccessor`, `GoalAccessor` | The same underlying data gets reshaped into genuinely different output forms for different consumers — that repeated *transformation* is what makes this real computation, not a validated write |
-| `InvestmentProductEngine` *(new, Round 7; extended Round 9)* | **Round 9:** v1 list is now Brazil — CDB, LC, LF, LCI, LCA, CRA, CRI, Debenture (`incentivised` flag), Tesouro Direto; US — CD, Treasury (OQ-79); **tax rules are coded per type inside this Engine** (regressive IR / exempt; US = "not estimated"); new **`project(holding)`** returns expected payout + expected taxes, using the latest index value from `IndexRateAccessor` for index-linked rates — called by `InsightsManager` (View Investments), the Engine's second caller. Original scope: given an instrument type plus purchase terms, computes the interest-payment schedule (where applicable) and tax owed at each cash event (FR-11.2). Called by **`TransactionManager`**, inline within the investment-buy Record Transaction pipeline (§3.1) — the purchase terms it needs (`date`, `amount`, `dueDate`, `rate`) come from that transaction itself; `dueDate` and `rate` are user-supplied, never derived from `assetType`, since a CDB/LCI/LCA's specific term and rate are negotiated per contract. The resulting schedule is persisted via `InvestmentHoldingAccessor.applySchedule(...)`. **Not** called by `AccountManager`'s Edit Holding flow (valuation updates, Goal allocations) — that only ever validated-writes what the user submits directly. There's no Add Holding flow anymore (OQ-53), so nothing outside `TransactionManager`'s own pipeline ever needs this Engine. The later scheduled trigger that posts a due cash event reads the already-computed schedule off the Accessor and does **not** call this Engine again either — same shape as Open Banking sync reading pre-normalized data (§3.2) | `InvestmentHoldingAccessor` (write, via `TransactionManager`'s call), `IndexRateAccessor` (read, Round 9 — for `project`) | Genuinely instrument- and region-specific computation — a Brazilian CDB's tax rule shares nothing with a US Treasury bond's — this is exactly the "workflow decision + validated write" test *failing* to explain it away, unlike everything Round 6 removed |
+| `ReportingEngine` | Transforms raw ledger/holding data into every read-side output shape: net worth (current + by-month, per currency), Goal progress (current + by-month — returns each Holding's contribution in its own native currency, per OQ-49; cross-currency blending is now a frontend concern, not this Engine's), Budget status (actual vs. target), spend-by-category/subcategory, income-vs-expense (excluding transfers via the persisted `effect` column, FR-3.6), account-balance-by-month, and export formatting (CSV — v2, OQ-71 — PDF later; **the audit-log CSV, FR-7.2, is implemented early with A15 — OQ-104**: `auditLogCsv(entries)` over a shared RFC 4180 writer, formula-injection safe). **Round 9:** payout this month + 12-month payout series per Holding (dividend/interest Account Transactions linked to the Holding — the only payout source, FR-5.9), month overview (inflow/outflow/net per currency + 12-month strip, excluding own-account transfers and bill payments via `effect`, FR-6.11), net-worth change vs previous month (FR-5.3). **Round 8/OQ-51:** a Holding's contribution to net worth/Goal progress branches on `assetType` — market-priced Holdings (stock/FII/fund/other) read `ValuationSnapshotAccessor`'s latest snapshot as before; a fixed-term instrument (FR-11.1) has none to read, so its contribution is simply `InvestmentHoldingAccessor`'s `cost_basis` column instead | `AccountAccessor`, `CreditCardAccessor` *(month-end outstanding for Month Overview — OQ-201)*, `ValuationSnapshotAccessor`, `InvestmentHoldingAccessor` *(new, Round 8 — reads `cost_basis` for fixed-term Holdings, OQ-51)*, `AccountTransactionAccessor`, `CardTransactionAccessor`, `BudgetAccessor`, `GoalAccessor` | The same underlying data gets reshaped into genuinely different output forms for different consumers — that repeated *transformation* is what makes this real computation, not a validated write |
+| `InvestmentProductEngine` *(new, Round 7; extended Round 9)* | **Round 9:** v1 list is now Brazil — CDB, LC, LF, LCI, LCA, CRA, CRI, Debenture (`incentivised` flag), Tesouro Direto; US — CD, Treasury (OQ-79); **tax rules are coded per type inside this Engine** (regressive IR / exempt; US = "not estimated"); new **`project(holding)`** returns expected payout + expected taxes, using the latest index value from `IndexRateAccessor` for index-linked rates — called by `InsightsManager` (View Investments), the Engine's second caller. Original scope: given an instrument type plus purchase terms, computes the interest-payment schedule (where applicable) and tax owed at each cash event (FR-11.2). **OQ-201:** the terms include `interestPayment` (`at_maturity` default, `monthly`, `semiannual`); Brazil accrues over business days (252/year, national holidays coded — fixed dates plus the Easter-based ones, computed), the US over actual/365; index-linked amounts are projections from the latest index value; at maturity it returns three entries on one date — interest (gross), tax, redemption (principal); IOF is not modelled in v1. For an index-linked rate both `schedule` and `project` read the latest value from `IndexRateAccessor` themselves. Called by **`TransactionManager`**, inline within the investment-buy Record Transaction pipeline (§3.1) — the purchase terms it needs (`date`, `amount`, `dueDate`, `rate`) come from that transaction itself; `dueDate` and `rate` are user-supplied, never derived from `assetType`, since a CDB/LCI/LCA's specific term and rate are negotiated per contract. The resulting schedule is persisted via `InvestmentHoldingAccessor.applySchedule(...)`. **Not** called by `AccountManager`'s Edit Holding flow (valuation updates, Goal allocations) — that only ever validated-writes what the user submits directly. There's no Add Holding flow anymore (OQ-53), so nothing outside `TransactionManager`'s own pipeline ever needs this Engine. The later scheduled trigger that posts a due cash event reads the already-computed schedule off the Accessor and does **not** call this Engine again either — same shape as Open Banking sync reading pre-normalized data (§3.2) | `InvestmentHoldingAccessor` (write, via `TransactionManager`'s call), `IndexRateAccessor` (read, Round 9 — for `project`; for `schedule` too, OQ-201) | Genuinely instrument- and region-specific computation — a Brazilian CDB's tax rule shares nothing with a US Treasury bond's — this is exactly the "workflow decision + validated write" test *failing* to explain it away, unlike everything Round 6 removed |
 | `NotificationEngine` *(new, Oct 2026 — was `NotificationDeliveryUtility`, OQ-113)* | Turns "this happened, tell this person" into a delivered notification. The Manager says only the **type, recipient and parameters** — never text (OQ-82) and never the channel: a **routing table** maps each type to its channels (v1: `invitation.received` and `holding.matured` → in-app, `password.reset` → email), and the recipient a type needs follows from its channels (`{userId}` for in-app, `{email, language}` for email — enforced by the types). In-app stores type + params; email is **rendered here** from the shared `@financas/i18n` catalog in the recipient's language and handed to `EmailAccessor`. Called by `IdentityManager` (invitations, password reset) and `AccountManager` (matured holdings); rejects when a channel fails, so the Manager decides what follows | `NotificationInboxAccessor` (write), `EmailAccessor` (send) | Domain knowledge — which channel each notification type uses, and composing the email — is what made it fail the Utility test (usable unchanged in another system?); and as an Engine only Managers can cause a notification. Per-user channel preferences, digests or quiet hours would be added here, not in any Manager |
 
 **Removed across all rounds, and why — the two shapes that were never
@@ -267,12 +267,12 @@ database constraint).
 | `InvitationAccessor` *(split out, Round 7)* | Invitations — own lifecycle (pending → accepted/declined/revoked), independent of Membership, which only exists post-acceptance | **Revised (A4, OQ-109): data only** — `insert` by invitee user ID (the Manager resolves the email and applies FR-1.19; the NOT NULL FK is the structural guarantee, `invitee_missing`), `findById`, `findPending`, `listPendingForUser` (household + inviter names), `listForHousehold`, and the guarded `resolve(id, accepted/declined/revoked)` (`stale` once not pending) **OQ-118:** `insert` returns `already_pending` when the partial unique index refuses a second pending invitation; `listForHousehold` joins the invitee's name and email. |
 | `AccountAccessor` | Financial Accounts | `applyMovement(accountId, {amount, currency, date})` rejects a currency mismatch (FR-2.2) before applying the signed delta to the month chain — forward from a date on or after the starting-balance date, backward (history only) before it (OQ-169); `hasAccountInUse(householdId)` — whether any Account, of any visibility, isn't archived: `AccountManager`'s `GET …/account-status`, the household gate's question (FR-1.22, OQ-198) |
 | `CreditCardAccessor` | Credit Cards (incl. outstanding balance) | `applyMovement(cardId, {amount, currency, date})` resolves which billing cycle the date falls in (closing-day boundary, FR-2.8; a cycle is named by the month it closes in) and moves that cycle's total, carrying it forward — `TransactionManager` decides *that* a charge, refund or bill payment happened and signs the amount, this Accessor decides *which cycle bucket* (OQ-170, replacing `applyChargeOrRefund` / `applyBillPayment`) |
-| `AccountTransactionAccessor` | Account Transaction ledger, including the persisted `effect` column (§3.1's reasoning — corrected cross-reference, Round 8; `EFFECT_BY_KIND` is now enumerated there explicitly) | — |
-| `CardTransactionAccessor` | Card Transaction ledger — stays a separate ledger from Account Transactions (OQ-16) even though both are now reached through one unified entry point (OQ-39) | — |
+| `AccountTransactionAccessor` | Account Transaction ledger, including the persisted `effect` column (§3.1's reasoning — corrected cross-reference, Round 8; `EFFECT_BY_KIND` is now enumerated there explicitly) | **OQ-201:** stores a trade's `quantity_delta`/`cost_basis_delta` (the exact undo, OQ-171) and the recorder (`created_by_user_id`); `insert`, `update`, `delete`, `findById`, `countForHolding` (does anything but its buy reference a Holding); `list(filter, cursor)` for Browse & Filter — scope already narrowed by the Manager to the Accounts the caller sees — plus the day totals and month counts over the whole filtered set; sums by currency and effect per month for `ReportingEngine` |
+| `CardTransactionAccessor` | Card Transaction ledger — stays a separate ledger from Account Transactions (OQ-16) even though both are now reached through one unified entry point (OQ-39) | **OQ-201:** the recorder (`created_by_user_id`); `insert`, `update`, `delete`, `findById`, `list(filter, cursor)` with its own day totals and month counts (the Manager merges both ledgers); charge/refund sums per month for `ReportingEngine`. The per-card list endpoint was dropped — Browse with `creditCardIds` covers it |
 | ~~`RecurringTransactionScheduleAccessor`~~ | **Removed, Round 9** — recurring transactions dropped (FR-3.5, OQ-55) | — |
 | `CategoryAccessor` | Categories, Subcategories | Enforces exactly-two-levels and cascades an archive to Subcategories (FR-10.2/10.4) as part of the write; `update` applies a Category edit and its Subcategory renames/creations in one transaction; refuses an icon/colour outside the in-code sets (OQ-173); `seedDefaults(householdId, language)` creates the predefined default set once per household (FR-10.1, OQ-173), called from `AccountManager`'s subscription to `household.created` (§3.1b), not from a direct `IdentityManager` call |
 | `BudgetAccessor` | Budgets, Budget Periods | `insert(budget, targets, month)` / `replaceTargets(...)` claim a whole target set atomically and reject a Category/Subcategory already claimed elsewhere in scope (FR-4.7 — the literal duplicate is a uniqueness constraint; the rollup half is checked under the parent Category's row lock — OQ-166); a spend accrues to the Budget in its Account's scope (OQ-166); `accrueIfClaimed(categoryId, subcategoryId, amount, date)` resolves the rollup match (FR-4.6) and updates the Budget Period's spend — **Round 8: no longer returns a threshold-crossed signal**, since FR-4.4's alert threshold was removed (OQ-52); deletion (FR-4.10) is a hard delete releasing claimed targets — no archive, since Budget Periods are their own independent immutable record |
-| `InvestmentHoldingAccessor` | Investment Holdings | `applyTrade(holdingId, quantityDelta, valuation, date)` — `TransactionManager` computes `quantityDelta` (positive for buy, negative for sell, `-currentQuantity` for redemption — its own workflow rule, FR-3.8) and this Accessor executes the write. **New, Round 7:** `applySchedule(holdingId, schedule)` persists `InvestmentProductEngine`'s FR-11 output; archiving is one-way (FR-5.8/OQ-43), not a hard delete, since Valuation Snapshot history and Goal allocations depend on the Holding existing. **Round 9:** `archive(holdingId, by)` records who archived (`system` at zero quantity via `applyTrade`, or `user` from the matured notification); `unarchiveIfSystemArchived(holdingId)` (OQ-80 — only system archives are undone); `findMaturedWithPosition(today)` + `markMaturedNotified(holdingId)` for the daily trigger (§3.2a). **OQ-171 (as built):** `insert(holding)` (no position; refuses a `credit_card_only` Account, OQ-76), `findById(householdId, holdingId)` (household guard), `findByTicker(accountId, assetType, ticker)` (archived included — a re-buy reopens a zeroed Holding), `listByAccounts(accountIds, {includeArchived})`; `applyTrade(holdingId, {quantityDelta, costBasisDelta})` — both deltas the Manager's (average cost on a sell), refused below zero under the row lock, no snapshot or date; archiving stays the Manager's separate call; `applySchedule` replaces the whole schedule until an entry posts (`schedule_started`), `listSchedule(holdingIds)`, `findDueScheduleEntries(today)` + `markEntryPosted(entryId)` (once, in the posting transaction); `findMaturedWithPosition` returns the Account's owner and visibility — a shared Account's recipients are `AccountManager`'s, via `HouseholdAccessor.listMembers` |
+| `InvestmentHoldingAccessor` | Investment Holdings | `applyTrade(holdingId, quantityDelta, valuation, date)` — `TransactionManager` computes `quantityDelta` (positive for buy, negative for sell, `-currentQuantity` for redemption — its own workflow rule, FR-3.8) and this Accessor executes the write. **New, Round 7:** `applySchedule(holdingId, schedule)` persists `InvestmentProductEngine`'s FR-11 output; archiving is one-way (FR-5.8/OQ-43), not a hard delete, since Valuation Snapshot history and Goal allocations depend on the Holding existing. **Round 9:** `archive(holdingId, by)` records who archived (`system` at zero quantity via `applyTrade`, or `user` from the matured notification); `unarchiveIfSystemArchived(holdingId)` (OQ-80 — only system archives are undone); `findMaturedWithPosition(today)` + `markMaturedNotified(holdingId)` for the daily trigger (§3.2a). **OQ-171 (as built):** `insert(holding)` (no position; refuses a `credit_card_only` Account, OQ-76), `findById(householdId, holdingId)` (household guard), `findByTicker(accountId, assetType, ticker)` (archived included — a re-buy reopens a zeroed Holding), `listByAccounts(accountIds, {includeArchived})`; `applyTrade(holdingId, {quantityDelta, costBasisDelta})` — both deltas the Manager's (average cost on a sell), refused below zero under the row lock, no snapshot or date; archiving stays the Manager's separate call; `applySchedule` replaces the whole schedule until an entry posts (`schedule_started`), `listSchedule(holdingIds)`, `findDueScheduleEntries(today)` + `markEntryPosted(entryId)` (once, in the posting transaction); `findMaturedWithPosition` returns the Account's owner and visibility — a shared Account's recipients are `AccountManager`'s, via `HouseholdAccessor.listMembers`. **OQ-201:** `delete(holdingId)` — the Holding goes with the buy that created it when nothing else references it (its snapshots and schedule cascade; the Manager clears its Goal split first) |
 | `ValuationSnapshotAccessor` | Valuation Snapshots | Two kinds, tagged by `source`: **automatic** (written by `TransactionManager` with each buy/sell/redemption; changes only through its transaction) and **manual** market values (`AccountManager`: `insertManual` / `updateManual` / `deleteManual` — Round 9, OQ-56; the "never overwrite" rule is gone, update/delete refuse automatic rows). Fixed-term Holdings have none (OQ-51) — the Managers check that. **OQ-167:** keyed by Holding only (the Manager's `InvestmentHoldingAccessor.get` is the household guard); automatic rows via `insertAutomatic` / `updateAutomatic` / `deleteAutomatic(transactionId)`; reads `list(holdingId, range)` and `latestAsOf(holdingIds, date)` |
 | `GoalAccessor` | Goals, Goal Allocations | `replaceAllocations(householdId, holdingId, shares)` replaces a Holding's whole split, all or nothing, and rejects one whose total passes 100% (FR-8.3, OQ-168 — superseding the per-pair `allocate`); Goals stay in their household. Visibility and the completed-Goal rule (FR-8.9) are the Managers', checked before calling — note allocation is written *from the Holding's edit flow*, not the Goal's (OQ-48); complete/reopen (FR-8.8/8.9, renamed from archive/unarchive — OQ-78) is the one reversible lifecycle transition in the whole system, distinct from delete (FR-8.6, hard, no history); written by two Managers (`AccountManager` on Edit Holding, `TransactionManager` on a bundled buy) — the ≤ 100% invariant lives here, so both paths get it |
 | `IndexRateAccessor` *(new, Round 9)* | Household Index Reference Rates — dated history per index (Selic, CDI, IPCA, IGP-M; reference data, can grow) (FR-11.6, OQ-59) | Written by `AccountManager` (insert / update / delete); `latest(index)` read by `InvestmentProductEngine.project`; no automated feed in v1. **OQ-172 (as built):** `insert(householdId, {indexCode, value, asOfDate}, actor)`, `update(householdId, indexCode, valueId, changes)`, `remove(householdId, indexCode, valueId)` — keyed by the route's household and index, so another's id changes nothing (`not_found`); a second value for an index's day is the unique index firing (`duplicate_day`, on insert and on a date edit). Reads: `latest(householdId, indexCode)` (highest date; none → the Engine's fallback) and `list(householdId)` — the Rates tab's `GET /index-rates`, `AccountManager`'s plain read of its own entities (§3 read-ownership rule). **OQ-178:** `findById(householdId, indexCode, valueId)` — the Manager's access check needs the recorder before an edit or delete |
@@ -386,10 +386,14 @@ before now:
 ```
 TransactionManager.record(input)
  ├─ AuthorizationUtility.canWrite(actor, accountId)?
+ ├─ refuse: archived Account (OQ-169); kind not allowed for the target — a
+ │    card takes charge/refund, a credit_card_only Account only bill payments
+ │    to its cards (OQ-201), no investment kind on it (OQ-76); a new
+ │    archived Category (OQ-201)
  ├─ if input targets a Credit Card directly (Card Transaction: charge/refund):
  │    1. CreditCardAccessor.applyMovement(cardId, {±amount, currency, date})  [+charge, −refund — OQ-170]
- │    2. BudgetAccessor.accrueIfClaimed({scope, currency, categoryId, subcategoryId, amount, date})  [no-op if unclaimed]
- │    3. CardTransactionAccessor.insert(...)
+ │    2. BudgetAccessor.accrueIfClaimed({scope, currency, categoryId, subcategoryId, ±amount, date})  [no-op if unclaimed; a refund subtracts — OQ-201]
+ │    3. CardTransactionAccessor.insert(..., createdBy)
  │
  └─ else (Account Transaction):
       1. effect = EFFECT_BY_KIND[kind]  [inline reference-data lookup]
@@ -397,9 +401,13 @@ TransactionManager.record(input)
            AccountAccessor.applyMovement(accountId, {amount, currency, date})
            bill_payment: AccountAccessor.applyMovement(accountId, {−amount, currency, date})
              and CreditCardAccessor.applyMovement(cardId, {−amount, currency, date})  [both sides, OQ-15/OQ-170]
-           InvestmentHoldingAccessor.applyTrade(holdingId, {quantityDelta, costBasisDelta})
+           investment_trade: AccountAccessor.applyMovement(accountId, {∓amount, currency, date})
+             [OQ-201: a buy debits what was invested, a sell/redemption credits
+              the proceeds — the same anchor rule as any movement, OQ-169]
+             and InvestmentHoldingAccessor.applyTrade(holdingId, {quantityDelta, costBasisDelta})
              [both computed here: +qty/+paid buy, -qty/-average cost sell, -currentQty/-costBasis
-              redemption (OQ-171); the automatic snapshot is ValuationSnapshotAccessor's;
+              redemption (OQ-171); sell/redemption name the Holding by holdingId
+              (OQ-201); the automatic snapshot is ValuationSnapshotAccessor's;
               Round 8/OQ-51 — the Valuation Snapshot this call records only
               happens for market-priced assetTypes (stock/FII/fund/other);
               a fixed-term instrument's value is its cost basis, nothing to
@@ -414,7 +422,9 @@ TransactionManager.record(input)
                  InvestmentHoldingAccessor creates the Holding first (auto-create, OQ-41)
                  [a system-archived match is reused and un-archived — OQ-171]
                if assetType is one of FR-11.1's defined instrument types:
-                 InvestmentProductEngine.computeSchedule(dueDate, rate, purchaseDate)
+                 InvestmentProductEngine.schedule(householdId, {assetType, incentivised, date,
+                   amount, dueDate, rate, interestPayment})  [OQ-201; reads the latest
+                   index value itself for an index-linked rate]
                  InvestmentHoldingAccessor.applySchedule(holdingId, schedule)
                if allocations provided (OQ-54, investment-buy only):
                  the buy's split applies to the purchase, not the Holding (OQ-168):
@@ -423,8 +433,9 @@ TransactionManager.record(input)
                  remainder, drop a share that rounds to 0%
                  GoalAccessor.replaceAllocations(householdId, holdingId, shares)
                    if the purchase's own split passes 100%: reject (FR-8.3) → 409 Conflict
-      3. BudgetAccessor.accrueIfClaimed({scope, currency, categoryId, subcategoryId, amount, date})
-      4. AccountTransactionAccessor.insert(transaction, effect)
+      3. BudgetAccessor.accrueIfClaimed({scope, currency, categoryId, subcategoryId, ±amount, date})
+         [OQ-201: any kind may carry a category; money out +, money in −]
+      4. AccountTransactionAccessor.insert(transaction, effect, {quantityDelta, costBasisDelta}, createdBy)
 
  → fire-and-forget: LoggingUtility.logActivity (always) + LoggingUtility.recordAudit
    (this is a financial-data mutation, FR-7.1 — always fires for this Manager)
@@ -440,10 +451,10 @@ lookup — the Manager signs a charge + and a refund − for `CreditCardAccessor
 
 | Effect | Kinds | Accessor call |
 |---|---|---|
-| `movement` | withdrawal, deposit, boleto payment, Pix payment/receipt, investment dividend, investment interest, investment tax | `AccountAccessor.applyMovement` — dividend/interest/tax are "pure cash events" (FR-3.8), same call as a plain deposit/withdrawal, just also carrying a `holding_id` |
+| `movement` | withdrawal, deposit, boleto payment, Pix payment/receipt, investment dividend, investment interest, investment tax | `AccountAccessor.applyMovement` — dividend/interest/tax are "pure cash events" (FR-3.8), same call as a plain deposit/withdrawal, just also carrying a `holding_id` (named by id, OQ-201) |
 | `transfer` | transfer sent, transfer received | `AccountAccessor.applyMovement` — same call as `movement`, tagged separately so `ReportingEngine` can exclude it from income/expense (FR-3.6) |
 | `bill_payment` | credit card bill payment | `AccountAccessor.applyMovement` (debits the paying account) **and** `CreditCardAccessor.applyMovement` (amount negated — lowers the outstanding balance); OQ-15, OQ-170 |
-| `investment_trade` | investment buy, investment sell, investment redemption | `InvestmentHoldingAccessor.applyTrade` — the only kinds that change quantity |
+| `investment_trade` | investment buy, investment sell, investment redemption | `AccountAccessor.applyMovement` (buy −, sell/redemption + — OQ-201) **and** `InvestmentHoldingAccessor.applyTrade` — the only kinds that change quantity |
 
 **No Engine appears in this pipeline for most transactions.** The
 complexity that used to be spread across four "Engines" mostly lives as
@@ -458,6 +469,18 @@ defined-instrument-type sub-case, which is genuine Engine work
 stock, a FII, or a CDB are all Kind = `investment buy`, resolving to the
 same Effect and the same `InvestmentHoldingAccessor.applyTrade(...)` call
 regardless of `assetType` (FR-5.1, reference data).
+
+**Edit and delete (OQ-201).** Both undo the stored effects with the same
+calls negated — the cash leg, the stored trade deltas, the automatic
+snapshot, the signed Budget accrual — then Edit reapplies the new values.
+Kind and target never change. A fixed-term buy whose schedule has posted
+keeps its amount, date and terms (409 `transaction.schedule_started`);
+while it hasn't, an edit recomputes the schedule through the Engine and
+`applySchedule`. Deleting the buy that created a Holding deletes the
+Holding (its snapshots, schedule and Goal split go with it) when
+`countForHolding` finds nothing else, and refuses otherwise (409
+`transaction.holding_in_use`). Transfers are two unlinked entries, each
+edited and deleted on its own.
 
 ### 3.2 Open Banking sync: infrastructure entry point, Accessors do the rest
 
@@ -603,7 +626,7 @@ mutations) while the other three do:
 |---|---|---|---|
 | `IdentityManager` | `NotificationEngine` (invitation received, password-reset email — OQ-113) | `UserAccessor` (incl. preferences, FR-1.21), `SessionAccessor` (incl. `deleteAllExceptCurrent`), `HouseholdAccessor` (incl. `listForUser`), `InvitationAccessor` (incl. `listPendingForUser` with inviter) | `AuthorizationUtility`, `AuthenticationUtility`, `LoggingUtility` (`logActivity` + `recordAudit`), `ServiceBusUtility` (publishes `household.created`, §3.1b) |
 | `AccountManager` | `NotificationEngine` (matured holding — OQ-113) | `AccountAccessor`, `CreditCardAccessor`, `OpenBankingConnectionAccessor` (parked), region provider Accessor (parked), `CategoryAccessor` (incl. `seedDefaults` on `household.created`, §3.1b), `BudgetAccessor` (`insert`, `update`, `replaceTargets`, `delete`, `findById`, `list`, `listPeriods` — OQ-176), `GoalAccessor` (`insert`, `findById`, `list`, `update`, `complete`, `reopen`, `delete` — OQ-177; `replaceAllocations` from Edit Holding), `InvestmentHoldingAccessor` (`findById` + `AccountAccessor.findById` for the access check, `listSchedule`, `archive(by=user)`, `markMaturedNotified` — OQ-178), `GoalAccessor` (`listAllocations`, `findByIds`, `replaceAllocations` on Edit Holding — OQ-178), `HouseholdAccessor` (`listMembers` — a shared matured Holding's recipients, OQ-171), `ValuationSnapshotAccessor` (`list`; manual: `insertManual`/`updateManual`/`deleteManual` — Round 9, OQ-178), `IndexRateAccessor` *(new, Round 9; writes + `list` for the Rates tab — OQ-172; `findById` for the recorder check — OQ-178)*, `PortfolioAccessor` (parked) | `AuthorizationUtility`, `ValidationUtility`, `LoggingUtility` (`logActivity` + `recordAudit`), `UnitOfWorkUtility` (OQ-175); subscribes to `household.created` and `holding.matured` via `ServiceBusUtility` |
-| `TransactionManager` | `InvestmentProductEngine` (`schedule` — investment-buy against a defined FR-11 instrument type, inline within §3.1) | `AccountTransactionAccessor`, `CardTransactionAccessor` (incl. `list(filter, cursor)` for Browse & Filter — Round 9), `AccountAccessor`, `CreditCardAccessor`, `InvestmentHoldingAccessor` (`insert`, `findByTicker`, `applyTrade`, `archive(by=system)`, `applySchedule`, `unarchiveIfSystemArchived`, `markEntryPosted`), `ValuationSnapshotAccessor` (automatic snapshots), `BudgetAccessor` (`accrueIfClaimed`), `GoalAccessor` (`allocate` — bundled with a buy, OQ-54) | `AuthorizationUtility`, `ValidationUtility`, `LoggingUtility` (`logActivity` + `recordAudit`); subscribes to `transaction.import.requested` — **no `NotificationDeliveryUtility` call** (OQ-52) |
+| `TransactionManager` | `InvestmentProductEngine` (`schedule` — investment-buy against a defined FR-11 instrument type, inline within §3.1) | `AccountTransactionAccessor`, `CardTransactionAccessor` (incl. `list(filter, cursor)` for Browse & Filter — Round 9), `AccountAccessor`, `CreditCardAccessor`, `InvestmentHoldingAccessor` (`insert`, `findByTicker`, `applyTrade`, `archive(by=system)`, `applySchedule`, `unarchiveIfSystemArchived`, `markEntryPosted`), `ValuationSnapshotAccessor` (automatic snapshots), `BudgetAccessor` (`accrueIfClaimed`), `GoalAccessor` (`findByIds`, `listAllocations`, `replaceAllocations` — bundled with a buy, OQ-54/OQ-168), `CategoryAccessor` (the archived-Category check, OQ-201) | `AuthorizationUtility`, `ValidationUtility`, `LoggingUtility` (`logActivity` + `recordAudit`); subscribes to `transaction.import.requested` — **no `NotificationDeliveryUtility` call** (OQ-52) |
 | `InsightsManager` | `ReportingEngine` (sole caller), `InvestmentProductEngine` (`project` — View Investments, Round 9) | `AuditLogAccessor` (export only, OQ-46), `NotificationInboxAccessor` (list, seen/unseen, delete), `DashboardAccessor` (parked, v3) — **Round 9: `SessionAccessor` removed** (View Sessions is `IdentityManager`'s, per the read-ownership rule — Manager review M2) | `AuthorizationUtility`, `LoggingUtility` (`logActivity` **only** — reads never trigger `recordAudit`) |
 
 `ValidationUtility`/`CorrelationIdUtility` still omitted (used by every
@@ -720,10 +743,12 @@ graph TB
     M_Txn --> A_AcctTxn
     M_Txn --> A_CardTxn
     M_Txn --> A_Obj
+    M_Txn --> A_Cat
 
     M_Insight --> U_Authz
     M_Insight --> E_Report
     E_Report --> A_Acct
+    E_Report --> A_Card
     E_Report --> A_Snap
     E_Report --> A_Hold
     E_Report --> A_AcctTxn
@@ -778,13 +803,10 @@ of `ValuationSnapshotAccessor` for market-priced ones.)*
 
 ## 5. Sequence Diagram — Record an Account Transaction (the richest flow)
 
-**Redrawn, Round 7 — genuinely richer than before.** Chosen because CUC-4
-still carries the highest workflow density of any use case, but Round 7
-found an even denser variant than the one this diagram used to show:
-buying a *new* fixed-term instrument for the first time, which is the one
-path where `InvestmentProductEngine` actually appears (§3.1). Other
-effects (simple movement, an existing-Holding trade) stay exactly as
-before, just with renamed Utilities.
+**Redrawn for OQ-201.** The densest variant: buying a fixed-term
+instrument, the one path where `InvestmentProductEngine` appears (§3.1).
+The full set of branches (card target, bill payment, sells, Goal
+allocation) is `docs/design/diagrams/sequences/record-transactions/uc-01-record-transaction.html`.
 
 ```mermaid
 sequenceDiagram
@@ -793,64 +815,48 @@ sequenceDiagram
     participant TM as TransactionManager
     participant AZ as AuthorizationUtility
     participant AA as AccountAccessor
-    participant IHA as InvestmentHoldingAccessor
     participant IPE as InvestmentProductEngine
+    participant IRA as IndexRateAccessor
+    participant IHA as InvestmentHoldingAccessor
     participant BA as BudgetAccessor
     participant ATA as AccountTransactionAccessor
     participant LOG as LoggingUtility
 
-    User->>API: POST /transactions {kind, amount, category, ...}
-    API->>TM: recordTransaction(input)
-    TM->>AZ: canWrite(actor, accountId)?
+    User->>API: POST /households/:householdId/transactions {kind: investment_buy, assetType: cdb, amount, rate, dueDate, interestPayment, ...}
+    API->>TM: record(actor, input)
+    TM->>AA: findById(householdId, accountId)
+    AA-->>TM: the Account (type, currency, visibility, archived?)
+    TM->>AZ: authorize(actor, householdId, data.create on the Account)
     AZ-->>TM: allowed
-    Note over TM: effect = EFFECT_BY_KIND[kind] — inline lookup (see §3.1's table)
-    alt effect = simple movement / transfer / bill-payment debit
-        TM->>AA: applyMovement(accountId, {amount, currency, date})
-        AA-->>TM: new balance (rejects on currency mismatch, FR-2.2)
-    else effect = investment trade
-        Note over TM: quantityDelta computed here (buy/sell/redemption rule)
-        opt kind = investment buy
-            alt assetType is one of FR-11.1's fixed-term instruments (e.g. CDB, Tesouro Direto)
-                TM->>IHA: create a new Holding — always, never accumulates (OQ-50)
-                IHA-->>TM: new holdingId
-            else no existing Holding for this ticker+account
-                TM->>IHA: create Holding (auto-create, FR-5.1/OQ-41)
-                IHA-->>TM: new holdingId
-            end
-        end
-        TM->>IHA: applyTrade(holdingId, quantityDelta, valuation, date)
-        IHA-->>TM: updated Holding + Valuation Snapshot recorded (market-priced assetType only — OQ-51)
-        opt assetType is a defined FR-11.1 instrument type (e.g. CDB, Tesouro Direto)
-            TM->>IPE: computeSchedule(assetType, region, purchaseTerms)
-            IPE-->>TM: {maturityDate, interestDates[], taxRule}
-            TM->>IHA: applySchedule(holdingId, schedule)
-            IHA-->>TM: schedule stored
-        end
+    Note over TM: effect = EFFECT_BY_KIND[kind] = investment_trade
+    TM->>AA: applyMovement(accountId, {-amount, currency, date})
+    AA-->>TM: cash moved (history only when dated before the starting balance, OQ-169)
+    TM->>IHA: insert(holding) — a fixed-term buy always opens a new Holding (OQ-50)
+    IHA-->>TM: holdingId
+    TM->>IHA: applyTrade(holdingId, {quantityDelta, costBasisDelta})
+    IHA-->>TM: {quantity, costBasis}
+    TM->>IPE: schedule(householdId, {assetType, incentivised, date, amount, dueDate, rate, interestPayment})
+    opt index-linked rate
+        IPE->>IRA: latest(householdId, rate.type)
+        IRA-->>IPE: latest value — the projection's basis
     end
-    TM->>BA: accrueIfClaimed({scope, currency, categoryId, subcategoryId, amount, date})
-    BA-->>TM: spend updated
-    TM->>ATA: insert(transactionRecord, effect)
+    IPE-->>TM: entries — interest per the payment terms; at maturity interest, tax, redemption
+    TM->>IHA: applySchedule(holdingId, entries)
+    TM->>BA: accrueIfClaimed({scope, currency, categoryId, subcategoryId, -amount, date})
+    BA-->>TM: accrued or untracked
+    TM->>ATA: insert(transaction, effect, {quantityDelta, costBasisDelta}, createdBy)
     ATA-->>TM: transactionId
-    TM-->>LOG: logActivity(correlationId, userId, action)
+    TM-->>LOG: logActivity(correlationId, actor, "RecordTransaction")
     TM-->>LOG: recordAudit(actor, "Transaction", transactionId)
-    TM-->>API: transactionId, updated balances
+    TM-->>API: the transaction
     API-->>User: 201 Created
 ```
 
-Every participant is either `TransactionManager` itself, a Utility, or an
-Accessor — **except `InvestmentProductEngine`**, the one place a real
-Engine now appears in this flow (Round 6 had none at all here; Round 7
-found this one genuine exception, §2.2/§3.1). It's called inline, once,
-only for the new-fixed-term-instrument sub-case — everything else in this
-diagram is unchanged workflow-decision-plus-validated-write. **Round 8:**
-the Holding auto-create step now branches on `assetType` (OQ-50 — a
-fixed-term instrument always gets a new Holding, never matches an
-existing one by ticker) rather than testing "no existing Holding" alone;
-`applyTrade`'s Valuation Snapshot side effect is annotated as
-market-priced-only (OQ-51 — a fixed-term Holding's value is its cost
-basis, nothing to snapshot); and the threshold-crossed branch plus
-`NotificationDeliveryUtility` participant are removed entirely, since
-FR-4.4's alert threshold no longer exists (OQ-52).
+Every participant is `TransactionManager`, a Utility or an Accessor —
+**except `InvestmentProductEngine`**, the one Engine in this flow, called
+inline once for a fixed-term buy. All writes run in one database
+transaction (`UnitOfWorkUtility`). A market-priced buy has no Engine call
+and records an automatic Valuation Snapshot instead (OQ-51).
 
 ## 6. Validation — tracing CUCs through the hierarchy
 

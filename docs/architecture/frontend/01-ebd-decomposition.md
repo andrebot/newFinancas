@@ -126,9 +126,11 @@ Diagram: `docs/design/diagrams/ebd-tiers/app-shell.html`; sequence:
 
 **Purpose:** Record and review day-to-day money. Transaction Correction Flow removed — editing reuses Record Transaction's entry Interactions from an expanded ledger row. Month Overview stays here (Q4): same page, same period state.
 
+**OQ-201 (slice 3 readiness):** *Holding Selection* is new — sell, redemption, dividend, interest and tax pick the account's Holding (the Experience fetches the Holdings), only a buy types asset type and ticker; a fixed-term buy also takes when interest is paid. Editing shows kind and target read-only and offers only what may change. A transfer is one side, recorded on its own account. Month Overview's Goal Rail shows a mixed-currency Goal in its own currency with a note pointing to Goals (the exchange rate stays there, FR-9); the Balance Rail shows a card's outstanding at the month's end. The ledger's month headers carry the month's count; the "Import" button is not built (Open Banking, v2).
+
 | Flow | Interactions | Sequence |
 |---|---|---|
-| Record Transaction | Kind Group & Kind Selection, Transaction Entry, Investment Buy Entry, Goal Allocation Entry | `docs/design/diagrams/ebd-sequences/manage-finances-record-transaction.html` |
+| Record Transaction | Kind Group & Kind Selection, Transaction Entry, Holding Selection, Investment Buy Entry, Goal Allocation Entry | `docs/design/diagrams/ebd-sequences/manage-finances-record-transaction.html` |
 | Browse Transactions | Filter Panel, Ledger (lazy, grouped by month/day), Expanded Row, Delete Confirm | `docs/design/diagrams/ebd-sequences/manage-finances-browse-transactions.html` |
 | Month Overview | Period Bar, Currency Switch, Balance Rail, Budget Rail, Goal Rail | `docs/design/diagrams/ebd-sequences/manage-finances-month-overview.html` |
 

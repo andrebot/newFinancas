@@ -233,10 +233,12 @@ graph TB
     M_Txn --> A_AcctTxn
     M_Txn --> A_CardTxn
     M_Txn --> A_Obj
+    M_Txn --> A_Cat
 
     M_Insight --> U_Authz
     M_Insight --> E_Report
     E_Report --> A_Acct
+    E_Report --> A_Card
     E_Report --> A_Snap
     E_Report --> A_Hold
     E_Report --> A_AcctTxn
@@ -300,6 +302,10 @@ graph TB
     (OQ-51); and the threshold-crossed branch plus
     <code>NotificationDeliveryUtility</code> participant are removed
     entirely, since FR-4.4's alert threshold no longer exists (OQ-52).
+    <strong>Redrawn for OQ-201:</strong> the buy also debits the account's
+    cash, the Engine takes the interest-payment term and reads the latest
+    index value itself, and the trade's deltas and recorder are stored with
+    the transaction.
   </p>
   <div class="diagram-card">
     <pre class="mermaid">
@@ -309,47 +315,40 @@ sequenceDiagram
     participant TM as TransactionManager
     participant AZ as AuthorizationUtility
     participant AA as AccountAccessor
-    participant IHA as InvestmentHoldingAccessor
     participant IPE as InvestmentProductEngine
+    participant IRA as IndexRateAccessor
+    participant IHA as InvestmentHoldingAccessor
     participant BA as BudgetAccessor
     participant ATA as AccountTransactionAccessor
     participant LOG as LoggingUtility
 
-    User->>API: POST /transactions {kind, amount, category, ...}
-    API->>TM: recordTransaction(input)
-    TM->>AZ: canWrite(actor, accountId)?
+    User->>API: POST /households/:householdId/transactions {kind: investment_buy, assetType: cdb, amount, rate, dueDate, interestPayment, ...}
+    API->>TM: record(actor, input)
+    TM->>AA: findById(householdId, accountId)
+    AA-->>TM: the Account (type, currency, visibility, archived?)
+    TM->>AZ: authorize(actor, householdId, data.create on the Account)
     AZ-->>TM: allowed
-    Note over TM: effect = EFFECT_BY_KIND[kind] — inline lookup (see doc §3.1)
-    alt effect = simple movement / transfer / bill-payment debit
-        TM->>AA: applyMovement(accountId, amount, currency)
-        AA-->>TM: new balance (rejects on currency mismatch, FR-2.2)
-    else effect = investment trade
-        Note over TM: quantityDelta computed here (buy/sell/redemption rule)
-        opt kind = investment buy
-            alt assetType is one of FR-11.1's fixed-term instruments (e.g. CDB, Tesouro Direto)
-                TM->>IHA: create a new Holding — always, never accumulates (OQ-50)
-                IHA-->>TM: new holdingId
-            else no existing Holding for this ticker+account
-                TM->>IHA: create Holding (auto-create, FR-5.1/OQ-41)
-                IHA-->>TM: new holdingId
-            end
-        end
-        TM->>IHA: applyTrade(holdingId, quantityDelta, valuation, date)
-        IHA-->>TM: updated Holding + Valuation Snapshot recorded (market-priced assetType only — OQ-51)
-        opt assetType is a defined FR-11.1 instrument type (e.g. CDB, Tesouro Direto)
-            TM->>IPE: computeSchedule(assetType, region, purchaseTerms)
-            IPE-->>TM: {maturityDate, interestDates[], taxRule}
-            TM->>IHA: applySchedule(holdingId, schedule)
-            IHA-->>TM: schedule stored
-        end
+    Note over TM: effect = EFFECT_BY_KIND[kind] = investment_trade
+    TM->>AA: applyMovement(accountId, {-amount, currency, date})
+    AA-->>TM: cash moved (history only when dated before the starting balance, OQ-169)
+    TM->>IHA: insert(holding) — a fixed-term buy always opens a new Holding (OQ-50)
+    IHA-->>TM: holdingId
+    TM->>IHA: applyTrade(holdingId, {quantityDelta, costBasisDelta})
+    IHA-->>TM: {quantity, costBasis}
+    TM->>IPE: schedule(householdId, {assetType, incentivised, date, amount, dueDate, rate, interestPayment})
+    opt index-linked rate
+        IPE->>IRA: latest(householdId, rate.type)
+        IRA-->>IPE: latest value — the projection's basis
     end
-    TM->>BA: accrueIfClaimed(categoryId, subcategoryId, amount, date)
-    BA-->>TM: spend updated
-    TM->>ATA: insert(transactionRecord, effect)
+    IPE-->>TM: entries — interest per the payment terms; at maturity interest, tax, redemption
+    TM->>IHA: applySchedule(holdingId, entries)
+    TM->>BA: accrueIfClaimed({scope, currency, categoryId, subcategoryId, -amount, date})
+    BA-->>TM: accrued or untracked
+    TM->>ATA: insert(transaction, effect, {quantityDelta, costBasisDelta}, createdBy)
     ATA-->>TM: transactionId
-    TM-->>LOG: logActivity(correlationId, userId, action)
+    TM-->>LOG: logActivity(correlationId, actor, "RecordTransaction")
     TM-->>LOG: recordAudit(actor, "Transaction", transactionId)
-    TM-->>API: transactionId, updated balances
+    TM-->>API: the transaction
     API-->>User: 201 Created
     </pre>
   </div>

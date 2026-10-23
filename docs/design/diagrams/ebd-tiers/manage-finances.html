@@ -167,7 +167,7 @@
   <p class="subtitle">
     Record and review day-to-day money. Static structure only — no state/event wiring. Oct 2026 re-decomposition
     (<code>docs/architecture/11-ebd-review-2026-10.md</code>); full reasoning in
-    <code>docs/architecture/frontend/01-ebd-decomposition.md</code>. Transaction Correction Flow removed — editing reuses Record Transaction's entry Interactions from an expanded ledger row. Month Overview stays here (Q4): same page, same period state.
+    <code>docs/architecture/frontend/01-ebd-decomposition.md</code>. Transaction Correction Flow removed — editing reuses Record Transaction's entry Interactions from an expanded ledger row, kind and target shown read-only (OQ-201). Month Overview stays here (Q4): same page, same period state. Transfers are two separate entries (OQ-201).
   </p>
 
   <div class="architecture">
@@ -186,7 +186,7 @@
         </div>
         <div class="tier-row">
           <div class="tier-label">Interactions</div>
-          <div class="tier-grid" style="grid-template-columns: repeat(3, 1fr);"><div class="interaction-column"><div class="box interaction">Kind Group & Kind Selection</div><div class="box interaction">Transaction Entry</div><div class="box interaction">Investment Buy Entry</div><div class="box interaction">Goal Allocation Entry</div></div><div class="interaction-column"><div class="box interaction">Filter Panel</div><div class="box interaction">Ledger (lazy, grouped by month/day)</div><div class="box interaction">Expanded Row</div><div class="box interaction">Delete Confirm</div></div><div class="interaction-column"><div class="box interaction">Period Bar</div><div class="box interaction">Currency Switch</div><div class="box interaction">Balance Rail</div><div class="box interaction">Budget Rail</div><div class="box interaction">Goal Rail</div></div></div>
+          <div class="tier-grid" style="grid-template-columns: repeat(3, 1fr);"><div class="interaction-column"><div class="box interaction">Kind Group & Kind Selection</div><div class="box interaction">Transaction Entry</div><div class="box interaction">Holding Selection</div><div class="box interaction">Investment Buy Entry</div><div class="box interaction">Goal Allocation Entry</div></div><div class="interaction-column"><div class="box interaction">Filter Panel</div><div class="box interaction">Ledger (lazy, grouped by month/day)</div><div class="box interaction">Expanded Row</div><div class="box interaction">Delete Confirm</div></div><div class="interaction-column"><div class="box interaction">Period Bar</div><div class="box interaction">Currency Switch</div><div class="box interaction">Balance Rail</div><div class="box interaction">Budget Rail</div><div class="box interaction">Goal Rail</div></div></div>
         </div>
       </div>
     </div>

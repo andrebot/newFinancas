@@ -57,9 +57,9 @@ flowchart LR
         FE2["Open Transactions page"]
         FE3["Select 'Record Transaction'"]
         FE4["Choose kind group, then kind<br/>(Cash / Transfer / Credit card / Investment)"]
-        FE5["Choose target: account or credit card<br/>(investment kinds: any account except<br/>credit card only)"]
-        FE6["Fill in form: amount, date, category,<br/>description + kind-specific fields"]
-        FE7["Investment buy only: asset type, ticker,<br/>quantity, rate + due date (fixed-term),<br/>debenture 'incentivised' flag, optional<br/>goal allocations (≤ 100%)"]
+        FE5["Choose target: account or credit card<br/>(investment kinds: any account except<br/>credit card only, which takes only<br/>bill payments to its cards)"]
+        FE6["Fill in form: amount, date, category<br/>(any kind), description + kind-specific fields"]
+        FE7["Investment buy: asset type, ticker,<br/>quantity, rate + due date + interest<br/>payment (fixed-term), debenture flag,<br/>optional goal allocations (≤ 100%).<br/>Sell / income / tax: pick the Holding"]
         FE8["Submit"]
         FE9["Receive result"]
         FE10["Notify user (recorded / error)"]
@@ -71,15 +71,15 @@ flowchart LR
     subgraph BE["Backend"]
         direction TB
         BE1["Receive request"]
-        BE2["Validate input (target narrows valid kinds)"]
+        BE2["Validate input (target narrows valid kinds;<br/>no new archived category)"]
         BE3["Determine effect from target + kind"]
-        BE4["Apply effect: account balance, OR card<br/>balance, OR holding quantity / cost basis"]
+        BE4["Apply effect: account balance, OR card<br/>balance, OR holding quantity / cost basis<br/>plus the account's cash"]
         BE5["Investment buy on a new ticker (or any<br/>fixed-term buy): create the Holding"]
         BE6["Fixed-term: compute schedule + taxes<br/>(engine, coded tax rules per type)"]
         BE7["Buy/sell/redemption: record automatic<br/>valuation snapshot"]
         BE8["If goal allocations given: verify ≤ 100%<br/>and save them"]
         BE9["If quantity reached 0: auto-archive<br/>the Holding"]
-        BE10["Update budget accrual (if categorized)"]
+        BE10["Update budget accrual (if categorized —<br/>money in subtracts)"]
         BE11["Save the transaction record"]
         BE12["Record the action (log)"]
         BE13["Send response"]
@@ -97,6 +97,7 @@ flowchart LR
     <p><strong>Removed in this review:</strong> the recurring toggle (FR-3.5 dropped, OQ-55) and the budget-threshold notification (FR-4.4 removed, OQ-52 — this diagram still showed it).</p>
     <p><strong>Goal allocations are bundled into the buy (OQ-54)</strong> — one call; later changes happen on the Holding (Edit Holding, Track Investments UC-2).</p>
     <p><strong>Auto-archive (FR-5.8, OQ-72):</strong> a full sell/redemption archives the Holding in the same operation; Edit/Delete Transaction undo it if the quantity is no longer zero (OQ-80).</p>
+    <p><strong>OQ-201:</strong> a trade moves the account's cash as well as the Holding; transfers are two separate entries, one per account.</p>
   </div>
 
   <script>

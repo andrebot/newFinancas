@@ -65,6 +65,7 @@ sequenceDiagram
     participant AZ as AuthorizationUtility
     participant AA as AccountAccessor
     participant IHA as InvestmentHoldingAccessor
+    participant IPE as InvestmentProductEngine
     participant CCA as CreditCardAccessor
     participant VSA as ValuationSnapshotAccessor
     participant BA as BudgetAccessor
@@ -72,27 +73,33 @@ sequenceDiagram
     participant CTA as CardTransactionAccessor
     participant LOG as LoggingUtility
 
-    User->>API: PATCH /households/:householdId/transactions/:transactionId {amount, date, categoryId, description}
+    User->>API: PATCH /households/:householdId/transactions/:transactionId {date?, amount?, categoryId?, subcategoryId?, description?, quantity?, rate?, dueDate?, interestPayment?, incentivised?}
     API->>TM: edit(actor, transactionId, input)
+    TM->>ATA: findById(householdId, transactionId) (else the card ledger)
+    ATA-->>TM: the stored transaction &mdash; kind, target, trade deltas, recorder
     TM->>AZ: canWrite(actor, transactionId)?
     alt not authorized
         AZ-->>TM: denied
         TM-->>API: Forbidden
         API-->>User: 403 auth.forbidden
+    else a fixed-term buy whose schedule has posted, and amount, date or terms change
+        TM-->>API: Conflict
+        API-->>User: 409 transaction.schedule_started (OQ-201 &mdash; description and category still edit)
     else authorized
         AZ-->>TM: allowed
-        Note over TM: reverse the OLD effect first, using the transaction's<br/>current stored values
+        Note over TM: values change, never identity: kind, account, card and Holding stay (OQ-201).<br/>Reverse the OLD effect first, using the transaction's current stored values
         alt was a balance movement or bill payment
             TM->>AA: applyMovement(accountId, {-oldAmount, currency, oldDate})
             opt was a bill payment
                 TM->>CCA: applyMovement(cardId, {+oldAmount, currency, oldDate})
             end
         else was an investment trade
+            TM->>AA: applyMovement(accountId, {&plusmn;oldAmount reversed, currency, oldDate})
             TM->>IHA: applyTrade(holdingId, {-oldQuantityDelta, -oldCostBasisDelta})
         else was a card charge/refund
             TM->>CCA: applyMovement(cardId, {-oldSignedAmount, currency, oldDate})
         end
-        TM->>BA: accrueIfClaimed({accountScope, currency, oldCategoryId, oldSubcategoryId, -oldAmount, oldDate})
+        TM->>BA: accrueIfClaimed({accountScope, currency, oldCategoryId, oldSubcategoryId, &mp;oldAmount, oldDate})
         Note over TM: then reapply the NEW values &mdash; same dispatch as<br/>Record Transaction, on the new amount/date/category
         alt new effect is a balance movement or bill payment
             TM->>AA: applyMovement(accountId, {newAmount, currency, newDate})
@@ -100,9 +107,17 @@ sequenceDiagram
                 TM->>CCA: applyMovement(cardId, {-newAmount, currency, newDate})
             end
         else new effect is an investment trade
+            TM->>AA: applyMovement(accountId, {&mp;newAmount, currency, newDate})
             TM->>IHA: applyTrade(holdingId, {newQuantityDelta, newCostBasisDelta})
             IHA-->>TM: {quantity, costBasis}
-            TM->>VSA: updateAutomatic(transactionId, newValuation, newDate)
+            opt market-priced
+                TM->>VSA: updateAutomatic(transactionId, newValuation, newDate)
+            end
+            opt a fixed-term buy whose terms, amount or date changed (schedule not started)
+                TM->>IPE: schedule(householdId, {new terms})
+                IPE-->>TM: entries
+                TM->>IHA: applySchedule(holdingId, entries) &mdash; replace-all (OQ-171)
+            end
             alt quantity = 0
                 TM->>IHA: archive(holdingId, by = system)
             else quantity > 0
@@ -112,8 +127,8 @@ sequenceDiagram
         else new effect is a card charge/refund
             TM->>CCA: applyMovement(cardId, {newSignedAmount, currency, newDate})
         end
-        TM->>BA: accrueIfClaimed({accountScope, currency, newCategoryId, newSubcategoryId, newAmount, newDate})
-        TM->>ATA: update(transactionId, input)
+        TM->>BA: accrueIfClaimed({accountScope, currency, newCategoryId, newSubcategoryId, &plusmn;newAmount, newDate})
+        TM->>ATA: update(transactionId, input, {newQuantityDelta, newCostBasisDelta})
         ATA-->>TM: updated
         TM-->>LOG: logActivity(correlationId, actor, "EditTransaction")
         TM-->>LOG: recordAudit(actor, "Transaction", transactionId)
@@ -127,7 +142,8 @@ sequenceDiagram
       <li><strong>Reverse-then-reapply, all inside one transaction</strong> &mdash; the same complexity flagged in <code>02-data-model.md</code>&#39;s Transactions domain, now traced call-by-call. If the edit only changes the <code>date</code> to a different month, the reverse/reapply pair is what actually drives the backdated-balance cascade documented in the Accounts domain (shift every subsequent month&#39;s opening/ending balance by one delta).</li>
       <li><code>CardTransactionAccessor.update</code> path (not shown, same shape) applies when the target was a Card Transaction instead of an Account Transaction.</li>
       <li><strong>Oct 2026 review:</strong> the automatic snapshot follows the edit; the Holding is re-archived or un-archived to match the new quantity (OQ-72, OQ-80).</li>
-      <li>See FR-3.2, FR-5.8.</li>
+      <li><strong>OQ-201:</strong> the trade&#39;s cash leg is undone and redone with it; a buy or sell may change its quantity, a fixed-term buy its rate, due date, interest payment and debenture flag &mdash; and its schedule is recomputed while no entry has posted. Once one has, its amount, date and terms are locked (409). The Budget accrual is undone and redone with its sign (money in subtracts). Transactions the schedule posted edit like any other.</li>
+      <li>See FR-3.2, FR-5.8, OQ-201.</li>
     </ul>
   </div>
   <script>

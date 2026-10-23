@@ -91,6 +91,7 @@ sequenceDiagram
     <ul>
       <li><strong>Posted once (OQ-171):</strong> <code>markEntryPosted</code> runs in the same database transaction as the posted Transaction and only marks an unposted entry, so a repeated event delivery posts nothing twice.</li>
       <li><strong>Payout source (FR-5.9):</strong> the interest transactions posted here, linked to their Holding, are what the payout chart reads.</li>
+      <li><strong>OQ-201:</strong> index-linked amounts are the projections made at buy time &mdash; the user edits a posted one to what the bank paid, or deletes it (it isn&#39;t posted again). At maturity interest (gross), tax and redemption (principal) post as three entries on the same date, each moving the account&#39;s cash.</li>
       <li>The same <code>investmentsDaily</code> run also publishes <code>holding.matured</code> (UC-11) &mdash; one cron, two events (Manager review M6).</li>
       <li>See FR-11.2, FR-11.3, FR-5.9, OQ-72.</li>
     </ul>

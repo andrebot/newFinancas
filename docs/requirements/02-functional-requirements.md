@@ -123,7 +123,10 @@ and carry the document's current default assumption.
   account's balance **on the day it is added**; a transaction may still be
   dated earlier (the real account is older than its record here), and such
   a transaction only rebuilds the balance history before that day — it
-  never changes the current balance (OQ-169).
+  never changes the current balance (OQ-169). A **credit card only**
+  account takes no cash transactions — only its cards' charges and refunds
+  and the bill payments made to them from another account — so its balance
+  stays its starting balance (OQ-201).
 - **FR-2.2** Each account is denominated in exactly one currency; the
   system does not convert between currencies.
 - **FR-2.3** An account can be marked **personal** (visible only to its
@@ -210,11 +213,24 @@ vice versa; only a Credit Card Bill Payment (FR-3.7) bridges the two.
   investment kinds apply to any account except a credit-card-only one; a
   Credit Card target only offers charge/refund) — that narrowing is itself
   data-driven, not a second code path (see OQ-39). A new kind, for either
-  target, is a data addition, not a schema/code change.
+  target, is a data addition, not a schema/code change. **Every kind may
+  carry a category (OQ-201)** — FR-4.5 says how it counts toward a Budget.
+  A sell, redemption, dividend, interest or tax entry names its Holding by
+  picking it from the account's Holdings (a fixed-term ticker can match
+  several, OQ-50); only a buy names an asset type and ticker (OQ-201).
 - **FR-3.2** A user can edit or delete a manually entered transaction —
   Account Transaction or Card Transaction alike (FR-3.9/OQ-37) — through
   the same combined edit/delete flow as FR-3.1's combined entry point
-  (see OQ-39).
+  (see OQ-39). **An edit changes values, never identity (OQ-201):** date,
+  amount, category and description; a buy or sell also its quantity; a
+  fixed-term buy also its rate, due date, interest payment and debenture
+  flag (its schedule is recomputed). Kind and target (account, card,
+  Holding) never change — delete and record again. A fixed-term buy whose
+  schedule has started (an entry already posted) keeps its amount, date and
+  terms and can't be deleted. Deleting the buy that created a Holding
+  removes the Holding too, when no other transaction references it;
+  otherwise the delete is refused. Transactions posted by the schedule
+  (FR-11.3) edit and delete like any other; a deleted one isn't re-posted.
 - **FR-3.3** **[Deferred to v2 — OQ-69]** Account Transactions from Open-Banking-linked accounts are
   imported automatically and flagged as synced; their category remains
   editable even though their core transaction data is read-only.
@@ -228,14 +244,20 @@ vice versa; only a Credit Card Bill Payment (FR-3.7) bridges the two.
   cash events). The Record Transaction entry point (FR-3.1) has no
   "make this recurring" option.
 - **FR-3.6** A transfer between two accounts is represented so it does not
-  double-count as income/expense in reports.
+  double-count as income/expense in reports. **It is two separate entries
+  (OQ-201):** a *transfer sent* on the account the money left and a
+  *transfer received* on the account it reached, each in its own account's
+  currency, not linked to each other.
 - **FR-3.7** A **Credit Card Bill Payment** is an Account Transaction that
   additionally links to a specific Credit Card (FR-2.7). Recording one
   debits the linked account (per FR-3.1) and reduces that Credit Card's
   outstanding balance by the paid amount (see FR-2.10).
 - **FR-3.8** An investment-related Account Transaction — buy, sell,
   dividend, interest, redemption, or tax — links to a specific Investment
-  Holding within that same account (see FR-5.1). Buy, sell,
+  Holding within that same account (see FR-5.1). **Every investment kind
+  moves the account's cash (OQ-201):** a buy debits what was invested, a
+  sell or redemption credits the proceeds, a dividend or interest credits
+  and a tax debits. Buy, sell,
   and redemption change the Holding's quantity; dividend, interest, and tax
   do not (they're pure cash events referencing the Holding for traceability
   and reporting). Redemption reduces quantity like a sell — typically to
@@ -295,7 +317,10 @@ vice versa; only a Credit Card Bill Payment (FR-3.7) bridges the two.
   Account Transaction expenses and Card Transaction charges (FR-3.11) count
   at the time they're recorded. A Credit Card Bill Payment (FR-3.7) is
   never itself counted as spend — it would double-count expenses already
-  captured as charges.
+  captured as charges (left uncategorized; nothing stops tagging one).
+  **Money coming in reduces spend (OQ-201):** a Budget's spend for a
+  period is the money out minus the money in across its claimed
+  categories — a card refund or a categorized Pix receipt lowers it.
 - **FR-4.6** Assigning a whole Category to a Budget implicitly includes
   **all** of that Category's Subcategories — a Transaction tagged with any
   of them counts toward the Budget without listing each Subcategory
@@ -646,7 +671,16 @@ data. The engine owns both the schedule and every tax/payout calculation
   derivable from asset type alone — a CDB's term and rate are negotiated
   per contract) and computes from them: its interest-payment date(s) if
   the instrument pays periodic interest (e.g. Tesouro Direto's
-  semi-annual coupon), and the tax owed at each cash event. This
+  semi-annual coupon), and the tax owed at each cash event. **When interest
+  is paid is part of the contract, entered on the buy (OQ-201):** at
+  maturity (the default), monthly or semi-annually. Brazilian instruments
+  accrue over business days (252 a year, national holidays excluded); US
+  ones over actual days / 365. Index-linked amounts are **projected** from
+  the latest Index Reference Rate and posted as projected — the user
+  corrects a posted one to what the bank paid. At maturity three entries
+  post: interest (gross), tax, and the redemption of the principal. IOF
+  (Brazil, under 30 days) is not modelled in v1. A fixed-term buy's
+  quantity is optional (one unit by default). This
   computation is genuinely instrument/region-specific — the rule for a
   Brazilian CDB's income tax is nothing like a US Treasury bond's. The
   engine also exposes, per fixed-term Holding, its **expected payout**

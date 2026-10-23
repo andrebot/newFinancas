@@ -337,6 +337,7 @@ erDiagram
         string rate_type "nullable, fixed-term only"
         bigint rate_value "nullable, percent x 10000"
         boolean incentivised "nullable, debentures only"
+        string interest_payment "at_maturity/monthly/semiannual, fixed-term only"
         timestamp archived_at "nullable"
         string archived_by "system/user, nullable"
         timestamp matured_notified_at "nullable"
@@ -438,6 +439,9 @@ erDiagram
         string description
         uuid holding_id FK "nullable, investment kinds only"
         uuid credit_card_id FK "nullable, bill payment only"
+        bigint quantity_delta "nullable, trades only"
+        bigint cost_basis_delta "nullable, trades only"
+        uuid created_by_user_id FK "nullable, the recorder"
         string source "manual/schedule"
         timestamp created_at
     }
@@ -451,6 +455,7 @@ erDiagram
         uuid category_id FK "nullable"
         uuid subcategory_id FK "nullable"
         string description
+        uuid created_by_user_id FK "nullable, the recorder"
         timestamp created_at
     }
 

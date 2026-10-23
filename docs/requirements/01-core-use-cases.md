@@ -110,8 +110,9 @@ budgets and goals (FR-6.11).
   will keep appearing (particularly in the Brazilian market, an evidenced
   signal, not a guess). **Kind must be modeled as reference data, not a
   hardcoded enum with branching logic per case** — a small, stable set of
-  *effects* (simple cash movement, paired transfer, investment trade,
-  investment cash event) is what the Engine actually branches on; kind is
+  *effects* (cash movement, transfer, bill payment, investment trade —
+  `EFFECT_BY_KIND`; a transfer is two unlinked entries, OQ-201) is what
+  `TransactionManager` actually branches on; kind is
   just a label riding along for categorization/display. (**Corrected
   during volatility reconciliation:** this note previously also claimed
   "categorization rules and recurring-transaction logic tend to grow in
