@@ -40,8 +40,9 @@ in `docs/README.md`.
 
 - TypeScript everywhere; purely functional — no classes.
 - Every function documented; every function unit-tested (100% coverage).
-  Exception: tooling config files (`eslint.config.js`, `*.config.ts`) —
-  documented but not unit-tested (OQ-91).
+  Exceptions, documented but not unit-tested: tooling config files
+  (`eslint.config.js`, `*.config.ts` — OQ-91) and E2E code
+  (`tests/e2e/`, its `support/` helpers and `global-setup.ts` — OQ-161).
 - Cyclomatic complexity ≤ 7; at most 7 parameters per function.
 - Meaningful names: no single-letter identifiers (`httpContext`, not `c`;
   `table`, not `t`) — enforced by ESLint `id-length`; `_` only for an
