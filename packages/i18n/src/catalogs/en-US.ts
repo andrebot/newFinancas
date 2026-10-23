@@ -418,7 +418,10 @@ const enUS: Catalog = {
   },
   accountSetup: {
     eyebrow: 'Account setup',
-    description: "The household's accounts, categories, budgets and goals.",
+    'description.accounts': 'Your checking, savings and credit card accounts — and the cards attached to them.',
+    'description.categories': "What your household's spending gets tagged with. Shared by everyone in the household.",
+    'description.budgets': 'Group categories under one monthly spending target. A category can belong to only one budget at a time.',
+    'description.goals': 'Savings and investment goals. Which holdings fund a goal is managed from Investments.',
     loading: 'Loading the setup',
     failed: "Couldn't load the setup.",
     retry: 'Try again',

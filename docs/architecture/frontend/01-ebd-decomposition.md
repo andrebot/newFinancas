@@ -108,7 +108,7 @@ Diagram: `docs/design/diagrams/ebd-tiers/app-shell.html`; sequence:
 
 ### Account Setup
 
-**Purpose:** Configure the containers and rules everything else runs on. Holding Management left this Experience (holdings are created by transactions, maintained in Track Investments). The Exchange-Rate Calculator is client-side only (FR-9).
+**Purpose:** Configure the containers and rules everything else runs on. Holding Management left this Experience (holdings are created by transactions, maintained in Track Investments). The Exchange-Rate Calculator is client-side only (FR-9). One page, `/account-setup`, with a tab per Flow: the open tab lives in the address (`?tab=budgets`), and a tab once opened stays mounted, only hidden, so a switch keeps its state; the header is titled and described after the open section, while each Flow keeps its own Add (OQ-197). The Experience holds the shared data — the category list Category Management writes and Budget Management reads, the budgets and the goals.
 
 | Flow | Interactions | Sequence |
 |---|---|---|

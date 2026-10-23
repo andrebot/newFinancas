@@ -5130,6 +5130,16 @@ not a hardcoded assumption.
 
 **Task 93 (`FL6`) is complete.**
 
+### OQ-197: The Account Setup Experience (task X5)
+**Confirmed with the stakeholder (Oct 2026):**
+- **The page is the one FL11–FL14 built up** (`experiences/accountSetup/AccountSetupExperience.tsx`, route `/account-setup`): the four tabs, each section's Flow, the Experience the only tier calling the backend and holding the shared data — the category list (Category Management writes it, Budget Management reads the same subscription), the budgets and the goals (OQ-193..195). X5 closes it against mockups 40–43 and its BDT row.
+- **The header follows the mockups:** the eyebrow "Account setup", the open section as the title and that section's own description. The household's name left the header — the shell's household switcher already names it.
+- **Add stays in each Flow, not the header** (a departure from mockups 40–43, which put "Add Account / Category / Budget / Goal" in the page header). Each Flow owns what Add opens — a drawer for accounts, budgets and goals, an inline card for categories — so a header button would mean the Experience signalling "open your create form" down into the Flow: coupling for a visual detail. Weighed and rejected: a `createRequested` signal per Flow.
+- **The open tab lives in the address** — `?tab=accounts|categories|budgets|goals` (`shell.tabParam`); none or an unknown one opens Accounts. A switch replaces the history entry, so tab clicks don't fill Back; Back and a refresh return to the tab, and later links (the Dashboard's budget rail, Investments → Goals) can open one directly.
+- **A switch keeps the section's state:** a tab mounts the first time it opens and is only hidden after that, so a draft, an inline create card or a loaded list survives a switch and nothing is fetched again. Goals still reads nothing until its tab first opens. Weighed and rejected: remounting and leaning on the cache (drafts lost, Accounts fetched again).
+
+**Task 94 (`X5`) is complete.**
+
 ### OQ-5: Notification delivery channels
 **Confirmed:** In-app notification is the **v1 minimum** — every
 notification-worthy event must at least surface in-app.

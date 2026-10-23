@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>EBD Tiers — Authenticate — New Finance App</title>
+<title>EBD Tiers — Manage Household — New Finance App</title>
 <style>
   :root {
     --bg: #0f1420;
@@ -205,16 +205,8 @@
   </div>
 
   <div class="notes">
-    <p><strong>Sign Out has no Flow column, deliberately:</strong> it's a
-    single atomic action with no accumulated state — wrapping it in a
-    Flow would be the "Flow Proliferation" smell (a step mistaken for a
-    Flow). It's hosted directly by the Experience, one Interaction, no
-    intermediate tier.</p>
-    <p><strong>No wiring shown, same discipline as the backend's layered
-    diagram:</strong> this page answers "what exists, in which tier" —
-    the sequence diagram (<code>docs/design/diagrams/ebd-sequences/authenticate-sign-in.html</code>)
-    is where the actual state-down/events-up wiring for one Flow is
-    traced in detail.</p>
+    <p><strong>Leave Household has no Flow column, deliberately:</strong> it's a single atomic action with no accumulated state — wrapping it in a Flow would be the "Flow Proliferation" smell (a step mistaken for a Flow). The Experience hosts it directly, one Interaction, no intermediate tier.</p>
+    <p><strong>No wiring shown, same discipline as the backend's layered diagram:</strong> this page answers "what exists, in which tier" — the sequence diagrams (<code>docs/design/diagrams/ebd-sequences/manage-household-*.html</code>) are where Manage Household's state-down/events-up wiring is traced in detail, one Flow at a time.</p>
   </div>
 </body>
 </html>

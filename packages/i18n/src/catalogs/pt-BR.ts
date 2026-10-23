@@ -433,7 +433,10 @@ const ptBR = {
   },
   accountSetup: {
     eyebrow: 'Configuração da conta',
-    description: 'As contas, categorias, orçamentos e metas do lar.',
+    'description.accounts': 'Suas contas correntes, poupanças e de cartão de crédito — e os cartões ligados a elas.',
+    'description.categories': 'Como os gastos do lar são classificados. Compartilhadas por todos do lar.',
+    'description.budgets': 'Agrupe categorias sob um limite mensal de gastos. Uma categoria só pode estar em um orçamento por vez.',
+    'description.goals': 'Metas de poupança e investimento. Quais investimentos financiam uma meta é definido em Investimentos.',
     loading: 'Carregando a configuração',
     failed: 'Não foi possível carregar a configuração.',
     retry: 'Tentar novamente',

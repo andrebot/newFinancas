@@ -279,4 +279,6 @@ export const shell = {
     household: '/household',
     profile: '/profile',
   },
+  /** The search parameter naming a page's open section, e.g. `/account-setup?tab=budgets`. */
+  tabParam: 'tab',
 } as const;

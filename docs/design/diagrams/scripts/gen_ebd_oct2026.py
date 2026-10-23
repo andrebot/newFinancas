@@ -85,9 +85,64 @@ EXPERIENCES = [
 
 
 # ---------------------------------------------------------------- tier pages
-_tpl = (TIERS / "authenticate.html").read_text()
-HEAD = _tpl[: _tpl.index("<body>") + len("<body>")]
-TAIL = _tpl[_tpl.index('  <div class="legend">'):]
+# The pages' styles live beside this script, never read back from an output page.
+STYLE = (pathlib.Path(__file__).parent / "ebd_tier_style.css").read_text()
+
+LEGEND = """  <div class="legend">
+    <div class="legend-item"><span class="swatch" style="background:var(--experience); border-color:var(--experience-border);"></span> Experience</div>
+    <div class="legend-item"><span class="swatch" style="background:var(--flow); border-color:var(--flow-border);"></span> Flow</div>
+    <div class="legend-item"><span class="swatch" style="background:var(--interaction); border-color:var(--interaction-border);"></span> Interaction</div>
+    <div class="legend-item"><span class="swatch" style="background:var(--utility); border-color:var(--utility-border);"></span> Utility</div>
+  </div>
+"""
+
+
+def _head(title):
+    """The document head, titled after its page."""
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>{title} — New Finance App</title>
+<style>
+{STYLE}</style>
+</head>
+<body>"""
+
+
+def _tail(notes):
+    """The legend, the page's notes and the document's end."""
+    paragraphs = "".join(f"\n    <p>{note}</p>" for note in notes)
+    return f"""{LEGEND}
+  <div class="notes">{paragraphs}
+  </div>
+</body>
+</html>
+"""
+
+
+def _and_list(items):
+    """Joins names as prose: "A", "A and B", "A, B and C"."""
+    return items[0] if len(items) == 1 else f"{', '.join(items[:-1])} and {items[-1]}"
+
+
+def _tier_notes(name, slug, standalone):
+    """A tier page's notes: why its standalone Interactions have no Flow, and where its wiring is."""
+    notes = []
+    if standalone:
+        one = len(standalone) == 1
+        subject, verb, each = ("it's", "has", "it") if one else ("each is", "have", "each")
+        notes.append(
+            f"<strong>{_and_list(standalone)} {verb} no Flow column, deliberately:</strong> {subject} a "
+            "single atomic action with no accumulated state — wrapping it in a Flow would be the "
+            f"\"Flow Proliferation\" smell (a step mistaken for a Flow). The Experience hosts {each} directly, "
+            "one Interaction, no intermediate tier.")
+    notes.append(
+        "<strong>No wiring shown, same discipline as the backend's layered diagram:</strong> this page "
+        "answers \"what exists, in which tier\" — the sequence diagrams "
+        f"(<code>docs/design/diagrams/ebd-sequences/{slug}-*.html</code>) are where {name}'s "
+        "state-down/events-up wiring is traced in detail, one Flow at a time.")
+    return notes
 
 
 def _box(cls, text):
@@ -140,7 +195,8 @@ def tier_page(name, slug, purpose, flows, standalone, utils, note):
   </div>
 
 """
-    (TIERS / f"{slug}.html").write_text(HEAD + body + TAIL)
+    (TIERS / f"{slug}.html").write_text(
+        _head(f"EBD Tiers — {name}") + body + _tail(_tier_notes(name, slug, standalone)))
 
 
 def shell_page():
@@ -181,7 +237,10 @@ def shell_page():
   </div>
 
 """
-    (TIERS / "app-shell.html").write_text(HEAD + body + TAIL)
+    (TIERS / "app-shell.html").write_text(_head("App Shell") + body + _tail([
+        "<strong>No wiring shown:</strong> this page answers \"what the shell hosts\" — the sequence "
+        "diagram (<code>docs/design/diagrams/ebd-sequences/app-shell-notification-routing.html</code>) "
+        "traces how a chrome event is routed to the Experience that owns it."]))
 
 
 def tier_markdown():

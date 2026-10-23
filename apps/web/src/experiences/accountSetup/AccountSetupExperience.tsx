@@ -1,7 +1,9 @@
 import { useCallback, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import type { SerializedError } from '@reduxjs/toolkit';
 import type { Account, Goal, GoalWithProgress } from '@financas/api-types';
 import type { ApiError } from '../../api/errors';
+import { shell } from '../../config/constants';
 import {
   failureOf, toDataOutcome, toRequestOutcome, type EndpointResult,
 } from '../../api/outcome';
@@ -46,12 +48,25 @@ import type {
 // category list — shared read-only data Category Management writes and Budget
 // Management reads (EBD) — the budgets, whose claims other members change too
 // (OQ-194), and the goals, their definitions joined to their progress (OQ-177,
-// OQ-195). The page is keyed on the household, so a switch starts it afresh.
+// OQ-195). The open tab lives in the address (`?tab=budgets`), and a tab once
+// opened stays mounted, only hidden, so a switch keeps its state (OQ-197). The
+// page is keyed on the household, so a switch starts it afresh.
 
 /** The tabs between the setup sections (mockup 40). */
-type SetupTab = 'accounts' | 'categories' | 'budgets' | 'goals';
+export type SetupTab = 'accounts' | 'categories' | 'budgets' | 'goals';
 
 const TABS: readonly SetupTab[] = ['accounts', 'categories', 'budgets', 'goals'];
+
+/**
+ * Reads the open tab from the address's search parameter: the one it names,
+ * or Accounts when it names none or one that doesn't exist.
+ *
+ * @param value - The parameter's value, if any.
+ * @returns The tab.
+ */
+export const tabOf = (value: string | null): SetupTab => (
+  TABS.find((tab) => tab === value) ?? 'accounts'
+);
 
 /** What a request to the accounts' endpoints needs. */
 interface AccountPanelProps {
@@ -409,40 +424,62 @@ function GoalsTab({ household, userId }: SetupPageProps) {
 }
 
 /**
- * Renders the active household's setup page: its header with the tabs and,
- * under each tab, that section's flow.
+ * Holds the open tab in the address, replacing the entry on a switch so tab
+ * clicks don't fill the history, and the tabs opened so far — mounted from
+ * their first opening on, so a switch back finds them as they were.
+ *
+ * @returns The open tab, the tabs opened so far and the switch.
+ */
+const useSetupTabs = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = tabOf(searchParams.get(shell.tabParam));
+  const [opened, setOpened] = useState<ReadonlySet<SetupTab>>(() => new Set([tab]));
+  // A tab reached through the address (Back, a link) counts as opened too.
+  if (!opened.has(tab)) setOpened(new Set([...opened, tab]));
+
+  /**
+   * Opens a tab.
+   *
+   * @param next - The tab to open.
+   */
+  const openTab = (next: SetupTab) => {
+    setSearchParams({ [shell.tabParam]: next }, { replace: true });
+  };
+
+  return { tab, opened, openTab };
+};
+
+/**
+ * Renders the active household's setup page: its header — the open section's
+ * title and description (mockups 40–43) — with the tabs and, under each tab
+ * opened so far, that section's flow, hidden while another is open.
  *
  * @param props - The household and the signed-in user.
  * @returns The page.
  */
 function SetupPage({ household, userId }: SetupPageProps) {
   const translator = useI18n();
-  const [tab, setTab] = useState<SetupTab>('accounts');
+  const { tab, opened, openTab } = useSetupTabs();
   const requests = useAccountRequests(household.id);
   const categories = useCategories(household.id);
   const budgets = useBudgets(household.id);
 
-  /** Renders whichever tab is active. */
-  const renderTab = () => {
-    if (tab === 'accounts') {
-      return (
-        <AccountManagementFlow
-          key={household.id}
-          selfUserId={userId}
-          role={household.role}
-          {...requests}
-        />
-      );
+  /**
+   * Renders a section's flow.
+   *
+   * @param value - The section.
+   * @returns Its flow.
+   */
+  const renderPanel = (value: SetupTab) => {
+    if (value === 'accounts') {
+      return <AccountManagementFlow selfUserId={userId} role={household.role} {...requests} />;
     }
-    if (tab === 'categories') {
-      return (
-        <CategoryManagementFlow key={household.id} role={household.role} {...categories} />
-      );
+    if (value === 'categories') {
+      return <CategoryManagementFlow role={household.role} {...categories} />;
     }
-    if (tab === 'budgets') {
+    if (value === 'budgets') {
       return (
         <BudgetManagementFlow
-          key={household.id}
           selfUserId={userId}
           role={household.role}
           categories={categories.categories}
@@ -450,15 +487,15 @@ function SetupPage({ household, userId }: SetupPageProps) {
         />
       );
     }
-    return <GoalsTab key={household.id} household={household} userId={userId} />;
+    return <GoalsTab household={household} userId={userId} />;
   };
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
         eyebrow={translator.text('accountSetup', 'eyebrow')}
-        title={household.name}
-        description={translator.text('accountSetup', 'description')}
+        title={translator.text('accountSetup', `tab.${tab}`)}
+        description={translator.text('accountSetup', `description.${tab}`)}
         tabs={(
           <SegmentedControl
             label={translator.text('accountSetup', 'tabs.label')}
@@ -466,11 +503,15 @@ function SetupPage({ household, userId }: SetupPageProps) {
               value, label: translator.text('accountSetup', `tab.${value}`),
             }))}
             value={tab}
-            onChange={setTab}
+            onChange={openTab}
           />
         )}
       />
-      {renderTab()}
+      {TABS.filter((value) => opened.has(value)).map((value) => (
+        <div key={value} hidden={value !== tab}>
+          {renderPanel(value)}
+        </div>
+      ))}
     </div>
   );
 }
