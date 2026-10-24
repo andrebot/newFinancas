@@ -1,7 +1,7 @@
 import { catalogs, DEFAULT_LOCALE, type Catalog } from '@financas/i18n';
 import { captureLogs } from '@financas/logging/browser';
 import {
-  afterEach, beforeEach, describe, expect, it,
+  afterEach, beforeEach, describe, expect, it, onTestFinished,
 } from 'vitest';
 import { i18n } from '../../../src/config/constants';
 import {
@@ -21,10 +21,8 @@ import type { PreferenceStorage } from '../../../src/utilities/safeStorage';
 let capture: ReturnType<typeof captureLogs>;
 
 beforeEach(() => {
-  capture = captureLogs();
+  capture = captureLogs(onTestFinished);
 });
-
-afterEach(() => capture.stop());
 
 describe('formatMessage', () => {
   it('applies the locale’s plural rules and number format', () => {

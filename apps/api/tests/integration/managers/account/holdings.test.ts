@@ -1,5 +1,7 @@
 import { captureLogs, type LogEvent } from '@financas/logging';
-import { describe, expect, it } from 'vitest';
+import {
+  describe, expect, it, onTestFinished,
+} from 'vitest';
 import { createAccountManager } from '../../../../src/managers/account';
 import { expectAudited } from '../audit';
 import {
@@ -184,12 +186,11 @@ describe('AccountManager — edit a Holding\'s Goal split (uc-02, FR-8.2/8.3, OQ
       allocation(BEAS_GOAL.id, 30), allocation(GOAL.id, 20),
     ]);
     goals.findByIds.mockResolvedValueOnce([GOAL, BEAS_GOAL]);
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     const split = await createAccountManager(deps).editHolding(CONTEXT, HOUSEHOLD_ID, HOLDING_ID, [
       { goalId: GOAL.id, percentage: 50 },
     ]);
-    logs.stop();
 
     expect(split).toEqual([{ goalId: GOAL.id, percentage: 50 }]);
     expect(authorization.authorize).toHaveBeenCalledWith(
@@ -298,12 +299,11 @@ describe('AccountManager — edit a Holding\'s Goal split (uc-02, FR-8.2/8.3, OQ
   ])('answers GoalAccessor\'s %j as the API does, unaudited', async (result, apiError) => {
     const { deps, goals } = fakeDeps();
     goals.replaceAllocations.mockResolvedValueOnce(result);
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await expect(createAccountManager(deps).editHolding(CONTEXT, HOUSEHOLD_ID, HOLDING_ID, [
       { goalId: GOAL.id, percentage: 100 },
     ])).rejects.toMatchObject({ apiError });
-    logs.stop();
 
     expect(auditedActions(logs.events)).toEqual([]);
   });
@@ -316,10 +316,9 @@ describe('AccountManager — archive a matured Holding (uc-03, FR-5.8, OQ-178)',
     } = fakeDeps();
     holdings.findById.mockResolvedValueOnce(CDB);
     holdings.listSchedule.mockResolvedValueOnce([REDEMPTION]);
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await createAccountManager(deps).archiveHolding(CONTEXT, HOUSEHOLD_ID, HOLDING_ID);
-    logs.stop();
 
     expect(authorization.authorize).toHaveBeenCalledWith(
       ANA_ID,
@@ -334,10 +333,9 @@ describe('AccountManager — archive a matured Holding (uc-03, FR-5.8, OQ-178)',
   it('leaves an archived Holding as it is, unaudited', async () => {
     const { deps, holdings } = fakeDeps();
     holdings.findById.mockResolvedValueOnce({ ...CDB, archivedAt: NOW, archivedBy: 'system' });
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await createAccountManager(deps).archiveHolding(CONTEXT, HOUSEHOLD_ID, HOLDING_ID);
-    logs.stop();
 
     expect(holdings.listSchedule).not.toHaveBeenCalled();
     expect(holdings.archive).not.toHaveBeenCalled();
@@ -349,10 +347,9 @@ describe('AccountManager — archive a matured Holding (uc-03, FR-5.8, OQ-178)',
     holdings.findById.mockResolvedValueOnce(CDB);
     holdings.listSchedule.mockResolvedValueOnce([REDEMPTION]);
     holdings.archive.mockResolvedValueOnce(false);
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await createAccountManager(deps).archiveHolding(CONTEXT, HOUSEHOLD_ID, HOLDING_ID);
-    logs.stop();
 
     expect(auditedActions(logs.events)).toEqual([]);
   });

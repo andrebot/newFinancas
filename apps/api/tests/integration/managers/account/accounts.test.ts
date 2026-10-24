@@ -1,5 +1,7 @@
 import { captureLogs, type LogEvent } from '@financas/logging';
-import { describe, expect, it } from 'vitest';
+import {
+  describe, expect, it, onTestFinished,
+} from 'vitest';
 import { createAccountManager } from '../../../../src/managers/account';
 import { expectAudited } from '../audit';
 import {
@@ -181,12 +183,11 @@ describe('AccountManager — Create Account (financial-accounts/uc-01, FR-2.1/2.
     const {
       deps, accounts, creditCards, authorization, inTransaction,
     } = fakeDeps();
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     const created = await createAccountManager(deps).createAccount(CONTEXT, HOUSEHOLD_ID, {
       ...NEW_ACCOUNT, name: ' Main ', openingBalance: 1500, cards: [NEW_CARD],
     });
-    logs.stop();
 
     expect(created).toEqual({
       ...ACCOUNT, currentBalance: 1500, cards: [{ ...CARD, outstandingBalance: 0 }],
@@ -271,12 +272,11 @@ describe('AccountManager — Create Account (financial-accounts/uc-01, FR-2.1/2.
   it('lets a failed card write fail the whole creation, unaudited', async () => {
     const { deps, creditCards } = fakeDeps();
     creditCards.insert.mockRejectedValueOnce(new Error('db down'));
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await expect(createAccountManager(deps).createAccount(CONTEXT, HOUSEHOLD_ID, {
       ...NEW_ACCOUNT, cards: [NEW_CARD],
     })).rejects.toThrow('db down');
-    logs.stop();
 
     expect(auditedActions(logs.events)).toEqual([]);
   });
@@ -289,7 +289,7 @@ describe('AccountManager — Edit Account (financial-accounts/uc-02, FR-2.3/2.9,
     } = fakeDeps();
     const added = { ...CARD, id: OTHER_CARD_ID };
     creditCards.insert.mockResolvedValueOnce(added);
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     const edited = await createAccountManager(deps).editAccount(
       CONTEXT,
@@ -302,7 +302,6 @@ describe('AccountManager — Edit Account (financial-accounts/uc-02, FR-2.3/2.9,
         },
       },
     );
-    logs.stop();
 
     expect(edited).toEqual(ACCOUNT_VIEW);
     expect(authorization.authorize).toHaveBeenCalledWith(ANA_ID, HOUSEHOLD_ID, {
@@ -319,12 +318,11 @@ describe('AccountManager — Edit Account (financial-accounts/uc-02, FR-2.3/2.9,
 
   it('removes a card of the Account, audited, leaving the Account unaudited', async () => {
     const { deps, creditCards } = fakeDeps();
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await createAccountManager(deps).editAccount(CONTEXT, HOUSEHOLD_ID, ACCOUNT_ID, {
       cards: { remove: [CARD_ID] },
     });
-    logs.stop();
 
     expect(creditCards.remove).toHaveBeenCalledWith(ACCOUNT_ID, CARD_ID);
     expect(auditedActions(logs.events)).toEqual(['RemoveCreditCard']);
@@ -332,11 +330,10 @@ describe('AccountManager — Edit Account (financial-accounts/uc-02, FR-2.3/2.9,
 
   it('reads an empty edit back, unaudited', async () => {
     const { deps, accounts } = fakeDeps();
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await expect(createAccountManager(deps).editAccount(CONTEXT, HOUSEHOLD_ID, ACCOUNT_ID, {}))
       .resolves.toEqual(ACCOUNT_VIEW);
-    logs.stop();
 
     expect(accounts.update).toHaveBeenCalledWith(HOUSEHOLD_ID, ACCOUNT_ID, {});
     expect(auditedActions(logs.events)).toEqual([]);
@@ -464,12 +461,11 @@ describe('AccountManager — Edit Account (financial-accounts/uc-02, FR-2.3/2.9,
     const { deps, creditCards } = fakeDeps();
     if (write === 'update') creditCards.update.mockResolvedValueOnce(undefined);
     else creditCards.remove.mockResolvedValueOnce(false);
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await expect(createAccountManager(deps).editAccount(CONTEXT, HOUSEHOLD_ID, ACCOUNT_ID, {
       cards,
     })).rejects.toMatchObject(CARD_NOT_FOUND);
-    logs.stop();
 
     expect(auditedActions(logs.events)).toEqual([]);
   });
@@ -498,10 +494,9 @@ describe('AccountManager — Edit Account (financial-accounts/uc-02, FR-2.3/2.9,
 describe('AccountManager — Archive Account (financial-accounts/uc-03, FR-2.4)', () => {
   it('archives it, audited, checking data.delete on the Account', async () => {
     const { deps, accounts, authorization } = fakeDeps();
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await createAccountManager(deps).archiveAccount(CONTEXT, HOUSEHOLD_ID, ACCOUNT_ID);
-    logs.stop();
 
     expect(authorization.authorize).toHaveBeenCalledWith(ANA_ID, HOUSEHOLD_ID, {
       action: 'data.delete', visibility: 'shared', ownerUserId: ANA_ID,
@@ -513,10 +508,9 @@ describe('AccountManager — Archive Account (financial-accounts/uc-03, FR-2.4)'
   it('leaves an archived Account as it is, unaudited', async () => {
     const { deps, accounts } = fakeDeps();
     accounts.findById.mockResolvedValueOnce({ ...ACCOUNT, archivedAt: new Date() });
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await createAccountManager(deps).archiveAccount(CONTEXT, HOUSEHOLD_ID, ACCOUNT_ID);
-    logs.stop();
 
     expect(accounts.archive).not.toHaveBeenCalled();
     expect(auditedActions(logs.events)).toEqual([]);

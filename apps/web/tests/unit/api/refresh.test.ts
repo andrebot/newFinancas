@@ -1,6 +1,6 @@
 import { captureLogs } from '@financas/logging/browser';
 import {
-  afterEach, beforeEach, describe, expect, it, vi,
+  beforeEach, describe, expect, it, onTestFinished, vi,
 } from 'vitest';
 import { api } from '../../../src/config/constants';
 import {
@@ -57,9 +57,8 @@ const NEW_TOKENS = { accessToken: 'access-2', refreshToken: 'refresh-2' };
 describe('createRefresher', () => {
   let logs: ReturnType<typeof captureLogs>;
   beforeEach(() => {
-    logs = captureLogs();
+    logs = captureLogs(onTestFinished);
   });
-  afterEach(() => logs.stop());
 
   it('exchanges the stored refresh token and keeps the new pair', async () => {
     const setup = setUp(async () => jsonResponse(200, NEW_TOKENS));

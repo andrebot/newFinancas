@@ -1,6 +1,6 @@
 import { captureLogs } from '@financas/logging';
 import {
-  describe, expect, it, vi,
+  describe, expect, it, onTestFinished, vi,
 } from 'vitest';
 import { createIdentityManager } from '../../../../src/managers/identity';
 import {
@@ -17,11 +17,10 @@ const TOO_SHORT = { apiError: { status: 422, code: 'password.too_short', params:
 describe('IdentityManager — Change Password (uc-19, FR-1.14)', () => {
   it('replaces the hash, ends every other session, audits', async () => {
     const { deps, users, sessions } = fakeDeps();
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await createIdentityManager(deps)
       .changePassword(SIGNED_IN, { currentPassword: 'old', newPassword: LONG });
-    logs.stop();
 
     expect(users.updatePasswordHash).toHaveBeenCalledWith(ANA.id, `hash(${LONG})`);
     expect(sessions.deleteAllExceptCurrent).toHaveBeenCalledWith(ANA.id, SESSION.id);
@@ -97,7 +96,7 @@ describe('IdentityManager — Reset Password, step 1 (uc-18, OQ-115)', () => {
   it('does nothing for an unknown address, answering the same — and logs no failure', async () => {
     const { deps, users, notifications } = fakeDeps();
     users.findByEmail.mockResolvedValueOnce(undefined);
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await expect(createIdentityManager(deps).requestPasswordReset(PUBLIC, 'nobody@example.com'))
       .resolves.toBeUndefined();
@@ -106,7 +105,6 @@ describe('IdentityManager — Reset Password, step 1 (uc-18, OQ-115)', () => {
     await new Promise((resolve) => {
       setImmediate(resolve);
     });
-    logs.stop();
     expect(users.storeResetToken).not.toHaveBeenCalled();
     expect(notifications.notify).not.toHaveBeenCalled();
     expect(logs.events).toEqual([]);
@@ -115,12 +113,11 @@ describe('IdentityManager — Reset Password, step 1 (uc-18, OQ-115)', () => {
   it('logs a failure to send instead of returning it', async () => {
     const { deps, notifications } = fakeDeps();
     notifications.notify.mockRejectedValueOnce(new Error('provider down'));
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await createIdentityManager(deps).requestPasswordReset(PUBLIC, 'ana@example.com');
     await vi.waitFor(() => expect(logs.events)
       .toContainEqual(expect.objectContaining({ level: 'error', error: 'Error: provider down' })));
-    logs.stop();
   });
 });
 
@@ -129,10 +126,9 @@ describe('IdentityManager — Reset Password, step 2 (uc-18)', () => {
 
   it('uses up the link, replaces the hash, ends all sessions, lifts the lock, audits', async () => {
     const { deps, users, sessions } = fakeDeps();
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await createIdentityManager(deps).confirmPasswordReset(PUBLIC, CONFIRMATION);
-    logs.stop();
 
     expect(users.consumeResetToken).toHaveBeenCalledWith('hash(from-link)', NOW);
     expect(users.updatePasswordHash).toHaveBeenCalledWith(ANA.id, `hash(${LONG})`);

@@ -1,6 +1,8 @@
 import { captureLogs } from '@financas/logging';
 import { Hono } from 'hono';
-import { describe, expect, it } from 'vitest';
+import {
+  describe, expect, it, onTestFinished,
+} from 'vitest';
 import correlationIdMiddleware from '../../../src/http/correlation';
 import { createErrorHandler, type AppEnv } from '../../../src/http/errorHandler';
 import createRequestLogger from '../../../src/http/requestLog';
@@ -19,11 +21,10 @@ describe('request logger (NFR-OBS-1)', () => {
     app.get('/boom', () => {
       throw new Error('x');
     });
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     const ok = await app.request('/slow');
     await app.request('/boom');
-    logs.stop();
 
     expect(logs.events[0]).toMatchObject({
       level: 'info',
@@ -41,10 +42,9 @@ describe('request logger (NFR-OBS-1)', () => {
     const app = new Hono<AppEnv>();
     app.use(createRequestLogger());
     app.get('/', (httpContext) => httpContext.text('ok'));
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await app.request('/');
-    logs.stop();
 
     expect(logs.events[0]?.durationMs).toBeGreaterThanOrEqual(0);
   });

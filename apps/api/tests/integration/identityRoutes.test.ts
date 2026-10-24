@@ -1,6 +1,6 @@
 import { captureLogs } from '@financas/logging';
 import {
-  describe, expect, it, vi,
+  describe, expect, it, onTestFinished, vi,
 } from 'vitest';
 import { tooManyAttempts } from '../../src/managers/identity/errors';
 import { appWithMocks, errorOf } from '../support/app';
@@ -345,12 +345,11 @@ describe('identity routes — signed in', () => {
 
   it('POST /auth/logout → 204 with actor and correlation ID; logs name the user', async () => {
     const { app, identity } = setup();
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     const response = await send(app, 'POST', '/auth/logout', {
       ...SIGNED_IN, headers: { 'X-Correlation-Id': CORRELATION_ID },
     });
-    logs.stop();
 
     expect(response.status).toBe(204);
     expect(identity.logout).toHaveBeenCalledWith({ correlationId: CORRELATION_ID, actor: ACTOR });

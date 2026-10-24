@@ -1,5 +1,7 @@
 import { captureLogs } from '@financas/logging';
-import { describe, expect, it } from 'vitest';
+import {
+  describe, expect, it, onTestFinished,
+} from 'vitest';
 import { createIdentityManager } from '../../../../src/managers/identity';
 import {
   ANA, blankName, fakeDeps, HOUSEHOLD, RECEIVED, SESSION,
@@ -24,13 +26,12 @@ describe('IdentityManager — View / Edit User (uc-13, FR-1.21)', () => {
 
   it('changes only what was sent — names trimmed, preferences flattened — and audits', async () => {
     const { deps, users } = fakeDeps();
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await createIdentityManager(deps)
       .editProfile(CONTEXT, {
         firstName: ' Ana Paula ', lastName: ' Lima ', preferences: { theme: 'light' },
       });
-    logs.stop();
 
     expect(users.update).toHaveBeenCalledWith(ANA.id, {
       firstName: 'Ana Paula', lastName: 'Lima', theme: 'light',

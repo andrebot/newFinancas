@@ -1,6 +1,6 @@
 import { captureLogs } from '@financas/logging';
 import {
-  describe, expect, it, vi,
+  describe, expect, it, onTestFinished, vi,
 } from 'vitest';
 import {
   createAccountManager, subscribeAccountManager,
@@ -94,10 +94,9 @@ describe('AccountManager — household.created (FR-10.1, VBD §3.1b)', () => {
   ])('logs the outcome (seeded: %s) as the system, on the event\'s ID', async (seeded, message) => {
     const { deps, categories } = fakeDeps();
     categories.seedDefaults.mockResolvedValueOnce(seeded);
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await createAccountManager(deps).seedDefaultCategories(HOUSEHOLD_CREATED);
-    logs.stop();
 
     expect(logs.events).toContainEqual(expect.objectContaining({
       level: 'info',
@@ -164,10 +163,9 @@ describe('AccountManager — holding.matured (FR-5.8, FR-6.5, track-investments/
     } = fakeDeps();
     households.listMembers.mockResolvedValueOnce([{ userId: ANA_ID }, { userId: BEA_ID }]);
     notifications.notify.mockRejectedValueOnce(new Error('inbox down'));
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await createAccountManager(deps).notifyMaturedHolding(matured({ visibility: 'shared' }));
-    logs.stop();
 
     expect(notifications.notify).toHaveBeenCalledTimes(2);
     expect(holdings.markMaturedNotified).not.toHaveBeenCalled();
@@ -184,10 +182,9 @@ describe('AccountManager — holding.matured (FR-5.8, FR-6.5, track-investments/
 
   it('logs the notice as the system, on the event\'s ID', async () => {
     const { deps } = fakeDeps();
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await createAccountManager(deps).notifyMaturedHolding(matured());
-    logs.stop();
 
     expect(logs.events).toContainEqual(expect.objectContaining({
       level: 'info',

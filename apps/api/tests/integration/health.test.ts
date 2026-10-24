@@ -2,7 +2,9 @@ import { zError } from '@financas/api-types/zod';
 import { captureLogs } from '@financas/logging';
 import { createAdaptorServer } from '@hono/node-server';
 import request from 'supertest';
-import { describe, expect, it } from 'vitest';
+import {
+  describe, expect, it, onTestFinished,
+} from 'vitest';
 import { appWithMocks } from '../support/app';
 
 /**
@@ -24,9 +26,8 @@ describe('GET /health', () => {
 
 describe('request logging (NFR-OBS-1)', () => {
   it('logs every request with its correlation id', async () => {
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
     const response = await request(server()).get('/health');
-    logs.stop();
 
     expect(logs.events).toContainEqual(expect.objectContaining({
       level: 'info',
@@ -56,10 +57,9 @@ describe('unexpected errors', () => {
     app.get('/boom', () => {
       throw new Error('database unreachable');
     });
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     const response = await request(createAdaptorServer({ fetch: app.fetch })).get('/boom');
-    logs.stop();
 
     expect(response.status).toBe(500);
     expect(logs.events).toContainEqual(expect.objectContaining({

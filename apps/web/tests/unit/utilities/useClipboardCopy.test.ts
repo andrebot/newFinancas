@@ -1,7 +1,7 @@
 import { captureLogs } from '@financas/logging/browser';
 import { act, renderHook } from '@testing-library/react';
 import {
-  afterEach, beforeEach, describe, expect, it, vi,
+  afterEach, beforeEach, describe, expect, it, onTestFinished, vi,
 } from 'vitest';
 import useClipboardCopy from '../../../src/utilities/useClipboardCopy';
 
@@ -47,11 +47,10 @@ describe('useClipboardCopy', () => {
 
   it('logs a refused copy and claims nothing', async () => {
     writeText.mockRejectedValueOnce(new Error('NotAllowedError'));
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
     const { result } = renderHook(() => useClipboardCopy());
 
     await act(() => result.current.copy('a'));
-    logs.stop();
 
     expect(result.current.copied).toBe(false);
     expect(logs.events).toContainEqual(expect.objectContaining({

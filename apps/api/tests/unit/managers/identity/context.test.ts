@@ -1,6 +1,6 @@
 import { captureLogs } from '@financas/logging';
 import {
-  describe, expect, it, vi,
+  describe, expect, it, onTestFinished, vi,
 } from 'vitest';
 import {
   enrollmentStart, loggerFor, refreshTokenExpiry,
@@ -14,10 +14,9 @@ describe('loggerFor', () => {
     [{ correlationId: 'c1' }, 'u2', 'user:u2'],
     [{ correlationId: 'c1' }, undefined, 'unauthenticated'],
   ])('labels %j (user %s) as %s', (context, userId, actor) => {
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     loggerFor(context, userId).info('x');
-    logs.stop();
 
     expect(logs.events[0]).toMatchObject({ label: 'IdentityManager', correlationId: 'c1', actor });
   });

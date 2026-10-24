@@ -1,5 +1,7 @@
 import { captureLogs } from '@financas/logging';
-import { describe, expect, it } from 'vitest';
+import {
+  describe, expect, it, onTestFinished,
+} from 'vitest';
 import { createIdentityManager } from '../../../../src/managers/identity';
 import {
   ANA, blankName, fakeDeps, HOUSEHOLD, MEMBER, NOW, SESSION,
@@ -15,10 +17,9 @@ const FORBIDDEN = { apiError: { status: 403, code: 'auth.forbidden' } };
 describe('IdentityManager — Create Household (uc-01, FR-1.4)', () => {
   it('makes the caller Owner, announces it in their language, audits', async () => {
     const { deps, households, bus } = fakeDeps();
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     const created = await createIdentityManager(deps).createHousehold(CONTEXT, 'Casa');
-    logs.stop();
 
     expect(households.insert).toHaveBeenCalledWith('Casa', ANA.id);
     expect(created).toEqual({
@@ -76,10 +77,9 @@ describe('IdentityManager — households', () => {
 
   it('deletes a household for its Owner (uc-02), audited', async () => {
     const { deps, households, authorization } = fakeDeps();
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await createIdentityManager(deps).deleteHousehold(CONTEXT, HOUSEHOLD.id);
-    logs.stop();
 
     expect(authorization.authorize)
       .toHaveBeenCalledWith(ANA.id, HOUSEHOLD.id, { action: 'household.delete' });

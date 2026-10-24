@@ -8,6 +8,7 @@ import { readLoggingEnv, type LoggingEnv } from './env';
 import {
   isConsoleOnly, redactEvent, stampAudit, type LogEvent,
 } from './formats';
+import type { OnTestFinished } from './capture';
 import { LEVELS } from './levels';
 import loggingSettings from './settings';
 
@@ -75,11 +76,14 @@ export const logger = winston.createLogger({
 export const createLogger = (context: LogContext): Logger => logger.child(context);
 
 /**
- * For tests: turns the logger on and records every event it receives.
+ * For tests: turns the logger on and records every event it receives, until
+ * the test finishes — the stop is registered on the runner's hook, so a test
+ * that throws can't leave the logger on for the rest of its file (OQ-199).
  *
- * @returns The recorded events and a function that stops recording.
+ * @param onFinished - The runner's clean-up hook, e.g. Vitest's `onTestFinished`.
+ * @returns The recorded events.
  */
-export const captureLogs = () => {
+export const captureLogs = (onFinished: OnTestFinished): { readonly events: LogEvent[] } => {
   const events: LogEvent[] = [];
   const transport = new winston.transports.Stream({
     level: 'debug',
@@ -94,11 +98,9 @@ export const captureLogs = () => {
   const wasSilent = logger.silent;
   logger.silent = false;
   logger.add(transport);
-  return {
-    events,
-    stop: () => {
-      logger.remove(transport);
-      logger.silent = wasSilent;
-    },
-  };
+  onFinished(() => {
+    logger.remove(transport);
+    logger.silent = wasSilent;
+  });
+  return { events };
 };

@@ -1,6 +1,8 @@
 import { captureLogs } from '@financas/logging';
 import type { Mock } from 'vitest';
-import { describe, expect, it } from 'vitest';
+import {
+  describe, expect, it, onTestFinished,
+} from 'vitest';
 import { createIdentityManager } from '../../../../src/managers/identity';
 import {
   ANA, BEN_ID, fakeDeps, HOUSEHOLD, INVITATION, NOW, SESSION,
@@ -70,10 +72,10 @@ describe('IdentityManager ↔ AuthorizationUtility seam (I1, OQ-117)', () => {
         userId === BEN_ID ? { role: 'Member', joinedAt: NOW } : undefined
       ),
     );
-    const logs = captureLogs();
+    // The logger on, so the use case logs as it does outside tests.
+    captureLogs(onTestFinished);
 
     await run(createIdentityManager(fakes.deps));
-    logs.stop();
 
     expect(fakes.authorization.authorize).toHaveBeenCalledOnce();
     expect(fakes.authorization.authorize).toHaveBeenCalledWith(ANA.id, HOUSEHOLD.id, { action });
@@ -90,10 +92,9 @@ describe('IdentityManager ↔ AuthorizationUtility seam (I1, OQ-117)', () => {
     ) => {
       const fakes = fakeDeps();
       fakes.authorization.authorize.mockResolvedValueOnce(outcome);
-      const logs = captureLogs();
+      const logs = captureLogs(onTestFinished);
 
       await expect(run(createIdentityManager(fakes.deps))).rejects.toMatchObject(answer);
-      logs.stop();
 
       expect(touchedBeyondAuthorization(fakes)).toEqual([]);
       expect(logs.events).toEqual([]);

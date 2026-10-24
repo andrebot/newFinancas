@@ -1,6 +1,6 @@
 import { captureLogs } from '@financas/logging';
 import {
-  describe, expect, it, vi,
+  describe, expect, it, onTestFinished, vi,
 } from 'vitest';
 import { createManagers } from '../../../src/managers';
 import type { CorrelationId } from '../../../src/utilities/correlationId';
@@ -89,11 +89,10 @@ describe('I5 — household.created: IdentityManager → AccountManager (FR-10.1,
 
   it('logs the seeding on the creating request\'s correlation ID (OQ-99)', async () => {
     const { bus, identity } = wired();
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await identity.createHousehold(CONTEXT, 'Casa');
     await bus.drain();
-    logs.stop();
 
     expect(logs.events).toContainEqual(expect.objectContaining({
       message: 'Default categories seeded',
