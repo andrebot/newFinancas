@@ -7,7 +7,7 @@ import type { Visibility } from '../../db/schema/values';
 import { validationFailed, type ApiError, type FieldDetail } from '../../http/apiError';
 import type { DataAction } from '../../utilities/authorization';
 import { checkFields, nonBlank } from '../../utilities/validation';
-import { accessToOwned, requireAccess } from '../access';
+import { accessToOwned, memberOnly, requireAccess } from '../access';
 import type { SignedInContext } from '../requestContext';
 import { requireNoProblems } from '../validation';
 import { requestLogger, todayOf, type AccountDeps } from './context';
@@ -273,10 +273,7 @@ const createBudgets = (deps: AccountDeps) => ({
     filter: { readonly visibility?: Visibility | undefined },
   ): Promise<Budget[]> => {
     const { userId } = context.actor;
-    await requireAccess(deps.authorization, userId, householdId, accessToOwned(
-      undefined,
-      'data.view',
-    ));
+    await requireAccess(deps.authorization, userId, householdId, memberOnly);
     return deps.budgets.list(householdId, userId, filter);
   },
 

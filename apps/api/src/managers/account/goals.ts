@@ -2,7 +2,7 @@ import type { Goal, GoalChanges, GoalStatus } from '../../accessors/goalAccessor
 import type { Visibility } from '../../db/schema/values';
 import type { DataAction } from '../../utilities/authorization';
 import { checkFields, nonBlank } from '../../utilities/validation';
-import { accessToOwned, requireAccess } from '../access';
+import { accessToOwned, memberOnly, requireAccess } from '../access';
 import type { SignedInContext } from '../requestContext';
 import { requireNoProblems } from '../validation';
 import { requestLogger, type AccountDeps } from './context';
@@ -133,10 +133,7 @@ const createGoals = (deps: AccountDeps) => ({
     status: GoalStatus,
   ): Promise<Goal[]> => {
     const { userId } = context.actor;
-    await requireAccess(deps.authorization, userId, householdId, accessToOwned(
-      undefined,
-      'data.view',
-    ));
+    await requireAccess(deps.authorization, userId, householdId, memberOnly);
     return deps.goals.list(householdId, userId, status);
   },
 

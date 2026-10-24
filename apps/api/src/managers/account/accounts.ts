@@ -8,7 +8,9 @@ import type {
 import type { AccountType, Visibility } from '../../db/schema/values';
 import type { DataAction } from '../../utilities/authorization';
 import { checkFields, nonBlank } from '../../utilities/validation';
-import { accessToOwned, forbidden, requireAccess } from '../access';
+import {
+  accessToOwned, forbidden, memberOnly, requireAccess,
+} from '../access';
 import type { SignedInContext } from '../requestContext';
 import inSequence from '../sequence';
 import requireValidFields, { requireNoProblems } from '../validation';
@@ -236,10 +238,7 @@ const createAccounts = (deps: AccountDeps) => ({
     householdId: string,
     filter: AccountFilter,
   ): Promise<AccountView[]> => {
-    await requireAccess(deps.authorization, context.actor.userId, householdId, accessToOwned(
-      undefined,
-      'data.view',
-    ));
+    await requireAccess(deps.authorization, context.actor.userId, householdId, memberOnly);
     const accounts = await deps.accounts.list(householdId, context.actor.userId, filter);
     return viewAccounts(deps, accounts, todayOf(deps));
   },
@@ -258,10 +257,7 @@ const createAccounts = (deps: AccountDeps) => ({
     context: SignedInContext,
     householdId: string,
   ): Promise<{ inUse: boolean }> => {
-    await requireAccess(deps.authorization, context.actor.userId, householdId, accessToOwned(
-      undefined,
-      'data.view',
-    ));
+    await requireAccess(deps.authorization, context.actor.userId, householdId, memberOnly);
     return { inUse: await deps.accounts.hasAccountInUse(householdId) };
   },
 

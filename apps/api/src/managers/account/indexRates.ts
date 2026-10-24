@@ -2,7 +2,7 @@ import { INDEX_CODES, type IndexCode, type IndexCodeValue } from '@financas/refe
 import type { DatedRate, IndexRateValue } from '../../accessors/indexRateAccessor';
 import type { DataAction } from '../../utilities/authorization';
 import { dateWithin } from '../../utilities/validation';
-import { accessToOwned, requireAccess } from '../access';
+import { accessToOwned, memberOnly, requireAccess } from '../access';
 import type { SignedInContext } from '../requestContext';
 import requireValidFields from '../validation';
 import { requestLogger, todayOf, type AccountDeps } from './context';
@@ -123,10 +123,7 @@ const createIndexRates = (deps: AccountDeps) => ({
     context: SignedInContext,
     householdId: string,
   ): Promise<IndexRateSeries[]> => {
-    await requireAccess(deps.authorization, context.actor.userId, householdId, accessToOwned(
-      undefined,
-      'data.view',
-    ));
+    await requireAccess(deps.authorization, context.actor.userId, householdId, memberOnly);
     return seriesOf(await deps.indexRates.list(householdId));
   },
 

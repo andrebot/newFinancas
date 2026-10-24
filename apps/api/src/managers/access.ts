@@ -58,6 +58,15 @@ export interface Owned {
 }
 
 /**
+ * The access request that is only the membership check: what a household's
+ * lists ask, since every member may read them (each list then holds only
+ * what its reader may see), and what data that isn't there falls back to.
+ */
+export const memberOnly: AccessRequest = {
+  action: 'data.view', visibility: 'shared', ownerUserId: null,
+};
+
+/**
  * The access request for an action on personal-or-shared data; for data that
  * isn't there, only the membership check, so a non-member still learns nothing.
  *
@@ -68,5 +77,5 @@ export interface Owned {
 export const accessToOwned = (owned: Owned | undefined, action: DataAction): AccessRequest => (
   owned
     ? { action, visibility: owned.visibility, ownerUserId: owned.ownerUserId }
-    : { action: 'data.view', visibility: 'shared', ownerUserId: null }
+    : memberOnly
 );
