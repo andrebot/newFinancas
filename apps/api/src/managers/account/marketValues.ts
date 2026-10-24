@@ -47,8 +47,8 @@ export const valuationChangesOf = (edit: MarketValueEdit): Partial<Valuation> =>
  * @param context - The signed-in request.
  * @param ids - The household and the Holding.
  * @param asOf - The value's date, if one is sent.
- * @throws {ApiError} 404 `household.not_found` / `holding.not_found`; 403
- *   `auth.forbidden`; 409 `holding.archived` / `holding.not_market_priced`; 422
+ * @throws {DomainError} `household.not_found` / `holding.not_found`;
+ *   `auth.forbidden`; `holding.archived` / `holding.not_market_priced`;
  *   `validation.failed`.
  */
 const requireMaintainable = async (
@@ -99,7 +99,7 @@ const createMarketValues = (deps: AccountDeps) => ({
    * @param holdingId - The Holding.
    * @param range - Optional inclusive date bounds.
    * @returns The snapshots, newest first.
-   * @throws {ApiError} 404 `household.not_found` / `holding.not_found`.
+   * @throws {DomainError} `household.not_found` / `holding.not_found`.
    */
   listValuationSnapshots: async (
     context: SignedInContext,
@@ -119,8 +119,8 @@ const createMarketValues = (deps: AccountDeps) => ({
    * @param holdingId - The Holding.
    * @param input - The value and its date, not after today.
    * @returns The snapshot.
-   * @throws {ApiError} 404 `household.not_found` / `holding.not_found`; 403
-   *   `auth.forbidden`; 409 `holding.archived` / `holding.not_market_priced`; 422
+   * @throws {DomainError} `household.not_found` / `holding.not_found`;
+   *   `auth.forbidden`; `holding.archived` / `holding.not_market_priced`;
    *   `validation.failed`.
    */
   recordMarketValue: async (
@@ -149,9 +149,9 @@ const createMarketValues = (deps: AccountDeps) => ({
    * @param snapshotId - The snapshot.
    * @param edit - The fields to change; a date not after today.
    * @returns The snapshot as it now stands.
-   * @throws {ApiError} 404 `household.not_found` / `holding.not_found` /
-   *   `snapshot.not_found`; 403 `auth.forbidden`; 409 `holding.archived` /
-   *   `holding.not_market_priced` / `snapshot.automatic_not_editable`; 422
+   * @throws {DomainError} `household.not_found` / `holding.not_found` /
+   *   `snapshot.not_found`; `auth.forbidden`; `holding.archived` /
+   *   `holding.not_market_priced` / `snapshot.automatic_not_editable`;
    *   `validation.failed`.
    */
   editMarketValue: async (
@@ -184,8 +184,8 @@ const createMarketValues = (deps: AccountDeps) => ({
    * @param householdId - The household.
    * @param holdingId - The Holding.
    * @param snapshotId - The snapshot.
-   * @throws {ApiError} 404 `household.not_found` / `holding.not_found` /
-   *   `snapshot.not_found`; 403 `auth.forbidden`; 409 `holding.archived` /
+   * @throws {DomainError} `household.not_found` / `holding.not_found` /
+   *   `snapshot.not_found`; `auth.forbidden`; `holding.archived` /
    *   `holding.not_market_priced` / `snapshot.automatic_not_editable`.
    */
   deleteMarketValue: async (

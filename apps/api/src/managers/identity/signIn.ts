@@ -1,6 +1,6 @@
 import type { UserWithCredentials } from '../../accessors/userAccessor';
 import { authentication } from '../../config/constants';
-import type { ApiError } from '../../http/apiError';
+import type { DomainError } from '../../utilities/domainError';
 import type { ChallengeClaims } from '../../utilities/authentication';
 import {
   emailKeyOf, enrollmentStart, loggerFor, refreshTokenExpiry,
@@ -15,7 +15,7 @@ import {
 // Login (uc-14), MFA Recovery (uc-20), Refresh Tokens (uc-14b) and Logout
 // (uc-15). Sign-in takes two steps (OQ-145): the password earns a five-minute
 // challenge token, which the MFA code — or a single-use recovery code — trades
-// for a session. The password step answers one 401 for every failure, so it
+// for a session. The password step answers one code for every failure, so it
 // never reveals a registered email (OQ-114); the second step names a wrong
 // code, since its caller already proved the password. Both steps count against
 // the same per-address lockout, and only a full sign-in clears it.
@@ -110,7 +110,7 @@ const createSignIn = (deps: IdentityDeps) => {
    *
    * @param emailKey - The address.
    * @param now - Current time.
-   * @throws {ApiError} 429 `auth.too_many_attempts`.
+   * @throws {DomainError} `auth.too_many_attempts`.
    */
   const refuseIfLocked = async (emailKey: string, now: Date): Promise<void> => {
     const lockedUntil = await users.findLoginLock(emailKey);
@@ -145,11 +145,11 @@ const createSignIn = (deps: IdentityDeps) => {
    * @param secondFactor - The code check.
    * @param now - Current time.
    * @returns The authenticated user.
-   * @throws {ApiError} `expired()`; 429 `auth.too_many_attempts`; 401 `auth.mfa_invalid`.
+   * @throws {DomainError} `expired()`; `auth.too_many_attempts`; `auth.mfa_invalid`.
    */
   const completeStep = async (
     claims: ChallengeClaims | undefined,
-    expired: () => ApiError,
+    expired: () => DomainError,
     secondFactor: SecondFactor,
     now: Date,
   ): Promise<UserWithCredentials> => {
@@ -307,7 +307,7 @@ const createSignIn = (deps: IdentityDeps) => {
      * @param context - The request.
      * @param credentials - Email and password.
      * @returns The challenge token for the second step, or the enrollment to finish.
-     * @throws {ApiError} 429 `auth.too_many_attempts`; 401 `auth.invalid_credentials`.
+     * @throws {DomainError} `auth.too_many_attempts`; `auth.invalid_credentials`.
      */
     login: async (context: RequestContext, credentials: Credentials): Promise<LoginStep> => {
       const now = deps.now();
@@ -331,8 +331,8 @@ const createSignIn = (deps: IdentityDeps) => {
      * @param verification - Challenge token and MFA code.
      * @param deviceInfo - The device (User-Agent), for the sessions list.
      * @returns Access and refresh tokens.
-     * @throws {ApiError} 401 `auth.challenge_expired`; 429 `auth.too_many_attempts`;
-     *   401 `auth.mfa_invalid`.
+     * @throws {DomainError} `auth.challenge_expired`; `auth.too_many_attempts`;
+     *   `auth.mfa_invalid`.
      */
     verifyMfa: async (
       context: RequestContext,
@@ -359,8 +359,8 @@ const createSignIn = (deps: IdentityDeps) => {
      * @param confirmation - Enrollment token and authenticator code.
      * @param deviceInfo - The device (User-Agent), for the sessions list.
      * @returns Access and refresh tokens.
-     * @throws {ApiError} 401 `auth.enrollment_expired`; 429 `auth.too_many_attempts`;
-     *   401 `auth.mfa_invalid`.
+     * @throws {DomainError} `auth.enrollment_expired`; `auth.too_many_attempts`;
+     *   `auth.mfa_invalid`.
      */
     confirmMfaEnrollment: async (
       context: RequestContext,
@@ -387,8 +387,8 @@ const createSignIn = (deps: IdentityDeps) => {
      * @param verification - Challenge token and recovery code.
      * @param deviceInfo - The device (User-Agent), for the sessions list.
      * @returns Access and refresh tokens.
-     * @throws {ApiError} 401 `auth.challenge_expired`; 429 `auth.too_many_attempts`;
-     *   401 `auth.mfa_invalid`.
+     * @throws {DomainError} `auth.challenge_expired`; `auth.too_many_attempts`;
+     *   `auth.mfa_invalid`.
      */
     recoverWithCode: async (
       context: RequestContext,
@@ -413,7 +413,7 @@ const createSignIn = (deps: IdentityDeps) => {
      * @param context - The request.
      * @param refreshToken - The token the client holds.
      * @returns New access and refresh tokens.
-     * @throws {ApiError} 401 `auth.refresh_invalid`.
+     * @throws {DomainError} `auth.refresh_invalid`.
      */
     refresh: async (context: RequestContext, refreshToken: string): Promise<AuthTokens> => {
       const now = deps.now();

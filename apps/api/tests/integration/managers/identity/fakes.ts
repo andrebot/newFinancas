@@ -14,8 +14,7 @@ export const minutes = (count: number) => new Date(NOW.getTime() + count * 60_00
  * @returns A matcher for `rejects.toMatchObject`.
  */
 export const blankName = (field: string) => ({
-  apiError: {
-    status: 422,
+  domainError: {
     code: 'validation.failed',
     details: [{ field, code: 'string.min', params: { min: 1 } }],
   },

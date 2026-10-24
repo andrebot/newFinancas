@@ -12,15 +12,15 @@ import { householdNotFound, unauthenticated } from './errors';
 // FR-1.4/1.7). Every action checks the caller's household role first (OQ-111).
 
 /**
- * Checks the caller may act in the household (OQ-111): a non-member gets 404,
- * a member without the role 403.
+ * Checks the caller may act in the household (OQ-111): a non-member gets
+ * `household.not_found`, a member without the role `auth.forbidden`.
  *
  * @param deps - The tier below.
  * @param context - The signed-in request.
  * @param householdId - The household.
  * @param request - The action.
  * @returns The caller's role.
- * @throws {ApiError} 404 `household.not_found`; 403 `auth.forbidden`.
+ * @throws {DomainError} `household.not_found`; `auth.forbidden`.
  */
 export const requireAccess = (
   deps: IdentityDeps,
@@ -46,7 +46,7 @@ const createHouseholds = (deps: IdentityDeps) => ({
    * @param context - The signed-in request.
    * @param name - The household's name; trimmed here, and must not be blank.
    * @returns The household, with the caller's role.
-   * @throws {ApiError} 422 `validation.failed` for a blank name; 401
+   * @throws {DomainError} `validation.failed` for a blank name;
    *   `auth.unauthenticated` when the account is gone.
    */
   createHousehold: async (context: SignedInContext, name: string): Promise<UserHousehold> => {
@@ -72,7 +72,7 @@ const createHouseholds = (deps: IdentityDeps) => ({
    * @param context - The signed-in request.
    * @param householdId - The household.
    * @returns The household, with the caller's role.
-   * @throws {ApiError} 404 `household.not_found` when missing or not theirs.
+   * @throws {DomainError} `household.not_found` when missing or not theirs.
    */
   getHousehold: async (context: SignedInContext, householdId: string): Promise<UserHousehold> => {
     const mine = await deps.households.listForUser(context.actor.userId);
@@ -87,7 +87,7 @@ const createHouseholds = (deps: IdentityDeps) => ({
    *
    * @param context - The signed-in request.
    * @param householdId - The household.
-   * @throws {ApiError} 404 `household.not_found`; 403 `auth.forbidden`.
+   * @throws {DomainError} `household.not_found`; `auth.forbidden`.
    */
   deleteHousehold: async (context: SignedInContext, householdId: string): Promise<void> => {
     await requireAccess(deps, context, householdId, { action: 'household.delete' });
@@ -103,7 +103,7 @@ const createHouseholds = (deps: IdentityDeps) => ({
    * @param context - The signed-in request.
    * @param householdId - The household.
    * @returns The members, with names and roles.
-   * @throws {ApiError} 404 `household.not_found`.
+   * @throws {DomainError} `household.not_found`.
    */
   listMembers: async (context: SignedInContext, householdId: string): Promise<Member[]> => {
     await requireAccess(deps, context, householdId, { action: 'household.view' });

@@ -74,7 +74,7 @@ export interface AccountEdit {
  * @param ids - The household and the Account.
  * @param action - The data action.
  * @returns The Account.
- * @throws {ApiError} 404 `household.not_found` / `account.not_found`; 403 `auth.forbidden`.
+ * @throws {DomainError} `household.not_found` / `account.not_found`; `auth.forbidden`.
  */
 const loadAccount = async (
   deps: AccountDeps,
@@ -125,7 +125,7 @@ export const cardChangesOf = ({ id: _, ...fields }: CardEdit): CreditCardChanges
  * @param account - The Account.
  * @param actorId - The acting user.
  * @param visibility - The visibility asked for, if any.
- * @throws {ApiError} 409 `account.archived`; 403 `auth.forbidden`.
+ * @throws {DomainError} `account.archived`; `auth.forbidden`.
  */
 const requireEditable = (
   account: Account,
@@ -145,7 +145,7 @@ const requireEditable = (
  * @param account - The Account.
  * @param attached - Its cards.
  * @param cards - The changes.
- * @throws {ApiError} 422 `account.cards_not_allowed`; 404 `credit_card.not_found`.
+ * @throws {DomainError} `account.cards_not_allowed`; `credit_card.not_found`.
  */
 const requireCardChanges = (
   account: Account,
@@ -170,7 +170,7 @@ const requireCardChanges = (
  * @param cards - The changes, already checked.
  * @param today - `YYYY-MM-DD`: where a new card's first cycle opens.
  * @returns The attached cards' ids.
- * @throws {ApiError} 404 `credit_card.not_found`.
+ * @throws {DomainError} `credit_card.not_found`.
  */
 const writeCardChanges = async (
   stores: AccountStores,
@@ -231,7 +231,7 @@ const createAccounts = (deps: AccountDeps) => ({
    * @param householdId - The household.
    * @param filter - An optional visibility.
    * @returns The Accounts.
-   * @throws {ApiError} 404 `household.not_found`.
+   * @throws {DomainError} `household.not_found`.
    */
   listAccounts: async (
     context: SignedInContext,
@@ -251,7 +251,7 @@ const createAccounts = (deps: AccountDeps) => ({
    * @param context - The signed-in request.
    * @param householdId - The household.
    * @returns Whether one is in use.
-   * @throws {ApiError} 404 `household.not_found`.
+   * @throws {DomainError} `household.not_found`.
    */
   getAccountStatus: async (
     context: SignedInContext,
@@ -268,7 +268,7 @@ const createAccounts = (deps: AccountDeps) => ({
    * @param householdId - The household.
    * @param accountId - The Account.
    * @returns The Account.
-   * @throws {ApiError} 404 `household.not_found` / `account.not_found`.
+   * @throws {DomainError} `household.not_found` / `account.not_found`.
    */
   getAccount: async (
     context: SignedInContext,
@@ -288,7 +288,7 @@ const createAccounts = (deps: AccountDeps) => ({
    * @param householdId - The household.
    * @param input - The Account; its name is trimmed and must not be blank.
    * @returns The Account, its balance the opening one and its cards owing nothing.
-   * @throws {ApiError} 404 `household.not_found`; 403 `auth.forbidden`; 422
+   * @throws {DomainError} `household.not_found`; `auth.forbidden`;
    *   `validation.failed` / `account.cards_not_allowed`.
    */
   createAccount: async (
@@ -340,9 +340,9 @@ const createAccounts = (deps: AccountDeps) => ({
    * @param accountId - The Account.
    * @param edit - The fields to change; a name is trimmed and must not be blank.
    * @returns The Account as it now stands.
-   * @throws {ApiError} 404 `household.not_found` / `account.not_found` /
-   *   `credit_card.not_found`; 403 `auth.forbidden`; 409 `account.archived`;
-   *   422 `validation.failed` / `account.cards_not_allowed`.
+   * @throws {DomainError} `household.not_found` / `account.not_found` /
+   *   `credit_card.not_found`; `auth.forbidden`; `account.archived`;
+   *   `validation.failed` / `account.cards_not_allowed`.
    */
   editAccount: async (
     context: SignedInContext,
@@ -379,7 +379,7 @@ const createAccounts = (deps: AccountDeps) => ({
    * @param context - The signed-in request.
    * @param householdId - The household.
    * @param accountId - The Account.
-   * @throws {ApiError} 404 `household.not_found` / `account.not_found`; 403
+   * @throws {DomainError} `household.not_found` / `account.not_found`;
    *   `auth.forbidden`.
    */
   archiveAccount: async (
@@ -403,7 +403,7 @@ const createAccounts = (deps: AccountDeps) => ({
    * @param accountId - The Account.
    * @param range - The months; open ends reach the history's ends.
    * @returns The balances.
-   * @throws {ApiError} 404 `household.not_found` / `account.not_found`.
+   * @throws {DomainError} `household.not_found` / `account.not_found`.
    */
   getAccountBalances: async (
     context: SignedInContext,
@@ -424,7 +424,7 @@ const createAccounts = (deps: AccountDeps) => ({
    * @param creditCardId - The card.
    * @param range - The cycles, by closing month; open ends reach the history's ends.
    * @returns The balances.
-   * @throws {ApiError} 404 `household.not_found` / `credit_card.not_found`.
+   * @throws {DomainError} `household.not_found` / `credit_card.not_found`.
    */
   getCreditCardBalances: async (
     context: SignedInContext,

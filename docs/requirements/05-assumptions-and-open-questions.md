@@ -842,7 +842,7 @@ locally and on GitHub Actions, using the same root scripts in both places.
      catalogs have it.
   3. A unit test parses every message as ICU and checks that each key
      uses **the same argument names in every locale**.
-- **Backend codes are typed by the catalog:** `ApiErrorInit.code` is
+- **Backend codes are typed by the catalog:** `DomainErrorInit.code` (OQ-202; was `ApiErrorInit.code`) is
   `ErrorCode` and `FieldDetail.code` is `FieldCode`, so the API cannot
   emit a code that has no translation (OQ-82's "catalog before the
   backend emits it"). New codes are added to the catalog as each
@@ -1584,6 +1584,8 @@ OQ-112:** `NotificationDeliveryUtility` was misclassified.
   (OQ-111). The verified claims are the request's actor, and the request
   log now names it.
 - **A Manager rejects by throwing the contract's error (code + status).**
+  *Revised by OQ-202: a Manager throws the code only; the HTTP layer gives
+  it its status. Choosing the code is still the Manager's security decision.*
   First Manager, so this sets the convention: choosing 401 vs 404 vs 409 is
   part of the use case's security decisions (enumeration avoidance, one
   answer for every login failure). Accessors keep returning typed results
@@ -5314,10 +5316,36 @@ fixes and doc drift they bring, is `docs/planning/04-slice-3-readiness.md`.
   `utilities/validation.ts`); the HTTP error envelope imports it.
 - **The membership-only check is `memberOnly`** (`managers/access.ts`),
   asked by the household lists instead of `accessToOwned(undefined, 'data.view')`.
-- **Managers answering with HTTP errors (OQ-114, slice 1's A6) stays
-  accepted** for now. It is decided at task 123 (`N9`, the local scheduler),
-  the first caller that isn't HTTP: map `ApiError` there, or move the
-  Managers to domain errors mapped at the HTTP edge.
+- **Managers refuse by code; the HTTP layer picks the status** (revising
+  OQ-114 and slice 1's A6; decided after the review, its own PR). The review
+  first deferred this to task 123, but that rested on two wrong premises.
+  The scheduler never calls a Manager: it publishes on the bus, and bus
+  subscribers were already non-HTTP callers. And the status was never the
+  Manager's decision: every code in use always came with the
+  same status, so the decision is the *code* (e.g. one answer for every login
+  failure) and the status only follows from it. What was decided:
+  - **`utilities/domainError.ts`**: `createDomainError({ code, message,
+    params?, details?, retryAfterSeconds? })`, `isDomainError`,
+    `validationFailed`. It has no status and no headers. Managers throw it,
+    and so do the HTTP layer's own checks (authentication, contract
+    validation).
+  - **`http/errorStatus.ts`**: `STATUS_OF`, a `Record<ErrorCode, status>`.
+    It is keyed by every code the catalog translates, so a new code without
+    a status doesn't compile. A test checks it against the codes
+    `openapi.yaml`'s shared responses list for their statuses. The error
+    handler looks the status up there.
+  - **`Retry-After`** comes from the refusal's `retryAfterSeconds`, a fact
+    about the lockout and not a header. The handler writes the header, and
+    the body keeps `params.retryAfterMinutes`.
+  - **Nothing in `managers/` or `utilities/` imports `http/`.** Manager tests
+    assert the refusal's code, params and details. The statuses are proven
+    once, against the contract, and by the route tests.
+  - **A failed bus subscriber's log line keeps the refusal's code and
+    params** (`failureDetails`), which `String(error)` dropped.
+  - The API's responses don't change: same codes, statuses and envelope.
+  Weighed and rejected: keeping the status in the Manager while fixing only
+  the header and the bus log. It was cheaper, but it kept 41 copies of a
+  lookup the compiler can check once.
 
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 

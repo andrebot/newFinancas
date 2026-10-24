@@ -31,7 +31,7 @@ export interface PasswordResetConfirmation {
  * anything else, so a too-short password never uses up a reset link (OQ-103).
  *
  * @param newPassword - The proposed password.
- * @throws {ApiError} 422 `password.too_short`.
+ * @throws {DomainError} `password.too_short`.
  */
 const requireLongEnough = (newPassword: string): void => {
   if (checkPasswordLength(newPassword) !== undefined) throw passwordTooShort();
@@ -76,8 +76,8 @@ const createPasswords = (deps: IdentityDeps) => {
      *
      * @param context - The signed-in request.
      * @param change - Current and new password.
-     * @throws {ApiError} 422 `password.too_short`; 422 `password.current_incorrect`
-     *   (not 401: the user is signed in and stays so — OQ-115).
+     * @throws {DomainError} `password.too_short`; `password.current_incorrect`
+     *   (not an authentication failure: the user is signed in and stays so — OQ-115).
      */
     changePassword: async (context: SignedInContext, change: PasswordChange): Promise<void> => {
       requireLongEnough(change.newPassword);
@@ -114,7 +114,7 @@ const createPasswords = (deps: IdentityDeps) => {
      *
      * @param context - The request.
      * @param confirmation - The link's token and the new password.
-     * @throws {ApiError} 422 `password.too_short`; 400 `password_reset.token_invalid`.
+     * @throws {DomainError} `password.too_short`; `password_reset.token_invalid`.
      */
     confirmPasswordReset: async (
       context: RequestContext,

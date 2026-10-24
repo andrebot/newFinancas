@@ -35,7 +35,7 @@ const createInvitations = (deps: IdentityDeps) => {
    * @param context - The signed-in request.
    * @param invitationId - The invitation.
    * @returns The invitation.
-   * @throws {ApiError} 404 `invitation.not_found`.
+   * @throws {DomainError} `invitation.not_found`.
    */
   const ownInvitation = async (
     context: SignedInContext,
@@ -51,7 +51,7 @@ const createInvitations = (deps: IdentityDeps) => {
    *
    * @param invitationId - The invitation.
    * @param resolution - accepted, declined or revoked.
-   * @throws {ApiError} 409 `invitation.not_pending`.
+   * @throws {DomainError} `invitation.not_pending`.
    */
   const resolve = async (invitationId: string, resolution: Resolution): Promise<void> => {
     const resolved = await invitations.resolve(invitationId, resolution, deps.now());
@@ -63,7 +63,7 @@ const createInvitations = (deps: IdentityDeps) => {
    *
    * @param householdId - The household.
    * @param inviteeId - The person invited.
-   * @throws {ApiError} 409 `invitation.already_member` / `invitation.already_pending`.
+   * @throws {DomainError} `invitation.already_member` / `invitation.already_pending`.
    */
   const refuseDuplicates = async (householdId: string, inviteeId: string): Promise<void> => {
     if (await deps.households.findMembership(householdId, inviteeId)) throw alreadyMember();
@@ -96,8 +96,8 @@ const createInvitations = (deps: IdentityDeps) => {
      * @param householdId - The household.
      * @param request - The invitee's email and the offered role.
      * @returns The pending invitation.
-     * @throws {ApiError} 404 `household.not_found` / `invitation.invitee_not_registered`;
-     *   403 `auth.forbidden`; 409 `invitation.already_member` / `already_pending`.
+     * @throws {DomainError} `household.not_found` / `invitation.invitee_not_registered`;
+     *   `auth.forbidden`; `invitation.already_member` / `already_pending`.
      */
     inviteUser: async (
       context: SignedInContext,
@@ -131,7 +131,7 @@ const createInvitations = (deps: IdentityDeps) => {
      * @param context - The signed-in request.
      * @param householdId - The household.
      * @returns The invitations.
-     * @throws {ApiError} 404 `household.not_found`; 403 `auth.forbidden`.
+     * @throws {DomainError} `household.not_found`; `auth.forbidden`.
      */
     listHouseholdInvitations: async (
       context: SignedInContext,
@@ -147,8 +147,8 @@ const createInvitations = (deps: IdentityDeps) => {
      * @param context - The signed-in request.
      * @param householdId - The household.
      * @param invitationId - The invitation.
-     * @throws {ApiError} 404 `household.not_found` / `invitation.not_found`; 403;
-     *   409 `invitation.not_pending`.
+     * @throws {DomainError} `household.not_found` / `invitation.not_found`; `auth.forbidden`;
+     *   `invitation.not_pending`.
      */
     revokeInvitation: async (
       context: SignedInContext,
@@ -172,7 +172,7 @@ const createInvitations = (deps: IdentityDeps) => {
      * @param context - The signed-in request.
      * @param invitationId - The caller's invitation.
      * @returns The household joined and the role.
-     * @throws {ApiError} 404 `invitation.not_found`; 409 `invitation.not_pending`.
+     * @throws {DomainError} `invitation.not_found`; `invitation.not_pending`.
      */
     acceptInvitation: async (
       context: SignedInContext,
@@ -196,7 +196,7 @@ const createInvitations = (deps: IdentityDeps) => {
      *
      * @param context - The signed-in request.
      * @param invitationId - The caller's invitation.
-     * @throws {ApiError} 404 `invitation.not_found`; 409 `invitation.not_pending`.
+     * @throws {DomainError} `invitation.not_found`; `invitation.not_pending`.
      */
     declineInvitation: async (context: SignedInContext, invitationId: string): Promise<void> => {
       const invitation = await ownInvitation(context, invitationId);

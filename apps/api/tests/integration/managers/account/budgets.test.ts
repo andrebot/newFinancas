@@ -19,9 +19,9 @@ const NEW_BUDGET = {
   visibility: 'shared' as const,
   targets: [{ categoryId: CATEGORY.id }],
 };
-const HOUSEHOLD_NOT_FOUND = { apiError: { status: 404, code: 'household.not_found' } };
-const FORBIDDEN = { apiError: { status: 403, code: 'auth.forbidden' } };
-const BUDGET_NOT_FOUND = { apiError: { status: 404, code: 'budget.not_found' } };
+const HOUSEHOLD_NOT_FOUND = { domainError: { code: 'household.not_found' } };
+const FORBIDDEN = { domainError: { code: 'auth.forbidden' } };
+const BUDGET_NOT_FOUND = { domainError: { code: 'budget.not_found' } };
 /** What AuthorizationUtility decides on when there is no Budget to look at. */
 const MEMBERS_ONLY = { action: 'data.view', visibility: 'shared', ownerUserId: null };
 
@@ -32,7 +32,7 @@ const MEMBERS_ONLY = { action: 'data.view', visibility: 'shared', ownerUserId: n
  * @returns The expected error.
  */
 const invalid = (...details: object[]) => ({
-  apiError: { status: 422, code: 'validation.failed', details },
+  domainError: { code: 'validation.failed', details },
 });
 
 /**
@@ -210,8 +210,7 @@ describe('AccountManager — create a Budget (uc-01, FR-4.1/4.7, OQ-176)', () =>
 
     await expect(createAccountManager(deps).createBudget(CONTEXT, HOUSEHOLD_ID, NEW_BUDGET))
       .rejects.toMatchObject({
-        apiError: {
-          status: 409,
+        domainError: {
           code: 'budget.target_already_claimed',
           params: { categoryId: CATEGORY.id, budgetId: OTHER_BUDGET_ID },
         },
@@ -392,8 +391,7 @@ describe('AccountManager — edit a Budget (uc-02, FR-4.7/4.9, OQ-176)', () => {
     await expect(createAccountManager(deps).editBudget(CONTEXT, HOUSEHOLD_ID, BUDGET_ID, {
       name: 'Food', targets: [{ subcategoryId: SUBCATEGORY.id }],
     })).rejects.toMatchObject({
-      apiError: {
-        status: 409,
+      domainError: {
         code: 'budget.target_already_claimed',
         params: { subcategoryId: SUBCATEGORY.id, budgetId: OTHER_BUDGET_ID },
       },

@@ -17,8 +17,8 @@ const BEN_CONTEXT = {
 // The fakes type users as Ana's literal shape; Ben is the same kind of record.
 const BEN = { ...ANA, id: BEN_ID, email: 'ben@example.com' } as unknown as typeof ANA;
 const REQUEST = { email: ' ben@example.com ', role: 'Member' as const };
-const NOT_FOUND = { apiError: { status: 404, code: 'invitation.not_found' } };
-const NOT_PENDING = { apiError: { status: 409, code: 'invitation.not_pending' } };
+const NOT_FOUND = { domainError: { code: 'invitation.not_found' } };
+const NOT_PENDING = { domainError: { code: 'invitation.not_pending' } };
 
 describe('IdentityManager — Invite User (uc-03, FR-1.5/1.19)', () => {
   it('invites a registered user, tells them in the app, audits', async () => {
@@ -63,7 +63,7 @@ describe('IdentityManager — Invite User (uc-03, FR-1.5/1.19)', () => {
 
     await expect(createIdentityManager(deps).inviteUser(ANA_CONTEXT, HOME, REQUEST))
       .rejects.toMatchObject({
-        apiError: { status: 404, code: 'invitation.invitee_not_registered' },
+        domainError: { code: 'invitation.invitee_not_registered' },
       });
     expect(invitations.insert).not.toHaveBeenCalled();
   });
@@ -73,24 +73,24 @@ describe('IdentityManager — Invite User (uc-03, FR-1.5/1.19)', () => {
     const identity = createIdentityManager(deps);
 
     await expect(identity.inviteUser(ANA_CONTEXT, HOME, REQUEST))
-      .rejects.toMatchObject({ apiError: { status: 409, code: 'invitation.already_member' } });
+      .rejects.toMatchObject({ domainError: { code: 'invitation.already_member' } });
 
     households.findMembership.mockResolvedValueOnce(undefined);
     invitations.findPending.mockResolvedValueOnce(INVITATION);
     await expect(identity.inviteUser(ANA_CONTEXT, HOME, REQUEST))
-      .rejects.toMatchObject({ apiError: { status: 409, code: 'invitation.already_pending' } });
+      .rejects.toMatchObject({ domainError: { code: 'invitation.already_pending' } });
   });
 
   it.each([
-    ['already_pending', 409, 'invitation.already_pending'],
-    ['invitee_missing', 404, 'invitation.invitee_not_registered'],
-  ])('maps a %s insert (lost race) to %i', async (reason, status, code) => {
+    ['already_pending', 'invitation.already_pending'],
+    ['invitee_missing', 'invitation.invitee_not_registered'],
+  ])('maps a %s insert (lost race) to %s', async (reason, code) => {
     const { deps, households, invitations } = fakeDeps();
     households.findMembership.mockResolvedValueOnce(undefined);
     invitations.insert.mockResolvedValueOnce({ ok: false, reason });
 
     await expect(createIdentityManager(deps).inviteUser(ANA_CONTEXT, HOME, REQUEST))
-      .rejects.toMatchObject({ apiError: { status, code } });
+      .rejects.toMatchObject({ domainError: { code } });
   });
 
   it('keeps the invitation when the notification fails, logging it', async () => {

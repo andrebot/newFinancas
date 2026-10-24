@@ -2,7 +2,7 @@ import type { Context, MiddlewareHandler } from 'hono';
 import type { SystemRole } from '../db/schema/values';
 import type { AccessTokenClaims } from '../utilities/authentication';
 import { hasSystemRole } from '../utilities/authorization';
-import { createApiError } from './apiError';
+import { createDomainError } from '../utilities/domainError';
 import type { AppEnv } from './errorHandler';
 
 // Request authentication (OQ-30, OQ-111): every protected route requires a valid
@@ -40,12 +40,12 @@ export const requireSystemRole = (
   const token = bearerToken(httpContext.req.header('Authorization'));
   const claims = token === undefined ? undefined : await verify(token);
   if (!claims) {
-    throw createApiError({
-      status: 401, code: 'auth.unauthenticated', message: 'Missing or invalid access token',
+    throw createDomainError({
+      code: 'auth.unauthenticated', message: 'Missing or invalid access token',
     });
   }
   if (!hasSystemRole(claims.systemRole, required)) {
-    throw createApiError({ status: 403, code: 'auth.forbidden', message: 'System role required' });
+    throw createDomainError({ code: 'auth.forbidden', message: 'System role required' });
   }
   httpContext.set('actor', claims);
   await next();

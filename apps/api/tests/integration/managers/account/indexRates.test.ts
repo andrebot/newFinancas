@@ -10,16 +10,15 @@ import {
 
 const RATE_ID = RATE.id;
 const UNKNOWN_ID = '0199c5a0-0000-7000-8000-0000000000ff';
-const HOUSEHOLD_NOT_FOUND = { apiError: { status: 404, code: 'household.not_found' } };
-const FORBIDDEN = { apiError: { status: 403, code: 'auth.forbidden' } };
-const RATE_NOT_FOUND = { apiError: { status: 404, code: 'index_rate.not_found' } };
-const DUPLICATE_DAY = { apiError: { status: 409, code: 'index_rate.duplicate_day' } };
+const HOUSEHOLD_NOT_FOUND = { domainError: { code: 'household.not_found' } };
+const FORBIDDEN = { domainError: { code: 'auth.forbidden' } };
+const RATE_NOT_FOUND = { domainError: { code: 'index_rate.not_found' } };
+const DUPLICATE_DAY = { domainError: { code: 'index_rate.duplicate_day' } };
 /** What AuthorizationUtility decides on when there is no value to look at. */
 const MEMBERS_ONLY = { action: 'data.view', visibility: 'shared', ownerUserId: null };
 /** A date after today (2026-10-13) — refused, so `latest` is the highest date (OQ-172). */
 const TOMORROW_REFUSED = {
-  apiError: {
-    status: 422,
+  domainError: {
     code: 'validation.failed',
     details: [{ field: 'asOf', code: 'date.max', params: { max: '2026-10-13' } }],
   },

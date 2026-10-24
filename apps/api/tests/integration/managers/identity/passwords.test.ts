@@ -12,7 +12,7 @@ const ACTOR = { userId: ANA.id, sessionId: SESSION.id, systemRole: 'USER' as con
 const SIGNED_IN = { correlationId: 'c1', actor: ACTOR };
 const PUBLIC = { correlationId: 'c1' };
 const LONG = 'a-long-enough-password';
-const TOO_SHORT = { apiError: { status: 422, code: 'password.too_short', params: { min: 12 } } };
+const TOO_SHORT = { domainError: { code: 'password.too_short', params: { min: 12 } } };
 
 describe('IdentityManager — Change Password (uc-19, FR-1.14)', () => {
   it('replaces the hash, ends every other session, audits', async () => {
@@ -39,7 +39,7 @@ describe('IdentityManager — Change Password (uc-19, FR-1.14)', () => {
 
     await expect(createIdentityManager(deps)
       .changePassword(SIGNED_IN, { currentPassword: 'wrong', newPassword: LONG }))
-      .rejects.toMatchObject({ apiError: { status: 422, code: 'password.current_incorrect' } });
+      .rejects.toMatchObject({ domainError: { code: 'password.current_incorrect' } });
     expect(users.updatePasswordHash).not.toHaveBeenCalled();
   });
 
@@ -54,7 +54,7 @@ describe('IdentityManager — Change Password (uc-19, FR-1.14)', () => {
 
     users.findPasswordHash.mockResolvedValueOnce(undefined);
     await expect(identity.changePassword(SIGNED_IN, { currentPassword: 'old', newPassword: LONG }))
-      .rejects.toMatchObject({ apiError: { status: 401, code: 'auth.unauthenticated' } });
+      .rejects.toMatchObject({ domainError: { code: 'auth.unauthenticated' } });
   });
 
   it('accepts a new password of exactly 12 characters, refuses 11', async () => {
@@ -157,7 +157,7 @@ describe('IdentityManager — Reset Password, step 2 (uc-18)', () => {
     users.consumeResetToken.mockResolvedValueOnce(undefined);
 
     await expect(createIdentityManager(deps).confirmPasswordReset(PUBLIC, CONFIRMATION))
-      .rejects.toMatchObject({ apiError: { status: 400, code: 'password_reset.token_invalid' } });
+      .rejects.toMatchObject({ domainError: { code: 'password_reset.token_invalid' } });
     expect(users.updatePasswordHash).not.toHaveBeenCalled();
   });
 

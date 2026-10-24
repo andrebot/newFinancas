@@ -23,15 +23,14 @@ const NEW_CARD = {
 const NEW_ACCOUNT = {
   name: 'Main', type: 'checking' as const, currency: 'BRL', visibility: 'shared' as const,
 };
-const HOUSEHOLD_NOT_FOUND = { apiError: { status: 404, code: 'household.not_found' } };
-const FORBIDDEN = { apiError: { status: 403, code: 'auth.forbidden' } };
-const ACCOUNT_NOT_FOUND = { apiError: { status: 404, code: 'account.not_found' } };
-const CARD_NOT_FOUND = { apiError: { status: 404, code: 'credit_card.not_found' } };
-const ARCHIVED = { apiError: { status: 409, code: 'account.archived' } };
-const CARDS_NOT_ALLOWED = { apiError: { status: 422, code: 'account.cards_not_allowed' } };
+const HOUSEHOLD_NOT_FOUND = { domainError: { code: 'household.not_found' } };
+const FORBIDDEN = { domainError: { code: 'auth.forbidden' } };
+const ACCOUNT_NOT_FOUND = { domainError: { code: 'account.not_found' } };
+const CARD_NOT_FOUND = { domainError: { code: 'credit_card.not_found' } };
+const ARCHIVED = { domainError: { code: 'account.archived' } };
+const CARDS_NOT_ALLOWED = { domainError: { code: 'account.cards_not_allowed' } };
 const BLANK_NAME = {
-  apiError: {
-    status: 422,
+  domainError: {
     code: 'validation.failed',
     details: [{ field: 'name', code: 'string.min', params: { min: 1 } }],
   },

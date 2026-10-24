@@ -14,8 +14,7 @@ describe('requireValidFields', () => {
 
     expect(() => requireValidFields(names, { firstName: nonBlank, lastName: nonBlank }))
       .toThrow(expect.objectContaining({
-        apiError: expect.objectContaining({
-          status: 422,
+        domainError: expect.objectContaining({
           code: 'validation.failed',
           details: [
             { field: 'firstName', code: 'string.min', params: { min: 1 } },
@@ -37,8 +36,8 @@ describe('requireNoProblems', () => {
     } as const;
 
     expect(() => requireNoProblems([problem])).toThrow(expect.objectContaining({
-      apiError: expect.objectContaining({
-        status: 422, code: 'validation.failed', details: [problem],
+      domainError: expect.objectContaining({
+        code: 'validation.failed', details: [problem],
       }),
     }));
   });

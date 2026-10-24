@@ -134,18 +134,18 @@ describe('hasMatured (FR-5.8, OQ-178)', () => {
 
 describe('splitRefusal', () => {
   it.each([
-    [{ ok: false, reason: 'holding_not_found' } as const, 404, 'holding.not_found'],
-    [{ ok: false, reason: 'goal_not_found', goalId: 'g' } as const, 404, 'goal.not_found'],
-  ])('answers %j with %i %s', (result, status, code) => {
-    expect(splitRefusal(result)).toMatchObject({ apiError: { status, code } });
+    [{ ok: false, reason: 'holding_not_found' } as const, 'holding.not_found'],
+    [{ ok: false, reason: 'goal_not_found', goalId: 'g' } as const, 'goal.not_found'],
+  ])('answers %j with %s', (result, code) => {
+    expect(splitRefusal(result)).toMatchObject({ domainError: { code } });
   });
 
   it('answers a split past 100% with both totals (FR-8.3)', () => {
     expect(splitRefusal({
       ok: false, reason: 'allocation_exceeds_100', current: 60, requested: 120,
     })).toMatchObject({
-      apiError: {
-        status: 409, code: 'goal.allocation_exceeds_100', params: { current: 60, requested: 120 },
+      domainError: {
+        code: 'goal.allocation_exceeds_100', params: { current: 60, requested: 120 },
       },
     });
   });

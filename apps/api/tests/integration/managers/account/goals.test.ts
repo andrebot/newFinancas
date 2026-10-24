@@ -18,14 +18,13 @@ const NEW_GOAL = {
   visibility: 'shared' as const,
 };
 const COMPLETED_GOAL = { ...GOAL, completedAt: NOW };
-const HOUSEHOLD_NOT_FOUND = { apiError: { status: 404, code: 'household.not_found' } };
-const FORBIDDEN = { apiError: { status: 403, code: 'auth.forbidden' } };
-const GOAL_NOT_FOUND = { apiError: { status: 404, code: 'goal.not_found' } };
+const HOUSEHOLD_NOT_FOUND = { domainError: { code: 'household.not_found' } };
+const FORBIDDEN = { domainError: { code: 'auth.forbidden' } };
+const GOAL_NOT_FOUND = { domainError: { code: 'goal.not_found' } };
 /** What AuthorizationUtility decides on when there is no Goal to look at. */
 const MEMBERS_ONLY = { action: 'data.view', visibility: 'shared', ownerUserId: null };
 const BLANK_NAME = {
-  apiError: {
-    status: 422,
+  domainError: {
     code: 'validation.failed',
     details: [{ field: 'name', code: 'string.min' }],
   },

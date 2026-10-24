@@ -32,7 +32,8 @@ export type AccessRequest = | { readonly action: HouseholdAction }
 
 /**
  * `not_visible`: the target is someone else's personal data — the caller
- * answers 404 so its existence isn't revealed. `forbidden`: answer 403.
+ * answers not found so its existence isn't revealed. `forbidden`: answer
+ * `auth.forbidden`.
  */
 export type Decision = 'allowed' | 'forbidden' | 'not_visible';
 

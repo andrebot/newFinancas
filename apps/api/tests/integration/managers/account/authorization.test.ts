@@ -3,7 +3,7 @@ import type { Mock } from 'vitest';
 import {
   describe, expect, it, onTestFinished,
 } from 'vitest';
-import { isApiError } from '../../../../src/http/apiError';
+import { isDomainError } from '../../../../src/utilities/domainError';
 import { createAccountManager } from '../../../../src/managers/account';
 import {
   ACCOUNT, ANA_ID, BEA_ID, BUDGET, CARD, CATEGORY, CONTEXT, fakeDeps, GOAL, HOLDING,
@@ -15,8 +15,8 @@ import {
 // and a refused caller stops the use case before anything but the reads that
 // decide access — no write, no transaction, no notification, no log.
 
-const NOT_FOUND = { status: 404, code: 'household.not_found' };
-const FORBIDDEN = { status: 403, code: 'auth.forbidden' };
+const NOT_FOUND = { code: 'household.not_found' };
+const FORBIDDEN = { code: 'auth.forbidden' };
 
 /** What AccountManager returns besides its use cases: the bus handlers (`events.ts`). */
 const EVENT_HANDLERS = ['seedDefaultCategories', 'notifyMaturedHolding'];
@@ -291,7 +291,7 @@ const touchedBeyondAccess = (
  */
 const runPastAccess = async (run: () => Promise<unknown>): Promise<void> => {
   await run().catch((error: unknown) => {
-    if (!isApiError(error)) throw error;
+    if (!isDomainError(error)) throw error;
   });
 };
 
@@ -304,7 +304,7 @@ const runPastAccess = async (run: () => Promise<unknown>): Promise<void> => {
  */
 const refusedLogging = async (run: () => Promise<unknown>, answer: object): Promise<unknown[]> => {
   const logs = captureLogs(onTestFinished);
-  await expect(run()).rejects.toMatchObject({ apiError: answer });
+  await expect(run()).rejects.toMatchObject({ domainError: answer });
   return logs.events;
 };
 
@@ -346,7 +346,7 @@ describe('AccountManager ↔ AuthorizationUtility seam (I2, OQ-111)', () => {
     ['a non-member', 'not_member', GUARDED, () => NOT_FOUND],
     ['a member without the role', 'forbidden', GUARDED, () => FORBIDDEN],
     ['someone else\'s personal data', 'not_visible', LOADING,
-      (hidden: string | null) => ({ status: 404, code: hidden })],
+      (hidden: string | null) => ({ code: hidden })],
   ] as const)('refusing %s', (_who, outcome, useCases, answer) => {
     it.each(useCases)('$name answers after only its access reads, logging nothing', async ({
       run,

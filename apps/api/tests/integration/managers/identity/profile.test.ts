@@ -10,7 +10,7 @@ import { expectAudited } from '../audit';
 
 const ACTOR = { userId: ANA.id, sessionId: SESSION.id, systemRole: 'USER' as const };
 const CONTEXT = { correlationId: 'c1', actor: ACTOR };
-const GONE = { apiError: { status: 401, code: 'auth.unauthenticated' } };
+const GONE = { domainError: { code: 'auth.unauthenticated' } };
 
 describe('IdentityManager — View / Edit User (uc-13, FR-1.21)', () => {
   it('returns the caller\'s account, 401 when it is gone', async () => {

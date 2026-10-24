@@ -14,8 +14,8 @@ import {
 
 const ACTOR = { userId: ANA.id, sessionId: SESSION.id, systemRole: 'USER' as const };
 const CONTEXT = { correlationId: '0199c5a0-0000-7000-8000-0000000000cc', actor: ACTOR };
-const NOT_FOUND = { apiError: { status: 404, code: 'household.not_found' } };
-const FORBIDDEN = { apiError: { status: 403, code: 'auth.forbidden' } };
+const NOT_FOUND = { domainError: { code: 'household.not_found' } };
+const FORBIDDEN = { domainError: { code: 'auth.forbidden' } };
 
 type Manager = ReturnType<typeof createIdentityManager>;
 

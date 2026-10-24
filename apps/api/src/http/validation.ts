@@ -1,7 +1,7 @@
 import { zValidator } from '@hono/zod-validator';
 import type { ValidationTargets } from 'hono';
 import { z, type core } from 'zod';
-import { validationFailed, type ApiError } from './apiError';
+import { validationFailed, type DomainError } from '../utilities/domainError';
 import { toFieldDetail } from './fieldDetail';
 import { coerceQuery } from './queryCoercion';
 
@@ -23,7 +23,7 @@ interface ValidationResult {
  * @param input - The raw request value the issues refer to.
  * @returns The error, with one `details[]` entry per issue.
  */
-export const validationError = (issues: readonly core.$ZodIssue[], input: unknown): ApiError => (
+export const validationError = (issues: readonly core.$ZodIssue[], input: unknown): DomainError => (
   validationFailed(issues.map((issue) => toFieldDetail(issue, input)))
 );
 
@@ -32,7 +32,7 @@ export const validationError = (issues: readonly core.$ZodIssue[], input: unknow
  * failure leaves through the one error handler and matches the contract.
  *
  * @param result - The validator's parse result.
- * @throws {ApiError} 422 `validation.failed` when validation failed.
+ * @throws {DomainError} `validation.failed` when validation failed.
  */
 export const throwOnInvalid = (result: ValidationResult): void => {
   if (!result.success) {

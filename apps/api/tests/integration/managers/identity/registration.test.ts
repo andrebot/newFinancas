@@ -68,7 +68,7 @@ describe('IdentityManager — Register (uc-11)', () => {
 
     await expect(createIdentityManager(deps).register(CONTEXT, { ...INPUT, password: 'short' }))
       .rejects.toMatchObject({
-        apiError: { status: 422, code: 'password.too_short', params: { min: 12 } },
+        domainError: { code: 'password.too_short', params: { min: 12 } },
       });
     expect(authentication.hashPassword).not.toHaveBeenCalled();
     expect(users.insert).not.toHaveBeenCalled();
@@ -79,7 +79,7 @@ describe('IdentityManager — Register (uc-11)', () => {
     const identity = createIdentityManager(deps);
 
     await expect(identity.register(CONTEXT, { ...INPUT, password: 'x'.repeat(11) }))
-      .rejects.toMatchObject({ apiError: { code: 'password.too_short' } });
+      .rejects.toMatchObject({ domainError: { code: 'password.too_short' } });
     await identity.register(CONTEXT, { ...INPUT, password: 'x'.repeat(12) });
 
     expect(users.insert).toHaveBeenCalledTimes(1);
@@ -90,6 +90,6 @@ describe('IdentityManager — Register (uc-11)', () => {
     users.insert.mockResolvedValueOnce({ ok: false, reason: 'email_taken' } as never);
 
     await expect(createIdentityManager(deps).register(CONTEXT, INPUT))
-      .rejects.toMatchObject({ apiError: { status: 409, code: 'user.email_taken' } });
+      .rejects.toMatchObject({ domainError: { code: 'user.email_taken' } });
   });
 });

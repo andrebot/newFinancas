@@ -26,10 +26,10 @@ const REDEMPTION = {
   postedAt: null,
   createdAt: NOW,
 };
-const HOUSEHOLD_NOT_FOUND = { apiError: { status: 404, code: 'household.not_found' } };
-const FORBIDDEN = { apiError: { status: 403, code: 'auth.forbidden' } };
-const HOLDING_NOT_FOUND = { apiError: { status: 404, code: 'holding.not_found' } };
-const GOAL_NOT_FOUND = { apiError: { status: 404, code: 'goal.not_found' } };
+const HOUSEHOLD_NOT_FOUND = { domainError: { code: 'household.not_found' } };
+const FORBIDDEN = { domainError: { code: 'auth.forbidden' } };
+const HOLDING_NOT_FOUND = { domainError: { code: 'holding.not_found' } };
+const GOAL_NOT_FOUND = { domainError: { code: 'goal.not_found' } };
 /** What AuthorizationUtility decides on when there is no Holding to look at. */
 const MEMBERS_ONLY = { action: 'data.view', visibility: 'shared', ownerUserId: null };
 
@@ -220,7 +220,7 @@ describe('AccountManager — edit a Holding\'s Goal split (uc-02, FR-8.2/8.3, OQ
     holdings.findById.mockResolvedValueOnce({ ...HOLDING, archivedAt: NOW, archivedBy: 'system' });
 
     await expect(createAccountManager(deps).editHolding(CONTEXT, HOUSEHOLD_ID, HOLDING_ID, []))
-      .rejects.toMatchObject({ apiError: { status: 409, code: 'holding.archived' } });
+      .rejects.toMatchObject({ domainError: { code: 'holding.archived' } });
     expect(goals.listAllocations).not.toHaveBeenCalled();
   });
 
@@ -239,8 +239,7 @@ describe('AccountManager — edit a Holding\'s Goal split (uc-02, FR-8.2/8.3, OQ
     await expect(createAccountManager(deps).editHolding(CONTEXT, HOUSEHOLD_ID, HOLDING_ID, [
       { goalId: GOAL.id, percentage: 10 }, { goalId: GOAL.id, percentage: 20 },
     ])).rejects.toMatchObject({
-      apiError: {
-        status: 422,
+      domainError: {
         code: 'validation.failed',
         details: [{ field: 'allocations[1].goalId', code: 'array.duplicate' }],
       },
@@ -268,7 +267,7 @@ describe('AccountManager — edit a Holding\'s Goal split (uc-02, FR-8.2/8.3, OQ
 
     await expect(createAccountManager(deps).editHolding(CONTEXT, HOUSEHOLD_ID, HOLDING_ID, [
       { goalId: GOAL.id, percentage: 25 },
-    ])).rejects.toMatchObject({ apiError: { status: 409, code: 'goal.completed' } });
+    ])).rejects.toMatchObject({ domainError: { code: 'goal.completed' } });
     expect(goals.replaceAllocations).not.toHaveBeenCalled();
   });
 
@@ -290,20 +289,20 @@ describe('AccountManager — edit a Holding\'s Goal split (uc-02, FR-8.2/8.3, OQ
     [{
       ok: false, reason: 'allocation_exceeds_100', current: 30, requested: 130,
     }, {
-      status: 409, code: 'goal.allocation_exceeds_100', params: { current: 30, requested: 130 },
+      code: 'goal.allocation_exceeds_100', params: { current: 30, requested: 130 },
     }],
-    [{ ok: false, reason: 'holding_not_found' }, { status: 404, code: 'holding.not_found' }],
+    [{ ok: false, reason: 'holding_not_found' }, { code: 'holding.not_found' }],
     [{ ok: false, reason: 'goal_not_found', goalId: GOAL.id }, {
-      status: 404, code: 'goal.not_found',
+      code: 'goal.not_found',
     }],
-  ])('answers GoalAccessor\'s %j as the API does, unaudited', async (result, apiError) => {
+  ])('answers GoalAccessor\'s %j as the API does, unaudited', async (result, domainError) => {
     const { deps, goals } = fakeDeps();
     goals.replaceAllocations.mockResolvedValueOnce(result);
     const logs = captureLogs(onTestFinished);
 
     await expect(createAccountManager(deps).editHolding(CONTEXT, HOUSEHOLD_ID, HOLDING_ID, [
       { goalId: GOAL.id, percentage: 100 },
-    ])).rejects.toMatchObject({ apiError });
+    ])).rejects.toMatchObject({ domainError });
 
     expect(auditedActions(logs.events)).toEqual([]);
   });
@@ -359,7 +358,7 @@ describe('AccountManager — archive a matured Holding (uc-03, FR-5.8, OQ-178)',
     holdings.listSchedule.mockResolvedValueOnce([]);
 
     await expect(createAccountManager(deps).archiveHolding(CONTEXT, HOUSEHOLD_ID, HOLDING_ID))
-      .rejects.toMatchObject({ apiError: { status: 409, code: 'holding.not_matured' } });
+      .rejects.toMatchObject({ domainError: { code: 'holding.not_matured' } });
     expect(holdings.archive).not.toHaveBeenCalled();
   });
 
