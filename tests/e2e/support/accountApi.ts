@@ -136,8 +136,8 @@ export const seededCategories = async (
 };
 
 /**
- * Creates a shared BRL Budget claiming whole Categories, as another member
- * would from their own Budget Management.
+ * Creates a shared BRL Budget claiming whole Categories, through the API —
+ * what any member's own Budget Management would send.
  *
  * @param request - Playwright's API client.
  * @param member - A member who may create it.

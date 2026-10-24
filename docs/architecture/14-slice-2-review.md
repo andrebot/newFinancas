@@ -4,8 +4,8 @@ The gate at the end of slice 2 (account setup: accounts, cards, categories,
 budgets, goals and the guided onboarding wizard — tasks 67–98), run by the
 method in `13-slice-review.md` (OQ-164). Work happens on the
 `review/slice-2` branch, cut from `main` after PR #118 (`I8`).
-**Status: in progress — phase 1 done (backend PR #120, web PR to follow);
-phases 2 and 3 next.**
+**Status: in progress — phases 1 (PR #120) and 2 (`review/slice-2-e2e`)
+done; phase 3 next.**
 
 ## Scope
 
@@ -186,7 +186,55 @@ session.
 
 ## Phase 2 — the Playwright suite
 
-Not started.
+The slice's journeys (`tests/e2e/accountSetup/`): 6 tests, one tagged
+`@core` (core journey #9); the rest Full E2E. Together they cover every
+slice-2 use case (`sequences/` financial-accounts ×3, categories ×3,
+budget-spending ×3, goals ×6) and the five Flows (FL6, FL11–FL14).
+Preconditions are arranged through the API, the browser does only the
+journey, and each end state is read back through the API. The Guided Setup
+gate's cross-seam case from PR #115 (a Member whose Owner has only personal
+accounts) has its journey in `identity/onboard.spec.ts`.
+
+**Runs (2026-10-24, local, 15 workers):** the slice 3× — 18/18 in 16 s;
+10× — 60/60 in 35 s; the whole suite 3× (the identity journeys pass through
+the household gate slice 2 added) — 102/102 in 36 s. No flaky journey, no
+race.
+
+**CI cadence holds.** `ci.yml` runs `@smoke` on every PR and `@core` after
+merge on `main`; `nightly.yml` runs everything at 06:00 UTC and on demand.
+The BDT plan's slice-2 lists are written (the `I8` paragraph: #9 core, the
+rest Full E2E; smoke has nothing new for slice 2).
+
+| # | Finding | Severity | Proposed fix |
+|---|---|---|---|
+| E1 | **The Budget journey checks how many Categories it claims, not which.** After create and edit it asserts `targets` has length 1, then 2. A form that sent the wrong Category's id (a neighbour row, a Subcategory's id) would pass. | Low | Assert the target `categoryId`s: Groceries, then Groceries and Healthcare, from the seeded Categories. |
+| E2 | **The Goal journey's delete is half proven.** After Delete it checks the *active* list is empty. A Delete that reached the complete route instead would move the Goal to the completed list and still pass. | Low | Also check the completed list is empty. |
+| E4 | **The Goal journey's `takeStep` can return before its request is answered.** It waits for the step's success message, which an earlier run of the same step may still show. Found while checking E2's fix against a Delete swapped for a second Mark completed: the API still listed the Goal as active, because the first completion's message was on screen. Nothing is masked today (each step runs once). | Low | Wait for the drawer to close first: it closes only once the answer is in. |
+| E3 | **Core #9's comment says "someone else" claims Groceries, but the Owner does it.** The constraint is scoped to the household's shared Budgets, so who claims it doesn't matter — the test is right, the wording isn't. `createBudget`'s doc says "as another member would". | Note | Say what happens: a second request, from any member, claims it first. |
+
+### Phase 2 — fixes (2026-10-24)
+
+E1–E4 fixed, tests and comments only, no app code:
+- **E1:** the Budget journey checks the claimed Categories by id
+  (Groceries, then Groceries and Healthcare).
+- **E2:** after Delete, the Goal is checked gone from the completed list too.
+- **E4:** `takeStep` waits for the drawer to close before the message.
+- **E3:** core #9's comment and `createBudget`'s doc say what happens.
+
+Each new check was run against the wrong outcome it guards: Healthcare
+expected in place of Groceries, and a second Mark completed in place of
+Delete. Both journeys failed on the new line, then the file was restored.
+Then the slice 10× in a row: 60/60.
+
+**Not findings.**
+- **Structural locators in the Category journey** (the swatch's parent via
+  `xpath=..`, the card as the innermost `div` holding both buttons). Both are
+  commented and stable; the card has no landmark of its own, and giving it
+  one only for a test isn't worth an app change.
+- **"All accounts archived → back to the wizard"** (OQ-198) has no journey.
+  `hasAccountInUse` ignoring archived Accounts is proven on real Postgres
+  (PGlite) and the gate's redirect in its unit tests; the seam between them
+  is the same `account-status` call `onboard.spec.ts` already crosses.
 
 ## Phase 3 — code and architecture
 
