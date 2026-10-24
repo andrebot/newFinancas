@@ -295,6 +295,11 @@ describe('the account step (FR-1.22)', () => {
     expect(screen.getByText('Getting started · step 1 of 3')).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Add your first account' })).toBeTruthy();
     expect(screen.getByTestId('account-entry').dataset.personal).toBe('false');
+    expect(screen.getByTestId('account-entry').dataset.busy).toBe('false');
+    const steps = screen.getByRole('list', { name: 'Setup steps' });
+    expect(steps.textContent).toContain('Add an account');
+    expect(steps.textContent).toContain('Review categories');
+    expect(steps.textContent).toContain('Set a budget');
     expect(screen.queryByRole('button', { name: 'Continue' })).toBeNull();
   });
 
@@ -440,6 +445,8 @@ describe('the categories step', () => {
     await press('Continue');
     await press('Looks good, continue');
     expect(screen.getByText('Getting started · step 3 of 3')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Set a budget' })).toBeTruthy();
+    expect(screen.getByRole('list', { name: 'Setup steps' }).textContent).toContain('(completed)');
   });
 });
 
@@ -518,6 +525,7 @@ describe('the budget step', () => {
 
   it('says when the lists can’t be loaded, and fetches both again', async () => {
     const stubs = await toBudgetStep({ budgets: { status: 'failed', error: { code: 'x' } } });
+    expect(screen.getByText("Couldn't load the budgets.")).toBeTruthy();
     await press('Try again');
     expect(stubs.onRetryBudgets).toHaveBeenCalledOnce();
     expect(stubs.onRetryCategories).toHaveBeenCalledOnce();

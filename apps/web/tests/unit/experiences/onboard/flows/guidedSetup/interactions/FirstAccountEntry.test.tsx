@@ -113,6 +113,20 @@ describe('the form', () => {
     expect(screen.getByText('An account is required to get started.')).toBeTruthy();
   });
 
+  it('labels every choice and explains what an earlier date does (OQ-169)', () => {
+    renderEntry();
+    expect(screen.getByRole('radiogroup', { name: 'Account type' })).toBeTruthy();
+    expect(screen.getByRole('radiogroup', { name: 'Currency' })).toBeTruthy();
+    expect(screen.getByRole('radiogroup', { name: 'Visibility' })).toBeTruthy();
+    expect(screen.getByText('Account type')).toBeTruthy();
+    expect(screen.getByText('Currency')).toBeTruthy();
+    expect(screen.getByText('Visibility')).toBeTruthy();
+    expect(screen.getByText(/Add earlier transactions with the date they happened/)).toBeTruthy();
+    expect(screen.getByText(/They fill in your history/)).toBeTruthy();
+    expect(screen.getByText(/They don't change your starting balance/)).toBeTruthy();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
   it('describes each type on its tile', () => {
     renderEntry();
     expect(screen.getByRole('radio', { name: /Credit card only/ })).toBeTruthy();
@@ -123,6 +137,8 @@ describe('the form', () => {
   it('locks the visibility at Personal for an actor who can’t share', () => {
     const handlers = renderEntry({ personalOnly: true });
     expect(screen.queryByRole('radio', { name: 'Shared' })).toBeNull();
+    expect(screen.getByText('Visibility')).toBeTruthy();
+    expect(screen.getByText('Personal')).toBeTruthy();
     submitNamed('Mine');
     expect(handlers.onSubmit)
       .toHaveBeenCalledWith(expect.objectContaining({ visibility: 'personal' }));
@@ -228,6 +244,54 @@ describe('its cards', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Remove the card ending in 1111' }));
     submitNamed('Main');
     expect(handlers.onSubmit).toHaveBeenCalledWith(expect.objectContaining({ cards: [] }));
+  });
+
+  it('drops only the saved card asked for, among several', async () => {
+    const handlers = renderEntry();
+    await fillCard();
+    fireEvent.click(screen.getByRole('button', { name: 'Save card' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add credit card' }));
+    type('Card number', '5555555555554444');
+    await pick('Closing day', '5');
+    await pick('Due day', '15');
+    await pick('Expires month', '1');
+    await pick('Expires year', String(YEAR));
+    fireEvent.click(screen.getByRole('button', { name: 'Save card' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove the card ending in 1111' }));
+    submitNamed('Main');
+    expect(handlers.onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+      cards: [expect.objectContaining({ last4: '4444' })],
+    }));
+  });
+
+  it('forgets a cancelled card\'s objections', () => {
+    renderEntry();
+    fireEvent.click(screen.getByRole('button', { name: 'Add credit card' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save card' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add credit card' }));
+    expect(screen.queryByText('Enter the card number.')).toBeNull();
+  });
+
+  it('takes the focus to the card\'s first problem on every refused save', () => {
+    renderEntry();
+    fireEvent.click(screen.getByRole('button', { name: 'Add credit card' }));
+    const number = screen.getByRole('textbox', { name: 'Card number' });
+    fireEvent.click(screen.getByRole('button', { name: 'Save card' }));
+    expect(document.activeElement).toBe(number);
+    screen.getByRole('textbox', { name: 'Account name' }).focus();
+    fireEvent.click(screen.getByRole('button', { name: 'Save card' }));
+    expect(document.activeElement).toBe(number);
+  });
+
+  it('takes the focus back to the name on every refused submit', () => {
+    renderEntry();
+    const name = screen.getByRole('textbox', { name: 'Account name' });
+    submitNamed('');
+    expect(document.activeElement).toBe(name);
+    screen.getByRole('button', { name: 'Add credit card' }).focus();
+    fireEvent.click(screen.getByRole('button', { name: 'Add account & continue' }));
+    expect(document.activeElement).toBe(name);
   });
 
   it('drops what was typed on Cancel', async () => {
