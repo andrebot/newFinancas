@@ -13,7 +13,8 @@ import text from '../support/text';
 test('an Owner creates a budget, edits it and deletes it', async ({ page, request }) => {
   const owner = await registerUser(request, { firstName: 'Bruno', lastName: 'Budgets' });
   const household = await createHousehold(request, owner, 'Budgets Home');
-  await seededCategories(request, owner, household.id);
+  const categories = await seededCategories(request, owner, household.id);
+  const idOf = (name: string): string => categories.find((category) => category.name === name)!.id;
   await signInThroughUi(page, owner);
   await page.goto('/account-setup?tab=budgets');
 
@@ -30,7 +31,8 @@ test('an Owner creates a budget, edits it and deletes it', async ({ page, reques
   expect(living).toMatchObject({
     name: 'Living', targetAmount: 150_000, currency: 'BRL', visibility: 'shared',
   });
-  expect(living!.targets).toHaveLength(1);
+  // The Categories ticked, not just how many: a wrong row's id would pass a count.
+  expect(living!.targets.map((target) => target.categoryId)).toEqual([idOf('Groceries')]);
 
   await cardNamed(page, 'Living').click();
   const edit = page.getByRole('dialog', { name: text('budgetManagement', 'edit.title') });
@@ -41,7 +43,8 @@ test('an Owner creates a budget, edits it and deletes it', async ({ page, reques
     .toBeVisible();
   const [edited] = await listBudgets(request, owner, household.id);
   expect(edited).toMatchObject({ id: living!.id, name: 'Home & Food' });
-  expect(edited!.targets).toHaveLength(2);
+  expect(edited!.targets.map((target) => target.categoryId).sort())
+    .toEqual([idOf('Groceries'), idOf('Healthcare')].sort());
 
   await cardNamed(page, 'Home & Food').click();
   const remove = page.getByRole('dialog', { name: text('budgetManagement', 'edit.title') });
@@ -72,8 +75,9 @@ test('a category claimed by another budget while the form is open is refused', {
   await create.getByLabel(text('budgetManagement', 'field.target')).pressSequentially('80000');
   await create.getByText('Groceries', { exact: true }).click();
 
-  // Someone else claims Groceries before this form is sent: the picker still
-  // shows it free, so only the database's constraint can refuse it.
+  // A second request claims Groceries before this form is sent — from any
+  // member, since the constraint covers every shared Budget of the household.
+  // The picker still shows it free, so only the database's constraint can refuse it.
   const taken = await createBudget(request, owner, household.id, {
     name: 'Supermarket', categoryIds: [groceries.id],
   });

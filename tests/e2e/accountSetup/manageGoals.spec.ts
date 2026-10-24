@@ -30,6 +30,9 @@ const takeStep = async (
     .toBeVisible();
   await drawer.getByRole('button', { name: text('goalManagement', `${action}.action`) }).last()
     .click();
+  // The drawer closes only once the answer is in; the message alone could be
+  // an earlier step's, still on screen, when the same step runs twice.
+  await expect(drawer).toBeHidden();
   await expect(page.getByText(text('goalManagement', `${action}.done`, { name }))).toBeVisible();
 };
 
@@ -83,5 +86,7 @@ test('an Owner creates a goal, edits it, completes, reopens and deletes it', asy
 
   await statuses.getByText(text('goalManagement', 'status.active')).click();
   await takeStep(page, 'Japan Trip', 'delete');
+  // Gone from both lists: a Delete that completed it instead would only leave the active one.
   expect(await listGoals(request, owner, household.id)).toEqual([]);
+  expect(await listGoals(request, owner, household.id, 'completed')).toEqual([]);
 });
