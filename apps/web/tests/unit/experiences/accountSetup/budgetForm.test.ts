@@ -150,6 +150,11 @@ describe('alertOf', () => {
 
   it('writes any other failure from its code, and nothing without one', () => {
     expect(alertOf({ code: 'budget.not_found' }, lists, translator)).toBe('Budget not found.');
+    expect(alertOf(
+      { code: 'budget.not_found', params: { categoryId: 'food', budgetId: 'home' } },
+      lists,
+      translator,
+    )).toBe('Budget not found.');
     expect(alertOf(undefined, lists, translator)).toBeUndefined();
   });
 });
@@ -183,6 +188,14 @@ describe('coverChipsOf', () => {
     expect(coverChipsOf(targets, [DINING, shopping])).toEqual([
       { key: 'shopping', name: 'Shopping', category: shopping },
       { key: 'streaming', name: 'Dining › Streaming', category: DINING },
+    ]);
+  });
+
+  it('finds a subcategory among its category\'s several', () => {
+    const music = { ...DINING.subcategories[0]!, id: 'music', name: 'Music' };
+    const dining = { ...DINING, subcategories: [music, ...DINING.subcategories] };
+    expect(coverChipsOf([{ subcategoryId: 'streaming' }], [dining])).toEqual([
+      { key: 'streaming', name: 'Dining › Streaming', category: dining },
     ]);
   });
 

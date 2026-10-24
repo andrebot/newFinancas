@@ -100,6 +100,12 @@ describe('claimsIn', () => {
     expect([...claims.subcategories]).toEqual([['cinema', sharedFood]]);
   });
 
+  it('collects another member\'s shared budgets too (FR-4.7, OQ-166)', () => {
+    const bensShared = budget('s2', { ownerUserId: 'ben', targets: [{ categoryId: 'fun' }] });
+    const claims = claimsIn([bensShared], SHARED);
+    expect([...claims.categories]).toEqual([['fun', bensShared]]);
+  });
+
   it('collects a personal scope from the caller\'s own personal budgets only', () => {
     const claims = claimsIn(
       [sharedFood, janesFun, bensFun],
@@ -264,6 +270,7 @@ describe('targetName', () => {
   it('names a whole category, or a subcategory under its category', () => {
     expect(targetName([FOOD, FUN], { categoryId: 'fun' })).toBe('Cat fun');
     expect(targetName([FOOD, FUN], { subcategoryId: 'bakery' })).toBe('Cat food › Sub bakery');
+    expect(targetName([FOOD, FUN], { subcategoryId: 'cinema' })).toBe('Cat fun › Sub cinema');
   });
 
   it('names nothing it can\'t find', () => {
@@ -282,6 +289,10 @@ describe('conflictKindOf', () => {
     expect(conflictKindOf(
       { subcategoryId: 'bakery' },
       budget('b', { targets: [{ subcategoryId: 'bakery' }] }),
+    )).toBe('same');
+    expect(conflictKindOf(
+      { categoryId: 'food' },
+      budget('b', { targets: [{ categoryId: 'fun' }, { categoryId: 'food' }] }),
     )).toBe('same');
   });
 
