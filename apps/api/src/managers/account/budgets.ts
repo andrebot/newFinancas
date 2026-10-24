@@ -4,9 +4,9 @@ import type {
 import { monthOf, type MonthRange } from '../../accessors/calendarMonth';
 import type { Category } from '../../accessors/categoryAccessor';
 import type { Visibility } from '../../db/schema/values';
-import { validationFailed, type ApiError, type FieldDetail } from '../../http/apiError';
+import { validationFailed, type DomainError } from '../../utilities/domainError';
 import type { DataAction } from '../../utilities/authorization';
-import { checkFields, nonBlank } from '../../utilities/validation';
+import { checkFields, nonBlank, type FieldDetail } from '../../utilities/validation';
 import { accessToOwned, memberOnly, requireAccess } from '../access';
 import type { SignedInContext } from '../requestContext';
 import { requireNoProblems } from '../validation';
@@ -111,7 +111,7 @@ export const claimableIds = (categories: readonly Category[]): ReadonlySet<strin
  * @param householdId - The household.
  * @param targets - The claims, in the request's order.
  * @param held - The claims the Budget already holds.
- * @throws {ApiError} 422 `field.invalid_option` on each target that isn't.
+ * @throws {DomainError} `field.invalid_option` on each target that isn't.
  */
 const requireClaimable = async (
   deps: AccountDeps,
@@ -144,12 +144,12 @@ export const uniqueTargets = (targets: readonly BudgetTarget[]): BudgetTarget[] 
  *
  * @param rejection - Why BudgetAccessor refused it.
  * @param targets - The claims sent, to name the field.
- * @returns 409 `budget.target_already_claimed`, or 422 `field.invalid_option`.
+ * @returns `budget.target_already_claimed`, or `field.invalid_option`.
  */
 export const rejectionError = (
   rejection: TargetRejection,
   targets: readonly BudgetTarget[],
-): ApiError => {
+): DomainError => {
   if (rejection.reason === 'target_claimed') {
     return targetAlreadyClaimed(rejection.target, rejection.claimedByBudgetId);
   }
@@ -180,7 +180,7 @@ export const budgetChangesOf = (edit: BudgetEdit): BudgetChanges => {
  * @param fields.name - The name.
  * @param inputs - The targets as sent.
  * @returns The claims, in the request's order.
- * @throws {ApiError} 422 `validation.failed`.
+ * @throws {DomainError} `validation.failed`.
  */
 const requireValidRequest = (
   fields: { readonly name?: string | undefined },
@@ -199,7 +199,7 @@ const requireValidRequest = (
  * @param ids - The household and the Budget.
  * @param action - The data action.
  * @returns The Budget.
- * @throws {ApiError} 404 `household.not_found` / `budget.not_found`; 403 `auth.forbidden`.
+ * @throws {DomainError} `household.not_found` / `budget.not_found`; `auth.forbidden`.
  */
 const loadBudget = async (
   deps: AccountDeps,
@@ -227,8 +227,8 @@ const loadBudget = async (
  * @param ids - The household and the Budget.
  * @param changes - The name and target to write, if any.
  * @param targets - The new claims, if sent.
- * @throws {ApiError} 404 `budget.not_found`; 409 `budget.target_already_claimed`;
- *   422 `field.invalid_option`.
+ * @throws {DomainError} `budget.not_found`; `budget.target_already_claimed`;
+ *   `field.invalid_option`.
  */
 const writeEdit = (
   deps: AccountDeps,
@@ -265,7 +265,7 @@ const createBudgets = (deps: AccountDeps) => ({
    * @param filter - An optional visibility.
    * @param filter.visibility - The visibility.
    * @returns The Budgets.
-   * @throws {ApiError} 404 `household.not_found`.
+   * @throws {DomainError} `household.not_found`.
    */
   listBudgets: async (
     context: SignedInContext,
@@ -284,7 +284,7 @@ const createBudgets = (deps: AccountDeps) => ({
    * @param householdId - The household.
    * @param budgetId - The Budget.
    * @returns The Budget.
-   * @throws {ApiError} 404 `household.not_found` / `budget.not_found`.
+   * @throws {DomainError} `household.not_found` / `budget.not_found`.
    */
   getBudget: (
     context: SignedInContext,
@@ -300,8 +300,8 @@ const createBudgets = (deps: AccountDeps) => ({
    * @param householdId - The household.
    * @param input - The Budget; its name is trimmed and must not be blank.
    * @returns The Budget.
-   * @throws {ApiError} 404 `household.not_found`; 403 `auth.forbidden`; 409
-   *   `budget.target_already_claimed`; 422 `validation.failed`.
+   * @throws {DomainError} `household.not_found`; `auth.forbidden`;
+   *   `budget.target_already_claimed`; `validation.failed`.
    */
   createBudget: async (
     context: SignedInContext,
@@ -339,8 +339,8 @@ const createBudgets = (deps: AccountDeps) => ({
    * @param budgetId - The Budget.
    * @param edit - The fields to change; a name is trimmed and must not be blank.
    * @returns The Budget as it now stands.
-   * @throws {ApiError} 404 `household.not_found` / `budget.not_found`; 403
-   *   `auth.forbidden`; 409 `budget.target_already_claimed`; 422 `validation.failed`.
+   * @throws {DomainError} `household.not_found` / `budget.not_found`;
+   *   `auth.forbidden`; `budget.target_already_claimed`; `validation.failed`.
    */
   editBudget: async (
     context: SignedInContext,
@@ -371,7 +371,7 @@ const createBudgets = (deps: AccountDeps) => ({
    * @param context - The signed-in request.
    * @param householdId - The household.
    * @param budgetId - The Budget.
-   * @throws {ApiError} 404 `household.not_found` / `budget.not_found`; 403
+   * @throws {DomainError} `household.not_found` / `budget.not_found`;
    *   `auth.forbidden`.
    */
   deleteBudget: async (
@@ -395,7 +395,7 @@ const createBudgets = (deps: AccountDeps) => ({
    * @param budgetId - The Budget.
    * @param range - The months; open ends reach the history's ends.
    * @returns The periods.
-   * @throws {ApiError} 404 `household.not_found` / `budget.not_found`.
+   * @throws {DomainError} `household.not_found` / `budget.not_found`.
    */
   listBudgetPeriods: async (
     context: SignedInContext,

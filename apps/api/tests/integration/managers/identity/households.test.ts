@@ -11,8 +11,8 @@ import { expectAudited } from '../audit';
 const ACTOR = { userId: ANA.id, sessionId: SESSION.id, systemRole: 'USER' as const };
 const CORRELATION_ID = '0199c5a0-0000-7000-8000-0000000000cc';
 const CONTEXT = { correlationId: CORRELATION_ID, actor: ACTOR };
-const NOT_FOUND = { apiError: { status: 404, code: 'household.not_found' } };
-const FORBIDDEN = { apiError: { status: 403, code: 'auth.forbidden' } };
+const NOT_FOUND = { domainError: { code: 'household.not_found' } };
+const FORBIDDEN = { domainError: { code: 'auth.forbidden' } };
 
 describe('IdentityManager — Create Household (uc-01, FR-1.4)', () => {
   it('makes the caller Owner, announces it in their language, audits', async () => {
@@ -56,12 +56,12 @@ describe('IdentityManager — Create Household (uc-01, FR-1.4)', () => {
     expect(bus.publish).not.toHaveBeenCalled();
   });
 
-  it('answers 401 when the creator\'s account is gone, creating nothing', async () => {
+  it('refuses with auth.unauthenticated when the creator\'s account is gone', async () => {
     const { deps, users, households } = fakeDeps();
     users.findById.mockResolvedValueOnce(undefined);
 
     await expect(createIdentityManager(deps).createHousehold(CONTEXT, 'Casa'))
-      .rejects.toMatchObject({ apiError: { status: 401 } });
+      .rejects.toMatchObject({ domainError: { code: 'auth.unauthenticated' } });
     expect(households.insert).not.toHaveBeenCalled();
   });
 });

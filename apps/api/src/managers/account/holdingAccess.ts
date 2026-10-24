@@ -30,7 +30,7 @@ export interface LoadedHolding {
  * @param ids - The household and the Holding.
  * @param action - The data action.
  * @returns The Holding and the caller's role.
- * @throws {ApiError} 404 `household.not_found` / `holding.not_found`; 403 `auth.forbidden`.
+ * @throws {DomainError} `household.not_found` / `holding.not_found`; `auth.forbidden`.
  */
 export const loadHolding = async (
   deps: AccountDeps,
@@ -55,7 +55,7 @@ export const loadHolding = async (
  * Refuses a change to an archived Holding (FR-5.8, OQ-178).
  *
  * @param holding - The Holding.
- * @throws {ApiError} 409 `holding.archived`.
+ * @throws {DomainError} `holding.archived`.
  */
 export const requireOpenHolding = (holding: InvestmentHolding): void => {
   if (holding.archivedAt !== null) throw holdingArchived();

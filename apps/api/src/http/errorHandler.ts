@@ -2,9 +2,11 @@ import type { Error as ErrorBody } from '@financas/api-types';
 import { actorLabel } from '@financas/logging';
 import type { Context, ErrorHandler, NotFoundHandler } from 'hono';
 import { HTTPException } from 'hono/http-exception';
+import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import type { AccessTokenClaims } from '../utilities/authentication';
 import { newCorrelationId, type CorrelationId } from '../utilities/correlationId';
-import { isApiError, type ApiErrorInit } from './apiError';
+import { isDomainError, type DomainErrorInit } from '../utilities/domainError';
+import STATUS_OF from './errorStatus';
 
 /**
  * Hono environment shared by the app: `correlationId` is set by
@@ -15,9 +17,14 @@ export interface AppEnv {
   Variables: { correlationId?: CorrelationId; actor?: AccessTokenClaims };
 }
 
-const UNEXPECTED: ApiErrorInit = {
-  status: 500, code: 'internal.unexpected', message: 'Unexpected error',
-};
+const UNEXPECTED: DomainErrorInit = { code: 'internal.unexpected', message: 'Unexpected error' };
+
+/** How an error is answered: the envelope's content, its status and any headers. */
+interface Answer {
+  readonly init: DomainErrorInit;
+  readonly status: ContentfulStatusCode;
+  readonly headers?: Readonly<Record<string, string>>;
+}
 
 /**
  * Builds the contract's error envelope (`components/schemas/Error`).
@@ -26,7 +33,7 @@ const UNEXPECTED: ApiErrorInit = {
  * @param correlationId - Id that matches the server logs (NFR-OBS-1).
  * @returns The response body.
  */
-export const toErrorBody = (init: ApiErrorInit, correlationId: string): ErrorBody => ({
+export const toErrorBody = (init: DomainErrorInit, correlationId: string): ErrorBody => ({
   error: {
     code: init.code,
     message: init.message,
@@ -60,21 +67,35 @@ export const actorLabelOf = (httpContext: Context<AppEnv>): string => {
 };
 
 /**
- * Describes a non-API error: Hono's own HTTP errors keep their status (e.g. 400
- * for malformed JSON); anything else is an unexpected 500 that reveals nothing.
+ * Answers a refusal (OQ-202): its status is its code's (`STATUS_OF`), and a
+ * wait it names becomes `Retry-After`.
+ *
+ * @param init - The refusal.
+ * @returns How it is answered.
+ */
+export const answerOf = (init: DomainErrorInit): Answer => ({
+  init,
+  status: STATUS_OF[init.code],
+  ...(init.retryAfterSeconds === undefined
+    ? {}
+    : { headers: { 'Retry-After': String(init.retryAfterSeconds) } }),
+});
+
+/**
+ * Describes any thrown error: a refusal is answered by its code; Hono's own
+ * HTTP errors keep their status (e.g. 400 for malformed JSON); anything else
+ * is an unexpected 500 that reveals nothing.
  *
  * @param err - The thrown error.
- * @returns The envelope description, and whether it was unexpected.
+ * @returns How it is answered, and whether it was unexpected.
  */
-const describeError = (err: Error): { init: ApiErrorInit; unexpected: boolean } => {
-  if (isApiError(err)) return { init: err.apiError, unexpected: false };
+const describeError = (err: Error): { answer: Answer; unexpected: boolean } => {
+  if (isDomainError(err)) return { answer: answerOf(err.domainError), unexpected: false };
   if (err instanceof HTTPException) {
-    const init: ApiErrorInit = {
-      status: err.status, code: 'request.invalid', message: err.message,
-    };
-    return { init, unexpected: false };
+    const init: DomainErrorInit = { code: 'request.invalid', message: err.message };
+    return { answer: { init, status: err.status }, unexpected: false };
   }
-  return { init: UNEXPECTED, unexpected: true };
+  return { answer: answerOf(UNEXPECTED), unexpected: true };
 };
 
 /**
@@ -87,10 +108,10 @@ const describeError = (err: Error): { init: ApiErrorInit; unexpected: boolean } 
 export const createErrorHandler = (
   onUnexpected: (err: Error, correlationId: string) => void,
 ): ErrorHandler<AppEnv> => (err, httpContext) => {
-  const { init, unexpected } = describeError(err);
+  const { answer, unexpected } = describeError(err);
   const correlationId = correlationIdOf(httpContext);
   if (unexpected) onUnexpected(err, correlationId);
-  return httpContext.json(toErrorBody(init, correlationId), init.status, init.headers);
+  return httpContext.json(toErrorBody(answer.init, correlationId), answer.status, answer.headers);
 };
 
 /**
@@ -102,11 +123,10 @@ export const createErrorHandler = (
 export const handleNotFound: NotFoundHandler<AppEnv> = (httpContext) => httpContext.json(
   toErrorBody(
     {
-      status: 404,
       code: 'route.not_found',
       message: `No route for ${httpContext.req.method} ${httpContext.req.path}`,
     },
     correlationIdOf(httpContext),
   ),
-  404,
+  STATUS_OF['route.not_found'],
 );

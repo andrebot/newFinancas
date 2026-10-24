@@ -32,10 +32,10 @@ const loginWith = (deps: Deps) => createIdentityManager(deps).login(CONTEXT, CRE
 const verifyWith = (deps: Deps) => (
   createIdentityManager(deps).verifyMfa(CONTEXT, VERIFICATION, 'Firefox')
 );
-const INVALID = { apiError: { status: 401, code: 'auth.invalid_credentials' } };
-const MFA_INVALID = { apiError: { status: 401, code: 'auth.mfa_invalid' } };
-const EXPIRED = { apiError: { status: 401, code: 'auth.challenge_expired' } };
-const LOCKED = { apiError: { status: 429, code: 'auth.too_many_attempts' } };
+const INVALID = { domainError: { code: 'auth.invalid_credentials' } };
+const MFA_INVALID = { domainError: { code: 'auth.mfa_invalid' } };
+const EXPIRED = { domainError: { code: 'auth.challenge_expired' } };
+const LOCKED = { domainError: { code: 'auth.too_many_attempts' } };
 
 describe('IdentityManager — Login, password step (uc-14, OQ-114, OQ-145)', () => {
   it('counts failures under the trimmed, lower-cased address', () => {
@@ -63,11 +63,10 @@ describe('IdentityManager — Login, password step (uc-14, OQ-114, OQ-145)', () 
     users.findLoginLock.mockResolvedValueOnce(new Date(NOW.getTime() + 90_000));
 
     await expect(loginWith(deps)).rejects.toMatchObject({
-      apiError: {
-        status: 429,
+      domainError: {
         code: 'auth.too_many_attempts',
         params: { retryAfterMinutes: 2 },
-        headers: { 'Retry-After': '90' },
+        retryAfterSeconds: 90,
       },
     });
     expect(users.findByEmail).not.toHaveBeenCalled();
@@ -171,7 +170,7 @@ describe('IdentityManager — Login, unconfirmed MFA enrollment (uc-14, OQ-149)'
 
 describe('IdentityManager — Confirm MFA Enrollment (uc-11b, OQ-149)', () => {
   const CONFIRMATION = { enrollmentToken: 'enrollment-token', mfaCode: '123456' };
-  const ENROLLMENT_EXPIRED = { apiError: { status: 401, code: 'auth.enrollment_expired' } };
+  const ENROLLMENT_EXPIRED = { domainError: { code: 'auth.enrollment_expired' } };
 
   /**
    * Confirms with the shared confirmation through a fresh Manager.
@@ -396,7 +395,7 @@ describe('IdentityManager — MFA Recovery (uc-20, OQ-115, OQ-145)', () => {
 });
 
 describe('IdentityManager — Refresh Tokens (uc-14b)', () => {
-  const REFRESH_INVALID = { apiError: { status: 401, code: 'auth.refresh_invalid' } };
+  const REFRESH_INVALID = { domainError: { code: 'auth.refresh_invalid' } };
 
   it('rotates the token and signs a new access token with the current system role', async () => {
     const { deps, sessions, authentication } = fakeDeps();

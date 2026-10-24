@@ -30,7 +30,7 @@ describe('IdentityManager — sessions (uc-16, uc-17, NFR-SEC-5)', () => {
 
     sessions.deleteForUser.mockResolvedValueOnce(false);
     await expect(identity.revokeSession(CONTEXT, 's3'))
-      .rejects.toMatchObject({ apiError: { status: 404, code: 'session.not_found' } });
+      .rejects.toMatchObject({ domainError: { code: 'session.not_found' } });
   });
 
   it('signs out every other session, keeping this one', async () => {

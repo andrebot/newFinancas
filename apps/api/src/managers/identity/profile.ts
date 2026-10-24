@@ -53,7 +53,7 @@ const createProfile = (deps: IdentityDeps) => {
    *
    * @param context - The signed-in request.
    * @returns The user.
-   * @throws {ApiError} 401 `auth.unauthenticated` when the account is gone.
+   * @throws {DomainError} `auth.unauthenticated` when the account is gone.
    */
   const getProfile = async (context: SignedInContext): Promise<User> => {
     const user = await users.findById(context.actor.userId);
@@ -71,7 +71,7 @@ const createProfile = (deps: IdentityDeps) => {
      * @param context - The signed-in request.
      * @param edit - The fields to change.
      * @returns The updated user.
-     * @throws {ApiError} 422 `validation.failed` for a blank name; 401
+     * @throws {DomainError} `validation.failed` for a blank name;
      *   `auth.unauthenticated` when the account is gone.
      */
     editProfile: async (context: SignedInContext, edit: ProfileEdit): Promise<User> => {

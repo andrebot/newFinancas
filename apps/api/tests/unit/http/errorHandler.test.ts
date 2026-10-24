@@ -4,11 +4,11 @@ import { HTTPException } from 'hono/http-exception';
 import {
   describe, expect, it, vi,
 } from 'vitest';
-import { createApiError } from '../../../src/http/apiError';
 import {
-  correlationIdOf, createErrorHandler, handleNotFound, toErrorBody, type AppEnv,
+  answerOf, correlationIdOf, createErrorHandler, handleNotFound, toErrorBody, type AppEnv,
 } from '../../../src/http/errorHandler';
 import { newCorrelationId, type CorrelationId } from '../../../src/utilities/correlationId';
+import { createDomainError } from '../../../src/utilities/domainError';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
@@ -36,10 +36,9 @@ const appThrowing = (thrown: unknown, correlationId?: CorrelationId) => {
 
 describe('toErrorBody', () => {
   it('includes params and details only when present', () => {
-    expect(toErrorBody({ status: 404, code: 'request.invalid', message: 'm' }, 'cid'))
+    expect(toErrorBody({ code: 'request.invalid', message: 'm' }, 'cid'))
       .toEqual({ error: { code: 'request.invalid', message: 'm', correlationId: 'cid' } });
     expect(toErrorBody({
-      status: 422,
       code: 'request.invalid',
       message: 'm',
       params: { x: 1 },
@@ -70,10 +69,23 @@ describe('correlationIdOf', () => {
   });
 });
 
+describe('answerOf', () => {
+  it('gives a refusal its code\'s status, and no headers without a wait', () => {
+    const init = { code: 'goal.completed', message: 'm' } as const;
+
+    expect(answerOf(init)).toEqual({ init, status: 409 });
+  });
+
+  it('turns a wait into Retry-After, in seconds', () => {
+    const init = { code: 'auth.too_many_attempts', message: 'm', retryAfterSeconds: 90 } as const;
+
+    expect(answerOf(init)).toEqual({ init, status: 429, headers: { 'Retry-After': '90' } });
+  });
+});
+
 describe('createErrorHandler', () => {
-  it('renders an API error with its own status, code and params', async () => {
-    const { app, onUnexpected } = appThrowing(createApiError({
-      status: 409,
+  it('renders a refusal with its code\'s status, its code and params', async () => {
+    const { app, onUnexpected } = appThrowing(createDomainError({
       code: 'goal.allocation_exceeds_100',
       message: 'Over',
       params: { current: 85, requested: 30 },
@@ -87,6 +99,27 @@ describe('createErrorHandler', () => {
       code: 'goal.allocation_exceeds_100', params: { current: 85, requested: 30 },
     });
     expect(onUnexpected).not.toHaveBeenCalled();
+  });
+
+  it('answers a wait with Retry-After, keeping it out of the body', async () => {
+    const { app } = appThrowing(createDomainError({
+      code: 'auth.too_many_attempts',
+      message: 'Locked',
+      params: { retryAfterMinutes: 2 },
+      retryAfterSeconds: 90,
+    }));
+
+    const response = await app.request('/boom');
+    const body = zError.parse(await response.json());
+
+    expect(response.status).toBe(429);
+    expect(response.headers.get('Retry-After')).toBe('90');
+    expect(body.error).toEqual({
+      code: 'auth.too_many_attempts',
+      message: 'Locked',
+      params: { retryAfterMinutes: 2 },
+      correlationId: expect.any(String),
+    });
   });
 
   it('keeps the status of Hono HTTP errors as request.invalid', async () => {

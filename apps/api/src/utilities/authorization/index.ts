@@ -21,8 +21,8 @@ export interface AuthorizationDeps {
 }
 
 /**
- * The outcome. `not_member` and `not_visible` are answered with 404 (the
- * household or the data isn't revealed); `forbidden` with 403.
+ * The outcome. `not_member` and `not_visible` are answered as not found (the
+ * household or the data isn't revealed); `forbidden` with `auth.forbidden`.
  */
 export type Authorization = | { readonly outcome: 'allowed'; readonly role: Role }
   | { readonly outcome: 'not_member' | 'forbidden' | 'not_visible' };

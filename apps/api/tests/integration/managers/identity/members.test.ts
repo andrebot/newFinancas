@@ -11,8 +11,8 @@ import { expectAudited } from '../audit';
 const ACTOR = { userId: ANA.id, sessionId: SESSION.id, systemRole: 'USER' as const };
 const CONTEXT = { correlationId: 'c1', actor: ACTOR };
 const HOME = HOUSEHOLD.id;
-const CHANGED = { apiError: { status: 409, code: 'household.changed' } };
-const FORBIDDEN = { apiError: { status: 403, code: 'auth.forbidden' } };
+const CHANGED = { domainError: { code: 'household.changed' } };
+const FORBIDDEN = { domainError: { code: 'auth.forbidden' } };
 const OWNER = { role: 'Owner', joinedAt: NOW };
 
 describe('IdentityManager — Remove Member (uc-07, FR-1.11)', () => {
@@ -49,7 +49,7 @@ describe('IdentityManager — Remove Member (uc-07, FR-1.11)', () => {
     households.findMembership.mockResolvedValueOnce(undefined);
 
     await expect(identity.removeMember(CONTEXT, HOME, BEN_ID))
-      .rejects.toMatchObject({ apiError: { status: 404, code: 'household.member_not_found' } });
+      .rejects.toMatchObject({ domainError: { code: 'household.member_not_found' } });
 
     households.removeMember.mockResolvedValueOnce('stale');
     await expect(identity.removeMember(CONTEXT, HOME, BEN_ID)).rejects.toMatchObject(CHANGED);
@@ -158,7 +158,7 @@ describe('IdentityManager — Leave Household (uc-08, FR-1.18, OQ-107)', () => {
     households.findMembership.mockResolvedValueOnce(undefined);
 
     await expect(leave(deps))
-      .rejects.toMatchObject({ apiError: { status: 404, code: 'household.not_found' } });
+      .rejects.toMatchObject({ domainError: { code: 'household.not_found' } });
   });
 });
 
@@ -230,7 +230,7 @@ describe('IdentityManager — Transfer Ownership (uc-10, FR-1.20)', () => {
 
     households.findMembership.mockResolvedValueOnce(undefined);
     await expect(identity.transferOwnership(CONTEXT, HOME, BEN_ID))
-      .rejects.toMatchObject({ apiError: { status: 404, code: 'household.member_not_found' } });
+      .rejects.toMatchObject({ domainError: { code: 'household.member_not_found' } });
 
     households.swapOwner.mockResolvedValueOnce('stale');
     await expect(identity.transferOwnership(CONTEXT, HOME, BEN_ID)).rejects.toMatchObject(CHANGED);

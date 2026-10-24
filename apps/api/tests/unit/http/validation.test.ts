@@ -1,7 +1,7 @@
 import { zError, zGoalCreateRequest, zListTransactionsQuery } from '@financas/api-types/zod';
 import { Hono } from 'hono';
 import { describe, expect, it } from 'vitest';
-import { isApiError } from '../../../src/http/apiError';
+import { isDomainError } from '../../../src/utilities/domainError';
 import { createErrorHandler, type AppEnv } from '../../../src/http/errorHandler';
 import { throwOnInvalid, validate, validationError } from '../../../src/http/validation';
 
@@ -37,9 +37,8 @@ describe('validationError', () => {
 
     const error = validationError(result.error.issues, {});
 
-    expect(error.apiError.status).toBe(422);
-    expect(error.apiError.code).toBe('validation.failed');
-    expect(error.apiError.details).toHaveLength(5);
+    expect(error.domainError.code).toBe('validation.failed');
+    expect(error.domainError.details).toHaveLength(5);
   });
 });
 
@@ -55,7 +54,7 @@ describe('throwOnInvalid', () => {
       throwOnInvalid({ ...result, data: {} });
       expect.unreachable();
     } catch (error) {
-      expect(isApiError(error) && error.apiError.code).toBe('validation.failed');
+      expect(isDomainError(error) && error.domainError.code).toBe('validation.failed');
     }
   });
 });

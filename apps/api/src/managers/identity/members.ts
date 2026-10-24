@@ -49,7 +49,7 @@ const createMembers = (deps: IdentityDeps) => {
    * @param householdId - The household.
    * @param userId - The member leaving.
    * @returns The outcome.
-   * @throws {ApiError} 404 `household.not_found` when not a member.
+   * @throws {DomainError} `household.not_found` when not a member.
    */
   const attemptLeave = async (householdId: string, userId: string): Promise<LeaveOutcome> => {
     const membership = await households.findMembership(householdId, userId);
@@ -65,7 +65,7 @@ const createMembers = (deps: IdentityDeps) => {
    * @param context - The signed-in request.
    * @param householdId - The household.
    * @param attemptsLeft - Retries remaining.
-   * @throws {ApiError} 404 `household.not_found`; 409 `household.changed`.
+   * @throws {DomainError} `household.not_found`; `household.changed`.
    */
   const leave = async (
     context: SignedInContext,
@@ -90,8 +90,8 @@ const createMembers = (deps: IdentityDeps) => {
    * @param context - The signed-in request.
    * @param householdId - The household.
    * @param targetUserId - The member acted on.
-   * @throws {ApiError} 404 `household.not_found` / `household.member_not_found`;
-   *   403 `auth.forbidden`.
+   * @throws {DomainError} `household.not_found` / `household.member_not_found`;
+   *   `auth.forbidden`.
    */
   const requireManageableMember = async (
     context: SignedInContext,
@@ -112,7 +112,7 @@ const createMembers = (deps: IdentityDeps) => {
      * @param context - The signed-in request.
      * @param householdId - The household.
      * @param targetUserId - Who leaves.
-     * @throws {ApiError} 404 / 403 / 409 `household.changed`.
+     * @throws {DomainError} a not-found / `auth.forbidden` / `household.changed`.
      */
     removeMember: async (
       context: SignedInContext,
@@ -137,7 +137,7 @@ const createMembers = (deps: IdentityDeps) => {
      * @param householdId - The household.
      * @param targetUserId - The member.
      * @param role - The new role.
-     * @throws {ApiError} 404 / 403 / 409 `household.changed`.
+     * @throws {DomainError} a not-found / `auth.forbidden` / `household.changed`.
      */
     changeMemberRole: async (
       context: SignedInContext,
@@ -161,7 +161,7 @@ const createMembers = (deps: IdentityDeps) => {
      * @param context - The signed-in request.
      * @param householdId - The household.
      * @param targetUserId - The new Owner.
-     * @throws {ApiError} 404 / 403 (not the Owner) / 409 `household.changed`.
+     * @throws {DomainError} a not-found / `auth.forbidden` (not the Owner) / `household.changed`.
      */
     transferOwnership: async (
       context: SignedInContext,

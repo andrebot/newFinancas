@@ -45,7 +45,7 @@ const createSessions = (deps: IdentityDeps) => ({
    *
    * @param context - The signed-in request.
    * @param sessionId - The session to end.
-   * @throws {ApiError} 404 `session.not_found` when missing or someone else's.
+   * @throws {DomainError} `session.not_found` when missing or someone else's.
    */
   revokeSession: async (context: SignedInContext, sessionId: string): Promise<void> => {
     const ended = await deps.sessions.deleteForUser(context.actor.userId, sessionId);

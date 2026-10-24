@@ -4,7 +4,7 @@ import type {
 } from '../../accessors/goalAccessor';
 import type { InvestmentHolding, ScheduleEntry } from '../../accessors/investmentHoldingAccessor';
 import type { Role } from '../../db/schema/values';
-import type { ApiError } from '../../http/apiError';
+import type { DomainError } from '../../utilities/domainError';
 import { decide } from '../../utilities/authorization';
 import { distinctItems } from '../../utilities/validation';
 import { accessToOwned } from '../access';
@@ -89,12 +89,12 @@ export const hasMatured = (
  * Turns GoalAccessor's refusal of a split into the API's answer.
  *
  * @param result - The refusal.
- * @returns 404 `holding.not_found` / `goal.not_found`, or 409
+ * @returns `holding.not_found` / `goal.not_found`, or
  *   `goal.allocation_exceeds_100`.
  */
 export const splitRefusal = (
   result: Exclude<ReplaceAllocationsResult, { ok: true }>,
-): ApiError => {
+): DomainError => {
   if (result.reason === 'holding_not_found') return holdingNotFound();
   if (result.reason === 'goal_not_found') return goalNotFound();
   return allocationExceeds100(result.current, result.requested);
@@ -127,7 +127,7 @@ const visibleGoals = async (
  * @param requested - The new split.
  * @param current - The Holding's split now.
  * @param visible - The Goals the caller can see.
- * @throws {ApiError} 422 `validation.failed`; 404 `goal.not_found`; 409 `goal.completed`.
+ * @throws {DomainError} `validation.failed`; `goal.not_found`; `goal.completed`.
  */
 const checkSplit = (
   requested: readonly AllocationShare[],
@@ -157,7 +157,7 @@ const createHoldings = (deps: AccountDeps) => ({
    * @param householdId - The household.
    * @param holdingId - The Holding.
    * @returns The visible shares, oldest first.
-   * @throws {ApiError} 404 `household.not_found` / `holding.not_found`.
+   * @throws {DomainError} `household.not_found` / `holding.not_found`.
    */
   listHoldingAllocations: async (
     context: SignedInContext,
@@ -187,9 +187,9 @@ const createHoldings = (deps: AccountDeps) => ({
    * @param holdingId - The Holding.
    * @param requested - The new visible split; empty removes it.
    * @returns The visible split as written.
-   * @throws {ApiError} 404 `household.not_found` / `holding.not_found` /
-   *   `goal.not_found`; 403 `auth.forbidden`; 409 `holding.archived` /
-   *   `goal.completed` / `goal.allocation_exceeds_100`; 422 `validation.failed`.
+   * @throws {DomainError} `household.not_found` / `holding.not_found` /
+   *   `goal.not_found`; `auth.forbidden`; `holding.archived` /
+   *   `goal.completed` / `goal.allocation_exceeds_100`; `validation.failed`.
    */
   editHolding: async (
     context: SignedInContext,
@@ -221,8 +221,8 @@ const createHoldings = (deps: AccountDeps) => ({
    * @param context - The signed-in request.
    * @param householdId - The household.
    * @param holdingId - The Holding.
-   * @throws {ApiError} 404 `household.not_found` / `holding.not_found`; 403
-   *   `auth.forbidden`; 409 `holding.not_matured`.
+   * @throws {DomainError} `household.not_found` / `holding.not_found`;
+   *   `auth.forbidden`; `holding.not_matured`.
    */
   archiveHolding: async (
     context: SignedInContext,
@@ -248,7 +248,7 @@ const createHoldings = (deps: AccountDeps) => ({
    * @param householdId - The household.
    * @param holdingId - The Holding.
    * @returns The entries, by date.
-   * @throws {ApiError} 404 `household.not_found` / `holding.not_found`.
+   * @throws {DomainError} `household.not_found` / `holding.not_found`.
    */
   listScheduleEntries: async (
     context: SignedInContext,

@@ -1,5 +1,5 @@
 import type { core } from 'zod';
-import type { FieldDetail } from './apiError';
+import type { FieldDetail } from '../utilities/validation';
 
 type Issue = core.$ZodIssue;
 type DetailBody = Omit<FieldDetail, 'field'>;

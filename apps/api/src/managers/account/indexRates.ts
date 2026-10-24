@@ -72,7 +72,7 @@ export const rateChangesOf = (edit: IndexRateEdit): Partial<DatedRate> => ({
  *
  * @param deps - The clock.
  * @param asOf - The date, if one is sent.
- * @throws {ApiError} 422 `validation.failed` (`date.max` on `asOf`).
+ * @throws {DomainError} `validation.failed` (`date.max` on `asOf`).
  */
 const requirePastDate = (deps: AccountDeps, asOf: string | undefined): void => (
   requireValidFields({ asOf }, { asOf: dateWithin({ max: todayOf(deps) }) })
@@ -87,7 +87,7 @@ const requirePastDate = (deps: AccountDeps, asOf: string | undefined): void => (
  * @param ids - The household, the index and the value.
  * @param action - `data.edit` or `data.delete`.
  * @returns The value.
- * @throws {ApiError} 404 `household.not_found` / `index_rate.not_found`; 403 `auth.forbidden`.
+ * @throws {DomainError} `household.not_found` / `index_rate.not_found`; `auth.forbidden`.
  */
 const loadRate = async (
   deps: AccountDeps,
@@ -117,7 +117,7 @@ const createIndexRates = (deps: AccountDeps) => ({
    * @param context - The signed-in request.
    * @param householdId - The household.
    * @returns One series per index.
-   * @throws {ApiError} 404 `household.not_found`.
+   * @throws {DomainError} `household.not_found`.
    */
   listIndexRates: async (
     context: SignedInContext,
@@ -135,8 +135,8 @@ const createIndexRates = (deps: AccountDeps) => ({
    * @param indexCode - The index, from the route.
    * @param input - The value and its date, not after today.
    * @returns The value.
-   * @throws {ApiError} 404 `household.not_found`; 403 `auth.forbidden`; 409
-   *   `index_rate.duplicate_day`; 422 `validation.failed`.
+   * @throws {DomainError} `household.not_found`; `auth.forbidden`;
+   *   `index_rate.duplicate_day`; `validation.failed`.
    */
   recordIndexRate: async (
     context: SignedInContext,
@@ -169,8 +169,8 @@ const createIndexRates = (deps: AccountDeps) => ({
    * @param valueId - The value.
    * @param edit - The fields to change; a date not after today.
    * @returns The value as it now stands.
-   * @throws {ApiError} 404 `household.not_found` / `index_rate.not_found`; 403
-   *   `auth.forbidden`; 409 `index_rate.duplicate_day`; 422 `validation.failed`.
+   * @throws {DomainError} `household.not_found` / `index_rate.not_found`;
+   *   `auth.forbidden`; `index_rate.duplicate_day`; `validation.failed`.
    */
   editIndexRate: async (
     context: SignedInContext,
@@ -199,7 +199,7 @@ const createIndexRates = (deps: AccountDeps) => ({
    * @param householdId - The household.
    * @param indexCode - The index, from the route.
    * @param valueId - The value.
-   * @throws {ApiError} 404 `household.not_found` / `index_rate.not_found`; 403 `auth.forbidden`.
+   * @throws {DomainError} `household.not_found` / `index_rate.not_found`; `auth.forbidden`.
    */
   deleteIndexRate: async (
     context: SignedInContext,

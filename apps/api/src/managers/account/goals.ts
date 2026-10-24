@@ -64,7 +64,7 @@ export const goalChangesOf = (edit: GoalEdit): GoalChanges => {
  * @param ids - The household and the Goal.
  * @param action - The data action.
  * @returns The Goal.
- * @throws {ApiError} 404 `household.not_found` / `goal.not_found`; 403 `auth.forbidden`.
+ * @throws {DomainError} `household.not_found` / `goal.not_found`; `auth.forbidden`.
  */
 const loadGoal = async (
   deps: AccountDeps,
@@ -92,7 +92,7 @@ const loadGoal = async (
  * @param context - The signed-in request.
  * @param ids - The household and the Goal.
  * @param completed - `true` to complete it, `false` to reopen it.
- * @throws {ApiError} 404 `household.not_found` / `goal.not_found`; 403 `auth.forbidden`.
+ * @throws {DomainError} `household.not_found` / `goal.not_found`; `auth.forbidden`.
  */
 const setCompleted = async (
   deps: AccountDeps,
@@ -125,7 +125,7 @@ const createGoals = (deps: AccountDeps) => ({
    * @param householdId - The household.
    * @param status - Active or completed.
    * @returns The Goals.
-   * @throws {ApiError} 404 `household.not_found`.
+   * @throws {DomainError} `household.not_found`.
    */
   listGoals: async (
     context: SignedInContext,
@@ -144,7 +144,7 @@ const createGoals = (deps: AccountDeps) => ({
    * @param householdId - The household.
    * @param goalId - The Goal.
    * @returns The Goal.
-   * @throws {ApiError} 404 `household.not_found` / `goal.not_found`.
+   * @throws {DomainError} `household.not_found` / `goal.not_found`.
    */
   getGoal: (
     context: SignedInContext,
@@ -160,7 +160,7 @@ const createGoals = (deps: AccountDeps) => ({
    * @param householdId - The household.
    * @param input - The Goal; its name is trimmed and must not be blank.
    * @returns The Goal.
-   * @throws {ApiError} 404 `household.not_found`; 403 `auth.forbidden`; 422
+   * @throws {DomainError} `household.not_found`; `auth.forbidden`;
    *   `validation.failed`.
    */
   createGoal: async (
@@ -198,8 +198,8 @@ const createGoals = (deps: AccountDeps) => ({
    * @param goalId - The Goal.
    * @param edit - The fields to change; a name is trimmed and must not be blank.
    * @returns The Goal as it now stands.
-   * @throws {ApiError} 404 `household.not_found` / `goal.not_found`; 403
-   *   `auth.forbidden`; 422 `validation.failed`.
+   * @throws {DomainError} `household.not_found` / `goal.not_found`;
+   *   `auth.forbidden`; `validation.failed`.
    */
   editGoal: async (
     context: SignedInContext,
@@ -225,7 +225,7 @@ const createGoals = (deps: AccountDeps) => ({
    * @param context - The signed-in request.
    * @param householdId - The household.
    * @param goalId - The Goal.
-   * @throws {ApiError} 404 `household.not_found` / `goal.not_found`; 403 `auth.forbidden`.
+   * @throws {DomainError} `household.not_found` / `goal.not_found`; `auth.forbidden`.
    */
   completeGoal: (
     context: SignedInContext,
@@ -239,7 +239,7 @@ const createGoals = (deps: AccountDeps) => ({
    * @param context - The signed-in request.
    * @param householdId - The household.
    * @param goalId - The Goal.
-   * @throws {ApiError} 404 `household.not_found` / `goal.not_found`; 403 `auth.forbidden`.
+   * @throws {DomainError} `household.not_found` / `goal.not_found`; `auth.forbidden`.
    */
   reopenGoal: (
     context: SignedInContext,
@@ -254,7 +254,7 @@ const createGoals = (deps: AccountDeps) => ({
    * @param context - The signed-in request.
    * @param householdId - The household.
    * @param goalId - The Goal.
-   * @throws {ApiError} 404 `household.not_found` / `goal.not_found`; 403 `auth.forbidden`.
+   * @throws {DomainError} `household.not_found` / `goal.not_found`; `auth.forbidden`.
    */
   deleteGoal: async (
     context: SignedInContext,

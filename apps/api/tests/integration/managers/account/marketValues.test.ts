@@ -14,16 +14,15 @@ const UNKNOWN_ID = '0199c5a0-0000-7000-8000-0000000000ff';
 const AUTOMATIC = {
   ...SNAPSHOT, source: 'transaction' as const, accountTransactionId: UNKNOWN_ID,
 };
-const FORBIDDEN = { apiError: { status: 403, code: 'auth.forbidden' } };
-const HOLDING_NOT_FOUND = { apiError: { status: 404, code: 'holding.not_found' } };
-const SNAPSHOT_NOT_FOUND = { apiError: { status: 404, code: 'snapshot.not_found' } };
-const NOT_EDITABLE = { apiError: { status: 409, code: 'snapshot.automatic_not_editable' } };
-const NOT_MARKET_PRICED = { apiError: { status: 409, code: 'holding.not_market_priced' } };
-const ARCHIVED = { apiError: { status: 409, code: 'holding.archived' } };
+const FORBIDDEN = { domainError: { code: 'auth.forbidden' } };
+const HOLDING_NOT_FOUND = { domainError: { code: 'holding.not_found' } };
+const SNAPSHOT_NOT_FOUND = { domainError: { code: 'snapshot.not_found' } };
+const NOT_EDITABLE = { domainError: { code: 'snapshot.automatic_not_editable' } };
+const NOT_MARKET_PRICED = { domainError: { code: 'holding.not_market_priced' } };
+const ARCHIVED = { domainError: { code: 'holding.archived' } };
 /** A date after today (2026-10-13) — refused (OQ-178). */
 const TOMORROW_REFUSED = {
-  apiError: {
-    status: 422,
+  domainError: {
     code: 'validation.failed',
     details: [{ field: 'asOf', code: 'date.max', params: { max: '2026-10-13' } }],
   },

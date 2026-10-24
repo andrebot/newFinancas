@@ -23,7 +23,7 @@ import {
  * @param context - The signed-in request.
  * @param householdId - The household.
  * @param action - The data action.
- * @throws {ApiError} 404 `household.not_found`; 403 `auth.forbidden`.
+ * @throws {DomainError} `household.not_found`; `auth.forbidden`.
  */
 const requireCategoryAccess = async (
   deps: AccountDeps,
@@ -95,7 +95,7 @@ const createCategories = (deps: AccountDeps) => ({
    * @param householdId - The household.
    * @param filter - Whether archived ones come too.
    * @returns The Categories.
-   * @throws {ApiError} 404 `household.not_found`.
+   * @throws {DomainError} `household.not_found`.
    */
   listCategories: async (
     context: SignedInContext,
@@ -113,7 +113,7 @@ const createCategories = (deps: AccountDeps) => ({
    * @param householdId - The household.
    * @param categoryId - The Category.
    * @returns The Category.
-   * @throws {ApiError} 404 `household.not_found` / `category.not_found`.
+   * @throws {DomainError} `household.not_found` / `category.not_found`.
    */
   getCategory: async (
     context: SignedInContext,
@@ -133,7 +133,7 @@ const createCategories = (deps: AccountDeps) => ({
    * @param householdId - The household.
    * @param category - Its name (trimmed here, must not be blank), icon and colour.
    * @returns The Category.
-   * @throws {ApiError} 404 `household.not_found`; 403 `auth.forbidden`; 422
+   * @throws {DomainError} `household.not_found`; `auth.forbidden`;
    *   `validation.failed`.
    */
   createCategory: async (
@@ -164,8 +164,8 @@ const createCategories = (deps: AccountDeps) => ({
    * @param categoryId - The Category.
    * @param edit - The fields to change; names are trimmed and must not be blank.
    * @returns The Category as it now stands.
-   * @throws {ApiError} 404 `household.not_found` / `category.not_found` /
-   *   `subcategory.not_found`; 403 `auth.forbidden`; 422 `validation.failed`.
+   * @throws {DomainError} `household.not_found` / `category.not_found` /
+   *   `subcategory.not_found`; `auth.forbidden`; `validation.failed`.
    */
   editCategory: async (
     context: SignedInContext,
@@ -196,7 +196,7 @@ const createCategories = (deps: AccountDeps) => ({
    * @param context - The signed-in request.
    * @param householdId - The household.
    * @param categoryId - The Category.
-   * @throws {ApiError} 404 `household.not_found` / `category.not_found`; 403
+   * @throws {DomainError} `household.not_found` / `category.not_found`;
    *   `auth.forbidden`.
    */
   archiveCategory: async (
@@ -219,7 +219,7 @@ const createCategories = (deps: AccountDeps) => ({
    * @param householdId - The household.
    * @param categoryId - Its Category.
    * @param subcategoryId - The Subcategory.
-   * @throws {ApiError} 404 `household.not_found` / `subcategory.not_found`; 403
+   * @throws {DomainError} `household.not_found` / `subcategory.not_found`;
    *   `auth.forbidden`.
    */
   archiveSubcategory: async (

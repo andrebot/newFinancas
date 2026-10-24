@@ -289,7 +289,7 @@ Decisions (OQ-202): fix A1–A3 and A5; A6 by option (a); A4 waits for task 123.
 | Review A5 | `memberOnly` in `managers/access.ts`, asked by the five list actions; `accessToOwned` falls back to it. |
 | Review A3 | `FieldDetail` moves to `utilities/validation.ts`; `http/apiError` imports and re-exports it. No Utility imports `http/`. |
 | Review A1, A2 | `useActiveHousehold` → `shell/activeHousehold.ts`; the shared setup requests → `experiences/setupRequests.ts`. ESLint `project/web-api-direction` refuses `shell/` and `experiences/` imports in `src/api/` (checked against a probe import). EBD doc and the Onboard tier and Guided Setup sequence diagrams updated through the generator. |
-| A4 | Task 123's line in the plan carries the decision to take there. |
+| A4 | First left for task 123; decided right after the review instead (OQ-202): Managers refuse by code, `http/errorStatus.ts` gives each code its status, its own PR. |
 
 ## Closing (OQ-164)
 
@@ -301,6 +301,6 @@ The review is closed:
   with an ESLint boundary so the `api/` one can't come back unnoticed.
   Both carry-overs are decided.
 
-**Still open, on the plan:** the A4 decision at task 123; checking at task
+**Still open, on the plan:** checking at task
 104 that the Goals tab's progress banner goes once `goal-progress` is served
 (OQ-195). Slice 3 starts with task 99.

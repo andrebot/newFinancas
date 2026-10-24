@@ -45,8 +45,8 @@ const createRegistration = (deps: IdentityDeps) => ({
    *   trimmed here (OQ-108).
    * @returns The new user's id, TOTP secret, QR URI, recovery codes and the
    *   token that confirms the enrollment.
-   * @throws {ApiError} 422 `validation.failed` for a blank name; 422
-   *   `password.too_short`; 409 `user.email_taken`.
+   * @throws {DomainError} `validation.failed` for a blank name;
+   *   `password.too_short`; `user.email_taken`.
    */
   register: async (context: RequestContext, input: Registration): Promise<Registered> => {
     requireValidFields(input, { firstName: nonBlank, lastName: nonBlank });

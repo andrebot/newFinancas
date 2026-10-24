@@ -7,9 +7,9 @@ import type { ApiFieldCode } from '@financas/i18n';
 // trimmed, a length the Manager answers itself, bounds that depend on another
 // field or on the request. Every rule lets `undefined` through: whether a field
 // is required is the contract's call. A failure is the same `{field, code,
-// params}` the route's 422 carries, so the web app renders both alike (OQ-119).
-// Pure: no storage, no clock, no HTTP — the Manager turns failures into the
-// 422 (`validationFailed`) and passes in anything time-dependent.
+// params}` the route's `validation.failed` carries, so the web app renders both
+// alike (OQ-119). Pure: no storage, no clock, no HTTP — the Manager turns
+// failures into `validationFailed` and passes in anything time-dependent.
 
 /**
  * One field-level problem, rendered by the frontend from `code` + `params` —

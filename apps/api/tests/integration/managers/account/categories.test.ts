@@ -11,10 +11,10 @@ import {
 const CATEGORY_ID = CATEGORY.id;
 const SUBCATEGORY_ID = SUBCATEGORY.id;
 const NEW_CATEGORY = { name: 'Pets', icon: 'pets', color: 'sky' };
-const HOUSEHOLD_NOT_FOUND = { apiError: { status: 404, code: 'household.not_found' } };
-const FORBIDDEN = { apiError: { status: 403, code: 'auth.forbidden' } };
-const CATEGORY_NOT_FOUND = { apiError: { status: 404, code: 'category.not_found' } };
-const SUBCATEGORY_NOT_FOUND = { apiError: { status: 404, code: 'subcategory.not_found' } };
+const HOUSEHOLD_NOT_FOUND = { domainError: { code: 'household.not_found' } };
+const FORBIDDEN = { domainError: { code: 'auth.forbidden' } };
+const CATEGORY_NOT_FOUND = { domainError: { code: 'category.not_found' } };
+const SUBCATEGORY_NOT_FOUND = { domainError: { code: 'subcategory.not_found' } };
 
 /**
  * The rejection for blank names (ValidationUtility, OQ-165).
@@ -23,8 +23,7 @@ const SUBCATEGORY_NOT_FOUND = { apiError: { status: 404, code: 'subcategory.not_
  * @returns A matcher for `rejects.toMatchObject`.
  */
 const blank = (...fields: string[]) => ({
-  apiError: {
-    status: 422,
+  domainError: {
     code: 'validation.failed',
     details: fields.map((field) => ({ field, code: 'string.min', params: { min: 1 } })),
   },
@@ -143,8 +142,7 @@ describe('AccountManager — Create Category (categories/uc-01, FR-10.1)', () =>
 
     await expect(createAccountManager(deps).createCategory(CONTEXT, HOUSEHOLD_ID, NEW_CATEGORY))
       .rejects.toMatchObject({
-        apiError: {
-          status: 422,
+        domainError: {
           code: 'validation.failed',
           details: [{ field, code: 'field.invalid_option' }],
         },
@@ -209,7 +207,9 @@ describe('AccountManager — Edit Category (categories/uc-02, FR-10.2, OQ-173)',
   it.each([
     ['not_found', CATEGORY_NOT_FOUND],
     ['subcategory_not_found', SUBCATEGORY_NOT_FOUND],
-    ['invalid_color', { apiError: { status: 422, details: [{ field: 'color' }] } }],
+    ['invalid_color', {
+      domainError: { code: 'validation.failed', details: [{ field: 'color' }] },
+    }],
   ])('answers the Accessor\'s %s, unaudited', async (refusal, expected) => {
     const { deps, categories } = fakeDeps();
     categories.update.mockResolvedValueOnce(refusal);

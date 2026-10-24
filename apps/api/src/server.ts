@@ -33,6 +33,7 @@ import { createAuthenticationUtility } from './utilities/authentication';
 import { createAuthorizationUtility } from './utilities/authorization';
 import { createServiceBus } from './utilities/serviceBus';
 import { newCorrelationId } from './utilities/correlationId';
+import { failureDetails } from './utilities/domainError';
 import { createAuditSink } from './utilities/logging/auditSink';
 import { logFileLister, reconcileAudit } from './utilities/logging/reconcile';
 import createUnitOfWork from './utilities/unitOfWork';
@@ -68,7 +69,7 @@ const bus = createServiceBus({
   now: () => new Date(),
   onHandlerError: (error, message) => log.error(
     `Subscriber failed for ${message.topic}`,
-    { error: String(error), correlationId: message.correlationId },
+    { ...failureDetails(error), correlationId: message.correlationId },
   ),
 });
 const authorization = createAuthorizationUtility({ findMembership: households.findMembership });

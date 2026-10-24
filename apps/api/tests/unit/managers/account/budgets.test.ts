@@ -57,8 +57,7 @@ describe('rejectionError', () => {
       reason: 'target_claimed', target: MARKET, claimedByBudgetId: 'b9',
     } as const;
 
-    expect(rejectionError(rejection, [FOOD, MARKET]).apiError).toMatchObject({
-      status: 409,
+    expect(rejectionError(rejection, [FOOD, MARKET]).domainError).toMatchObject({
       code: 'budget.target_already_claimed',
       params: { subcategoryId: 's1', budgetId: 'b9' },
     });
@@ -67,8 +66,7 @@ describe('rejectionError', () => {
   it('answers a target gone meanwhile on its field', () => {
     const rejection = { reason: 'target_not_found', target: MARKET } as const;
 
-    expect(rejectionError(rejection, [FOOD, MARKET]).apiError).toMatchObject({
-      status: 422,
+    expect(rejectionError(rejection, [FOOD, MARKET]).domainError).toMatchObject({
       code: 'validation.failed',
       details: [{ field: 'targets[1].subcategoryId', code: 'field.invalid_option' }],
     });
@@ -77,7 +75,7 @@ describe('rejectionError', () => {
   it('names a Category target by its categoryId', () => {
     const rejection = { reason: 'target_not_found', target: FOOD } as const;
 
-    expect(rejectionError(rejection, [FOOD]).apiError.details)
+    expect(rejectionError(rejection, [FOOD]).domainError.details)
       .toEqual([{ field: 'targets[0].categoryId', code: 'field.invalid_option' }]);
   });
 });
