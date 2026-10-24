@@ -47,6 +47,7 @@ describe('inBinRange', () => {
 
   it('waits for as many digits as the range has', () => {
     expect(inBinRange('50669', ['506699', '506778'])).toBe(false);
+    expect(inBinRange('45', ['400000', '499999'])).toBe(false);
   });
 });
 
@@ -97,6 +98,21 @@ describe('CARD_NUMBER_FORMATS', () => {
     expect(Object.keys(CARD_NUMBER_FORMATS).sort()).toEqual([...CARD_NETWORKS].sort());
   });
 
+  it.each([
+    ['visa', [13, 16, 19]],
+    ['mastercard', [16]],
+    ['amex', [15]],
+    ['elo', [16]],
+    ['hipercard', [16, 19]],
+    ['diners', [14]],
+    ['discover', [16, 19]],
+    ['jcb', [16, 17, 18, 19]],
+    ['unionpay', [16, 17, 18, 19]],
+    ['other', [12, 13, 14, 15, 16, 17, 18, 19]],
+  ] as const)('lets a %s number have %j digits', (network, lengths) => {
+    expect(CARD_NUMBER_FORMATS[network].lengths).toEqual(lengths);
+  });
+
   it('groups Amex and Diners 4-6, the rest in fours', () => {
     expect(CARD_NUMBER_FORMATS.amex.gaps).toEqual([4, 10]);
     expect(CARD_NUMBER_FORMATS.diners.gaps).toEqual([4, 10]);
@@ -117,6 +133,10 @@ describe('passesLuhn', () => {
   it('accepts a number whose checksum holds', () => {
     expect(passesLuhn('4111111111111111')).toBe(true);
     expect(passesLuhn('378282246310005')).toBe(true);
+  });
+
+  it('counts a 9 in a position that is not doubled as 9', () => {
+    expect(passesLuhn('79927398713')).toBe(true);
   });
 
   it('rejects a number with a typo', () => {
@@ -140,8 +160,17 @@ describe('isValidCardNumber', () => {
     expect(isValidCardNumber('3782822463100005')).toBe(false);
   });
 
+  it('rejects a length no network allows even when the checksum holds', () => {
+    expect(isValidCardNumber('79927398713')).toBe(false);
+  });
+
   it('rejects anything but digits', () => {
     expect(isValidCardNumber('')).toBe(false);
     expect(isValidCardNumber('4111 1111 1111 1111')).toBe(false);
+  });
+
+  it('rejects a non-digit at either end, which the checksum would read as 0', () => {
+    expect(isValidCardNumber('411111111111116 ')).toBe(false);
+    expect(isValidCardNumber(' 378282246310005')).toBe(false);
   });
 });
