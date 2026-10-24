@@ -157,6 +157,28 @@ describe('the accounts’ cards', () => {
     expect(screen.getByText('1234')).toBeTruthy();
   });
 
+  it('labels a credit-card account\'s figure as outstanding, a checking one\'s as balance', () => {
+    renderPanel();
+    const outstanding = screen.getByRole('button', { name: 'Cards' }).closest('section');
+    const balance = screen.getByRole('button', { name: 'Main Checking' }).closest('section');
+    expect(outstanding?.textContent).toContain('Outstanding');
+    expect(balance?.textContent).toContain('Balance');
+  });
+
+  it('says an account has no cards only when it has none', () => {
+    renderPanel();
+    const noCards = screen.getByRole('button', { name: 'Main Checking' }).closest('section');
+    const withCards = screen.getByRole('button', { name: 'Cards' }).closest('section');
+    expect(noCards?.textContent).toContain('No cards attached.');
+    expect(withCards?.textContent).not.toContain('No cards attached.');
+  });
+
+  it('explains what to add, and shows no archived section without any', () => {
+    renderPanel({ view: { status: 'loaded', accounts: [CHECKING] }, canCreate: true });
+    expect(screen.getByText(/A checking, savings or investment account/)).toBeTruthy();
+    expect(screen.queryByText(/archived account/)).toBeNull();
+  });
+
   it('labels a personal account and tones its tag down', () => {
     const PERSONAL = account('per', { name: 'Personal Checking', visibility: 'personal' });
     renderPanel({ view: { status: 'loaded', accounts: [PERSONAL] } });
@@ -183,7 +205,9 @@ describe('the accounts’ cards', () => {
   it('keeps the archived accounts in their own section, not editable', () => {
     const handlers = renderPanel();
     expect(screen.getByText(/1 archived account/)).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Old Savings' }));
+    const old = screen.getByRole('button', { name: 'Old Savings' });
+    expect(old.className).not.toContain('after:inset-0');
+    fireEvent.click(old);
     expect(handlers.onEdit).toHaveBeenCalledTimes(0);
   });
 });

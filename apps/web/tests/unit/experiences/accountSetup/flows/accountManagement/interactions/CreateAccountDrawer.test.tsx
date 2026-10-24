@@ -48,6 +48,19 @@ const submitNamed = (name: string) => {
 };
 
 describe('the form’s fields', () => {
+  it('names the dialog and every control, and explains the starting balance (OQ-169)', () => {
+    renderDrawer();
+    expect(screen.getByRole('dialog', { name: 'Add an account' })).toBeTruthy();
+    expect(screen.getByText('New account')).toBeTruthy();
+    expect(screen.getByRole('radiogroup', { name: 'Currency' })).toBeTruthy();
+    const visibility = screen.getByRole('radiogroup', { name: 'Visibility' });
+    expect(visibility.textContent).toContain('Personal');
+    expect(visibility.textContent).toContain('Shared');
+    expect(screen.getByRole('textbox', { name: "Today's balance" })).toBeTruthy();
+    expect(screen.getByText(/What is in this account today/)).toBeTruthy();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
   it('opens with a checking, BRL, personal account and its cards section', () => {
     renderDrawer();
     expect(screen.getByRole('combobox', { name: 'Type' }).textContent).toBe('Checking');
@@ -67,6 +80,7 @@ describe('the form’s fields', () => {
   it('locks the visibility at Personal for an actor who can’t share', () => {
     renderDrawer({ personalOnly: true });
     expect(screen.queryByRole('radio', { name: 'Shared' })).toBeNull();
+    expect(screen.getByText('Visibility')).toBeTruthy();
     expect(screen.getByText('Personal')).toBeTruthy();
   });
 
@@ -235,18 +249,65 @@ describe('its submit', () => {
     expect(cancel.disabled).toBe(true);
   });
 
-  it('drops one card, keeping the objection of the card left', async () => {
+  it('drops one card, keeping the other card and its own objection', async () => {
+    renderDrawer();
+    await pick('Type', 'Credit card only');
+    fireEvent.click(screen.getByRole('button', { name: /Add credit card/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Add credit card/ }));
+    const [first] = screen.getAllByRole('textbox', { name: 'Card number' });
+    fireEvent.change(first!, { target: { value: VISA } });
+    submitNamed('Cards');
+    expect(screen.getAllByText('Enter the card number.')).toHaveLength(1);
+    expect(screen.getAllByText('Pick a day.')).toHaveLength(4);
+
+    fireEvent.click(screen.getAllByRole('button', { name: /Drop this card/ })[0]!);
+    const numbers = screen.getAllByRole<HTMLInputElement>('textbox', { name: 'Card number' });
+    expect(numbers.map(({ value }) => value)).toEqual(['']);
+    expect(screen.getAllByText('Enter the card number.')).toHaveLength(1);
+    expect(screen.getAllByText('Pick a day.')).toHaveLength(2);
+  });
+
+  it('types into the card it was typed in, among several', async () => {
+    renderDrawer();
+    await pick('Type', 'Credit card only');
+    fireEvent.click(screen.getByRole('button', { name: /Add credit card/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Add credit card/ }));
+    const second = screen.getAllByRole('textbox', { name: 'Card number' })[1]!;
+    fireEvent.change(second, { target: { value: VISA } });
+    const numbers = screen.getAllByRole<HTMLInputElement>('textbox', { name: 'Card number' });
+    expect(numbers.map(({ value }) => value.replace(/\D/g, ''))).toEqual(['', VISA]);
+  });
+
+  it('clears an objection on the card whose field changed, not on another', async () => {
     renderDrawer();
     await pick('Type', 'Credit card only');
     fireEvent.click(screen.getByRole('button', { name: /Add credit card/ }));
     fireEvent.click(screen.getByRole('button', { name: /Add credit card/ }));
     submitNamed('Cards');
-    expect(screen.getAllByText('Enter the card number.').length).toBe(2);
+    const closing = () => screen.getAllByRole('combobox', { name: 'Closing day' });
+    await act(async () => {
+      fireEvent.click(closing()[1]!);
+    });
+    fireEvent.click(screen.getByRole('option', { name: '10' }));
+    expect(closing().map((box) => box.getAttribute('aria-invalid'))).toEqual(['true', null]);
+  });
 
-    const drop = screen.getAllByRole('button', { name: /Drop this card/ })[0];
-    if (!drop) throw new Error('the first card’s drop button is missing');
-    fireEvent.click(drop);
-    expect(screen.getAllByText('Enter the card number.').length).toBe(1);
+  it('clears the name’s error as it is typed', () => {
+    renderDrawer();
+    submitNamed('  ');
+    expect(screen.getByRole('textbox', { name: 'Name' }).getAttribute('aria-invalid')).toBe('true');
+    fireEvent.change(screen.getByRole('textbox', { name: 'Name' }), { target: { value: 'M' } });
+    expect(screen.getByRole('textbox', { name: 'Name' }).hasAttribute('aria-invalid')).toBe(false);
+  });
+
+  it('takes the focus back to the first problem on every refused submit', () => {
+    renderDrawer();
+    const name = screen.getByRole('textbox', { name: 'Name' });
+    submitNamed('');
+    expect(document.activeElement).toBe(name);
+    screen.getByRole('button', { name: 'Cancel' }).focus();
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+    expect(document.activeElement).toBe(name);
   });
 
   it('clears one card’s objection when its fields pass, keeping the other’s', async () => {

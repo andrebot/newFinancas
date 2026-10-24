@@ -202,6 +202,35 @@ describe('the fields', () => {
     expect(screen.getByText('08/30')).toBeTruthy();
   });
 
+  it('offers the months 1 to 12', async () => {
+    renderFields();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('combobox', { name: 'Expires month' }));
+    });
+    const months = screen.getAllByRole('option').map(({ textContent }) => textContent);
+    expect(months).toEqual(['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12']);
+  });
+
+  it('offers the days 1 to 28, so every month has them (OQ-170)', async () => {
+    renderFields();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('combobox', { name: 'Closing day' }));
+    });
+    const days = screen.getAllByRole('option').map(({ textContent }) => Number(textContent));
+    expect(days).toEqual(Array.from({ length: 28 }, (_, index) => index + 1));
+  });
+
+  it('names no network before a digit is typed, and no billing until both days are picked', () => {
+    renderFields(form({ closingDay: 10 }));
+    expect(screen.queryByText(/detected from the number/)).toBeNull();
+    expect(screen.queryByText(/Closes/)).toBeNull();
+  });
+
+  it('shows no billing with only the due day picked', () => {
+    renderFields(form({ dueDay: 20 }));
+    expect(screen.queryByText(/Closes/)).toBeNull();
+  });
+
   it('names no network while the number is objected to', () => {
     renderInLocale(
       <CardFields

@@ -90,6 +90,18 @@ const renderDrawer = (props: Partial<EditAccountDrawerProps> = {}) => {
 };
 
 describe('the locked and the movable fields', () => {
+  it('names the dialog after the account and labels every field', () => {
+    renderDrawer();
+    expect(screen.getByRole('dialog', { name: 'Cards' })).toBeTruthy();
+    expect(screen.getByText('Edit account')).toBeTruthy();
+    expect(screen.getByText('Type')).toBeTruthy();
+    expect(screen.getByText('Currency')).toBeTruthy();
+    expect(screen.getByRole('radiogroup', { name: 'Visibility' })).toBeTruthy();
+    expect(screen.getByText('Cards on this account · optional')).toBeTruthy();
+    expect(screen.getByText(/takes the account out of use/)).toBeTruthy();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
   it('shows the type and currency locked, with their note', () => {
     renderDrawer();
     expect(screen.getByText('Credit card only')).toBeTruthy();
@@ -120,7 +132,14 @@ describe('the locked and the movable fields', () => {
   it('locks a personal account’s visibility for anyone but its creator', () => {
     renderDrawer({ account: account({ ownerUserId: 'ben', visibility: 'personal' }) });
     expect(screen.queryByRole('radio')).toBeNull();
+    expect(screen.getByText('Visibility')).toBeTruthy();
     expect(screen.getByText('Personal')).toBeTruthy();
+  });
+
+  it('shows a shared account as shared to someone else', () => {
+    renderDrawer({ account: account({ ownerUserId: 'ben' }) });
+    expect(screen.getByText('Shared')).toBeTruthy();
+    expect(screen.queryByText('Personal')).toBeNull();
   });
 
   it('offers cards on a checking account (FR-2.7)', () => {
@@ -152,7 +171,7 @@ describe('its submit', () => {
   it('emits a renamed account with its moved visibility', () => {
     const handlers = renderDrawer();
     const input = screen.getByRole('textbox', { name: 'Name' });
-    fireEvent.change(input, { target: { value: 'Renamed' } });
+    fireEvent.change(input, { target: { value: '  Renamed ' } });
     fireEvent.click(screen.getByRole('radio', { name: 'Personal' }));
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
     expect(handlers.onSubmit).toHaveBeenCalledWith({
@@ -250,6 +269,33 @@ describe('its submit', () => {
     expect(screen.getByText('Required.')).toBeTruthy();
   });
 
+  it('edits only the attached card that moved, among several', async () => {
+    const second = { ...CARD, id: 'card-2', last4: '9876' };
+    const handlers = renderDrawer({ account: account({ cards: [CARD, second] }) });
+    await act(async () => {
+      fireEvent.click(screen.getAllByRole('combobox', { name: 'Due day' })[1]!);
+    });
+    fireEvent.click(screen.getByRole('option', { name: '25' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+    expect(handlers.onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+      cards: {
+        edit: [{
+          id: 'card-2', closingDay: 10, dueDay: 25, expirationMonth: 8, expirationYear: 2030,
+        }],
+      },
+    }));
+  });
+
+  it('removes only the attached card asked for, among several', () => {
+    const second = { ...CARD, id: 'card-2', last4: '9876' };
+    const handlers = renderDrawer({ account: account({ cards: [CARD, second] }) });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Remove card' })[1]!);
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+    expect(handlers.onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+      cards: { remove: ['card-2'] },
+    }));
+  });
+
   it('edits one of several attached cards and removes another', async () => {
     const second = { ...CARD, id: 'card-2', last4: '9876' };
     const handlers = renderDrawer({ account: account({ cards: [CARD, second] }) });
@@ -285,7 +331,36 @@ describe('its submit', () => {
     const firstNumber = numbers[0];
     if (!firstNumber) throw new Error('both new cards’ number fields are missing');
     fireEvent.change(firstNumber, { target: { value: '5105105105101000' } });
-    expect(screen.getAllByRole('textbox', { name: 'Card number' }).length).toBe(2);
+    const values = screen.getAllByRole<HTMLInputElement>('textbox', { name: 'Card number' })
+      .map(({ value }) => value.replace(/\D/g, ''));
+    expect(values).toEqual(['5105105105101000', '']);
+  });
+
+  it('clears an objection on the new card whose field changed, not on another', async () => {
+    renderDrawer({ account: account({ cards: [] }) });
+    fireEvent.click(screen.getByRole('button', { name: /Add credit card/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Add credit card/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+    const closing = () => screen.getAllByRole('combobox', { name: 'Closing day' });
+    await act(async () => {
+      fireEvent.click(closing()[1]!);
+    });
+    fireEvent.click(screen.getByRole('option', { name: '10' }));
+    expect(closing().map((box) => box.getAttribute('aria-invalid'))).toEqual(['true', null]);
+  });
+
+  it('clears the name’s error as it is typed, and refocuses it on every refusal', () => {
+    renderDrawer();
+    const name = screen.getByRole('textbox', { name: 'Name' });
+    fireEvent.change(name, { target: { value: ' ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+    expect(name.getAttribute('aria-invalid')).toBe('true');
+    expect(document.activeElement).toBe(name);
+    screen.getByRole('button', { name: 'Cancel' }).focus();
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+    expect(document.activeElement).toBe(name);
+    fireEvent.change(name, { target: { value: 'C' } });
+    expect(name.hasAttribute('aria-invalid')).toBe(false);
   });
 
   it('clears one new card’s objection when its fields pass, keeping the other’s', async () => {
@@ -328,17 +403,19 @@ describe('its submit', () => {
     expect(archive.disabled).toBe(true);
   });
 
-  it('drops one new card, keeping the objection of the card left', () => {
-    renderDrawer();
+  it('drops one new card, keeping the other card and its own objection', () => {
+    renderDrawer({ account: account({ cards: [] }) });
     fireEvent.click(screen.getByRole('button', { name: /Add credit card/ }));
     fireEvent.click(screen.getByRole('button', { name: /Add credit card/ }));
+    const [first] = screen.getAllByRole('textbox', { name: 'Card number' });
+    fireEvent.change(first!, { target: { value: '4111111111111111' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
-    expect(screen.getAllByText('Enter the card number.').length).toBe(2);
+    expect(screen.getAllByText('Enter the card number.')).toHaveLength(1);
 
-    const drop = screen.getAllByRole('button', { name: /Drop this card/ })[0];
-    if (!drop) throw new Error('the first new card’s drop button is missing');
-    fireEvent.click(drop);
-    expect(screen.getAllByText('Enter the card number.').length).toBe(1);
+    fireEvent.click(screen.getAllByRole('button', { name: /Drop this card/ })[0]!);
+    const numbers = screen.getAllByRole<HTMLInputElement>('textbox', { name: 'Card number' });
+    expect(numbers.map(({ value }) => value)).toEqual(['']);
+    expect(screen.getAllByText('Enter the card number.')).toHaveLength(1);
   });
 });
 
@@ -358,7 +435,10 @@ describe('the archive behind its confirm', () => {
         {...handlers}
       />,
     );
-    fireEvent.click(open.getByRole('button', { name: 'Archive' }));
+    expect(open.getByText('Archive Cards? Its balance and cards stop being tracked.')).toBeTruthy();
+    const confirm = open.getByRole('button', { name: 'Archive' });
+    expect(confirm.hasAttribute('aria-busy')).toBe(false);
+    fireEvent.click(confirm);
     expect(handlers.onArchive).toHaveBeenCalledTimes(1);
   });
 
@@ -392,7 +472,9 @@ describe('the archive behind its confirm', () => {
   it('spins its confirm while an archive is out, not Save', () => {
     const handlers = renderDrawer({ archiveBusy: true, disabled: true, archiveConfirmOpen: true });
     const zone = screen.getByRole('region', { name: /Archive this account/ });
-    fireEvent.click(within(zone).getByRole('button', { name: 'Archive' }));
+    const confirm = within(zone).getByRole('button', { name: 'Archive' });
+    expect(confirm.getAttribute('aria-busy')).toBe('true');
+    fireEvent.click(confirm);
     expect(handlers.onArchive).not.toHaveBeenCalled();
     const save = screen.getByRole<HTMLButtonElement>('button', { name: 'Save changes' });
     expect(save.disabled).toBe(true);
