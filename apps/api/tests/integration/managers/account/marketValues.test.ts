@@ -228,6 +228,16 @@ describe('AccountManager — edit a market value (uc-06, OQ-56)', () => {
     expect(auditedActions(logs.events)).toEqual([]);
   });
 
+  it('reads back the snapshot asked for among several', async () => {
+    const { deps, valuations } = fakeDeps();
+    const earlier = { ...SNAPSHOT, id: UNKNOWN_ID, valuation: 1 };
+    valuations.list.mockResolvedValueOnce([earlier, SNAPSHOT]);
+
+    await expect(createAccountManager(deps)
+      .editMarketValue(CONTEXT, HOUSEHOLD_ID, HOLDING_ID, SNAPSHOT_ID, {}))
+      .resolves.toEqual(SNAPSHOT);
+  });
+
   it.each([
     ['another Holding\'s snapshot', [], SNAPSHOT_NOT_FOUND],
     ['an automatic snapshot', [AUTOMATIC], NOT_EDITABLE],

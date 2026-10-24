@@ -118,6 +118,11 @@ describe('adding a goal', () => {
   it('opens as Add, with currency and visibility to pick and the funding note', () => {
     renderDrawer();
     expect(screen.getByRole('dialog', { name: 'Add goal' })).toBeTruthy();
+    expect(screen.getByText('New')).toBeTruthy();
+    expect(screen.getAllByText('Target currency').length).toBeGreaterThan(0);
+    expect(screen.getByRole('radiogroup', { name: 'Target currency' })).toBeTruthy();
+    expect(screen.getByRole('radiogroup', { name: 'Visibility' })).toBeTruthy();
+    expect(screen.queryByRole('alert')).toBeNull();
     expect(screen.getByRole<HTMLInputElement>('radio', { name: 'BRL' }).checked).toBe(true);
     expect(screen.getByRole<HTMLInputElement>('radio', { name: 'Shared' }).checked).toBe(true);
     expect(screen.getByText(translator.text('goalManagement', 'fundNote'))).toBeTruthy();
@@ -156,6 +161,27 @@ describe('adding a goal', () => {
     expect(screen.queryByText('Enter a target above zero.')).toBeNull();
   });
 
+  it('clears only the refusal of the field changed', () => {
+    renderDrawer();
+    submit();
+    typeName('Trip');
+    expect(screen.getAllByText('Required.')).toHaveLength(1);
+    expect(screen.getByText('Enter a target above zero.')).toBeTruthy();
+  });
+
+  it('refuses a form with any single field wrong, refocusing it every time', () => {
+    const { onSubmit } = renderDrawer();
+    typeMasked('Target amount', '100');
+    typeMasked('Due date', '04/01/2028');
+    submit();
+    expect(onSubmit).not.toHaveBeenCalled();
+    const name = screen.getByRole('textbox', { name: 'Goal name' });
+    expect(document.activeElement).toBe(name);
+    screen.getByRole('button', { name: 'Cancel' }).focus();
+    submit();
+    expect(document.activeElement).toBe(name);
+  });
+
   it('locks the visibility at Personal for an actor who can\'t share', () => {
     renderDrawer({ personalOnly: true });
     expect(screen.queryByRole('radio', { name: 'Shared' })).toBeNull();
@@ -173,6 +199,7 @@ describe('editing a goal', () => {
   it('opens as Edit with its fields, the visibility locked, the currency still to pick', () => {
     renderDrawer({ goal: goal() });
     expect(screen.getByRole('dialog', { name: 'Edit goal' })).toBeTruthy();
+    expect(screen.getByText('Edit')).toBeTruthy();
     expect(screen.getByRole<HTMLInputElement>('textbox', { name: 'Goal name' }).value)
       .toBe('Trip to Japan');
     expect(screen.getByRole<HTMLInputElement>('radio', { name: 'USD' }).checked).toBe(true);
@@ -210,6 +237,16 @@ describe('the drawer', () => {
   it('waits while a request is out, its own submit spinning', () => {
     renderDrawer({ busy: true, disabled: true });
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Cancel' }).disabled).toBe(true);
+    const own = screen.getByRole<HTMLButtonElement>('button', { name: 'Create goal' });
+    expect(own.getAttribute('aria-busy')).toBe('true');
+    expect(own.disabled).toBe(false);
+  });
+
+  it('waits, not spinning, while another request is out', () => {
+    renderDrawer({ busy: false, disabled: true });
+    const own = screen.getByRole<HTMLButtonElement>('button', { name: 'Create goal' });
+    expect(own.disabled).toBe(true);
+    expect(own.hasAttribute('aria-busy')).toBe(false);
   });
 });
 
@@ -248,7 +285,9 @@ describe('its steps (OQ-195)', () => {
     const open = steps({ confirm: 'complete' });
     renderDrawer({ goal: goal(), steps: open });
     expect(screen.getByText(/Mark Trip to Japan as completed\?/)).toBeTruthy();
+    expect(screen.getByText(/moves to the Completed list/)).toBeTruthy();
     expect(screen.getAllByRole('button', { name: 'Mark completed' })).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Mark completed' }).className).toContain('bg-mint');
     fireEvent.click(screen.getByRole('button', { name: 'Mark completed' }));
     expect(open.onConfirm).toHaveBeenCalled();
     fireEvent.click(screen.getAllByRole('button', { name: 'Cancel' })[0]!);
@@ -266,6 +305,8 @@ describe('its steps (OQ-195)', () => {
     const open = steps({ confirm: 'delete' });
     renderDrawer({ goal: goal(), steps: open });
     expect(screen.getByText(/Delete Trip to Japan\? Its holdings stay/)).toBeTruthy();
+    expect(screen.getByText(/No history is kept/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Delete' }).className).toContain('bg-coral');
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
     expect(open.onConfirm).toHaveBeenCalled();
   });

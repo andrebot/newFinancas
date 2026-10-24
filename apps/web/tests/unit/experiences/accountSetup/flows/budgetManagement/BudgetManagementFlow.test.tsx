@@ -288,13 +288,15 @@ describe('creating a budget', () => {
 });
 
 describe('editing a budget', () => {
-  it('opens the drawer about it and sends only what may change', async () => {
+  it('opens the drawer about the budget clicked and sends only what may change', async () => {
     const { onEdit } = renderFlow();
-    await press('edit fun');
-    expect(screen.getByTestId('drawer').dataset.budget).toBe('fun');
+    await press('edit home');
+    const idle = screen.getByTestId('drawer').dataset;
+    expect(idle.budget).toBe('home');
+    expect([idle.busy, idle.disabled, idle.deleteBusy]).toEqual(['false', 'false', 'false']);
     await press('submit');
     expect(onEdit).toHaveBeenCalledWith({
-      budgetId: 'fun', name: 'Home', targetAmount: 500, targets: [{ categoryId: 'food' }],
+      budgetId: 'home', name: 'Home', targetAmount: 500, targets: [{ categoryId: 'food' }],
     });
     expect(toasts()).toEqual(['Home updated.']);
   });

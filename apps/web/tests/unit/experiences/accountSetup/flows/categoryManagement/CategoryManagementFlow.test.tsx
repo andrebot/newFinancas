@@ -28,10 +28,15 @@ vi.mock('../../../../../../src/experiences/accountSetup/flows/categoryManagement
    * @returns The stub.
    */
   CategoryCard: ({
-    category, canManage, archivingOpen, onEdit, onArchiveRequest, onConfirmArchive,
+    category, canManage, busy, archivingOpen, onEdit, onArchiveRequest, onConfirmArchive,
     onCancelArchive, onAddSubcategory, onArchiveSubcategory,
   }: CategoryCardProps) => (
-    <div data-testid="card" data-id={category.id} data-manage={String(canManage)}>
+    <div
+      data-testid="card"
+      data-id={category.id}
+      data-manage={String(canManage)}
+      data-busy={String(busy)}
+    >
       {canManage ? (
         <button type="button" onClick={() => onEdit(category.id)}>
           {'edit '}
@@ -89,9 +94,16 @@ vi.mock('../../../../../../src/experiences/accountSetup/flows/categoryManagement
    * @returns The stub.
    */
   CategoryFormCard: ({
-    mode, busy, alert, onSubmit, onCancel,
+    mode, initial, busy, disabled, alert, onSubmit, onCancel,
   }: CategoryFormCardProps) => (
-    <div data-testid="form" data-mode={mode} data-busy={String(busy)} data-alert={alert ?? ''}>
+    <div
+      data-testid="form"
+      data-mode={mode}
+      data-initial={initial?.name ?? ''}
+      data-busy={String(busy)}
+      data-disabled={String(disabled)}
+      data-alert={alert ?? ''}
+    >
       <button
         type="button"
         onClick={() => onSubmit('New Name', 'pets', 'mint')}
@@ -272,6 +284,16 @@ describe('the list it is given', () => {
     expect(screen.queryByRole('alert')).toBeNull();
   });
 
+  it('offers Add only once the list is in, and not while the create card is open', async () => {
+    const first = await renderFlow({ categories: { status: 'loading' } });
+    expect(screen.queryByRole('button', { name: 'Add category' })).toBeNull();
+    first.view.unmount();
+
+    await renderFlow();
+    await click('Add category');
+    expect(screen.queryByRole('button', { name: 'Add category' })).toBeNull();
+  });
+
   it('hides Add from a Viewer and shows it to a Member', async () => {
     const first = await renderFlow({ role: 'Viewer' });
     expect(first.view.container.querySelector('[data-testid="form"]')).toBeNull();
@@ -304,14 +326,27 @@ describe('creating a category', () => {
     expect(toasts(queue)).toEqual([]);
   });
 
-  it('spins the create card while it is out', async () => {
+  it('spins the create card while it is out, the cards waiting', async () => {
     const create = pending<RequestOutcome>();
     await renderFlow({ onCreate: create.request });
     await click('Add category');
+    expect(screen.getByTestId('form').dataset.disabled).toBe('false');
     await click('submit form');
     expect(screen.getByTestId('form').dataset.busy).toBe('true');
+    expect(screen.getByTestId('form').dataset.disabled).toBe('true');
+    expect(screen.getAllByTestId('card').map((el) => el.dataset.busy)).toEqual(['true', 'true']);
     await create.answer(OK);
     expect(screen.queryByTestId('form')).toBeNull();
+  });
+
+  it('keeps the create card waiting, not spinning, while another request is out', async () => {
+    const adding = pending<RequestOutcome>();
+    await renderFlow({ onAddSubcategory: adding.request });
+    await click('Add category');
+    await click('add sub gro');
+    expect(screen.getByTestId('form').dataset.busy).toBe('false');
+    expect(screen.getByTestId('form').dataset.disabled).toBe('true');
+    await adding.answer(OK);
   });
 
   it('closes the create card from Cancel without calling out', async () => {
@@ -334,6 +369,26 @@ describe('editing a category', () => {
     });
     expect(toasts(queue)).toEqual(['New Name updated.']);
     expect(screen.queryByTestId('form')).toBeNull();
+  });
+
+  it('turns the card clicked into its form, from its fields, the rest waiting', async () => {
+    const save = pending<RequestOutcome>();
+    const { requests } = await renderFlow({ onEdit: save.request });
+    await click('edit gro');
+    const form = () => screen.getByTestId('form').dataset;
+    expect(form().initial).toBe('Category gro');
+    expect(screen.getAllByTestId('card').map((el) => el.dataset.id)).toEqual(['cat']);
+    expect([form().busy, form().disabled]).toEqual(['false', 'false']);
+    expect(screen.getByTestId('card').dataset.busy).toBe('false');
+    const add = () => screen.getByRole<HTMLButtonElement>('button', { name: 'Add category' });
+    expect(add().disabled).toBe(false);
+
+    await click('submit form');
+    expect(requests.onEdit).toHaveBeenCalledWith(expect.objectContaining({ categoryId: 'gro' }));
+    expect([form().busy, form().disabled]).toEqual(['true', 'true']);
+    expect(screen.getByTestId('card').dataset.busy).toBe('true');
+    expect(add().disabled).toBe(true);
+    await save.answer(OK);
   });
 
   it('closes the form, saying why, when someone else archived its category (OQ-194)', async () => {
@@ -431,6 +486,18 @@ describe('archiving a category', () => {
 });
 
 describe('the rest of the list', () => {
+  it('opens the create card over an empty list, without the empty note', async () => {
+    await renderFlow({ categories: { status: 'loaded', categories: [] } });
+    await click('Add category');
+    expect(screen.getByTestId('form').dataset.mode).toBe('create');
+    expect(screen.queryByText(EMPTY_NOTE)).toBeNull();
+  });
+
+  it('shows no archived section without archived categories', async () => {
+    await renderFlow();
+    expect(screen.queryByText(/archived categor/)).toBeNull();
+  });
+
   it('shows the empty note when there are none', async () => {
     await renderFlow({ categories: { status: 'loaded', categories: [] } });
     expect(screen.getByText(EMPTY_NOTE)).toBeTruthy();

@@ -10,7 +10,8 @@
     "!apps/api/src/utilities/logging/reconcileMain.ts"
   ],
   "ignorePatterns": [
-    "docs", "apps/web", ".superdesign", "storybook-static", "coverage", "reports", "test-results", "tools/icons", "infra"
+    "/docs/*", "!/docs/architecture", "/docs/architecture/*", "!/docs/architecture/api",
+    "apps/web", ".superdesign", "storybook-static", "coverage", "reports", "test-results", "tools/icons", "infra"
   ],
   "coverageAnalysis": "off",
   "concurrency": 4,

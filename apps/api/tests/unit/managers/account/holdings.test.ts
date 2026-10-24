@@ -104,6 +104,10 @@ describe('growsCompletedGoal (FR-8.9, OQ-168)', () => {
     expect(growsCompletedGoal([{ goalId: 'done', percentage }], current, completed)).toBe(true);
   });
 
+  it('refuses a completed Goal moved to the share another Goal holds', () => {
+    expect(growsCompletedGoal([{ goalId: 'done', percentage: 30 }], current, completed)).toBe(true);
+  });
+
   it('refuses a completed Goal added', () => {
     expect(growsCompletedGoal([{ goalId: 'done', percentage: 20 }], [], completed)).toBe(true);
   });

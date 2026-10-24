@@ -104,6 +104,7 @@ describe('Expandable', () => {
     fireEvent.click(trigger);
     const panel = screen.getByRole('region', { name: 'Coffee Shop' });
     expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    expect(panel.id).not.toBe('');
     expect(trigger.getAttribute('aria-controls')).toBe(panel.id);
     expect(panel.textContent).toBe('Details');
     fireEvent.click(trigger);

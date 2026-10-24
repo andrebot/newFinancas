@@ -83,6 +83,8 @@ describe('valueToClean', () => {
   it('reads anything else as empty', () => {
     expect(valueToClean('', DAY_FIRST)).toBe('');
     expect(valueToClean('20-09-14', DAY_FIRST)).toBe('');
+    expect(valueToClean('x2026-09-14', DAY_FIRST)).toBe('');
+    expect(valueToClean('2026-09-14T00:00', DAY_FIRST)).toBe('');
   });
 });
 

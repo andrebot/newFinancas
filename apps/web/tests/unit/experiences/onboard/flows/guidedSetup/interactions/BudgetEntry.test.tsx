@@ -130,6 +130,13 @@ describe('isUnsaved', () => {
     })).toBe(true);
   });
 
+  it('finds a tick dropped from what the budget held', () => {
+    const held = { categoryIds: ['A', 'B'], subcategoryIds: [] };
+    expect(isUnsaved({ ...INITIAL, held }, {
+      name: '', target: null, picks: { categoryIds: ['A'], subcategoryIds: [] },
+    })).toBe(true);
+  });
+
   it('reads the same ticks in another order as unchanged', () => {
     const held = { categoryIds: ['A', 'B'], subcategoryIds: [] };
     expect(isUnsaved({ ...INITIAL, held }, {
@@ -144,6 +151,7 @@ describe('a new budget', () => {
     expect(screen.getByRole('radio', { name: 'BRL' })).toHaveProperty('checked', true);
     expect(screen.getByRole('radio', { name: 'Shared' })).toHaveProperty('checked', true);
     expect(screen.queryByText(/^Editing/)).toBeNull();
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 
   it('is personal for an actor who can’t share', () => {
@@ -157,6 +165,39 @@ describe('a new budget', () => {
     expect(handlers.onCreate).not.toHaveBeenCalled();
     expect(screen.getByText('Required.')).toBeTruthy();
     expect(screen.getByText('Enter a monthly target above zero.')).toBeTruthy();
+    expect(screen.getByText('Pick at least one category or subcategory.')).toBeTruthy();
+  });
+
+  it('refuses a form with only its categories missing, refocusing on every refusal', () => {
+    const handlers = renderEntry();
+    typeName('Food');
+    typeTarget('50000');
+    const create = () => fireEvent.click(screen.getByRole('button', { name: 'Create budget' }));
+    create();
+    expect(handlers.onCreate).not.toHaveBeenCalled();
+    expect(screen.getByText('Pick at least one category or subcategory.')).toBeTruthy();
+    const name = screen.getByRole('textbox', { name: 'Budget name' });
+    name.focus();
+    create();
+    expect(document.activeElement).toBe(screen.getByRole('checkbox', { name: /^Groceries/ }));
+  });
+
+  it('clears only the refusal of the field changed', () => {
+    renderEntry();
+    fireEvent.click(screen.getByRole('button', { name: 'Create budget' }));
+    tick('Groceries');
+    expect(screen.getByText('Required.')).toBeTruthy();
+    expect(screen.getByText('Enter a monthly target above zero.')).toBeTruthy();
+    typeName('Food');
+    expect(screen.getByText('Enter a monthly target above zero.')).toBeTruthy();
+    expect(screen.queryByText('Required.')).toBeNull();
+  });
+
+  it('keeps the name and covers refusals when only the target changes', () => {
+    renderEntry();
+    fireEvent.click(screen.getByRole('button', { name: 'Create budget' }));
+    typeTarget('100');
+    expect(screen.getByText('Required.')).toBeTruthy();
     expect(screen.getByText('Pick at least one category or subcategory.')).toBeTruthy();
   });
 

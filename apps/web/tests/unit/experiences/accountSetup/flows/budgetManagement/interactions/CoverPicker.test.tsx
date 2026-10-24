@@ -77,6 +77,17 @@ const freeGroup = (of: Category, standing: PickerGroup['standing'] = { kind: 'fr
   })),
 });
 
+/**
+ * Reads the note a checkbox is described by.
+ *
+ * @param box - The row's checkbox.
+ * @returns The note's text, or `undefined` when it points at none.
+ */
+const noteOf = (box: HTMLElement) => {
+  const noteId = box.getAttribute('aria-describedby');
+  return noteId ? document.getElementById(noteId)?.textContent ?? undefined : undefined;
+};
+
 describe('CoverPicker', () => {
   it('labels its group and says how claims work', () => {
     renderPicker([freeGroup(GROCERIES)]);
@@ -94,7 +105,12 @@ describe('CoverPicker', () => {
 
   it('emits a whole category\'s toggle', () => {
     const { onToggleCategory } = renderPicker([freeGroup(GROCERIES)]);
-    fireEvent.click(screen.getByRole('checkbox', { name: /Groceries/ }));
+    const box = screen.getByRole<HTMLInputElement>('checkbox', { name: /Groceries/ });
+    expect(box.checked).toBe(false);
+    expect(box.disabled).toBe(false);
+    expect(box.hasAttribute('aria-describedby')).toBe(false);
+    expect(box.hasAttribute('aria-invalid')).toBe(false);
+    fireEvent.click(box);
     expect(onToggleCategory).toHaveBeenCalledWith(GROCERIES);
   });
 
@@ -102,7 +118,8 @@ describe('CoverPicker', () => {
     renderPicker([freeGroup(GROCERIES, { kind: 'picked' })]);
     const box = screen.getByRole<HTMLInputElement>('checkbox', { name: /Groceries/ });
     expect(box.checked).toBe(true);
-    expect(screen.getByText('all subcategories')).toBeTruthy();
+    expect(box.disabled).toBe(false);
+    expect(noteOf(box)).toBe('all subcategories');
     expect(screen.queryByRole('button')).toBeNull();
   });
 
@@ -111,11 +128,12 @@ describe('CoverPicker', () => {
       freeGroup(HEALTH, { kind: 'claimed', budget: FUN_MONEY }),
       freeGroup(DINING, { kind: 'partly', budget: FUN_MONEY }),
     ]);
-    expect(screen.getByRole<HTMLInputElement>('checkbox', { name: /Healthcare/ }).disabled)
-      .toBe(true);
-    expect(screen.getByRole<HTMLInputElement>('checkbox', { name: /Dining/ }).disabled).toBe(true);
-    expect(screen.getByText('in Fun Money')).toBeTruthy();
-    expect(screen.getByText('partly in Fun Money')).toBeTruthy();
+    const health = screen.getByRole<HTMLInputElement>('checkbox', { name: /Healthcare/ });
+    const dining = screen.getByRole<HTMLInputElement>('checkbox', { name: /Dining/ });
+    expect(health.disabled).toBe(true);
+    expect(dining.disabled).toBe(true);
+    expect(noteOf(health)).toBe('in Fun Money');
+    expect(noteOf(dining)).toBe('partly in Fun Money');
   });
 
   it('marks an archived category, and disables it when it is only listed for a subcategory', () => {
@@ -142,7 +160,9 @@ describe('CoverPicker', () => {
     fireEvent.click(chevron);
     expect(chevron.getAttribute('aria-expanded')).toBe('true');
     const panel = document.getElementById(chevron.getAttribute('aria-controls')!)!;
-    fireEvent.click(within(panel).getByRole('checkbox', { name: 'Streaming' }));
+    const streaming = within(panel).getByRole<HTMLInputElement>('checkbox', { name: 'Streaming' });
+    expect(streaming.disabled).toBe(false);
+    fireEvent.click(streaming);
     expect(onToggleSubcategory).toHaveBeenCalledWith('Streaming');
 
     fireEvent.click(chevron);

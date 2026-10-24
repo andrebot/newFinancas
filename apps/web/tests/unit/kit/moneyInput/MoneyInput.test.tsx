@@ -127,8 +127,15 @@ describe('MoneyInput', () => {
     const onChange = renderHolder({ value: 123 });
 
     typeTo('1,23a');
+    typeTo('01,23');
 
     expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('draws the field look by default, its symbol at body size', () => {
+    renderHolder({ value: 123 });
+    expect(screen.getByText('R$').className).toContain('type-body-lg');
+    expect(screen.getByRole('textbox').className).not.toContain('type-display-lg');
   });
 
   it('flips the sign on `-` only when negatives are allowed', () => {

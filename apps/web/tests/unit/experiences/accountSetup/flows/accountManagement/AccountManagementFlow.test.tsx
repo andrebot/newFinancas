@@ -95,14 +95,15 @@ vi.mock('../../../../../../src/experiences/accountSetup/flows/accountManagement/
      * @returns The stub.
      */
   EditAccountDrawer: ({
-    account, busy, archiveBusy, alert, archiveConfirmOpen, onSubmit, onArchive, onOpenArchive,
-    onCloseArchive, onCancel,
+    account, busy, archiveBusy, disabled, alert, archiveConfirmOpen, onSubmit, onArchive,
+    onOpenArchive, onCloseArchive, onCancel,
   }: EditAccountDrawerProps) => (
     <div
       data-testid="edit"
       data-account={account.id}
       data-busy={String(busy)}
       data-archive-busy={String(archiveBusy)}
+      data-disabled={String(disabled)}
       data-alert={alert ?? ''}
     >
       <button type="button" onClick={() => onSubmit({ accountId: account.id, name: 'Renamed' })}>
@@ -277,7 +278,8 @@ describe('creating an account', () => {
     expect(screen.queryByTestId('create')).toBeNull();
 
     await click('add');
-    expect(screen.getByTestId('create')).toBeTruthy();
+    expect(screen.getByTestId('create').dataset)
+      .toMatchObject({ busy: 'false', disabled: 'false' });
 
     await click('submit create');
     expect(requests.onCreate).toHaveBeenCalledWith({
@@ -382,6 +384,7 @@ describe('archiving an account', () => {
     await click('open archive');
     await click('cancel archive');
     expect(screen.getByTestId('edit')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'confirm archive' })).toBeNull();
     expect(toasts(queue)).toEqual([]);
   });
 
@@ -420,14 +423,26 @@ describe('archiving an account', () => {
       .toBe("You don't have permission to do that.");
   });
 
+  it('spins the create drawer while its request is out', async () => {
+    const create = pending<AccountActionOutcome>();
+    await renderFlow({ onCreate: create.request });
+    await click('add');
+    await click('submit create');
+    expect(screen.getByTestId('create').dataset)
+      .toMatchObject({ busy: 'true', disabled: 'true' });
+    await create.answer(CREATED);
+  });
+
   it('spins only the control whose request is out', async () => {
     const edit = pending<AccountActionOutcome>();
     const archive = pending<AccountActionOutcome>();
     await renderFlow({ onEdit: edit.request, onArchive: archive.request });
     await click('edit ccr');
+    expect(screen.getByTestId('edit').dataset)
+      .toMatchObject({ busy: 'false', archiveBusy: 'false', disabled: 'false' });
     await click('save edit');
     expect(screen.getByTestId('edit').dataset)
-      .toMatchObject({ busy: 'true', archiveBusy: 'false' });
+      .toMatchObject({ busy: 'true', archiveBusy: 'false', disabled: 'true' });
     await edit.answer({ ok: false, error: { code: 'auth.forbidden' } });
 
     await click('open archive');

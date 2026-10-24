@@ -43,6 +43,11 @@ describe('correlationIdFrom', () => {
       .toBe('ffffffff-ffff-4fff-bfff-ffffffffffff');
   });
 
+  it('writes every byte as two digits, a small one zero-padded', () => {
+    expect(correlationIdFrom(fixedCrypto(0x05)))
+      .toBe('05050505-0505-4505-8505-050505050505');
+  });
+
   it('makes unique, well-formed IDs from real random bytes', () => {
     const first = correlationIdFrom(crypto);
     const second = correlationIdFrom(crypto);

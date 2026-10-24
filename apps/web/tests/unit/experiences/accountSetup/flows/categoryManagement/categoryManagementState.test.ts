@@ -97,6 +97,12 @@ describe('the form card and the archive confirm', () => {
   it('closes the confirm', () => {
     expect(archiveConfirmCancelled({ archiving: 'cat' }).archiving).toBeUndefined();
   });
+
+  it('keeps a request in flight when it closes the form or the confirm', () => {
+    const out = { kind: 'addSubcategory', categoryId: 'gro' } as const;
+    expect(formClosed({ form: { mode: 'create' }, out }).out).toBe(out);
+    expect(archiveConfirmCancelled({ archiving: 'cat', out }).out).toBe(out);
+  });
 });
 
 describe('the archive target lookup', () => {
@@ -106,6 +112,7 @@ describe('the archive target lookup', () => {
 
   it('finds its category in a loaded list', () => {
     expect(archivingTarget(LOADED, 'cat')).toBe(HOUSING);
+    expect(archivingTarget(LOADED, 'gro')).toBe(GROCERIES);
   });
 
   it('is undefined while the list isn’t loaded', () => {
@@ -120,6 +127,14 @@ describe('an edit form whose category was archived meanwhile (OQ-194)', () => {
 
   it('finds the archived category under the open edit form', () => {
     expect(archivedUnderForm(editing, listing(archived, GROCERIES))).toBe(archived);
+    const archivedGroceries = category('gro', { archivedAt: '2026-10-05T00:00:00Z' });
+    const editingGroceries = { form: { mode: 'edit', categoryId: 'gro' } } as const;
+    expect(archivedUnderForm(editingGroceries, listing(HOUSING, archivedGroceries)))
+      .toBe(archivedGroceries);
+  });
+
+  it('finds nothing when the edited category left the list', () => {
+    expect(archivedUnderForm(editing, listing(GROCERIES))).toBeUndefined();
   });
 
   it('finds nothing while the category is live, or no edit form is open', () => {
@@ -189,6 +204,12 @@ describe('the request that is out', () => {
     const archiving = started(open, { kind: 'archiveCategory', categoryId: 'cat' });
     const state = afterAction(archiving, { ok: true });
     expect(state.archiving).toBeUndefined();
+  });
+
+  it('keeps the confirm open when another card\'s request succeeds', () => {
+    const open = archiveConfirmOpened({}, 'cat');
+    const adding = started(open, { kind: 'addSubcategory', categoryId: 'gro' });
+    expect(afterAction(adding, { ok: true }).archiving).toBe('cat');
   });
 
   it('keeps an open form when a card’s request succeeds', () => {

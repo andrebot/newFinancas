@@ -354,6 +354,35 @@ describe('creating and editing a goal', () => {
     expect(screen.queryByTestId('drawer')).toBeNull();
   });
 
+  it('spins the drawer while its edit is out, Add waiting', async () => {
+    renderFlow({ onEdit: () => new Promise<RequestOutcome>(() => {}) });
+    const add = () => screen.getByRole<HTMLButtonElement>('button', { name: 'Add goal' });
+    expect(add().disabled).toBe(false);
+    await press('edit trip');
+    await press('submit');
+    expect(screen.getByTestId('drawer').dataset.busy).toBe('true');
+    expect(add().disabled).toBe(true);
+  });
+
+  it('shows its drawer when no tab state is passed', async () => {
+    renderInLocale(
+      <AlertProvider queue={queue}>
+        <GoalManagementFlow
+          {...OWNER}
+          goals={GOALS}
+          onRetry={vi.fn()}
+          onCreate={vi.fn()}
+          onEdit={vi.fn()}
+          onDelete={vi.fn()}
+          onComplete={vi.fn()}
+          onReopen={vi.fn()}
+        />
+      </AlertProvider>,
+    );
+    await press('Add goal');
+    expect(screen.getByTestId('drawer')).toBeTruthy();
+  });
+
   it('closes on cancel', async () => {
     renderFlow();
     await press('Add goal');
@@ -364,7 +393,9 @@ describe('creating and editing a goal', () => {
   it('opens the drawer about its goal and sends all but the visibility (OQ-177)', async () => {
     const { onEdit } = renderFlow();
     await press('edit trip');
-    expect(screen.getByTestId('drawer').dataset.goal).toBe('trip');
+    const idle = screen.getByTestId('drawer').dataset;
+    expect(idle.goal).toBe('trip');
+    expect([idle.busy, idle.disabled, idle.stepBusy]).toEqual(['false', 'false', 'false']);
     await press('submit');
     expect(onEdit).toHaveBeenCalledWith({
       goalId: 'trip',

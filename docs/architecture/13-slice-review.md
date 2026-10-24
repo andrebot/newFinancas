@@ -31,6 +31,9 @@ whether the architecture still keeps its boundaries.
   file over `vitest related <file>`, then each package over its own suite;
   6 workers, about 50 minutes. Reports go to the git-ignored
   `reports/mutation/` folder.
+- **Only the slice.** `BASE=<ref>` (the merge that closed the previous
+  review) limits either run to what changed since: added files whole,
+  changed files on their changed lines. Slice 2's whole API was ~4 hours.
 - **Safety.** `scripts/mutation.sh` stops Stryker when available memory
   drops under 6 GB. Never run more workers than the config says: 16
   workers once crashed the machine. `@stryker-mutator/vitest-runner` is not

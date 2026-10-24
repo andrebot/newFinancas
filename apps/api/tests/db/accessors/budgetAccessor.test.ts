@@ -306,6 +306,13 @@ describe('BudgetAccessor.insert', () => {
       .toEqual(claimed({ subcategoryId: setup.fuel }, anas));
   }));
 
+  it('weighs shared claims whoever created them (OQ-166)', test(async (setup) => {
+    const bias = await setup.create({ ownerUserId: setup.bia }, [{ categoryId: setup.transport }]);
+
+    expect(await setup.attempt({}, [{ subcategoryId: setup.parking }]))
+      .toEqual(claimed({ subcategoryId: setup.parking }, bias));
+  }));
+
   it('refuses a target that is not this household\'s', test(async (setup) => {
     expect(await setup.attempt({}, [{ categoryId: setup.garden }]))
       .toEqual({ ok: false, reason: 'target_not_found', target: { categoryId: setup.garden } });
@@ -546,6 +553,13 @@ describe('BudgetAccessor.accrueIfClaimed', () => {
     expect(await setup.accrue({ scope: biaScope })).toBe('untracked');
     expect(await setup.periods(car)).toEqual([['2026-1', 50_000, 100]]);
     expect(await setup.periods(anas)).toEqual([['2026-1', 50_000, 200]]);
+  }));
+
+  it('counts a shared spend in a shared Budget someone else created', test(async (setup) => {
+    const bias = await setup.create({ ownerUserId: setup.bia }, [{ categoryId: setup.transport }]);
+
+    expect(await setup.accrue({ amount: 300 })).toBe('accrued');
+    expect(await setup.periods(bias)).toEqual([['2026-1', 50_000, 300]]);
   }));
 
   it('opens a month with the target in effect then, not before the first', test(async (setup) => {

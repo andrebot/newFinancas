@@ -53,6 +53,10 @@ describe('the create card', () => {
     renderCard();
     expect(screen.getByText('New category')).toBeTruthy();
     expect(nameValue()).toBe('');
+    expect(screen.getByRole('radiogroup', { name: 'Icon' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'More icons' })).toBeTruthy();
+    expect(screen.getByRole('radiogroup', { name: 'Colour' })).toBeTruthy();
+    expect(screen.queryByRole('alert')).toBeNull();
     // The default icon is not a quick pick, so the row shows it first.
     expect(isChecked('Other')).toBe(true);
     expect(isChecked('Mint')).toBe(true);

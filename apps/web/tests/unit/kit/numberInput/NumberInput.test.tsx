@@ -157,6 +157,14 @@ describe('NumberInput', () => {
     expect(onChange.mock.calls).toEqual([[-31000], [31000]]);
   });
 
+  it('ignores `-` by default, in the field look with its label shown', () => {
+    const onChange = renderHolder({ value: 31000 });
+    typeTo('3,1-');
+    expect(numberBox().value).toBe('3,1');
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.getByText('Taxa').className).not.toContain('sr-only');
+  });
+
   it('keeps a lone minus sign typed before the digits', () => {
     const onChange = renderHolder({ allowNegative: true });
 

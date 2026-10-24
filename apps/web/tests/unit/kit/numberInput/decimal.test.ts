@@ -82,6 +82,7 @@ describe('exceedsDigits', () => {
   it('refuses more significant whole digits than the kind takes', () => {
     expect(exceedsDigits('1000', 0, 3)).toBe(true);
     expect(exceedsDigits('0100', 0, 3)).toBe(false);
+    expect(exceedsDigits('00100', 0, 3)).toBe(false);
   });
 
   it('refuses more decimals than the scale', () => {

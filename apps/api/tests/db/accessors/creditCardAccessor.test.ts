@@ -271,6 +271,23 @@ describe('applyMovement', () => {
     ]);
   }));
 
+  it('fills the gap after a longer chain from its last cycle, not its first', scenario(
+    async (setup) => {
+      const creditCardId = await setup.attach();
+      await setup.accessor.applyMovement(creditCardId, brl(3_000, '2026-11-05'));
+      await setup.accessor.applyMovement(creditCardId, brl(2_000, '2026-11-06'));
+
+      await setup.accessor.applyMovement(creditCardId, brl(1_000, '2027-02-01'));
+
+      expect(await setup.chainOf(creditCardId)).toEqual([
+        ['2026-11', 0, 3_000],
+        ['2026-12', 3_000, 5_000],
+        ['2027-01', 5_000, 5_000],
+        ['2027-02', 5_000, 6_000],
+      ]);
+    },
+  ));
+
   it('carries a charge before the card was added forward, the chain opening at 0', scenario(
     async (setup) => {
       const creditCardId = await setup.attach();
