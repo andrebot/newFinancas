@@ -82,6 +82,15 @@ Budget ones).
 
 One commit per finding group: T1–T2 (Accessors), T3–T6 (AccountManager accounts and cards), T7–T9 (holdings and market values). Verified by a second `BASE=7ca8206` run: the 15 killed, none new.
 
+#### Fixed (2026-10-23)
+
+Tests added, one commit per group — T1–T2 (`CreditCardAccessor`,
+`BudgetAccessor` DB tests), T3–T6 (AccountManager accounts suite), T7–T9
+(holdings unit and integration, market values). Each new test was first
+checked against its own mutant, applied by hand from the report.
+**Second run:** 2,259 killed, 79 survived — **96.6%**; all 15 gap mutants
+killed, no new survivor; the 79 left are exactly the triaged ones above.
+
 ### Step 2 — web app and packages (`pnpm mutation:web`)
 
 Not started.
