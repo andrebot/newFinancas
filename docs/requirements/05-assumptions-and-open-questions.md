@@ -1403,7 +1403,7 @@ to the financas app's style):**
   logged, so it's in the daily file immediately.
 - **No `console` anywhere.** Every process logs through the shared
   logger: the API, the demo seed, audit reconciliation and the ops CLI.
-  Under Vitest the logger is silent; tests read events with `captureLogs()`.
+  Under Vitest the logger is silent; tests read events with `captureLogs(onTestFinished)` (OQ-202).
   The browser logs through `@financas/logging/browser` (OQ-123).
 - **Logging is fire-and-forget:** Managers never wait. The correlation ID
   and actor (`user:<id>`, `system`, `unauthenticated`, NFR-OBS-2) are on
@@ -1868,7 +1868,7 @@ OQ-118). Delete User's cascade is `M1D` (task 136, slice 5).
   - no `audit` level, since audit belongs to the API;
   - a threshold of `info` (`loggingSettings.browserLevel`).
   Its console sink is the one place in the web app that touches `console`.
-  It is silent under Vitest, and tests read events with `captureLogs()`.
+  It is silent under Vitest, and tests read events with `captureLogs(onTestFinished)` (OQ-202).
 
 ### OQ-124: The API client (task FU7)
 **Confirmed with the stakeholder (Oct 2026):**
@@ -5212,7 +5212,7 @@ Reference Rate treatment, FR-9).
 **Design decisions:**
 - **The defaults are checked through the API, as the end state of a journey** (OQ-161), in both locales (PR #117 review). Core journey #1 compares the household's Categories with `defaultCategoriesFor('en-US')`, the language the user registered in; Smoke #3 registers in pt-BR (OQ-117's primary locale; `registerUser` takes the language) and compares with `defaultCategoriesFor('pt-BR')`. Both compare name, icon, colour and Subcategory names, Categories and Subcategories each sorted by name, since the API and the definitions keep different orders (`tests/e2e/support/accountApi.ts`).
 - **Both checks wait for the seeding.** The bus delivers `household.created` after the household's 201, so each polls rather than relying on how long the journey takes.
-- **Log capture's clean-up is a repo-wide question, carried to R2** (PR #117 review). A test whose awaited call throws skips `logs.stop()`, leaving the logger on for the rest of its file. It never changes an outcome, and every Manager suite uses the same pattern, so it is not changed in one file: R2 decides whether `captureLogs` cleans up after itself.
+- **Log capture's clean-up is a repo-wide question, carried to R2** (PR #117 review). A test whose awaited call throws skips `logs.stop()`, leaving the logger on for the rest of its file. It never changes an outcome, and every Manager suite uses the same pattern, so it is not changed in one file: R2 decides whether `captureLogs` cleans up after itself. *Decided in R2: it does, through the runner's hook (OQ-202).*
 - **The `@financas/reference` package is a root dev dependency**, so E2E reads the defaults from the same list the seed uses rather than a copy.
 
 **Task 97 (`I5`) is complete.**
@@ -5291,6 +5291,33 @@ fixes and doc drift they bring, is `docs/planning/04-slice-3-readiness.md`.
   them a creator column on both ledgers (OQ-111's Member rule needs it),
   a bill payment carrying `accountId` + `creditCardId`, `M4` split across
   slices 3–5, and the unused per-card list endpoint dropped.
+
+### OQ-202: Slice 2 review decisions (gate R2)
+**Confirmed with the stakeholder (Oct 2026)**, from the review in
+`docs/architecture/14-slice-2-review.md`:
+- **A capture ends with its test (the OQ-199 carry-over).** Both
+  `captureLogs` (`@financas/logging` and `/browser`) take the test runner's
+  clean-up hook, e.g. `captureLogs(onTestFinished)`, and register their own
+  stop on it; they no longer return `stop()`. A test whose awaited call throws
+  can't leave the logger capturing for the rest of its file, and the package
+  still imports no test framework (`OnTestFinished` is its own type). Weighed
+  and rejected: `using` with `Symbol.dispose` (equally safe, but new syntax and
+  lib for the codebase); `try/finally` at each site (still something to
+  remember).
+- **`src/api/` depends on nothing above it.** `useActiveHousehold` lives in
+  `shell/activeHousehold.ts` and the shared setup requests in
+  `experiences/setupRequests.ts` (still owned by neither Experience, OQ-198).
+  An ESLint boundary (`project/web-api-direction`) refuses imports from
+  `shell/` or `experiences/` in `src/api/`. Slice 1's A5 had come back
+  unnoticed, so it is now a rule rather than a habit.
+- **ValidationUtility owns its field-problem type** (`FieldDetail`, in
+  `utilities/validation.ts`); the HTTP error envelope imports it.
+- **The membership-only check is `memberOnly`** (`managers/access.ts`),
+  asked by the household lists instead of `accessToOwned(undefined, 'data.view')`.
+- **Managers answering with HTTP errors (OQ-114, slice 1's A6) stays
+  accepted** for now. It is decided at task 123 (`N9`, the local scheduler),
+  the first caller that isn't HTTP: map `ApiError` there, or move the
+  Managers to domain errors mapped at the HTTP edge.
 
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
