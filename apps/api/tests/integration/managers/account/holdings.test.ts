@@ -197,6 +197,7 @@ describe('AccountManager — edit a Holding\'s Goal split (uc-02, FR-8.2/8.3, OQ
       HOUSEHOLD_ID,
       onAccount('data.edit'),
     );
+    expect(goals.listAllocations).toHaveBeenCalledWith({ holdingId: HOLDING_ID });
     expect(goals.findByIds).toHaveBeenCalledWith(HOUSEHOLD_ID, [BEAS_GOAL.id, GOAL.id]);
     expect(goals.replaceAllocations).toHaveBeenCalledWith(HOUSEHOLD_ID, HOLDING_ID, [
       { goalId: BEAS_GOAL.id, percentage: 30 }, { goalId: GOAL.id, percentage: 50 },
