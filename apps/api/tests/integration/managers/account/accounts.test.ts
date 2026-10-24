@@ -218,6 +218,28 @@ describe('AccountManager — Create Account (financial-accounts/uc-01, FR-2.1/2.
     expect(creditCards.insert).not.toHaveBeenCalled();
   });
 
+  it.each(['savings', 'credit_card_only'] as const)('attaches cards to a %s Account', async (
+    type,
+  ) => {
+    const { deps, creditCards } = fakeDeps();
+
+    await createAccountManager(deps).createAccount(CONTEXT, HOUSEHOLD_ID, {
+      ...NEW_ACCOUNT, type, cards: [NEW_CARD],
+    });
+
+    expect(creditCards.insert).toHaveBeenCalledWith({ ...NEW_CARD, accountId: ACCOUNT_ID }, TODAY);
+  });
+
+  it('creates an investment Account sent without cards', async () => {
+    const { deps, accounts } = fakeDeps();
+
+    await createAccountManager(deps).createAccount(CONTEXT, HOUSEHOLD_ID, {
+      ...NEW_ACCOUNT, type: 'investment',
+    });
+
+    expect(accounts.insert).toHaveBeenCalledWith(expect.objectContaining({ type: 'investment' }));
+  });
+
   it('refuses cards on an investment Account with 422, writing nothing (FR-2.7)', async () => {
     const { deps, inTransaction } = fakeDeps();
 
@@ -353,6 +375,17 @@ describe('AccountManager — Edit Account (financial-accounts/uc-02, FR-2.3/2.9,
     });
   });
 
+  it('lets someone else rename it without sending a visibility', async () => {
+    const { deps, accounts } = fakeDeps();
+    accounts.findById.mockResolvedValueOnce({ ...ACCOUNT, ownerUserId: BEA_ID });
+
+    await createAccountManager(deps).editAccount(CONTEXT, HOUSEHOLD_ID, ACCOUNT_ID, {
+      name: 'Daily',
+    });
+
+    expect(accounts.update).toHaveBeenCalledWith(HOUSEHOLD_ID, ACCOUNT_ID, { name: 'Daily' });
+  });
+
   it('lets the creator make it personal', async () => {
     const { deps, accounts } = fakeDeps();
 
@@ -372,6 +405,29 @@ describe('AccountManager — Edit Account (financial-accounts/uc-02, FR-2.3/2.9,
       name: ' ',
     })).rejects.toMatchObject(BLANK_NAME);
     expect(inTransaction).not.toHaveBeenCalled();
+  });
+
+  it('edits an investment Account when no card is added', async () => {
+    const { deps, accounts } = fakeDeps();
+    accounts.findById.mockResolvedValueOnce({ ...ACCOUNT, type: 'investment' });
+
+    await createAccountManager(deps).editAccount(CONTEXT, HOUSEHOLD_ID, ACCOUNT_ID, {
+      name: 'Broker', cards: { remove: [CARD_ID] },
+    });
+
+    expect(accounts.update).toHaveBeenCalledWith(HOUSEHOLD_ID, ACCOUNT_ID, { name: 'Broker' });
+  });
+
+  it('writes only the card changes sent', async () => {
+    const { deps, creditCards } = fakeDeps();
+
+    await createAccountManager(deps).editAccount(CONTEXT, HOUSEHOLD_ID, ACCOUNT_ID, {
+      cards: { add: [NEW_CARD] },
+    });
+
+    expect(creditCards.insert).toHaveBeenCalledOnce();
+    expect(creditCards.update).not.toHaveBeenCalled();
+    expect(creditCards.remove).not.toHaveBeenCalled();
   });
 
   it('refuses a new card on an investment Account with 422 (FR-2.7)', async () => {
