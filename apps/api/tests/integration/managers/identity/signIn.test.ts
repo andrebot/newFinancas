@@ -1,5 +1,7 @@
 import { captureLogs } from '@financas/logging';
-import { describe, expect, it } from 'vitest';
+import {
+  describe, expect, it, onTestFinished,
+} from 'vitest';
 import { createIdentityManager } from '../../../../src/managers/identity';
 import { emailKeyOf } from '../../../../src/managers/identity/context';
 import {
@@ -125,10 +127,9 @@ describe('IdentityManager — Login, unconfirmed MFA enrollment (uc-14, OQ-149)'
   it('starts the enrollment over instead of a challenge, and audits it', async () => {
     const { deps, users, authentication } = fakeDeps();
     users.findByEmail.mockResolvedValueOnce(UNCONFIRMED);
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     const answer = await loginWith(deps);
-    logs.stop();
 
     expect(answer).toEqual({
       step: 'enroll',
@@ -186,10 +187,9 @@ describe('IdentityManager — Confirm MFA Enrollment (uc-11b, OQ-149)', () => {
     const {
       deps, users, sessions, authentication,
     } = fakeDeps();
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     const tokens = await confirmWith(deps);
-    logs.stop();
 
     expect(tokens).toEqual({ accessToken: 'access-token', refreshToken: 'refresh-token' });
     expect(authentication.verifyEnrollmentToken).toHaveBeenCalledWith('enrollment-token');
@@ -265,10 +265,9 @@ describe('IdentityManager — Login, MFA step (uc-14, OQ-145)', () => {
     const {
       deps, users, sessions, authentication,
     } = fakeDeps();
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     const tokens = await verifyWith(deps);
-    logs.stop();
 
     expect(tokens).toEqual({ accessToken: 'access-token', refreshToken: 'refresh-token' });
     expect(authentication.verifyChallengeToken).toHaveBeenCalledWith('challenge-token');
@@ -359,11 +358,10 @@ describe('IdentityManager — MFA Recovery (uc-20, OQ-115, OQ-145)', () => {
 
   it('uses up the code and opens an audited session', async () => {
     const { deps, users } = fakeDeps();
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await expect(recoverWith(deps))
       .resolves.toEqual({ accessToken: 'access-token', refreshToken: 'refresh-token' });
-    logs.stop();
 
     expect(users.consumeRecoveryCode).toHaveBeenCalledWith(ANA.id, 'code-hash(abcd-efgh)', NOW);
     expect(users.clearLoginFailures).toHaveBeenCalledWith('ana@example.com');
@@ -417,10 +415,9 @@ describe('IdentityManager — Refresh Tokens (uc-14b)', () => {
     const { deps, sessions } = fakeDeps();
     sessions.rotate.mockResolvedValueOnce({ status: 'stale' } as never);
     sessions.reissueReplaced.mockResolvedValueOnce({ status: 'rotated', session: SESSION });
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     const tokens = await createIdentityManager(deps).refresh(CONTEXT, 'old-token');
-    logs.stop();
 
     const graceStart = new Date(NOW.getTime() - 10_000);
     expect(sessions.reissueReplaced)
@@ -439,11 +436,10 @@ describe('IdentityManager — Refresh Tokens (uc-14b)', () => {
     const { deps, sessions } = fakeDeps();
     sessions.rotate.mockResolvedValueOnce({ status: 'stale' } as never);
     sessions.findByReplacedToken.mockResolvedValueOnce({ id: SESSION.id, userId: ANA.id });
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await expect(createIdentityManager(deps).refresh(CONTEXT, 'old-token'))
       .rejects.toMatchObject(REFRESH_INVALID);
-    logs.stop();
 
     expect(sessions.reissueReplaced).toHaveBeenCalled();
     expect(sessions.deleteForUser).toHaveBeenCalledWith(ANA.id, SESSION.id);

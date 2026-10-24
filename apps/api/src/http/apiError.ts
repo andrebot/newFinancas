@@ -1,13 +1,9 @@
-import type { ApiFieldCode, ErrorCode } from '@financas/i18n';
+import type { ErrorCode } from '@financas/i18n';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
+import type { FieldDetail } from '../utilities/validation';
 
-/** One field-level problem, rendered by the frontend from `code` + `params`. */
-export interface FieldDetail {
-  readonly field: string;
-  /** A code the shared i18n catalog translates (NFR-I18N-3). */
-  readonly code: ApiFieldCode;
-  readonly params?: Record<string, unknown>;
-}
+// A field's problem is ValidationUtility's own shape (U3); the envelope carries it.
+export type { FieldDetail };
 
 /** Everything the error envelope (`components/schemas/Error`) needs, minus the correlation id. */
 export interface ApiErrorInit {

@@ -1,4 +1,4 @@
-import type { FieldDetail } from '../http/apiError';
+import type { ApiFieldCode } from '@financas/i18n';
 
 // ValidationUtility (U3, VBD): generic, domain-agnostic field checks a Manager
 // runs before it decides anything. The route has already checked the request's
@@ -10,6 +10,18 @@ import type { FieldDetail } from '../http/apiError';
 // params}` the route's 422 carries, so the web app renders both alike (OQ-119).
 // Pure: no storage, no clock, no HTTP — the Manager turns failures into the
 // 422 (`validationFailed`) and passes in anything time-dependent.
+
+/**
+ * One field-level problem, rendered by the frontend from `code` + `params` —
+ * defined here, where the checks produce it; the HTTP error envelope carries
+ * it as `details[]`.
+ */
+export interface FieldDetail {
+  readonly field: string;
+  /** A code the shared i18n catalog translates (NFR-I18N-3). */
+  readonly code: ApiFieldCode;
+  readonly params?: Record<string, unknown>;
+}
 
 /** One field's problem, before it is tied to a field name. */
 export type FieldProblem = Omit<FieldDetail, 'field'>;

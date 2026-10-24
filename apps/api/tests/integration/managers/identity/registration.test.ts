@@ -1,5 +1,7 @@
 import { captureLogs } from '@financas/logging';
-import { describe, expect, it } from 'vitest';
+import {
+  describe, expect, it, onTestFinished,
+} from 'vitest';
 import { createIdentityManager } from '../../../../src/managers/identity';
 import { ANA, blankName, fakeDeps } from './fakes';
 
@@ -14,10 +16,9 @@ const INPUT = {
 describe('IdentityManager — Register (uc-11)', () => {
   it('stores hashes and the sealed secret, returns the secret and codes once, audits', async () => {
     const { deps, users, authentication } = fakeDeps();
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     const registered = await createIdentityManager(deps).register(CONTEXT, INPUT);
-    logs.stop();
 
     expect(users.insert).toHaveBeenCalledWith({
       email: 'ana@example.com',

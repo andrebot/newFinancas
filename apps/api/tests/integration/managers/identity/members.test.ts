@@ -1,5 +1,7 @@
 import { captureLogs } from '@financas/logging';
-import { describe, expect, it } from 'vitest';
+import {
+  describe, expect, it, onTestFinished,
+} from 'vitest';
 import { createIdentityManager } from '../../../../src/managers/identity';
 import {
   ANA, BEN_ID, fakeDeps, HOUSEHOLD, NOW, SESSION,
@@ -16,10 +18,9 @@ const OWNER = { role: 'Owner', joinedAt: NOW };
 describe('IdentityManager — Remove Member (uc-07, FR-1.11)', () => {
   it('removes a member for an Owner/Admin, audited', async () => {
     const { deps, households, authorization } = fakeDeps();
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await createIdentityManager(deps).removeMember(CONTEXT, HOME, BEN_ID);
-    logs.stop();
 
     expect(authorization.authorize)
       .toHaveBeenCalledWith(ANA.id, HOME, { action: 'members.manage' });
@@ -68,10 +69,9 @@ describe('IdentityManager — Leave Household (uc-08, FR-1.18, OQ-107)', () => {
 
   it('lets a member leave without any permission check', async () => {
     const { deps, households, authorization } = fakeDeps();
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await leave(deps);
-    logs.stop();
 
     expect(authorization.authorize).not.toHaveBeenCalled();
     expect(households.removeMember).toHaveBeenCalledWith(HOME, ANA.id);
@@ -87,10 +87,9 @@ describe('IdentityManager — Leave Household (uc-08, FR-1.18, OQ-107)', () => {
   it('hands the household to the successor before the Owner leaves', async () => {
     const { deps, households } = fakeDeps();
     households.findMembership.mockResolvedValueOnce(OWNER);
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await leave(deps);
-    logs.stop();
 
     expect(households.findSuccessor).toHaveBeenCalledWith(HOME, ANA.id);
     expect(households.swapOwner).toHaveBeenCalledWith(HOME, ANA.id, BEN_ID);
@@ -109,10 +108,9 @@ describe('IdentityManager — Leave Household (uc-08, FR-1.18, OQ-107)', () => {
     const { deps, households } = fakeDeps();
     households.findMembership.mockResolvedValueOnce(OWNER);
     households.findSuccessor.mockResolvedValueOnce(undefined);
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await leave(deps);
-    logs.stop();
 
     expect(households.dissolve).toHaveBeenCalledWith(HOME, ANA.id);
     expect(households.removeMember).not.toHaveBeenCalled();
@@ -167,10 +165,9 @@ describe('IdentityManager — Leave Household (uc-08, FR-1.18, OQ-107)', () => {
 describe('IdentityManager — Change Member Role (uc-09, FR-1.12)', () => {
   it('sets an Admin/Member/Viewer role, audited', async () => {
     const { deps, households } = fakeDeps();
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await createIdentityManager(deps).changeMemberRole(CONTEXT, HOME, BEN_ID, 'Admin');
-    logs.stop();
 
     expect(households.updateRole).toHaveBeenCalledWith(HOME, BEN_ID, 'Admin');
     expectAudited(logs.events, {
@@ -199,10 +196,9 @@ describe('IdentityManager — Change Member Role (uc-09, FR-1.12)', () => {
 describe('IdentityManager — Transfer Ownership (uc-10, FR-1.20)', () => {
   it('swaps the Owner role to the target; the caller stays as Admin', async () => {
     const { deps, households, authorization } = fakeDeps();
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await createIdentityManager(deps).transferOwnership(CONTEXT, HOME, BEN_ID);
-    logs.stop();
 
     expect(authorization.authorize)
       .toHaveBeenCalledWith(ANA.id, HOME, { action: 'household.transferOwnership' });

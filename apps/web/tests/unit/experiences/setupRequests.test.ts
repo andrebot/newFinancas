@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   listsToRefresh, listViewOf,
-} from '../../../src/api/setupRequests';
+} from '../../../src/experiences/setupRequests';
 
 // The setup requests' pure helpers (BDT: unit). The hooks themselves are
 // covered through the Experiences that call them — Account Setup's and

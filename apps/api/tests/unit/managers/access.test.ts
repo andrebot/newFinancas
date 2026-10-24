@@ -3,7 +3,7 @@ import {
 } from 'vitest';
 import { createApiError } from '../../../src/http/apiError';
 import {
-  accessToOwned, forbidden, householdNotFound, requireAccess,
+  accessToOwned, forbidden, householdNotFound, memberOnly, requireAccess,
 } from '../../../src/managers/access';
 
 const REQUEST = { action: 'data.edit', visibility: 'personal', ownerUserId: 'u2' } as const;
@@ -70,7 +70,12 @@ describe('accessToOwned', () => {
   });
 
   it('asks only for membership when the data isn\'t there', () => {
-    expect(accessToOwned(undefined, 'data.edit'))
-      .toEqual({ action: 'data.view', visibility: 'shared', ownerUserId: null });
+    expect(accessToOwned(undefined, 'data.edit')).toBe(memberOnly);
+  });
+});
+
+describe('memberOnly', () => {
+  it('is a view of shared data nobody owns: what every member may do', () => {
+    expect(memberOnly).toEqual({ action: 'data.view', visibility: 'shared', ownerUserId: null });
   });
 });

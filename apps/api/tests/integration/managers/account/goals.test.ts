@@ -1,5 +1,7 @@
 import { captureLogs, type LogEvent } from '@financas/logging';
-import { describe, expect, it } from 'vitest';
+import {
+  describe, expect, it, onTestFinished,
+} from 'vitest';
 import { createAccountManager } from '../../../../src/managers/account';
 import { expectAudited } from '../audit';
 import {
@@ -119,12 +121,11 @@ describe('AccountManager — view Goals (FR-8.1, OQ-177)', () => {
 describe('AccountManager — create a Goal (uc-01, FR-8.1)', () => {
   it('creates it, unfunded, owned by its creator, and audits it', async () => {
     const { deps, goals, authorization } = fakeDeps();
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     const created = await createAccountManager(deps).createGoal(CONTEXT, HOUSEHOLD_ID, {
       ...NEW_GOAL, name: '  House ',
     });
-    logs.stop();
 
     expect(created).toEqual(GOAL);
     expect(authorization.authorize).toHaveBeenCalledWith(ANA_ID, HOUSEHOLD_ID, {
@@ -189,12 +190,11 @@ describe('AccountManager — edit a Goal (uc-02, FR-8.1, OQ-177)', () => {
     const { deps, goals, authorization } = fakeDeps();
     const edited = { ...GOAL, name: 'Home', targetCurrency: 'USD' };
     goals.update.mockResolvedValueOnce(edited);
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     const result = await createAccountManager(deps).editGoal(CONTEXT, HOUSEHOLD_ID, GOAL_ID, {
       name: ' Home ', targetCurrency: 'USD', targetAmount: undefined,
     });
-    logs.stop();
 
     expect(result).toEqual(edited);
     expect(authorization.authorize).toHaveBeenCalledWith(ANA_ID, HOUSEHOLD_ID, onGoal('data.edit'));
@@ -217,10 +217,9 @@ describe('AccountManager — edit a Goal (uc-02, FR-8.1, OQ-177)', () => {
 
   it('reads an empty edit back, unaudited', async () => {
     const { deps, goals } = fakeDeps();
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     const result = await createAccountManager(deps).editGoal(CONTEXT, HOUSEHOLD_ID, GOAL_ID, {});
-    logs.stop();
 
     expect(result).toEqual(GOAL);
     expect(goals.update).not.toHaveBeenCalled();
@@ -239,12 +238,11 @@ describe('AccountManager — edit a Goal (uc-02, FR-8.1, OQ-177)', () => {
   it('answers one deleted meanwhile 404, unaudited', async () => {
     const { deps, goals } = fakeDeps();
     goals.update.mockResolvedValueOnce(undefined);
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await expect(createAccountManager(deps).editGoal(CONTEXT, HOUSEHOLD_ID, GOAL_ID, {
       name: 'Home',
     })).rejects.toMatchObject(GOAL_NOT_FOUND);
-    logs.stop();
     expect(auditedActions(logs.events)).toEqual([]);
   });
 
@@ -272,10 +270,9 @@ describe('AccountManager — edit a Goal (uc-02, FR-8.1, OQ-177)', () => {
 describe('AccountManager — complete a Goal (uc-03, FR-8.8)', () => {
   it('completes an active Goal, audited, checking data.edit', async () => {
     const { deps, goals, authorization } = fakeDeps();
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await createAccountManager(deps).completeGoal(CONTEXT, HOUSEHOLD_ID, GOAL_ID);
-    logs.stop();
 
     expect(authorization.authorize).toHaveBeenCalledWith(ANA_ID, HOUSEHOLD_ID, onGoal('data.edit'));
     expect(goals.complete).toHaveBeenCalledWith(HOUSEHOLD_ID, GOAL_ID);
@@ -286,10 +283,9 @@ describe('AccountManager — complete a Goal (uc-03, FR-8.8)', () => {
   it('leaves a completed Goal as it is, unaudited (OQ-177)', async () => {
     const { deps, goals } = fakeDeps();
     goals.findById.mockResolvedValueOnce(COMPLETED_GOAL);
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await createAccountManager(deps).completeGoal(CONTEXT, HOUSEHOLD_ID, GOAL_ID);
-    logs.stop();
 
     expect(goals.complete).not.toHaveBeenCalled();
     expect(auditedActions(logs.events)).toEqual([]);
@@ -298,11 +294,10 @@ describe('AccountManager — complete a Goal (uc-03, FR-8.8)', () => {
   it('answers one deleted meanwhile 404, unaudited', async () => {
     const { deps, goals } = fakeDeps();
     goals.complete.mockResolvedValueOnce(false);
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await expect(createAccountManager(deps).completeGoal(CONTEXT, HOUSEHOLD_ID, GOAL_ID))
       .rejects.toMatchObject(GOAL_NOT_FOUND);
-    logs.stop();
     expect(auditedActions(logs.events)).toEqual([]);
   });
 
@@ -329,10 +324,9 @@ describe('AccountManager — reopen a Goal (uc-04, FR-8.9)', () => {
   it('reopens a completed Goal, audited, checking data.edit', async () => {
     const { deps, goals, authorization } = fakeDeps();
     goals.findById.mockResolvedValueOnce(COMPLETED_GOAL);
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await createAccountManager(deps).reopenGoal(CONTEXT, HOUSEHOLD_ID, GOAL_ID);
-    logs.stop();
 
     expect(authorization.authorize).toHaveBeenCalledWith(ANA_ID, HOUSEHOLD_ID, onGoal('data.edit'));
     expect(goals.reopen).toHaveBeenCalledWith(HOUSEHOLD_ID, GOAL_ID);
@@ -342,10 +336,9 @@ describe('AccountManager — reopen a Goal (uc-04, FR-8.9)', () => {
 
   it('leaves an active Goal as it is, unaudited (OQ-177)', async () => {
     const { deps, goals } = fakeDeps();
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await createAccountManager(deps).reopenGoal(CONTEXT, HOUSEHOLD_ID, GOAL_ID);
-    logs.stop();
 
     expect(goals.reopen).not.toHaveBeenCalled();
     expect(auditedActions(logs.events)).toEqual([]);
@@ -355,11 +348,10 @@ describe('AccountManager — reopen a Goal (uc-04, FR-8.9)', () => {
     const { deps, goals } = fakeDeps();
     goals.findById.mockResolvedValueOnce(COMPLETED_GOAL);
     goals.reopen.mockResolvedValueOnce(false);
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await expect(createAccountManager(deps).reopenGoal(CONTEXT, HOUSEHOLD_ID, GOAL_ID))
       .rejects.toMatchObject(GOAL_NOT_FOUND);
-    logs.stop();
     expect(auditedActions(logs.events)).toEqual([]);
   });
 
@@ -379,10 +371,9 @@ describe('AccountManager — reopen a Goal (uc-04, FR-8.9)', () => {
 describe('AccountManager — delete a Goal (uc-05, FR-8.6, OQ-47)', () => {
   it('deletes it, audited, checking data.delete on the Goal', async () => {
     const { deps, goals, authorization } = fakeDeps();
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await createAccountManager(deps).deleteGoal(CONTEXT, HOUSEHOLD_ID, GOAL_ID);
-    logs.stop();
 
     expect(authorization.authorize)
       .toHaveBeenCalledWith(ANA_ID, HOUSEHOLD_ID, onGoal('data.delete'));
@@ -393,11 +384,10 @@ describe('AccountManager — delete a Goal (uc-05, FR-8.6, OQ-47)', () => {
   it('answers one deleted meanwhile 404, unaudited', async () => {
     const { deps, goals } = fakeDeps();
     goals.delete.mockResolvedValueOnce(false);
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await expect(createAccountManager(deps).deleteGoal(CONTEXT, HOUSEHOLD_ID, GOAL_ID))
       .rejects.toMatchObject(GOAL_NOT_FOUND);
-    logs.stop();
     expect(auditedActions(logs.events)).toEqual([]);
   });
 

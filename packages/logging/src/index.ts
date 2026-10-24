@@ -8,5 +8,6 @@ export { LEVELS, type LogLevel } from './levels';
 export {
   buildTransports, captureLogs, createLogger, logger, type LogContext, type Logger,
 } from './logger';
+export type { OnTestFinished } from './capture';
 export { redact, REDACTED } from './redact';
 export { default as loggingSettings } from './settings';

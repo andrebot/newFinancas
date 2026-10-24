@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router';
 import type { Goal, GoalWithProgress } from '@financas/api-types';
 import { shell } from '../../config/constants';
 import { toRequestOutcome, type EndpointResult } from '../../api/outcome';
-import { useActiveHousehold } from '../../api/activeHousehold';
+import { useActiveHousehold } from '../../shell/activeHousehold';
 import { Button } from '../../kit/button/Button';
 import { EmptyState } from '../../kit/emptyState/EmptyState';
 import { PageHeader } from '../../kit/pageHeader/PageHeader';
@@ -24,7 +24,7 @@ import {
 } from './flows/goalManagement/GoalManagementFlow';
 import {
   listViewOf, useAccountRequests, useBudgets, useCategories, type ListQueryState,
-} from '../../api/setupRequests';
+} from '../setupRequests';
 import type {
   GoalEntry, GoalsView, ProgressStatus, SharedListView,
 } from './sharedLists';

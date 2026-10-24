@@ -1,5 +1,7 @@
 import { captureLogs, type LogEvent } from '@financas/logging';
-import { describe, expect, it } from 'vitest';
+import {
+  describe, expect, it, onTestFinished,
+} from 'vitest';
 import { createAccountManager } from '../../../../src/managers/account';
 import { expectAudited } from '../audit';
 import {
@@ -81,7 +83,7 @@ describe('AccountManager — the Rates tab (FR-11.6, OQ-172)', () => {
 describe('AccountManager — record an index value (uc-08)', () => {
   it('records it as the caller\'s and audits it', async () => {
     const { deps, indexRates, authorization } = fakeDeps();
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     const recorded = await createAccountManager(deps).recordIndexRate(
       CONTEXT,
@@ -89,7 +91,6 @@ describe('AccountManager — record an index value (uc-08)', () => {
       'selic',
       { value: 105000, asOf: '2026-10-13' },
     );
-    logs.stop();
 
     expect(recorded).toEqual(RATE);
     expect(authorization.authorize).toHaveBeenCalledWith(
@@ -131,7 +132,7 @@ describe('AccountManager — record an index value (uc-08)', () => {
   it('refuses a second value for the day 409 index_rate.duplicate_day, unaudited', async () => {
     const { deps, indexRates } = fakeDeps();
     indexRates.insert.mockResolvedValueOnce('duplicate_day');
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await expect(createAccountManager(deps).recordIndexRate(
       CONTEXT,
@@ -139,7 +140,6 @@ describe('AccountManager — record an index value (uc-08)', () => {
       'selic',
       { value: 1, asOf: '2026-10-01' },
     )).rejects.toMatchObject(DUPLICATE_DAY);
-    logs.stop();
 
     expect(auditedActions(logs.events)).toEqual([]);
   });
@@ -187,7 +187,7 @@ describe('AccountManager — who may correct an index value (OQ-178)', () => {
 describe('AccountManager — edit an index value (uc-09)', () => {
   it('corrects the fields sent and audits it', async () => {
     const { deps, indexRates, authorization } = fakeDeps();
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     const edited = await createAccountManager(deps).editIndexRate(
       CONTEXT,
@@ -196,7 +196,6 @@ describe('AccountManager — edit an index value (uc-09)', () => {
       RATE_ID,
       { value: 110000, asOf: '2026-10-02' },
     );
-    logs.stop();
 
     expect(edited).toEqual(RATE);
     expect(authorization.authorize).toHaveBeenCalledWith(
@@ -212,11 +211,10 @@ describe('AccountManager — edit an index value (uc-09)', () => {
 
   it('reads the value back for an empty edit, unaudited', async () => {
     const { deps, indexRates } = fakeDeps();
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     const read = await createAccountManager(deps)
       .editIndexRate(CONTEXT, HOUSEHOLD_ID, 'selic', RATE_ID, {});
-    logs.stop();
 
     expect(read).toEqual(RATE);
     expect(indexRates.update).not.toHaveBeenCalled();
@@ -238,12 +236,11 @@ describe('AccountManager — edit an index value (uc-09)', () => {
   ])('answers IndexRateAccessor\'s %s as the API does, unaudited', async (refusal, error) => {
     const { deps, indexRates } = fakeDeps();
     indexRates.update.mockResolvedValueOnce(refusal);
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await expect(createAccountManager(deps)
       .editIndexRate(CONTEXT, HOUSEHOLD_ID, 'selic', RATE_ID, { asOf: '2026-09-01' }))
       .rejects.toMatchObject(error);
-    logs.stop();
 
     expect(auditedActions(logs.events)).toEqual([]);
   });
@@ -252,10 +249,9 @@ describe('AccountManager — edit an index value (uc-09)', () => {
 describe('AccountManager — delete an index value (uc-10)', () => {
   it('deletes it and audits it', async () => {
     const { deps, indexRates } = fakeDeps();
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await createAccountManager(deps).deleteIndexRate(CONTEXT, HOUSEHOLD_ID, 'selic', RATE_ID);
-    logs.stop();
 
     expect(indexRates.remove).toHaveBeenCalledWith(HOUSEHOLD_ID, 'selic', RATE_ID);
     expectAudited(logs.events, audit('DeleteIndexRate'));
@@ -264,12 +260,11 @@ describe('AccountManager — delete an index value (uc-10)', () => {
   it('answers a value gone meanwhile 404 index_rate.not_found, unaudited', async () => {
     const { deps, indexRates } = fakeDeps();
     indexRates.remove.mockResolvedValueOnce('not_found');
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await expect(createAccountManager(deps)
       .deleteIndexRate(CONTEXT, HOUSEHOLD_ID, 'selic', RATE_ID))
       .rejects.toMatchObject(RATE_NOT_FOUND);
-    logs.stop();
 
     expect(auditedActions(logs.events)).toEqual([]);
   });

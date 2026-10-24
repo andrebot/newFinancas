@@ -1,5 +1,7 @@
 import { captureLogs, type LogEvent } from '@financas/logging';
-import { describe, expect, it } from 'vitest';
+import {
+  describe, expect, it, onTestFinished,
+} from 'vitest';
 import { createAccountManager } from '../../../../src/managers/account';
 import { expectAudited } from '../audit';
 import {
@@ -103,7 +105,7 @@ describe('AccountManager — a Holding\'s value history (FR-5.2/5.4)', () => {
 describe('AccountManager — record a market value (uc-05, FR-5.2, OQ-56)', () => {
   it('records it as manual and audits it', async () => {
     const { deps, valuations, authorization } = fakeDeps();
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     const recorded = await createAccountManager(deps).recordMarketValue(
       CONTEXT,
@@ -111,7 +113,6 @@ describe('AccountManager — record a market value (uc-05, FR-5.2, OQ-56)', () =
       HOLDING_ID,
       { value: 0, asOf: '2026-10-13' },
     );
-    logs.stop();
 
     expect(recorded).toEqual(SNAPSHOT);
     expect(authorization.authorize).toHaveBeenCalledWith(
@@ -167,7 +168,7 @@ describe.each(Object.entries(WRITES))('AccountManager — %s a market value refu
 describe('AccountManager — edit a market value (uc-06, OQ-56)', () => {
   it('corrects the fields sent and audits it', async () => {
     const { deps, valuations } = fakeDeps();
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     const edited = await createAccountManager(deps).editMarketValue(
       CONTEXT,
@@ -176,7 +177,6 @@ describe('AccountManager — edit a market value (uc-06, OQ-56)', () => {
       SNAPSHOT_ID,
       { value: 330000, asOf: '2026-10-02' },
     );
-    logs.stop();
 
     expect(edited).toEqual(SNAPSHOT);
     expect(valuations.updateManual).toHaveBeenCalledWith(HOLDING_ID, SNAPSHOT_ID, {
@@ -216,11 +216,10 @@ describe('AccountManager — edit a market value (uc-06, OQ-56)', () => {
 
   it('reads a manual snapshot back for an empty edit, unaudited', async () => {
     const { deps, valuations } = fakeDeps();
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     const read = await createAccountManager(deps)
       .editMarketValue(CONTEXT, HOUSEHOLD_ID, HOLDING_ID, SNAPSHOT_ID, {});
-    logs.stop();
 
     expect(read).toEqual(SNAPSHOT);
     expect(valuations.list).toHaveBeenCalledWith(HOLDING_ID);
@@ -254,11 +253,10 @@ describe('AccountManager — edit a market value (uc-06, OQ-56)', () => {
 describe('AccountManager — delete a market value (uc-07, OQ-56)', () => {
   it('deletes it and audits it', async () => {
     const { deps, valuations } = fakeDeps();
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await createAccountManager(deps)
       .deleteMarketValue(CONTEXT, HOUSEHOLD_ID, HOLDING_ID, SNAPSHOT_ID);
-    logs.stop();
 
     expect(valuations.deleteManual).toHaveBeenCalledWith(HOLDING_ID, SNAPSHOT_ID);
     expectAudited(logs.events, audit('DeleteMarketValue'));
@@ -270,12 +268,11 @@ describe('AccountManager — delete a market value (uc-07, OQ-56)', () => {
   ])('answers the Accessor\'s %s as the API does, unaudited', async (refusal, error) => {
     const { deps, valuations } = fakeDeps();
     valuations.deleteManual.mockResolvedValueOnce(refusal);
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await expect(createAccountManager(deps)
       .deleteMarketValue(CONTEXT, HOUSEHOLD_ID, HOLDING_ID, SNAPSHOT_ID))
       .rejects.toMatchObject(error);
-    logs.stop();
 
     expect(auditedActions(logs.events)).toEqual([]);
   });

@@ -1,6 +1,8 @@
 import { captureLogs } from '@financas/logging';
 import type { Mock } from 'vitest';
-import { describe, expect, it } from 'vitest';
+import {
+  describe, expect, it, onTestFinished,
+} from 'vitest';
 import { isApiError } from '../../../../src/http/apiError';
 import { createAccountManager } from '../../../../src/managers/account';
 import {
@@ -301,12 +303,8 @@ const runPastAccess = async (run: () => Promise<unknown>): Promise<void> => {
  * @returns What it logged.
  */
 const refusedLogging = async (run: () => Promise<unknown>, answer: object): Promise<unknown[]> => {
-  const logs = captureLogs();
-  try {
-    await expect(run()).rejects.toMatchObject({ apiError: answer });
-  } finally {
-    logs.stop();
-  }
+  const logs = captureLogs(onTestFinished);
+  await expect(run()).rejects.toMatchObject({ apiError: answer });
   return logs.events;
 };
 

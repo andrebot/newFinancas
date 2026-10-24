@@ -143,7 +143,7 @@ identity screens, the rest as later slices use them.
 - [x] **96.** `I2` AccountManager seam suite (the M2 suites already cover 100% of the Manager; I2 adds the permission matrix across all 39 use cases — a refusal reads only what decides access — and the route refusing a fifth Account type)
 - [x] **97.** `I5` Manager pub/sub (household.created, holding.matured) (OQ-199: the real bus between the real Managers, built and subscribed by `createManagers`, in `tests/integration/managers/pubsub.test.ts`, `holding.matured` published as the daily job will until N9; the default Categories checked through the API in core journey #1 (en-US) and Smoke #3 (pt-BR), polled after the household's 201)
 - [x] **98.** `I8` Frontend ↔ backend: account setup (OQ-200: X5's four Flows and Guided Setup's resume and budget step, arranged and checked through the API; core journey #9 tagged `@core` — a Category claimed meanwhile, refused by the partial unique index; the rest Full E2E)
-- [ ] **R2.** Slice 2 review (gate — `docs/architecture/13-slice-review.md`). Carry-over (PR #117, OQ-199): a test whose awaited call throws skips `logs.stop()`, so the logger stays on for the rest of its file — decide repo-wide whether `captureLogs` cleans up after itself (e.g. registering its own Vitest clean-up) rather than each test remembering `stop()`
+- [x] **R2.** Slice 2 review (gate — `docs/architecture/13-slice-review.md`, findings in `14-slice-2-review.md`, decisions OQ-202): mutation testing (PR #120), the Playwright suite (PR #121), code and architecture (this PR) — `captureLogs` now ends with its test (the OQ-199 carry-over), `src/api/` depends on nothing above it (an ESLint boundary)
 
 ## Slice 3 — Day-to-day finances
 
@@ -178,7 +178,7 @@ identity screens, the rest as later slices use them.
 
 *Done when:* holdings, market values, rates, payouts; the daily job.
 
-- [ ] **123.** `N9` Local scheduler for investmentsDaily
+- [ ] **123.** `N9` Local scheduler for investmentsDaily (OQ-202: the first non-HTTP caller of the Managers — decide here whether it maps their `ApiError`s or the Managers move to domain errors mapped at the HTTP edge, OQ-114)
 - [x] **124.** `K24` Tooltip (built early with task 64, OQ-160; chart-point tooltips stay with the charts)
 - [ ] **125.** `K43` Table
 - [ ] **126.** `K38` Line chart / sparkline

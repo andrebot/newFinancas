@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-import { useActiveHousehold } from '../../api/activeHousehold';
+import { useActiveHousehold } from '../../shell/activeHousehold';
 import { toRequestOutcome } from '../../api/outcome';
 import { guidedSetup, shell } from '../../config/constants';
 import { Button } from '../../kit/button/Button';
@@ -15,7 +15,7 @@ import { useAppDispatch } from '../../store';
 import { useI18n, useLocaleController } from '../../utilities/I18nProvider';
 import type { RequestOutcome } from '../../utilities/requestOutcome';
 import { CategoryManagementFlow } from '../accountSetup/flows/categoryManagement/CategoryManagementFlow';
-import { useAccountRequests, useBudgets, useCategories } from '../../api/setupRequests';
+import { useAccountRequests, useBudgets, useCategories } from '../setupRequests';
 import { useCreateHouseholdMutation, useRegisterUserMutation } from './api';
 import { GuidedSetupFlow } from './flows/guidedSetup/GuidedSetupFlow';
 import type { SetupTab } from '../accountSetup/AccountSetupExperience';
@@ -46,7 +46,7 @@ import { MfaEnrollmentStep, type PendingEnrollment } from './MfaEnrollmentStep';
 //   opens it too for a household with no account in use, so a drop-off
 //   resumes here, and the main navigation waits for that first account
 //   (FR-1.22). Its requests are the ones Account Setup answers
-//   (`api/setupRequests.ts`).
+//   (`experiences/setupRequests.ts`).
 
 /** Which stretch of the journey the page opens. */
 export type OnboardEntry = 'registration' | 'household' | 'additionalHousehold' | 'guidedSetup';

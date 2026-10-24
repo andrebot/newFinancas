@@ -2,11 +2,11 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { Provider } from 'react-redux';
 import { describe, expect, it } from 'vitest';
-import { useActiveHousehold } from '../../../src/api/activeHousehold';
+import { useActiveHousehold } from '../../../src/shell/activeHousehold';
 import { householdChosen } from '../../../src/shell/shellState';
 import { fakeFetch } from '../experiences/hookFakes';
-import { fakeStore } from '../shell/shellFakes';
-import { envelope, jsonResponse } from './fakes';
+import { fakeStore } from './shellFakes';
+import { envelope, jsonResponse } from '../api/fakes';
 
 // The household page's starting point (BDT: the query hooks over the real
 // store and API client; only `fetch` is fake).

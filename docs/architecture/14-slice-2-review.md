@@ -4,8 +4,8 @@ The gate at the end of slice 2 (account setup: accounts, cards, categories,
 budgets, goals and the guided onboarding wizard — tasks 67–98), run by the
 method in `13-slice-review.md` (OQ-164). Work happens on the
 `review/slice-2` branch, cut from `main` after PR #118 (`I8`).
-**Status: in progress — phases 1 (PR #120) and 2 (`review/slice-2-e2e`)
-done; phase 3 next.**
+**Status: complete — phase 1 PR #120, phase 2 PR #121, phase 3
+`review/slice-2-code`; decisions in OQ-202.**
 
 ## Scope
 
@@ -238,4 +238,69 @@ Then the slice 10× in a row: 60/60.
 
 ## Phase 3 — code and architecture
 
-Not started.
+A Harmonic Design pass over slice 2's code (`7ca8206..main`): VBD call rules
+(backend), EBD tiers (web), BDT mock placement, and the plan against what's
+built. Runtime and type imports were extracted per layer and every
+cross-boundary edge read; a cycle search ran over both apps.
+
+**What holds.**
+- **Backend.** No Engine calls another Engine. No Accessor calls another
+  Accessor: `calendarMonth` and `billingCycle` are pure helpers in
+  `accessors/`, and resolving a movement's cycle is the Accessor's own
+  storage key by decision (OQ-170). Routes import the Managers as types
+  only; everything is injected in `server.ts`. AccountManager → the
+  Notification Engine is a plain Manager → Engine call (a matured Holding's
+  notice, OQ-171).
+- **Web.** Only Experiences call the backend (the ESLint rule holds). No
+  Flow imports a sibling Flow at runtime. Guided Setup reuses Account
+  Setup's Interactions (`CardFields`, `ScopeFields`, `CoverPicker`) and
+  helpers (`budgetForm`, `budgetClaims`, `ownership`), and Onboard composes
+  Category Management: decided in OQ-196, and the EBD doc allows sibling
+  Flows to share a child Interaction ("as two Managers calling the same
+  Accessor"). Interactions import pure helpers from their own Flow's state
+  (`takesCards`, `cardChangesOf`, `progressOf`): they reason about what the
+  user typed, and the event types are the Flow's own, not the contract.
+  That is not slice 1's A4, which was a cross-cutting formatter left in one
+  Flow. No module-level import cycle in either app.
+- **Tests.** Experiences mock only their Flows, Flows only their
+  Interactions; the backend has no module mocks (injected fakes only).
+- **Plan.** Slice 2's checklist is complete (33 tasks). The contract-routes
+  test lists nothing of slice 2 as unbuilt. The one screen that calls an
+  unserved endpoint, the Goals tab's `goal-progress`, does so by decision
+  (OQ-195): it shows the definitions under a banner until `M4` (task 104,
+  slice 3) builds it.
+
+| # | Finding (symptom → cause → where else to look) | Severity | Proposed fix |
+|---|---|---|---|
+| A1 | **`api/` and `shell/` depend on each other again.** Slice 1's A5 removed it. `api/activeHousehold.ts` (FL11/FL12 review fixes) reads `selectActiveHouseholdId` from `shell/shellState`, which imports `api/backendApi`. *Cause (EBD):* `useActiveHousehold` combines the Shell's state with the identity reads, which is Shell-tier work, but it was put with the endpoints. *Counterpart:* nothing enforces direction between `api/`, `shell/` and `experiences/`: the ESLint boundary rule only stops the lower tiers from calling the backend. So it came back, and A2 is the same gap. | Low | Move it to `shell/activeHousehold.ts` (Experiences already import `shell/`). Add an ESLint boundary: `src/api/**` may not import `shell/**` or `experiences/**`. |
+| A2 | **`api/setupRequests.ts` imports the Flows' prop types.** It holds the hooks that bind the setup endpoints to Account, Category and Budget Management's props. Both Account Setup and Onboard host those Flows, so it sits "in one place neither Experience owns" (OQ-198). That is a sound aim, but the place it picked is the layer below the Experiences, so `api/` now depends on `experiences/`. *Counterpart:* the rule A1 adds would refuse it. | Low | Move it to the Experience tier's shared folder, next to `experiences/interactions/stepParts`: `experiences/setupRequests.ts`. |
+| A3 | **ValidationUtility depends on the HTTP layer.** `utilities/validation.ts` (U3) types its result as `FieldDetail` from `http/apiError`. A Utility knows nothing of its callers. *Counterpart:* `managers/validation.ts` turns those problems into the 422, which is A4's question. | Low | Define the field problem type in the utility; `http/apiError` builds its `details[]` from it. |
+| A4 | **Slice 1's accepted A6 now covers all of AccountManager.** Every AccountManager error is an `ApiError` with an HTTP status (`managers/account/errors.ts`, `managers/access.ts`, `managers/validation.ts`). The recorded cost is that a non-HTTP caller gets HTTP-shaped errors. The first such caller is the local scheduler for `investmentsDaily` (task 123, `N9`, slice 4). | Note | Nothing now. Add to task 123's line in the plan: decide there whether the scheduler maps `ApiError` or the Managers move to domain errors mapped at the HTTP edge. |
+| A5 | **Carry-over: "members only" is spelled `accessToOwned(undefined, 'data.view')`.** Five list actions (accounts ×2, budgets, goals, index rates) pass an action that is ignored when nothing is owned. It reads as a view check, but it is only a membership check. | Low | Give it a name in `managers/access.ts`: a `memberOnly` request (or `requireMembership`) and use it at the five sites. |
+| A6 | **Carry-over (OQ-199): `captureLogs` relies on each test calling `stop()`.** 107 call sites (API 24 files, web 4, logging 2). A test whose awaited call throws skips `stop()`, so the logger stays on, still recording, for the rest of its file. Both versions (`@financas/logging` and `/browser`) hand the clean-up back to the caller. | Low — a decision | (a) **Recommended:** `captureLogs(onTestFinished)`. The caller passes the runner's clean-up hook, `captureLogs` registers `stop` on it, and the package still imports no test framework. Every call site then drops its `stop()`. (b) `using logs = captureLogs()` with `Symbol.dispose`. It's exception-safe too, but it needs the disposable lib and syntax, which are new to the codebase. (c) Keep it, with `try/finally` at each site. |
+
+### Phase 3 — fixes (2026-10-24)
+
+Decisions (OQ-202): fix A1–A3 and A5; A6 by option (a); A4 waits for task 123.
+
+| Commit | Findings |
+|---|---|
+| Review A6 | Both `captureLogs` take the runner's hook (`captureLogs(onTestFinished)`) and register their own stop; `stop()` is no longer returned. The 107 call sites changed, along with the `try/finally` helper and the `afterEach` stops. The logging tests prove a capture whose test throws (`it.fails`) is still stopped by the runner, and they fail with the registration taken out. |
+| Review A5 | `memberOnly` in `managers/access.ts`, asked by the five list actions; `accessToOwned` falls back to it. |
+| Review A3 | `FieldDetail` moves to `utilities/validation.ts`; `http/apiError` imports and re-exports it. No Utility imports `http/`. |
+| Review A1, A2 | `useActiveHousehold` → `shell/activeHousehold.ts`; the shared setup requests → `experiences/setupRequests.ts`. ESLint `project/web-api-direction` refuses `shell/` and `experiences/` imports in `src/api/` (checked against a probe import). EBD doc and the Onboard tier and Guided Setup sequence diagrams updated through the generator. |
+| A4 | Task 123's line in the plan carries the decision to take there. |
+
+## Closing (OQ-164)
+
+The review is closed:
+- **Phase 1:** the slice's tests catch 96.6% of backend mutants and 95.6%
+  of web mutants. Every real gap has a test.
+- **Phase 2:** the journeys aren't flaky. Four small assertion gaps were fixed.
+- **Phase 3:** the architecture holds. Four small direction fixes were made,
+  with an ESLint boundary so the `api/` one can't come back unnoticed.
+  Both carry-overs are decided.
+
+**Still open, on the plan:** the A4 decision at task 123; checking at task
+104 that the Goals tab's progress banner goes once `goal-progress` is served
+(OQ-195). Slice 3 starts with task 99.

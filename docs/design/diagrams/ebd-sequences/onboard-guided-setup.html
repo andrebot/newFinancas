@@ -120,7 +120,7 @@ sequenceDiagram
     </pre>
   </div>
   <div class="notes">
-<ul><li>Steps 1 and 3 are this Flow's own inline forms, as mockups 11 and 13 draw them; the drawers are kept for Account Setup's busier page (OQ-196).</li><li>Both forms carry a Personal / Shared field — Shared to start, Personal for a Viewer — which the mockups leave out (OQ-196).</li><li>The Flow never calls the backend: Onboard hosts it and answers each request through the shared setup requests (api/setupRequests.ts — X2G, OQ-198).</li><li>Main nav stays hidden until the household has an account in use, of any visibility: the household gate opens Guided Setup for one that hasn't, so a drop-off resumes here (FR-1.22, OQ-198).</li></ul>
+<ul><li>Steps 1 and 3 are this Flow's own inline forms, as mockups 11 and 13 draw them; the drawers are kept for Account Setup's busier page (OQ-196).</li><li>Both forms carry a Personal / Shared field — Shared to start, Personal for a Viewer — which the mockups leave out (OQ-196).</li><li>The Flow never calls the backend: Onboard hosts it and answers each request through the shared setup requests (experiences/setupRequests.ts — X2G, OQ-198).</li><li>Main nav stays hidden until the household has an account in use, of any visibility: the household gate opens Guided Setup for one that hasn't, so a drop-off resumes here (FR-1.22, OQ-198).</li></ul>
   </div>
   <script>
     mermaid.initialize({

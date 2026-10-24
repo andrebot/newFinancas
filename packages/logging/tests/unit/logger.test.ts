@@ -3,29 +3,36 @@ import os from 'node:os';
 import path from 'node:path';
 import winston from 'winston';
 import DailyRotateFile from 'winston-daily-rotate-file';
-import { describe, expect, it } from 'vitest';
+import {
+  describe, expect, it, onTestFinished,
+} from 'vitest';
 import {
   buildTransports, captureLogs, createLogger, logger,
 } from '../../src/logger';
 import loggingSettings from '../../src/settings';
 
 describe('the logger', () => {
-  it('is silent under Vitest until a test captures it', () => {
+  it('is silent under Vitest until a test captures it, and again once it finishes', () => {
     expect(logger.silent).toBe(true);
+    let stop = (): void => {};
 
-    const logs = captureLogs();
+    const logs = captureLogs((cleanUp) => {
+      stop = cleanUp;
+    });
     expect(logger.silent).toBe(false);
-    logs.stop();
+    createLogger({ label: 'x' }).info('during');
+    stop();
+    createLogger({ label: 'x' }).info('after');
 
     expect(logger.silent).toBe(true);
+    expect(logs.events.map((event) => event.message)).toEqual(['during']);
   });
 
   it('adds a child logger\'s context to every event (financas\' createLogger)', () => {
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     const context = { label: 'IdentityManager', correlationId: 'c1', actor: 'user:u1' };
     createLogger(context).info('Login', { deviceInfo: 'Firefox' });
-    logs.stop();
 
     expect(logs.events).toEqual([expect.objectContaining({
       ...context, level: 'info', message: 'Login', deviceInfo: 'Firefox',
@@ -33,11 +40,10 @@ describe('the logger', () => {
   });
 
   it('has an audit level that stamps the entry with an id and time', () => {
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     createLogger({ actor: 'user:u1' })
       .audit('CreateBudget', { entityType: 'Budget', entityId: 'b1', householdId: 'h1' });
-    logs.stop();
 
     const [event] = logs.events;
     expect(event).toMatchObject({ level: 'audit', message: 'CreateBudget', entityType: 'Budget' });
@@ -46,12 +52,25 @@ describe('the logger', () => {
   });
 
   it('redacts credentials before any transport sees them', () => {
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     createLogger({ label: 'x' }).info('Login', { password: 'hunter2' });
-    logs.stop();
 
     expect(logs.events[0]?.password).toBe('[redacted]');
+  });
+});
+
+// The two tests below run in order: the first throws after capturing, the
+// second checks the capture still ended with it (OQ-199).
+describe('a capture whose test throws', () => {
+  it.fails('throws while capturing', () => {
+    captureLogs(onTestFinished);
+    expect(logger.silent).toBe(false);
+    throw new Error('the awaited call failed');
+  });
+
+  it('has been stopped by the runner all the same', () => {
+    expect(logger.silent).toBe(true);
   });
 });
 

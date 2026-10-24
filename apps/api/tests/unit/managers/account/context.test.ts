@@ -1,5 +1,7 @@
 import { captureLogs } from '@financas/logging';
-import { describe, expect, it } from 'vitest';
+import {
+  describe, expect, it, onTestFinished,
+} from 'vitest';
 import { loggerFor, requestLogger, todayOf } from '../../../../src/managers/account/context';
 
 const ACTOR = { userId: 'u1', sessionId: 's1', systemRole: 'USER' as const };
@@ -9,10 +11,9 @@ describe('loggerFor', () => {
     ['u1', 'user:u1'],
     [undefined, 'system'],
   ])('labels user %s as %s', (userId, actor) => {
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     loggerFor('c1', userId).info('x');
-    logs.stop();
 
     expect(logs.events[0]).toMatchObject({ label: 'AccountManager', correlationId: 'c1', actor });
   });
@@ -20,10 +21,9 @@ describe('loggerFor', () => {
 
 describe('requestLogger', () => {
   it('carries the request\'s correlation ID and actor', () => {
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     requestLogger({ correlationId: 'c2', actor: ACTOR }).info('x');
-    logs.stop();
 
     expect(logs.events[0]).toMatchObject({
       label: 'AccountManager', correlationId: 'c2', actor: 'user:u1',

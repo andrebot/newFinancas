@@ -11,7 +11,7 @@ import { useAppDispatch } from '../../store';
 import { useAlerts } from '../../utilities/AlertProvider';
 import { useI18n } from '../../utilities/I18nProvider';
 import type { RequestFailure } from '../../utilities/requestOutcome';
-import { useActiveHousehold } from '../../api/activeHousehold';
+import { useActiveHousehold } from '../../shell/activeHousehold';
 import {
   useChangeMemberRoleMutation,
   useCreateInvitationMutation,

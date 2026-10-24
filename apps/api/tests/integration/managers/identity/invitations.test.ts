@@ -1,6 +1,6 @@
 import { captureLogs } from '@financas/logging';
 import {
-  describe, expect, it, vi,
+  describe, expect, it, onTestFinished, vi,
 } from 'vitest';
 import { createIdentityManager } from '../../../../src/managers/identity';
 import {
@@ -27,10 +27,9 @@ describe('IdentityManager — Invite User (uc-03, FR-1.5/1.19)', () => {
     } = fakeDeps();
     users.findByEmail.mockResolvedValueOnce(BEN);
     households.findMembership.mockResolvedValueOnce(undefined);
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     const invitation = await createIdentityManager(deps).inviteUser(ANA_CONTEXT, HOME, REQUEST);
-    logs.stop();
 
     expect(authorization.authorize)
       .toHaveBeenCalledWith(ANA.id, HOME, { action: 'members.manage' });
@@ -98,13 +97,12 @@ describe('IdentityManager — Invite User (uc-03, FR-1.5/1.19)', () => {
     const { deps, households, notifications } = fakeDeps();
     households.findMembership.mockResolvedValueOnce(undefined);
     notifications.notify.mockRejectedValueOnce(new Error('inbox down'));
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await expect(createIdentityManager(deps).inviteUser(ANA_CONTEXT, HOME, REQUEST))
       .resolves.toBe(INVITATION);
     await vi.waitFor(() => expect(logs.events)
       .toContainEqual(expect.objectContaining({ level: 'error', error: 'Error: inbox down' })));
-    logs.stop();
   });
 
   it('lists the household\'s invitations for an Owner/Admin', async () => {
@@ -120,10 +118,9 @@ describe('IdentityManager — Invite User (uc-03, FR-1.5/1.19)', () => {
 describe('IdentityManager — Revoke (uc-06)', () => {
   it('revokes a pending invitation of this household, audited', async () => {
     const { deps, invitations } = fakeDeps();
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await createIdentityManager(deps).revokeInvitation(ANA_CONTEXT, HOME, INVITATION.id);
-    logs.stop();
 
     expect(invitations.resolve).toHaveBeenCalledWith(INVITATION.id, 'revoked', NOW);
     expectAudited(logs.events, {
@@ -156,10 +153,9 @@ describe('IdentityManager — Revoke (uc-06)', () => {
 describe('IdentityManager — Accept / Decline (uc-04/05, FR-1.10)', () => {
   it('accepts: resolves first, then joins with the invited role', async () => {
     const { deps, invitations, households } = fakeDeps();
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     const joined = await createIdentityManager(deps).acceptInvitation(BEN_CONTEXT, INVITATION.id);
-    logs.stop();
 
     expect(joined).toEqual({ householdId: INVITATION.householdId, role: 'Member' });
     expect(invitations.resolve).toHaveBeenCalledWith(INVITATION.id, 'accepted', NOW);
@@ -186,10 +182,9 @@ describe('IdentityManager — Accept / Decline (uc-04/05, FR-1.10)', () => {
 
   it('declines without creating a membership — logged, not audited (FR-7.1)', async () => {
     const { deps, invitations, households } = fakeDeps();
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await createIdentityManager(deps).declineInvitation(BEN_CONTEXT, INVITATION.id);
-    logs.stop();
 
     expect(invitations.resolve).toHaveBeenCalledWith(INVITATION.id, 'declined', NOW);
     expect(households.addMember).not.toHaveBeenCalled();

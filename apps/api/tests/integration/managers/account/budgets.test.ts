@@ -1,5 +1,7 @@
 import { captureLogs, type LogEvent } from '@financas/logging';
-import { describe, expect, it } from 'vitest';
+import {
+  describe, expect, it, onTestFinished,
+} from 'vitest';
 import { createAccountManager } from '../../../../src/managers/account';
 import { expectAudited } from '../audit';
 import {
@@ -119,12 +121,11 @@ describe('AccountManager — create a Budget (uc-01, FR-4.1/4.7, OQ-176)', () =>
     const {
       deps, budgets, categories, authorization,
     } = fakeDeps();
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     const created = await createAccountManager(deps).createBudget(CONTEXT, HOUSEHOLD_ID, {
       ...NEW_BUDGET, name: '  Groceries ',
     });
-    logs.stop();
 
     expect(created).toEqual(BUDGET);
     expect(authorization.authorize).toHaveBeenCalledWith(ANA_ID, HOUSEHOLD_ID, {
@@ -205,7 +206,7 @@ describe('AccountManager — create a Budget (uc-01, FR-4.1/4.7, OQ-176)', () =>
       target: { categoryId: CATEGORY.id },
       claimedByBudgetId: OTHER_BUDGET_ID,
     });
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await expect(createAccountManager(deps).createBudget(CONTEXT, HOUSEHOLD_ID, NEW_BUDGET))
       .rejects.toMatchObject({
@@ -215,7 +216,6 @@ describe('AccountManager — create a Budget (uc-01, FR-4.1/4.7, OQ-176)', () =>
           params: { categoryId: CATEGORY.id, budgetId: OTHER_BUDGET_ID },
         },
       });
-    logs.stop();
     expect(auditedActions(logs.events)).toEqual([]);
   });
 
@@ -239,12 +239,11 @@ describe('AccountManager — edit a Budget (uc-02, FR-4.7/4.9, OQ-176)', () => {
     } = fakeDeps();
     const renamed = { ...BUDGET, name: 'Food' };
     budgets.findById.mockResolvedValueOnce(BUDGET).mockResolvedValueOnce(renamed);
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     const edited = await createAccountManager(deps).editBudget(CONTEXT, HOUSEHOLD_ID, BUDGET_ID, {
       name: ' Food ', targetAmount: 90000, targets: [{ subcategoryId: SUBCATEGORY.id }],
     });
-    logs.stop();
 
     expect(edited).toEqual(renamed);
     expect(authorization.authorize).toHaveBeenCalledWith(ANA_ID, HOUSEHOLD_ID, {
@@ -316,11 +315,10 @@ describe('AccountManager — edit a Budget (uc-02, FR-4.7/4.9, OQ-176)', () => {
 
   it('reads an empty edit back, unaudited and unwritten', async () => {
     const { deps, inTransaction } = fakeDeps();
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     expect(await createAccountManager(deps).editBudget(CONTEXT, HOUSEHOLD_ID, BUDGET_ID, {}))
       .toEqual(BUDGET);
-    logs.stop();
     expect(inTransaction).not.toHaveBeenCalled();
     expect(auditedActions(logs.events)).toEqual([]);
   });
@@ -363,12 +361,11 @@ describe('AccountManager — edit a Budget (uc-02, FR-4.7/4.9, OQ-176)', () => {
   it('answers a Budget deleted before its update 404, unaudited', async () => {
     const { deps, budgets } = fakeDeps();
     budgets.update.mockResolvedValueOnce('not_found');
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await expect(createAccountManager(deps).editBudget(CONTEXT, HOUSEHOLD_ID, BUDGET_ID, {
       name: 'Food', targets: [{ categoryId: CATEGORY.id }],
     })).rejects.toMatchObject(BUDGET_NOT_FOUND);
-    logs.stop();
     expect(budgets.replaceTargets).not.toHaveBeenCalled();
     expect(auditedActions(logs.events)).toEqual([]);
   });
@@ -390,7 +387,7 @@ describe('AccountManager — edit a Budget (uc-02, FR-4.7/4.9, OQ-176)', () => {
       target: { subcategoryId: SUBCATEGORY.id },
       claimedByBudgetId: OTHER_BUDGET_ID,
     });
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await expect(createAccountManager(deps).editBudget(CONTEXT, HOUSEHOLD_ID, BUDGET_ID, {
       name: 'Food', targets: [{ subcategoryId: SUBCATEGORY.id }],
@@ -401,7 +398,6 @@ describe('AccountManager — edit a Budget (uc-02, FR-4.7/4.9, OQ-176)', () => {
         params: { subcategoryId: SUBCATEGORY.id, budgetId: OTHER_BUDGET_ID },
       },
     });
-    logs.stop();
     // The throw leaves the unit of work, which rolls the update back.
     expect(budgets.update).toHaveBeenCalled();
     expect(auditedActions(logs.events)).toEqual([]);
@@ -433,10 +429,9 @@ describe('AccountManager — edit a Budget (uc-02, FR-4.7/4.9, OQ-176)', () => {
 describe('AccountManager — delete a Budget (uc-03, FR-4.10, OQ-40)', () => {
   it('deletes it, audited, checking data.delete on the Budget', async () => {
     const { deps, budgets, authorization } = fakeDeps();
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await createAccountManager(deps).deleteBudget(CONTEXT, HOUSEHOLD_ID, BUDGET_ID);
-    logs.stop();
 
     expect(authorization.authorize).toHaveBeenCalledWith(ANA_ID, HOUSEHOLD_ID, {
       action: 'data.delete', visibility: 'shared', ownerUserId: ANA_ID,
@@ -448,11 +443,10 @@ describe('AccountManager — delete a Budget (uc-03, FR-4.10, OQ-40)', () => {
   it('answers one deleted meanwhile 404, unaudited', async () => {
     const { deps, budgets } = fakeDeps();
     budgets.delete.mockResolvedValueOnce(false);
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await expect(createAccountManager(deps).deleteBudget(CONTEXT, HOUSEHOLD_ID, BUDGET_ID))
       .rejects.toMatchObject(BUDGET_NOT_FOUND);
-    logs.stop();
     expect(auditedActions(logs.events)).toEqual([]);
   });
 

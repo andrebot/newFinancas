@@ -1,7 +1,7 @@
 import { captureLogs } from '@financas/logging/browser';
 import type { BaseQueryApi } from '@reduxjs/toolkit/query';
 import {
-  afterEach, beforeEach, describe, expect, it, vi,
+  beforeEach, describe, expect, it, onTestFinished, vi,
 } from 'vitest';
 import {
   apiBaseQuery, sessionEnded, type ApiEnvironment,
@@ -76,9 +76,8 @@ const UNAUTHENTICATED = () => jsonResponse(401, envelope('auth.unauthenticated')
 describe('apiBaseQuery', () => {
   let logs: ReturnType<typeof captureLogs>;
   beforeEach(() => {
-    logs = captureLogs();
+    logs = captureLogs(onTestFinished);
   });
-  afterEach(() => logs.stop());
 
   it('sends under the base URL with a correlation ID and returns the data', async () => {
     const { fetchFn, queryApi } = harness([jsonResponse(200, { id: 'thing-1' })]);

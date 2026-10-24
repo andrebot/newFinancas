@@ -124,6 +124,23 @@ export default [
     },
   },
 
+  // Direction (slice 2 review, A1/A2): the API client sits below the App Shell
+  // and the Experiences, so `src/api/` imports neither. Whatever combines an
+  // endpoint with the Shell's state or a Flow's props belongs to that tier.
+  {
+    name: 'project/web-api-direction',
+    files: ['apps/web/src/api/**'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': ['error', {
+        patterns: [{
+          group: ['**/shell', '**/shell/**', '**/experiences', '**/experiences/**'],
+          message: 'src/api/ sits below the Shell and the Experiences: '
+            + 'move this to the tier that combines them.',
+        }],
+      }],
+    },
+  },
+
   // Project rules (CLAUDE.md / NFR-MAINT-1, NFR-MAINT-2).
   {
     name: 'project/rules',

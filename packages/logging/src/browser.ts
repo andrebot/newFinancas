@@ -1,3 +1,4 @@
+import type { OnTestFinished } from './capture';
 import { LEVELS, type LogLevel } from './levels';
 import { redact } from './redact';
 import loggingSettings from './settings';
@@ -9,7 +10,7 @@ import loggingSettings from './settings';
 // Audit is the API's alone, so there is no `audit` method. The console sink
 // below is the one place in the web app that touches `console`, as Winston's
 // Console transport is on the server. Under Vitest nothing is written; tests
-// read events with `captureLogs()`.
+// read events with `captureLogs(onTestFinished)`.
 
 /** A browser log level: every server level except `audit`. */
 export type BrowserLogLevel = Exclude<LogLevel, 'audit'>;
@@ -104,20 +105,23 @@ export const createLogger = (context: BrowserLogContext = {}): BrowserLogger => 
 });
 
 /**
- * For tests: records every event that passes the level instead of writing it.
+ * For tests: records every event that passes the level instead of writing it,
+ * until the test finishes — the stop is registered on the runner's hook, so a
+ * test that throws can't leave the capture on for the rest of its file (OQ-199).
  *
- * @returns The recorded events and a function that stops recording.
+ * @param onFinished - The runner's clean-up hook, e.g. Vitest's `onTestFinished`.
+ * @returns The recorded events.
  */
-export const captureLogs = () => {
+export const captureLogs = (
+  onFinished: OnTestFinished,
+): { readonly events: BrowserLogEvent[] } => {
   const events: BrowserLogEvent[] = [];
   const previous = currentSink;
   currentSink = (event) => {
     events.push(event);
   };
-  return {
-    events,
-    stop: () => {
-      currentSink = previous;
-    },
-  };
+  onFinished(() => {
+    currentSink = previous;
+  });
+  return { events };
 };

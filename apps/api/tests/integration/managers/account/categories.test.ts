@@ -1,5 +1,7 @@
 import { captureLogs } from '@financas/logging';
-import { describe, expect, it } from 'vitest';
+import {
+  describe, expect, it, onTestFinished,
+} from 'vitest';
 import { createAccountManager } from '../../../../src/managers/account';
 import { expectAudited } from '../audit';
 import {
@@ -105,12 +107,11 @@ describe('AccountManager — view Categories', () => {
 describe('AccountManager — Create Category (categories/uc-01, FR-10.1)', () => {
   it('creates it with a trimmed name, audited', async () => {
     const { deps, categories } = fakeDeps();
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     const created = await createAccountManager(deps).createCategory(CONTEXT, HOUSEHOLD_ID, {
       ...NEW_CATEGORY, name: '  Pets ',
     });
-    logs.stop();
 
     expect(created).toEqual(CATEGORY);
     expect(categories.insert).toHaveBeenCalledWith(HOUSEHOLD_ID, NEW_CATEGORY);
@@ -138,7 +139,7 @@ describe('AccountManager — Create Category (categories/uc-01, FR-10.1)', () =>
   ])('answers the Accessor\'s %s with 422 on %s, unaudited (OQ-173)', async (refusal, field) => {
     const { deps, categories } = fakeDeps();
     categories.insert.mockResolvedValueOnce(refusal);
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await expect(createAccountManager(deps).createCategory(CONTEXT, HOUSEHOLD_ID, NEW_CATEGORY))
       .rejects.toMatchObject({
@@ -148,7 +149,6 @@ describe('AccountManager — Create Category (categories/uc-01, FR-10.1)', () =>
           details: [{ field, code: 'field.invalid_option' }],
         },
       });
-    logs.stop();
 
     expect(logs.events.filter((event) => event.level === 'audit')).toEqual([]);
   });
@@ -157,7 +157,7 @@ describe('AccountManager — Create Category (categories/uc-01, FR-10.1)', () =>
 describe('AccountManager — Edit Category (categories/uc-02, FR-10.2, OQ-173)', () => {
   it('writes the whole edit at once, names trimmed, audited', async () => {
     const { deps, categories } = fakeDeps();
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     const edited = await createAccountManager(deps).editCategory(
       CONTEXT,
@@ -170,7 +170,6 @@ describe('AccountManager — Edit Category (categories/uc-02, FR-10.2, OQ-173)',
         subcategories: [{ id: SUBCATEGORY_ID, name: 'Market ' }, { name: ' Bakery' }],
       },
     );
-    logs.stop();
 
     expect(edited).toEqual(CATEGORY);
     expect(categories.update).toHaveBeenCalledWith(HOUSEHOLD_ID, CATEGORY_ID, {
@@ -189,10 +188,9 @@ describe('AccountManager — Edit Category (categories/uc-02, FR-10.2, OQ-173)',
 
   it('reads an empty edit back without auditing it', async () => {
     const { deps, categories } = fakeDeps();
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await createAccountManager(deps).editCategory(CONTEXT, HOUSEHOLD_ID, CATEGORY_ID, {});
-    logs.stop();
 
     expect(categories.update).toHaveBeenCalledWith(HOUSEHOLD_ID, CATEGORY_ID, {});
     expect(logs.events.filter((event) => event.level === 'audit')).toEqual([]);
@@ -215,12 +213,11 @@ describe('AccountManager — Edit Category (categories/uc-02, FR-10.2, OQ-173)',
   ])('answers the Accessor\'s %s, unaudited', async (refusal, expected) => {
     const { deps, categories } = fakeDeps();
     categories.update.mockResolvedValueOnce(refusal);
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await expect(createAccountManager(deps).editCategory(CONTEXT, HOUSEHOLD_ID, CATEGORY_ID, {
       name: 'Groceries',
     })).rejects.toMatchObject(expected);
-    logs.stop();
 
     expect(logs.events.filter((event) => event.level === 'audit')).toEqual([]);
   });
@@ -229,10 +226,9 @@ describe('AccountManager — Edit Category (categories/uc-02, FR-10.2, OQ-173)',
 describe('AccountManager — Archive Category or Subcategory (categories/uc-03, FR-10.4)', () => {
   it('archives a Category (the cascade is the Accessor\'s), audited', async () => {
     const { deps, categories } = fakeDeps();
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await createAccountManager(deps).archiveCategory(CONTEXT, HOUSEHOLD_ID, CATEGORY_ID);
-    logs.stop();
 
     expect(categories.archive).toHaveBeenCalledWith(HOUSEHOLD_ID, CATEGORY_ID);
     expectAudited(logs.events, {
@@ -254,11 +250,10 @@ describe('AccountManager — Archive Category or Subcategory (categories/uc-03, 
 
   it('archives one Subcategory, scoped by its Category, audited', async () => {
     const { deps, categories } = fakeDeps();
-    const logs = captureLogs();
+    const logs = captureLogs(onTestFinished);
 
     await createAccountManager(deps)
       .archiveSubcategory(CONTEXT, HOUSEHOLD_ID, CATEGORY_ID, SUBCATEGORY_ID);
-    logs.stop();
 
     expect(categories.archiveSubcategory)
       .toHaveBeenCalledWith(HOUSEHOLD_ID, CATEGORY_ID, SUBCATEGORY_ID);
