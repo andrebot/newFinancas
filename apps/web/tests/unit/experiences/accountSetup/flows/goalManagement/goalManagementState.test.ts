@@ -107,6 +107,13 @@ describe('rateEntered (FR-9.1)', () => {
     expect(rateEntered(once, USD_BRL, null).rates).toEqual({});
   });
 
+  it('keeps the other pairs\' rates when one is cleared or retyped', () => {
+    const other = { base: 'USD', quote: 'EUR' } as unknown as typeof USD_BRL;
+    const both = rateEntered(rateEntered(INITIAL_GOALS, USD_BRL, 52000), other, 9000);
+    expect(rateEntered(both, USD_BRL, null).rates).toEqual({ 'USD/EUR': 9000 });
+    expect(rateEntered(both, USD_BRL, 53000).rates).toEqual({ 'USD/EUR': 9000, 'USD/BRL': 53000 });
+  });
+
   it('keeps a zero, the start of a rate under 1 (0,19)', () => {
     expect(rateEntered(INITIAL_GOALS, USD_BRL, 0).rates).toEqual({ 'USD/BRL': 0 });
   });

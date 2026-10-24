@@ -140,6 +140,10 @@ describe('the card', () => {
     expect(screen.getByText('$6,000.00')).toBeTruthy();
     expect(screen.getByText('04/01/2028')).toBeTruthy();
     expect(screen.getByText('in 1 yr 6 mo')).toBeTruthy();
+    expect(screen.getByText('Target')).toBeTruthy();
+    expect(screen.getByText('Due')).toBeTruthy();
+    expect(screen.getByText('Progress')).toBeTruthy();
+    expect(screen.getByText('Funded by')).toBeTruthy();
   });
 
   it('shows a single-currency goal\'s progress and who funds it', () => {
@@ -148,6 +152,8 @@ describe('the card', () => {
     expect(screen.getByRole('progressbar', { name: 'Progress toward Trip to Japan' })).toBeTruthy();
     expect(screen.getByText('AAPL · 10%')).toBeTruthy();
     expect(screen.getByText('$482.00')).toBeTruthy();
+    expect(screen.queryByText(translator.text('goalManagement', 'fundedBy.none'))).toBeNull();
+    expect(screen.queryByText(/≈/)).toBeNull();
     expect(screen.queryByText('Mixed currencies')).toBeNull();
     expect(screen.queryByRole('textbox')).toBeNull();
   });
@@ -163,6 +169,8 @@ describe('the card', () => {
     expect(screen.getByText('Mixed currencies')).toBeTruthy();
     expect(screen.getByText('R$ 16.500,00')).toBeTruthy();
     expect(screen.getByText('Enter the USD → BRL rate to count every holding.')).toBeTruthy();
+    expect(screen.queryByText(/≈/)).toBeNull();
+    expect(screen.getByText('Rate')).toBeTruthy();
     expect(screen.queryByText(translator.text('goalManagement', 'estimate.note'))).toBeNull();
     const rate = screen.getByRole<HTMLInputElement>('textbox', { name: 'BRL per USD' });
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(rate, '5.2');
@@ -173,6 +181,8 @@ describe('the card', () => {
 
   it('blends a mixed goal into an estimate once its rate is typed (mockup 43)', () => {
     renderCard({ entry: { goal: goal(), funding: MIXED }, rates: { 'USD/BRL': 52000 } });
+    expect(screen.getByRole<HTMLInputElement>('textbox', { name: 'BRL per USD' }).value)
+      .toMatch(/^5\.2/);
     expect(screen.getByText('61% · ≈ $2,344.92 to go')).toBeTruthy();
     expect(screen.getByText('≈ $3,173.08')).toBeTruthy();
     expect(screen.getByText(translator.text('goalManagement', 'estimate.note'))).toBeTruthy();
