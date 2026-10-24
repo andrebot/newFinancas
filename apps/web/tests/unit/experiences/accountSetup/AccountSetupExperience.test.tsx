@@ -279,6 +279,7 @@ describe('the page', () => {
     )).toBeTruthy();
     expect(shownBy('accounts')).toEqual({ selfUserId: 'jane', role: 'Owner', active: true });
     expect(screen.getByRole('radio', { name: 'Accounts' })).toBeTruthy();
+    expect(screen.getByRole('radiogroup', { name: 'Setup sections' })).toBeTruthy();
   });
 
   it('shows each section’s flow under its tab', async () => {
@@ -297,10 +298,12 @@ describe('the page', () => {
     expect(screen.getByTestId('categories')).toBeTruthy();
     await pickTab('Budgets');
     expect(screen.getByTestId('budgets')).toBeTruthy();
+    expect(shownBy('accounts')).toEqual(expect.objectContaining({ active: false }));
     await pickTab('Goals');
     expect(screen.getByTestId('goals')).toBeTruthy();
     await pickTab('Accounts');
     expect(screen.getByTestId('accounts')).toBeTruthy();
+    expect(shownBy('goals')).toEqual(expect.objectContaining({ active: false }));
   });
 
   it('shows a skeleton while the user loads', async () => {
@@ -916,6 +919,12 @@ describe('goalListViewOf / progressStatusOf', () => {
       goals: [{ goal: TRIP, funding: FUNDING }],
       refreshError: { code: 'internal.unexpected' },
     });
+  });
+
+  it('marks the list stale when a refetch of the definitions failed', () => {
+    const failure = { status: 'FETCH_ERROR', error: 'down' } as never;
+    expect(goalListViewOf({ data: [TRIP], error: failure }, { data: [TRIP_PROGRESS] }))
+      .toEqual(expect.objectContaining({ refreshError: { code: 'internal.unexpected' } }));
   });
 
   it('reads the definitions’ loading and failure as the list’s', () => {
