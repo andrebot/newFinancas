@@ -130,6 +130,12 @@ describe('adding a budget', () => {
   it('opens as Add, with currency and visibility to pick', () => {
     renderDrawer();
     expect(screen.getByRole('dialog', { name: 'Add budget' })).toBeTruthy();
+    expect(screen.getByText('New')).toBeTruthy();
+    expect(screen.getByRole('radiogroup', { name: 'Currency' })).toBeTruthy();
+    expect(screen.getByRole('radiogroup', { name: 'Visibility' })).toBeTruthy();
+    expect(screen.getAllByText('Currency').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Visibility').length).toBeGreaterThan(0);
+    expect(screen.queryByRole('alert')).toBeNull();
     expect(screen.getByRole<HTMLInputElement>('radio', { name: 'BRL' }).checked).toBe(true);
     expect(screen.getByRole<HTMLInputElement>('radio', { name: 'Shared' }).checked).toBe(true);
     const note = "Currency and visibility can't be changed after the budget is created.";
@@ -169,6 +175,31 @@ describe('adding a budget', () => {
     tick('Groceries');
     expect(screen.queryByText('Required.')).toBeNull();
     expect(screen.queryByText('Enter a monthly target above zero.')).toBeNull();
+    expect(screen.queryByText('Pick at least one category or subcategory.')).toBeNull();
+  });
+
+  it('clears only the refusal of the field changed, refocusing on every refusal', () => {
+    renderDrawer();
+    submit();
+    const name = screen.getByRole('textbox', { name: 'Budget name' });
+    screen.getByRole('button', { name: 'Cancel' }).focus();
+    submit();
+    expect(document.activeElement).toBe(name);
+    typeName('Fun');
+    expect(screen.getByText('Enter a monthly target above zero.')).toBeTruthy();
+    expect(screen.getByText('Pick at least one category or subcategory.')).toBeTruthy();
+    typeTarget('100');
+    expect(screen.getByText('Pick at least one category or subcategory.')).toBeTruthy();
+    tick('Groceries');
+    expect(screen.queryByText('Pick at least one category or subcategory.')).toBeNull();
+  });
+
+  it('keeps the name and target refusals when only a category is ticked', () => {
+    renderDrawer();
+    submit();
+    tick('Groceries');
+    expect(screen.getByText('Required.')).toBeTruthy();
+    expect(screen.getByText('Enter a monthly target above zero.')).toBeTruthy();
     expect(screen.queryByText('Pick at least one category or subcategory.')).toBeNull();
   });
 
@@ -218,6 +249,9 @@ describe('editing a budget', () => {
   it('opens as Edit with its fields, currency and visibility locked', () => {
     renderDrawer({ budget: budget() });
     expect(screen.getByRole('dialog', { name: 'Edit budget' })).toBeTruthy();
+    expect(screen.getByText('Edit')).toBeTruthy();
+    expect(screen.getByText('Currency')).toBeTruthy();
+    expect(screen.getByText('Visibility')).toBeTruthy();
     expect(screen.getByRole<HTMLInputElement>('textbox', { name: 'Budget name' }).value)
       .toBe('Fun Money');
     expect(screen.queryByRole('radio')).toBeNull();
@@ -269,6 +303,17 @@ describe('its frame', () => {
     expect(onCancel).toHaveBeenCalled();
   });
 
+  it('spins its own submit while out, and only waits for another request', () => {
+    renderDrawer({ busy: true, disabled: true });
+    const own = screen.getByRole<HTMLButtonElement>('button', { name: 'Create budget' });
+    expect(own.getAttribute('aria-busy')).toBe('true');
+    expect(own.disabled).toBe(false);
+    cleanup();
+    renderDrawer({ disabled: true });
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Create budget' }).disabled)
+      .toBe(true);
+  });
+
   it('waits while a request is out: Cancel and the rows too', () => {
     renderDrawer({ disabled: true });
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Cancel' }).disabled).toBe(true);
@@ -298,6 +343,7 @@ describe('its delete zone (OQ-194)', () => {
 
     const open = renderDrawer({ budget: budget(), deleteConfirmOpen: true });
     expect(within(zone()).getByText("Delete Fun Money? This can't be undone.")).toBeTruthy();
+    expect(within(zone()).getByText(/Its categories become free/)).toBeTruthy();
     fireEvent.click(within(zone()).getByRole('button', { name: 'Delete' }));
     fireEvent.click(within(zone()).getByRole('button', { name: 'Cancel' }));
     expect(open.onDelete).toHaveBeenCalled();

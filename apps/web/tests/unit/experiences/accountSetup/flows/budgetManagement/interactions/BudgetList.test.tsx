@@ -76,6 +76,7 @@ describe('BudgetList', () => {
   it('shows each budget: its tags, its monthly target and what it covers', () => {
     renderList();
     expect(screen.getByText('Fun Money')).toBeTruthy();
+    expect(screen.getAllByText('Covers').length).toBeGreaterThan(0);
     expect(screen.getByText('$300.00')).toBeTruthy();
     expect(screen.getAllByText('/ month')).toHaveLength(2);
     expect(screen.getByText('Personal')).toBeTruthy();

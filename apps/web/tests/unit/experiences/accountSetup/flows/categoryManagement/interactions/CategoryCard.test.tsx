@@ -209,6 +209,17 @@ describe('the card', () => {
     expect(screen.queryByRole('button', { name: 'Subcategory' })).toBeNull();
   });
 
+  it('keeps its add button off until a name is typed', () => {
+    renderCard();
+    openEntry();
+    const add = () => screen.getByRole<HTMLButtonElement>('button', { name: 'Add subcategory' });
+    expect(add().disabled).toBe(true);
+    fireEvent.change(field(), { target: { value: '  ' } });
+    expect(add().disabled).toBe(true);
+    fireEvent.change(field(), { target: { value: 'Rent' } });
+    expect(add().disabled).toBe(false);
+  });
+
   it('keeps the field focused through an add, for the next one', () => {
     const { rerender } = renderCard();
     openEntry();
