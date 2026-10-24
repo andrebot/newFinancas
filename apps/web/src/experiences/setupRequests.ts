@@ -1,21 +1,21 @@
 import { useCallback } from 'react';
 import type { SerializedError } from '@reduxjs/toolkit';
 import type { Account } from '@financas/api-types';
-import type { ApiError } from './errors';
+import type { ApiError } from '../api/errors';
 import {
   failureOf, toDataOutcome, toRequestOutcome, type EndpointResult,
-} from './outcome';
+} from '../api/outcome';
 import type { RequestOutcome } from '../utilities/requestOutcome';
 import {
   useArchiveAccountMutation, useCreateAccountMutation, useEditAccountMutation,
   useLazyListAccountsQuery, useListCategoriesQuery, useCreateCategoryMutation,
   useEditCategoryMutation, useArchiveCategoryMutation, useArchiveSubcategoryMutation,
   useListBudgetsQuery, useCreateBudgetMutation, useEditBudgetMutation, useDeleteBudgetMutation,
-} from './setupApi';
-import type { AccountManagementFlowProps } from '../experiences/accountSetup/flows/accountManagement/AccountManagementFlow';
-import type { BudgetManagementFlowProps } from '../experiences/accountSetup/flows/budgetManagement/BudgetManagementFlow';
-import type { CategoryManagementFlowProps } from '../experiences/accountSetup/flows/categoryManagement/CategoryManagementFlow';
-import type { SharedListView } from '../experiences/accountSetup/sharedLists';
+} from '../api/setupApi';
+import type { AccountManagementFlowProps } from './accountSetup/flows/accountManagement/AccountManagementFlow';
+import type { BudgetManagementFlowProps } from './accountSetup/flows/budgetManagement/BudgetManagementFlow';
+import type { CategoryManagementFlowProps } from './accountSetup/flows/categoryManagement/CategoryManagementFlow';
+import type { SharedListView } from './accountSetup/sharedLists';
 
 // The setup requests both hosts of Account Setup's Flows answer (X5, X2G;
 // OQ-198): the accounts, the category list and the budgets, each bound to one

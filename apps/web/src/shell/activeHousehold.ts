@@ -1,9 +1,9 @@
-import type { ShellHousehold } from '../shell/shellConfig';
-import { selectActiveHouseholdId } from '../shell/shellState';
+import type { ShellHousehold } from './shellConfig';
+import { selectActiveHouseholdId } from './shellState';
 import { useAppSelector } from '../store';
 import type { SourceState } from '../utilities/sourceState';
-import { useGetCurrentUserQuery, useHouseholds } from './identityApi';
-import { toSourceState } from './sourceState';
+import { useGetCurrentUserQuery, useHouseholds } from '../api/identityApi';
+import { toSourceState } from '../api/sourceState';
 
 // The household page's starting point (X4, X5): the signed-in user and the
 // household they're working in, read together from the shared identity reads
