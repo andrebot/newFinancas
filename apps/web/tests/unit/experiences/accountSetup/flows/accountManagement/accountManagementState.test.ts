@@ -202,6 +202,7 @@ describe('the actor’s rights (FR-1.7)', () => {
     expect(mayEdit(SHARED_BY_ANA, 'ben', 'Admin')).toBe(true);
     expect(mayEdit(SHARED_BY_ANA, 'ana', 'Member')).toBe(true);
     expect(mayEdit(SHARED_BY_ANA, 'ben', 'Member')).toBe(false);
+    expect(mayEdit(SHARED_BY_ANA, 'ana', 'Viewer')).toBe(false);
   });
 
   it('lets only the creator move a visibility (FR-2.3)', () => {
@@ -278,6 +279,22 @@ describe('the card changes an edit sends (OQ-35)', () => {
       }],
       remove: ['gone'],
     });
+  });
+
+  it('compares each card with its own original, among several', () => {
+    const other = {
+      ...CARD, id: 'card-2', closingDay: 3, dueDay: 12,
+    };
+    const unchanged = {
+      id: other.id,
+      network: 'visa' as const,
+      last4: '1234',
+      closingDay: 3,
+      dueDay: 12,
+      expirationMonth: 8,
+      expirationYear: 2030,
+    };
+    expect(cardChangesOf([unchanged], [CARD, other]).edit).toEqual([]);
   });
 
   it('treats a card that left the list as changed', () => {
