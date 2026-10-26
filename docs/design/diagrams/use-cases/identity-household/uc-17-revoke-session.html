@@ -55,7 +55,7 @@ flowchart LR
         direction TB
         FE1(["Start"])
         FE2["View sessions list (UC-16)"]
-        FE3["Select a session to revoke —<br/>or 'Sign out all others' —<br/>or 'Sign out all others' —<br/>or 'Sign out all others'"]
+        FE3["Select a session to revoke —<br/>or 'Sign out all others'"]
         FE4["Confirm revoke"]
         FE5["Submit"]
         FE6["Receive result"]
@@ -69,7 +69,7 @@ flowchart LR
         direction TB
         BE1["Receive request"]
         BE2["Verify session(s) belong to actor"]
-        BE3["Revoke that session's refresh token<br/>(or every session except the current one)<br/>(or every session except the current one)<br/>(or every session except the current one)"]
+        BE3["Revoke that session's refresh token<br/>(or every session except the current one)"]
         BE4["Record the action (log)"]
         BE5["Send response"]
         BE1 --> BE2 --> BE3 --> BE4 --> BE5

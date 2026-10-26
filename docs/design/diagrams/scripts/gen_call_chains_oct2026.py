@@ -5,7 +5,10 @@ VBD Round 9) to docs/design/diagrams/call-chains/.
    new IndexRateAccessor, DashboardAccessor parked (v3).
 2. investment-objectives/ -> goals/, archive/unarchive -> complete/reopen.
 3. Changed chains are rewritten; 12 new chains are added.
-Idempotent: rerunning produces the same output.
+Idempotent: rerunning produces the same output. A chain a later generator has
+taken over (gen_goals.py, gen_track_investments.py,
+gen_identity_code_sync_oct2026.py) is no longer written here, so a rerun never
+rolls it back: every page has exactly one writer.
 """
 import json
 import pathlib
@@ -29,10 +32,6 @@ def round9_layout(block: str) -> str:
     block = block.replace('<div class="box accessor" id="acc-dashboard">DashboardAccessor</div>',
                           '<div class="box parked" id="acc-dashboard">DashboardAccessor (parked, v3)</div>')
     return block
-
-
-def edges_of(html: str) -> list:
-    return json.loads(re.search(r"var edges = (\[.*?\]);", html).group(1))
 
 
 def set_chain(html: str, title=None, subtitle=None, edges=None, notes=None) -> str:
@@ -94,17 +93,7 @@ for f in GO.glob("*.html"):
     t = re.sub(r"Use case (\d) of 5 in the Goals set", r"Use case \1 of 6 in the Goals set", f.read_text())
     f.write_text(t)
 G = "the Goals set (CUC-10)"
-write(GO / "uc-03-complete-goal.html", "Call Chain — Complete Goal", f"Use case 3 of 6 in {G}, FR-8.8. Lifecycle Transition (reversible). {REVIEW}",
-      E((1, "mgr-account", "util-authz"), (2, "mgr-account", "acc-goal"), (3, "mgr-account", "util-logging", "a")),
-      ["<strong>Chain:</strong> <code>AccountManager</code> ① <code>AuthorizationUtility</code> → ② <code>GoalAccessor.complete(goalId)</code> → ③ <code>LoggingUtility</code> (async).",
-       "Renamed from Archive Objective (OQ-78). Allocations and history stay — progress-by-month remains viewable."])
-write(GO / "uc-04-reopen-goal.html", "Call Chain — Reopen Goal", f"Use case 4 of 6 in {G}, FR-8.9. Lifecycle Transition (reverse). {REVIEW}",
-      E((1, "mgr-account", "util-authz"), (2, "mgr-account", "acc-goal"), (3, "mgr-account", "util-logging", "a")),
-      ["<strong>Chain:</strong> <code>AccountManager</code> ① <code>AuthorizationUtility</code> → ② <code>GoalAccessor.reopen(goalId)</code> → ③ <code>LoggingUtility</code> (async).", "Renamed from Unarchive Objective (OQ-78)."])
-write(GO / "uc-06-view-goals.html", "Call Chain — View Goals", f"Use case 6 of 6 in {G}, FR-8.5/8.7. View. {ADDED}",
-      E((1, "mgr-insights", "util-authz"), (2, "mgr-insights", "eng-reporting"), (3, "eng-reporting", "acc-goal"), (3, "eng-reporting", "acc-holding"), (3, "eng-reporting", "acc-snapshot")),
-      ["<strong>Chain:</strong> <code>InsightsManager</code> ① <code>AuthorizationUtility</code> (visibility) → ② <code>ReportingEngine.goalProgress</code> → ③ reads <code>GoalAccessor</code> (goals + allocations), <code>InvestmentHoldingAccessor</code> (fixed-term cost basis), <code>ValuationSnapshotAccessor</code> (market-priced values).",
-       "Contributions come back per currency (OQ-49); the exchange-rate input is frontend-only (FR-9)."])
+# Complete / Reopen / View Goals (uc-03, uc-04, uc-06) are gen_goals.py's since M2 part 4.
 
 # ------------------------------------------------------------------ 3. changed chains
 RT = CC / "record-transactions"
@@ -141,36 +130,14 @@ write(RT / "uc-05-view-month-overview.html", "Call Chain — View Month Overview
 
 TI = CC / "track-investments"
 T = "the Track Investments &amp; Net Worth set (CUC-6)"
-write(TI / "uc-02-edit-holding.html", "Call Chain — Edit Holding Goal Allocations", f"Use case 2 of 12 in {T}, FR-8.2/8.3. Edit. {REVIEW}",
-      E((1, "mgr-account", "util-authz"), (2, "mgr-account", "acc-goal"), (3, "mgr-account", "util-logging", "a")),
-      ["<strong>Chain:</strong> <code>AccountManager</code> ① <code>AuthorizationUtility</code> → ② <code>GoalAccessor.findByIds</code> + <code>listAllocations</code> (the Manager's visibility and completed-Goal checks, OQ-168), then <code>replaceAllocations(householdId, holdingId, [...])</code> (rejects &gt; 100%, FR-8.3) → ③ <code>LoggingUtility</code> (async).",
-       "<strong>Narrowed (Round 9):</strong> no snapshot write and no holding-field update any more — position is transaction-only, market value has its own use cases. Direction of control unchanged (OQ-48)."])
-write(TI / "uc-03-archive-holding.html", "Call Chain — Archive Matured Holding", f"Use case 3 of 12 in {T}, FR-5.8. Lifecycle Transition (one-way, user-made). {REVIEW}",
-      E((1, "mgr-account", "util-authz"), (2, "mgr-account", "acc-holding"), (3, "mgr-account", "util-logging", "a")),
-      ["<strong>Chain:</strong> <code>AccountManager</code> ① <code>AuthorizationUtility</code> → ② <code>InvestmentHoldingAccessor.archive(holdingId, by=user)</code> → ③ <code>LoggingUtility</code> (async).",
-       "The notification that started this is then deleted by the frontend via Delete Notification (Insights UC-6) — keeps <code>AccountManager</code> off the inbox."])
+# Edit Holding (uc-02) and Archive Holding (uc-03) are gen_track_investments.py's.
 write(TI / "uc-04-generate-scheduled-cash-event.html", "Call Chain — Generate Scheduled Investment Cash Event", f"Use case 4 of 12 in {T}, FR-11.3. System-Trigger. {REVIEW}",
       E((1, "acc-holding", "util-servicebus", "a"), (2, "util-servicebus", "mgr-transaction", "a"), (3, "mgr-transaction", "acc-holding"),
         (4, "mgr-transaction", "acc-accounttxn"), (5, "mgr-transaction", "util-logging", "a")),
       ["<strong>Chain:</strong> <code>investmentsDaily</code> (one daily cron for cash events + matured holdings, Manager review M6) → ① <code>InvestmentHoldingAccessor.findDueScheduleEntries(today)</code> → <code>ServiceBusUtility.publish(\"transaction.import.requested\")</code> (async) → ② <code>TransactionManager</code> subscribes → ③ <code>InvestmentHoldingAccessor.markEntryPosted(entryId)</code> (once — a repeated delivery stops here, OQ-171) → ④ the full Record Transaction pipeline (see that chain) in the same database transaction, incl. auto-archive when a redemption zeroes the Holding → ⑤ <code>LoggingUtility</code> (async).",
        "Amounts and taxes were computed by <code>InvestmentProductEngine</code> at buy time and stored with the schedule — index-linked ones are projections the user corrects once posted (OQ-201); at maturity interest, tax and redemption post as three entries. The trigger never calls the Engine. The recurring-schedule trigger that used to share this shape is gone (OQ-55)."])
-mv = lambda n, verb, method, note: write(TI / f"uc-0{n}-{verb}-market-value.html", f"Call Chain — {verb.capitalize()} Market Value", f"Use case {n} of 12 in {T}, FR-5.2. {'Create' if verb == 'record' else 'Edit' if verb == 'edit' else 'Lifecycle Transition'}. {ADDED}",
-      E((1, "mgr-account", "util-authz"), (2, "mgr-account", "util-validation"), (3, "mgr-account", "acc-holding"), (4, "mgr-account", "acc-snapshot"), (5, "mgr-account", "util-logging", "a")),
-      [f"<strong>Chain:</strong> <code>AccountManager</code> ① <code>AuthorizationUtility</code> → ② <code>ValidationUtility</code> → ③ <code>InvestmentHoldingAccessor</code> (verify market-priced) → ④ <code>ValuationSnapshotAccessor.{method}</code> → ⑤ <code>LoggingUtility</code> (async).", note])
-mv(5, "record", "insertManual", "Net worth and goal progress pick it up on read — nothing to recompute here.")
-mv(6, "edit", "updateManual", "Rejects automatic (transaction-driven) snapshots — those change only with their transaction (OQ-56).")
-mv(7, "delete", "deleteManual", "Same restriction as Edit; the previous snapshot becomes current if this was the latest.")
-ir = lambda n, verb, method: write(TI / f"uc-{n:02d}-{verb}-index-rate.html", f"Call Chain — {verb.capitalize()} Index Rate", f"Use case {n} of 12 in {T}, FR-11.6. {'Create' if verb == 'record' else 'Edit' if verb == 'edit' else 'Lifecycle Transition'}. {ADDED}",
-      E((1, "mgr-account", "util-authz"), (2, "mgr-account", "util-validation"), (3, "mgr-account", "acc-indexrate"), (4, "mgr-account", "util-logging", "a")),
-      [f"<strong>Chain:</strong> <code>AccountManager</code> ① <code>AuthorizationUtility</code> → ② <code>ValidationUtility</code> → ③ <code>IndexRateAccessor.{method}</code> → ④ <code>LoggingUtility</code> (async).",
-       "<code>IndexRateAccessor</code> is new in Round 9. Projections read the latest value on demand, so nothing downstream is recalculated here."])
-ir(8, "record", "insert(householdId, {index, value, asOf}, actor)")
-ir(9, "edit", "update(householdId, index, valueId, changes)")
-ir(10, "delete", "remove(householdId, index, valueId)")
-write(TI / "uc-11-notify-matured-holding.html", "Call Chain — Notify Matured Holding", f"Use case 11 of 12 in {T}, FR-5.8, FR-6.5. System-Trigger + subscriber. {ADDED}",
-      E((1, "acc-holding", "util-servicebus", "a"), (2, "util-servicebus", "mgr-account", "a"), (3, "mgr-account", "util-notify"), (4, "mgr-account", "acc-holding"), (5, "mgr-account", "util-logging", "a")),
-      ["<strong>Chain:</strong> <code>investmentsDaily</code> (same daily cron as the scheduled cash events, Manager review M6) → ① <code>InvestmentHoldingAccessor.findMaturedWithPosition(today)</code> → <code>ServiceBusUtility.publish(\"holding.matured\")</code> (async) → ② <code>AccountManager</code> subscribes → ③ <code>NotificationDeliveryUtility.deliver</code> (in-app) → ④ <code>InvestmentHoldingAccessor.markMaturedNotified</code> → ⑤ <code>LoggingUtility</code> (async).",
-       "Same trigger shape as the scheduled cash events (§3.2a); <code>AccountManager</code> already subscribes to <code>household.created</code>, so this adds no new kind of coupling."])
+# Market values (uc-05..07), index rates (uc-08..10) and Notify Matured Holding (uc-11)
+# are gen_track_investments.py's.
 write(TI / "uc-12-view-investments.html", "Call Chain — View Investments", f"Use case 12 of 12 in {T}, FR-5.3/5.4, FR-5.9, FR-11.2, FR-11.6. View. {ADDED}",
       E((1, "mgr-insights", "util-authz"), (2, "mgr-insights", "eng-reporting"), (3, "eng-reporting", "acc-holding"), (3, "eng-reporting", "acc-snapshot"), (3, "eng-reporting", "acc-accounttxn"), (3, "eng-reporting", "acc-account"),
         (4, "mgr-insights", "eng-product"), (5, "eng-product", "acc-indexrate")),
@@ -185,13 +152,7 @@ write(INS / "uc-01-view-dashboard.html", "Call Chain — View Dashboard", f"Use 
        "<strong>Round 9:</strong> no <code>DashboardAccessor</code> read — the v1 Dashboard is fixed (OQ-67); the accessor is parked for v3."])
 
 IH = CC / "identity-household"
-s = (IH / "uc-17-revoke-session.html").read_text()
-ed = edges_of(s)
-if not any(e.get("note") == "all" for e in ed):
-    pass
-write(IH / "uc-17-revoke-session.html", None, None, None,
-      ["<strong>Chain:</strong> <code>IdentityManager</code> → <code>SessionAccessor.revoke(sessionId)</code> — or, for the \"sign out all others\" variant (FR-1.3, Round 9), <code>SessionAccessor.deleteAllExceptCurrent(userId, currentSessionId)</code>. Same edge, different method.",
-       REVIEW])
+# Revoke Session (uc-17) is gen_identity_code_sync_oct2026.py's.
 write(IH / "uc-21-list-my-households.html", "Call Chain — List My Households", f"Use case 21 of 21 in the Identity &amp; Household set (CUC-1), FR-1.8. View. {ADDED}",
       E((1, "mgr-identity", "acc-household"), (2, "mgr-identity", "acc-invitation")),
       ["<strong>Chain:</strong> <code>IdentityManager</code> ① <code>HouseholdAccessor.listForUser(userId)</code> (name, role, member count) → ② <code>InvitationAccessor.listPendingForUser(userId)</code> (household, inviter, role).",
