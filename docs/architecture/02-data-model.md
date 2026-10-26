@@ -684,8 +684,9 @@ events only (recurring transactions dropped, OQ-55).
   set only for the 6 investment kinds, FR-3.8), `credit_card_id` (FK →
   `credit_cards`, **nullable**, set only for Credit Card Bill Payment,
   FR-3.7), **`quantity_delta`** / **`cost_basis_delta`** (nullable — set
-  only for the trade kinds: the signed changes this transaction made to its
-  Holding, so an edit or delete undoes exactly them, OQ-171),
+  only for the trade kinds, both or neither: the signed changes this
+  transaction made to its Holding, so an edit or delete undoes exactly them,
+  OQ-171),
   **`created_by_user_id`** (FK → `users`, nullable — the member who
   recorded it, for OQ-111's "a Member edits what they created"; null for
   schedule posts and after FR-1.17's anonymization, OQ-201),

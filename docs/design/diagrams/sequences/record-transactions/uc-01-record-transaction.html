@@ -178,7 +178,7 @@ sequenceDiagram
         end
         TM->>BA: accrueIfClaimed({accountScope, currency, categoryId, subcategoryId, &plusmn;amount, date})
         BA-->>TM: spend updated (any kind may carry a category, money in subtracts &mdash; OQ-201)
-        TM->>ATA: insert(accountTransaction, effect, {quantityDelta, costBasisDelta}, createdBy)
+        TM->>ATA: insert({…transaction, effect, trade: {quantityDelta, costBasisDelta}, createdByUserId})
         ATA-->>TM: transactionId
     end
     TM-->>LOG: logActivity(correlationId, actor, "RecordTransaction")

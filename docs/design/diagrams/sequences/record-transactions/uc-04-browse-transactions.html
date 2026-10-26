@@ -77,7 +77,15 @@ sequenceDiagram
         TM->>CTA: list(filters within scope, cursor, limit)
         CTA-->>TM: page
     end
-    Note over TM: merge newest-first, cut to limit, the next cursor, day totals and month counts<br/>for the days and months in the page, over the whole filtered set (OQ-201)
+    Note over TM: merge newest-first, cut to limit, the next cursor
+    par account ledger
+        TM->>ATA: dayTotals(filter, page's days) + monthCounts(filter, page's months)
+        ATA-->>TM: sums by day, currency and kind &mdash; counts by month
+    and card ledger
+        TM->>CTA: dayTotals(filter, page's days) + monthCounts(filter, page's months)
+        CTA-->>TM: sums by day, currency and kind &mdash; counts by month
+    end
+    Note over TM: sign each kind's sum and add up per day and currency &mdash; over the<br/>whole filtered set, not only the page (OQ-201)
     TM-->>API: {items, dayTotals, monthCounts, nextCursor}
     API-->>User: 200 OK
     </pre>

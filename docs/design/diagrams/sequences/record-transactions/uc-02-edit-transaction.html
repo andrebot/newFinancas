@@ -128,8 +128,9 @@ sequenceDiagram
             TM->>CCA: applyMovement(cardId, {newSignedAmount, currency, newDate})
         end
         TM->>BA: accrueIfClaimed({accountScope, currency, newCategoryId, newSubcategoryId, &plusmn;newAmount, newDate})
-        TM->>ATA: update(transactionId, input, {newQuantityDelta, newCostBasisDelta})
-        ATA-->>TM: updated
+        TM->>ATA: update(transactionId, expected, {values, trade: {newQuantityDelta, newCostBasisDelta}})
+        ATA-->>TM: updated | stale
+        Note over ATA: guarded by the values read &mdash; stale when they changed meanwhile (OQ-107)
         TM-->>LOG: logActivity(correlationId, actor, "EditTransaction")
         TM-->>LOG: recordAudit(actor, "Transaction", transactionId)
         TM-->>API: updated

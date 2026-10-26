@@ -326,8 +326,8 @@ sequenceDiagram
         else marked now
             IHA-->>TM: true
             Note over TM: same recordTransaction(...) pipeline as POST /households/:householdId/transactions,<br/>in the same database transaction &mdash; kind = interest / redemption / tax,<br/>linked to the Holding, a redemption that zeroes it auto-archives it (OQ-72)
-            TM->>ATA: insert(accountTransaction, effect, holdingId)
-            ATA-->>TM: transactionId
+            TM->>ATA: insert({…transaction, effect, holdingId, source: schedule})
+            ATA-->>TM: transaction
         end
         TM-->>LOG: logActivity(correlationId, systemActor, "PostScheduledCashEvent")
         TM-->>LOG: recordAudit(systemActor, "Transaction", transactionId)

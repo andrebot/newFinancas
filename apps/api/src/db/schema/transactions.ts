@@ -7,6 +7,7 @@ import { categories, subcategories } from './categories';
 import {
   CASCADE, SET_NULL, createdAt, id, integerAmount, isOneOf,
 } from './columns';
+import { users } from './identity';
 import { investmentHoldings } from './investments';
 import { TRANSACTION_EFFECTS, TRANSACTION_SOURCES } from './values';
 
@@ -29,6 +30,12 @@ export const accountTransactions = pgTable('account_transactions', {
   // Bill payment's card; SET NULL keeps this account's history if the card's
   // (personal) account is deleted (OQ-95).
   creditCardId: uuid('credit_card_id').references(() => creditCards.id, SET_NULL),
+  // A trade's signed changes to its Holding, so an edit or delete undoes
+  // exactly them (OQ-171); null for every other kind.
+  quantityDelta: integerAmount('quantity_delta'),
+  costBasisDelta: integerAmount('cost_basis_delta'),
+  // Who recorded it (OQ-111); null for schedule posts and once FR-1.17 anonymizes it.
+  createdByUserId: uuid('created_by_user_id').references(() => users.id),
   source: text('source').notNull().default('manual'),
   createdAt: createdAt(),
 }, (table) => [
@@ -37,6 +44,10 @@ export const accountTransactions = pgTable('account_transactions', {
   check('account_transactions_currency_check', sql`${table.currency} ~ '^[A-Z]{3}$'`),
   // Amounts are positive; the kind says which way money moves (OQ-98).
   check('account_transactions_amount_check', sql`${table.amount} > 0`),
+  check(
+    'account_transactions_trade_deltas_check',
+    sql`(${table.quantityDelta} IS NULL) = (${table.costBasisDelta} IS NULL)`,
+  ),
   index('account_transactions_browse_idx').on(table.accountId, table.date.desc(), table.id),
   index('account_transactions_holding_idx').on(table.holdingId),
 ]);

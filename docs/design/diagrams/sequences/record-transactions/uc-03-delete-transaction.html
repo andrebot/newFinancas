@@ -85,8 +85,8 @@ sequenceDiagram
         TM-->>API: Conflict
         API-->>User: 409 transaction.schedule_started (OQ-201)
     else the buy that created its Holding, and other transactions reference it
-        TM->>ATA: countForHolding(holdingId)
-        ATA-->>TM: n &gt; 1
+        TM->>ATA: countForHolding(holdingId, buyId)
+        ATA-->>TM: n &gt; 0
         TM-->>API: Conflict
         API-->>User: 409 transaction.holding_in_use {count} (OQ-201)
     else authorized
@@ -112,8 +112,8 @@ sequenceDiagram
             TM->>CCA: applyMovement(cardId, {-signedAmount, currency, date})
         end
         TM->>BA: accrueIfClaimed({accountScope, currency, categoryId, subcategoryId, &mp;amount, date})
-        TM->>ATA: delete(transactionId)
-        ATA-->>TM: deleted
+        TM->>ATA: delete(transactionId, expected)
+        ATA-->>TM: deleted | stale
         TM-->>LOG: logActivity(correlationId, actor, "DeleteTransaction")
         TM-->>LOG: recordAudit(actor, "Transaction", transactionId)
         TM-->>API: deleted
