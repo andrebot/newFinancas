@@ -179,12 +179,19 @@ sequenceDiagram
         TM->>BA: accrueIfClaimed({accountScope, currency, categoryId, subcategoryId, &plusmn;amount, date})
         BA-->>TM: spend updated (any kind may carry a category, money in subtracts &mdash; OQ-201)
         TM->>ATA: insert({…transaction, effect, trade: {quantityDelta, costBasisDelta}, createdByUserId})
-        ATA-->>TM: transactionId
+        alt an Account, Holding, card or user it names was deleted meanwhile
+            ATA-->>TM: {ok: false, reason: reference_not_found}
+            Note over TM: refuse &mdash; the unit of work rolls every write above back (OQ-107)
+            TM-->>API: Conflict
+            API-->>User: 409 transaction.changed (retry gets the precise 404)
+        else recorded
+            ATA-->>TM: {ok: true, transaction}
+            TM-->>LOG: logActivity(correlationId, actor, "RecordTransaction")
+            TM-->>LOG: recordAudit(actor, "Transaction", transactionId)
+            TM-->>API: transaction
+            API-->>User: 201 Created {transaction}
+        end
     end
-    TM-->>LOG: logActivity(correlationId, actor, "RecordTransaction")
-    TM-->>LOG: recordAudit(actor, "Transaction", transactionId)
-    TM-->>API: transactionId
-    API-->>User: 201 Created {transactionId}
     </pre>
   </div>
   <div class="notes">

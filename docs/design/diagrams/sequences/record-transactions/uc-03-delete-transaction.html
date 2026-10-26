@@ -113,11 +113,18 @@ sequenceDiagram
         end
         TM->>BA: accrueIfClaimed({accountScope, currency, categoryId, subcategoryId, &mp;amount, date})
         TM->>ATA: delete(transactionId, expected)
-        ATA-->>TM: deleted | stale
-        TM-->>LOG: logActivity(correlationId, actor, "DeleteTransaction")
-        TM-->>LOG: recordAudit(actor, "Transaction", transactionId)
-        TM-->>API: deleted
-        API-->>User: 204 No Content
+        alt the values read changed meanwhile
+            ATA-->>TM: stale
+            Note over TM: refuse &mdash; the unit of work rolls every reversal back (OQ-107)
+            TM-->>API: Conflict
+            API-->>User: 409 transaction.changed (reload and retry)
+        else deleted
+            ATA-->>TM: deleted
+            TM-->>LOG: logActivity(correlationId, actor, "DeleteTransaction")
+            TM-->>LOG: recordAudit(actor, "Transaction", transactionId)
+            TM-->>API: deleted
+            API-->>User: 204 No Content
+        end
     end
     </pre>
   </div>

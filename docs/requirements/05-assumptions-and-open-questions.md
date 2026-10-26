@@ -5347,6 +5347,22 @@ fixes and doc drift they bring, is `docs/planning/04-slice-3-readiness.md`.
   the header and the bus log. It was cheaper, but it kept 41 copies of a
   lookup the compiler can check once.
 
+### OQ-203: A ledger write that lost a race (PR #124 review)
+**Confirmed with the stakeholder (Oct 2026)**, from the review of task 99 (`A7`):
+- **`409 transaction.changed`** answers both races, the analog of
+  `household.changed` (OQ-107): an Edit or Delete whose guarded write comes
+  back `stale` (the values it was computed from changed meanwhile), and a
+  Record whose Account, Holding, card or recorder was deleted between the
+  Manager's checks and the insert (`reference_not_found`). The unit of work
+  rolls the pipeline's other writes back; a retry re-reads and gets the
+  precise answer (e.g. 404 `account.not_found`). TransactionManager (task
+  103) throws it; the catalog entry and `STATUS_OF` land there.
+- **`update` doesn't map a foreign-key violation.** An edit changes only
+  Category and Subcategory references, which are archive-only (FR-10.3) and
+  go only with their household, taking the transaction with them, so the
+  race can't happen. Weighed and rejected: a defensive
+  `reference_not_found` outcome the Manager would handle for nothing.
+
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
 *(None currently — OQ-29, the last item here, was resolved during data

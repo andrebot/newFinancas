@@ -48,7 +48,13 @@ export const accountTransactions = pgTable('account_transactions', {
     'account_transactions_trade_deltas_check',
     sql`(${table.quantityDelta} IS NULL) = (${table.costBasisDelta} IS NULL)`,
   ),
-  index('account_transactions_browse_idx').on(table.accountId, table.date.desc(), table.id),
+  // Browse pages newest first on (date, id) (FR-3.12); NULLS FIRST is what
+  // ORDER BY … DESC means, so the index serves the order and the cursor.
+  index('account_transactions_browse_idx').on(
+    table.accountId,
+    table.date.desc().nullsFirst(),
+    table.id.desc().nullsFirst(),
+  ),
   index('account_transactions_holding_idx').on(table.holdingId),
 ]);
 

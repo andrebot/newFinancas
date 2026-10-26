@@ -11,6 +11,7 @@ import createAccountTransactionAccessor, {
 import type { Database } from '../../../src/db/database';
 import {
   accounts, categories, creditCards, households, investmentHoldings, subcategories, users,
+  valuationSnapshots,
 } from '../../../src/db/schema';
 import { createMigratedDatabase, withRollback } from '../support/database';
 
@@ -349,6 +350,29 @@ describe('delete', () => {
   }));
 });
 
+describe('delete, with a trade', () => {
+  it('takes the trade\'s automatic Valuation Snapshot with it', scenario(async ({
+    record, ledger, db, holding,
+  }) => {
+    const buy = await record({
+      kind: 'investment_buy',
+      effect: 'investment_trade',
+      holdingId: holding,
+      trade: { quantityDelta: 100, costBasisDelta: 50 },
+    });
+    await db.insert(valuationSnapshots).values({
+      holdingId: holding,
+      accountTransactionId: buy.id,
+      valuation: 50,
+      asOfDate: buy.date,
+      source: 'transaction',
+    });
+
+    expect(await ledger.delete(buy.id, buy)).toBe('deleted');
+    expect(await db.$count(valuationSnapshots)).toBe(0);
+  }));
+});
+
 describe('countForHolding', () => {
   it('counts the other transactions referencing a Holding', scenario(async ({
     record, ledger, holding,
@@ -512,6 +536,18 @@ describe('monthCounts', () => {
       ]));
     expect(await ledger.monthCounts({ ...filter, kinds: ['deposit'] }, ['2026-10', '2026-09']))
       .toEqual([{ month: '2026-10', count: 1 }]);
+  }));
+
+  it('closes December at the year\'s end', scenario(async ({ record, ledger, checking }) => {
+    await recordAll(record, [
+      { date: '2026-11-30' },
+      { date: '2026-12-01' },
+      { date: '2026-12-31' },
+      { date: '2027-01-01' },
+    ]);
+
+    expect(await ledger.monthCounts({ scopeAccountIds: [checking] }, ['2026-12']))
+      .toEqual([{ month: '2026-12', count: 2 }]);
   }));
 
   it('answers nothing for no months or an empty scope', scenario(async ({

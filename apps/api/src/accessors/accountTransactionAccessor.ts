@@ -1,6 +1,7 @@
 import type { TransactionEffect } from '@financas/reference';
 import {
-  and, desc, eq, gte, inArray, isNull, lte, ne, or, sql, type AnyColumn, type SQL,
+  and, desc, eq, getTableColumns, gte, inArray, isNull, lt, lte, ne, or, sql,
+  type AnyColumn, type SQL,
 } from 'drizzle-orm';
 import type { Database } from '../db/database';
 import { PG_FOREIGN_KEY_VIOLATION, pgErrorCode } from '../db/errors';
@@ -151,46 +152,35 @@ export interface MonthKindSum {
   readonly total: number;
 }
 
+/**
+ * One column of the transaction's Holding, read alongside the row — in a
+ * SELECT or in a write's RETURNING alike.
+ *
+ * @param column - The Holding column.
+ * @returns The subquery, `null` for a kind without a Holding.
+ */
+const holdingField = (column: AnyColumn) => sql<string | null>`(
+  SELECT ${column} FROM ${investmentHoldings}
+  WHERE ${investmentHoldings.id} = ${accountTransactions.holdingId})`;
+
 const rowColumns = {
-  id: accountTransactions.id,
-  accountId: accountTransactions.accountId,
-  kind: accountTransactions.kind,
-  effect: accountTransactions.effect,
-  date: accountTransactions.date,
-  amount: accountTransactions.amount,
-  currency: accountTransactions.currency,
-  categoryId: accountTransactions.categoryId,
-  subcategoryId: accountTransactions.subcategoryId,
-  description: accountTransactions.description,
-  holdingId: accountTransactions.holdingId,
-  quantityDelta: accountTransactions.quantityDelta,
-  costBasisDelta: accountTransactions.costBasisDelta,
-  creditCardId: accountTransactions.creditCardId,
-  createdByUserId: accountTransactions.createdByUserId,
-  source: accountTransactions.source,
-  createdAt: accountTransactions.createdAt,
-  holdingTicker: investmentHoldings.ticker,
-  holdingAssetType: investmentHoldings.assetType,
+  ...getTableColumns(accountTransactions),
+  holdingTicker: holdingField(investmentHoldings.ticker),
+  holdingAssetType: holdingField(investmentHoldings.assetType),
 };
 
-/**
- * Selects transactions with their Holding.
- *
- * @param db - Where to read.
- * @returns The query, to be narrowed.
- */
-const selectRows = (db: Database) => db.select(rowColumns).from(accountTransactions)
-  .leftJoin(investmentHoldings, eq(investmentHoldings.id, accountTransactions.holdingId));
-
-type Row = Awaited<ReturnType<typeof selectRows>>[number];
+type Row = typeof accountTransactions.$inferSelect & {
+  readonly holdingTicker: string | null;
+  readonly holdingAssetType: string | null;
+};
 
 const monthOfDate = sql<string>`to_char(${accountTransactions.date}, 'YYYY-MM')`;
 const sumOfAmounts = sql<number>`sum(${accountTransactions.amount})`.mapWith(Number);
 
 /**
- * Turns a joined row into a transaction.
+ * Turns a row read with `rowColumns` into a transaction.
  *
- * @param row - A row selected with `rowColumns`.
+ * @param row - The row, with its Holding's ticker and asset type.
  * @returns The transaction.
  */
 const toTransaction = (row: Row): AccountTransaction => {
@@ -207,6 +197,29 @@ const toTransaction = (row: Row): AccountTransaction => {
     trade: quantityDelta === null ? null : { quantityDelta, costBasisDelta: costBasisDelta! },
   };
 };
+
+/**
+ * The first day of the month after one.
+ *
+ * @param month - `YYYY-MM`.
+ * @returns `YYYY-MM-DD`.
+ */
+const firstDayAfter = (month: string): string => {
+  const [year, monthNumber] = month.split('-').map(Number) as [number, number];
+  const next = monthNumber === 12 ? { year: year + 1, month: 1 } : { year, month: monthNumber + 1 };
+  return `${next.year}-${String(next.month).padStart(2, '0')}-01`;
+};
+
+/**
+ * Rows dated in one of some months, as date ranges the browse index can narrow.
+ *
+ * @param months - The months (`YYYY-MM`).
+ * @returns The condition.
+ */
+const inMonths = (months: readonly string[]) => or(...months.map((month) => and(
+  gte(accountTransactions.date, `${month}-01`),
+  lt(accountTransactions.date, firstDayAfter(month)),
+)));
 
 /**
  * Tells whether an optional list has items.
@@ -309,18 +322,23 @@ const unchanged = (id: string, expected: ExpectedTransaction) => and(
 );
 
 /**
- * The columns an edit sets.
+ * The columns an edit sets: only the values D6 lets change (OQ-201), named one
+ * by one so a wider object can never move or re-kind the transaction.
  *
  * @param changes - The edit.
  * @returns The `set` object, without the fields left out.
  */
-const columnsToSet = (changes: AccountTransactionChanges) => {
-  const { trade, ...values } = changes;
-  return Object.fromEntries(Object.entries({
-    ...values,
-    quantityDelta: trade?.quantityDelta,
-    costBasisDelta: trade?.costBasisDelta,
-  }).filter(([, value]) => value !== undefined));
+const columnsToSet = (changes: AccountTransactionChanges): Partial<Row> => {
+  const allowed: { [Column in keyof Row]?: Row[Column] | undefined } = {
+    date: changes.date,
+    amount: changes.amount,
+    categoryId: changes.categoryId,
+    subcategoryId: changes.subcategoryId,
+    description: changes.description,
+    quantityDelta: changes.trade?.quantityDelta,
+    costBasisDelta: changes.trade?.costBasisDelta,
+  };
+  return Object.fromEntries(Object.entries(allowed).filter(([, value]) => value !== undefined));
 };
 
 /**
@@ -329,55 +347,43 @@ const columnsToSet = (changes: AccountTransactionChanges) => {
  * @param db - Where to read and write.
  * @returns The accessor's operations.
  */
-const createAccountTransactionAccessor = (db: Database) => {
+const createAccountTransactionAccessor = (db: Database) => ({
   /**
-   * Reads one transaction by id, wherever it lives.
-   *
-   * @param id - The transaction.
-   * @returns It, or `undefined`.
-   */
-  const readById = async (id: string) => {
-    const [row] = await selectRows(db).where(eq(accountTransactions.id, id));
-    return row && toTransaction(row);
-  };
-
-  return {
-    /**
      * Records a transaction as the Manager decided it, effect included.
      *
      * @param transaction - The transaction.
      * @returns The recorded transaction, or why nothing was written.
      */
-    insert: async (transaction: NewAccountTransaction): Promise<InsertAccountTransactionResult> => {
-      const { trade, ...values } = transaction;
-      try {
-        const [row] = await db.insert(accountTransactions).values({
-          ...values, quantityDelta: trade?.quantityDelta, costBasisDelta: trade?.costBasisDelta,
-        }).returning({ id: accountTransactions.id });
-        return { ok: true, transaction: (await readById(row!.id))! };
-      } catch (error) {
-        if (pgErrorCode(error) === PG_FOREIGN_KEY_VIOLATION) {
-          return { ok: false, reason: 'reference_not_found' };
-        }
-        throw error;
+  insert: async (transaction: NewAccountTransaction): Promise<InsertAccountTransactionResult> => {
+    const { trade, ...values } = transaction;
+    try {
+      const [row] = await db.insert(accountTransactions).values({
+        ...values, quantityDelta: trade?.quantityDelta, costBasisDelta: trade?.costBasisDelta,
+      }).returning(rowColumns);
+      return { ok: true, transaction: toTransaction(row!) };
+    } catch (error) {
+      if (pgErrorCode(error) === PG_FOREIGN_KEY_VIOLATION) {
+        return { ok: false, reason: 'reference_not_found' };
       }
-    },
+      throw error;
+    }
+  },
 
-    /**
+  /**
      * Reads one transaction of a household, through its Account.
      *
      * @param householdId - The household.
      * @param id - The transaction.
      * @returns The transaction, or `undefined`.
      */
-    findById: async (householdId: string, id: string): Promise<AccountTransaction | undefined> => {
-      const [row] = await selectRows(db)
-        .innerJoin(accounts, eq(accounts.id, accountTransactions.accountId))
-        .where(and(eq(accountTransactions.id, id), eq(accounts.householdId, householdId)));
-      return row && toTransaction(row);
-    },
+  findById: async (householdId: string, id: string): Promise<AccountTransaction | undefined> => {
+    const [row] = await db.select(rowColumns).from(accountTransactions)
+      .innerJoin(accounts, eq(accounts.id, accountTransactions.accountId))
+      .where(and(eq(accountTransactions.id, id), eq(accounts.householdId, householdId)));
+    return row && toTransaction(row);
+  },
 
-    /**
+  /**
      * Edits a transaction's values, if it still holds what the Manager read.
      * Keyed by id — the Manager has already loaded it within the household.
      *
@@ -386,22 +392,21 @@ const createAccountTransactionAccessor = (db: Database) => {
      * @param changes - The fields to change.
      * @returns `updated` with the transaction as it now stands, or `stale`.
      */
-    update: async (
-      id: string,
-      expected: ExpectedTransaction,
-      changes: AccountTransactionChanges,
-    ): Promise<UpdateAccountTransactionResult> => {
-      const set = columnsToSet(changes);
-      const query = Object.keys(set).length > 0
-        ? db.update(accountTransactions).set(set).where(unchanged(id, expected))
-          .returning({ id: accountTransactions.id })
-        : db.select({ id: accountTransactions.id }).from(accountTransactions)
-          .where(unchanged(id, expected));
-      const [row] = await query;
-      return row ? { status: 'updated', transaction: (await readById(id))! } : { status: 'stale' };
-    },
+  update: async (
+    id: string,
+    expected: ExpectedTransaction,
+    changes: AccountTransactionChanges,
+  ): Promise<UpdateAccountTransactionResult> => {
+    const set = columnsToSet(changes);
+    const query = Object.keys(set).length > 0
+      ? db.update(accountTransactions).set(set).where(unchanged(id, expected))
+        .returning(rowColumns)
+      : db.select(rowColumns).from(accountTransactions).where(unchanged(id, expected));
+    const [row] = await query;
+    return row ? { status: 'updated', transaction: toTransaction(row) } : { status: 'stale' };
+  },
 
-    /**
+  /**
      * Deletes a transaction, if it still holds what the Manager read; its
      * automatic Valuation Snapshot goes with it.
      *
@@ -409,13 +414,13 @@ const createAccountTransactionAccessor = (db: Database) => {
      * @param expected - The values the delete's undo was computed from.
      * @returns `deleted`, or `stale`.
      */
-    delete: async (id: string, expected: ExpectedTransaction): Promise<'deleted' | 'stale'> => {
-      const deleted = await db.delete(accountTransactions).where(unchanged(id, expected))
-        .returning({ id: accountTransactions.id });
-      return deleted.length > 0 ? 'deleted' : 'stale';
-    },
+  delete: async (id: string, expected: ExpectedTransaction): Promise<'deleted' | 'stale'> => {
+    const deleted = await db.delete(accountTransactions).where(unchanged(id, expected))
+      .returning({ id: accountTransactions.id });
+    return deleted.length > 0 ? 'deleted' : 'stale';
+  },
 
-    /**
+  /**
      * Counts the transactions referencing a Holding, but one (OQ-201, D7: is
      * anything but its buy left?).
      *
@@ -423,12 +428,12 @@ const createAccountTransactionAccessor = (db: Database) => {
      * @param exceptId - The transaction not to count.
      * @returns How many others reference it.
      */
-    countForHolding: (holdingId: string, exceptId: string): Promise<number> => db.$count(
-      accountTransactions,
-      and(eq(accountTransactions.holdingId, holdingId), ne(accountTransactions.id, exceptId)),
-    ),
+  countForHolding: (holdingId: string, exceptId: string): Promise<number> => db.$count(
+    accountTransactions,
+    and(eq(accountTransactions.holdingId, holdingId), ne(accountTransactions.id, exceptId)),
+  ),
 
-    /**
+  /**
      * Lists one page of the filtered transactions, newest first on (date, id).
      *
      * @param filter - The criteria.
@@ -436,20 +441,20 @@ const createAccountTransactionAccessor = (db: Database) => {
      * @param limit - At most this many rows.
      * @returns The page's rows.
      */
-    list: async (
-      filter: AccountTransactionFilter,
-      cursor: LedgerCursor | undefined,
-      limit: number,
-    ): Promise<AccountTransaction[]> => {
-      if (filter.scopeAccountIds.length === 0) return [];
-      const rows = await selectRows(db)
-        .where(and(filterCondition(db, filter), afterCursor(cursor)))
-        .orderBy(desc(accountTransactions.date), desc(accountTransactions.id))
-        .limit(limit);
-      return rows.map(toTransaction);
-    },
+  list: async (
+    filter: AccountTransactionFilter,
+    cursor: LedgerCursor | undefined,
+    limit: number,
+  ): Promise<AccountTransaction[]> => {
+    if (filter.scopeAccountIds.length === 0) return [];
+    const rows = await db.select(rowColumns).from(accountTransactions)
+      .where(and(filterCondition(db, filter), afterCursor(cursor)))
+      .orderBy(desc(accountTransactions.date), desc(accountTransactions.id))
+      .limit(limit);
+    return rows.map(toTransaction);
+  },
 
-    /**
+  /**
      * Sums the filtered transactions of some days by currency and kind, over
      * the whole filtered set — not only one page's rows.
      *
@@ -457,40 +462,40 @@ const createAccountTransactionAccessor = (db: Database) => {
      * @param dates - The days (`YYYY-MM-DD`).
      * @returns One sum per day, currency and kind present, in no particular order.
      */
-    dayTotals: async (
-      filter: AccountTransactionFilter,
-      dates: readonly string[],
-    ): Promise<DayKindTotal[]> => {
-      if (filter.scopeAccountIds.length === 0 || dates.length === 0) return [];
-      return db.select({
-        date: accountTransactions.date,
-        currency: accountTransactions.currency,
-        kind: accountTransactions.kind,
-        total: sumOfAmounts,
-      }).from(accountTransactions)
-        .where(and(filterCondition(db, filter), inArray(accountTransactions.date, [...dates])))
-        .groupBy(accountTransactions.date, accountTransactions.currency, accountTransactions.kind);
-    },
+  dayTotals: async (
+    filter: AccountTransactionFilter,
+    dates: readonly string[],
+  ): Promise<DayKindTotal[]> => {
+    if (filter.scopeAccountIds.length === 0 || dates.length === 0) return [];
+    return db.select({
+      date: accountTransactions.date,
+      currency: accountTransactions.currency,
+      kind: accountTransactions.kind,
+      total: sumOfAmounts,
+    }).from(accountTransactions)
+      .where(and(filterCondition(db, filter), inArray(accountTransactions.date, [...dates])))
+      .groupBy(accountTransactions.date, accountTransactions.currency, accountTransactions.kind);
+  },
 
-    /**
+  /**
      * Counts the filtered transactions of some months, over the whole filtered set.
      *
      * @param filter - The criteria.
      * @param months - The months (`YYYY-MM`).
      * @returns One count per month present, in no particular order.
      */
-    monthCounts: async (
-      filter: AccountTransactionFilter,
-      months: readonly string[],
-    ): Promise<MonthCount[]> => {
-      if (filter.scopeAccountIds.length === 0 || months.length === 0) return [];
-      return db.select({ month: monthOfDate, count: sql<number>`count(*)::int` })
-        .from(accountTransactions)
-        .where(and(filterCondition(db, filter), inArray(monthOfDate, [...months])))
-        .groupBy(monthOfDate);
-    },
+  monthCounts: async (
+    filter: AccountTransactionFilter,
+    months: readonly string[],
+  ): Promise<MonthCount[]> => {
+    if (filter.scopeAccountIds.length === 0 || months.length === 0) return [];
+    return db.select({ month: monthOfDate, count: sql<number>`count(*)::int` })
+      .from(accountTransactions)
+      .where(and(filterCondition(db, filter), inMonths(months)))
+      .groupBy(monthOfDate);
+  },
 
-    /**
+  /**
      * Sums some Accounts' transactions by month, currency, kind and stored
      * effect, for ReportingEngine to sign and exclude by effect (FR-3.6, FR-6.11).
      *
@@ -499,34 +504,33 @@ const createAccountTransactionAccessor = (db: Database) => {
      * @param to - Last day, inclusive.
      * @returns One sum per group present, in no particular order.
      */
-    monthlySums: async (
-      accountIds: readonly string[],
-      from: string,
-      to: string,
-    ): Promise<MonthKindSum[]> => {
-      if (accountIds.length === 0) return [];
-      const rows = await db.select({
-        month: monthOfDate,
-        currency: accountTransactions.currency,
-        kind: accountTransactions.kind,
-        effect: accountTransactions.effect,
-        total: sumOfAmounts,
-      }).from(accountTransactions)
-        .where(and(
-          inArray(accountTransactions.accountId, [...accountIds]),
-          gte(accountTransactions.date, from),
-          lte(accountTransactions.date, to),
-        ))
-        .groupBy(
-          monthOfDate,
-          accountTransactions.currency,
-          accountTransactions.kind,
-          accountTransactions.effect,
-        );
-      return rows.map((row) => ({ ...row, effect: row.effect as TransactionEffect }));
-    },
-  };
-};
+  monthlySums: async (
+    accountIds: readonly string[],
+    from: string,
+    to: string,
+  ): Promise<MonthKindSum[]> => {
+    if (accountIds.length === 0) return [];
+    const rows = await db.select({
+      month: monthOfDate,
+      currency: accountTransactions.currency,
+      kind: accountTransactions.kind,
+      effect: accountTransactions.effect,
+      total: sumOfAmounts,
+    }).from(accountTransactions)
+      .where(and(
+        inArray(accountTransactions.accountId, [...accountIds]),
+        gte(accountTransactions.date, from),
+        lte(accountTransactions.date, to),
+      ))
+      .groupBy(
+        monthOfDate,
+        accountTransactions.currency,
+        accountTransactions.kind,
+        accountTransactions.effect,
+      );
+    return rows.map((row) => ({ ...row, effect: row.effect as TransactionEffect }));
+  },
+});
 
 /** The AccountTransactionAccessor's operations. */
 export type AccountTransactionAccessor = ReturnType<typeof createAccountTransactionAccessor>;

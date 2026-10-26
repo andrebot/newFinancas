@@ -145,12 +145,19 @@ sequenceDiagram
         TM->>BA: accrueIfClaimed({accountScope, currency, categoryId, subcategoryId, &plusmn;amount, date})
         BA-->>TM: spend updated (any kind may carry a category, money in subtracts &mdash; OQ-201)
         TM->>ATA: insert({…transaction, effect, trade: {quantityDelta, costBasisDelta}, createdByUserId})
-        ATA-->>TM: transactionId
+        alt an Account, Holding, card or user it names was deleted meanwhile
+            ATA-->>TM: {ok: false, reason: reference_not_found}
+            Note over TM: refuse &mdash; the unit of work rolls every write above back (OQ-107)
+            TM-->>API: Conflict
+            API-->>User: 409 transaction.changed (retry gets the precise 404)
+        else recorded
+            ATA-->>TM: {ok: true, transaction}
+            TM-->>LOG: logActivity(correlationId, actor, "RecordTransaction")
+            TM-->>LOG: recordAudit(actor, "Transaction", transactionId)
+            TM-->>API: transaction
+            API-->>User: 201 Created {transaction}
+        end
     end
-    TM-->>LOG: logActivity(correlationId, actor, "RecordTransaction")
-    TM-->>LOG: recordAudit(actor, "Transaction", transactionId)
-    TM-->>API: transactionId
-    API-->>User: 201 Created {transactionId}
 """,
     notes="""
     <ul>
@@ -243,12 +250,19 @@ sequenceDiagram
         end
         TM->>BA: accrueIfClaimed({accountScope, currency, newCategoryId, newSubcategoryId, &plusmn;newAmount, newDate})
         TM->>ATA: update(transactionId, expected, {values, trade: {newQuantityDelta, newCostBasisDelta}})
-        ATA-->>TM: updated | stale
-        Note over ATA: guarded by the values read &mdash; stale when they changed meanwhile (OQ-107)
-        TM-->>LOG: logActivity(correlationId, actor, "EditTransaction")
-        TM-->>LOG: recordAudit(actor, "Transaction", transactionId)
-        TM-->>API: updated
-        API-->>User: 200 OK
+        Note over ATA: guarded by the values read (OQ-107)
+        alt they changed meanwhile
+            ATA-->>TM: stale
+            Note over TM: refuse &mdash; the unit of work rolls the reverse and reapply back
+            TM-->>API: Conflict
+            API-->>User: 409 transaction.changed (reload and retry)
+        else updated
+            ATA-->>TM: {status: updated, transaction}
+            TM-->>LOG: logActivity(correlationId, actor, "EditTransaction")
+            TM-->>LOG: recordAudit(actor, "Transaction", transactionId)
+            TM-->>API: transaction
+            API-->>User: 200 OK
+        end
     end
 """,
     notes="""
@@ -321,11 +335,18 @@ sequenceDiagram
         end
         TM->>BA: accrueIfClaimed({accountScope, currency, categoryId, subcategoryId, &mp;amount, date})
         TM->>ATA: delete(transactionId, expected)
-        ATA-->>TM: deleted | stale
-        TM-->>LOG: logActivity(correlationId, actor, "DeleteTransaction")
-        TM-->>LOG: recordAudit(actor, "Transaction", transactionId)
-        TM-->>API: deleted
-        API-->>User: 204 No Content
+        alt the values read changed meanwhile
+            ATA-->>TM: stale
+            Note over TM: refuse &mdash; the unit of work rolls every reversal back (OQ-107)
+            TM-->>API: Conflict
+            API-->>User: 409 transaction.changed (reload and retry)
+        else deleted
+            ATA-->>TM: deleted
+            TM-->>LOG: logActivity(correlationId, actor, "DeleteTransaction")
+            TM-->>LOG: recordAudit(actor, "Transaction", transactionId)
+            TM-->>API: deleted
+            API-->>User: 204 No Content
+        end
     end
 """,
     notes="""
