@@ -35,6 +35,8 @@ in `docs/README.md`.
   task changes a call, a route, an error code or a step, update every
   sequence diagram it touches (backend `sequences/`, EBD `ebd-sequences/`)
   and its call chain, through the generators in `docs/design/diagrams/scripts/`.
+  Each page has exactly one generator; `pnpm check:diagrams` (part of
+  `pnpm check`) fails when any generator, run alone, changes a page.
 
 ## Code rules
 

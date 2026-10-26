@@ -37,7 +37,8 @@
     "generate:icons": "pnpm --filter @financas/icons generate",
     "check:icons": "pnpm generate:icons && (git diff --quiet -- apps/web/src/kit/icons/generated && test -z \"$(git ls-files --others --exclude-standard -- apps/web/src/kit/icons/generated)\" || (echo 'Icon registry is stale: commit the regenerated apps/web/src/kit/icons/generated' && exit 1))",
     "check:schema": "pnpm --filter @financas/api db:generate && (git diff --quiet -- apps/api/drizzle && test -z \"$(git ls-files --others --exclude-standard -- apps/api/drizzle)\" || (echo 'The Drizzle schema and the migrations differ: generate the migration (pnpm --filter @financas/api db:generate) and commit it' && exit 1))",
-    "check": "pnpm lint && pnpm typecheck && pnpm check:contract && pnpm check:icons && pnpm check:schema && pnpm test:coverage",
+    "check:diagrams": "scripts/check-diagrams.sh",
+    "check": "pnpm lint && pnpm typecheck && pnpm check:contract && pnpm check:icons && pnpm check:schema && pnpm check:diagrams && pnpm test:coverage",
     "mutation:api": "scripts/mutation.sh api",
     "mutation:web": "scripts/mutation.sh web"
   },

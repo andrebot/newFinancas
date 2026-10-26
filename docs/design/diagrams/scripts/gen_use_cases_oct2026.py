@@ -27,7 +27,13 @@ def patch(path, replacements, note=None):
     """In-place text replacements on an existing diagram, plus an optional note paragraph."""
     s = path.read_text()
     for a, b in replacements:
-        if b in s and a not in s:
+        if b.startswith(a):
+            # `b` extends `a`, so `a` is still there once applied: collapse any
+            # suffix an earlier run stacked, and never apply it twice.
+            suffix = b[len(a):]
+            while b + suffix in s:
+                s = s.replace(b + suffix, b)
+        if b in s:
             continue  # already applied
         assert a in s, f"{path.name}: {a[:60]}"
         s = s.replace(a, b, 1)

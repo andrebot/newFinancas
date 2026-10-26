@@ -55,7 +55,7 @@ flowchart LR
         direction TB
         FE1(["Start"])
         FE2["Open Account Settings page"]
-        FE3["Edit profile fields (first / last name)<br/>and preferences (theme: dark / light /<br/>system, language) (first / last name)<br/>and preferences (theme: dark / light /<br/>system, language) (first / last name)<br/>and preferences (theme: dark / light /<br/>system, language)"]
+        FE3["Edit profile fields (first / last name)<br/>and preferences (theme: dark / light /<br/>system, language)"]
         FE4["Submit"]
         FE5["Receive result"]
         FE6["Notify user (profile updated / error)"]
@@ -67,7 +67,7 @@ flowchart LR
     subgraph BE["Backend"]
         direction TB
         BE1["Receive request"]
-        BE2["Validate &amp; update profile fields<br/>and preferences<br/>and preferences<br/>and preferences"]
+        BE2["Validate &amp; update profile fields<br/>and preferences"]
         BE3["Record the action (log)"]
         BE4["Send response"]
         BE1 --> BE2 --> BE3 --> BE4

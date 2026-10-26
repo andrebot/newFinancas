@@ -60,14 +60,8 @@ write(IH / "uc-18-reset-password.html", "Call Chain — Reset Forgotten Password
       ["<strong>Chain:</strong> <code>IdentityManager</code> ① <code>UserAccessor.findByEmail</code> → ② <code>AuthenticationUtility.issueOpaqueToken</code> → ③ <code>UserAccessor.storeResetToken</code> → ④ <code>NotificationEngine.notify(\"password.reset\", {email, language})</code> (async) → ⑤ the Engine routes it to email, renders it from the i18n catalog and calls <code>EmailAccessor.send({to, subject, body})</code> — <em>round-trip boundary</em> — ⑥ <code>AuthenticationUtility.hashOpaqueToken</code> / <code>hashPassword</code> → ⑦ <code>UserAccessor.consumeResetToken</code> / <code>updatePasswordHash</code>, then <code>findById</code> + <code>clearLoginFailures</code> (the reset lifts any login lock, OQ-115) → ⑧ <code>SessionAccessor.deleteAllForUser</code> → ⑨ <code>LoggingUtility</code> (async).",
        "<strong>EmailAccessor only sends;</strong> the provider is its configuration (<code>EMAIL_PROVIDER</code>, v1 <code>console</code>, terminal only — OQ-112). Rendering stays in the Engine (OQ-113).",
        "Step numbers follow the current sequence diagram (token issue/hash via <code>AuthenticationUtility</code>, OQ-100); the previous chain predated it."])
-TI = CC / "track-investments"
-T = "the Track Investments &amp; Net Worth set (CUC-6)"
-write(TI / "uc-11-notify-matured-holding.html", "Call Chain — Notify Matured Holding",
-      f"Use case 11 of 12 in {T}, FR-5.8, FR-6.5. System-Trigger + subscriber. {DECIDED}",
-      E((1, "acc-holding", "util-servicebus", "a"), (2, "util-servicebus", "mgr-account", "a"), (3, "mgr-account", "acc-household"),
-        (4, "mgr-account", "eng-notify"), (5, "eng-notify", "acc-inbox"), (6, "mgr-account", "acc-holding"), (7, "mgr-account", "util-logging", "a")),
-      ["<strong>Chain:</strong> <code>investmentsDaily</code> → ① <code>InvestmentHoldingAccessor.findMaturedWithPosition(today)</code> → <code>ServiceBusUtility.publish(\"holding.matured\")</code> (async) → ② <code>AccountManager</code> subscribes → ③ a shared Account's recipients: <code>HouseholdAccessor.listMembers</code> (a personal one's is its owner, OQ-171) → ④ <code>NotificationEngine.notify(\"holding.matured\", {userId})</code> per recipient (sync — the Manager needs the outcome) → ⑤ in-app: <code>NotificationInboxAccessor.insert</code> → ⑥ <code>InvestmentHoldingAccessor.markMaturedNotified</code> only after every recipient was notified → ⑦ <code>LoggingUtility</code> (async).",
-       "Same trigger shape as the scheduled cash events (§3.2a). <code>NotificationInboxAccessor</code> has two callers: the Engine writes, <code>InsightsManager</code> reads (View/Delete Notification) — a shared Accessor, not an Accessor→Accessor call."])
+# Notify Matured Holding (uc-11) is gen_track_investments.py's: it builds on this
+# chain (OQ-171) and owns it now.
 
 # ------------------------------------------------------------------ 3. static diagrams
 L3 = ROOT / "03-backend-layered-architecture.html"
