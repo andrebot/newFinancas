@@ -1504,7 +1504,7 @@ paths:
       description: >-
         FR-3.12 / OQ-61 — not limited to a month; cursor pagination on (date, id). Owned by TransactionManager (read-ownership rule).
         Only what the caller may see (others' personal Accounts are left out before filtering).
-        Filters combine with AND; `accountIds` and `creditCardIds` are one picker — a row matches when its account or card is among the selected (both empty = all); a Category includes its Subcategories (OQ-201).
+        Filters combine with AND; `accountIds` and `creditCardIds` are one picker — a row matches when its account or card is among the selected (both empty = all) — a card's transactions also match when its Account is picked (OQ-204); a Category includes its Subcategories (OQ-201).
         `dayTotals` and `monthCounts` cover the days and months present in the page, computed over the whole filtered set, not only the page's rows.
       parameters:
         - name: kinds

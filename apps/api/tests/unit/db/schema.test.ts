@@ -65,6 +65,7 @@ describe('database schema (02-data-model.md)', () => {
       'budget_targets.owner_user_id': 'users no action',
       'budget_targets.subcategory_id': 'subcategories no action',
       'card_transactions.category_id': 'categories no action',
+      'card_transactions.created_by_user_id': 'users no action',
       'card_transactions.credit_card_id': 'credit_cards cascade',
       'card_transactions.subcategory_id': 'subcategories no action',
       'categories.household_id': 'households cascade',
@@ -98,8 +99,8 @@ describe('database schema (02-data-model.md)', () => {
       .filter((key) => /\.(owner_user_id|invited_by_user_id|created_by_user_id)$/.test(key));
 
     // accounts/budgets/budget_targets/goals owner, invitations inviter, index rate and
-    // account transaction creators.
-    expect(actorColumns).toHaveLength(7);
+    // both ledgers' creators.
+    expect(actorColumns).toHaveLength(8);
     actorColumns.forEach((key) => {
       const [table, column] = key.split('.');
       const nullable = config(table!).columns.find((candidate) => candidate.name === column);

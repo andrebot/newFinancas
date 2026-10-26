@@ -68,9 +68,16 @@ export const cardTransactions = pgTable('card_transactions', {
   categoryId: uuid('category_id').references(() => categories.id),
   subcategoryId: uuid('subcategory_id').references(() => subcategories.id),
   description: text('description'),
+  // Who recorded it (OQ-111, OQ-201); null once FR-1.17 anonymizes it.
+  createdByUserId: uuid('created_by_user_id').references(() => users.id),
   createdAt: createdAt(),
 }, (table) => [
   check('card_transactions_currency_check', sql`${table.currency} ~ '^[A-Z]{3}$'`),
   check('card_transactions_amount_check', sql`${table.amount} > 0`),
-  index('card_transactions_browse_idx').on(table.creditCardId, table.date.desc(), table.id),
+  // Browse's order, as on account_transactions.
+  index('card_transactions_browse_idx').on(
+    table.creditCardId,
+    table.date.desc().nullsFirst(),
+    table.id.desc().nullsFirst(),
+  ),
 ]);

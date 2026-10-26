@@ -150,7 +150,7 @@ identity screens, the rest as later slices use them.
 *Done when:* record, browse, filter and edit transactions; month overview.
 
 - [x] **99.** `A7` AccountTransactionAccessor (OQ-201: adds `quantity_delta`, `cost_basis_delta`, `created_by_user_id`; Browse's day totals and month counts over the whole filtered set) — migration 0010 (the deltas both-or-neither); edit/delete guarded by the values read (`stale`); the picker matches a bill payment by its card; day totals by kind, signed by the Manager; `monthlySums` for ReportingEngine
-- [ ] **100.** `A8` CardTransactionAccessor (OQ-201: adds `created_by_user_id`; the per-card list endpoint is gone)
+- [x] **100.** `A8` CardTransactionAccessor (OQ-201: adds `created_by_user_id`; the per-card list endpoint is gone) — migration 0011 (+ the browse index in Browse's order, as A7); the cards come narrowed by the Manager (scope ∩ picker); both ledgers share `accessors/ledgerQuery.ts`
 - [ ] **101.** `E1` InvestmentProductEngine (OQ-201: `interestPayment` terms; Brazil on business days with coded holidays, US actual/365; index-linked amounts projected; maturity = interest + tax + redemption; no IOF; adds `interest_payment` to `investment_holdings`)
 - [ ] **102.** `E2` ReportingEngine
 - [ ] **103.** `M3` TransactionManager (OQ-201 — trades move cash, Holdings by id, signed Budget accrual, edit values not identity, delete-buy removes an unused Holding; walk the OQ-171 re-buy/split tests through with the stakeholder first)
