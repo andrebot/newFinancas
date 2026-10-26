@@ -694,7 +694,7 @@ events only (recurring transactions dropped, OQ-55).
   `schedule` = posted by `investmentsDaily` from
   `investment_schedule_entries`; was `manual`/`recurring` until OQ-55; no
   `open_banking` value until v2), `created_at`. **Indexes (Browse &
-  Filter, FR-3.12):** `(account_id, date DESC, id)` and `(holding_id)` —
+  Filter, FR-3.12):** `(account_id, date DESC, id DESC)` and `(holding_id)` —
   cursor pagination on `(date, id)`.
 - **`card_transactions`** — `id` (PK), `credit_card_id` (FK →
   `credit_cards`), `kind` (`charge`/`refund` — reference data,
@@ -705,7 +705,7 @@ events only (recurring transactions dropped, OQ-55).
   `TransactionManager` signs the amount from `kind` (charge +, refund −)
   for `CreditCardAccessor.applyMovement` (OQ-170); with only two kinds an
   indirection layer buys nothing. **No `source` column** — sync (FR-3.3, v2) is
-  Account-Transaction-only. **Index:** `(credit_card_id, date DESC, id)`
+  Account-Transaction-only. **Index:** `(credit_card_id, date DESC, id DESC)`
   for Browse & Filter.
 - ~~**`recurring_transaction_schedules`**~~ — **dropped, Oct 2026**
   (FR-3.5 removed, OQ-55).

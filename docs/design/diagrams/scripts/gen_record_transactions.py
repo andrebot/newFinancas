@@ -59,8 +59,19 @@ sequenceDiagram
             CCA-->>TM: outstanding balance updated
             TM->>BA: accrueIfClaimed({accountScope, currency, categoryId, subcategoryId, &plusmn;amount, date})
             BA-->>TM: spend updated (no-op if unclaimed, a refund subtracts &mdash; OQ-201)
-            TM->>CTA: insert(cardTransaction, createdBy)
-            CTA-->>TM: transactionId
+            TM->>CTA: insert({creditCardId, kind, date, amount, currency, category, description, createdByUserId})
+            alt the card or the recorder was deleted meanwhile
+                CTA-->>TM: {ok: false, reason: reference_not_found}
+                Note over TM: refuse &mdash; the unit of work rolls the card movement and accrual back (OQ-203)
+                TM-->>API: Conflict
+                API-->>User: 409 transaction.changed (retry gets the precise 404)
+            else recorded
+                CTA-->>TM: {ok: true, transaction}
+                TM-->>LOG: logActivity(correlationId, actor, "RecordTransaction")
+                TM-->>LOG: recordAudit(actor, "Transaction", transactionId)
+                TM-->>API: transaction
+                API-->>User: 201 Created {transaction}
+            end
         end
     else authorized, target is an Account
         AZ-->>TM: allowed
@@ -430,7 +441,7 @@ sequenceDiagram
     AZ-->>IM: scope
     IM->>RE: monthOverview(scope, year, month)
     RE->>ATA: monthlySums(accountIds, from, to) &mdash; by month, currency, kind and stored effect
-    RE->>CTA: charge/refund sums by currency, per month
+    RE->>CTA: monthlySums(creditCardIds, from, to) &mdash; charge / refund by month, currency and kind
     Note over RE: in / out / net per currency &mdash; excluding own-account<br/>transfers and bill payments (effect column, FR-3.6/3.11)
     RE->>AA: balancesAsOf(accountIds, month) &mdash; month-end balances (FR-6.6)
     RE->>CCA: balancesAsOf(cardIds, month) &mdash; month-end outstanding (OQ-201)

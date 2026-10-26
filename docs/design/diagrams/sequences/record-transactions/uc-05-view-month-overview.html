@@ -78,7 +78,7 @@ sequenceDiagram
     AZ-->>IM: scope
     IM->>RE: monthOverview(scope, year, month)
     RE->>ATA: monthlySums(accountIds, from, to) &mdash; by month, currency, kind and stored effect
-    RE->>CTA: charge/refund sums by currency, per month
+    RE->>CTA: monthlySums(creditCardIds, from, to) &mdash; charge / refund by month, currency and kind
     Note over RE: in / out / net per currency &mdash; excluding own-account<br/>transfers and bill payments (effect column, FR-3.6/3.11)
     RE->>AA: balancesAsOf(accountIds, month) &mdash; month-end balances (FR-6.6)
     RE->>CCA: balancesAsOf(cardIds, month) &mdash; month-end outstanding (OQ-201)

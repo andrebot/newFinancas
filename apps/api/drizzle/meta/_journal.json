@@ -78,6 +78,13 @@
       "when": 1793046417392,
       "tag": "0010_trade_deltas_and_recorder",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793047097145,
+      "tag": "0011_card_transaction_recorder",
+      "breakpoints": true
     }
   ]
 }
