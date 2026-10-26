@@ -2,11 +2,11 @@ import {
   and, desc, eq, getTableColumns, gte, inArray, lte,
 } from 'drizzle-orm';
 import type { Database } from '../db/database';
-import { PG_FOREIGN_KEY_VIOLATION, pgErrorCode } from '../db/errors';
 import { accounts, cardTransactions, creditCards } from '../db/schema';
 import {
-  afterCursor, countRows, hasAny, holds, inCategories, inMonths, monthOf, sumOf,
-  type DayKindTotal, type LedgerCursor, type MonthCount,
+  afterCursor, categoryForeignKeys, countRows, hasAny, holds, inCategories, inMonths,
+  isVanishedReference, monthOf, sumOf,
+  type DayKindTotal, type LedgerCursor, type MonthCount, type MonthKindTotal,
 } from './ledgerQuery';
 
 // CardTransactionAccessor (A8, VBD): the Card Transaction ledger, kept apart
@@ -55,7 +55,7 @@ export interface NewCardTransaction {
 export type InsertCardTransactionResult = | {
   readonly ok: true; readonly transaction: CardTransaction;
 }
-  /** The card or the recorder it names is gone (a race). */
+  /** The card or the recorder it names was deleted meanwhile (a race, OQ-203). */
   | { readonly ok: false; readonly reason: 'reference_not_found' };
 
 /** The values an edit or delete was computed from (OQ-107's guarded write). */
@@ -92,15 +92,8 @@ export interface CardTransactionFilter {
   readonly to?: string;
 }
 
-/** One month's sum of one kind in one currency, for ReportingEngine. */
-export interface CardMonthKindSum {
-  readonly month: string;
-  readonly currency: string;
-  readonly kind: string;
-  readonly total: number;
-}
-
 const rowColumns = getTableColumns(cardTransactions);
+const categoryKeys = categoryForeignKeys(cardTransactions);
 const monthOfDate = monthOf(cardTransactions.date);
 const sumOfAmounts = sumOf(cardTransactions.amount);
 
@@ -135,6 +128,25 @@ const unchanged = (id: string, expected: ExpectedCardTransaction) => and(
 );
 
 /**
+ * The columns a new transaction writes, named one by one so a wider object can
+ * never set its id or creation time.
+ *
+ * @param transaction - The transaction.
+ * @returns The values to insert.
+ */
+const columnsToInsert = (transaction: NewCardTransaction) => ({
+  creditCardId: transaction.creditCardId,
+  kind: transaction.kind,
+  date: transaction.date,
+  amount: transaction.amount,
+  currency: transaction.currency,
+  categoryId: transaction.categoryId,
+  subcategoryId: transaction.subcategoryId,
+  description: transaction.description,
+  createdByUserId: transaction.createdByUserId,
+});
+
+/**
  * The columns an edit sets: only the values D6 lets change (OQ-201), named one
  * by one so a wider object can never move the transaction to another card or kind.
  *
@@ -167,10 +179,11 @@ const createCardTransactionAccessor = (db: Database) => ({
    */
   insert: async (transaction: NewCardTransaction): Promise<InsertCardTransactionResult> => {
     try {
-      const [row] = await db.insert(cardTransactions).values(transaction).returning(rowColumns);
+      const [row] = await db.insert(cardTransactions).values(columnsToInsert(transaction))
+        .returning(rowColumns);
       return { ok: true, transaction: row! };
     } catch (error) {
-      if (pgErrorCode(error) === PG_FOREIGN_KEY_VIOLATION) {
+      if (isVanishedReference(error, categoryKeys)) {
         return { ok: false, reason: 'reference_not_found' };
       }
       throw error;
@@ -304,7 +317,7 @@ const createCardTransactionAccessor = (db: Database) => ({
     creditCardIds: readonly string[],
     from: string,
     to: string,
-  ): Promise<CardMonthKindSum[]> => {
+  ): Promise<MonthKindTotal[]> => {
     if (creditCardIds.length === 0) return [];
     return db.select({
       month: monthOfDate,

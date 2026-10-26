@@ -243,6 +243,27 @@ describe('insert', () => {
     })).toEqual({ ok: false, reason: 'reference_not_found' });
   }));
 
+  it('reports a Holding that is gone', scenario(async ({ record }) => {
+    await expect(record({ kind: 'investment_dividend', holdingId: UNKNOWN_ID }))
+      .rejects.toThrow('reference_not_found');
+  }));
+
+  it('lets an unknown Category through, a bug and not a race (OQ-203)', scenario(async ({
+    record,
+  }) => {
+    await expect(record({ categoryId: UNKNOWN_ID })).rejects.not.toThrow('reference_not_found');
+    await expect(record({ subcategoryId: UNKNOWN_ID })).rejects.not.toThrow('reference_not_found');
+  }));
+
+  it('never writes what is not a new transaction\'s value', scenario(async ({ record }) => {
+    const wider = { description: 'wide', id: UNKNOWN_ID, createdAt: new Date('2000-01-01') };
+
+    const stored = await record(wider);
+
+    expect(stored.id).not.toBe(UNKNOWN_ID);
+    expect(stored.createdAt.getFullYear()).toBeGreaterThan(2000);
+  }));
+
   it('lets any other failure through', scenario(async ({ record }) => {
     await expect(record({ amount: 0 })).rejects.toThrow();
   }));

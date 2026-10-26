@@ -5357,6 +5357,11 @@ fixes and doc drift they bring, is `docs/planning/04-slice-3-readiness.md`.
   rolls the pipeline's other writes back; a retry re-reads and gets the
   precise answer (e.g. 404 `account.not_found`). TransactionManager (task
   103) throws it; the catalog entry and `STATUS_OF` land there.
+- **Only a reference that can vanish counts as the race.** The Accessors
+  tell the foreign keys apart by constraint name: a Category or Subcategory
+  key failing on `insert` is a bug (the Manager checked them, and they're
+  never deleted), so it surfaces as one (500) instead of a retryable 409
+  that would fail the same way every time (PR #126 review).
 - **`update` doesn't map a foreign-key violation.** An edit changes only
   Category and Subcategory references, which are archive-only (FR-10.3) and
   go only with their household, taking the transaction with them, so the

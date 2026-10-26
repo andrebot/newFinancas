@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { pgErrorCode } from '../../../src/db/errors';
+import { pgConstraintName, pgErrorCode } from '../../../src/db/errors';
 
 describe('pgErrorCode', () => {
   it('reads a driver error code directly', () => {
@@ -19,5 +19,22 @@ describe('pgErrorCode', () => {
     ['null', null],
   ])('returns undefined for %s', (_case, error) => {
     expect(pgErrorCode(error)).toBeUndefined();
+  });
+});
+
+describe('pgConstraintName', () => {
+  it('finds the violated constraint on a wrapped cause (Drizzle query errors)', () => {
+    const wrapped = new Error('Failed query', { cause: { code: '23503', constraint: 'fk_x' } });
+
+    expect(pgConstraintName(wrapped)).toBe('fk_x');
+    expect(pgConstraintName({ constraint: 'direct' })).toBe('direct');
+  });
+
+  it.each([
+    ['no constraint anywhere', new Error('plain', { cause: { code: '23503' } })],
+    ['a non-object', 'boom'],
+    ['null', null],
+  ])('returns undefined for %s', (_case, error) => {
+    expect(pgConstraintName(error)).toBeUndefined();
   });
 });

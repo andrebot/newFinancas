@@ -3,14 +3,16 @@ import {
   and, desc, eq, getTableColumns, gte, inArray, lte, ne, or, sql, type AnyColumn,
 } from 'drizzle-orm';
 import type { Database } from '../db/database';
-import { PG_FOREIGN_KEY_VIOLATION, pgErrorCode } from '../db/errors';
 import { accountTransactions, accounts, investmentHoldings } from '../db/schema';
 import {
-  afterCursor, countRows, hasAny, holds, inCategories, inMonths, monthOf, sumOf,
-  type DayKindTotal, type LedgerCursor, type MonthCount,
+  afterCursor, categoryForeignKeys, countRows, hasAny, holds, inCategories, inMonths,
+  isVanishedReference, monthOf, sumOf,
+  type DayKindTotal, type LedgerCursor, type MonthCount, type MonthKindTotal,
 } from './ledgerQuery';
 
-export type { DayKindTotal, LedgerCursor, MonthCount } from './ledgerQuery';
+export type {
+  DayKindTotal, LedgerCursor, MonthCount, MonthKindTotal,
+} from './ledgerQuery';
 
 // AccountTransactionAccessor (A7, VBD): the Account Transaction ledger
 // (FR-3.1–FR-3.12, 02-data-model.md). It applies data changes only. The kind's
@@ -84,7 +86,7 @@ export interface NewAccountTransaction {
 export type InsertAccountTransactionResult = | {
   readonly ok: true; readonly transaction: AccountTransaction;
 }
-  /** An Account, Category, Holding, card or user it names is gone (a race). */
+  /** An Account, Holding, card or recorder it names was deleted meanwhile (a race, OQ-203). */
   | { readonly ok: false; readonly reason: 'reference_not_found' };
 
 /** The values an edit or delete was computed from (OQ-107's guarded write). */
@@ -127,12 +129,8 @@ export interface AccountTransactionFilter {
 }
 
 /** One month's sum of one kind and stored effect in one currency, for ReportingEngine. */
-export interface MonthKindSum {
-  readonly month: string;
-  readonly currency: string;
-  readonly kind: string;
+export interface MonthKindSum extends MonthKindTotal {
   readonly effect: TransactionEffect;
-  readonly total: number;
 }
 
 /**
@@ -151,6 +149,8 @@ const rowColumns = {
   holdingTicker: holdingField(investmentHoldings.ticker),
   holdingAssetType: holdingField(investmentHoldings.assetType),
 };
+
+const categoryKeys = categoryForeignKeys(accountTransactions);
 
 type Row = typeof accountTransactions.$inferSelect & {
   readonly holdingTicker: string | null;
@@ -234,6 +234,31 @@ const unchanged = (id: string, expected: ExpectedTransaction) => and(
 );
 
 /**
+ * The columns a new transaction writes, named one by one so a wider object can
+ * never set its id or creation time.
+ *
+ * @param transaction - The transaction.
+ * @returns The values to insert.
+ */
+const columnsToInsert = (transaction: NewAccountTransaction) => ({
+  accountId: transaction.accountId,
+  kind: transaction.kind,
+  effect: transaction.effect,
+  date: transaction.date,
+  amount: transaction.amount,
+  currency: transaction.currency,
+  categoryId: transaction.categoryId,
+  subcategoryId: transaction.subcategoryId,
+  description: transaction.description,
+  holdingId: transaction.holdingId,
+  creditCardId: transaction.creditCardId,
+  quantityDelta: transaction.trade?.quantityDelta,
+  costBasisDelta: transaction.trade?.costBasisDelta,
+  source: transaction.source,
+  createdByUserId: transaction.createdByUserId,
+});
+
+/**
  * The columns an edit sets: only the values D6 lets change (OQ-201), named one
  * by one so a wider object can never move or re-kind the transaction.
  *
@@ -267,14 +292,12 @@ const createAccountTransactionAccessor = (db: Database) => ({
    * @returns The recorded transaction, or why nothing was written.
    */
   insert: async (transaction: NewAccountTransaction): Promise<InsertAccountTransactionResult> => {
-    const { trade, ...values } = transaction;
     try {
-      const [row] = await db.insert(accountTransactions).values({
-        ...values, quantityDelta: trade?.quantityDelta, costBasisDelta: trade?.costBasisDelta,
-      }).returning(rowColumns);
+      const [row] = await db.insert(accountTransactions).values(columnsToInsert(transaction))
+        .returning(rowColumns);
       return { ok: true, transaction: toTransaction(row!) };
     } catch (error) {
-      if (pgErrorCode(error) === PG_FOREIGN_KEY_VIOLATION) {
+      if (isVanishedReference(error, categoryKeys)) {
         return { ok: false, reason: 'reference_not_found' };
       }
       throw error;

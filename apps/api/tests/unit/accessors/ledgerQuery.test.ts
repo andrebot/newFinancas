@@ -1,9 +1,15 @@
+import { drizzle } from 'drizzle-orm/node-postgres';
 import { PgDialect } from 'drizzle-orm/pg-core';
 import { describe, expect, it } from 'vitest';
 import {
-  afterCursor, firstDayAfter, hasAny, holds, inMonths,
+  afterCursor, categoryForeignKeys, countRows, firstDayAfter, hasAny, holds, inCategories,
+  inMonths, isVanishedReference, monthOf, sumOf,
 } from '../../../src/accessors/ledgerQuery';
+import type { Database } from '../../../src/db/database';
 import { cardTransactions } from '../../../src/db/schema';
+
+// Builds queries without a connection; nothing here runs one.
+const db = drizzle.mock() as unknown as Database;
 
 const dialect = new PgDialect();
 
@@ -62,5 +68,66 @@ describe('afterCursor', () => {
       sql: '("card_transactions"."date", "card_transactions"."id") < ($1, $2)',
       params: ['2026-10-05', 'x'],
     });
+  });
+});
+
+describe('monthOf, sumOf and countRows', () => {
+  it('render the month, the amount sum and the row count', () => {
+    expect(render(monthOf(cardTransactions.date)).sql)
+      .toBe('to_char("card_transactions"."date", \'YYYY-MM\')');
+    expect(render(sumOf(cardTransactions.amount)).sql).toBe('sum("card_transactions"."amount")');
+    expect(render(countRows).sql).toBe('count(*)::int');
+  });
+});
+
+describe('inCategories', () => {
+  it('adds nothing without Categories', () => {
+    expect(inCategories(db, cardTransactions, undefined)).toBeUndefined();
+    expect(inCategories(db, cardTransactions, [])).toBeUndefined();
+  });
+
+  it('matches the Categories, or a Subcategory of one of them', () => {
+    const { sql, params } = render(inCategories(db, cardTransactions, ['food'])!);
+
+    expect(sql).toContain('"card_transactions"."category_id" in ($1)');
+    expect(sql).toContain(
+      '"card_transactions"."subcategory_id" in (select "id" from "subcategories"',
+    );
+    expect(sql).toContain('"subcategories"."category_id" in ($2)');
+    expect(params).toEqual(['food', 'food']);
+  });
+});
+
+describe('categoryForeignKeys', () => {
+  it('names the ledger\'s Category and Subcategory foreign keys only', () => {
+    expect([...categoryForeignKeys(cardTransactions)].sort()).toEqual([
+      'card_transactions_category_id_categories_id_fk',
+      'card_transactions_subcategory_id_subcategories_id_fk',
+    ]);
+  });
+});
+
+describe('isVanishedReference', () => {
+  const categoryKeys = new Set(['category_fk']);
+
+  /**
+   * Builds a Drizzle-shaped query error.
+   *
+   * @param code - The SQLSTATE.
+   * @param constraint - The violated constraint, if any.
+   * @returns The error.
+   */
+  const queryError = (code: string, constraint?: string) => new Error('Failed query', {
+    cause: { code, ...(constraint === undefined ? {} : { constraint }) },
+  });
+
+  it('is a race when another foreign key fails', () => {
+    expect(isVanishedReference(queryError('23503', 'card_fk'), categoryKeys)).toBe(true);
+    expect(isVanishedReference(queryError('23503'), categoryKeys)).toBe(true);
+  });
+
+  it('is not a race for a Category key or any other failure', () => {
+    expect(isVanishedReference(queryError('23503', 'category_fk'), categoryKeys)).toBe(false);
+    expect(isVanishedReference(queryError('23514', 'card_fk'), categoryKeys)).toBe(false);
   });
 });

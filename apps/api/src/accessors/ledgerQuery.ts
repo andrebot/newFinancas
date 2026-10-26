@@ -1,8 +1,9 @@
 import {
-  and, eq, gte, inArray, isNull, lt, or, sql, type AnyColumn, type SQL,
+  and, eq, gte, inArray, isNull, lt, or, sql, type SQL,
 } from 'drizzle-orm';
-import type { PgColumn } from 'drizzle-orm/pg-core';
+import { getTableConfig, type PgColumn, type PgTable } from 'drizzle-orm/pg-core';
 import type { Database } from '../db/database';
+import { PG_FOREIGN_KEY_VIOLATION, pgConstraintName, pgErrorCode } from '../db/errors';
 import { subcategories } from '../db/schema';
 
 // Query pieces both ledgers' Accessors (A7, A8) build Browse & Filter from
@@ -18,6 +19,14 @@ export interface LedgerCursor {
 /** One day's sum of one kind in one currency, signed by the Manager. */
 export interface DayKindTotal {
   readonly date: string;
+  readonly currency: string;
+  readonly kind: string;
+  readonly total: number;
+}
+
+/** One month's sum of one kind in one currency, for ReportingEngine to sign. */
+export interface MonthKindTotal {
+  readonly month: string;
   readonly currency: string;
   readonly kind: string;
   readonly total: number;
@@ -46,7 +55,7 @@ export const hasAny = (values: readonly string[] | undefined): values is readonl
  * @param value - The value it must hold.
  * @returns The condition.
  */
-export const holds = (column: AnyColumn, value: string | number | null): SQL => (
+export const holds = (column: PgColumn, value: string | number | null): SQL => (
   value === null ? isNull(column) : eq(column, value)
 );
 
@@ -126,3 +135,31 @@ export const inCategories = (
     inArray(columns.subcategoryId, ownSubcategories),
   );
 };
+
+/**
+ * The names of a ledger's foreign keys on its Category and Subcategory columns.
+ *
+ * @param table - The ledger's table.
+ * @returns The constraint names.
+ */
+export const categoryForeignKeys = (table: PgTable): ReadonlySet<string> => new Set(
+  getTableConfig(table).foreignKeys
+    .filter((key) => key.reference().columns
+      .some((column) => column.name === 'category_id' || column.name === 'subcategory_id'))
+    .map((key) => key.getName()),
+);
+
+/**
+ * Tells whether a write failed because something it names was deleted
+ * meanwhile (OQ-203). Categories and Subcategories are archive-only (FR-10.3)
+ * and checked by the Manager first, so their foreign keys never fail by a race:
+ * such a failure is a bug, and is left to surface as one.
+ *
+ * @param error - What the write threw.
+ * @param categoryKeys - The ledger's Category foreign keys (`categoryForeignKeys`).
+ * @returns `true` for a vanished Account, Holding, card or recorder.
+ */
+export const isVanishedReference = (error: unknown, categoryKeys: ReadonlySet<string>) => (
+  pgErrorCode(error) === PG_FOREIGN_KEY_VIOLATION
+    && !categoryKeys.has(pgConstraintName(error) ?? '')
+);

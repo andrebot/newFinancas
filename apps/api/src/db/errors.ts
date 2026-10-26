@@ -17,3 +17,17 @@ export const pgErrorCode = (error: unknown): string | undefined => {
   if (typeof code === 'string' && /^[0-9A-Z]{5}$/.test(code)) return code;
   return pgErrorCode(cause);
 };
+
+/**
+ * Finds the name of the constraint an error violated, looking through wrapped
+ * causes (the driver's error carries it, e.g. a foreign key's name).
+ *
+ * @param error - Anything thrown by a query.
+ * @returns The constraint name, or `undefined` when there is none.
+ */
+export const pgConstraintName = (error: unknown): string | undefined => {
+  if (error === null || typeof error !== 'object') return undefined;
+  const { constraint, cause } = error as { constraint?: unknown; cause?: unknown };
+  if (typeof constraint === 'string') return constraint;
+  return pgConstraintName(cause);
+};

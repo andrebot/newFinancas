@@ -93,8 +93,8 @@ sequenceDiagram
             CCA-->>TM: outstanding balance updated
             TM->>BA: accrueIfClaimed({accountScope, currency, categoryId, subcategoryId, &plusmn;amount, date})
             BA-->>TM: spend updated (no-op if unclaimed, a refund subtracts &mdash; OQ-201)
-            TM->>CTA: insert({creditCardId, kind, date, amount, currency, category, description, createdByUserId})
-            alt the card or the recorder was deleted meanwhile
+            TM->>CTA: insert({creditCardId, kind, date, amount, currency, categoryId, subcategoryId, description, createdByUserId})
+            alt the card or the recorder was deleted meanwhile (a Category can't be &mdash; FR-10.3)
                 CTA-->>TM: {ok: false, reason: reference_not_found}
                 Note over TM: refuse &mdash; the unit of work rolls the card movement and accrual back (OQ-203)
                 TM-->>API: Conflict
