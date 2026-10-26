@@ -5363,6 +5363,15 @@ fixes and doc drift they bring, is `docs/planning/04-slice-3-readiness.md`.
   race can't happen. Weighed and rejected: a defensive
   `reference_not_found` outcome the Manager would handle for nothing.
 
+### OQ-204: Picking an Account in Browse includes its cards
+**Confirmed with the stakeholder (Oct 2026)**, at task 100 (`A8`). F8 says a
+row matches when "its account or card" is picked, but a Card Transaction has
+no Account of its own, only its card's. **Picking an Account also matches its
+cards' charges and refunds**, as a bill payment matches by its card (OQ-201):
+the selection shows the Account's whole story. TransactionManager (task 103)
+passes `CardTransactionAccessor.list` the visible cards that are picked or
+belong to a picked Account (all visible cards when nothing is picked).
+
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
 *(None currently — OQ-29, the last item here, was resolved during data

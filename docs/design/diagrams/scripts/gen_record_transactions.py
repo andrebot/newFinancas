@@ -408,7 +408,7 @@ sequenceDiagram
     <ul>
       <li><strong>Not scoped to the period bar (OQ-61):</strong> any date range, including none.</li>
       <li>Filtering by <code>holdingId</code> returns the investment transactions linked to it &mdash; the holding row's "See in Transactions" link.</li>
-      <li><strong>Filters (OQ-201):</strong> combined with AND; accounts and cards are one picker (a row matches when its account or card is selected; none = all); a Category includes its Subcategories.</li>
+      <li><strong>Filters (OQ-201):</strong> combined with AND; accounts and cards are one picker (a row matches when its account or card is selected, a card's rows also when its Account is &mdash; OQ-204; none = all); a Category includes its Subcategories.</li>
       <li>No logging/audit &mdash; a plain read (FR-7.1 audits mutations only).</li>
       <li>See FR-3.12, OQ-61; read-ownership rule, VBD &sect;3.</li>
     </ul>
