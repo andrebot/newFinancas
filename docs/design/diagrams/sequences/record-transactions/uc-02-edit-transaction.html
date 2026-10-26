@@ -128,12 +128,20 @@ sequenceDiagram
             TM->>CCA: applyMovement(cardId, {newSignedAmount, currency, newDate})
         end
         TM->>BA: accrueIfClaimed({accountScope, currency, newCategoryId, newSubcategoryId, &plusmn;newAmount, newDate})
-        TM->>ATA: update(transactionId, input, {newQuantityDelta, newCostBasisDelta})
-        ATA-->>TM: updated
-        TM-->>LOG: logActivity(correlationId, actor, "EditTransaction")
-        TM-->>LOG: recordAudit(actor, "Transaction", transactionId)
-        TM-->>API: updated
-        API-->>User: 200 OK
+        TM->>ATA: update(transactionId, expected, {values, trade: {newQuantityDelta, newCostBasisDelta}})
+        Note over ATA: guarded by the values read (OQ-107)
+        alt they changed meanwhile
+            ATA-->>TM: stale
+            Note over TM: refuse &mdash; the unit of work rolls the reverse and reapply back
+            TM-->>API: Conflict
+            API-->>User: 409 transaction.changed (reload and retry)
+        else updated
+            ATA-->>TM: {status: updated, transaction}
+            TM-->>LOG: logActivity(correlationId, actor, "EditTransaction")
+            TM-->>LOG: recordAudit(actor, "Transaction", transactionId)
+            TM-->>API: transaction
+            API-->>User: 200 OK
+        end
     end
     </pre>
   </div>

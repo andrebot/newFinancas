@@ -1100,7 +1100,7 @@ export type RegisterUserData = {
 
 export type RegisterUserErrors = {
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed` (params: the target and the claiming `budgetId` — OQ-176), `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `holding.archived` (OQ-178), `holding.not_matured` (OQ-178), `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107), `holding.insufficient_quantity`, `holding.cost_basis_below_zero` (OQ-171), `transaction.schedule_started`, `transaction.holding_in_use` (OQ-201).
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed` (params: the target and the claiming `budgetId` — OQ-176), `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `holding.archived` (OQ-178), `holding.not_matured` (OQ-178), `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107), `holding.insufficient_quantity`, `holding.cost_basis_below_zero` (OQ-171), `transaction.schedule_started`, `transaction.holding_in_use` (OQ-201), `transaction.changed` (the transaction, or something it names, changed by a concurrent request — reload and retry, OQ-203).
      */
     409: Error;
     /**
@@ -1667,7 +1667,7 @@ export type RemoveMemberErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed` (params: the target and the claiming `budgetId` — OQ-176), `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `holding.archived` (OQ-178), `holding.not_matured` (OQ-178), `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107), `holding.insufficient_quantity`, `holding.cost_basis_below_zero` (OQ-171), `transaction.schedule_started`, `transaction.holding_in_use` (OQ-201).
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed` (params: the target and the claiming `budgetId` — OQ-176), `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `holding.archived` (OQ-178), `holding.not_matured` (OQ-178), `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107), `holding.insufficient_quantity`, `holding.cost_basis_below_zero` (OQ-171), `transaction.schedule_started`, `transaction.holding_in_use` (OQ-201), `transaction.changed` (the transaction, or something it names, changed by a concurrent request — reload and retry, OQ-203).
      */
     409: Error;
 };
@@ -1705,7 +1705,7 @@ export type ChangeMemberRoleErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed` (params: the target and the claiming `budgetId` — OQ-176), `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `holding.archived` (OQ-178), `holding.not_matured` (OQ-178), `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107), `holding.insufficient_quantity`, `holding.cost_basis_below_zero` (OQ-171), `transaction.schedule_started`, `transaction.holding_in_use` (OQ-201).
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed` (params: the target and the claiming `budgetId` — OQ-176), `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `holding.archived` (OQ-178), `holding.not_matured` (OQ-178), `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107), `holding.insufficient_quantity`, `holding.cost_basis_below_zero` (OQ-171), `transaction.schedule_started`, `transaction.holding_in_use` (OQ-201), `transaction.changed` (the transaction, or something it names, changed by a concurrent request — reload and retry, OQ-203).
      */
     409: Error;
     /**
@@ -1744,7 +1744,7 @@ export type TransferOwnershipErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed` (params: the target and the claiming `budgetId` — OQ-176), `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `holding.archived` (OQ-178), `holding.not_matured` (OQ-178), `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107), `holding.insufficient_quantity`, `holding.cost_basis_below_zero` (OQ-171), `transaction.schedule_started`, `transaction.holding_in_use` (OQ-201).
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed` (params: the target and the claiming `budgetId` — OQ-176), `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `holding.archived` (OQ-178), `holding.not_matured` (OQ-178), `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107), `holding.insufficient_quantity`, `holding.cost_basis_below_zero` (OQ-171), `transaction.schedule_started`, `transaction.holding_in_use` (OQ-201), `transaction.changed` (the transaction, or something it names, changed by a concurrent request — reload and retry, OQ-203).
      */
     409: Error;
 };
@@ -2071,7 +2071,7 @@ export type EditAccountErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed` (params: the target and the claiming `budgetId` — OQ-176), `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `holding.archived` (OQ-178), `holding.not_matured` (OQ-178), `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107), `holding.insufficient_quantity`, `holding.cost_basis_below_zero` (OQ-171), `transaction.schedule_started`, `transaction.holding_in_use` (OQ-201).
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed` (params: the target and the claiming `budgetId` — OQ-176), `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `holding.archived` (OQ-178), `holding.not_matured` (OQ-178), `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107), `holding.insufficient_quantity`, `holding.cost_basis_below_zero` (OQ-171), `transaction.schedule_started`, `transaction.holding_in_use` (OQ-201), `transaction.changed` (the transaction, or something it names, changed by a concurrent request — reload and retry, OQ-203).
      */
     409: Error;
     /**
@@ -2730,7 +2730,7 @@ export type ArchiveHoldingErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed` (params: the target and the claiming `budgetId` — OQ-176), `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `holding.archived` (OQ-178), `holding.not_matured` (OQ-178), `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107), `holding.insufficient_quantity`, `holding.cost_basis_below_zero` (OQ-171), `transaction.schedule_started`, `transaction.holding_in_use` (OQ-201).
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed` (params: the target and the claiming `budgetId` — OQ-176), `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `holding.archived` (OQ-178), `holding.not_matured` (OQ-178), `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107), `holding.insufficient_quantity`, `holding.cost_basis_below_zero` (OQ-171), `transaction.schedule_started`, `transaction.holding_in_use` (OQ-201), `transaction.changed` (the transaction, or something it names, changed by a concurrent request — reload and retry, OQ-203).
      */
     409: Error;
 };
@@ -2805,7 +2805,7 @@ export type RecordMarketValueErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed` (params: the target and the claiming `budgetId` — OQ-176), `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `holding.archived` (OQ-178), `holding.not_matured` (OQ-178), `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107), `holding.insufficient_quantity`, `holding.cost_basis_below_zero` (OQ-171), `transaction.schedule_started`, `transaction.holding_in_use` (OQ-201).
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed` (params: the target and the claiming `budgetId` — OQ-176), `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `holding.archived` (OQ-178), `holding.not_matured` (OQ-178), `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107), `holding.insufficient_quantity`, `holding.cost_basis_below_zero` (OQ-171), `transaction.schedule_started`, `transaction.holding_in_use` (OQ-201), `transaction.changed` (the transaction, or something it names, changed by a concurrent request — reload and retry, OQ-203).
      */
     409: Error;
     /**
@@ -3333,7 +3333,7 @@ export type DeleteMarketValueErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed` (params: the target and the claiming `budgetId` — OQ-176), `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `holding.archived` (OQ-178), `holding.not_matured` (OQ-178), `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107), `holding.insufficient_quantity`, `holding.cost_basis_below_zero` (OQ-171), `transaction.schedule_started`, `transaction.holding_in_use` (OQ-201).
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed` (params: the target and the claiming `budgetId` — OQ-176), `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `holding.archived` (OQ-178), `holding.not_matured` (OQ-178), `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107), `holding.insufficient_quantity`, `holding.cost_basis_below_zero` (OQ-171), `transaction.schedule_started`, `transaction.holding_in_use` (OQ-201), `transaction.changed` (the transaction, or something it names, changed by a concurrent request — reload and retry, OQ-203).
      */
     409: Error;
 };
@@ -3373,7 +3373,7 @@ export type EditMarketValueErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed` (params: the target and the claiming `budgetId` — OQ-176), `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `holding.archived` (OQ-178), `holding.not_matured` (OQ-178), `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107), `holding.insufficient_quantity`, `holding.cost_basis_below_zero` (OQ-171), `transaction.schedule_started`, `transaction.holding_in_use` (OQ-201).
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed` (params: the target and the claiming `budgetId` — OQ-176), `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `holding.archived` (OQ-178), `holding.not_matured` (OQ-178), `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107), `holding.insufficient_quantity`, `holding.cost_basis_below_zero` (OQ-171), `transaction.schedule_started`, `transaction.holding_in_use` (OQ-201), `transaction.changed` (the transaction, or something it names, changed by a concurrent request — reload and retry, OQ-203).
      */
     409: Error;
     /**
@@ -3448,7 +3448,7 @@ export type RecordIndexRateErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed` (params: the target and the claiming `budgetId` — OQ-176), `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `holding.archived` (OQ-178), `holding.not_matured` (OQ-178), `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107), `holding.insufficient_quantity`, `holding.cost_basis_below_zero` (OQ-171), `transaction.schedule_started`, `transaction.holding_in_use` (OQ-201).
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed` (params: the target and the claiming `budgetId` — OQ-176), `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `holding.archived` (OQ-178), `holding.not_matured` (OQ-178), `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107), `holding.insufficient_quantity`, `holding.cost_basis_below_zero` (OQ-171), `transaction.schedule_started`, `transaction.holding_in_use` (OQ-201), `transaction.changed` (the transaction, or something it names, changed by a concurrent request — reload and retry, OQ-203).
      */
     409: Error;
     /**
@@ -3528,7 +3528,7 @@ export type EditIndexRateErrors = {
      */
     404: Error;
     /**
-     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed` (params: the target and the claiming `budgetId` — OQ-176), `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `holding.archived` (OQ-178), `holding.not_matured` (OQ-178), `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107), `holding.insufficient_quantity`, `holding.cost_basis_below_zero` (OQ-171), `transaction.schedule_started`, `transaction.holding_in_use` (OQ-201).
+     * The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed` (params: the target and the claiming `budgetId` — OQ-176), `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `holding.archived` (OQ-178), `holding.not_matured` (OQ-178), `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107), `holding.insufficient_quantity`, `holding.cost_basis_below_zero` (OQ-171), `transaction.schedule_started`, `transaction.holding_in_use` (OQ-201), `transaction.changed` (the transaction, or something it names, changed by a concurrent request — reload and retry, OQ-203).
      */
     409: Error;
     /**

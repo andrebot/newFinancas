@@ -144,13 +144,20 @@ sequenceDiagram
         end
         TM->>BA: accrueIfClaimed({accountScope, currency, categoryId, subcategoryId, &plusmn;amount, date})
         BA-->>TM: spend updated (any kind may carry a category, money in subtracts &mdash; OQ-201)
-        TM->>ATA: insert(accountTransaction, effect, {quantityDelta, costBasisDelta}, createdBy)
-        ATA-->>TM: transactionId
+        TM->>ATA: insert({…transaction, effect, trade: {quantityDelta, costBasisDelta}, createdByUserId})
+        alt an Account, Holding, card or user it names was deleted meanwhile
+            ATA-->>TM: {ok: false, reason: reference_not_found}
+            Note over TM: refuse &mdash; the unit of work rolls every write above back (OQ-107)
+            TM-->>API: Conflict
+            API-->>User: 409 transaction.changed (retry gets the precise 404)
+        else recorded
+            ATA-->>TM: {ok: true, transaction}
+            TM-->>LOG: logActivity(correlationId, actor, "RecordTransaction")
+            TM-->>LOG: recordAudit(actor, "Transaction", transactionId)
+            TM-->>API: transaction
+            API-->>User: 201 Created {transaction}
+        end
     end
-    TM-->>LOG: logActivity(correlationId, actor, "RecordTransaction")
-    TM-->>LOG: recordAudit(actor, "Transaction", transactionId)
-    TM-->>API: transactionId
-    API-->>User: 201 Created {transactionId}
 """,
     notes="""
     <ul>
@@ -242,12 +249,20 @@ sequenceDiagram
             TM->>CCA: applyMovement(cardId, {newSignedAmount, currency, newDate})
         end
         TM->>BA: accrueIfClaimed({accountScope, currency, newCategoryId, newSubcategoryId, &plusmn;newAmount, newDate})
-        TM->>ATA: update(transactionId, input, {newQuantityDelta, newCostBasisDelta})
-        ATA-->>TM: updated
-        TM-->>LOG: logActivity(correlationId, actor, "EditTransaction")
-        TM-->>LOG: recordAudit(actor, "Transaction", transactionId)
-        TM-->>API: updated
-        API-->>User: 200 OK
+        TM->>ATA: update(transactionId, expected, {values, trade: {newQuantityDelta, newCostBasisDelta}})
+        Note over ATA: guarded by the values read (OQ-107)
+        alt they changed meanwhile
+            ATA-->>TM: stale
+            Note over TM: refuse &mdash; the unit of work rolls the reverse and reapply back
+            TM-->>API: Conflict
+            API-->>User: 409 transaction.changed (reload and retry)
+        else updated
+            ATA-->>TM: {status: updated, transaction}
+            TM-->>LOG: logActivity(correlationId, actor, "EditTransaction")
+            TM-->>LOG: recordAudit(actor, "Transaction", transactionId)
+            TM-->>API: transaction
+            API-->>User: 200 OK
+        end
     end
 """,
     notes="""
@@ -292,8 +307,8 @@ sequenceDiagram
         TM-->>API: Conflict
         API-->>User: 409 transaction.schedule_started (OQ-201)
     else the buy that created its Holding, and other transactions reference it
-        TM->>ATA: countForHolding(holdingId)
-        ATA-->>TM: n &gt; 1
+        TM->>ATA: countForHolding(holdingId, buyId)
+        ATA-->>TM: n &gt; 0
         TM-->>API: Conflict
         API-->>User: 409 transaction.holding_in_use {count} (OQ-201)
     else authorized
@@ -319,12 +334,19 @@ sequenceDiagram
             TM->>CCA: applyMovement(cardId, {-signedAmount, currency, date})
         end
         TM->>BA: accrueIfClaimed({accountScope, currency, categoryId, subcategoryId, &mp;amount, date})
-        TM->>ATA: delete(transactionId)
-        ATA-->>TM: deleted
-        TM-->>LOG: logActivity(correlationId, actor, "DeleteTransaction")
-        TM-->>LOG: recordAudit(actor, "Transaction", transactionId)
-        TM-->>API: deleted
-        API-->>User: 204 No Content
+        TM->>ATA: delete(transactionId, expected)
+        alt the values read changed meanwhile
+            ATA-->>TM: stale
+            Note over TM: refuse &mdash; the unit of work rolls every reversal back (OQ-107)
+            TM-->>API: Conflict
+            API-->>User: 409 transaction.changed (reload and retry)
+        else deleted
+            ATA-->>TM: deleted
+            TM-->>LOG: logActivity(correlationId, actor, "DeleteTransaction")
+            TM-->>LOG: recordAudit(actor, "Transaction", transactionId)
+            TM-->>API: deleted
+            API-->>User: 204 No Content
+        end
     end
 """,
     notes="""
@@ -359,7 +381,15 @@ sequenceDiagram
         TM->>CTA: list(filters within scope, cursor, limit)
         CTA-->>TM: page
     end
-    Note over TM: merge newest-first, cut to limit, the next cursor, day totals and month counts<br/>for the days and months in the page, over the whole filtered set (OQ-201)
+    Note over TM: merge newest-first, cut to limit, the next cursor
+    par account ledger
+        TM->>ATA: dayTotals(filter, page's days) + monthCounts(filter, page's months)
+        ATA-->>TM: sums by day, currency and kind &mdash; counts by month
+    and card ledger
+        TM->>CTA: dayTotals(filter, page's days) + monthCounts(filter, page's months)
+        CTA-->>TM: sums by day, currency and kind &mdash; counts by month
+    end
+    Note over TM: sign each kind's sum and add up per day and currency &mdash; over the<br/>whole filtered set, not only the page (OQ-201)
     TM-->>API: {items, dayTotals, monthCounts, nextCursor}
     API-->>User: 200 OK
 """,
@@ -399,7 +429,7 @@ sequenceDiagram
     IM->>AZ: visibleScope(actor)
     AZ-->>IM: scope
     IM->>RE: monthOverview(scope, year, month)
-    RE->>ATA: sums by currency and effect, per month of the year
+    RE->>ATA: monthlySums(accountIds, from, to) &mdash; by month, currency, kind and stored effect
     RE->>CTA: charge/refund sums by currency, per month
     Note over RE: in / out / net per currency &mdash; excluding own-account<br/>transfers and bill payments (effect column, FR-3.6/3.11)
     RE->>AA: balancesAsOf(accountIds, month) &mdash; month-end balances (FR-6.6)

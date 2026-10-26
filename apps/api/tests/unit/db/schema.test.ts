@@ -52,6 +52,7 @@ describe('database schema (02-data-model.md)', () => {
       'account_transactions.account_id': 'accounts cascade',
       'account_transactions.category_id': 'categories no action',
       'account_transactions.credit_card_id': 'credit_cards set null',
+      'account_transactions.created_by_user_id': 'users no action',
       'account_transactions.holding_id': 'investment_holdings no action',
       'account_transactions.subcategory_id': 'subcategories no action',
       'budget_periods.budget_id': 'budgets set null',
@@ -96,8 +97,9 @@ describe('database schema (02-data-model.md)', () => {
     const actorColumns = Object.keys(foreignKeys())
       .filter((key) => /\.(owner_user_id|invited_by_user_id|created_by_user_id)$/.test(key));
 
-    // accounts/budgets/budget_targets/goals owner, invitations inviter, index rate creator.
-    expect(actorColumns).toHaveLength(6);
+    // accounts/budgets/budget_targets/goals owner, invitations inviter, index rate and
+    // account transaction creators.
+    expect(actorColumns).toHaveLength(7);
     actorColumns.forEach((key) => {
       const [table, column] = key.split('.');
       const nullable = config(table!).columns.find((candidate) => candidate.name === column);
