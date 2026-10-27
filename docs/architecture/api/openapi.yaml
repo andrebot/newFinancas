@@ -1641,7 +1641,9 @@ paths:
             `transaction.investment_not_allowed_on_account` (OQ-76),
             `transaction.subcategory_mismatch` (FR-3.4),
             `category.archived` (a new transaction can't use an archived
-            Category — OQ-201), or `validation.failed` with `details[]`
+            Category — OQ-201), `index_rate.missing` (a fixed-term buy
+            whose index has no value recorded yet; params: `indexCode` —
+            OQ-205), or `validation.failed` with `details[]`
             (missing fields per kind).
           content:
             application/json:
@@ -1701,7 +1703,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
         "422":
-          description: '`validation.failed` — e.g. a field the kind has no use for (quantity on a cash kind, rate on a market-priced buy); `transaction.subcategory_mismatch`; `category.archived` (a newly chosen archived Category — the one it already has may stay).'
+          description: '`validation.failed` — e.g. a field the kind has no use for (quantity on a cash kind, rate on a market-priced buy); `transaction.subcategory_mismatch`; `category.archived` (a newly chosen archived Category — the one it already has may stay); `index_rate.missing` (the schedule is recomputed and its index has no value — OQ-205).'
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
@@ -2483,7 +2485,7 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
     ValidationError:
-      description: 'Request body failed validation. Codes: `validation.failed` with `details[]`, or specific codes such as `password.too_short`, `transaction.investment_not_allowed_on_account`, `transaction.kind_not_allowed_for_target`, `transaction.currency_mismatch`, `transaction.subcategory_mismatch`, `category.archived` (OQ-201), `account.cards_not_allowed` (FR-2.7).'
+      description: 'Request body failed validation. Codes: `validation.failed` with `details[]`, or specific codes such as `password.too_short`, `transaction.investment_not_allowed_on_account`, `transaction.kind_not_allowed_for_target`, `transaction.currency_mismatch`, `transaction.subcategory_mismatch`, `category.archived` (OQ-201), `index_rate.missing` (OQ-205), `account.cards_not_allowed` (FR-2.7).'
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
@@ -3087,6 +3089,10 @@ components:
             - $ref: '#/components/schemas/InterestPayment'
             - type: "null"
           description: Fixed-term only — when the contract pays interest (OQ-201)
+        dueDate:
+          type: [string, "null"]
+          format: date
+          description: Fixed-term only — the contract's maturity date, as typed on the buy (OQ-205); the redemption posts on the following business day
         archivedBy:
           type: [string, "null"]
           enum:
@@ -3095,16 +3101,28 @@ components:
             - null
           description: '`system` = quantity reached 0, undone automatically if that transaction changes (OQ-80); `user` = one-way'
         expectedPayout:
-          $ref: '#/components/schemas/Money'
-          description: Fixed-term only, computed on read by InvestmentProductEngine.project (FR-11.2) — gross at maturity
+          oneOf:
+            - $ref: '#/components/schemas/Money'
+            - type: "null"
+          description: Fixed-term only, computed on read by InvestmentProductEngine.project (FR-11.2) — gross at maturity; null when the projection is unavailable
         expectedTaxes:
           type: [object, "null"]
-          description: 'Fixed-term only. `estimated: false` for US instruments (OQ-79)'
+          description: 'Fixed-term only. `estimated: false` for US instruments (OQ-79); null when the projection is unavailable'
           properties:
             estimated:
               type: boolean
             amount:
               $ref: '#/components/schemas/Money'
+        projectionUnavailable:
+          type: [object, "null"]
+          description: 'Fixed-term only — why `expectedPayout` and `expectedTaxes` are null: the index the rate tracks has no value recorded yet (OQ-205). Null when projected.'
+          required: [reason, indexCode]
+          properties:
+            reason:
+              type: string
+              enum: [index_missing]
+            indexCode:
+              $ref: '#/components/schemas/IndexCode'
 
     HoldingUpdateRequest:
       type: object

@@ -5377,6 +5377,47 @@ the selection shows the Account's whole story. TransactionManager (task 103)
 passes `CardTransactionAccessor.list` the visible cards that are picked or
 belong to a picked Account (all visible cards when nothing is picked).
 
+### OQ-205: Fixed-income conventions the readiness pass left open (task E1)
+**Confirmed with the stakeholder (Oct 2026)**, at task 101 (`E1`) — the
+conventions OQ-201 (D12–D14) leaves to the Engine:
+- **An index with no recorded value refuses — nothing is projected from a
+  made-up rate.** Index rates stay household-scoped (FR-11.6). `schedule`
+  and `project` answer `{ok: false, reason: 'index_missing', indexCode}`
+  for an index-linked rate whose index has no value (a fixed rate reads
+  none). Its callers:
+  - **A buy (or an edit that recomputes the schedule) is refused** —
+    `TransactionManager` answers 422 `index_rate.missing` (params: the
+    `indexCode`), nothing written; record a value for that index first.
+    So a fixed-term Holding always has its schedule.
+  - **The Holding read degrades** — `InsightsManager` returns that Holding
+    with `expectedPayout` and `expectedTaxes` null and
+    `projectionUnavailable: {reason: 'index_missing', indexCode}`, so the
+    UI can ask for the index value; the other Holdings are unaffected.
+  (It first counted the missing index as 0% — IPCA + 5.5% projecting at
+  5.5%, 110% of CDI projecting no interest — rejected: a buy would store a
+  schedule with no interest at all.)
+- **A payment on a weekend or holiday rolls to the following business day**
+  (Brazil: weekends + the coded holidays; US: weekends only) — every entry,
+  maturity included. Interest accrues to the contract dates, so Brazil's
+  business-day count is unchanged.
+- **Coupons count back from the due date** in 1- or 6-month steps, its day
+  of the month kept (capped at a month's end); a short period falls first.
+  Each period accrues from the principal alone (no compounding across
+  rounded amounts); each amount is rounded once, half-up (OQ-87).
+- **Brazil's regressive income tax**, by calendar days from the purchase
+  to each payment: up to 180 days 22.5%, up to 360 20%, up to 720 17.5%,
+  over 720 15% — each coupon at its own bracket. Exempt types (LCI, LCA,
+  CRA, CRI, incentivised debentures) and US types (not estimated, OQ-79)
+  get no tax entry, as an entry's amount is positive.
+- **`project`'s `expectedPayout` is the principal plus all gross interest**
+  over the contract (mockup 51: 140,000 → 212,200), `expectedTaxes` the
+  total tax (`estimated: false`, no amount, for US types) — the same
+  computation as `schedule`, with the index value read now.
+- **The due date is kept on the Holding** (`due_date`, set exactly when the
+  rate is, migration 0012): D6 recomputes the schedule when only the rate
+  changes, and `project` needs the contract's date — a rolled redemption
+  date isn't it. The purchase date stays the buy's own date.
+
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
 *(None currently — OQ-29, the last item here, was resolved during data

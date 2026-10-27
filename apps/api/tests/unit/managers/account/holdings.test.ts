@@ -43,6 +43,8 @@ const holding = (changes: object = {}) => ({
   rateType: 'cdi',
   rateValue: 1100000,
   incentivised: null,
+  interestPayment: 'at_maturity' as const,
+  dueDate: '2027-05-03',
   archivedAt: null,
   archivedBy: null,
   maturedNotifiedAt: null,

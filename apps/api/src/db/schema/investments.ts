@@ -7,7 +7,9 @@ import {
   CASCADE, createdAt, id, instant, integerAmount, isOneOf,
 } from './columns';
 import { households, users } from './identity';
-import { ARCHIVED_BY, RATE_TYPES, VISIBILITIES } from './values';
+import {
+  ARCHIVED_BY, INTEREST_PAYMENTS, RATE_TYPES, VISIBILITIES,
+} from './values';
 
 // Investments & Goals (02-data-model.md) — InvestmentHoldingAccessor,
 // IndexRateAccessor, GoalAccessor. Valuation snapshots live in valuations.ts.
@@ -23,6 +25,10 @@ export const investmentHoldings = pgTable('investment_holdings', {
   rateType: text('rate_type'),
   rateValue: integerAmount('rate_value'),
   incentivised: boolean('incentivised'),
+  // Fixed-term types only, from the buy (OQ-201) — the Engine recomputes from it.
+  interestPayment: text('interest_payment'),
+  // Fixed-term types only: the contract's maturity date, as typed (OQ-205).
+  dueDate: date('due_date'),
   archivedAt: instant('archived_at'),
   archivedBy: text('archived_by'),
   maturedNotifiedAt: instant('matured_notified_at'),
@@ -32,6 +38,18 @@ export const investmentHoldings = pgTable('investment_holdings', {
   check(
     'investment_holdings_rate_pair_check',
     sql`(${table.rateType} IS NULL) = (${table.rateValue} IS NULL)`,
+  ),
+  check(
+    'investment_holdings_interest_payment_check',
+    isOneOf(table.interestPayment, INTEREST_PAYMENTS),
+  ),
+  check(
+    'investment_holdings_interest_payment_pair_check',
+    sql`(${table.rateType} IS NULL) = (${table.interestPayment} IS NULL)`,
+  ),
+  check(
+    'investment_holdings_due_date_pair_check',
+    sql`(${table.rateType} IS NULL) = (${table.dueDate} IS NULL)`,
   ),
   check('investment_holdings_archived_by_check', isOneOf(table.archivedBy, ARCHIVED_BY)),
   check(

@@ -128,9 +128,15 @@ sequenceDiagram
                 Note over TM,IPE: dueDate, rate and the debenture incentivised flag are<br/>user-supplied &mdash; not derivable from assetType alone (OQ-50, OQ-79)
                 TM->>IPE: schedule(householdId, {assetType, incentivised, date, amount, dueDate, rate, interestPayment})
                 Note over IPE: reads the latest index value itself for an index-linked rate &mdash; amounts are projections,<br/>BR business days (252), US actual/365, at maturity interest + tax + redemption (OQ-201)
-                IPE-->>TM: entries &mdash; tax rules coded per type, US = none estimated
-                TM->>IHA: applySchedule(holdingId, schedule)
-                IHA-->>TM: schedule stored (replace-all, refused once an entry posted, OQ-171)
+                alt the index has no value yet (OQ-205)
+                    IPE-->>TM: {ok: false, reason: index_missing, indexCode}
+                    TM-->>API: refused &mdash; nothing kept
+                    API-->>User: 422 index_rate.missing {indexCode}
+                else
+                    IPE-->>TM: entries &mdash; tax rules coded per type, US = none estimated
+                    TM->>IHA: applySchedule(holdingId, schedule)
+                    IHA-->>TM: schedule stored (replace-all, refused once an entry posted, OQ-171)
+                end
             end
             opt allocations provided (OQ-54, OQ-168)
                 TM->>GA: findByIds(householdId, goalIds)
@@ -247,8 +253,14 @@ sequenceDiagram
             end
             opt a fixed-term buy whose terms, amount or date changed (schedule not started)
                 TM->>IPE: schedule(householdId, {new terms})
-                IPE-->>TM: entries
-                TM->>IHA: applySchedule(holdingId, entries) &mdash; replace-all (OQ-171)
+                alt the index has no value yet (OQ-205)
+                    IPE-->>TM: {ok: false, reason: index_missing, indexCode}
+                    TM-->>API: refused &mdash; nothing kept
+                    API-->>User: 422 index_rate.missing {indexCode}
+                else
+                    IPE-->>TM: entries
+                    TM->>IHA: applySchedule(holdingId, entries) &mdash; replace-all (OQ-171)
+                end
             end
             alt quantity = 0
                 TM->>IHA: archive(holdingId, by = system)

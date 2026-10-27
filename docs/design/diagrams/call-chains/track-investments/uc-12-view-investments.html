@@ -135,7 +135,7 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain:</strong> <code>InsightsManager</code> ① <code>AuthorizationUtility</code> → ② <code>ReportingEngine</code> (net worth + change, payout this month + 12-month series from dividend/interest transactions, allocations, coming due, positions) → ③ its reads → ④ <code>InvestmentProductEngine.project(holding)</code> per fixed-term holding → ⑤ <code>IndexRateAccessor.latest(householdId, index)</code>.</p>
+    <p><strong>Chain:</strong> <code>InsightsManager</code> ① <code>AuthorizationUtility</code> → ② <code>ReportingEngine</code> (net worth + change, payout this month + 12-month series from dividend/interest transactions, allocations, coming due, positions) → ③ its reads → ④ <code>InvestmentProductEngine.project(householdId, terms)</code> per fixed-term holding (its terms off the Holding and its buy, OQ-205) → ⑤ <code>IndexRateAccessor.latest(householdId, index)</code>.</p>
     <p><strong>Two Engines, side by side, never calling each other</strong> — the Manager composes both results. Payout is never stored (FR-5.9); projections are computed on read (FR-11.2).</p>
   </div>
 

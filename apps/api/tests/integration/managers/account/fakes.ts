@@ -1,5 +1,6 @@
 import { vi } from 'vitest';
 import type { AccountDeps } from '../../../../src/managers/account';
+import type { InterestPayment } from '../../../../src/db/schema/values';
 
 // The tier below AccountManager, mocked (BDT: Managers are tested at the seam,
 // with their Accessors and Utilities mocked). Each test programs what it needs.
@@ -101,6 +102,8 @@ export const HOLDING = {
   rateType: null as string | null,
   rateValue: null as number | null,
   incentivised: null as boolean | null,
+  interestPayment: null as InterestPayment | null,
+  dueDate: null as string | null,
   archivedAt: null as Date | null,
   archivedBy: null as 'system' | 'user' | null,
   maturedNotifiedAt: null as Date | null,

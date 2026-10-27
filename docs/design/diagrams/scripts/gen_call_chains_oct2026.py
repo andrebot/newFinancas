@@ -141,7 +141,7 @@ write(TI / "uc-04-generate-scheduled-cash-event.html", "Call Chain — Generate 
 write(TI / "uc-12-view-investments.html", "Call Chain — View Investments", f"Use case 12 of 12 in {T}, FR-5.3/5.4, FR-5.9, FR-11.2, FR-11.6. View. {ADDED}",
       E((1, "mgr-insights", "util-authz"), (2, "mgr-insights", "eng-reporting"), (3, "eng-reporting", "acc-holding"), (3, "eng-reporting", "acc-snapshot"), (3, "eng-reporting", "acc-accounttxn"), (3, "eng-reporting", "acc-account"),
         (4, "mgr-insights", "eng-product"), (5, "eng-product", "acc-indexrate")),
-      ["<strong>Chain:</strong> <code>InsightsManager</code> ① <code>AuthorizationUtility</code> → ② <code>ReportingEngine</code> (net worth + change, payout this month + 12-month series from dividend/interest transactions, allocations, coming due, positions) → ③ its reads → ④ <code>InvestmentProductEngine.project(holding)</code> per fixed-term holding → ⑤ <code>IndexRateAccessor.latest(householdId, index)</code>.",
+      ["<strong>Chain:</strong> <code>InsightsManager</code> ① <code>AuthorizationUtility</code> → ② <code>ReportingEngine</code> (net worth + change, payout this month + 12-month series from dividend/interest transactions, allocations, coming due, positions) → ③ its reads → ④ <code>InvestmentProductEngine.project(householdId, terms)</code> per fixed-term holding (its terms off the Holding and its buy, OQ-205) → ⑤ <code>IndexRateAccessor.latest(householdId, index)</code>.",
        "<strong>Two Engines, side by side, never calling each other</strong> — the Manager composes both results. Payout is never stored (FR-5.9); projections are computed on read (FR-11.2)."])
 
 INS = CC / "insights-reports"

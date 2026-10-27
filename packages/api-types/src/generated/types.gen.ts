@@ -459,19 +459,30 @@ export type InvestmentHolding = {
      */
     interestPayment?: InterestPayment | null;
     /**
+     * Fixed-term only — the contract's maturity date, as typed on the buy (OQ-205); the redemption posts on the following business day
+     */
+    dueDate?: string | null;
+    /**
      * `system` = quantity reached 0, undone automatically if that transaction changes (OQ-80); `user` = one-way
      */
     archivedBy?: 'system' | 'user' | null;
     /**
-     * Fixed-term only, computed on read by InvestmentProductEngine.project (FR-11.2) — gross at maturity
+     * Fixed-term only, computed on read by InvestmentProductEngine.project (FR-11.2) — gross at maturity; null when the projection is unavailable
      */
-    expectedPayout?: Money;
+    expectedPayout?: Money | null;
     /**
-     * Fixed-term only. `estimated: false` for US instruments (OQ-79)
+     * Fixed-term only. `estimated: false` for US instruments (OQ-79); null when the projection is unavailable
      */
     expectedTaxes?: {
         estimated?: boolean;
         amount?: Money;
+    } | null;
+    /**
+     * Fixed-term only — why `expectedPayout` and `expectedTaxes` are null: the index the rate tracks has no value recorded yet (OQ-205). Null when projected.
+     */
+    projectionUnavailable?: {
+        reason: 'index_missing';
+        indexCode: IndexCode;
     } | null;
 };
 
@@ -1104,7 +1115,7 @@ export type RegisterUserErrors = {
      */
     409: Error;
     /**
-     * Request body failed validation. Codes: `validation.failed` with `details[]`, or specific codes such as `password.too_short`, `transaction.investment_not_allowed_on_account`, `transaction.kind_not_allowed_for_target`, `transaction.currency_mismatch`, `transaction.subcategory_mismatch`, `category.archived` (OQ-201), `account.cards_not_allowed` (FR-2.7).
+     * Request body failed validation. Codes: `validation.failed` with `details[]`, or specific codes such as `password.too_short`, `transaction.investment_not_allowed_on_account`, `transaction.kind_not_allowed_for_target`, `transaction.currency_mismatch`, `transaction.subcategory_mismatch`, `category.archived` (OQ-201), `index_rate.missing` (OQ-205), `account.cards_not_allowed` (FR-2.7).
      */
     422: Error;
 };
@@ -1426,7 +1437,7 @@ export type EditCurrentUserData = {
 
 export type EditCurrentUserErrors = {
     /**
-     * Request body failed validation. Codes: `validation.failed` with `details[]`, or specific codes such as `password.too_short`, `transaction.investment_not_allowed_on_account`, `transaction.kind_not_allowed_for_target`, `transaction.currency_mismatch`, `transaction.subcategory_mismatch`, `category.archived` (OQ-201), `account.cards_not_allowed` (FR-2.7).
+     * Request body failed validation. Codes: `validation.failed` with `details[]`, or specific codes such as `password.too_short`, `transaction.investment_not_allowed_on_account`, `transaction.kind_not_allowed_for_target`, `transaction.currency_mismatch`, `transaction.subcategory_mismatch`, `category.archived` (OQ-201), `index_rate.missing` (OQ-205), `account.cards_not_allowed` (FR-2.7).
      */
     422: Error;
 };
@@ -1553,7 +1564,7 @@ export type CreateHouseholdData = {
 
 export type CreateHouseholdErrors = {
     /**
-     * Request body failed validation. Codes: `validation.failed` with `details[]`, or specific codes such as `password.too_short`, `transaction.investment_not_allowed_on_account`, `transaction.kind_not_allowed_for_target`, `transaction.currency_mismatch`, `transaction.subcategory_mismatch`, `category.archived` (OQ-201), `account.cards_not_allowed` (FR-2.7).
+     * Request body failed validation. Codes: `validation.failed` with `details[]`, or specific codes such as `password.too_short`, `transaction.investment_not_allowed_on_account`, `transaction.kind_not_allowed_for_target`, `transaction.currency_mismatch`, `transaction.subcategory_mismatch`, `category.archived` (OQ-201), `index_rate.missing` (OQ-205), `account.cards_not_allowed` (FR-2.7).
      */
     422: Error;
 };
@@ -1709,7 +1720,7 @@ export type ChangeMemberRoleErrors = {
      */
     409: Error;
     /**
-     * Request body failed validation. Codes: `validation.failed` with `details[]`, or specific codes such as `password.too_short`, `transaction.investment_not_allowed_on_account`, `transaction.kind_not_allowed_for_target`, `transaction.currency_mismatch`, `transaction.subcategory_mismatch`, `category.archived` (OQ-201), `account.cards_not_allowed` (FR-2.7).
+     * Request body failed validation. Codes: `validation.failed` with `details[]`, or specific codes such as `password.too_short`, `transaction.investment_not_allowed_on_account`, `transaction.kind_not_allowed_for_target`, `transaction.currency_mismatch`, `transaction.subcategory_mismatch`, `category.archived` (OQ-201), `index_rate.missing` (OQ-205), `account.cards_not_allowed` (FR-2.7).
      */
     422: Error;
 };
@@ -2007,7 +2018,7 @@ export type CreateAccountErrors = {
      */
     404: Error;
     /**
-     * Request body failed validation. Codes: `validation.failed` with `details[]`, or specific codes such as `password.too_short`, `transaction.investment_not_allowed_on_account`, `transaction.kind_not_allowed_for_target`, `transaction.currency_mismatch`, `transaction.subcategory_mismatch`, `category.archived` (OQ-201), `account.cards_not_allowed` (FR-2.7).
+     * Request body failed validation. Codes: `validation.failed` with `details[]`, or specific codes such as `password.too_short`, `transaction.investment_not_allowed_on_account`, `transaction.kind_not_allowed_for_target`, `transaction.currency_mismatch`, `transaction.subcategory_mismatch`, `category.archived` (OQ-201), `index_rate.missing` (OQ-205), `account.cards_not_allowed` (FR-2.7).
      */
     422: Error;
 };
@@ -2075,7 +2086,7 @@ export type EditAccountErrors = {
      */
     409: Error;
     /**
-     * Request body failed validation. Codes: `validation.failed` with `details[]`, or specific codes such as `password.too_short`, `transaction.investment_not_allowed_on_account`, `transaction.kind_not_allowed_for_target`, `transaction.currency_mismatch`, `transaction.subcategory_mismatch`, `category.archived` (OQ-201), `account.cards_not_allowed` (FR-2.7).
+     * Request body failed validation. Codes: `validation.failed` with `details[]`, or specific codes such as `password.too_short`, `transaction.investment_not_allowed_on_account`, `transaction.kind_not_allowed_for_target`, `transaction.currency_mismatch`, `transaction.subcategory_mismatch`, `category.archived` (OQ-201), `index_rate.missing` (OQ-205), `account.cards_not_allowed` (FR-2.7).
      */
     422: Error;
 };
@@ -2255,7 +2266,7 @@ export type CreateCategoryErrors = {
      */
     404: Error;
     /**
-     * Request body failed validation. Codes: `validation.failed` with `details[]`, or specific codes such as `password.too_short`, `transaction.investment_not_allowed_on_account`, `transaction.kind_not_allowed_for_target`, `transaction.currency_mismatch`, `transaction.subcategory_mismatch`, `category.archived` (OQ-201), `account.cards_not_allowed` (FR-2.7).
+     * Request body failed validation. Codes: `validation.failed` with `details[]`, or specific codes such as `password.too_short`, `transaction.investment_not_allowed_on_account`, `transaction.kind_not_allowed_for_target`, `transaction.currency_mismatch`, `transaction.subcategory_mismatch`, `category.archived` (OQ-201), `index_rate.missing` (OQ-205), `account.cards_not_allowed` (FR-2.7).
      */
     422: Error;
 };
@@ -2319,7 +2330,7 @@ export type EditCategoryErrors = {
      */
     404: Error;
     /**
-     * Request body failed validation. Codes: `validation.failed` with `details[]`, or specific codes such as `password.too_short`, `transaction.investment_not_allowed_on_account`, `transaction.kind_not_allowed_for_target`, `transaction.currency_mismatch`, `transaction.subcategory_mismatch`, `category.archived` (OQ-201), `account.cards_not_allowed` (FR-2.7).
+     * Request body failed validation. Codes: `validation.failed` with `details[]`, or specific codes such as `password.too_short`, `transaction.investment_not_allowed_on_account`, `transaction.kind_not_allowed_for_target`, `transaction.currency_mismatch`, `transaction.subcategory_mismatch`, `category.archived` (OQ-201), `index_rate.missing` (OQ-205), `account.cards_not_allowed` (FR-2.7).
      */
     422: Error;
 };
@@ -2445,7 +2456,7 @@ export type CreateBudgetErrors = {
      */
     409: Error;
     /**
-     * Request body failed validation. Codes: `validation.failed` with `details[]`, or specific codes such as `password.too_short`, `transaction.investment_not_allowed_on_account`, `transaction.kind_not_allowed_for_target`, `transaction.currency_mismatch`, `transaction.subcategory_mismatch`, `category.archived` (OQ-201), `account.cards_not_allowed` (FR-2.7).
+     * Request body failed validation. Codes: `validation.failed` with `details[]`, or specific codes such as `password.too_short`, `transaction.investment_not_allowed_on_account`, `transaction.kind_not_allowed_for_target`, `transaction.currency_mismatch`, `transaction.subcategory_mismatch`, `category.archived` (OQ-201), `index_rate.missing` (OQ-205), `account.cards_not_allowed` (FR-2.7).
      */
     422: Error;
 };
@@ -2545,7 +2556,7 @@ export type EditBudgetErrors = {
      */
     409: Error;
     /**
-     * Request body failed validation. Codes: `validation.failed` with `details[]`, or specific codes such as `password.too_short`, `transaction.investment_not_allowed_on_account`, `transaction.kind_not_allowed_for_target`, `transaction.currency_mismatch`, `transaction.subcategory_mismatch`, `category.archived` (OQ-201), `account.cards_not_allowed` (FR-2.7).
+     * Request body failed validation. Codes: `validation.failed` with `details[]`, or specific codes such as `password.too_short`, `transaction.investment_not_allowed_on_account`, `transaction.kind_not_allowed_for_target`, `transaction.currency_mismatch`, `transaction.subcategory_mismatch`, `category.archived` (OQ-201), `index_rate.missing` (OQ-205), `account.cards_not_allowed` (FR-2.7).
      */
     422: Error;
 };
@@ -2666,7 +2677,7 @@ export type EditHoldingErrors = {
      */
     409: Error;
     /**
-     * Request body failed validation. Codes: `validation.failed` with `details[]`, or specific codes such as `password.too_short`, `transaction.investment_not_allowed_on_account`, `transaction.kind_not_allowed_for_target`, `transaction.currency_mismatch`, `transaction.subcategory_mismatch`, `category.archived` (OQ-201), `account.cards_not_allowed` (FR-2.7).
+     * Request body failed validation. Codes: `validation.failed` with `details[]`, or specific codes such as `password.too_short`, `transaction.investment_not_allowed_on_account`, `transaction.kind_not_allowed_for_target`, `transaction.currency_mismatch`, `transaction.subcategory_mismatch`, `category.archived` (OQ-201), `index_rate.missing` (OQ-205), `account.cards_not_allowed` (FR-2.7).
      */
     422: Error;
 };
@@ -2809,7 +2820,7 @@ export type RecordMarketValueErrors = {
      */
     409: Error;
     /**
-     * Request body failed validation. Codes: `validation.failed` with `details[]`, or specific codes such as `password.too_short`, `transaction.investment_not_allowed_on_account`, `transaction.kind_not_allowed_for_target`, `transaction.currency_mismatch`, `transaction.subcategory_mismatch`, `category.archived` (OQ-201), `account.cards_not_allowed` (FR-2.7).
+     * Request body failed validation. Codes: `validation.failed` with `details[]`, or specific codes such as `password.too_short`, `transaction.investment_not_allowed_on_account`, `transaction.kind_not_allowed_for_target`, `transaction.currency_mismatch`, `transaction.subcategory_mismatch`, `category.archived` (OQ-201), `index_rate.missing` (OQ-205), `account.cards_not_allowed` (FR-2.7).
      */
     422: Error;
 };
@@ -2924,7 +2935,7 @@ export type RecordTransactionErrors = {
      */
     409: Error;
     /**
-     * Validation failure — `transaction.currency_mismatch` (FR-2.2), `transaction.kind_not_allowed_for_target` (FR-3.1, OQ-201), `transaction.investment_not_allowed_on_account` (OQ-76), `transaction.subcategory_mismatch` (FR-3.4), `category.archived` (a new transaction can't use an archived Category — OQ-201), or `validation.failed` with `details[]` (missing fields per kind).
+     * Validation failure — `transaction.currency_mismatch` (FR-2.2), `transaction.kind_not_allowed_for_target` (FR-3.1, OQ-201), `transaction.investment_not_allowed_on_account` (OQ-76), `transaction.subcategory_mismatch` (FR-3.4), `category.archived` (a new transaction can't use an archived Category — OQ-201), `index_rate.missing` (a fixed-term buy whose index has no value recorded yet; params: `indexCode` — OQ-205), or `validation.failed` with `details[]` (missing fields per kind).
      *
      */
     422: Error;
@@ -3029,7 +3040,7 @@ export type EditTransactionErrors = {
      */
     409: Error;
     /**
-     * `validation.failed` — e.g. a field the kind has no use for (quantity on a cash kind, rate on a market-priced buy); `transaction.subcategory_mismatch`; `category.archived` (a newly chosen archived Category — the one it already has may stay).
+     * `validation.failed` — e.g. a field the kind has no use for (quantity on a cash kind, rate on a market-priced buy); `transaction.subcategory_mismatch`; `category.archived` (a newly chosen archived Category — the one it already has may stay); `index_rate.missing` (the schedule is recomputed and its index has no value — OQ-205).
      */
     422: Error;
 };
@@ -3121,7 +3132,7 @@ export type EditDashboardWidgetsData = {
 
 export type EditDashboardWidgetsErrors = {
     /**
-     * Request body failed validation. Codes: `validation.failed` with `details[]`, or specific codes such as `password.too_short`, `transaction.investment_not_allowed_on_account`, `transaction.kind_not_allowed_for_target`, `transaction.currency_mismatch`, `transaction.subcategory_mismatch`, `category.archived` (OQ-201), `account.cards_not_allowed` (FR-2.7).
+     * Request body failed validation. Codes: `validation.failed` with `details[]`, or specific codes such as `password.too_short`, `transaction.investment_not_allowed_on_account`, `transaction.kind_not_allowed_for_target`, `transaction.currency_mismatch`, `transaction.subcategory_mismatch`, `category.archived` (OQ-201), `index_rate.missing` (OQ-205), `account.cards_not_allowed` (FR-2.7).
      */
     422: Error;
 };
@@ -3377,7 +3388,7 @@ export type EditMarketValueErrors = {
      */
     409: Error;
     /**
-     * Request body failed validation. Codes: `validation.failed` with `details[]`, or specific codes such as `password.too_short`, `transaction.investment_not_allowed_on_account`, `transaction.kind_not_allowed_for_target`, `transaction.currency_mismatch`, `transaction.subcategory_mismatch`, `category.archived` (OQ-201), `account.cards_not_allowed` (FR-2.7).
+     * Request body failed validation. Codes: `validation.failed` with `details[]`, or specific codes such as `password.too_short`, `transaction.investment_not_allowed_on_account`, `transaction.kind_not_allowed_for_target`, `transaction.currency_mismatch`, `transaction.subcategory_mismatch`, `category.archived` (OQ-201), `index_rate.missing` (OQ-205), `account.cards_not_allowed` (FR-2.7).
      */
     422: Error;
 };
@@ -3452,7 +3463,7 @@ export type RecordIndexRateErrors = {
      */
     409: Error;
     /**
-     * Request body failed validation. Codes: `validation.failed` with `details[]`, or specific codes such as `password.too_short`, `transaction.investment_not_allowed_on_account`, `transaction.kind_not_allowed_for_target`, `transaction.currency_mismatch`, `transaction.subcategory_mismatch`, `category.archived` (OQ-201), `account.cards_not_allowed` (FR-2.7).
+     * Request body failed validation. Codes: `validation.failed` with `details[]`, or specific codes such as `password.too_short`, `transaction.investment_not_allowed_on_account`, `transaction.kind_not_allowed_for_target`, `transaction.currency_mismatch`, `transaction.subcategory_mismatch`, `category.archived` (OQ-201), `index_rate.missing` (OQ-205), `account.cards_not_allowed` (FR-2.7).
      */
     422: Error;
 };
@@ -3532,7 +3543,7 @@ export type EditIndexRateErrors = {
      */
     409: Error;
     /**
-     * Request body failed validation. Codes: `validation.failed` with `details[]`, or specific codes such as `password.too_short`, `transaction.investment_not_allowed_on_account`, `transaction.kind_not_allowed_for_target`, `transaction.currency_mismatch`, `transaction.subcategory_mismatch`, `category.archived` (OQ-201), `account.cards_not_allowed` (FR-2.7).
+     * Request body failed validation. Codes: `validation.failed` with `details[]`, or specific codes such as `password.too_short`, `transaction.investment_not_allowed_on_account`, `transaction.kind_not_allowed_for_target`, `transaction.currency_mismatch`, `transaction.subcategory_mismatch`, `category.archived` (OQ-201), `index_rate.missing` (OQ-205), `account.cards_not_allowed` (FR-2.7).
      */
     422: Error;
 };
@@ -3598,7 +3609,7 @@ export type CreateGoalErrors = {
      */
     404: Error;
     /**
-     * Request body failed validation. Codes: `validation.failed` with `details[]`, or specific codes such as `password.too_short`, `transaction.investment_not_allowed_on_account`, `transaction.kind_not_allowed_for_target`, `transaction.currency_mismatch`, `transaction.subcategory_mismatch`, `category.archived` (OQ-201), `account.cards_not_allowed` (FR-2.7).
+     * Request body failed validation. Codes: `validation.failed` with `details[]`, or specific codes such as `password.too_short`, `transaction.investment_not_allowed_on_account`, `transaction.kind_not_allowed_for_target`, `transaction.currency_mismatch`, `transaction.subcategory_mismatch`, `category.archived` (OQ-201), `index_rate.missing` (OQ-205), `account.cards_not_allowed` (FR-2.7).
      */
     422: Error;
 };
@@ -3725,7 +3736,7 @@ export type EditGoalErrors = {
      */
     404: Error;
     /**
-     * Request body failed validation. Codes: `validation.failed` with `details[]`, or specific codes such as `password.too_short`, `transaction.investment_not_allowed_on_account`, `transaction.kind_not_allowed_for_target`, `transaction.currency_mismatch`, `transaction.subcategory_mismatch`, `category.archived` (OQ-201), `account.cards_not_allowed` (FR-2.7).
+     * Request body failed validation. Codes: `validation.failed` with `details[]`, or specific codes such as `password.too_short`, `transaction.investment_not_allowed_on_account`, `transaction.kind_not_allowed_for_target`, `transaction.currency_mismatch`, `transaction.subcategory_mismatch`, `category.archived` (OQ-201), `index_rate.missing` (OQ-205), `account.cards_not_allowed` (FR-2.7).
      */
     422: Error;
 };

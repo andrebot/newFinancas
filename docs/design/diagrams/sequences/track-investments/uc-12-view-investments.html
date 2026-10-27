@@ -94,11 +94,16 @@ sequenceDiagram
     IM->>RE: positions(accountId)
     RE-->>IM: holdings with positions and values
     loop for each fixed-term Holding
-        IM->>IPE: project(holding)
+        IM->>IPE: project(householdId, terms) &mdash; the Holding's rate, interestPayment, dueDate + its buy's date and amount (OQ-205)
         IPE->>IRA: latest(householdId, index) &mdash; index-linked rates only
-        IRA-->>IPE: value, asOf
-        Note over IPE: coded tax rules per type (OQ-79)<br/>US: expectedTaxes = not estimated
-        IPE-->>IM: {expectedPayout, expectedTaxes}
+        IRA-->>IPE: value, asOf &mdash; or none
+        alt the index has no value yet (OQ-205)
+            IPE-->>IM: {ok: false, reason: index_missing, indexCode}
+            Note over IM: that Holding only: expectedPayout, expectedTaxes = null,<br/>projectionUnavailable = {reason, indexCode}
+        else
+            Note over IPE: coded tax rules per type (OQ-79)<br/>US: expectedTaxes = not estimated
+            IPE-->>IM: {expectedPayout, expectedTaxes}
+        end
     end
     IM-->>API: holdings
     API-->>User: 200 OK
