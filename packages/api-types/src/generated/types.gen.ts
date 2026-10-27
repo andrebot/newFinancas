@@ -603,7 +603,7 @@ export type TransactionCreateRequest = {
     dueDate?: string;
     interestPayment?: InterestPayment;
     /**
-     * investment_buy only, optional (FR-8.2/OQ-54) — allocate this purchase across one or more Goals in the same call that creates/updates the Holding, instead of a separate PATCH /holdings/{holdingId} afterward. The Holding is still the entry point (OQ-48); this is the same write, just bundled at creation time.
+     * Optional — an investment_buy allocates this purchase across one or more Goals in the same call that creates/updates the Holding, instead of a separate PATCH /holdings/{holdingId} afterward (FR-8.2/OQ-54); an investment_sell or investment_redemption carries the Holding's split — pre-filled with the current one and editable — saved with the trade (OQ-206). The Holding is still the entry point for ongoing edits (OQ-48); this is the same write, just bundled at record time.
      */
     allocations?: Array<{
         goalId: string;

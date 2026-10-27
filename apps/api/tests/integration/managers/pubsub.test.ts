@@ -6,6 +6,7 @@ import { createManagers } from '../../../src/managers';
 import type { CorrelationId } from '../../../src/utilities/correlationId';
 import { createServiceBus, type BusMessage } from '../../../src/utilities/serviceBus';
 import { fakeDeps as fakeAccountDeps } from './account/fakes';
+import { fakeDeps as fakeTransactionDeps } from './transaction/fakes';
 import {
   ANA, fakeDeps as fakeIdentityDeps, HOUSEHOLD, NOW, SESSION,
 } from './identity/fakes';
@@ -33,8 +34,9 @@ const wired = () => {
   const bus = createServiceBus({ now: () => NOW, onHandlerError });
   const identityTier = fakeIdentityDeps();
   const accountTier = fakeAccountDeps();
+  const transactionTier = fakeTransactionDeps();
   const { identity } = createManagers({
-    bus, identity: identityTier.deps, account: accountTier.deps,
+    bus, identity: identityTier.deps, account: accountTier.deps, transaction: transactionTier.deps,
   });
   return {
     bus, onHandlerError, identity, identityTier, accountTier,

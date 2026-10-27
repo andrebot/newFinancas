@@ -135,7 +135,7 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain:</strong> <code>TransactionManager</code> ① <code>AuthorizationUtility</code> → ② read + delete the ledger record (<code>countForHolding</code> for a buy — OQ-201) → ③ reverse the balance movement (a trade's cash leg too) → ④ reverse the trade, <code>unarchiveIfSystemArchived</code> (OQ-80) — or, for the buy that created a Holding nothing else references, <code>GoalAccessor.replaceAllocations(…, [])</code> and <code>InvestmentHoldingAccessor.delete</code> (OQ-201) → ⑤ <code>ValuationSnapshotAccessor.deleteAutomatic</code> → ⑥ reverse budget accrual, signed → ⑦ <code>LoggingUtility</code> (async).</p>
+    <p><strong>Chain:</strong> <code>TransactionManager</code> ① <code>AuthorizationUtility</code> → ② read + delete the ledger record (<code>countForHolding</code> for a buy — OQ-201) → ③ reverse the balance movement (a trade's cash leg too) → ④ reverse the trade, <code>unarchiveIfSystemArchived</code> (OQ-80), and undo the split this trade closed (<code>GoalAccessor.deleteFrom</code> + reopen — OQ-171) — or, for the buy that created a Holding nothing else references, <code>InvestmentHoldingAccessor.delete</code>: its Goal split, snapshots and schedule cascade with it (OQ-201, OQ-56); a transaction's own automatic snapshot dies with its row → ⑤ reverse budget accrual, signed → ⑥ <code>LoggingUtility</code> (async).</p>
     <p>A fixed-term buy whose schedule has posted can't be deleted (409 <code>transaction.schedule_started</code>); a buy whose Holding other transactions reference is refused (409 <code>transaction.holding_in_use</code>).</p>
   </div>
 
@@ -149,7 +149,7 @@
       svg.style.width = containerRect.width + 'px';
       svg.style.height = containerRect.height + 'px';
 
-      var edges = [{"from": "mgr-transaction", "to": "util-authz", "type": "sync", "order": 1}, {"from": "mgr-transaction", "to": "acc-accounttxn", "type": "sync", "order": 2}, {"from": "mgr-transaction", "to": "acc-cardtxn", "type": "sync", "order": 2}, {"from": "mgr-transaction", "to": "acc-account", "type": "sync", "order": 3}, {"from": "mgr-transaction", "to": "acc-creditcard", "type": "sync", "order": 3}, {"from": "mgr-transaction", "to": "acc-holding", "type": "sync", "order": 4}, {"from": "mgr-transaction", "to": "acc-goal", "type": "sync", "order": 4}, {"from": "mgr-transaction", "to": "acc-snapshot", "type": "sync", "order": 5}, {"from": "mgr-transaction", "to": "acc-budget", "type": "sync", "order": 6}, {"from": "mgr-transaction", "to": "util-logging", "type": "async", "order": 7}];
+      var edges = [{"from": "mgr-transaction", "to": "util-authz", "type": "sync", "order": 1}, {"from": "mgr-transaction", "to": "acc-accounttxn", "type": "sync", "order": 2}, {"from": "mgr-transaction", "to": "acc-cardtxn", "type": "sync", "order": 2}, {"from": "mgr-transaction", "to": "acc-account", "type": "sync", "order": 3}, {"from": "mgr-transaction", "to": "acc-creditcard", "type": "sync", "order": 3}, {"from": "mgr-transaction", "to": "acc-holding", "type": "sync", "order": 4}, {"from": "mgr-transaction", "to": "acc-goal", "type": "sync", "order": 4}, {"from": "mgr-transaction", "to": "acc-budget", "type": "sync", "order": 5}, {"from": "mgr-transaction", "to": "util-logging", "type": "async", "order": 6}];
 
       var activeIds = {};
       edges.forEach(function (e) { activeIds[e.from] = true; activeIds[e.to] = true; });

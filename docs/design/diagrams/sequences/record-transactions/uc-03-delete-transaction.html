@@ -99,14 +99,12 @@ sequenceDiagram
         else was an investment trade
             TM->>AA: applyMovement(accountId, {&plusmn;amount reversed, currency, date})
             alt the buy that created its Holding, nothing else references it
-                TM->>GA: replaceAllocations(householdId, holdingId, [])
                 TM->>IHA: delete(holdingId)
-                Note over IHA: the Holding goes with its buy &mdash; snapshots and schedule cascade (OQ-201)
+                Note over IHA: the Holding goes with its buy &mdash; its Goal split,<br/>snapshots and schedule cascade (OQ-201, OQ-56)
             else
                 TM->>IHA: applyTrade(holdingId, {-quantityDelta, -costBasisDelta})
-                TM->>VSA: deleteAutomatic(transactionId)
                 TM->>IHA: unarchiveIfSystemArchived(holdingId)
-                Note over IHA: if this was the sell/redemption that zeroed the<br/>Holding, it comes back (OQ-80)
+                Note over IHA: if this was the sell/redemption that zeroed the<br/>Holding, it comes back (OQ-80), and its automatic snapshot dies with the row (OQ-56)
             end
         else was a card charge/refund
             TM->>CCA: applyMovement(cardId, {-signedAmount, currency, date})

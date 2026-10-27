@@ -1595,7 +1595,10 @@ paths:
         once-separate onboarding backfill endpoint was retired (OQ-53).
         `allocations` optionally funds one or more Goals from this
         same investment_buy call (FR-8.2/OQ-54) — one call in, no
-        separate PATCH /holdings/{holdingId} follow-up required.
+        separate PATCH /holdings/{holdingId} follow-up required; an
+        investment_sell or investment_redemption carries the Holding's
+        split, pre-filled with the current one and editable, saved with
+        the trade (OQ-206).
         No recurring option (FR-3.5 removed, OQ-55). Investment kinds are
         rejected on credit-card-only accounts (422
         `transaction.investment_not_allowed_on_account`, OQ-76), and so are
@@ -3228,7 +3231,14 @@ components:
           $ref: '#/components/schemas/InterestPayment'
         allocations:
           type: array
-          description: "investment_buy only, optional (FR-8.2/OQ-54) — allocate this purchase across one or more Goals in the same call that creates/updates the Holding, instead of a separate PATCH /holdings/{holdingId} afterward. The Holding is still the entry point (OQ-48); this is the same write, just bundled at creation time."
+          description: >-
+            Optional — an investment_buy allocates this purchase across one or
+            more Goals in the same call that creates/updates the Holding,
+            instead of a separate PATCH /holdings/{holdingId} afterward (FR-8.2/OQ-54);
+            an investment_sell or investment_redemption carries the Holding's split —
+            pre-filled with the current one and editable — saved with the trade
+            (OQ-206). The Holding is still the entry point for ongoing edits (OQ-48);
+            this is the same write, just bundled at record time.
           items:
             type: object
             required:

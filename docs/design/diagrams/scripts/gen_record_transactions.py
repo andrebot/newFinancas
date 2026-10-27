@@ -89,6 +89,12 @@ sequenceDiagram
             TM-->>API: ValidationError (OQ-205 &mdash; the Engine is never called)
             API-->>User: 422 validation.failed {dueDate | rate.spread}
         else effect = movement or transfer
+            opt names a Holding (a dividend, interest or tax)
+                alt that Holding is archived by its user (FR-5.8)
+                    TM-->>API: Conflict
+                    API-->>User: 409 holding.archived &mdash; a closed position takes no events (OQ-171)
+                end
+            end
             TM->>AA: applyMovement(accountId, {amount, currency, date})
             AA-->>TM: new balance
         else effect = bill_payment
@@ -349,14 +355,12 @@ sequenceDiagram
         else was an investment trade
             TM->>AA: applyMovement(accountId, {&plusmn;amount reversed, currency, date})
             alt the buy that created its Holding, nothing else references it
-                TM->>GA: replaceAllocations(householdId, holdingId, [])
                 TM->>IHA: delete(holdingId)
-                Note over IHA: the Holding goes with its buy &mdash; snapshots and schedule cascade (OQ-201)
+                Note over IHA: the Holding goes with its buy &mdash; its Goal split,<br/>snapshots and schedule cascade (OQ-201, OQ-56)
             else
                 TM->>IHA: applyTrade(holdingId, {-quantityDelta, -costBasisDelta})
-                TM->>VSA: deleteAutomatic(transactionId)
                 TM->>IHA: unarchiveIfSystemArchived(holdingId)
-                Note over IHA: if this was the sell/redemption that zeroed the<br/>Holding, it comes back (OQ-80)
+                Note over IHA: if this was the sell/redemption that zeroed the<br/>Holding, it comes back (OQ-80), and its automatic snapshot dies with the row (OQ-56)
             end
         else was a card charge/refund
             TM->>CCA: applyMovement(cardId, {-signedAmount, currency, date})

@@ -80,7 +80,8 @@ export interface NewAccountTransaction {
   readonly creditCardId?: string;
   readonly trade?: TradeDeltas;
   readonly source?: TransactionSource;
-  readonly createdByUserId?: string;
+  /** `null` for a scheduled post, which has no user behind it (VBD §3.2a). */
+  readonly createdByUserId?: string | null;
 }
 
 export type InsertAccountTransactionResult = | {

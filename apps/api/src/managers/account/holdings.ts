@@ -5,9 +5,8 @@ import type {
 import type { InvestmentHolding, ScheduleEntry } from '../../accessors/investmentHoldingAccessor';
 import type { Role } from '../../db/schema/values';
 import type { DomainError } from '../../utilities/domainError';
-import { decide } from '../../utilities/authorization';
 import { distinctItems } from '../../utilities/validation';
-import { accessToOwned } from '../access';
+import { canSeeGoal, growsCompletedGoal, hiddenShares } from '../goalSplit';
 import type { SignedInContext } from '../requestContext';
 import { requireNoProblems } from '../validation';
 import { requestLogger, todayOf, type AccountDeps } from './context';
@@ -19,52 +18,9 @@ import { loadHolding, requireOpenHolding } from './holdingAccess';
 // Investment administration on the Holding itself (track-investments/uc-02,
 // uc-03, FR-5.8, FR-8.2/8.3, FR-11.2): its Goal split — written from the
 // Holding, never the Goal (OQ-48) — its archive from the matured notice, and
-// its schedule. Position changes only through transactions (FR-5.2).
-
-/**
- * Tells whether a member can see a Goal: every shared one, their own personal
- * ones (FR-8.1) — the permission table's `data.view`.
- *
- * @param role - The member's household role.
- * @param userId - The member.
- * @param goal - The Goal.
- * @returns `true` when it is visible to them.
- */
-export const canSeeGoal = (role: Role, userId: string, goal: Goal): boolean => (
-  decide(role, userId, accessToOwned(goal, 'data.view')) === 'allowed'
-);
-
-/**
- * The shares a split edit leaves alone: those funding Goals the editor can't
- * see, kept as they are (OQ-178).
- *
- * @param current - The Holding's split now.
- * @param visibleGoalIds - The Goals the editor can see.
- * @returns The hidden shares.
- */
-export const hiddenShares = (
-  current: readonly AllocationShare[],
-  visibleGoalIds: ReadonlySet<string>,
-): AllocationShare[] => current
-  .filter((share) => !visibleGoalIds.has(share.goalId))
-  .map(({ goalId, percentage }) => ({ goalId, percentage }));
-
-/**
- * Tells whether a split grows a completed Goal's share or adds one: a pair on a
- * completed Goal passes only unchanged (FR-8.9, OQ-168).
- *
- * @param requested - The new split.
- * @param current - The Holding's split now.
- * @param completedGoalIds - The completed Goals among those named.
- * @returns `true` when the split must be refused.
- */
-export const growsCompletedGoal = (
-  requested: readonly AllocationShare[],
-  current: readonly AllocationShare[],
-  completedGoalIds: ReadonlySet<string>,
-): boolean => requested.some((share) => completedGoalIds.has(share.goalId) && !current.some(
-  (held) => held.goalId === share.goalId && held.percentage === share.percentage,
-));
+// its schedule. Position changes only through transactions (FR-5.2). The
+// split's visibility rules live in `../goalSplit`, shared with
+// TransactionManager.
 
 /**
  * Tells whether a Holding may be archived by hand: fixed-term, still holding a

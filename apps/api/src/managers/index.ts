@@ -3,6 +3,10 @@ import {
   createAccountManager, subscribeAccountManager, type AccountDeps, type AccountManager,
 } from './account';
 import { createIdentityManager, type IdentityDeps, type IdentityManager } from './identity';
+import {
+  createTransactionManager, subscribeTransactionManager, type TransactionDeps,
+  type TransactionManager,
+} from './transaction';
 
 // The Managers, built and joined on the bus in one step (VBD §3.0, OQ-199): a
 // Manager can't be had without its subscriptions, so the composition root can't
@@ -14,12 +18,14 @@ export interface ManagersDeps {
   readonly bus: ServiceBus;
   readonly identity: Omit<IdentityDeps, 'bus'>;
   readonly account: AccountDeps;
+  readonly transaction: TransactionDeps;
 }
 
 /** Every Manager, as the HTTP app takes them. */
 export interface Managers {
   readonly identity: IdentityManager;
   readonly account: AccountManager;
+  readonly transaction: TransactionManager;
 }
 
 /**
@@ -32,5 +38,7 @@ export const createManagers = (deps: ManagersDeps): Managers => {
   const identity = createIdentityManager({ ...deps.identity, bus: deps.bus });
   const account = createAccountManager(deps.account);
   subscribeAccountManager(deps.bus, account);
-  return { identity, account };
+  const transaction = createTransactionManager(deps.transaction);
+  subscribeTransactionManager(deps.bus, transaction);
+  return { identity, account, transaction };
 };

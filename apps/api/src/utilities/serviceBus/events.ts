@@ -31,14 +31,17 @@ export interface BusEvents {
     readonly dueDate: string;
   };
   /**
-   * The daily job found a due schedule entry → TransactionManager posts it (§3.2a).
-   * Draft shape; finalised with the scheduler (N9).
+   * The daily job found a due schedule entry → TransactionManager posts it
+   * (§3.2a) through the exact Record pipeline, as the system.
    */
   readonly 'transaction.import.requested': {
     readonly scheduleEntryId: string;
+    readonly householdId: string;
+    readonly accountId: string;
     readonly holdingId: string;
     readonly kind: string;
     readonly amount: number;
+    /** `YYYY-MM-DD`, the entry's date. */
     readonly date: string;
   };
 }

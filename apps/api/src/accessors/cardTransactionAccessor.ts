@@ -49,7 +49,8 @@ export interface NewCardTransaction {
   readonly categoryId?: string;
   readonly subcategoryId?: string;
   readonly description?: string;
-  readonly createdByUserId?: string;
+  /** `null` for a post with no user behind it (VBD §3.2a) — card kinds never reach it. */
+  readonly createdByUserId?: string | null;
 }
 
 export type InsertCardTransactionResult = | {

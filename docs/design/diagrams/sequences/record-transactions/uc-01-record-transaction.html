@@ -123,6 +123,12 @@ sequenceDiagram
             TM-->>API: ValidationError (OQ-205 &mdash; the Engine is never called)
             API-->>User: 422 validation.failed {dueDate | rate.spread}
         else effect = movement or transfer
+            opt names a Holding (a dividend, interest or tax)
+                alt that Holding is archived by its user (FR-5.8)
+                    TM-->>API: Conflict
+                    API-->>User: 409 holding.archived &mdash; a closed position takes no events (OQ-171)
+                end
+            end
             TM->>AA: applyMovement(accountId, {amount, currency, date})
             AA-->>TM: new balance
         else effect = bill_payment
