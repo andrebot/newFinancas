@@ -8,7 +8,7 @@ import createGoalAccessor, {
 } from '../../../src/accessors/goalAccessor';
 import type { Database } from '../../../src/db/database';
 import {
-  accounts, goals, households, investmentHoldings, users,
+  accounts, goalAllocations, goals, households, investmentHoldings, users,
 } from '../../../src/db/schema';
 import { createMigratedDatabase, withRollback } from '../support/database';
 
@@ -20,6 +20,8 @@ afterAll(async () => {
   await pglite.close();
 });
 
+/** The day a split takes effect in most tests. */
+const DAY = '2026-10-01';
 const UNKNOWN_ID = '00000000-0000-7000-8000-000000000000';
 
 type Goals = ReturnType<typeof createGoalAccessor>;
@@ -313,7 +315,7 @@ describe('complete and reopen', () => {
     accessor, casa, stock, create, splitOf,
   }) => {
     const goalId = await create();
-    await accessor.replaceAllocations(casa, stock, split([goalId, 40]));
+    await accessor.replaceAllocations(casa, stock, split([goalId, 40]), DAY);
 
     await accessor.complete(casa, goalId);
     expect(await splitOf(stock)).toEqual([[goalId, 40]]);
@@ -338,7 +340,7 @@ describe('delete', () => {
   }) => {
     const car = await create();
     const trip = await create({ name: 'Trip' });
-    await accessor.replaceAllocations(casa, stock, split([car, 60], [trip, 20]));
+    await accessor.replaceAllocations(casa, stock, split([car, 60], [trip, 20]), DAY);
 
     expect(await accessor.delete(casa, car)).toBe(true);
 
@@ -362,7 +364,7 @@ describe('replaceAllocations', () => {
     const car = await create();
     const trip = await create({ name: 'Trip' });
 
-    expect(await accessor.replaceAllocations(casa, stock, split([car, 60], [trip, 40])))
+    expect(await accessor.replaceAllocations(casa, stock, split([car, 60], [trip, 40]), DAY))
       .toEqual({ ok: true });
     expect(await splitOf(stock)).toEqual([[car, 60], [trip, 40]]);
   }));
@@ -373,19 +375,47 @@ describe('replaceAllocations', () => {
     const car = await create();
     const trip = await create({ name: 'Trip' });
     const house = await create({ name: 'House' });
-    await accessor.replaceAllocations(casa, stock, split([car, 60], [trip, 20]));
+    await accessor.replaceAllocations(casa, stock, split([car, 60], [trip, 20]), DAY);
 
-    await accessor.replaceAllocations(casa, stock, split([car, 70], [house, 30]));
+    await accessor.replaceAllocations(casa, stock, split([car, 70], [house, 30]), DAY);
 
     expect(await splitOf(stock)).toEqual([[car, 70], [house, 30]]);
+  }));
+
+  it('keeps the split it replaces as history until the new one takes effect', scenario(async ({
+    accessor, casa, stock, create,
+  }) => {
+    const car = await create();
+    await accessor.replaceAllocations(casa, stock, split([car, 60]), '2026-01-10');
+
+    await accessor.replaceAllocations(casa, stock, [], '2026-03-01');
+
+    expect(await accessor.listAllocations({ holdingId: stock })).toEqual([]);
+    expect((await accessor.listAllocations({ holdingId: stock }, '2026-02-28'))
+      .map((row) => row.percentage)).toEqual([60]);
+  }));
+
+  it('replaces every version from its day on, leaving no overlap', scenario(async ({
+    accessor, casa, stock, create, db,
+  }) => {
+    const car = await create();
+    await accessor.replaceAllocations(casa, stock, split([car, 60]), DAY);
+    await accessor.replaceAllocations(casa, stock, split([car, 40]), DAY);
+    await accessor.replaceAllocations(casa, stock, split([car, 50]), '2026-11-01');
+
+    await accessor.replaceAllocations(casa, stock, split([car, 20]), '2026-09-01');
+
+    expect(await db.$count(goalAllocations, eq(goalAllocations.holdingId, stock))).toBe(1);
+    expect((await accessor.listAllocations({ holdingId: stock }))[0])
+      .toMatchObject({ percentage: 20, validFrom: '2026-09-01' });
   }));
 
   it('removes every allocation with an empty split', scenario(async ({
     accessor, casa, stock, create, splitOf,
   }) => {
-    await accessor.replaceAllocations(casa, stock, split([await create(), 50]));
+    await accessor.replaceAllocations(casa, stock, split([await create(), 50]), DAY);
 
-    expect(await accessor.replaceAllocations(casa, stock, [])).toEqual({ ok: true });
+    expect(await accessor.replaceAllocations(casa, stock, [], DAY)).toEqual({ ok: true });
     expect(await splitOf(stock)).toEqual([]);
   }));
 
@@ -395,12 +425,13 @@ describe('replaceAllocations', () => {
     const car = await create();
     const trip = await create({ name: 'Trip' });
     const house = await create({ name: 'House' });
-    await accessor.replaceAllocations(casa, stock, split([car, 60], [trip, 20]));
+    await accessor.replaceAllocations(casa, stock, split([car, 60], [trip, 20]), DAY);
 
     const result = await accessor.replaceAllocations(
       casa,
       stock,
       split([car, 60], [trip, 20], [house, 21]),
+      DAY,
     );
 
     expect(result).toEqual({
@@ -413,11 +444,11 @@ describe('replaceAllocations', () => {
     accessor, casa, stock, create, foreignGoal, splitOf,
   }) => {
     const car = await create();
-    await accessor.replaceAllocations(casa, stock, split([car, 50]));
+    await accessor.replaceAllocations(casa, stock, split([car, 50]), DAY);
 
-    expect(await accessor.replaceAllocations(casa, stock, split([car, 50], [foreignGoal, 10])))
+    expect(await accessor.replaceAllocations(casa, stock, split([car, 50], [foreignGoal, 10]), DAY))
       .toEqual({ ok: false, reason: 'goal_not_found', goalId: foreignGoal });
-    expect(await accessor.replaceAllocations(casa, stock, split([UNKNOWN_ID, 10])))
+    expect(await accessor.replaceAllocations(casa, stock, split([UNKNOWN_ID, 10]), DAY))
       .toEqual({ ok: false, reason: 'goal_not_found', goalId: UNKNOWN_ID });
     expect(await splitOf(stock)).toEqual([[car, 50]]);
   }));
@@ -429,13 +460,13 @@ describe('replaceAllocations', () => {
     const done = await create({ name: 'Done' });
     await accessor.complete(casa, done);
 
-    expect(await accessor.replaceAllocations(casa, stock, split([brunoOwn, 30], [done, 30])))
+    expect(await accessor.replaceAllocations(casa, stock, split([brunoOwn, 30], [done, 30]), DAY))
       .toEqual({ ok: true });
     expect(await splitOf(stock)).toEqual([[brunoOwn, 30], [done, 30]]);
   }));
 
   it('refuses an unknown Holding', scenario(async ({ accessor, casa, create }) => {
-    expect(await accessor.replaceAllocations(casa, UNKNOWN_ID, split([await create(), 10])))
+    expect(await accessor.replaceAllocations(casa, UNKNOWN_ID, split([await create(), 10]), DAY))
       .toEqual({ ok: false, reason: 'holding_not_found' });
   }));
 
@@ -444,7 +475,7 @@ describe('replaceAllocations', () => {
   }) => {
     const car = await create();
 
-    await expect(accessor.replaceAllocations(casa, stock, split([car, 0]))).rejects.toThrow();
+    await expect(accessor.replaceAllocations(casa, stock, split([car, 0]), DAY)).rejects.toThrow();
   }));
 });
 
@@ -456,8 +487,8 @@ describe('listAllocations', () => {
     const trip = await create({ name: 'Trip' });
     const other = await create({ name: 'Other' });
     const fund = await addHolding(db, casa);
-    await accessor.replaceAllocations(casa, stock, split([car, 60], [other, 10]));
-    await accessor.replaceAllocations(casa, fund, split([trip, 25]));
+    await accessor.replaceAllocations(casa, stock, split([car, 60], [other, 10]), DAY);
+    await accessor.replaceAllocations(casa, fund, split([trip, 25]), DAY);
 
     const listed = await accessor.listAllocations({ goalIds: [car, trip] });
 
@@ -469,5 +500,32 @@ describe('listAllocations', () => {
 
   it('lists nothing for no Goals', scenario(async ({ accessor }) => {
     expect(await accessor.listAllocations({ goalIds: [] })).toEqual([]);
+  }));
+
+  it('reads the split in effect on a day, the current one by default (OQ-206)', scenario(async ({
+    accessor, casa, stock, create,
+  }) => {
+    const car = await create();
+    const trip = await create({ name: 'Trip' });
+    await accessor.replaceAllocations(casa, stock, split([car, 60]), '2026-01-10');
+    await accessor.replaceAllocations(casa, stock, split([car, 30], [trip, 70]), '2026-05-01');
+
+    /**
+     * Reads the split funding both Goals on a day.
+     *
+     * @param date - The day, or none for the current split.
+     * @returns `[goalId, percentage]` pairs.
+     */
+    const on = async (date?: string) => (
+      await accessor.listAllocations({ goalIds: [car, trip] }, date)
+    )
+      .map((row) => [row.goalId, row.percentage]);
+
+    expect(await on('2026-01-09')).toEqual([]);
+    expect(await on('2026-01-10')).toEqual([[car, 60]]);
+    expect(await on('2026-04-30')).toEqual([[car, 60]]);
+    expect(await on('2026-05-01')).toEqual([[car, 30], [trip, 70]]);
+    expect(await on()).toEqual([[car, 30], [trip, 70]]);
+    expect((await accessor.listAllocations({ holdingId: stock }))[0]!.validFrom).toBe('2026-05-01');
   }));
 });

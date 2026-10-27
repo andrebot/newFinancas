@@ -5,7 +5,7 @@ import {
 } from 'vitest';
 import type { ProgressSummary } from '../../../../../../../src/experiences/accountSetup/flows/goalManagement/goalProgress';
 import {
-  cardClassesOf, dueTextOf, GoalCard, progressTextsOf, type GoalCardProps,
+  cardClassesOf, dueTextOf, fundingNameOf, GoalCard, progressTextsOf, type GoalCardProps,
 } from '../../../../../../../src/experiences/accountSetup/flows/goalManagement/interactions/GoalCard';
 import type { GoalFunding } from '../../../../../../../src/experiences/accountSetup/sharedLists';
 import { createFormatter } from '../../../../../../../src/utilities/formatting';
@@ -42,13 +42,21 @@ const goal = (over: Partial<Goal> = {}): Goal => ({
 });
 
 const SAME: GoalFunding = {
-  contributions: [{ holdingId: 'aapl', currency: 'USD', amount: 48200 }],
-  fundedBy: [{ holdingId: 'aapl', name: 'AAPL', percentage: 10 }],
+  fundedBy: [{
+    holdingId: 'aapl',
+    name: 'AAPL',
+    percentage: 10,
+    contribution: { currency: 'USD', amount: 48200 },
+  }],
 };
 
 const MIXED: GoalFunding = {
-  contributions: [...SAME.contributions, { holdingId: 'xpml', currency: 'BRL', amount: 1650000 }],
-  fundedBy: [...SAME.fundedBy, { holdingId: 'xpml', name: 'XPML11', percentage: 15 }],
+  fundedBy: [...SAME.fundedBy, {
+    holdingId: 'xpml',
+    name: 'XPML11',
+    percentage: 15,
+    contribution: { currency: 'BRL', amount: 1650000 },
+  }],
 };
 
 /**
@@ -98,6 +106,17 @@ describe('dueTextOf', () => {
     expect(dueTextOf({ kind: 'ahead', years: 1, months: 0 }, translator)).toBe('in 1 yr');
     expect(dueTextOf({ kind: 'thisMonth' }, translator)).toBe('this month');
     expect(dueTextOf({ kind: 'overdue' }, translator)).toBe('overdue');
+  });
+});
+
+describe('fundingNameOf (OQ-206)', () => {
+  it('shows the ticker, a stand-in without one, and a hidden Holding unnamed', () => {
+    const row = { holdingId: 'aapl', name: 'AAPL', percentage: 10 };
+
+    expect(fundingNameOf(row, translator)).toBe('AAPL');
+    expect(fundingNameOf({ ...row, name: null }, translator)).toBe('Holding with no ticker');
+    expect(fundingNameOf({ ...row, holdingId: null, name: null }, translator))
+      .toBe('A personal holding');
   });
 });
 
@@ -158,8 +177,32 @@ describe('the card', () => {
     expect(screen.queryByRole('textbox')).toBeNull();
   });
 
+  it('counts funding the viewer can\'t see, unnamed (OQ-206)', () => {
+    const hidden: GoalFunding = {
+      fundedBy: [
+        {
+          holdingId: null,
+          name: null,
+          percentage: 20,
+          contribution: { currency: 'USD', amount: 10000 },
+        },
+        {
+          holdingId: null,
+          name: null,
+          percentage: 30,
+          contribution: { currency: 'USD', amount: 20000 },
+        },
+      ],
+    };
+    renderCard({ entry: { goal: goal(), funding: hidden } });
+    expect(screen.getByText('A personal holding · 20%')).toBeTruthy();
+    expect(screen.getByText('A personal holding · 30%')).toBeTruthy();
+    expect(screen.getByText('$100.00')).toBeTruthy();
+    expect(screen.getByText('$200.00')).toBeTruthy();
+  });
+
   it('says a goal nothing funds yet points to Investments', () => {
-    renderCard({ entry: { goal: goal(), funding: { contributions: [], fundedBy: [] } } });
+    renderCard({ entry: { goal: goal(), funding: { fundedBy: [] } } });
     expect(screen.getByText('0% · not funded yet')).toBeTruthy();
     expect(screen.getByText(translator.text('goalManagement', 'fundedBy.none'))).toBeTruthy();
   });

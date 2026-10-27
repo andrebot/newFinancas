@@ -29,8 +29,8 @@ export type CategoriesView = SharedListView<'categories', Category>;
 /** Every shared budget and the caller's own personal ones (OQ-176). */
 export type BudgetsView = SharedListView<'budgets', Budget>;
 
-/** What the progress read adds to a goal (FR-8.5): who funds it, and with how much. */
-export type GoalFunding = Pick<GoalWithProgress, 'contributions' | 'fundedBy'>;
+/** What the progress read adds to a goal (FR-8.5): who funds it, each with how much. */
+export type GoalFunding = Pick<GoalWithProgress, 'fundedBy'>;
 
 /** A goal as Goal Management shows it: its definition, with its funding once read. */
 export interface GoalEntry {

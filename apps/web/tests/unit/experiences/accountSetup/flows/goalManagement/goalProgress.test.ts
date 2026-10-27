@@ -5,10 +5,30 @@ import {
 } from '../../../../../../src/experiences/accountSetup/flows/goalManagement/goalProgress';
 
 // A Goal's progress (BDT: Flow-tier pure logic, unit; nothing mocked) — the
-// join of contributions to funders, the conversion at a typed rate, and the
+// funding rows with their contributions, the conversion at a typed rate, and the
 // due countdown (FR-8.4/8.5, FR-9, OQ-195).
 
 const USD_BRL = { base: 'USD', quote: 'BRL' } as const;
+
+type Funder = GoalWithProgress['fundedBy'][number];
+
+/**
+ * Builds one funding row as the progress read gives it (OQ-206).
+ *
+ * @param holdingId - The Holding, or null for one the viewer can't see.
+ * @param name - Its ticker.
+ * @param percentage - Whole percent.
+ * @param contribution - What it contributes, or null with no value by then.
+ * @returns The row.
+ */
+const funder = (
+  holdingId: string | null,
+  name: string | null,
+  percentage: number,
+  contribution: Funder['contribution'],
+): Funder => ({
+  holdingId, name, percentage, contribution,
+});
 
 /**
  * Builds a Goal with its progress, mockup 43's Trip to Japan unless overridden.
@@ -27,13 +47,9 @@ const goal = (over: Partial<GoalWithProgress> = {}): GoalWithProgress => ({
   visibility: 'shared',
   createdAt: '2026-01-01T00:00:00Z',
   completedAt: null,
-  contributions: [
-    { holdingId: 'aapl', currency: 'USD', amount: 48200 },
-    { holdingId: 'xpml', currency: 'BRL', amount: 1650000 },
-  ],
   fundedBy: [
-    { holdingId: 'aapl', name: 'AAPL', percentage: 10 },
-    { holdingId: 'xpml', name: 'XPML11', percentage: 15 },
+    funder('aapl', 'AAPL', 10, { currency: 'USD', amount: 48200 }),
+    funder('xpml', 'XPML11', 15, { currency: 'BRL', amount: 1650000 }),
   ],
   ...over,
 });
@@ -56,7 +72,7 @@ describe('convert', () => {
 });
 
 describe('fundingRowsOf', () => {
-  it('joins each funder to its contribution, converting a foreign one at its rate', () => {
+  it('reads each funder\'s contribution, converting a foreign one at its rate', () => {
     expect(fundingRowsOf(goal(), { 'USD/BRL': 52000 })).toEqual([
       {
         holdingId: 'aapl',
@@ -78,9 +94,21 @@ describe('fundingRowsOf', () => {
     expect(fundingRowsOf(goal(), {})[1]?.converted).toBeUndefined();
   });
 
-  it('lists a funder the contributions lack without an amount', () => {
-    const rows = fundingRowsOf(goal({ contributions: [] }), {});
+  it('lists a funder with no value by then without an amount', () => {
+    const rows = fundingRowsOf(goal({ fundedBy: [funder('aapl', 'AAPL', 10, null)] }), {});
     expect(rows[0]).toEqual({ holdingId: 'aapl', name: 'AAPL', percentage: 10 });
+  });
+
+  it('keeps each hidden Holding with its own amount (OQ-206)', () => {
+    const hidden = goal({
+      fundedBy: [
+        funder(null, null, 20, { currency: 'USD', amount: 100 }),
+        funder(null, null, 30, { currency: 'USD', amount: 200 }),
+      ],
+    });
+
+    expect(fundingRowsOf(hidden, {}).map((row) => [row.holdingId, row.contribution?.amount]))
+      .toEqual([[null, 100], [null, 200]]);
   });
 });
 
@@ -110,9 +138,10 @@ describe('progressOf', () => {
 
   it('names a missing pair once, however many holdings need it', () => {
     const twoBrl = goal({
-      contributions: [
-        { holdingId: 'aapl', currency: 'BRL', amount: 100 },
-        { holdingId: 'xpml', currency: 'BRL', amount: 200 },
+      fundedBy: [
+        funder('aapl', 'AAPL', 10, { currency: 'BRL', amount: 100 }),
+        funder('xpml', 'XPML11', 15, { currency: 'BRL', amount: 200 }),
+        funder('none', 'NONE', 5, null),
       ],
     });
     expect(progressOf(twoBrl, {}).missingPairs).toEqual([USD_BRL]);
@@ -122,8 +151,9 @@ describe('progressOf', () => {
     const house = goal({
       targetAmount: 15000000,
       targetCurrency: 'BRL',
-      contributions: [{ holdingId: 'selic', currency: 'BRL', amount: 8500000 }],
-      fundedBy: [{ holdingId: 'selic', name: 'Tesouro Selic 2029', percentage: 45 }],
+      fundedBy: [
+        funder('selic', 'Tesouro Selic 2029', 45, { currency: 'BRL', amount: 8500000 }),
+      ],
     });
     expect(progressOf(house, {})).toMatchObject({
       funded: 8500000, percent: 57, toGo: 6500000, mixed: false, estimate: false,
@@ -131,13 +161,15 @@ describe('progressOf', () => {
   });
 
   it('reads an unfunded goal as 0% with the whole target to go', () => {
-    expect(progressOf(goal({ contributions: [], fundedBy: [] }), {})).toMatchObject({
+    expect(progressOf(goal({ fundedBy: [] }), {})).toMatchObject({
       rows: [], funded: 0, percent: 0, toGo: 600000, mixed: false, pairs: [],
     });
   });
 
   it('holds what is left at zero once the target is passed', () => {
-    const over = goal({ contributions: [{ holdingId: 'aapl', currency: 'USD', amount: 700000 }] });
+    const over = goal({
+      fundedBy: [funder('aapl', 'AAPL', 10, { currency: 'USD', amount: 700000 })],
+    });
     expect(progressOf(over, {})).toMatchObject({ percent: 117, toGo: 0 });
   });
 });

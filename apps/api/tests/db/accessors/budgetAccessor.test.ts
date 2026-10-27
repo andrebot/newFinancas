@@ -505,6 +505,34 @@ describe('BudgetAccessor.listPeriods', () => {
   }));
 });
 
+describe('BudgetAccessor.periodsAsOf', () => {
+  it('reads each Budget\'s latest period at or before a month', test(async (setup) => {
+    const car = await setup.create({}, [{ categoryId: setup.transport }]);
+    const fashion = await setup.create(
+      { name: 'Fashion' },
+      [{ categoryId: setup.shopping }],
+      MARCH,
+    );
+    await setup.accrue({ date: '2026-02-10' });
+    await setup.accrue({ date: '2026-04-10' });
+
+    const periods = await setup.budgets.periodsAsOf(setup.home, [car, fashion], MARCH);
+
+    expect(periods.map((period) => [period.budgetId, period.year, period.month])).toEqual(
+      expect.arrayContaining([[car, 2026, 2], [fashion, 2026, 3]]),
+    );
+    expect(periods).toHaveLength(2);
+    expect(await setup.budgets.periodsAsOf(setup.home, [fashion], JANUARY)).toEqual([]);
+  }));
+
+  it('reads nothing for no Budgets or another household', test(async (setup) => {
+    const car = await setup.create({}, [{ categoryId: setup.transport }]);
+
+    expect(await setup.budgets.periodsAsOf(setup.home, [], MARCH)).toEqual([]);
+    expect(await setup.budgets.periodsAsOf(setup.elsewhere, [car], MARCH)).toEqual([]);
+  }));
+});
+
 describe('BudgetAccessor.accrueIfClaimed', () => {
   it('adds a spend to the claiming Budget\'s month, and reverses it', test(async (setup) => {
     const car = await setup.create({}, [{ categoryId: setup.transport }]);

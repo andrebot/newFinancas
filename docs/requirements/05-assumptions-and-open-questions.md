@@ -5438,6 +5438,67 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
   algorithm-intrinsic facts) — a change in the law is a code change with
   its tests.
 
+### OQ-206: ReportingEngine's slice 3 part, Goal money on a sell, hidden funding (task E2)
+**Confirmed with the stakeholder (Oct 2026)**, at task 102 (`E2`):
+- **`E2` builds what slice 3 shows**, as `M4` was split (OQ-201, F11):
+  the Month Overview and Goal progress (current and by month). The
+  investments shapes (net worth + change and series, payouts, allocations,
+  coming due) land with task 133 (`X7`), the Dashboard's with task 139
+  (`X8`), each beside its first caller.
+- **A fixed-term Holding's value on a date is its cost basis then** —
+  the sum of its trades' `cost_basis_delta` dated on or before it
+  (`AccountTransactionAccessor.costBasisAsOf`), not the column's current
+  figure, which would count a March buy in January's progress (FR-8.7).
+  The current view reads the same sum as of today (equal to the column,
+  which only trades move), so the two never disagree. OQ-51's branch is
+  unchanged: market-priced Holdings read their latest snapshot by then.
+- **A Goal's money is what its Holdings hold for it; the system never
+  guesses a split.** Money leaving a Holding (a sell, a redemption) leaves
+  its Goals; cash back in an Account counts again only once invested and
+  stamped. The Goal shares are exclusive (FR-8.3), so nothing counts twice,
+  and the user may re-stamp a Holding at any time (Edit Holding, FR-8.2).
+  **A sell carries the Holding's split, pre-filled with the current one
+  and editable** (option B2), saved with the sell as a buy's allocations
+  are (OQ-54) — the user keeps or changes it where the money moves. The
+  sell request's `allocations`, `TransactionManager`'s sell path and the
+  Record Transaction sell entry land with tasks 103 and 116. Weighed and
+  rejected: one Goal per Holding (it fragments positions; a ticker is one
+  Holding per Account), the sell naming a Goal and the system re-weighting
+  (a guess), and no split on the sell at all (left to Edit Holding alone).
+- **Funding the viewer can't see counts, unnamed.** A shared Goal may be
+  funded by a Holding in another member's personal Account (allocations
+  go from the Holding, so each member stamps only Holdings they see). For
+  everyone else that Holding's contribution counts — every member sees the
+  same total — but as a row with no Holding: `holdingId` null in
+  `contributions` and `fundedBy`, `name` null (the UI shows "a personal
+  holding"). Each `fundedBy` row carries its own `contribution` (PR #128
+  review), so nothing is joined on an id a row may lack. Weighed and
+  rejected: naming it (reveals a personal Holding)
+  and leaving it out (the shared Goal's total would depend on who looks).
+- **PR #128 review decisions:**
+  - **A Goal split is kept by version.** `goal_allocations` gains
+    `valid_from`/`valid_to` (migration 0013); replacing a split closes the
+    version in effect on its day and opens the new one, so progress on a
+    past date reads the split of that day — with B2 a split changes on
+    every sell, and FR-8.7's history would otherwise be rewritten by each.
+    A split takes effect today (Edit Holding), or on the buy's date when
+    the buy creates its Holding (task 103), so backdated history keeps its
+    Goals; a split dated before later versions replaces them. Weighed and
+    rejected: always using the current split (simpler, but past progress
+    isn't what it was).
+  - **A past month shows the Accounts open then:** the Balance rail leaves
+    out an Account archived on or before the month's end (app time zone,
+    OQ-104), with its cards — one archived later still shows, so a month's
+    balances agree with its In/Out.
+  - **Own-account transfers stay out of In/Out for every viewer** — the
+    glossary's Transfer is between the household's own Accounts, judged
+    by the stored effect; money paid outside the household is a movement.
+    Weighed and rejected: counting a transfer to another member's personal
+    Account as out in the sender's view (an unlinked pair, D2, can't tell).
+  - **`GoalProgress` and `GoalWithProgress` carry `fundedBy` rows, each
+    with its `contribution`** (`GoalFundingRow`); the separate
+    `contributions` list is gone.
+
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
 *(None currently — OQ-29, the last item here, was resolved during data

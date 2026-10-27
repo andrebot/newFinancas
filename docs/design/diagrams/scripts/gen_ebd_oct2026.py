@@ -914,7 +914,7 @@ par definitions, both statuses (as the Goals tab opens)
     API-->>EXP: goals (name, target + currency, due date, visibility, completedAt)
 and progress, both statuses
     EXP->>API: GET /households/:householdId/goal-progress?status=active (and completed)
-    API-->>EXP: per-currency contributions + funded by, per goal
+    API-->>EXP: funded by, each with its contribution in its own currency, per goal
 end
 alt a status's progress never loaded (404 until M4 builds it)
     EXP-->>FLOW: goals by status, no funding there, progress: failed for that status

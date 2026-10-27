@@ -845,8 +845,12 @@ const CAR: Goal = {
 };
 
 const FUNDING = {
-  contributions: [{ holdingId: 'aapl', currency: 'USD' as const, amount: 48200 }],
-  fundedBy: [{ holdingId: 'aapl', name: 'AAPL', percentage: 10 }],
+  fundedBy: [{
+    holdingId: 'aapl',
+    name: 'AAPL',
+    percentage: 10,
+    contribution: { currency: 'USD' as const, amount: 48200 },
+  }],
 };
 
 const TRIP_PROGRESS: GoalWithProgress = { ...TRIP, ...FUNDING };

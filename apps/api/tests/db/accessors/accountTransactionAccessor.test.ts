@@ -618,3 +618,34 @@ describe('monthlySums', () => {
     expect(await ledger.monthlySums([], '2026-01-01', '2026-12-31')).toEqual([]);
   }));
 });
+
+describe('costBasisAsOf', () => {
+  it('sums each Holding\'s trade deltas dated by then, payouts left out', scenario(async ({
+    record, ledger, holding,
+  }) => {
+    const trade = (date: string, costBasisDelta: number) => ({
+      kind: 'investment_buy',
+      effect: 'investment_trade' as const,
+      holdingId: holding,
+      date,
+      trade: { quantityDelta: 1, costBasisDelta },
+    });
+    await recordAll(record, [
+      trade('2026-01-10', 1000),
+      trade('2026-02-28', -400),
+      { kind: 'investment_dividend', holdingId: holding, date: '2026-02-01' },
+      trade('2026-03-01', 5000),
+    ]);
+
+    expect(await ledger.costBasisAsOf([holding], '2026-02-28')).toEqual([
+      { holdingId: holding, costBasis: 600 },
+    ]);
+  }));
+
+  it('leaves out a Holding with no trade by then', scenario(async ({ record, ledger, holding }) => {
+    await record({ kind: 'investment_dividend', holdingId: holding });
+
+    expect(await ledger.costBasisAsOf([holding], '2026-12-31')).toEqual([]);
+    expect(await ledger.costBasisAsOf([], '2026-12-31')).toEqual([]);
+  }));
+});

@@ -135,7 +135,7 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain:</strong> <code>InsightsManager</code> ① <code>AuthorizationUtility</code> (visibility) → ② <code>ReportingEngine.goalProgress</code> → ③ reads <code>GoalAccessor</code> (goals + allocations), <code>InvestmentHoldingAccessor</code> (fixed-term cost basis), <code>ValuationSnapshotAccessor</code> (market-priced values).</p>
+    <p><strong>Chain:</strong> <code>InsightsManager</code> ① <code>AuthorizationUtility</code> (visibility) → ② <code>GoalAccessor.list</code> (the Goals the viewer sees) → ③ <code>ReportingEngine.goalProgress</code> → ④ reads <code>AccountAccessor</code> (the viewer&#39;s Accounts — funding elsewhere counts unnamed, OQ-206), <code>GoalAccessor</code> (allocations), <code>InvestmentHoldingAccessor.findByIds</code> (the Holdings with their currency), <code>ValuationSnapshotAccessor</code> (market-priced values), <code>AccountTransactionAccessor.costBasisAsOf</code> (fixed-term values by then, OQ-206).</p>
     <p><strong>OQ-177:</strong> the plain list of definitions, <code>GET &hellip;/goals</code>, is <code>AccountManager</code>&#39;s own read (OQ-174) &mdash; Goal Management reads both.</p>
     <p><strong>No smell:</strong> a reshaped read stays on the read side; the Engine reads three Accessors, none calls another.</p>
   </div>
@@ -150,7 +150,7 @@
       svg.style.width = containerRect.width + 'px';
       svg.style.height = containerRect.height + 'px';
 
-      var edges = [{"from": "mgr-insights", "to": "util-authz", "type": "sync", "order": 1}, {"from": "mgr-insights", "to": "eng-reporting", "type": "sync", "order": 2}, {"from": "eng-reporting", "to": "acc-goal", "type": "sync", "order": 3}, {"from": "eng-reporting", "to": "acc-holding", "type": "sync", "order": 3}, {"from": "eng-reporting", "to": "acc-snapshot", "type": "sync", "order": 3}];
+      var edges = [{"from": "mgr-insights", "to": "util-authz", "type": "sync", "order": 1}, {"from": "mgr-insights", "to": "acc-goal", "type": "sync", "order": 2}, {"from": "mgr-insights", "to": "eng-reporting", "type": "sync", "order": 3}, {"from": "eng-reporting", "to": "acc-account", "type": "sync", "order": 4}, {"from": "eng-reporting", "to": "acc-goal", "type": "sync", "order": 4}, {"from": "eng-reporting", "to": "acc-holding", "type": "sync", "order": 4}, {"from": "eng-reporting", "to": "acc-snapshot", "type": "sync", "order": 4}, {"from": "eng-reporting", "to": "acc-accounttxn", "type": "sync", "order": 4}];
 
       var activeIds = {};
       edges.forEach(function (e) { activeIds[e.from] = true; activeIds[e.to] = true; });

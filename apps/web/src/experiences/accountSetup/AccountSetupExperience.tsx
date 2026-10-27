@@ -99,7 +99,7 @@ export const goalListViewOf = (
   const entries = goals.data?.map((goal): GoalEntry => {
     const found = byId.get(goal.id);
     return found
-      ? { goal, funding: { contributions: found.contributions, fundedBy: found.fundedBy } }
+      ? { goal, funding: { fundedBy: found.fundedBy } }
       : { goal };
   });
   return listViewOf('goals', { data: entries, error: goalListErrorOf(goals, progress) });

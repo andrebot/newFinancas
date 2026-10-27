@@ -205,8 +205,9 @@ const createHoldings = (deps: AccountDeps) => ({
       ...current.map((share) => share.goalId), ...requested.map((share) => share.goalId)]);
     checkSplit(requested, current, visible);
     const split = requested.map(({ goalId, percentage }) => ({ goalId, percentage }));
+    // The new split takes effect today; the one before stays as history (OQ-206).
     const result = await deps.goals.replaceAllocations(ids.householdId, ids.holdingId, [
-      ...hiddenShares(current, new Set(visible.keys())), ...split]);
+      ...hiddenShares(current, new Set(visible.keys())), ...split], todayOf(deps));
     if (!result.ok) throw splitRefusal(result);
     requestLogger(context).audit('EditHoldingAllocations', {
       entityType: 'InvestmentHolding', entityId: ids.holdingId, householdId: ids.householdId,

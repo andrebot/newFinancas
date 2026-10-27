@@ -387,6 +387,8 @@ erDiagram
         uuid holding_id FK
         uuid goal_id FK
         int percentage "whole percent, 1-100"
+        date valid_from "split in effect from (OQ-206)"
+        date valid_to "until, exclusive; null = current"
         timestamp created_at
     }
 

@@ -9,7 +9,8 @@ import type { Translator } from '../../../../../utilities/i18n';
 import useFormatter from '../../../../../utilities/useFormatter';
 import type { GoalEntry, ProgressStatus } from '../../../sharedLists';
 import {
-  dueInOf, pairKey, progressOf, type DueIn, type EnteredRates, type ProgressSummary, type RatePair,
+  dueInOf, pairKey, progressOf, type DueIn, type EnteredRates, type FundingRow,
+  type ProgressSummary, type RatePair,
 } from '../goalProgress';
 import { RateField } from './RateField';
 
@@ -254,6 +255,19 @@ function ProgressBlock({ goal, summary }: {
   );
 }
 
+/**
+ * Names a funding Holding: its ticker, or a stand-in for one with none or one
+ * in an Account the viewer can't see (OQ-206).
+ *
+ * @param row - The funding row.
+ * @param translator - The translator.
+ * @returns The name to show.
+ */
+export const fundingNameOf = (row: FundingRow, translator: Translator): string => {
+  if (row.holdingId === null) return translator.text('goalManagement', 'fundedBy.personal');
+  return row.name ?? translator.text('goalManagement', 'fundedBy.unnamed');
+};
+
 /** What the "Funded by" block needs. */
 interface FundingBlockProps {
   readonly goal: Goal;
@@ -283,10 +297,10 @@ function FundingBlock({
           {translator.text('goalManagement', 'fundedBy.none')}
         </span>
       )}
-      {summary.rows.map((row) => (
-        <div key={row.holdingId} className={FUNDING_ROW}>
+      {summary.rows.map((row, index) => (
+        <div key={row.holdingId ?? `hidden-${index}`} className={FUNDING_ROW}>
           <span className="min-w-0 flex-1 truncate">
-            {`${row.name} · ${formatter.percent(row.percentage)}`}
+            {`${fundingNameOf(row, translator)} · ${formatter.percent(row.percentage)}`}
           </span>
           {row.contribution && (
             <span className="font-semibold tabular-nums">

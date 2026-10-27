@@ -612,6 +612,8 @@ const ptBR = {
     'progress.unavailable': 'Progresso indisponível',
     'progress.label': 'Progresso de {name}',
     'fundedBy.none': 'Nenhum investimento ainda — aloque um em Investimentos',
+    'fundedBy.personal': 'Um investimento pessoal',
+    'fundedBy.unnamed': 'Investimento sem código',
     'estimate.note': '≈ estimativa — usa a cotação que você informou; nada é convertido nem salvo.',
     'rate.label': 'Cotação',
     'rate.base': '1 {base} =',
