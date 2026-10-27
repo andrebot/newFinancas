@@ -3,6 +3,7 @@ import {
 } from 'drizzle-orm';
 import type { Database } from '../db/database';
 import { accounts, investmentHoldings, investmentScheduleEntries } from '../db/schema';
+import type { InterestPayment } from '../db/schema/values';
 
 // InvestmentHoldingAccessor (A11, VBD): Investment Holdings and their FR-11
 // schedule (FR-5.1, FR-5.8, FR-11.2–FR-11.3, 02-data-model.md). It applies data
@@ -22,6 +23,8 @@ export interface HoldingRate {
   readonly rateType: string;
   /** Percent × 10,000. */
   readonly rateValue: number;
+  /** CDI/Selic only, percent × 10,000: a spread on top of the percent (OQ-205). */
+  readonly rateSpread: number | null;
 }
 
 export interface InvestmentHolding {
@@ -37,8 +40,14 @@ export interface InvestmentHolding {
   /** Fixed-term types only, immutable once set (OQ-50). */
   readonly rateType: string | null;
   readonly rateValue: number | null;
+  /** CDI/Selic only — a spread on top of the percent of the index (OQ-205). */
+  readonly rateSpread: number | null;
   /** Debentures only (OQ-79). */
   readonly incentivised: boolean | null;
+  /** Fixed-term types only — when the contract pays interest (OQ-201). */
+  readonly interestPayment: InterestPayment | null;
+  /** Fixed-term types only — the contract's maturity date, `YYYY-MM-DD` (OQ-205). */
+  readonly dueDate: string | null;
   readonly archivedAt: Date | null;
   readonly archivedBy: ArchivedBy | null;
   readonly maturedNotifiedAt: Date | null;
@@ -55,6 +64,10 @@ export interface NewInvestmentHolding {
   readonly ticker: string | null;
   readonly rate?: HoldingRate;
   readonly incentivised?: boolean;
+  /** Required with a rate, absent without one (a CHECK, OQ-201). */
+  readonly interestPayment?: InterestPayment;
+  /** Required with a rate, absent without one (a CHECK, OQ-205). */
+  readonly dueDate?: string;
 }
 
 export type InsertHoldingResult = | { readonly ok: true; readonly holding: InvestmentHolding }
@@ -114,7 +127,10 @@ export interface MaturedHolding {
   readonly visibility: string;
   readonly assetType: string;
   readonly ticker: string | null;
-  /** The redemption entry's date — a Holding's due date (02-data-model.md). */
+  /**
+   * The redemption entry's date: the due date rolled to a business day, when the
+   * principal lands — not the contract's `dueDate` (OQ-205).
+   */
   readonly dueDate: string;
 }
 
@@ -127,7 +143,10 @@ const holdingColumns = {
   costBasis: investmentHoldings.costBasis,
   rateType: investmentHoldings.rateType,
   rateValue: investmentHoldings.rateValue,
+  rateSpread: investmentHoldings.rateSpread,
   incentivised: investmentHoldings.incentivised,
+  interestPayment: sql<InterestPayment | null>`${investmentHoldings.interestPayment}`,
+  dueDate: investmentHoldings.dueDate,
   archivedAt: investmentHoldings.archivedAt,
   archivedBy: sql<ArchivedBy | null>`${investmentHoldings.archivedBy}`,
   maturedNotifiedAt: investmentHoldings.maturedNotifiedAt,
@@ -197,7 +216,10 @@ const createInvestmentHoldingAccessor = (db: Database) => ({
         costBasis: 0,
         rateType: holding.rate?.rateType,
         rateValue: holding.rate?.rateValue,
+        rateSpread: holding.rate?.rateSpread,
         incentivised: holding.incentivised,
+        interestPayment: holding.interestPayment,
+        dueDate: holding.dueDate,
       }).returning(holdingColumns);
       return { ok: true, holding: row! };
     })

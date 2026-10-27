@@ -13,6 +13,11 @@ export const LANGUAGES = ['pt-BR', 'en-US'] as const;
 export const ACCOUNT_TYPES = ['checking', 'savings', 'credit_card_only', 'investment'] as const;
 export const VISIBILITIES = ['personal', 'shared'] as const;
 export const RATE_TYPES = ['fixed', 'cdi', 'ipca', 'igpm', 'selic'] as const;
+
+// The rate types quoted as a percent of the index, which may add a spread (OQ-205).
+export const SPREAD_RATE_TYPES = ['cdi', 'selic'] as const;
+/** When a fixed-term contract pays interest (FR-11.2, OQ-201). */
+export const INTEREST_PAYMENTS = ['at_maturity', 'monthly', 'semiannual'] as const;
 export const ARCHIVED_BY = ['system', 'user'] as const;
 export const SNAPSHOT_SOURCES = ['manual', 'transaction'] as const;
 export const TRANSACTION_EFFECTS = [
@@ -31,5 +36,7 @@ export type AssignableRole = Exclude<Role, 'Owner'>;
 export type AccountType = (typeof ACCOUNT_TYPES)[number];
 /** Who sees a record: its owner only, or the whole household (FR-2.3/FR-4.2). */
 export type Visibility = (typeof VISIBILITIES)[number];
+/** When a fixed-term contract pays interest (OQ-201). */
+export type InterestPayment = (typeof INTEREST_PAYMENTS)[number];
 /** How a Valuation Snapshot was written: by hand, or by a trade (OQ-56). */
 export type SnapshotSource = (typeof SNAPSHOT_SOURCES)[number];

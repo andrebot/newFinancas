@@ -114,9 +114,17 @@ sequenceDiagram
                 TM->>VSA: updateAutomatic(transactionId, newValuation, newDate)
             end
             opt a fixed-term buy whose terms, amount or date changed (schedule not started)
+                Note over TM: dueDate after date, a spread only on CDI/Selic &mdash; else 422 validation.failed (OQ-205)
+                TM->>IHA: updateTerms(holdingId, {rate, dueDate, interestPayment, incentivised})
                 TM->>IPE: schedule(householdId, {new terms})
-                IPE-->>TM: entries
-                TM->>IHA: applySchedule(holdingId, entries) &mdash; replace-all (OQ-171)
+                alt the index has no value yet (OQ-205)
+                    IPE-->>TM: {ok: false, reason: index_missing, indexCode}
+                    TM-->>API: refused &mdash; nothing kept
+                    API-->>User: 422 index_rate.missing {indexCode}
+                else
+                    IPE-->>TM: entries
+                    TM->>IHA: applySchedule(holdingId, entries) &mdash; replace-all (OQ-171)
+                end
             end
             alt quantity = 0
                 TM->>IHA: archive(holdingId, by = system)

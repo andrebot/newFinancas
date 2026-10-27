@@ -505,55 +505,6 @@ export const zInterestPayment = z.enum([
     'semiannual'
 ]).default('at_maturity');
 
-export const zInvestmentHolding = z.object({
-    id: z.uuid().optional(),
-    accountId: z.uuid().optional(),
-    assetType: z.enum([
-        'stock',
-        'fii',
-        'fund',
-        'mutual_fund',
-        'currency',
-        'crypto',
-        'real_estate',
-        'other',
-        'cdb',
-        'lc',
-        'lf',
-        'lci',
-        'lca',
-        'cra',
-        'cri',
-        'debenture',
-        'tesouro_direto',
-        'cd',
-        'treasury'
-    ]).optional(),
-    ticker: z.string().optional(),
-    quantity: zQuantity.optional(),
-    costBasis: zMoney.optional(),
-    rate: z.object({
-        type: z.enum([
-            'fixed',
-            'cdi',
-            'ipca',
-            'igpm',
-            'selic'
-        ]).optional(),
-        value: z.int().optional()
-    }).nullish(),
-    archivedAt: z.iso.datetime().nullish(),
-    createdAt: z.iso.datetime().optional(),
-    incentivised: z.boolean().nullish(),
-    interestPayment: zInterestPayment.nullish(),
-    archivedBy: z.enum(['system', 'user']).nullish(),
-    expectedPayout: zMoney.optional(),
-    expectedTaxes: z.object({
-        estimated: z.boolean().optional(),
-        amount: zMoney.optional()
-    }).nullish()
-});
-
 /**
  * One request for every kind (FR-3.1/OQ-39); which fields apply follows the kind (OQ-201). A card kind (charge/refund) takes `creditCardId` alone; every other kind takes `accountId`, and a bill payment also its `creditCardId`. A buy takes `assetType` + `ticker` (+ `quantity`, optional for fixed-term — 1 unit) and, for a fixed-term type, `rate`, `dueDate` and `interestPayment`; sell and redemption take `holdingId` + `quantity`; dividend, interest and tax take `holdingId`. A field the kind has no use for is a 422.
  *
@@ -580,7 +531,8 @@ export const zTransactionCreateRequest = z.object({
             'igpm',
             'selic'
         ]).optional(),
-        value: z.int().optional()
+        value: z.int().optional(),
+        spread: z.int().nullish()
     }).nullish(),
     dueDate: z.iso.date().optional(),
     interestPayment: zInterestPayment.optional(),
@@ -610,7 +562,8 @@ export const zTransactionUpdateRequest = z.object({
             'igpm',
             'selic'
         ]).optional(),
-        value: z.int().optional()
+        value: z.int().optional(),
+        spread: z.int().nullish()
     }).optional(),
     dueDate: z.iso.date().optional(),
     interestPayment: zInterestPayment.optional(),
@@ -717,6 +670,61 @@ export const zIndexCode = z.enum([
     'ipca',
     'igpm'
 ]);
+
+export const zInvestmentHolding = z.object({
+    id: z.uuid().optional(),
+    accountId: z.uuid().optional(),
+    assetType: z.enum([
+        'stock',
+        'fii',
+        'fund',
+        'mutual_fund',
+        'currency',
+        'crypto',
+        'real_estate',
+        'other',
+        'cdb',
+        'lc',
+        'lf',
+        'lci',
+        'lca',
+        'cra',
+        'cri',
+        'debenture',
+        'tesouro_direto',
+        'cd',
+        'treasury'
+    ]).optional(),
+    ticker: z.string().optional(),
+    quantity: zQuantity.optional(),
+    costBasis: zMoney.optional(),
+    rate: z.object({
+        type: z.enum([
+            'fixed',
+            'cdi',
+            'ipca',
+            'igpm',
+            'selic'
+        ]).optional(),
+        value: z.int().optional(),
+        spread: z.int().nullish()
+    }).nullish(),
+    archivedAt: z.iso.datetime().nullish(),
+    createdAt: z.iso.datetime().optional(),
+    incentivised: z.boolean().nullish(),
+    interestPayment: zInterestPayment.nullish(),
+    dueDate: z.iso.date().nullish(),
+    archivedBy: z.enum(['system', 'user']).nullish(),
+    expectedPayout: zMoney.nullish(),
+    expectedTaxes: z.object({
+        estimated: z.boolean().optional(),
+        amount: zMoney.optional()
+    }).nullish(),
+    projectionUnavailable: z.object({
+        reason: z.enum(['index_missing']),
+        indexCode: zIndexCode
+    }).nullish()
+});
 
 export const zIndexRateValue = z.object({
     id: z.uuid(),
