@@ -8,7 +8,7 @@ import {
 } from './columns';
 import { households, users } from './identity';
 import {
-  ARCHIVED_BY, INTEREST_PAYMENTS, RATE_TYPES, VISIBILITIES,
+  ARCHIVED_BY, INTEREST_PAYMENTS, RATE_TYPES, SPREAD_RATE_TYPES, VISIBILITIES,
 } from './values';
 
 // Investments & Goals (02-data-model.md) — InvestmentHoldingAccessor,
@@ -24,6 +24,8 @@ export const investmentHoldings = pgTable('investment_holdings', {
   // Fixed-term types only (OQ-50); percent × 10,000 (OQ-86).
   rateType: text('rate_type'),
   rateValue: integerAmount('rate_value'),
+  // CDI/Selic only: a spread on top of the percent of the index (OQ-205).
+  rateSpread: integerAmount('rate_spread'),
   incentivised: boolean('incentivised'),
   // Fixed-term types only, from the buy (OQ-201) — the Engine recomputes from it.
   interestPayment: text('interest_payment'),
@@ -38,6 +40,10 @@ export const investmentHoldings = pgTable('investment_holdings', {
   check(
     'investment_holdings_rate_pair_check',
     sql`(${table.rateType} IS NULL) = (${table.rateValue} IS NULL)`,
+  ),
+  check(
+    'investment_holdings_rate_spread_check',
+    sql`${table.rateSpread} IS NULL OR ${isOneOf(table.rateType, SPREAD_RATE_TYPES)}`,
   ),
   check(
     'investment_holdings_interest_payment_check',

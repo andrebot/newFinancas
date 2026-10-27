@@ -134,7 +134,7 @@ const scenario = (test: (setup: Setup) => Promise<void>) => () => withRollback(
           accountId,
           assetType: 'cdb',
           ticker: null,
-          rate: { rateType: 'cdi', rateValue: 1_100_000 },
+          rate: { rateType: 'cdi', rateValue: 1_100_000, rateSpread: null },
           interestPayment: 'at_maturity',
           dueDate,
         });
@@ -164,6 +164,7 @@ describe('insert', () => {
         costBasis: 0,
         rateType: null,
         rateValue: null,
+        rateSpread: null,
         incentivised: null,
         interestPayment: null,
         dueDate: null,
@@ -181,7 +182,7 @@ describe('insert', () => {
       accountId: investment,
       assetType: 'debenture',
       ticker: null,
-      rate: { rateType: 'ipca', rateValue: 55_000 },
+      rate: { rateType: 'ipca', rateValue: 55_000, rateSpread: null },
       incentivised: true,
       interestPayment: 'semiannual',
       dueDate: '2035-05-15',
@@ -203,12 +204,42 @@ describe('insert', () => {
     accessor, investment,
   }) => {
     const fixed = { accountId: investment, assetType: 'cdb', ticker: null };
-    const rate = { rateType: 'fixed', rateValue: 120_000 } as const;
+    const rate = { rateType: 'fixed', rateValue: 120_000, rateSpread: null } as const;
     await expect(accessor.insert({ ...fixed, rate, dueDate: '2030-01-02' })).rejects.toThrow();
     await expect(accessor.insert({ ...fixed, rate, interestPayment: 'monthly' })).rejects.toThrow();
     const stock = { accountId: investment, assetType: 'stock', ticker: 'VALE3' };
     await expect(accessor.insert({ ...stock, interestPayment: 'monthly' })).rejects.toThrow();
     await expect(accessor.insert({ ...stock, dueDate: '2030-01-02' })).rejects.toThrow();
+  }));
+
+  it('keeps a spread on top of a percent of Selic (OQ-205)', scenario(async ({
+    accessor, investment,
+  }) => {
+    const result = await accessor.insert({
+      accountId: investment,
+      assetType: 'tesouro_direto',
+      ticker: null,
+      rate: { rateType: 'selic', rateValue: 1_000_000, rateSpread: 545 },
+      interestPayment: 'at_maturity',
+      dueDate: '2031-03-01',
+    });
+
+    expect(result).toMatchObject({
+      ok: true, holding: { rateType: 'selic', rateValue: 1_000_000, rateSpread: 545 },
+    });
+  }));
+
+  it('refuses a spread on a rate not quoted as a percent of CDI/Selic', scenario(async ({
+    accessor, investment,
+  }) => {
+    await expect(accessor.insert({
+      accountId: investment,
+      assetType: 'tesouro_direto',
+      ticker: null,
+      rate: { rateType: 'ipca', rateValue: 55_000, rateSpread: 100 },
+      interestPayment: 'semiannual',
+      dueDate: '2035-05-15',
+    })).rejects.toThrow();
   }));
 
   it.each(['checking', 'savings'])('opens one in a %s Account (OQ-76)', (type) => scenario(async ({

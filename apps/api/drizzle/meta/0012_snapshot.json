@@ -1,5 +1,5 @@
 {
-  "id": "53a025b1-f2b6-48fc-85d5-835e301bac05",
+  "id": "05cc2786-1e34-41a2-bfaf-9e3625d64208",
   "prevId": "dc927924-38a6-475e-aafc-a6b263dcf3e1",
   "version": "7",
   "dialect": "postgresql",
@@ -2343,6 +2343,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "rate_spread": {
+          "name": "rate_spread",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
         "incentivised": {
           "name": "incentivised",
           "type": "boolean",
@@ -2414,6 +2420,10 @@
         "investment_holdings_rate_pair_check": {
           "name": "investment_holdings_rate_pair_check",
           "value": "(\"investment_holdings\".\"rate_type\" IS NULL) = (\"investment_holdings\".\"rate_value\" IS NULL)"
+        },
+        "investment_holdings_rate_spread_check": {
+          "name": "investment_holdings_rate_spread_check",
+          "value": "\"investment_holdings\".\"rate_spread\" IS NULL OR \"investment_holdings\".\"rate_type\" IN ('cdi', 'selic')"
         },
         "investment_holdings_interest_payment_check": {
           "name": "investment_holdings_interest_payment_check",

@@ -108,6 +108,16 @@ describe('schedule (FR-11.2, OQ-201, OQ-205)', () => {
       .toEqual(['2025-01-30', '2025-02-28', '2025-03-31', '2025-04-30', '2025-05-30']);
   });
 
+  it('writes no interest or tax for a period whose index fell (OQ-205)', async () => {
+    const { engine } = setup(-60_000);
+
+    expect(await engine.schedule(HOUSEHOLD, {
+      ...CDB, assetType: 'debenture', incentivised: false, rate: { type: 'igpm', value: 30_000 },
+    })).toEqual({
+      ok: true, entries: [{ kind: 'redemption', amount: 1_000_000, date: '2027-01-04' }],
+    });
+  });
+
   it('refuses an index-linked rate whose index has no value yet (OQ-205)', async () => {
     const { engine, latestIndexRate } = setup();
 
@@ -190,6 +200,16 @@ describe('project (FR-11.2, OQ-58, OQ-205)', () => {
 
     expect(await engine.project(HOUSEHOLD, TESOURO_IPCA))
       .toEqual({ ok: false, reason: 'index_missing', indexCode: 'ipca' });
+  });
+
+  it('projects the principal alone when the index fell, as schedule does (OQ-205)', async () => {
+    const { engine } = setup(-60_000);
+
+    expect(await engine.project(HOUSEHOLD, {
+      ...CDB, assetType: 'debenture', incentivised: false, rate: { type: 'igpm', value: 30_000 },
+    })).toEqual({
+      ok: true, expectedPayout: 1_000_000, expectedTaxes: { estimated: true, amount: 0 },
+    });
   });
 
   it('expects no tax from an exempt type', async () => {

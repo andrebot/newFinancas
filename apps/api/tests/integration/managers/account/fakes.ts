@@ -101,6 +101,7 @@ export const HOLDING = {
   costBasis: 300000,
   rateType: null as string | null,
   rateValue: null as number | null,
+  rateSpread: null as number | null,
   incentivised: null as boolean | null,
   interestPayment: null as InterestPayment | null,
   dueDate: null as string | null,

@@ -1644,7 +1644,9 @@ paths:
             Category — OQ-201), `index_rate.missing` (a fixed-term buy
             whose index has no value recorded yet; params: `indexCode` —
             OQ-205), or `validation.failed` with `details[]`
-            (missing fields per kind).
+            (missing fields per kind; a `dueDate` not after the buy's
+            `date`, or a `rate.spread` on a type other than CDI/Selic —
+            OQ-205).
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
@@ -3077,6 +3079,7 @@ components:
             value:
               type: integer
               description: Percent × 10,000 — 10.50% = 105000 (bigint fixed-point, OQ-86)
+            spread: { type: [integer, "null"], description: "CDI/Selic only, optional — percent × 10,000 on top of the percent of the index (Tesouro Selic = 100% of Selic + 0.0545%: value 1000000, spread 545 — OQ-205). Refused on other types." }
         archivedAt:
           type: [string, "null"]
           format: date-time
@@ -3219,6 +3222,7 @@ components:
           properties:
             type: { type: string, enum: [fixed, cdi, ipca, igpm, selic] }
             value: { type: integer, description: "Percent × 10,000 — 10.50% = 105000 (bigint fixed-point, OQ-86, OQ-189). Fixed: annual % rate. CDI/Selic: % of the index (110% of CDI = 1100000). IPCA/IGP-M: spread above the index." }
+            spread: { type: [integer, "null"], description: "CDI/Selic only, optional — percent × 10,000 on top of the percent of the index (Tesouro Selic = 100% of Selic + 0.0545%: value 1000000, spread 545 — OQ-205). Refused on other types." }
         dueDate: { type: string, format: date, description: "Fixed-term investment_buy only, required (FR-11.1/FR-11.2) — the contract's maturity date. Not derivable from assetType alone (a CDB's term is negotiated per contract); InvestmentProductEngine uses it, alongside date, rate and interestPayment, to compute the cash events between purchase and maturity." }
         interestPayment:
           $ref: '#/components/schemas/InterestPayment'
@@ -3271,6 +3275,7 @@ components:
           properties:
             type: { type: string, enum: [fixed, cdi, ipca, igpm, selic] }
             value: { type: integer, description: "Percent × 10,000" }
+            spread: { type: [integer, "null"], description: "CDI/Selic only, optional — percent × 10,000 on top of the percent of the index (Tesouro Selic = 100% of Selic + 0.0545%: value 1000000, spread 545 — OQ-205). Refused on other types." }
         dueDate: { type: string, format: date, description: Fixed-term buy only — recomputes the schedule }
         interestPayment: { $ref: '#/components/schemas/InterestPayment' }
         incentivised: { type: boolean, description: Debenture buy only }

@@ -447,6 +447,10 @@ export type InvestmentHolding = {
          * Percent × 10,000 — 10.50% = 105000 (bigint fixed-point, OQ-86)
          */
         value?: number;
+        /**
+         * CDI/Selic only, optional — percent × 10,000 on top of the percent of the index (Tesouro Selic = 100% of Selic + 0.0545%: value 1000000, spread 545 — OQ-205). Refused on other types.
+         */
+        spread?: number | null;
     } | null;
     archivedAt?: string | null;
     createdAt?: string;
@@ -588,6 +592,10 @@ export type TransactionCreateRequest = {
          * Percent × 10,000 — 10.50% = 105000 (bigint fixed-point, OQ-86, OQ-189). Fixed: annual % rate. CDI/Selic: % of the index (110% of CDI = 1100000). IPCA/IGP-M: spread above the index.
          */
         value?: number;
+        /**
+         * CDI/Selic only, optional — percent × 10,000 on top of the percent of the index (Tesouro Selic = 100% of Selic + 0.0545%: value 1000000, spread 545 — OQ-205). Refused on other types.
+         */
+        spread?: number | null;
     } | null;
     /**
      * Fixed-term investment_buy only, required (FR-11.1/FR-11.2) — the contract's maturity date. Not derivable from assetType alone (a CDB's term is negotiated per contract); InvestmentProductEngine uses it, alongside date, rate and interestPayment, to compute the cash events between purchase and maturity.
@@ -638,6 +646,10 @@ export type TransactionUpdateRequest = {
          * Percent × 10,000
          */
         value?: number;
+        /**
+         * CDI/Selic only, optional — percent × 10,000 on top of the percent of the index (Tesouro Selic = 100% of Selic + 0.0545%: value 1000000, spread 545 — OQ-205). Refused on other types.
+         */
+        spread?: number | null;
     };
     /**
      * Fixed-term buy only — recomputes the schedule
@@ -2935,7 +2947,7 @@ export type RecordTransactionErrors = {
      */
     409: Error;
     /**
-     * Validation failure — `transaction.currency_mismatch` (FR-2.2), `transaction.kind_not_allowed_for_target` (FR-3.1, OQ-201), `transaction.investment_not_allowed_on_account` (OQ-76), `transaction.subcategory_mismatch` (FR-3.4), `category.archived` (a new transaction can't use an archived Category — OQ-201), `index_rate.missing` (a fixed-term buy whose index has no value recorded yet; params: `indexCode` — OQ-205), or `validation.failed` with `details[]` (missing fields per kind).
+     * Validation failure — `transaction.currency_mismatch` (FR-2.2), `transaction.kind_not_allowed_for_target` (FR-3.1, OQ-201), `transaction.investment_not_allowed_on_account` (OQ-76), `transaction.subcategory_mismatch` (FR-3.4), `category.archived` (a new transaction can't use an archived Category — OQ-201), `index_rate.missing` (a fixed-term buy whose index has no value recorded yet; params: `indexCode` — OQ-205), or `validation.failed` with `details[]` (missing fields per kind; a `dueDate` not after the buy's `date`, or a `rate.spread` on a type other than CDI/Selic — OQ-205).
      *
      */
     422: Error;

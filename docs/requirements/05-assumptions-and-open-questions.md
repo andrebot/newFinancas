@@ -5396,6 +5396,20 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
   (It first counted the missing index as 0% — IPCA + 5.5% projecting at
   5.5%, 110% of CDI projecting no interest — rejected: a buy would store a
   schedule with no interest at all.)
+- **A CDI/Selic rate may add a spread** (PR #127 review): `rate.spread`,
+  percent × 10,000, on top of the percent of the index — Tesouro Selic is
+  100% of Selic + 0.0545% (`value` 1,000,000, `spread` 545), a CDB may be
+  CDI + 1%. Optional; refused on fixed, IPCA and IGP-M rates (their
+  `value` already is the rate or the spread). Kept on the Holding
+  (`rate_spread`, migration 0012); the daily growth is the percent of the
+  index times the spread's own daily growth.
+- **A period whose interest comes out zero or negative pays nothing**
+  (PR #127 review) — an IGP-M contract in a deflation year: no interest or
+  tax entry, and `project` counts it as 0 as well, so the two never
+  disagree. The user corrects a posted amount (D9).
+- **The due date must fall after the buy's date** — `TransactionManager`
+  refuses otherwise (422 `validation.failed` on `dueDate`); the Engine
+  takes it as given.
 - **A payment on a weekend or holiday rolls to the following business day**
   (Brazil: weekends + the coded holidays; US: weekends only) — every entry,
   maturity included. Interest accrues to the contract dates, so Brazil's
@@ -5416,7 +5430,13 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
 - **The due date is kept on the Holding** (`due_date`, set exactly when the
   rate is, migration 0012): D6 recomputes the schedule when only the rate
   changes, and `project` needs the contract's date — a rolled redemption
-  date isn't it. The purchase date stays the buy's own date.
+  date isn't it. The purchase date stays the buy's own date. The matured
+  notification still goes by the redemption entry's date — the rolled
+  one, when the principal lands.
+- **The tax rules stay coded in the Engine** (PR #127 review): the
+  brackets and exempt types are law, not a tunable setting (OQ-101's
+  algorithm-intrinsic facts) — a change in the law is a code change with
+  its tests.
 
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 

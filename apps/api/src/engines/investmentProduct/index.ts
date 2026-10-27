@@ -28,7 +28,7 @@ export interface ContractTerms {
   readonly date: string;
   /** The principal, positive minor units. */
   readonly amount: number;
-  /** The maturity date, `YYYY-MM-DD`. */
+  /** The maturity date, `YYYY-MM-DD`, after `date` — the Manager refuses otherwise (OQ-205). */
   readonly dueDate: string;
   readonly rate: ContractRate;
   readonly interestPayment: InterestPayment;
@@ -76,6 +76,13 @@ interface Payment {
   readonly tax: number;
 }
 
+/** A contract's payments and how they are taxed. */
+interface Payments {
+  readonly rule: TaxRule;
+  /** One per accrual period, oldest first — the last on the redemption's date. */
+  readonly payments: Payment[];
+}
+
 /**
  * The market whose calendar and rules apply to a fixed-term type.
  *
@@ -102,20 +109,23 @@ const taxOn = (rule: TaxRule, interest: number, daysHeld: number): number => (
 );
 
 /**
- * Every payment of interest a contract makes, with its tax.
+ * Every payment of interest a contract makes, with its tax. A period whose
+ * index fell pays nothing rather than a negative amount (OQ-205).
  *
  * @param terms - The contract.
  * @param indexValue - The index's value (percent × 10,000); 0 for a fixed rate.
- * @returns One per accrual period, oldest first.
+ * @returns The tax rule and one payment per accrual period, oldest first.
  */
-const paymentsOf = (terms: ContractTerms, indexValue: number): Payment[] => {
+const paymentsOf = (terms: ContractTerms, indexValue: number): Payments => {
   const market = marketOf(terms.assetType);
   const rule = taxRuleOf(terms.assetType, market, terms.incentivised);
-  return accrualPeriods(terms.date, terms.dueDate, terms.interestPayment).map((period) => {
+  const periods = accrualPeriods(terms.date, terms.dueDate, terms.interestPayment);
+  const payments = periods.map((period) => {
     const date = followingBusinessDay(period.to, market);
-    const interest = interestFor(terms.amount, terms.rate, indexValue, period, market);
+    const interest = Math.max(interestFor(terms.amount, terms.rate, indexValue, period, market), 0);
     return { date, interest, tax: taxOn(rule, interest, daysBetween(terms.date, date)) };
   });
+  return { rule, payments };
 };
 
 /**
@@ -156,7 +166,7 @@ export const createInvestmentProductEngine = (deps: InvestmentProductEngineDeps)
   const paymentsFor = async (
     householdId: string,
     terms: ContractTerms,
-  ): Promise<Payment[] | IndexMissing> => {
+  ): Promise<Payments | IndexMissing> => {
     const { rate } = terms;
     if (rate.type === 'fixed') return paymentsOf(terms, 0);
     const latest = await deps.latestIndexRate(householdId, rate.type);
@@ -176,12 +186,11 @@ export const createInvestmentProductEngine = (deps: InvestmentProductEngineDeps)
      * @returns The entries, by date, every amount positive; or the missing index.
      */
     schedule: async (householdId: string, terms: ContractTerms): Promise<ScheduleResult> => {
-      const payments = await paymentsFor(householdId, terms);
-      if (!Array.isArray(payments)) return payments;
+      const contract = await paymentsFor(householdId, terms);
+      if ('reason' in contract) return contract;
+      const { payments } = contract;
       const redemption: ScheduleEntry = {
-        kind: 'redemption',
-        amount: terms.amount,
-        date: followingBusinessDay(terms.dueDate, marketOf(terms.assetType)),
+        kind: 'redemption', amount: terms.amount, date: payments[payments.length - 1]!.date,
       };
       return { ok: true, entries: [...payments.flatMap(entriesOf), redemption] };
     },
@@ -195,10 +204,11 @@ export const createInvestmentProductEngine = (deps: InvestmentProductEngineDeps)
      * @returns The expected payout and taxes, or the missing index.
      */
     project: async (householdId: string, terms: ContractTerms): Promise<ProjectResult> => {
-      const payments = await paymentsFor(householdId, terms);
-      if (!Array.isArray(payments)) return payments;
+      const contract = await paymentsFor(householdId, terms);
+      if ('reason' in contract) return contract;
+      const { rule, payments } = contract;
       const expectedPayout = terms.amount + sum(payments.map((payment) => payment.interest));
-      const expectedTaxes = marketOf(terms.assetType) === 'US'
+      const expectedTaxes = rule === 'not_estimated'
         ? { estimated: false as const }
         : { estimated: true as const, amount: sum(payments.map((payment) => payment.tax)) };
       return { ok: true, expectedPayout, expectedTaxes };

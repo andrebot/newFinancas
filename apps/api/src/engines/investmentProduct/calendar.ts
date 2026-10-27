@@ -140,33 +140,22 @@ export const brazilianHolidays = (year: number): Set<string> => {
   ]);
 };
 
-/**
- * Tells whether a date is a weekday that isn't a holiday of the market (the US
- * has no coded holidays: weekends only).
- *
- * @param date - `YYYY-MM-DD`.
- * @param market - The market.
- * @param holidays - The market's holidays covering the date.
- * @returns `true` on a business day.
- */
-const isBusinessDay = (date: string, market: Market, holidays: Set<string>): boolean => {
-  const weekday = toInstant(date).getUTCDay();
-  if (weekday === SATURDAY || weekday === SUNDAY) return false;
-  return market === 'US' || !holidays.has(date);
-};
+// Each year's holidays, computed once (Easter included) — counting runs per
+// period on every Holding read.
+const holidaysByYear = new Map<number, Set<string>>();
 
 /**
- * The holidays of a market over some years.
+ * Brazil's holidays of a year, computed on first use.
  *
- * @param market - The market.
- * @param fromYear - First year.
- * @param toYear - Last year, included.
- * @returns Their dates; none for the US.
+ * @param year - The year.
+ * @returns Their dates.
  */
-const holidaysOf = (market: Market, fromYear: number, toYear: number): Set<string> => {
-  if (market === 'US') return new Set();
-  const years = Array.from({ length: toYear - fromYear + 1 }, (_, offset) => fromYear + offset);
-  return new Set(years.flatMap((year) => [...brazilianHolidays(year)]));
+const holidaysOfYear = (year: number): Set<string> => {
+  const known = holidaysByYear.get(year);
+  if (known) return known;
+  const holidays = brazilianHolidays(year);
+  holidaysByYear.set(year, holidays);
+  return holidays;
 };
 
 /**
@@ -178,6 +167,20 @@ const holidaysOf = (market: Market, fromYear: number, toYear: number): Set<strin
 const yearOf = (date: string): number => Number(date.slice(0, 4));
 
 /**
+ * Tells whether a date is a weekday that isn't a holiday of the market (the US
+ * has no coded holidays: weekends only).
+ *
+ * @param date - `YYYY-MM-DD`.
+ * @param market - The market.
+ * @returns `true` on a business day.
+ */
+const isBusinessDay = (date: string, market: Market): boolean => {
+  const weekday = toInstant(date).getUTCDay();
+  if (weekday === SATURDAY || weekday === SUNDAY) return false;
+  return market === 'US' || !holidaysOfYear(yearOf(date)).has(date);
+};
+
+/**
  * Counts business days from one date (included) to another (excluded) — the
  * days a Brazilian instrument accrues over (252 a year).
  *
@@ -187,10 +190,9 @@ const yearOf = (date: string): number => Number(date.slice(0, 4));
  * @returns The count; 0 when `to` isn't after `from`.
  */
 export const businessDaysBetween = (from: string, to: string, market: Market): number => {
-  const holidays = holidaysOf(market, yearOf(from), yearOf(to));
   const length = Math.max(daysBetween(from, to), 0);
   return Array.from({ length }, (_, offset) => addDays(from, offset))
-    .filter((date) => isBusinessDay(date, market, holidays)).length;
+    .filter((date) => isBusinessDay(date, market)).length;
 };
 
 /**
@@ -202,7 +204,7 @@ export const businessDaysBetween = (from: string, to: string, market: Market): n
  * @returns `YYYY-MM-DD`.
  */
 export const followingBusinessDay = (date: string, market: Market): string => (
-  isBusinessDay(date, market, holidaysOf(market, yearOf(date), yearOf(date)))
+  isBusinessDay(date, market)
     ? date
     : followingBusinessDay(addDays(date, 1), market)
 );

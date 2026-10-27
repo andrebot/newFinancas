@@ -21,6 +21,20 @@ describe('interestFor', () => {
     }, 'BR')).toBe(54_101);
   });
 
+  it.each([
+    ['selic', 1_000_000, 545, 49_342],
+    ['cdi', 1_100_000, 10_000, 59_191],
+  ] as const)('adds a spread on top of percent of %s (OQ-205)', (type, value, spread, interest) => {
+    expect(interestFor(1_000_000, { type, value, spread }, 104_000, {
+      from: '2025-01-02', to: '2025-07-01',
+    }, 'BR')).toBe(interest);
+  });
+
+  it('is negative when the index fell by more than the spread', () => {
+    expect(interestFor(1_000_000, { type: 'igpm', value: 30_000 }, -60_000, YEAR_2025, 'BR'))
+      .toBe(-31_800);
+  });
+
   it.each(['ipca', 'igpm'] as const)('adds the spread above %s', (type) => {
     expect(interestFor(1_000_000, { type, value: 55_000 }, 45_000, YEAR_2025, 'BR')).toBe(102_475);
   });

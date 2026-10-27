@@ -85,6 +85,9 @@ sequenceDiagram
         else cash kind on a credit-card-only account
             TM-->>API: ValidationError (OQ-201 &mdash; it takes only bill payments to its cards)
             API-->>User: 422 transaction.kind_not_allowed_for_target
+        else fixed-term buy: dueDate not after date, or a spread on a rate not CDI/Selic
+            TM-->>API: ValidationError (OQ-205 &mdash; the Engine is never called)
+            API-->>User: 422 validation.failed {dueDate | rate.spread}
         else effect = movement or transfer
             TM->>AA: applyMovement(accountId, {amount, currency, date})
             AA-->>TM: new balance
@@ -252,6 +255,8 @@ sequenceDiagram
                 TM->>VSA: updateAutomatic(transactionId, newValuation, newDate)
             end
             opt a fixed-term buy whose terms, amount or date changed (schedule not started)
+                Note over TM: dueDate after date, a spread only on CDI/Selic &mdash; else 422 validation.failed (OQ-205)
+                TM->>IHA: updateTerms(holdingId, {rate, dueDate, interestPayment, incentivised})
                 TM->>IPE: schedule(householdId, {new terms})
                 alt the index has no value yet (OQ-205)
                     IPE-->>TM: {ok: false, reason: index_missing, indexCode}

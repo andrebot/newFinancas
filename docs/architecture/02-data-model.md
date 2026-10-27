@@ -504,7 +504,10 @@ Backs `AccountManager`'s `InvestmentHoldingAccessor`,
   fixed-term types only, OQ-50; `rate_type` one of
   fixed/cdi/ipca/igpm/selic, `rate_value` **`bigint` percent × 10,000**
   (OQ-86), set at purchase — edited only through its buy while the
-  schedule hasn't started, OQ-201), **`incentivised`** (boolean,
+  schedule hasn't started, OQ-201), **`rate_spread`** (`bigint` percent
+  × 10,000, nullable — CDI/Selic only, a spread on top of the percent of
+  the index, e.g. Tesouro Selic = 100% + 0.0545%; a CHECK refuses it on
+  other types, OQ-205), **`incentivised`** (boolean,
   nullable — debentures only, OQ-79), **`interest_payment`**
   (`at_maturity` | `monthly` | `semiannual`, nullable — fixed-term types
   only, from the buy, OQ-201; the Engine needs it to recompute the

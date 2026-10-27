@@ -531,7 +531,8 @@ export const zTransactionCreateRequest = z.object({
             'igpm',
             'selic'
         ]).optional(),
-        value: z.int().optional()
+        value: z.int().optional(),
+        spread: z.int().nullish()
     }).nullish(),
     dueDate: z.iso.date().optional(),
     interestPayment: zInterestPayment.optional(),
@@ -561,7 +562,8 @@ export const zTransactionUpdateRequest = z.object({
             'igpm',
             'selic'
         ]).optional(),
-        value: z.int().optional()
+        value: z.int().optional(),
+        spread: z.int().nullish()
     }).optional(),
     dueDate: z.iso.date().optional(),
     interestPayment: zInterestPayment.optional(),
@@ -704,7 +706,8 @@ export const zInvestmentHolding = z.object({
             'igpm',
             'selic'
         ]).optional(),
-        value: z.int().optional()
+        value: z.int().optional(),
+        spread: z.int().nullish()
     }).nullish(),
     archivedAt: z.iso.datetime().nullish(),
     createdAt: z.iso.datetime().optional(),

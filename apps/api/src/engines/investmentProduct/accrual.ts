@@ -17,6 +17,11 @@ export interface ContractRate {
    * index (110% of CDI = 1,100,000). IPCA/IGP-M: the spread above the index.
    */
   readonly value: number;
+  /**
+   * CDI/Selic only, percent × 10,000: a spread on top of the percent of the
+   * index (Tesouro Selic = 100% of Selic + 0.0545% = 545; OQ-205).
+   */
+  readonly spread?: number | null;
 }
 
 /** One accrual period: from (included) to (excluded), both contract dates. */
@@ -72,7 +77,7 @@ const GROWTH: Record<ContractRate['type'], GrowthRule> = {
  * @param indexValue - The index's value (percent × 10,000); ignored for a fixed rate.
  * @param period - The period.
  * @param market - The market whose day count applies.
- * @returns Whole minor units, rounded half-up.
+ * @returns Whole minor units, rounded half-up; negative when the index fell.
  */
 export const interestFor = (
   principal: number,
@@ -81,11 +86,14 @@ export const interestFor = (
   period: Period,
   market: Market,
 ): number => {
-  const growth = GROWTH[rate.type](
+  const days = accrualDays(period, market);
+  const daysPerYear = DAYS_PER_YEAR[market];
+  const indexGrowth = GROWTH[rate.type](
     rate.value / RATE_SCALE,
     indexValue / RATE_SCALE,
-    accrualDays(period, market),
-    DAYS_PER_YEAR[market],
+    days,
+    daysPerYear,
   );
+  const growth = indexGrowth * (1 + (rate.spread ?? 0) / RATE_SCALE) ** (days / daysPerYear);
   return Math.round(principal * (growth - 1));
 };
