@@ -259,12 +259,12 @@ sequenceDiagram
     IM->>GA: list(householdId, viewerUserId, status)
     IM->>RE: goalProgress({householdId, viewerUserId}, goals, today)
     RE->>AA: list(householdId, viewerUserId) &mdash; the Accounts the viewer sees
-    RE->>GA: listAllocations({goalIds})
+    RE->>GA: listAllocations({goalIds}, date) &mdash; the split in effect then (OQ-206)
     RE->>IHA: findByIds(householdId, allocated holdingIds) &mdash; with their currency
     RE->>VSA: latestAsOf(market-priced holdingIds, date)
     RE->>ATA: costBasisAsOf(fixed-term holdingIds, date) &mdash; OQ-206
     Note over RE: contribution = value &times; allocated %, kept in the<br/>Holding&#39;s own currency (OQ-49) &mdash; never converted here &mdash;<br/>a Holding in an Account the viewer can&#39;t see counts, unnamed (OQ-206)
-    RE-->>IM: [{goal, contributionsByCurrency[], fundedBy[]}]
+    RE-->>IM: [{goal, fundedBy[{holdingId, name, percentage, contribution}]}]
     IM-->>API: goals
     API-->>User: 200 OK
 """,

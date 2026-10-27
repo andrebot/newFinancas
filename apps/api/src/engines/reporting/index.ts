@@ -1,7 +1,7 @@
 import type { CalendarMonth } from '../../accessors/calendarMonth';
 import type { Goal } from '../../accessors/goalAccessor';
 import auditLogCsv from './auditLogReport';
-import { goalProgress, type GoalWithProgress } from './goalProgress';
+import { goalProgress, visibleAccountIdsOf, type GoalWithProgress } from './goalProgress';
 import {
   monthOverview, type MonthOverview, type MonthOverviewDeps, type Viewer,
 } from './monthOverview';
@@ -56,9 +56,7 @@ export const createReportingEngine = (deps: ReportingEngineDeps) => ({
   ): Promise<GoalWithProgress[]> => {
     const accounts = await deps.listAccounts(viewer.householdId, viewer.viewerUserId);
     return goalProgress(deps, goals, {
-      householdId: viewer.householdId,
-      visibleAccountIds: new Set(accounts.map((account) => account.id)),
-      date,
+      householdId: viewer.householdId, visibleAccountIds: visibleAccountIdsOf(accounts), date,
     });
   },
 

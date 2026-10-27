@@ -3,13 +3,17 @@ import type { Account, AccountAccessor } from '../../accessors/accountAccessor';
 import type {
   AccountTransactionAccessor, MonthKindTotal,
 } from '../../accessors/accountTransactionAccessor';
-import type { Budget, BudgetAccessor } from '../../accessors/budgetAccessor';
+import type { Budget, BudgetAccessor, BudgetPeriodOf } from '../../accessors/budgetAccessor';
 import type { CalendarMonth } from '../../accessors/calendarMonth';
 import type { CardTransactionAccessor } from '../../accessors/cardTransactionAccessor';
 import type { CreditCard, CreditCardAccessor } from '../../accessors/creditCardAccessor';
 import type { GoalAccessor } from '../../accessors/goalAccessor';
+import { calendar } from '../../config/constants';
 import type { Visibility } from '../../db/schema/values';
-import { goalProgress, type GoalProgressDeps, type GoalWithProgress } from './goalProgress';
+import calendarDate from '../../utilities/calendar';
+import {
+  goalProgress, visibleAccountIdsOf, type GoalProgressDeps, type GoalWithProgress,
+} from './goalProgress';
 import { monthEnd, monthKey, yearMonths } from './months';
 
 // ReportingEngine — the Month Overview (FR-6.11, FR-6.6, FR-4.3, FR-8.7,
@@ -18,6 +22,8 @@ import { monthEnd, monthKey, yearMonths } from './months';
 // In and out follow each kind's direction; own-account transfers and bill
 // payments are left out by their stored effect (FR-3.6), never by kind, so
 // nothing counts twice. Card charges and refunds and investment trades count.
+// Past months read as they were: an Account archived later still shows its
+// balance for a month it was open (OQ-206).
 
 /** What the Month Overview reads. */
 export interface MonthOverviewDeps extends GoalProgressDeps {
@@ -28,7 +34,7 @@ export interface MonthOverviewDeps extends GoalProgressDeps {
   readonly accountMonthlySums: AccountTransactionAccessor['monthlySums'];
   readonly cardMonthlySums: CardTransactionAccessor['monthlySums'];
   readonly listBudgets: BudgetAccessor['list'];
-  readonly listBudgetPeriods: BudgetAccessor['listPeriods'];
+  readonly budgetPeriodsAsOf: BudgetAccessor['periodsAsOf'];
   readonly listGoals: GoalAccessor['list'];
 }
 
@@ -150,22 +156,45 @@ export const flowsOf = (
   month: CalendarMonth,
 ): Pick<MonthOverview, 'summary' | 'yearStrip'> => {
   const totals = cashFlowOf(rows);
-  const currencies = [...new Set(rows.map((row) => row.currency))].sort();
-  const at = (key: string, currency: string) => totals.get(flowKey(key, currency)) ?? NOTHING;
+  const counted = rows.filter((row) => findKind(row.kind) !== undefined);
+  const currencies = [...new Set(counted.map((row) => row.currency))].sort();
+  /**
+   * Reads one month and currency's totals.
+   *
+   * @param stripMonth - The month.
+   * @param currency - The currency.
+   * @returns Its in and out; zero when nothing moved.
+   */
+  const flowAt = (stripMonth: CalendarMonth, currency: string): InOut => (
+    totals.get(flowKey(monthKey(stripMonth), currency)) ?? NOTHING
+  );
   return {
     summary: currencies.map((currency) => {
-      const flow = at(monthKey(month), currency);
+      const flow = flowAt(month, currency);
       return { currency, ...flow, net: flow.in - flow.out };
     }),
     yearStrip: yearMonths(month.year).flatMap((stripMonth) => currencies.map((currency) => ({
-      month: monthKey(stripMonth), currency, ...at(monthKey(stripMonth), currency),
+      month: monthKey(stripMonth), currency, ...flowAt(stripMonth, currency),
     }))),
   };
 };
 
 /**
- * Reads each unarchived Account's balance and its cards' outstanding at the
- * month's end (F10, D16); one with no history by then is left out.
+ * Tells whether an Account was still open at a month's end: never archived, or
+ * archived after it (F10, OQ-206) — in the app's time zone (OQ-104).
+ *
+ * @param account - The Account.
+ * @param month - The month.
+ * @returns `true` when it belongs on that month's Balance rail.
+ */
+export const openAtMonthEnd = (account: Account, month: CalendarMonth): boolean => (
+  account.archivedAt === null
+  || calendarDate(account.archivedAt, calendar.timeZone) > monthEnd(month)
+);
+
+/**
+ * Reads the balance of each Account open at the month's end and its cards'
+ * outstanding then (F10, D16); one with no history by then is left out.
  *
  * @param deps - The balance reads.
  * @param accounts - The viewer's Accounts, in display order.
@@ -179,7 +208,7 @@ const balancesOf = async (
   cards: readonly CreditCard[],
   month: CalendarMonth,
 ): Promise<MonthEndBalance[]> => {
-  const open = accounts.filter((account) => account.archivedAt === null);
+  const open = accounts.filter((account) => openAtMonthEnd(account, month));
   const openCards = cards.filter((card) => open.some((account) => account.id === card.accountId));
   const [accountRows, cardRows] = await Promise.all([
     deps.accountBalancesAsOf(open.map((account) => account.id), month),
@@ -202,21 +231,19 @@ const balancesOf = async (
 };
 
 /**
- * Reads a Budget's month: that month's period, or — with none opened — the
- * target in effect then (the latest earlier period, OQ-166) and zero spend.
+ * Shapes a Budget's month from its latest period by then: that month's, or —
+ * with none opened — the target in effect then (OQ-166) and zero spend.
  *
- * @param deps - The period read.
  * @param budget - The Budget.
+ * @param latest - Its latest period at or before the month, if any.
  * @param month - The month.
  * @returns Its status, or none when it had no period by then.
  */
-const budgetStatusOf = async (
-  deps: MonthOverviewDeps,
+export const budgetStatusOf = (
   budget: Budget,
+  latest: BudgetPeriodOf | undefined,
   month: CalendarMonth,
-): Promise<BudgetStatus[]> => {
-  const periods = await deps.listBudgetPeriods(budget.householdId, budget.id, { to: month });
-  const latest = periods.at(-1);
+): BudgetStatus[] => {
   if (!latest) return [];
   const opened = latest.year === month.year && latest.month === month.month;
   return [{
@@ -236,8 +263,39 @@ const budgetStatusOf = async (
  * @returns The ordered list.
  */
 export const overBudgetFirst = (statuses: readonly BudgetStatus[]): BudgetStatus[] => {
+  /**
+   * Tells whether a Budget spent past its target.
+   *
+   * @param status - The Budget's month.
+   * @returns `true` when over budget.
+   */
   const isOver = (status: BudgetStatus) => status.spendAmount > status.targetAmount;
   return [...statuses.filter(isOver), ...statuses.filter((status) => !isOver(status))];
+};
+
+/**
+ * Reads the Budgets' months in one query (FR-4.3, F9).
+ *
+ * @param deps - The period read.
+ * @param householdId - The household.
+ * @param budgets - The viewer's Budgets, by name.
+ * @param month - The month.
+ * @returns The Budgets active by then, over-budget first.
+ */
+const budgetsOf = async (
+  deps: MonthOverviewDeps,
+  householdId: string,
+  budgets: readonly Budget[],
+  month: CalendarMonth,
+): Promise<BudgetStatus[]> => {
+  const periods = await deps.budgetPeriodsAsOf(
+    householdId,
+    budgets.map((budget) => budget.id),
+    month,
+  );
+  const latest = new Map(periods.map((period) => [period.budgetId, period]));
+  return overBudgetFirst(budgets.flatMap((budget) => (
+    budgetStatusOf(budget, latest.get(budget.id), month))));
 };
 
 /**
@@ -263,17 +321,12 @@ export const monthOverview = async (
   const [sums, balances, statuses, progress] = await Promise.all([
     yearSums(deps, accounts, cards, month.year),
     balancesOf(deps, accounts, cards, month),
-    Promise.all(budgets.map((budget) => budgetStatusOf(deps, budget, month))),
+    budgetsOf(deps, householdId, budgets, month),
     goalProgress(deps, goals, {
-      householdId,
-      visibleAccountIds: new Set(accounts.map((account) => account.id)),
-      date: monthEnd(month),
+      householdId, visibleAccountIds: visibleAccountIdsOf(accounts), date: monthEnd(month),
     }),
   ]);
   return {
-    ...flowsOf(sums, month),
-    balances,
-    budgets: overBudgetFirst(statuses.flat()),
-    goals: progress,
+    ...flowsOf(sums, month), balances, budgets: statuses, goals: progress,
   };
 };

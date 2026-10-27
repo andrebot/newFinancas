@@ -2222,9 +2222,9 @@ paths:
       operationId: listGoalProgress
       summary: List goals with progress per currency (View Goals)
       description: >
-        FR-8.5/OQ-49. The Goals listGoals returns, each with its
-        contributions in their Holdings' own currencies and the Holdings
-        funding it. A reshaped read — InsightsManager's, built with M4
+        FR-8.5/OQ-49. The Goals listGoals returns, each with the Holdings
+        funding it today and what each contributes, in its own currency
+        (OQ-206). A reshaped read — InsightsManager's, built with M4
         (OQ-177); cross-currency blending is the frontend's (FR-8.4).
       parameters:
         - name: status
@@ -3481,21 +3481,43 @@ components:
         visibility: { type: string, enum: [personal, shared] }
     GoalProgress:
       type: object
-      description: "FR-8.5 — per-Holding contributions in native currency; blending is a frontend concern."
+      required: [goalId, targetAmount, targetCurrency, fundedBy]
+      description: "FR-8.5/8.7 — each funding Holding with its contribution in its own currency, on the day asked for, with the split in effect then (OQ-206); blending is a frontend concern."
       properties:
-        targetAmount: { $ref: "#/components/schemas/Money" }
-        targetCurrency: { $ref: "#/components/schemas/Currency" }
-        contributions:
-          type: array
-          items:
-            type: object
-            properties:
-              holdingId: { type: [string, "null"], format: uuid, description: "Null for a Holding the viewer can't see — it counts, unnamed (OQ-206)" }
-              currency: { $ref: "#/components/schemas/Currency" }
-              amount: { $ref: "#/components/schemas/Money" }
         goalId:
           type: string
           format: uuid
+        targetAmount: { $ref: "#/components/schemas/Money" }
+        targetCurrency: { $ref: "#/components/schemas/Currency" }
+        fundedBy:
+          type: array
+          items: { $ref: "#/components/schemas/GoalFundingRow" }
+    GoalFundingRow:
+      type: object
+      description: One Holding funding a Goal, with what it contributes (OQ-206) — one row each, so nothing is joined by Holding id.
+      required: [holdingId, name, percentage, contribution]
+      properties:
+        holdingId:
+          type: [string, "null"]
+          format: uuid
+          description: Null for a Holding the viewer can't see — it counts, unnamed (OQ-206)
+        name:
+          type: [string, "null"]
+          description: The Holding's ticker — null when it has none, or for a Holding the viewer can't see (holdingId null too; the UI says "a personal holding", OQ-206)
+        percentage:
+          type: integer
+          minimum: 1
+          maximum: 100
+          description: Whole percent (60 = 60%) — integer, no floats; contribution = value × pct / 100, rounded half-up to the cent (OQ-87)
+        contribution:
+          description: In the Holding's own currency; null when the Holding had no value by then
+          oneOf:
+            - type: "null"
+            - type: object
+              required: [currency, amount]
+              properties:
+                currency: { $ref: "#/components/schemas/Currency" }
+                amount: { $ref: "#/components/schemas/Money" }
     GoalUpdateRequest:
       type: object
       properties:
@@ -3507,35 +3529,11 @@ components:
       allOf:
         - $ref: '#/components/schemas/Goal'
         - type: object
-          required: [contributions, fundedBy]
+          required: [fundedBy]
           properties:
-            contributions:
-              type: array
-              items:
-                type: object
-                required: [holdingId, currency, amount]
-                properties:
-                  holdingId: { type: [string, "null"], format: uuid, description: "Null for a Holding the viewer can't see — it counts, unnamed (OQ-206)" }
-                  currency: { $ref: "#/components/schemas/Currency" }
-                  amount: { $ref: "#/components/schemas/Money" }
             fundedBy:
               type: array
-              items:
-                type: object
-                required: [holdingId, name, percentage]
-                properties:
-                  holdingId:
-                    type: [string, "null"]
-                    format: uuid
-                    description: Null for a Holding the viewer can't see (OQ-206)
-                  name:
-                    type: [string, "null"]
-                    description: The Holding's ticker — null when it has none, or for a Holding the viewer can't see (holdingId null too; the UI says "a personal holding", OQ-206)
-                  percentage:
-                    type: integer
-                    minimum: 1
-                    maximum: 100
-                    description: Whole percent (60 = 60%) — integer, no floats; contribution = value × pct / 100, rounded half-up to the cent (OQ-87)
+              items: { $ref: "#/components/schemas/GoalFundingRow" }
     LedgerItem:
       oneOf:
         - $ref: '#/components/schemas/AccountTransaction'

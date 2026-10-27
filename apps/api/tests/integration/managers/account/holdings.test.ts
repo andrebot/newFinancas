@@ -5,7 +5,7 @@ import {
 import { createAccountManager } from '../../../../src/managers/account';
 import { expectAudited } from '../audit';
 import {
-  ACCOUNT, ANA_ID, BEA_ID, CONTEXT, fakeDeps, GOAL, HOLDING, HOUSEHOLD_ID, NOW,
+  ACCOUNT, ANA_ID, BEA_ID, CONTEXT, fakeDeps, GOAL, HOLDING, HOUSEHOLD_ID, NOW, TODAY,
 } from './fakes';
 
 const HOLDING_ID = HOLDING.id;
@@ -202,7 +202,7 @@ describe('AccountManager — edit a Holding\'s Goal split (uc-02, FR-8.2/8.3, OQ
     expect(goals.findByIds).toHaveBeenCalledWith(HOUSEHOLD_ID, [BEAS_GOAL.id, GOAL.id]);
     expect(goals.replaceAllocations).toHaveBeenCalledWith(HOUSEHOLD_ID, HOLDING_ID, [
       { goalId: BEAS_GOAL.id, percentage: 30 }, { goalId: GOAL.id, percentage: 50 },
-    ]);
+    ], TODAY);
     expectAudited(logs.events, audit('EditHoldingAllocations'));
   });
 
@@ -212,7 +212,7 @@ describe('AccountManager — edit a Holding\'s Goal split (uc-02, FR-8.2/8.3, OQ
 
     expect(await createAccountManager(deps).editHolding(CONTEXT, HOUSEHOLD_ID, HOLDING_ID, []))
       .toEqual([]);
-    expect(goals.replaceAllocations).toHaveBeenCalledWith(HOUSEHOLD_ID, HOLDING_ID, []);
+    expect(goals.replaceAllocations).toHaveBeenCalledWith(HOUSEHOLD_ID, HOLDING_ID, [], TODAY);
   });
 
   it('refuses an archived Holding 409 holding.archived, reading no split', async () => {
@@ -282,7 +282,7 @@ describe('AccountManager — edit a Holding\'s Goal split (uc-02, FR-8.2/8.3, OQ
 
     expect(goals.replaceAllocations).toHaveBeenCalledWith(HOUSEHOLD_ID, HOLDING_ID, [
       { goalId: GOAL.id, percentage: 20 },
-    ]);
+    ], TODAY);
   });
 
   it.each([

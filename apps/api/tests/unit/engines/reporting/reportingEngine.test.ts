@@ -26,10 +26,19 @@ describe('createReportingEngine', () => {
       .goalProgress(VIEWER, [aGoal()], '2026-10-13');
 
     expect(progress?.fundedBy).toEqual([
-      { holdingId: 'petr4', name: 'PETR4', percentage: 50 },
-      { holdingId: null, name: null, percentage: 50 },
+      {
+        holdingId: 'petr4',
+        name: 'PETR4',
+        percentage: 50,
+        contribution: { currency: 'BRL', amount: 1_000 },
+      },
+      {
+        holdingId: null,
+        name: null,
+        percentage: 50,
+        contribution: { currency: 'BRL', amount: 2_000 },
+      },
     ]);
-    expect(progress?.contributions.map((row) => row.amount)).toEqual([1_000, 2_000]);
     expect(deps.listAccounts).toHaveBeenCalledWith(HOUSEHOLD_ID, 'ana');
     expect(deps.latestSnapshots).toHaveBeenCalledWith(['petr4', 'bea-stock'], '2026-10-13');
   });

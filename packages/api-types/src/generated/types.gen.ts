@@ -840,20 +840,38 @@ export type GoalCreateRequest = {
 };
 
 /**
- * FR-8.5 — per-Holding contributions in native currency; blending is a frontend concern.
+ * FR-8.5/8.7 — each funding Holding with its contribution in its own currency, on the day asked for, with the split in effect then (OQ-206); blending is a frontend concern.
  */
 export type GoalProgress = {
-    targetAmount?: Money;
-    targetCurrency?: Currency;
-    contributions?: Array<{
-        /**
-         * Null for a Holding the viewer can't see — it counts, unnamed (OQ-206)
-         */
-        holdingId?: string | null;
-        currency?: Currency;
-        amount?: Money;
-    }>;
-    goalId?: string;
+    goalId: string;
+    targetAmount: Money;
+    targetCurrency: Currency;
+    fundedBy: Array<GoalFundingRow>;
+};
+
+/**
+ * One Holding funding a Goal, with what it contributes (OQ-206) — one row each, so nothing is joined by Holding id.
+ */
+export type GoalFundingRow = {
+    /**
+     * Null for a Holding the viewer can't see — it counts, unnamed (OQ-206)
+     */
+    holdingId: string | null;
+    /**
+     * The Holding's ticker — null when it has none, or for a Holding the viewer can't see (holdingId null too; the UI says "a personal holding", OQ-206)
+     */
+    name: string | null;
+    /**
+     * Whole percent (60 = 60%) — integer, no floats; contribution = value × pct / 100, rounded half-up to the cent (OQ-87)
+     */
+    percentage: number;
+    /**
+     * In the Holding's own currency; null when the Holding had no value by then
+     */
+    contribution: null | {
+        currency: Currency;
+        amount: Money;
+    };
 };
 
 export type GoalUpdateRequest = {
@@ -864,28 +882,7 @@ export type GoalUpdateRequest = {
 };
 
 export type GoalWithProgress = Goal & {
-    contributions: Array<{
-        /**
-         * Null for a Holding the viewer can't see — it counts, unnamed (OQ-206)
-         */
-        holdingId: string | null;
-        currency: Currency;
-        amount: Money;
-    }>;
-    fundedBy: Array<{
-        /**
-         * Null for a Holding the viewer can't see (OQ-206)
-         */
-        holdingId: string | null;
-        /**
-         * The Holding's ticker — null when it has none, or for a Holding the viewer can't see (holdingId null too; the UI says "a personal holding", OQ-206)
-         */
-        name: string | null;
-        /**
-         * Whole percent (60 = 60%) — integer, no floats; contribution = value × pct / 100, rounded half-up to the cent (OQ-87)
-         */
-        percentage: number;
-    }>;
+    fundedBy: Array<GoalFundingRow>;
 };
 
 /**

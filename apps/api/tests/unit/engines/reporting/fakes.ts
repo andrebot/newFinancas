@@ -1,6 +1,6 @@
 import { vi } from 'vitest';
 import type { Account } from '../../../../src/accessors/accountAccessor';
-import type { Budget, BudgetPeriod } from '../../../../src/accessors/budgetAccessor';
+import type { Budget, BudgetPeriodOf } from '../../../../src/accessors/budgetAccessor';
 import type { CreditCard } from '../../../../src/accessors/creditCardAccessor';
 import type { Goal, GoalAllocation } from '../../../../src/accessors/goalAccessor';
 import type { PricedHolding } from '../../../../src/accessors/investmentHoldingAccessor';
@@ -74,8 +74,9 @@ export const aBudget = (overrides: Partial<Budget> = {}): Budget => ({
 });
 
 /**
- * Builds a Budget period.
+ * Builds a Budget's period.
  *
+ * @param budgetId - The Budget.
  * @param month - `{ year, month }`.
  * @param month.year - The year.
  * @param month.month - The month.
@@ -84,11 +85,12 @@ export const aBudget = (overrides: Partial<Budget> = {}): Budget => ({
  * @returns The period.
  */
 export const aPeriod = (
+  budgetId: string,
   month: { year: number; month: number },
   targetAmount: number,
   spendAmount: number,
-): BudgetPeriod => ({
-  ...month, targetAmount, spendAmount, createdAt: NOW,
+): BudgetPeriodOf => ({
+  budgetId, ...month, targetAmount, spendAmount, createdAt: NOW,
 });
 
 /**
@@ -124,7 +126,12 @@ export const anAllocation = (
   holdingId: string,
   percentage: number,
 ): GoalAllocation => ({
-  id: `${goalId}-${holdingId}`, goalId, holdingId, percentage, createdAt: NOW,
+  id: `${goalId}-${holdingId}`,
+  goalId,
+  holdingId,
+  percentage,
+  validFrom: '2026-01-01',
+  createdAt: NOW,
 });
 
 /**
@@ -167,7 +174,7 @@ export const fakeDeps = () => ({
   accountMonthlySums: vi.fn<ReportingEngineDeps['accountMonthlySums']>(async () => []),
   cardMonthlySums: vi.fn<ReportingEngineDeps['cardMonthlySums']>(async () => []),
   listBudgets: vi.fn<ReportingEngineDeps['listBudgets']>(async () => []),
-  listBudgetPeriods: vi.fn<ReportingEngineDeps['listBudgetPeriods']>(async () => []),
+  budgetPeriodsAsOf: vi.fn<ReportingEngineDeps['budgetPeriodsAsOf']>(async () => []),
   listGoals: vi.fn<ReportingEngineDeps['listGoals']>(async () => []),
   listAllocations: vi.fn<ReportingEngineDeps['listAllocations']>(async () => []),
   findHoldings: vi.fn<ReportingEngineDeps['findHoldings']>(async () => []),

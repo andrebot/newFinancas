@@ -5471,11 +5471,33 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
   everyone else that Holding's contribution counts — every member sees the
   same total — but as a row with no Holding: `holdingId` null in
   `contributions` and `fundedBy`, `name` null (the UI shows "a personal
-  holding"). With no id to join on, those rows pair up by order — the
-  read lists them in the same order in both lists, and leaves out a
-  hidden Holding with no value by then (it would show nothing). Goal
-  Management (FL14) joins them so. Weighed and rejected: naming it (reveals a personal Holding)
+  holding"). Each `fundedBy` row carries its own `contribution` (PR #128
+  review), so nothing is joined on an id a row may lack. Weighed and
+  rejected: naming it (reveals a personal Holding)
   and leaving it out (the shared Goal's total would depend on who looks).
+- **PR #128 review decisions:**
+  - **A Goal split is kept by version.** `goal_allocations` gains
+    `valid_from`/`valid_to` (migration 0013); replacing a split closes the
+    version in effect on its day and opens the new one, so progress on a
+    past date reads the split of that day — with B2 a split changes on
+    every sell, and FR-8.7's history would otherwise be rewritten by each.
+    A split takes effect today (Edit Holding), or on the buy's date when
+    the buy creates its Holding (task 103), so backdated history keeps its
+    Goals; a split dated before later versions replaces them. Weighed and
+    rejected: always using the current split (simpler, but past progress
+    isn't what it was).
+  - **A past month shows the Accounts open then:** the Balance rail leaves
+    out an Account archived on or before the month's end (app time zone,
+    OQ-104), with its cards — one archived later still shows, so a month's
+    balances agree with its In/Out.
+  - **Own-account transfers stay out of In/Out for every viewer** — the
+    glossary's Transfer is between the household's own Accounts, judged
+    by the stored effect; money paid outside the household is a movement.
+    Weighed and rejected: counting a transfer to another member's personal
+    Account as out in the sender's view (an unlinked pair, D2, can't tell).
+  - **`GoalProgress` and `GoalWithProgress` carry `fundedBy` rows, each
+    with its `contribution`** (`GoalFundingRow`); the separate
+    `contributions` list is gone.
 
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 

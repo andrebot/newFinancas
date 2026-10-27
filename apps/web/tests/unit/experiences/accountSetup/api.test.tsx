@@ -24,8 +24,12 @@ const GOAL: Goal = {
 
 const GOAL_PROGRESS: GoalWithProgress = {
   ...GOAL,
-  contributions: [{ holdingId: 'aapl', currency: 'USD', amount: 48200 }],
-  fundedBy: [{ holdingId: 'aapl', name: 'AAPL', percentage: 10 }],
+  fundedBy: [{
+    holdingId: 'aapl',
+    name: 'AAPL',
+    percentage: 10,
+    contribution: { currency: 'USD', amount: 48200 },
+  }],
 };
 
 describe.each([

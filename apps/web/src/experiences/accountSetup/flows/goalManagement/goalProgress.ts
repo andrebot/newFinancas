@@ -4,8 +4,8 @@ import { KIND_SCALE } from '../../../../kit/numberInput/decimal';
 
 // A Goal's progress as its card shows it (FL14; FR-8.4/8.5, FR-9, OQ-195):
 // the progress read gives each funding Holding's contribution in its own
-// currency, and the Holdings funding it; this joins the two by Holding — one
-// the viewer can't see has no id, so those pair up by order (OQ-206) — adds
+// currency, carried on each Holding funding it (OQ-206 — one the viewer can't
+// see comes unnamed, its amount still counted); this reads them, adds
 // up what is in the target's currency, and converts the rest at the rate the
 // user typed — the only FX conversion in the app, kept in the browser and
 // never sent (FR-9.1). A pair with no rate stays out of the total and is
@@ -99,39 +99,17 @@ export const convert = (amount: number, from: Currency, pair: RatePair, rate: nu
     : Math.round((amount * RATE_SCALE) / rate)
 );
 
-type Contribution = GoalWithProgress['contributions'][number];
-
 /**
- * Finds each funding Holding's contribution: by Holding id, or — for the
- * Holdings the viewer can't see, which have none — by order among them
- * (OQ-206: the read lists those in the same order in both lists).
- *
- * @param goal - The Goal with its progress.
- * @returns One contribution or `undefined` per funding Holding, in order.
- */
-export const contributionsOf = (goal: GoalWithProgress): (Contribution | undefined)[] => {
-  const hidden = goal.contributions.filter((item) => item.holdingId === null);
-  return goal.fundedBy.map((funder, index) => {
-    if (funder.holdingId !== null) {
-      return goal.contributions.find((item) => item.holdingId === funder.holdingId);
-    }
-    const rank = goal.fundedBy.slice(0, index).filter((earlier) => earlier.holdingId === null);
-    return hidden[rank.length];
-  });
-};
-
-/**
- * Joins a Goal's funding Holdings to their contributions, converting each
+ * Reads a Goal's funding Holdings with their contributions, converting each
  * foreign one whose pair has a rate typed.
  *
  * @param goal - The Goal with its progress.
  * @param rates - The rates typed so far.
  * @returns One row per funding Holding, in the read's order.
  */
-export const fundingRowsOf = (goal: GoalWithProgress, rates: EnteredRates): FundingRow[] => {
-  const contributions = contributionsOf(goal);
-  return goal.fundedBy.map((funder, index) => {
-    const contribution = contributions[index];
+export const fundingRowsOf = (goal: GoalWithProgress, rates: EnteredRates): FundingRow[] => (
+  goal.fundedBy.map((funder) => {
+    const { contribution } = funder;
     const row = { holdingId: funder.holdingId, name: funder.name, percentage: funder.percentage };
     if (!contribution) return row;
     const own = { currency: contribution.currency, amount: contribution.amount };
@@ -140,8 +118,8 @@ export const fundingRowsOf = (goal: GoalWithProgress, rates: EnteredRates): Fund
     const rate = rates[pairKey(pair)];
     const converted = rate ? convert(own.amount, own.currency, pair, rate) : undefined;
     return { ...row, contribution: own, converted };
-  });
-};
+  })
+);
 
 /**
  * Lists the pairs a Goal's foreign contributions need, each once.
@@ -150,7 +128,8 @@ export const fundingRowsOf = (goal: GoalWithProgress, rates: EnteredRates): Fund
  * @returns The pairs, in the contributions' order.
  */
 const pairsOf = (goal: GoalWithProgress): RatePair[] => {
-  const pairs = goal.contributions
+  const pairs = goal.fundedBy
+    .flatMap((funder) => (funder.contribution ? [funder.contribution] : []))
     .filter((item) => item.currency !== goal.targetCurrency)
     .map((item) => ratePairOf(item.currency, goal.targetCurrency));
   return [...new Map(pairs.map((pair) => [pairKey(pair), pair])).values()];

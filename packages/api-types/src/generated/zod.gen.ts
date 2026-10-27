@@ -768,17 +768,26 @@ export const zGoalCreateRequest = z.object({
 });
 
 /**
- * FR-8.5 — per-Holding contributions in native currency; blending is a frontend concern.
+ * One Holding funding a Goal, with what it contributes (OQ-206) — one row each, so nothing is joined by Holding id.
+ */
+export const zGoalFundingRow = z.object({
+    holdingId: z.uuid().nullable(),
+    name: z.string().nullable(),
+    percentage: z.int().gte(1).lte(100),
+    contribution: z.object({
+        currency: zCurrency,
+        amount: zMoney
+    }).nullable()
+});
+
+/**
+ * FR-8.5/8.7 — each funding Holding with its contribution in its own currency, on the day asked for, with the split in effect then (OQ-206); blending is a frontend concern.
  */
 export const zGoalProgress = z.object({
-    targetAmount: zMoney.optional(),
-    targetCurrency: zCurrency.optional(),
-    contributions: z.array(z.object({
-        holdingId: z.uuid().nullish(),
-        currency: zCurrency.optional(),
-        amount: zMoney.optional()
-    })).optional(),
-    goalId: z.uuid().optional()
+    goalId: z.uuid(),
+    targetAmount: zMoney,
+    targetCurrency: zCurrency,
+    fundedBy: z.array(zGoalFundingRow)
 });
 
 export const zGoalUpdateRequest = z.object({
@@ -789,16 +798,7 @@ export const zGoalUpdateRequest = z.object({
 });
 
 export const zGoalWithProgress = zGoal.and(z.object({
-    contributions: z.array(z.object({
-        holdingId: z.uuid().nullable(),
-        currency: zCurrency,
-        amount: zMoney
-    })),
-    fundedBy: z.array(z.object({
-        holdingId: z.uuid().nullable(),
-        name: z.string().nullable(),
-        percentage: z.int().gte(1).lte(100)
-    }))
+    fundedBy: z.array(zGoalFundingRow)
 }));
 
 /**

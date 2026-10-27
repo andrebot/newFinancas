@@ -591,7 +591,10 @@ Backs `AccountManager`'s `InvestmentHoldingAccessor`,
   `due_date`, `visibility`, **`completed_at`** (nullable — renamed from `archived_at`, OQ-78; **the one reversible lifecycle flag in the whole system**, FR-8.8/8.9: complete sets it, reopen nulls it), `created_at`.
 - **`goal_allocations`** — `id` (PK), `holding_id` (FK →
   `investment_holdings`), `goal_id` (FK → `goals`),
-  `percentage`, `created_at`.
+  `percentage`, **`valid_from`**, **`valid_to`** (nullable — the split is
+  kept by version, in effect from `valid_from` until `valid_to`,
+  exclusive; null is the current one — OQ-206, migration 0013),
+  `created_at`.
 
 ### Invariants — DB constraint vs. application-level
 
@@ -644,10 +647,13 @@ Backs `AccountManager`'s `InvestmentHoldingAccessor`,
   Holding's row lock (OQ-168). Contrast with
   `percentage` itself, which **is** a real constraint: `CHECK (percentage
   > 0 AND percentage <= 100)`, a single-row range check.
-- **`goal_allocations` unique on `(holding_id, goal_id)`** →
-  **real DB constraint** — adjusting or removing an allocation (FR-8.6)
-  is an `UPDATE`/`DELETE` on the one existing row, never a second insert
-  for the same pair.
+- **`goal_allocations` unique on `(holding_id, goal_id)` among current
+  rows** (`WHERE valid_to IS NULL`) → **real DB constraint**, with
+  `CHECK (valid_to IS NULL OR valid_to > valid_from)`. **OQ-206:**
+  replacing a split closes the version in effect on its day and opens the
+  new one, so progress on a past date (FR-8.7) reads that day's split;
+  versions starting on or after that day are replaced, so a same-day
+  re-edit leaves one. The FR-8.3 cap counts the current rows.
 - **Goal supports both hard delete (FR-8.6, no history) and
   reversible archive (FR-8.8/8.9) — OQ-47's "third lifecycle pattern"**
   → two independent, real mechanisms on the same table: `DELETE` for the

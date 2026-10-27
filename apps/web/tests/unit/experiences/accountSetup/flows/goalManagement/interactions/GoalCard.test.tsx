@@ -42,13 +42,21 @@ const goal = (over: Partial<Goal> = {}): Goal => ({
 });
 
 const SAME: GoalFunding = {
-  contributions: [{ holdingId: 'aapl', currency: 'USD', amount: 48200 }],
-  fundedBy: [{ holdingId: 'aapl', name: 'AAPL', percentage: 10 }],
+  fundedBy: [{
+    holdingId: 'aapl',
+    name: 'AAPL',
+    percentage: 10,
+    contribution: { currency: 'USD', amount: 48200 },
+  }],
 };
 
 const MIXED: GoalFunding = {
-  contributions: [...SAME.contributions, { holdingId: 'xpml', currency: 'BRL', amount: 1650000 }],
-  fundedBy: [...SAME.fundedBy, { holdingId: 'xpml', name: 'XPML11', percentage: 15 }],
+  fundedBy: [...SAME.fundedBy, {
+    holdingId: 'xpml',
+    name: 'XPML11',
+    percentage: 15,
+    contribution: { currency: 'BRL', amount: 1650000 },
+  }],
 };
 
 /**
@@ -171,13 +179,19 @@ describe('the card', () => {
 
   it('counts funding the viewer can\'t see, unnamed (OQ-206)', () => {
     const hidden: GoalFunding = {
-      contributions: [
-        { holdingId: null, currency: 'USD', amount: 10000 },
-        { holdingId: null, currency: 'USD', amount: 20000 },
-      ],
       fundedBy: [
-        { holdingId: null, name: null, percentage: 20 },
-        { holdingId: null, name: null, percentage: 30 },
+        {
+          holdingId: null,
+          name: null,
+          percentage: 20,
+          contribution: { currency: 'USD', amount: 10000 },
+        },
+        {
+          holdingId: null,
+          name: null,
+          percentage: 30,
+          contribution: { currency: 'USD', amount: 20000 },
+        },
       ],
     };
     renderCard({ entry: { goal: goal(), funding: hidden } });
@@ -188,7 +202,7 @@ describe('the card', () => {
   });
 
   it('says a goal nothing funds yet points to Investments', () => {
-    renderCard({ entry: { goal: goal(), funding: { contributions: [], fundedBy: [] } } });
+    renderCard({ entry: { goal: goal(), funding: { fundedBy: [] } } });
     expect(screen.getByText('0% · not funded yet')).toBeTruthy();
     expect(screen.getByText(translator.text('goalManagement', 'fundedBy.none'))).toBeTruthy();
   });

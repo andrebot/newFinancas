@@ -68,6 +68,11 @@ export interface BudgetPeriod extends BudgetMonth {
   readonly createdAt: Date;
 }
 
+/** A Budget's latest period at or before a month (OQ-166, OQ-206). */
+export interface BudgetPeriodOf extends BudgetPeriod {
+  readonly budgetId: string;
+}
+
 /** Why a target set was refused; nothing of the write is kept. */
 export type TargetRejection = | {
   /** Another Budget in the scope claims it, or its Category/Subcategories (FR-4.7). */
@@ -623,6 +628,39 @@ const createBudgetAccessor = (db: Database) => ({
       range.to === undefined ? undefined : periodMonth('<=', range.to),
     ))
     .orderBy(asc(budgetPeriods.year), asc(budgetPeriods.month)),
+
+  /**
+   * Reads each Budget's latest period at or before a month, in one query — the
+   * target in effect then and, when it is that month's, its spend (FR-4.3,
+   * OQ-166; the Month Overview, OQ-206).
+   *
+   * @param householdId - The household.
+   * @param budgetIds - The Budgets.
+   * @param month - The month.
+   * @returns At most one period per Budget; one with none by then is absent.
+   */
+  periodsAsOf: async (
+    householdId: string,
+    budgetIds: readonly string[],
+    month: BudgetMonth,
+  ): Promise<BudgetPeriodOf[]> => {
+    if (budgetIds.length === 0) return [];
+    return db.selectDistinctOn([budgetPeriods.budgetId], {
+      // Never null here: only the given Budgets' periods are read.
+      budgetId: sql<string>`${budgetPeriods.budgetId}`,
+      year: budgetPeriods.year,
+      month: budgetPeriods.month,
+      targetAmount: budgetPeriods.targetAmount,
+      spendAmount: budgetPeriods.spendAmount,
+      createdAt: budgetPeriods.createdAt,
+    }).from(budgetPeriods)
+      .where(and(
+        eq(budgetPeriods.householdId, householdId),
+        inArray(budgetPeriods.budgetId, [...budgetIds]),
+        periodMonth('<=', month),
+      ))
+      .orderBy(budgetPeriods.budgetId, desc(budgetPeriods.year), desc(budgetPeriods.month));
+  },
 
   /**
    * Counts a spend against the Budget that claims it (FR-4.5/4.8), in the spend's

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  cashFlowOf, flowsOf, monthOverview, overBudgetFirst, type BudgetStatus,
+  budgetStatusOf, cashFlowOf, flowsOf, monthOverview, openAtMonthEnd, overBudgetFirst,
+  type BudgetStatus,
 } from '../../../../src/engines/reporting/monthOverview';
 import {
   aBudget, aCard, aGoal, anAccount, aPeriod, fakeDeps, HOUSEHOLD_ID, NOW, VIEWER,
@@ -93,6 +94,11 @@ describe('flowsOf (FR-6.11)', () => {
     expect(summary.map((row) => row.net)).toEqual([0, 0]);
   });
 
+  it('shows no currency only a kind it doesn\'t know moved in', () => {
+    expect(flowsOf([aSum('not_a_kind', 9, '2026-03', 'EUR')], MARCH))
+      .toEqual({ summary: [], yearStrip: [] });
+  });
+
   it('is empty when nothing moved all year', () => {
     expect(flowsOf([], MARCH)).toEqual({ summary: [], yearStrip: [] });
   });
@@ -108,6 +114,29 @@ describe('overBudgetFirst', () => {
     ]);
 
     expect(ordered.map((status) => status.name)).toEqual(['b', 'd', 'a', 'c']);
+  });
+});
+
+describe('openAtMonthEnd (F10, OQ-206)', () => {
+  it('keeps an Account archived after the month\'s end, in the app\'s time zone', () => {
+    expect(openAtMonthEnd(anAccount(), MARCH)).toBe(true);
+    expect(openAtMonthEnd(anAccount({ archivedAt: new Date('2026-04-01T03:00:00Z') }), MARCH))
+      .toBe(true);
+    // 23:00 on March 31st in São Paulo.
+    expect(openAtMonthEnd(anAccount({ archivedAt: new Date('2026-04-01T02:00:00Z') }), MARCH))
+      .toBe(false);
+  });
+});
+
+describe('budgetStatusOf', () => {
+  it('reads that month\'s period, an earlier one\'s target with zero spend, or none', () => {
+    const budget = aBudget();
+
+    expect(budgetStatusOf(budget, aPeriod('groceries', MARCH, 60_000, 70_000), MARCH))
+      .toEqual([expect.objectContaining({ targetAmount: 60_000, spendAmount: 70_000 })]);
+    expect(budgetStatusOf(budget, aPeriod('groceries', { year: 2026, month: 1 }, 30_000, 9), MARCH))
+      .toEqual([expect.objectContaining({ targetAmount: 30_000, spendAmount: 0 })]);
+    expect(budgetStatusOf(budget, undefined, MARCH)).toEqual([]);
   });
 });
 
@@ -142,21 +171,27 @@ describe('monthOverview', () => {
     expect(deps.listAccounts).toHaveBeenCalledWith(HOUSEHOLD_ID, 'ana');
   });
 
-  it('lists unarchived Accounts\' month-end balances, then their cards\' (F10, D16)', async () => {
+  it('lists Accounts open at the month\'s end, each followed by its cards (F10, D16)', async () => {
     const deps = fakeDeps();
     deps.listAccounts.mockResolvedValue([
       anAccount(),
       anAccount({ id: 'new', currency: 'USD' }),
-      anAccount({ id: 'old', archivedAt: NOW }),
+      anAccount({ id: 'later', archivedAt: NOW }),
+      anAccount({ id: 'gone', archivedAt: new Date('2026-03-15T12:00:00Z') }),
     ]);
     deps.listCreditCards.mockResolvedValue([
       aCard('visa', 'checking'),
       aCard('master', 'checking'),
-      aCard('old-card', 'old'),
+      aCard('gone-card', 'gone'),
     ]);
-    deps.accountBalancesAsOf.mockResolvedValue([{
-      accountId: 'checking', ...MARCH, openingBalance: 0, endingBalance: 5_000, updatedAt: NOW,
-    }]);
+    deps.accountBalancesAsOf.mockResolvedValue([
+      {
+        accountId: 'checking', ...MARCH, openingBalance: 0, endingBalance: 5_000, updatedAt: NOW,
+      },
+      {
+        accountId: 'later', ...MARCH, openingBalance: 0, endingBalance: 700, updatedAt: NOW,
+      },
+    ]);
     deps.cardBalancesAsOf.mockResolvedValue([{
       creditCardId: 'visa',
       ...MARCH,
@@ -174,8 +209,11 @@ describe('monthOverview', () => {
       {
         accountId: 'checking', creditCardId: 'visa', currency: 'BRL', amount: 1_200,
       },
+      {
+        accountId: 'later', creditCardId: null, currency: 'BRL', amount: 700,
+      },
     ]);
-    expect(deps.accountBalancesAsOf).toHaveBeenCalledWith(['checking', 'new'], MARCH);
+    expect(deps.accountBalancesAsOf).toHaveBeenCalledWith(['checking', 'new', 'later'], MARCH);
     expect(deps.cardBalancesAsOf).toHaveBeenCalledWith(['visa', 'master'], MARCH);
   });
 
@@ -187,11 +225,10 @@ describe('monthOverview', () => {
       aBudget({ id: 'groceries', name: 'Groceries', visibility: 'personal' }),
       aBudget({ id: 'later', name: 'Later' }),
     ]);
-    deps.listBudgetPeriods.mockImplementation(async (_, budgetId) => ({
-      fun: [aPeriod({ year: 2026, month: 1 }, 30_000, 99_000)],
-      groceries: [aPeriod({ year: 2026, month: 2 }, 50_000, 0), aPeriod(MARCH, 60_000, 70_000)],
-      later: [],
-    })[budgetId] ?? []);
+    deps.budgetPeriodsAsOf.mockResolvedValue([
+      aPeriod('groceries', MARCH, 60_000, 70_000),
+      aPeriod('fun', { year: 2026, month: 1 }, 30_000, 99_000),
+    ]);
 
     const { budgets } = await monthOverview(deps, VIEWER, MARCH);
 
@@ -213,7 +250,8 @@ describe('monthOverview', () => {
         spendAmount: 0,
       },
     ]);
-    expect(deps.listBudgetPeriods).toHaveBeenCalledWith(HOUSEHOLD_ID, 'fun', { to: MARCH });
+    expect(deps.budgetPeriodsAsOf)
+      .toHaveBeenCalledWith(HOUSEHOLD_ID, ['fun', 'groceries', 'later'], MARCH);
   });
 
   it('reads the active Goals\' progress at the month\'s end', async () => {
@@ -224,9 +262,9 @@ describe('monthOverview', () => {
 
     const { goals } = await monthOverview(deps, VIEWER, { year: 2026, month: 2 });
 
-    expect(goals).toEqual([{ goal: trip, contributions: [], fundedBy: [] }]);
+    expect(goals).toEqual([{ goal: trip, fundedBy: [] }]);
     expect(deps.listGoals).toHaveBeenCalledWith(HOUSEHOLD_ID, 'ana', 'active');
-    expect(deps.listAllocations).toHaveBeenCalledWith({ goalIds: ['trip'] });
+    expect(deps.listAllocations).toHaveBeenCalledWith({ goalIds: ['trip'] }, '2026-02-28');
     expect(deps.latestSnapshots).toHaveBeenCalledWith([], '2026-02-28');
   });
 

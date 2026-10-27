@@ -1,5 +1,5 @@
 import {
-  and, asc, eq, inArray, isNotNull, isNull, or, sql,
+  and, asc, eq, gt, gte, inArray, isNotNull, isNull, lte, or, sql,
 } from 'drizzle-orm';
 import type { Database } from '../db/database';
 import { goalAllocations, goals, investmentHoldings } from '../db/schema';
@@ -13,7 +13,9 @@ import type { Visibility } from '../db/schema/values';
 // - a Goal of another household is never touched or allocated to;
 // - a Holding's allocations never sum past 100% (FR-8.3), a cross-row rule no
 //   CHECK can express, written while holding the Holding's row lock so two
-//   allocation writes on one Holding run one after the other.
+//   allocation writes on one Holding run one after the other;
+// - a split is kept by version (OQ-206): replacing one closes it on the day the
+//   new one takes effect, so progress on a past date reads that day's split.
 // Completing is the one reversible lifecycle flag (FR-8.8/8.9); deleting is hard,
 // its allocations cascade away and the Holdings stay (FR-8.6).
 
@@ -64,6 +66,8 @@ export interface AllocationShare {
 export interface GoalAllocation extends AllocationShare {
   readonly id: string;
   readonly holdingId: string;
+  /** `YYYY-MM-DD`: the day this split took effect (OQ-206). */
+  readonly validFrom: string;
   readonly createdAt: Date;
 }
 
@@ -103,8 +107,22 @@ const allocationColumns = {
   holdingId: goalAllocations.holdingId,
   goalId: goalAllocations.goalId,
   percentage: goalAllocations.percentage,
+  validFrom: goalAllocations.validFrom,
   createdAt: goalAllocations.createdAt,
 };
+
+/**
+ * The allocations in effect on a day, or the current ones (OQ-206).
+ *
+ * @param date - `YYYY-MM-DD`; omitted for the current split.
+ * @returns The SQL condition.
+ */
+const inEffect = (date?: string) => (date === undefined
+  ? isNull(goalAllocations.validTo)
+  : and(
+    lte(goalAllocations.validFrom, date),
+    or(isNull(goalAllocations.validTo), gt(goalAllocations.validTo, date)),
+  ));
 
 type GoalRow = Omit<Goal, 'visibility'> & { readonly visibility: string };
 
@@ -296,17 +314,19 @@ const createGoalAccessor = (db: Database) => ({
 
   /**
    * Lists allocations, oldest first: one Holding's (its Goal split), or those
-   * funding some Goals (who funds them — FR-8.2 display, progress reads).
+   * funding some Goals (who funds them — FR-8.2 display, progress reads) — the
+   * current split, or the one in effect on a day (FR-8.7, OQ-206).
    *
    * @param filter - A Holding, or a set of Goals.
+   * @param date - `YYYY-MM-DD` for a past split; omitted for the current one.
    * @returns The allocations.
    */
-  listAllocations: async (filter: AllocationFilter): Promise<GoalAllocation[]> => {
+  listAllocations: async (filter: AllocationFilter, date?: string): Promise<GoalAllocation[]> => {
     if ('goalIds' in filter && filter.goalIds.length === 0) return [];
     const where = 'holdingId' in filter
       ? eq(goalAllocations.holdingId, filter.holdingId)
       : inArray(goalAllocations.goalId, [...filter.goalIds]);
-    return db.select(allocationColumns).from(goalAllocations).where(where)
+    return db.select(allocationColumns).from(goalAllocations).where(and(where, inEffect(date)))
       .orderBy(asc(goalAllocations.createdAt), asc(goalAllocations.id));
   },
 
@@ -315,16 +335,21 @@ const createGoalAccessor = (db: Database) => ({
    * refused when a Goal isn't this household's or the total passes 100%. Keyed by
    * Holding — the Manager has already loaded it within the household (OQ-167).
    * Each Goal appears at most once; ValidationUtility checks that (OQ-168).
+   * The new split takes effect `from` a day and replaces everything from then
+   * on (OQ-206): versions starting that day or later go — a same-day re-edit
+   * leaves one — and the one in effect that day ends there, kept as history.
    *
    * @param householdId - The Holding's household.
    * @param holdingId - The Holding.
    * @param shares - The new split; empty removes every allocation.
+   * @param from - `YYYY-MM-DD`: the day it takes effect — the Manager's.
    * @returns `ok`, or why nothing was written.
    */
   replaceAllocations: (
     householdId: string,
     holdingId: string,
     shares: readonly AllocationShare[],
+    from: string,
   ): Promise<ReplaceAllocationsResult> => db.transaction(async (tx) => {
     const [holding] = await tx.select({ id: investmentHoldings.id }).from(investmentHoldings)
       .where(eq(investmentHoldings.id, holdingId)).for('update');
@@ -335,14 +360,17 @@ const createGoalAccessor = (db: Database) => ({
     const requested = totalOf(shares);
     if (requested > MAX_TOTAL_PERCENTAGE) {
       const current = await tx.select({ percentage: goalAllocations.percentage })
-        .from(goalAllocations).where(eq(goalAllocations.holdingId, holdingId));
+        .from(goalAllocations).where(and(eq(goalAllocations.holdingId, holdingId), inEffect()));
       return {
         ok: false, reason: 'allocation_exceeds_100', current: totalOf(current), requested,
       };
     }
-    await tx.delete(goalAllocations).where(eq(goalAllocations.holdingId, holdingId));
+    const ofHolding = eq(goalAllocations.holdingId, holdingId);
+    await tx.delete(goalAllocations).where(and(ofHolding, gte(goalAllocations.validFrom, from)));
+    await tx.update(goalAllocations).set({ validTo: from }).where(and(ofHolding, inEffect(from)));
     if (shares.length > 0) {
-      await tx.insert(goalAllocations).values(shares.map((share) => ({ holdingId, ...share })));
+      await tx.insert(goalAllocations)
+        .values(shares.map((share) => ({ holdingId, ...share, validFrom: from })));
     }
     return { ok: true };
   }),

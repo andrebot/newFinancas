@@ -1,4 +1,5 @@
 import { isFixedTerm } from '@financas/reference';
+import type { Account } from '../../accessors/accountAccessor';
 import type { AccountTransactionAccessor } from '../../accessors/accountTransactionAccessor';
 import type { Goal, GoalAccessor, GoalAllocation } from '../../accessors/goalAccessor';
 import type {
@@ -8,11 +9,12 @@ import type { ValuationSnapshotAccessor } from '../../accessors/valuationSnapsho
 
 // ReportingEngine — Goal progress (FR-8.5, FR-8.7, OQ-49): each funding
 // Holding's contribution on a date, in the Holding's own currency, never
-// blended (FR-8.4 is the frontend's). A Holding's value then is its latest
-// snapshot for a market-priced one and its trades' cost basis for a fixed-term
+// blended (FR-8.4 is the frontend's). Everything is read as of that date: the
+// Goal split in effect then, and the Holding's value then — its latest
+// snapshot for a market-priced one, its trades' cost basis for a fixed-term
 // one (OQ-51, OQ-206). A Holding the viewer can't see still counts, unnamed
-// (OQ-206), so every member sees a shared Goal's same total; its rows in
-// `contributions` and `fundedBy` pair up by order, having no id to join on.
+// (OQ-206), so every member sees a shared Goal's same total; each funding row
+// carries its own contribution, so nothing is joined on an id it may lack.
 
 /** What Goal progress reads. */
 export interface GoalProgressDeps {
@@ -22,9 +24,8 @@ export interface GoalProgressDeps {
   readonly costBasisAsOf: AccountTransactionAccessor['costBasisAsOf'];
 }
 
-/** One Holding's part of a Goal's money; `holdingId` null when the viewer can't see it. */
+/** What a Holding contributes to a Goal, in the Holding's currency. */
 export interface Contribution {
-  readonly holdingId: string | null;
   readonly currency: string;
   /** Minor units of `currency`. */
   readonly amount: number;
@@ -37,12 +38,13 @@ export interface Funding {
   readonly name: string | null;
   /** Whole percent (OQ-87). */
   readonly percentage: number;
+  /** Null when the Holding had no value by then. */
+  readonly contribution: Contribution | null;
 }
 
 /** A Goal with its progress on a date. */
 export interface GoalWithProgress {
   readonly goal: Goal;
-  readonly contributions: readonly Contribution[];
   readonly fundedBy: readonly Funding[];
 }
 
@@ -54,6 +56,17 @@ export interface ProgressQuery {
   /** `YYYY-MM-DD`: today for the current view, a month's end by month. */
   readonly date: string;
 }
+
+/**
+ * The ids of the Accounts a viewer sees — every report decides what to name
+ * from this one set.
+ *
+ * @param accounts - The Accounts `AccountAccessor.list` gave the viewer.
+ * @returns Their ids.
+ */
+export const visibleAccountIdsOf = (accounts: readonly Account[]): ReadonlySet<string> => (
+  new Set(accounts.map((account) => account.id))
+);
 
 /**
  * A Goal's share of a Holding's value: whole percent, rounded half-up to the
@@ -99,61 +112,27 @@ interface Funds {
   readonly visibleAccountIds: ReadonlySet<string>;
 }
 
-/** One allocation with its Holding, as the viewer is shown it. */
-interface FundingRow {
-  readonly holding: PricedHolding;
-  readonly percentage: number;
-  /** Null when the viewer can't see the Holding. */
-  readonly holdingId: string | null;
-}
-
 /**
- * Pairs an allocation with its Holding, hiding one the viewer can't see.
+ * Shapes one allocation as the viewer is shown it: named when they see its
+ * Holding, with what it contributes.
  *
  * @param allocation - The allocation.
- * @param funds - The Holdings and what the viewer sees.
- * @returns The row, or none when the Holding wasn't found.
+ * @param funds - The Holdings, their values and what the viewer sees.
+ * @returns The funding row, or none when the Holding wasn't found.
  */
-const fundingRowOf = (allocation: GoalAllocation, funds: Funds): FundingRow[] => {
+const fundingOf = (allocation: GoalAllocation, funds: Funds): Funding[] => {
   const holding = funds.holdings.get(allocation.holdingId);
   if (!holding) return [];
   const visible = funds.visibleAccountIds.has(holding.accountId);
-  return [{ holding, percentage: allocation.percentage, holdingId: visible ? holding.id : null }];
-};
-
-/**
- * Builds one Goal's progress from its allocations.
- *
- * @param goal - The Goal.
- * @param allocations - Its allocations, oldest first.
- * @param funds - The Holdings, their values and what the viewer sees.
- * @returns The Goal with its contributions and funding.
- */
-const progressOf = (
-  goal: Goal,
-  allocations: readonly GoalAllocation[],
-  funds: Funds,
-): GoalWithProgress => {
-  // A hidden Holding with no value shows nothing, so it is left out of both
-  // lists: the hidden rows of each then pair up one to one, in order.
-  const rows = allocations.flatMap((allocation) => fundingRowOf(allocation, funds))
-    .filter((row) => row.holdingId !== null || funds.values.has(row.holding.id));
-  return {
-    goal,
-    contributions: rows.flatMap((row) => {
-      const value = funds.values.get(row.holding.id);
-      return value === undefined ? [] : [{
-        holdingId: row.holdingId,
-        currency: row.holding.currency,
-        amount: shareOf(value, row.percentage),
-      }];
-    }),
-    fundedBy: rows.map((row) => ({
-      holdingId: row.holdingId,
-      name: row.holdingId === null ? null : row.holding.ticker,
-      percentage: row.percentage,
-    })),
-  };
+  const value = funds.values.get(holding.id);
+  return [{
+    holdingId: visible ? holding.id : null,
+    name: visible ? holding.ticker : null,
+    percentage: allocation.percentage,
+    contribution: value === undefined
+      ? null
+      : { currency: holding.currency, amount: shareOf(value, allocation.percentage) },
+  }];
 };
 
 /**
@@ -169,7 +148,10 @@ export const goalProgress = async (
   goals: readonly Goal[],
   query: ProgressQuery,
 ): Promise<GoalWithProgress[]> => {
-  const allocations = await deps.listAllocations({ goalIds: goals.map((goal) => goal.id) });
+  const allocations = await deps.listAllocations(
+    { goalIds: goals.map((goal) => goal.id) },
+    query.date,
+  );
   const holdingIds = [...new Set(allocations.map((allocation) => allocation.holdingId))];
   const holdings = await deps.findHoldings(query.householdId, holdingIds);
   const funds: Funds = {
@@ -177,9 +159,9 @@ export const goalProgress = async (
     values: await valuesOn(deps, holdings, query.date),
     visibleAccountIds: query.visibleAccountIds,
   };
-  return goals.map((goal) => progressOf(
+  return goals.map((goal) => ({
     goal,
-    allocations.filter((allocation) => allocation.goalId === goal.id),
-    funds,
-  ));
+    fundedBy: allocations.filter((allocation) => allocation.goalId === goal.id)
+      .flatMap((allocation) => fundingOf(allocation, funds)),
+  }));
 };

@@ -112,8 +112,17 @@ export const goalAllocations = pgTable('goal_allocations', {
   goalId: uuid('goal_id').notNull().references(() => goals.id, CASCADE),
   // Whole percent, 1–100 (OQ-87); the per-holding 100% cap is application-level.
   percentage: smallint('percentage').notNull(),
+  // The split in effect from `valid_from` until `valid_to` (exclusive; null for
+  // the current one), so progress on a past date reads that day's split (OQ-206).
+  validFrom: date('valid_from').notNull(),
+  validTo: date('valid_to'),
   createdAt: createdAt(),
 }, (table) => [
-  uniqueIndex('goal_allocations_pair_key').on(table.holdingId, table.goalId),
+  uniqueIndex('goal_allocations_pair_key').on(table.holdingId, table.goalId)
+    .where(sql`${table.validTo} IS NULL`),
   check('goal_allocations_percentage_check', sql`${table.percentage} BETWEEN 1 AND 100`),
+  check(
+    'goal_allocations_period_check',
+    sql`${table.validTo} IS NULL OR ${table.validTo} > ${table.validFrom}`,
+  ),
 ]);

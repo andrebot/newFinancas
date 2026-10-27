@@ -465,8 +465,8 @@ sequenceDiagram
     Note over RE: in / out / net per currency &mdash; excluding own-account<br/>transfers and bill payments (effect column, FR-3.6/3.11)
     RE->>AA: balancesAsOf(accountIds, month) &mdash; month-end balances (FR-6.6)
     RE->>CCA: balancesAsOf(cardIds, month) &mdash; month-end outstanding (OQ-201)
-    RE->>BA: list(householdId, viewerUserId) + listPeriods(budgetId, {to: month}) &mdash; target in effect, spend (over-budget first)
-    RE->>GA: list(householdId, viewerUserId, active) + listAllocations({goalIds})
+    RE->>BA: list(householdId, viewerUserId) + periodsAsOf(householdId, budgetIds, month) &mdash; target in effect, spend (over-budget first)
+    RE->>GA: list(householdId, viewerUserId, active) + listAllocations({goalIds}, monthEnd) &mdash; the split then
     RE->>IHA: findByIds(householdId, allocated holdingIds) &mdash; with their currency
     RE->>VSA: latestAsOf(market-priced holdingIds, monthEnd)
     RE->>ATA: costBasisAsOf(fixed-term holdingIds, monthEnd) &mdash; OQ-206
@@ -480,7 +480,7 @@ sequenceDiagram
       <li><strong>Route under <code>/reports</code></strong> by stakeholder decision (sequence review Q1): month overview is a report, and reports expand in v2 (ad-hoc types, CSV export).</li>
       <li>One currency is shown at a time in the UI ($/R$ switch) &mdash; the response carries every currency, never summed (FR-2.2).</li>
       <li><strong>OQ-201:</strong> In/Out count card charges and refunds and investment buys and sells, leave out transfers and bill payments; a card shows its outstanding balance at the month&#39;s end; each Budget item carries its id, name, currency and visibility, and one with no period opened that month shows the target in effect and zero spend; Goals come per currency &mdash; the frontend shows the Goal&#39;s own currency and a note when others fund it. Archived Accounts are left out.</li>
-      <li><strong>OQ-206:</strong> the strip is January&ndash;December of the selected year; a fixed-term Holding&#39;s value at the month&#39;s end is its trades&#39; cost basis by then; a Goal&#39;s funding in an Account the viewer can&#39;t see counts with no id or name.</li>
+      <li><strong>OQ-206:</strong> the strip is January&ndash;December of the selected year; a fixed-term Holding&#39;s value at the month&#39;s end is its trades&#39; cost basis by then; a Goal&#39;s funding in an Account the viewer can&#39;t see counts with no id or name; Goal progress reads the split in effect at the month&#39;s end; an Account archived after the month still shows on its Balance rail.</li>
       <li>See FR-6.11, FR-6.6, FR-4.3, FR-8.5, OQ-74, OQ-206.</li>
     </ul>
 """,
