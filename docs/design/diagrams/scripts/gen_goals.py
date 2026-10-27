@@ -248,17 +248,22 @@ sequenceDiagram
     participant AZ as AuthorizationUtility
     participant RE as ReportingEngine
     participant GA as GoalAccessor
+    participant AA as AccountAccessor
     participant IHA as InvestmentHoldingAccessor
     participant VSA as ValuationSnapshotAccessor
+    participant ATA as AccountTransactionAccessor
 
     User->>API: GET /households/:householdId/goal-progress?status=active
     API->>IM: viewGoals(actor, status)
     IM->>AZ: visibleScope(actor)
-    IM->>RE: goalProgress(scope, status)
-    RE->>GA: goals + allocations
-    RE->>IHA: allocated Holdings (cost basis for fixed-term)
+    IM->>GA: list(householdId, viewerUserId, status)
+    IM->>RE: goalProgress({householdId, viewerUserId}, goals, today)
+    RE->>AA: list(householdId, viewerUserId) &mdash; the Accounts the viewer sees
+    RE->>GA: listAllocations({goalIds})
+    RE->>IHA: findByIds(householdId, allocated holdingIds) &mdash; with their currency
     RE->>VSA: latestAsOf(market-priced holdingIds, date)
-    Note over RE: contribution = value &times; allocated %, kept in the<br/>Holding&#39;s own currency (OQ-49) &mdash; never converted here
+    RE->>ATA: costBasisAsOf(fixed-term holdingIds, date) &mdash; OQ-206
+    Note over RE: contribution = value &times; allocated %, kept in the<br/>Holding&#39;s own currency (OQ-49) &mdash; never converted here &mdash;<br/>a Holding in an Account the viewer can&#39;t see counts, unnamed (OQ-206)
     RE-->>IM: [{goal, contributionsByCurrency[], fundedBy[]}]
     IM-->>API: goals
     API-->>User: 200 OK
@@ -267,7 +272,8 @@ sequenceDiagram
     <ul>
       <li><strong>FX stays in the browser (FR-9, OQ-49):</strong> &ldquo;1 USD = x BRL&rdquo; is typed on the goal card and only blends the returned per-currency contributions for display.</li>
       <li>Reshaped read &rarr; <code>InsightsManager</code> + <code>ReportingEngine</code> (read-ownership rule), built with M4. <strong>OQ-177:</strong> moved to its own route &mdash; <code>GET /households/:householdId/goals</code> is <code>AccountManager</code>&#39;s plain list of definitions (OQ-174); <code>GET &hellip;/goals/:goalId/allocations</code> was dropped, as <code>fundedBy</code> here covers it. <code>GET /households/:householdId/goals/:goalId/progress</code> stays for the by-month history (FR-8.7).</li>
-      <li>See FR-8.5, FR-8.7, FR-9, OQ-49, OQ-177.</li>
+      <li><strong>OQ-206:</strong> a fixed-term Holding&#39;s value on a date is its trades&#39; cost basis by then (the by-month history uses the month&#39;s end); funding in an Account the viewer can&#39;t see counts, with <code>holdingId</code> and <code>name</code> null, so every member sees a shared Goal&#39;s same total.</li>
+      <li>See FR-8.5, FR-8.7, FR-9, OQ-49, OQ-177, OQ-206.</li>
     </ul>
 """,
 ))
@@ -350,11 +356,11 @@ write_chain(
     GO / "uc-06-view-goals.html",
     "Call Chain — View Goals",
     f"Use case 6 of 6 in {G}, FR-8.5/8.7). View. Progress on <code>GET /households/:householdId/goal-progress</code> (OQ-177); built with M4.",
-    E((1, "mgr-insights", "util-authz"), (2, "mgr-insights", "eng-reporting"),
-      (3, "eng-reporting", "acc-goal"), (3, "eng-reporting", "acc-holding"),
-      (3, "eng-reporting", "acc-snapshot")),
+    E((1, "mgr-insights", "util-authz"), (2, "mgr-insights", "acc-goal"), (3, "mgr-insights", "eng-reporting"),
+      (4, "eng-reporting", "acc-account"), (4, "eng-reporting", "acc-goal"), (4, "eng-reporting", "acc-holding"),
+      (4, "eng-reporting", "acc-snapshot"), (4, "eng-reporting", "acc-accounttxn")),
     [
-        "<strong>Chain:</strong> <code>InsightsManager</code> ① <code>AuthorizationUtility</code> (visibility) → ② <code>ReportingEngine.goalProgress</code> → ③ reads <code>GoalAccessor</code> (goals + allocations), <code>InvestmentHoldingAccessor</code> (fixed-term cost basis), <code>ValuationSnapshotAccessor</code> (market-priced values).",
+        "<strong>Chain:</strong> <code>InsightsManager</code> ① <code>AuthorizationUtility</code> (visibility) → ② <code>GoalAccessor.list</code> (the Goals the viewer sees) → ③ <code>ReportingEngine.goalProgress</code> → ④ reads <code>AccountAccessor</code> (the viewer&#39;s Accounts — funding elsewhere counts unnamed, OQ-206), <code>GoalAccessor</code> (allocations), <code>InvestmentHoldingAccessor.findByIds</code> (the Holdings with their currency), <code>ValuationSnapshotAccessor</code> (market-priced values), <code>AccountTransactionAccessor.costBasisAsOf</code> (fixed-term values by then, OQ-206).",
         "<strong>OQ-177:</strong> the plain list of definitions, <code>GET &hellip;/goals</code>, is <code>AccountManager</code>&#39;s own read (OQ-174) &mdash; Goal Management reads both.",
         "<strong>No smell:</strong> a reshaped read stays on the read side; the Engine reads three Accessors, none calls another.",
     ],

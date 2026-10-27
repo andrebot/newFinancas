@@ -3490,7 +3490,7 @@ components:
           items:
             type: object
             properties:
-              holdingId: { type: string, format: uuid }
+              holdingId: { type: [string, "null"], format: uuid, description: "Null for a Holding the viewer can't see — it counts, unnamed (OQ-206)" }
               currency: { $ref: "#/components/schemas/Currency" }
               amount: { $ref: "#/components/schemas/Money" }
         goalId:
@@ -3515,7 +3515,7 @@ components:
                 type: object
                 required: [holdingId, currency, amount]
                 properties:
-                  holdingId: { type: string, format: uuid }
+                  holdingId: { type: [string, "null"], format: uuid, description: "Null for a Holding the viewer can't see — it counts, unnamed (OQ-206)" }
                   currency: { $ref: "#/components/schemas/Currency" }
                   amount: { $ref: "#/components/schemas/Money" }
             fundedBy:
@@ -3525,10 +3525,12 @@ components:
                 required: [holdingId, name, percentage]
                 properties:
                   holdingId:
-                    type: string
+                    type: [string, "null"]
                     format: uuid
+                    description: Null for a Holding the viewer can't see (OQ-206)
                   name:
-                    type: string
+                    type: [string, "null"]
+                    description: The Holding's ticker — null when it has none, or for a Holding the viewer can't see (holdingId null too; the UI says "a personal holding", OQ-206)
                   percentage:
                     type: integer
                     minimum: 1

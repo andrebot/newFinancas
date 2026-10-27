@@ -277,6 +277,32 @@ describe('findById', () => {
   }));
 });
 
+describe('findByIds', () => {
+  it('reads Holdings of the household with their currency, archived too', scenario(async ({
+    accessor, casa, open,
+  }) => {
+    const petr4 = await open();
+    const vale3 = await open({ ticker: 'VALE3' });
+    await open({ ticker: 'ITUB4' });
+    await accessor.archive(vale3, 'user');
+
+    const found = await accessor.findByIds(casa, [petr4, vale3]);
+
+    expect(found).toHaveLength(2);
+    expect(found).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: petr4, currency: 'BRL' }),
+      expect.objectContaining({ id: vale3, archivedBy: 'user' }),
+    ]));
+  }));
+
+  it('finds nothing in another household, or for no ids', scenario(async ({
+    accessor, casa, other, open,
+  }) => {
+    expect(await accessor.findByIds(other, [await open()])).toEqual([]);
+    expect(await accessor.findByIds(casa, [])).toEqual([]);
+  }));
+});
+
 describe('findByTicker', () => {
   it('finds the Holding of an asset type and ticker in the Account', scenario(async ({
     accessor, investment, addAccount, open,

@@ -846,7 +846,10 @@ export type GoalProgress = {
     targetAmount?: Money;
     targetCurrency?: Currency;
     contributions?: Array<{
-        holdingId?: string;
+        /**
+         * Null for a Holding the viewer can't see — it counts, unnamed (OQ-206)
+         */
+        holdingId?: string | null;
         currency?: Currency;
         amount?: Money;
     }>;
@@ -862,13 +865,22 @@ export type GoalUpdateRequest = {
 
 export type GoalWithProgress = Goal & {
     contributions: Array<{
-        holdingId: string;
+        /**
+         * Null for a Holding the viewer can't see — it counts, unnamed (OQ-206)
+         */
+        holdingId: string | null;
         currency: Currency;
         amount: Money;
     }>;
     fundedBy: Array<{
-        holdingId: string;
-        name: string;
+        /**
+         * Null for a Holding the viewer can't see (OQ-206)
+         */
+        holdingId: string | null;
+        /**
+         * The Holding's ticker — null when it has none, or for a Holding the viewer can't see (holdingId null too; the UI says "a personal holding", OQ-206)
+         */
+        name: string | null;
         /**
          * Whole percent (60 = 60%) — integer, no floats; contribution = value × pct / 100, rounded half-up to the cent (OQ-87)
          */

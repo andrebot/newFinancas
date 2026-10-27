@@ -1,7 +1,7 @@
 import type { GoalWithProgress } from '@financas/api-types';
 import { describe, expect, it } from 'vitest';
 import {
-  convert, dueInOf, fundingRowsOf, pairKey, progressOf, ratePairOf,
+  contributionsOf, convert, dueInOf, fundingRowsOf, pairKey, progressOf, ratePairOf,
 } from '../../../../../../src/experiences/accountSetup/flows/goalManagement/goalProgress';
 
 // A Goal's progress (BDT: Flow-tier pure logic, unit; nothing mocked) — the
@@ -81,6 +81,26 @@ describe('fundingRowsOf', () => {
   it('lists a funder the contributions lack without an amount', () => {
     const rows = fundingRowsOf(goal({ contributions: [] }), {});
     expect(rows[0]).toEqual({ holdingId: 'aapl', name: 'AAPL', percentage: 10 });
+  });
+});
+
+describe('contributionsOf (OQ-206)', () => {
+  it('pairs Holdings the viewer can\'t see by order, the others by id', () => {
+    const hidden = goal({
+      contributions: [
+        { holdingId: null, currency: 'USD', amount: 100 },
+        { holdingId: 'aapl', currency: 'USD', amount: 500 },
+        { holdingId: null, currency: 'BRL', amount: 200 },
+      ],
+      fundedBy: [
+        { holdingId: 'aapl', name: 'AAPL', percentage: 10 },
+        { holdingId: null, name: null, percentage: 20 },
+        { holdingId: null, name: null, percentage: 30 },
+        { holdingId: 'xpml', name: 'XPML11', percentage: 15 },
+      ],
+    });
+
+    expect(contributionsOf(hidden).map((item) => item?.amount)).toEqual([500, 100, 200, undefined]);
   });
 });
 

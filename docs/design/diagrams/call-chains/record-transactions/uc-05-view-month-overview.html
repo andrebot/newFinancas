@@ -135,7 +135,7 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain:</strong> <code>InsightsManager</code> ① <code>AuthorizationUtility</code> → ② <code>ReportingEngine.monthOverview(householdId, year, month)</code> → ③ reads ledgers (in/out/net per currency, 12-month strip — excluding own-account transfers and bill payments via the persisted <code>effect</code>), month-end Account balances and card outstanding (OQ-201), the Budgets with their target in effect and spend, goal progress.</p>
+    <p><strong>Chain:</strong> <code>InsightsManager</code> ① <code>AuthorizationUtility</code> → ② <code>ReportingEngine.monthOverview({householdId, viewerUserId}, {year, month})</code> → ③ reads ledgers (in/out/net per currency, January–December strip — excluding own-account transfers and bill payments via the persisted <code>effect</code>), month-end Account balances and card outstanding (OQ-201), the Budgets with their target in effect and spend, goal progress at the month&#39;s end (the Holdings by id, market values by snapshot, fixed-term by <code>costBasisAsOf</code> — OQ-206).</p>
     <p>Real transformation (aggregation across ledgers and months) — that's why this one goes through the Engine while Browse doesn't.</p>
   </div>
 
@@ -149,7 +149,7 @@
       svg.style.width = containerRect.width + 'px';
       svg.style.height = containerRect.height + 'px';
 
-      var edges = [{"from": "mgr-insights", "to": "util-authz", "type": "sync", "order": 1}, {"from": "mgr-insights", "to": "eng-reporting", "type": "sync", "order": 2}, {"from": "eng-reporting", "to": "acc-accounttxn", "type": "sync", "order": 3}, {"from": "eng-reporting", "to": "acc-cardtxn", "type": "sync", "order": 3}, {"from": "eng-reporting", "to": "acc-account", "type": "sync", "order": 3}, {"from": "eng-reporting", "to": "acc-creditcard", "type": "sync", "order": 3}, {"from": "eng-reporting", "to": "acc-budget", "type": "sync", "order": 3}, {"from": "eng-reporting", "to": "acc-goal", "type": "sync", "order": 3}, {"from": "eng-reporting", "to": "acc-snapshot", "type": "sync", "order": 3}];
+      var edges = [{"from": "mgr-insights", "to": "util-authz", "type": "sync", "order": 1}, {"from": "mgr-insights", "to": "eng-reporting", "type": "sync", "order": 2}, {"from": "eng-reporting", "to": "acc-accounttxn", "type": "sync", "order": 3}, {"from": "eng-reporting", "to": "acc-cardtxn", "type": "sync", "order": 3}, {"from": "eng-reporting", "to": "acc-account", "type": "sync", "order": 3}, {"from": "eng-reporting", "to": "acc-creditcard", "type": "sync", "order": 3}, {"from": "eng-reporting", "to": "acc-budget", "type": "sync", "order": 3}, {"from": "eng-reporting", "to": "acc-goal", "type": "sync", "order": 3}, {"from": "eng-reporting", "to": "acc-holding", "type": "sync", "order": 3}, {"from": "eng-reporting", "to": "acc-snapshot", "type": "sync", "order": 3}];
 
       var activeIds = {};
       edges.forEach(function (e) { activeIds[e.from] = true; activeIds[e.to] = true; });

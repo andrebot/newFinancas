@@ -152,8 +152,8 @@ identity screens, the rest as later slices use them.
 - [x] **99.** `A7` AccountTransactionAccessor (OQ-201: adds `quantity_delta`, `cost_basis_delta`, `created_by_user_id`; Browse's day totals and month counts over the whole filtered set) — migration 0010 (the deltas both-or-neither); edit/delete guarded by the values read (`stale`); the picker matches a bill payment by its card; day totals by kind, signed by the Manager; `monthlySums` for ReportingEngine
 - [x] **100.** `A8` CardTransactionAccessor (OQ-201: adds `created_by_user_id`; the per-card list endpoint is gone) — migration 0011 (+ the browse index in Browse's order, as A7); the cards come narrowed by the Manager (scope ∩ picker); both ledgers share `accessors/ledgerQuery.ts`
 - [x] **101.** `E1` InvestmentProductEngine (OQ-201: `interestPayment` terms; Brazil on business days with coded holidays, US actual/365; index-linked amounts projected; maturity = interest + tax + redemption; no IOF; adds `interest_payment` to `investment_holdings`) — OQ-205: an index with no value refuses (`index_missing` — a buy 422 `index_rate.missing`, the Holding read degrades), payments roll to the following business day, coupons count back from the due date, regressive IR per payment; migration 0012 also keeps `due_date` and a CDI/Selic `rate_spread` on the Holding; a period whose index fell pays 0; `schedule` and `project` take the same terms
-- [ ] **102.** `E2` ReportingEngine
-- [ ] **103.** `M3` TransactionManager (OQ-201 — trades move cash, Holdings by id, signed Budget accrual, edit values not identity, delete-buy removes an unused Holding; `InvestmentHoldingAccessor.updateTerms` for an edit's rate, spread, due date and interest payment (guarded, `stale`); a due date not after the buy's date 422 (OQ-205); walk the OQ-171 re-buy/split tests through with the stakeholder first)
+- [x] **102.** `E2` ReportingEngine — slice 3's part (OQ-206): the Month Overview and Goal progress (current and by month); a fixed-term Holding's value on a date from its trades' cost-basis deltas (`AccountTransactionAccessor.costBasisAsOf`); funding the viewer can't see counts unnamed; the investments shapes land with task 133, the Dashboard's with task 139
+- [ ] **103.** `M3` TransactionManager (OQ-201 — trades move cash, Holdings by id, signed Budget accrual, edit values not identity, delete-buy removes an unused Holding; `InvestmentHoldingAccessor.updateTerms` for an edit's rate, spread, due date and interest payment (guarded, `stale`); a due date not after the buy's date 422 (OQ-205); a sell carries the Holding's Goal split, pre-filled and editable, saved with it (OQ-206 — the sell request's `allocations` in the contract); walk the OQ-171 re-buy/split tests through with the stakeholder first)
 - [ ] **104.** `M4` InsightsManager — slice 3's part (OQ-201): `month-overview`, Goal progress (current and by month), the Holding reads with projections; `investments-overview`/`payouts` land with task 133, the Dashboard, inbox and audit-export routes in slice 5
 - [ ] **105.** `K32` Progress ring
 - [ ] **106.** `K44` Key–value list
@@ -165,7 +165,7 @@ identity screens, the rest as later slices use them.
 - [ ] **113.** `K40` Period bar
 - [ ] **114.** `K41` Grouped list + infinite scroll
 - [ ] **115.** `K47` Allocation editor
-- [ ] **116.** `FL15` Record Transaction (OQ-201: a Holding picker for sell/redemption/dividend/interest/tax; interest payment on a fixed-term buy; edit locks kind and target)
+- [ ] **116.** `FL15` Record Transaction (OQ-201: a Holding picker for sell/redemption/dividend/interest/tax; a sell's Goal split pre-filled and editable, OQ-206; interest payment on a fixed-term buy; edit locks kind and target)
 - [ ] **117.** `FL16` Browse Transactions
 - [ ] **118.** `FL17` Month Overview (OQ-201: a mixed-currency Goal shows its own currency + a note; cards show the month-end outstanding)
 - [ ] **119.** `X6` Manage Finances
@@ -188,7 +188,7 @@ identity screens, the rest as later slices use them.
 - [ ] **130.** `FL18` Portfolio Overview
 - [ ] **131.** `FL19` Holding Maintenance
 - [ ] **132.** `FL20` Rates Maintenance
-- [ ] **133.** `X7` Track Investments (with InsightsManager's `investments-overview` and `payouts` reports — OQ-201)
+- [ ] **133.** `X7` Track Investments (with InsightsManager's `investments-overview` and `payouts` reports — OQ-201 — and ReportingEngine's investments shapes, OQ-206)
 - [ ] **134.** `I6` investmentsDaily trigger end to end
 - [ ] **135.** `I10` Frontend ↔ backend: investments
 - [ ] **R4.** Slice 4 review (gate)
@@ -200,7 +200,7 @@ identity screens, the rest as later slices use them.
 - [ ] **136.** `M1D` IdentityManager: Delete User cascade (then turn on `profile.deleteAccount` in the web settings and drop `DELETE /users/me` from the contract-routes test's plan list, OQ-163)
 - [ ] **137.** `K21` Dialog
 - [ ] **138.** `FL21` Dashboard
-- [ ] **139.** `X8` Review Insights (with InsightsManager's Dashboard, notification inbox and audit-log export routes — OQ-201)
+- [ ] **139.** `X8` Review Insights (with InsightsManager's Dashboard, notification inbox and audit-log export routes — OQ-201 — and ReportingEngine's Dashboard shape, OQ-206)
 - [ ] **140.** `I11` Frontend ↔ backend: insights
 - [ ] **141.** `I12` Shell notification routing
 - [ ] **142.** `I13` Delete account end to end

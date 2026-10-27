@@ -597,6 +597,8 @@ const enUS: Catalog = {
     'progress.unavailable': 'Progress unavailable',
     'progress.label': 'Progress toward {name}',
     'fundedBy.none': 'No holdings yet — allocate one from Investments',
+    'fundedBy.personal': 'A personal holding',
+    'fundedBy.unnamed': 'Holding with no ticker',
     'estimate.note': '≈ estimate — uses the rate you entered; nothing is converted or stored.',
     'rate.label': 'Rate',
     'rate.base': '1 {base} =',

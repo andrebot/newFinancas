@@ -4,7 +4,8 @@ import { KIND_SCALE } from '../../../../kit/numberInput/decimal';
 
 // A Goal's progress as its card shows it (FL14; FR-8.4/8.5, FR-9, OQ-195):
 // the progress read gives each funding Holding's contribution in its own
-// currency, and the Holdings funding it; this joins the two by Holding, adds
+// currency, and the Holdings funding it; this joins the two by Holding — one
+// the viewer can't see has no id, so those pair up by order (OQ-206) — adds
 // up what is in the target's currency, and converts the rest at the rate the
 // user typed — the only FX conversion in the app, kept in the browser and
 // never sent (FR-9.1). A pair with no rate stays out of the total and is
@@ -21,8 +22,10 @@ export type EnteredRates = Readonly<Record<string, number>>;
 
 /** One Holding funding a Goal, as its card lists it. */
 export interface FundingRow {
-  readonly holdingId: string;
-  readonly name: string;
+  /** Null for a Holding in an Account the viewer can't see (OQ-206). */
+  readonly holdingId: string | null;
+  /** The Holding's ticker; null when it has none, or when hidden. */
+  readonly name: string | null;
   /** Whole percent of the Holding given to this Goal (OQ-87). */
   readonly percentage: number;
   /** What it contributes, in its own currency; missing if the read lacks it. */
@@ -96,6 +99,27 @@ export const convert = (amount: number, from: Currency, pair: RatePair, rate: nu
     : Math.round((amount * RATE_SCALE) / rate)
 );
 
+type Contribution = GoalWithProgress['contributions'][number];
+
+/**
+ * Finds each funding Holding's contribution: by Holding id, or — for the
+ * Holdings the viewer can't see, which have none — by order among them
+ * (OQ-206: the read lists those in the same order in both lists).
+ *
+ * @param goal - The Goal with its progress.
+ * @returns One contribution or `undefined` per funding Holding, in order.
+ */
+export const contributionsOf = (goal: GoalWithProgress): (Contribution | undefined)[] => {
+  const hidden = goal.contributions.filter((item) => item.holdingId === null);
+  return goal.fundedBy.map((funder, index) => {
+    if (funder.holdingId !== null) {
+      return goal.contributions.find((item) => item.holdingId === funder.holdingId);
+    }
+    const rank = goal.fundedBy.slice(0, index).filter((earlier) => earlier.holdingId === null);
+    return hidden[rank.length];
+  });
+};
+
 /**
  * Joins a Goal's funding Holdings to their contributions, converting each
  * foreign one whose pair has a rate typed.
@@ -104,9 +128,10 @@ export const convert = (amount: number, from: Currency, pair: RatePair, rate: nu
  * @param rates - The rates typed so far.
  * @returns One row per funding Holding, in the read's order.
  */
-export const fundingRowsOf = (goal: GoalWithProgress, rates: EnteredRates): FundingRow[] => (
-  goal.fundedBy.map((funder) => {
-    const contribution = goal.contributions.find((item) => item.holdingId === funder.holdingId);
+export const fundingRowsOf = (goal: GoalWithProgress, rates: EnteredRates): FundingRow[] => {
+  const contributions = contributionsOf(goal);
+  return goal.fundedBy.map((funder, index) => {
+    const contribution = contributions[index];
     const row = { holdingId: funder.holdingId, name: funder.name, percentage: funder.percentage };
     if (!contribution) return row;
     const own = { currency: contribution.currency, amount: contribution.amount };
@@ -115,8 +140,8 @@ export const fundingRowsOf = (goal: GoalWithProgress, rates: EnteredRates): Fund
     const rate = rates[pairKey(pair)];
     const converted = rate ? convert(own.amount, own.currency, pair, rate) : undefined;
     return { ...row, contribution: own, converted };
-  })
-);
+  });
+};
 
 /**
  * Lists the pairs a Goal's foreign contributions need, each once.

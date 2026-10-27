@@ -54,6 +54,11 @@ export interface InvestmentHolding {
   readonly createdAt: Date;
 }
 
+/** A Holding with its Account's currency — the currency its value is in (FR-2.2). */
+export interface PricedHolding extends InvestmentHolding {
+  readonly currency: string;
+}
+
 /** Who archived a Holding: a trade that zeroed it, or its user (FR-5.8). */
 export type ArchivedBy = 'system' | 'user';
 
@@ -240,6 +245,28 @@ const createInvestmentHoldingAccessor = (db: Database) => ({
       .innerJoin(accounts, eq(accounts.id, investmentHoldings.accountId))
       .where(and(eq(investmentHoldings.id, holdingId), eq(accounts.householdId, householdId)));
     return row;
+  },
+
+  /**
+   * Reads some Holdings of the household with their Account's currency, archived
+   * ones included — those funding Goals, whoever's Account holds them (FR-8.5,
+   * OQ-206; the caller decides what the viewer is shown).
+   *
+   * @param householdId - The household.
+   * @param holdingIds - The Holdings.
+   * @returns The ones found, in no particular order.
+   */
+  findByIds: async (
+    householdId: string,
+    holdingIds: readonly string[],
+  ): Promise<PricedHolding[]> => {
+    if (holdingIds.length === 0) return [];
+    return db.select({ ...holdingColumns, currency: accounts.currency }).from(investmentHoldings)
+      .innerJoin(accounts, eq(accounts.id, investmentHoldings.accountId))
+      .where(and(
+        inArray(investmentHoldings.id, [...holdingIds]),
+        eq(accounts.householdId, householdId),
+      ));
   },
 
   /**

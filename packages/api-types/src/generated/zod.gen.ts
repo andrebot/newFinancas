@@ -774,7 +774,7 @@ export const zGoalProgress = z.object({
     targetAmount: zMoney.optional(),
     targetCurrency: zCurrency.optional(),
     contributions: z.array(z.object({
-        holdingId: z.uuid().optional(),
+        holdingId: z.uuid().nullish(),
         currency: zCurrency.optional(),
         amount: zMoney.optional()
     })).optional(),
@@ -790,13 +790,13 @@ export const zGoalUpdateRequest = z.object({
 
 export const zGoalWithProgress = zGoal.and(z.object({
     contributions: z.array(z.object({
-        holdingId: z.uuid(),
+        holdingId: z.uuid().nullable(),
         currency: zCurrency,
         amount: zMoney
     })),
     fundedBy: z.array(z.object({
-        holdingId: z.uuid(),
-        name: z.string(),
+        holdingId: z.uuid().nullable(),
+        name: z.string().nullable(),
         percentage: z.int().gte(1).lte(100)
     }))
 }));

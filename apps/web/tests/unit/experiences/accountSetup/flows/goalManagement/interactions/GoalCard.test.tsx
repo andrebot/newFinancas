@@ -5,7 +5,7 @@ import {
 } from 'vitest';
 import type { ProgressSummary } from '../../../../../../../src/experiences/accountSetup/flows/goalManagement/goalProgress';
 import {
-  cardClassesOf, dueTextOf, GoalCard, progressTextsOf, type GoalCardProps,
+  cardClassesOf, dueTextOf, fundingNameOf, GoalCard, progressTextsOf, type GoalCardProps,
 } from '../../../../../../../src/experiences/accountSetup/flows/goalManagement/interactions/GoalCard';
 import type { GoalFunding } from '../../../../../../../src/experiences/accountSetup/sharedLists';
 import { createFormatter } from '../../../../../../../src/utilities/formatting';
@@ -101,6 +101,17 @@ describe('dueTextOf', () => {
   });
 });
 
+describe('fundingNameOf (OQ-206)', () => {
+  it('shows the ticker, a stand-in without one, and a hidden Holding unnamed', () => {
+    const row = { holdingId: 'aapl', name: 'AAPL', percentage: 10 };
+
+    expect(fundingNameOf(row, translator)).toBe('AAPL');
+    expect(fundingNameOf({ ...row, name: null }, translator)).toBe('Holding with no ticker');
+    expect(fundingNameOf({ ...row, holdingId: null, name: null }, translator))
+      .toBe('A personal holding');
+  });
+});
+
 describe('progressTextsOf', () => {
   it('writes the exact amount to go', () => {
     expect(progressTextsOf(summary(), goal(), translator, formatter)).toEqual({
@@ -156,6 +167,24 @@ describe('the card', () => {
     expect(screen.queryByText(/≈/)).toBeNull();
     expect(screen.queryByText('Mixed currencies')).toBeNull();
     expect(screen.queryByRole('textbox')).toBeNull();
+  });
+
+  it('counts funding the viewer can\'t see, unnamed (OQ-206)', () => {
+    const hidden: GoalFunding = {
+      contributions: [
+        { holdingId: null, currency: 'USD', amount: 10000 },
+        { holdingId: null, currency: 'USD', amount: 20000 },
+      ],
+      fundedBy: [
+        { holdingId: null, name: null, percentage: 20 },
+        { holdingId: null, name: null, percentage: 30 },
+      ],
+    };
+    renderCard({ entry: { goal: goal(), funding: hidden } });
+    expect(screen.getByText('A personal holding · 20%')).toBeTruthy();
+    expect(screen.getByText('A personal holding · 30%')).toBeTruthy();
+    expect(screen.getByText('$100.00')).toBeTruthy();
+    expect(screen.getByText('$200.00')).toBeTruthy();
   });
 
   it('says a goal nothing funds yet points to Investments', () => {

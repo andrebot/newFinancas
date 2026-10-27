@@ -1,6 +1,6 @@
 import type { TransactionEffect } from '@financas/reference';
 import {
-  and, desc, eq, getTableColumns, gte, inArray, lte, ne, or, sql, type AnyColumn,
+  and, desc, eq, getTableColumns, gte, inArray, isNotNull, lte, ne, or, sql, type AnyColumn,
 } from 'drizzle-orm';
 import type { Database } from '../db/database';
 import { accountTransactions, accounts, investmentHoldings } from '../db/schema';
@@ -131,6 +131,13 @@ export interface AccountTransactionFilter {
 /** One month's sum of one kind and stored effect in one currency, for ReportingEngine. */
 export interface MonthKindSum extends MonthKindTotal {
   readonly effect: TransactionEffect;
+}
+
+/** A Holding's cost basis on a date: the sum of its trades' deltas by then (OQ-206). */
+export interface HoldingCostBasis {
+  readonly holdingId: string;
+  /** Minor units of the Account's currency. */
+  readonly costBasis: number;
 }
 
 /**
@@ -467,6 +474,33 @@ const createAccountTransactionAccessor = (db: Database) => ({
         accountTransactions.effect,
       );
     return rows.map((row) => ({ ...row, effect: row.effect as TransactionEffect }));
+  },
+
+  /**
+   * Each Holding's cost basis on a date: the sum of its trades' cost-basis
+   * deltas dated on or before it — a fixed-term Holding's value then, for
+   * ReportingEngine (FR-8.7, OQ-51, OQ-206).
+   *
+   * @param holdingIds - The Holdings.
+   * @param date - The date, inclusive (`YYYY-MM-DD`).
+   * @returns One sum per Holding with a trade by then, in no particular order.
+   */
+  costBasisAsOf: async (
+    holdingIds: readonly string[],
+    date: string,
+  ): Promise<HoldingCostBasis[]> => {
+    if (holdingIds.length === 0) return [];
+    const rows = await db.select({
+      holdingId: accountTransactions.holdingId,
+      costBasis: sumOf(accountTransactions.costBasisDelta),
+    }).from(accountTransactions)
+      .where(and(
+        inArray(accountTransactions.holdingId, [...holdingIds]),
+        isNotNull(accountTransactions.costBasisDelta),
+        lte(accountTransactions.date, date),
+      ))
+      .groupBy(accountTransactions.holdingId);
+    return rows.map((row) => ({ holdingId: row.holdingId!, costBasis: row.costBasis }));
   },
 });
 
