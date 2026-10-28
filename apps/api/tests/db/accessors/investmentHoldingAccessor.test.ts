@@ -4,7 +4,10 @@ import {
   afterAll, beforeAll, describe, expect, it,
 } from 'vitest';
 import createInvestmentHoldingAccessor, {
-  type NewInvestmentHolding, type ScheduleEntryInput,
+  type ExpectedHoldingTerms,
+  type InvestmentHolding,
+  type NewInvestmentHolding,
+  type ScheduleEntryInput,
 } from '../../../src/accessors/investmentHoldingAccessor';
 import type { Database } from '../../../src/db/database';
 import {
@@ -22,6 +25,16 @@ afterAll(async () => {
 
 const UNKNOWN_ID = '00000000-0000-7000-8000-000000000000';
 const TODAY = '2026-10-17';
+
+/** The terms `updateTerms` guards on, straight from a read Holding. */
+const termsOf = (holding: InvestmentHolding): ExpectedHoldingTerms => ({
+  rateType: holding.rateType,
+  rateValue: holding.rateValue,
+  rateSpread: holding.rateSpread,
+  dueDate: holding.dueDate,
+  interestPayment: holding.interestPayment,
+  incentivised: holding.incentivised,
+});
 
 type Holdings = ReturnType<typeof createInvestmentHoldingAccessor>;
 
@@ -671,5 +684,111 @@ describe('markMaturedNotified', () => {
     const [row] = await db.select({ at: investmentHoldings.maturedNotifiedAt })
       .from(investmentHoldings).where(eq(investmentHoldings.id, holdingId));
     expect(row?.at).toBeInstanceOf(Date);
+  }));
+});
+
+describe('updateTerms', () => {
+  it(
+    'changes the given terms and keeps the rest (OQ-205)',
+    scenario(async ({ accessor, casa, openCdb }) => {
+      const holdingId = await openCdb('2026-12-01');
+      const before = (await accessor.findById(casa, holdingId))!;
+
+      expect(await accessor.updateTerms(holdingId, termsOf(before), { dueDate: '2027-01-15' }))
+        .toEqual({ status: 'updated' });
+      const after = (await accessor.findById(casa, holdingId))!;
+      expect(after.dueDate).toBe('2027-01-15');
+      expect(after.rateType).toBe(before.rateType);
+    }),
+  );
+
+  it(
+    'replaces the rate as a set, with its spread',
+    scenario(async ({ accessor, casa, openCdb }) => {
+      const holdingId = await openCdb('2026-12-01');
+      const before = (await accessor.findById(casa, holdingId))!;
+
+      expect(await accessor.updateTerms(
+        holdingId,
+        termsOf(before),
+        { rate: { rateType: 'ipca', rateValue: 5_500, rateSpread: null } },
+      ))
+        .toEqual({ status: 'updated' });
+      const after = (await accessor.findById(casa, holdingId))!;
+      expect(after).toMatchObject({ rateType: 'ipca', rateValue: 5_500, rateSpread: null });
+    }),
+  );
+
+  it(
+    'answers stale when the terms moved meanwhile, writing nothing',
+    scenario(async ({ accessor, casa, openCdb }) => {
+      const holdingId = await openCdb('2026-12-01');
+      const before = (await accessor.findById(casa, holdingId))!;
+      const staleExpected = { ...termsOf(before), dueDate: '2099-01-01' };
+
+      expect(await accessor.updateTerms(holdingId, staleExpected, { dueDate: '2027-01-15' }))
+        .toEqual({ status: 'stale' });
+      const after = (await accessor.findById(casa, holdingId))!;
+      expect(after.dueDate).toBe('2026-12-01');
+    }),
+  );
+
+  it(
+    'answers updated for an empty change when the terms still match',
+    scenario(async ({ accessor, casa, openCdb }) => {
+      const holdingId = await openCdb('2026-12-01');
+      const before = (await accessor.findById(casa, holdingId))!;
+
+      expect(await accessor.updateTerms(
+        holdingId,
+        termsOf(before),
+        {},
+      )).toEqual({ status: 'updated' });
+    }),
+  );
+
+  it('answers stale for an unknown Holding', scenario(async ({ accessor }) => {
+    const expected = {
+      rateType: null,
+      rateValue: null,
+      rateSpread: null,
+      dueDate: null,
+      interestPayment: null,
+      incentivised: false,
+    };
+
+    expect(await accessor.updateTerms(UNKNOWN_ID, expected, {})).toEqual({ status: 'stale' });
+  }));
+
+  it('writes the interest payment and incentive flag (OQ-205)', scenario(async ({
+    accessor, casa,
+    openCdb,
+  }) => {
+    const holdingId = await openCdb('2026-12-01');
+    const before = (await accessor.findById(casa, holdingId))!;
+
+    expect(await accessor.updateTerms(
+      holdingId,
+      termsOf(before),
+      { interestPayment: 'monthly', incentivised: true },
+    )).toEqual({ status: 'updated' });
+    const after = (await accessor.findById(casa, holdingId))!;
+    expect(after).toMatchObject({ interestPayment: 'monthly', incentivised: true });
+  }));
+});
+
+describe('delete', () => {
+  it(
+    'deletes the Holding; its schedule goes with it (OQ-201 D7)',
+    scenario(async ({ accessor, openCdb }) => {
+      const holdingId = await openCdb('2026-12-01');
+
+      expect(await accessor.delete(holdingId)).toBe(true);
+      expect(await accessor.listSchedule([holdingId])).toEqual([]);
+    }),
+  );
+
+  it('deletes nothing unknown', scenario(async ({ accessor }) => {
+    expect(await accessor.delete(UNKNOWN_ID)).toBe(false);
   }));
 });

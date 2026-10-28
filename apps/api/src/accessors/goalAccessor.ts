@@ -374,6 +374,36 @@ const createGoalAccessor = (db: Database) => ({
     }
     return { ok: true };
   }),
+
+  /**
+   * Removes a Holding's split versions starting `from` on — the undo half of
+   * `replaceAllocations` (OQ-171): called only when those are still the current
+   * ones, so nothing later goes with them.
+   *
+   * @param holdingId - The Holding.
+   * @param from - `YYYY-MM-DD`, the day the undone split took effect.
+   * @returns `true` when something was removed by this call.
+   */
+  deleteFrom: async (holdingId: string, from: string): Promise<boolean> => (
+    await db.delete(goalAllocations)
+      .where(and(eq(goalAllocations.holdingId, holdingId), gte(goalAllocations.validFrom, from)))
+      .returning({ id: goalAllocations.id })
+  ).length > 0,
+
+  /**
+   * Reopens the split closed at `asOf` — its `validTo` goes back to null (OQ-171):
+   * undoing the write that replaced it. The caller has removed the replacement
+   * first, so no pair is left with two current rows.
+   *
+   * @param holdingId - The Holding.
+   * @param asOf - `YYYY-MM-DD`, the day the closed split ended.
+   * @returns `true` when something was reopened by this call.
+   */
+  reopenClosedAt: async (holdingId: string, asOf: string): Promise<boolean> => (
+    await db.update(goalAllocations).set({ validTo: null })
+      .where(and(eq(goalAllocations.holdingId, holdingId), eq(goalAllocations.validTo, asOf)))
+      .returning({ id: goalAllocations.id })
+  ).length > 0,
 });
 
 /** The GoalAccessor's operations. */

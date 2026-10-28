@@ -141,6 +141,22 @@ export default [
     },
   },
 
+  // VBD (PR #129 review): a use case shares logic through the shared modules
+  // (reversal, errors, effects, kindRules) — never through a sibling use case.
+  {
+    name: 'project/use-case-isolation',
+    files: ['apps/api/src/managers/transaction/{record,edit,delete,browse}.ts'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': ['error', {
+        patterns: [{
+          group: ['./record', './edit', './delete', './browse'],
+          message: 'Use cases share logic through the shared modules (reversal, errors, '
+            + 'effects, kindRules) — never import a sibling use case.',
+        }],
+      }],
+    },
+  },
+
   // Project rules (CLAUDE.md / NFR-MAINT-1, NFR-MAINT-2).
   {
     name: 'project/rules',

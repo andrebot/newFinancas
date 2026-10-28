@@ -8,8 +8,10 @@ import { serve } from '@hono/node-server';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
 import createAccountAccessor from './accessors/accountAccessor';
+import createAccountTransactionAccessor from './accessors/accountTransactionAccessor';
 import createBudgetAccessor from './accessors/budgetAccessor';
 import createAuditLogAccessor from './accessors/auditLogAccessor';
+import createCardTransactionAccessor from './accessors/cardTransactionAccessor';
 import createCategoryAccessor from './accessors/categoryAccessor';
 import createCreditCardAccessor from './accessors/creditCardAccessor';
 import createEmailAccessor from './accessors/emailAccessor';
@@ -25,10 +27,12 @@ import createValuationSnapshotAccessor from './accessors/valuationSnapshotAccess
 import createApp from './app';
 import { logging } from './config/constants';
 import loadEnv from './config/env';
+import { createInvestmentProductEngine } from './engines/investmentProduct';
 import { createNotificationEngine } from './engines/notification';
 import type { Database } from './db/database';
 import { createManagers } from './managers';
 import type { AccountStores } from './managers/account';
+import type { TransactionStores } from './managers/transaction';
 import { createAuthenticationUtility } from './utilities/authentication';
 import { createAuthorizationUtility } from './utilities/authorization';
 import { createServiceBus } from './utilities/serviceBus';
@@ -87,7 +91,22 @@ const accountStoresOver = (over: Database): AccountStores => ({
   budgets: createBudgetAccessor(over),
   goals: createGoalAccessor(over),
 });
-const { identity, account } = createManagers({
+
+/**
+ * TransactionManager's Accessors over a database or one transaction (OQ-175).
+ *
+ * @param over - The database, or a transaction.
+ * @returns The Accessors.
+ */
+const transactionStoresOver = (over: Database): TransactionStores => ({
+  ...accountStoresOver(over),
+  accountTransactions: createAccountTransactionAccessor(over),
+  cardTransactions: createCardTransactionAccessor(over),
+  holdings: createInvestmentHoldingAccessor(over),
+  valuations: createValuationSnapshotAccessor(over),
+});
+const indexRates = createIndexRateAccessor(db);
+const { identity, account, transaction } = createManagers({
   bus,
   identity: {
     users: createUserAccessor(db),
@@ -104,18 +123,25 @@ const { identity, account } = createManagers({
     ...accountStoresOver(db),
     holdings: createInvestmentHoldingAccessor(db),
     valuations: createValuationSnapshotAccessor(db),
-    indexRates: createIndexRateAccessor(db),
+    indexRates,
     households,
     notifications,
     authorization,
     inTransaction: createUnitOfWork(db, accountStoresOver),
     now: () => new Date(),
   },
+  transaction: {
+    ...transactionStoresOver(db),
+    investmentProducts: createInvestmentProductEngine({ latestIndexRate: indexRates.latest }),
+    authorization,
+    inTransaction: createUnitOfWork(db, transactionStoresOver),
+    now: () => new Date(),
+  },
 });
 
 serve({
   fetch: createApp({
-    identity, account, verifyAccessToken: authentication.verifyAccessToken,
+    identity, account, transaction, verifyAccessToken: authentication.verifyAccessToken,
   }).fetch,
   port: env.port,
 });

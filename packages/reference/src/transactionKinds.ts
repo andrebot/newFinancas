@@ -81,9 +81,9 @@ export const findKind = (code: string): TransactionKind | undefined => (
 );
 
 /**
- * Tells whether a kind may be recorded against a target (FR-3.1, OQ-76): card
- * targets take only card kinds; investment kinds are refused on a
- * `credit_card_only` account.
+ * Tells whether a kind may be recorded against a target (FR-3.1, OQ-76,
+ * OQ-201 D5): card targets take only card kinds; a `credit_card_only` account
+ * takes no cash or investment kinds — only bill payments to its cards.
  *
  * @param kind - The kind.
  * @param context - The target being recorded against.
@@ -92,7 +92,8 @@ export const findKind = (code: string): TransactionKind | undefined => (
 export const isKindAllowed = (kind: TransactionKind, context: KindTargetContext): boolean => {
   if (kind.target !== context.target) return false;
   if (context.target === 'card') return true;
-  return !(kind.group === 'investment' && context.accountType === 'credit_card_only');
+  if (context.accountType === 'credit_card_only' && kind.effect !== 'bill_payment') return false;
+  return true;
 };
 
 /**

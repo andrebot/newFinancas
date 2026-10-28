@@ -55,7 +55,7 @@ export const hasAny = (values: readonly string[] | undefined): values is readonl
  * @param value - The value it must hold.
  * @returns The condition.
  */
-export const holds = (column: PgColumn, value: string | number | null): SQL => (
+export const holds = (column: PgColumn, value: boolean | string | number | null): SQL => (
   value === null ? isNull(column) : eq(column, value)
 );
 

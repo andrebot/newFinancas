@@ -5499,6 +5499,52 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
     with its `contribution`** (`GoalFundingRow`); the separate
     `contributions` list is gone.
 
+### OQ-207: TransactionManager's seams and race mapping (task M3)
+**Design decisions:**
+- **The contract's `allocations` field applies to a sell or redemption as well
+  as a buy.** OQ-206 says the trade carries the Holding's Goal split, pre-filled
+  and editable; openapi.yaml documented it on `investment_buy` only, so the
+  generated client could not send it elsewhere. The schema now allows it on all
+  three trade kinds (a non-trade kind refuses it as an unknown field). Weighed
+  and rejected: leaving the contract as-is and dropping the sell split (loses
+  OQ-206's feature).
+- **An unallocated buy into an already-split Holding dilutes that split.** The
+  re-weighting runs with an empty purchase, so each Goal keeps exactly its
+  money — OQ-168's invariant — and the new value shows as unassigned until
+  someone allocates it. Confirmed with Andre (2026-10-28): dilute. Weighed and
+  rejected: leaving the split untouched (a Goal's progress would grow silently
+  on money no one assigned to it) or refusing the buy (allocations are optional
+  on a purchase).
+- **A due schedule entry whose Holding its user archived closes out instead of
+  retrying.** FR-5.8 lets a member archive a matured Holding before its scheduled
+  redemption posts; posting it would resurrect money on a closed position, but
+  leaving the entry unposted re-delivers it every day forever. The handler marks
+  it posted and logs an error — the anomaly stays visible, the loop stops.
+  Weighed and rejected: retrying until the user unarchives (poison loop) or
+  dropping silently (lost event).
+- **Deleting a buy that zeros its Holding settles it by reference count.** No
+  other transaction names the Holding → delete it (its Goal allocations cascade
+  with it); the creator still referenced — same `createdAt` as the Holding, one
+  database transaction apart — is refused with
+  `transaction.holding_in_use(count)`; a re-buy that merely zeroed an existing
+  position archives it as system like any other. Weighed and rejected: always
+  archiving (dead rows) or always deleting (breaks a still-referenced creator).
+- **A guarded write that lost a race answers `transaction.changed` (409), except
+  where the Accessor names a precise domain refusal** — a missing index, an
+  archived Holding, insufficient quantity or cost basis keep their own codes.
+  The row may have changed under the caller; "not found" would mislead it into
+  retrying against stale state (OQ-203's code, mapped here).
+- **Browse's cursor is one opaque token holding each ledger's position** —
+  `tx2.<account>|<card>`, a half being start, done or `date:id`; a malformed
+  token fails validation on field `cursor`. The page's day totals and month
+  counts cover the days and months present in it, over the whole filtered set —
+  a month header shows its full total even when the page holds only part of it.
+- **The reference helper now enforces OQ-201 D5:** a credit-card-only Account
+  takes only bill payments; `isKindAllowed` used to refuse investment kinds there
+  but allowed cash movements, which such an Account has no balance for.
+
+**Task 103 (`M3`) is complete.**
+
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
 *(None currently — OQ-29, the last item here, was resolved during data

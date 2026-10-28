@@ -529,3 +529,55 @@ describe('listAllocations', () => {
     expect((await accessor.listAllocations({ holdingId: stock }))[0]!.validFrom).toBe('2026-05-01');
   }));
 });
+
+describe('deleteFrom', () => {
+  it(
+    'removes the versions from its day on, leaving earlier history closed (OQ-171)',
+    scenario(async ({
+      accessor, casa, stock, create,
+    }) => {
+      const car = await create();
+      await accessor.replaceAllocations(casa, stock, split([car, 60]), '2026-01-10');
+      await accessor.replaceAllocations(casa, stock, split([car, 40]), '2026-03-01');
+
+      expect(await accessor.deleteFrom(stock, '2026-03-01')).toBe(true);
+      expect(await accessor.listAllocations({ holdingId: stock })).toEqual([]);
+      // The earlier version survives as history.
+      expect((await accessor.listAllocations({ holdingId: stock }, '2026-02-28'))
+        .map((row) => row.percentage)).toEqual([60]);
+    }),
+  );
+
+  it('removes nothing when the day has no versions', scenario(async ({
+    accessor, casa, stock, create,
+  }) => {
+    const car = await create();
+    await accessor.replaceAllocations(casa, stock, split([car, 100]), '2026-01-10');
+
+    expect(await accessor.deleteFrom(stock, '2026-03-01')).toBe(false);
+  }));
+});
+
+describe('reopenClosedAt', () => {
+  it('reopens the split closed at its day (OQ-171)', scenario(async ({
+    accessor, casa, stock, create,
+  }) => {
+    const car = await create();
+    await accessor.replaceAllocations(casa, stock, split([car, 60]), '2026-01-10');
+    await accessor.replaceAllocations(casa, stock, split([car, 40]), '2026-03-01');
+    await accessor.deleteFrom(stock, '2026-03-01');
+
+    expect(await accessor.reopenClosedAt(stock, '2026-03-01')).toBe(true);
+    expect((await accessor.listAllocations({ holdingId: stock }))
+      .map((row) => row.percentage)).toEqual([60]);
+  }));
+
+  it('reopens nothing when no split closed at that day', scenario(async ({
+    accessor, casa, stock, create,
+  }) => {
+    const car = await create();
+    await accessor.replaceAllocations(casa, stock, split([car, 100]), '2026-01-10');
+
+    expect(await accessor.reopenClosedAt(stock, '2026-03-01')).toBe(false);
+  }));
+});

@@ -42,7 +42,7 @@ sequenceDiagram
 
     User->>API: POST /households/:householdId/transactions {accountId | creditCardId, kind, date, amount, currency, categoryId?, description, holdingId? | assetType + ticker?, quantity?, rate?, dueDate?, interestPayment?, incentivised?, allocations?}
     API->>TM: record(actor, input)
-    Note over TM: loads the target (Account or card + its Account) and, if given, the Category &mdash;<br/>an archived Account or a newly used archived Category is refused (OQ-169, OQ-201)
+    Note over TM: loads the target (Account or card + its Account &mdash; a bill payment's card must sit on<br/>its Account, OQ-207) and, if given, the Category &mdash;<br/>an archived Account or a newly used archived Category is refused (OQ-169, OQ-201)
     TM->>AZ: canWrite(actor, targetId)?
     alt not authorized
         AZ-->>TM: denied
@@ -85,10 +85,16 @@ sequenceDiagram
         else cash kind on a credit-card-only account
             TM-->>API: ValidationError (OQ-201 &mdash; it takes only bill payments to its cards)
             API-->>User: 422 transaction.kind_not_allowed_for_target
-        else fixed-term buy: dueDate not after date, or a spread on a rate not CDI/Selic
+        else fixed-term buy: dueDate not after date, a spread on a rate not CDI/Selic,<br/>or a rate missing its type or value (OQ-207)
             TM-->>API: ValidationError (OQ-205 &mdash; the Engine is never called)
-            API-->>User: 422 validation.failed {dueDate | rate.spread}
+            API-->>User: 422 validation.failed {dueDate | rate.spread | rate.type | rate.value}
         else effect = movement or transfer
+            opt names a Holding (a dividend, interest or tax)
+                alt that Holding is archived by its user (FR-5.8)
+                    TM-->>API: Conflict
+                    API-->>User: 409 holding.archived &mdash; a closed position takes no events (OQ-171)
+                end
+            end
             TM->>AA: applyMovement(accountId, {amount, currency, date})
             AA-->>TM: new balance
         else effect = bill_payment
@@ -334,11 +340,6 @@ sequenceDiagram
     else a fixed-term buy whose schedule has posted
         TM-->>API: Conflict
         API-->>User: 409 transaction.schedule_started (OQ-201)
-    else the buy that created its Holding, and other transactions reference it
-        TM->>ATA: countForHolding(holdingId, buyId)
-        ATA-->>TM: n &gt; 0
-        TM-->>API: Conflict
-        API-->>User: 409 transaction.holding_in_use {count} (OQ-201)
     else authorized
         AZ-->>TM: allowed
         alt was a balance movement or bill payment
@@ -348,15 +349,10 @@ sequenceDiagram
             end
         else was an investment trade
             TM->>AA: applyMovement(accountId, {&plusmn;amount reversed, currency, date})
-            alt the buy that created its Holding, nothing else references it
-                TM->>GA: replaceAllocations(householdId, holdingId, [])
-                TM->>IHA: delete(holdingId)
-                Note over IHA: the Holding goes with its buy &mdash; snapshots and schedule cascade (OQ-201)
-            else
-                TM->>IHA: applyTrade(holdingId, {-quantityDelta, -costBasisDelta})
-                TM->>VSA: deleteAutomatic(transactionId)
+            TM->>IHA: applyTrade(holdingId, {-quantityDelta, -costBasisDelta})
+            opt the undo reopens a zeroed position
                 TM->>IHA: unarchiveIfSystemArchived(holdingId)
-                Note over IHA: if this was the sell/redemption that zeroed the<br/>Holding, it comes back (OQ-80)
+                Note over IHA: if this was the sell/redemption that zeroed the<br/>Holding, it comes back (OQ-80) &mdash; user archives stay,<br/>and its automatic snapshot dies with the row (OQ-56)
             end
         else was a card charge/refund
             TM->>CCA: applyMovement(cardId, {-signedAmount, currency, date})
@@ -369,7 +365,21 @@ sequenceDiagram
             TM-->>API: Conflict
             API-->>User: 409 transaction.changed (reload and retry)
         else deleted
-            ATA-->>TM: deleted
+            opt was an investment trade whose undo zeros the position again
+                TM->>ATA: countForHolding(holdingId, buyId)
+                alt n = 0 &mdash; the buy that created its Holding
+                    TM->>IHA: delete(holdingId)
+                    Note over IHA: the row is gone first, so nothing still points<br/>at it &mdash; the Goal split, snapshots and schedule cascade (OQ-201, OQ-56)
+                else n &gt; 0 and this buy created it
+                    TM-->>API: Conflict
+                    API-->>User: 409 transaction.holding_in_use {count} (OQ-201) &mdash; rolled back
+                else a re-buy into an existing one
+                    TM->>IHA: archive(holdingId, system)
+                end
+            end
+            opt was the trade&#39;s split still current
+                TM->>GA: deleteFrom + reopenClosedAt (the split comes back with the position)
+            end
             TM-->>LOG: logActivity(correlationId, actor, "DeleteTransaction")
             TM-->>LOG: recordAudit(actor, "Transaction", transactionId)
             TM-->>API: deleted

@@ -4,6 +4,7 @@ import {
 import type { Database } from '../db/database';
 import { accounts, investmentHoldings, investmentScheduleEntries } from '../db/schema';
 import type { InterestPayment } from '../db/schema/values';
+import { holds } from './ledgerQuery';
 
 // InvestmentHoldingAccessor (A11, VBD): Investment Holdings and their FR-11
 // schedule (FR-5.1, FR-5.8, FR-11.2–FR-11.3, 02-data-model.md). It applies data
@@ -115,12 +116,32 @@ export interface DueScheduleEntry extends ScheduleEntryInput {
   readonly id: string;
   readonly holdingId: string;
   readonly accountId: string;
+  readonly householdId: string;
 }
 
 export type ApplyScheduleResult = | { readonly ok: true }
   | { readonly ok: false; readonly reason: 'holding_not_found' }
   /** An entry has posted: the schedule is history now (OQ-171). */
   | { readonly ok: false; readonly reason: 'schedule_started' };
+
+/** The terms a fixed-term buy's edit may change while its schedule hasn't started (OQ-201, D6). */
+export interface HoldingTermChanges {
+  /** Replaces the rate as a set — type, value and spread together. */
+  readonly rate?: HoldingRate;
+  readonly dueDate?: string;
+  readonly interestPayment?: InterestPayment;
+  readonly incentivised?: boolean | null;
+}
+
+/** The terms an edit was computed from — the guarded write's `expected` (OQ-107). */
+export type ExpectedHoldingTerms = Pick<
+  InvestmentHolding, 'rateType' | 'rateValue' | 'rateSpread' | 'dueDate'
+    | 'interestPayment' | 'incentivised'
+>;
+
+/** Whether the terms were written or the Holding changed meanwhile. */
+export type UpdateHoldingTermsResult = | { readonly status: 'updated' }
+  | { readonly status: 'stale' };
 
 /** A fixed-term Holding past due with a position, and who its Account belongs to. */
 export interface MaturedHolding {
@@ -370,6 +391,63 @@ const createInvestmentHoldingAccessor = (db: Database) => ({
   ).length > 0,
 
   /**
+   * Changes a fixed-term Holding's terms — rate (as a set), due date, interest
+   * payment and debenture flag — if the row still holds what the Manager read;
+   * otherwise `stale`, so an edit computed from stale values writes nothing.
+   * Whether the schedule may change at all is the Manager's (OQ-201, D8).
+   * Keyed by Holding — the Manager has already loaded it within the household.
+   *
+   * @param holdingId - The Holding.
+   * @param expected - The terms the edit was computed from.
+   * @param changes - The fields to change; a field left out keeps its value.
+   * @returns `updated`, or `stale`.
+   */
+  updateTerms: async (
+    holdingId: string,
+    expected: ExpectedHoldingTerms,
+    changes: HoldingTermChanges,
+  ): Promise<UpdateHoldingTermsResult> => {
+    const set: Partial<typeof investmentHoldings.$inferInsert> = {};
+    if (changes.rate !== undefined) {
+      set.rateType = changes.rate.rateType;
+      set.rateValue = changes.rate.rateValue;
+      set.rateSpread = changes.rate.rateSpread;
+    }
+    if (changes.dueDate !== undefined) set.dueDate = changes.dueDate;
+    if (changes.interestPayment !== undefined) set.interestPayment = changes.interestPayment;
+    if (changes.incentivised !== undefined) set.incentivised = changes.incentivised;
+    const unchanged = and(
+      eq(investmentHoldings.id, holdingId),
+      holds(investmentHoldings.rateType, expected.rateType),
+      holds(investmentHoldings.rateValue, expected.rateValue),
+      holds(investmentHoldings.rateSpread, expected.rateSpread),
+      holds(investmentHoldings.dueDate, expected.dueDate),
+      holds(investmentHoldings.interestPayment, expected.interestPayment),
+      holds(investmentHoldings.incentivised, expected.incentivised),
+    );
+    const query = Object.keys(set).length > 0
+      ? db.update(investmentHoldings).set(set).where(unchanged)
+        .returning({ id: investmentHoldings.id })
+      : db.select({ id: investmentHoldings.id }).from(investmentHoldings).where(unchanged);
+    const [row] = await query;
+    return row ? { status: 'updated' } : { status: 'stale' };
+  },
+
+  /**
+   * Deletes a Holding with the buy that created it (OQ-201, D7): its snapshots,
+   * schedule and Goal split cascade. A transaction still referencing it refuses
+   * the delete at the foreign key — the Manager has already checked
+   * `countForHolding`, this is the race's second line.
+   *
+   * @param holdingId - The Holding.
+   * @returns `true` when it was deleted by this call.
+   */
+  delete: async (holdingId: string): Promise<boolean> => (
+    await db.delete(investmentHoldings).where(eq(investmentHoldings.id, holdingId))
+      .returning({ id: investmentHoldings.id })
+  ).length > 0,
+
+  /**
    * Replaces a fixed-term Holding's schedule (FR-11.2) with the Engine's output —
    * refused once an entry has posted (OQ-171).
    *
@@ -425,9 +503,11 @@ const createInvestmentHoldingAccessor = (db: Database) => ({
     id: investmentScheduleEntries.id,
     holdingId: investmentScheduleEntries.holdingId,
     accountId: investmentHoldings.accountId,
+    householdId: accounts.householdId,
     ...entryInputColumns,
   }).from(investmentScheduleEntries)
     .innerJoin(investmentHoldings, eq(investmentHoldings.id, investmentScheduleEntries.holdingId))
+    .innerJoin(accounts, eq(accounts.id, investmentHoldings.accountId))
     .where(and(
       isNull(investmentScheduleEntries.postedAt),
       lte(investmentScheduleEntries.date, today),
