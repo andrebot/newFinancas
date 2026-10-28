@@ -6,7 +6,6 @@ import {
   PILL_TRACK,
   ProgressBar,
   THIN_TRACK,
-  clampPercent,
   clampSegments,
   isThin,
 } from '../../../../src/kit/progressBar/ProgressBar';
@@ -30,20 +29,6 @@ const barNamed = (name: string) => screen.getByRole('progressbar', { name });
  * @returns The child element.
  */
 const childAt = (element: Element, index: number) => element.children.item(index) as HTMLElement;
-
-describe('clampPercent', () => {
-  it('keeps a value between 0 and 100', () => {
-    expect(clampPercent(32)).toBe(32);
-    expect(clampPercent(0)).toBe(0);
-    expect(clampPercent(100)).toBe(100);
-  });
-
-  it('holds values outside the range to its ends, and a non-number to 0', () => {
-    expect(clampPercent(-5)).toBe(0);
-    expect(clampPercent(112)).toBe(100);
-    expect(clampPercent(Number.NaN)).toBe(0);
-  });
-});
 
 describe('clampSegments', () => {
   it('keeps segments that fit together', () => {

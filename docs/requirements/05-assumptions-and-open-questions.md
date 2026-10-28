@@ -5610,15 +5610,24 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
   percentage and an already-formatted `label`. Tones: `sky` (default,
   goals), `mint`, `sun`, `coral`. When a budget is near or over its limit
   is K36's call, not the ring's.
-- **The ring derives the label's colour**, so callers can't drift from
-  the mockups: `coral` when the tone is coral, `faint` at 0, the ink
-  otherwise. The label is 13px bold (`md`) / 12px (`sm`), tabular.
+- **The ring derives the label's colour**, so callers can't drift:
+  `coral` when the tone is coral, `muted` while the label reads 0%, the
+  ink otherwise. The mockups draw 0% in `faint`, but `faint` is not a text
+  colour (K1, OQ-121; K5's hint made the same call, OQ-137), so the
+  build uses `muted` (PR #131 review). "Reads 0%" is the value rounded as
+  `aria-valuenow` is, so 0.3% is muted too, though a sliver is drawn. The
+  label is 13px bold (`md`) / 12px (`sm`), tabular.
 - **Accessibility, as K33.** `role="progressbar"`, 0–100, `aria-valuenow`
   the rounded held value, the label as `aria-valuetext`, the caller names
-  it (`ariaLabel`). The SVG and the label are `aria-hidden`. The
-  attributes and `clampPercent` are shared with K33's module.
-- **Motion.** The sweep animates over K33's 200ms (`FILL_MOTION_DURATION`,
-  shared), off under reduced motion.
+  it (`ariaLabel`). The SVG and the label are `aria-hidden`. An empty
+  label gives no `aria-valuetext` (bar and ring alike).
+- **Shared with K33 through `kit/progress/progress.ts`**, not either
+  component's module (PR #131 review): `clampPercent`, the progressbar
+  attributes and `FILL_MOTION_DURATION`. They change for
+  progress-indicator reasons, as `field/Field.tsx` is the inputs' shared
+  frame.
+- **Motion.** The sweep animates over the shared 200ms
+  (`FILL_MOTION_DURATION`), off under reduced motion.
 - **The auth preview uses it.** AuthLayout's hand-drawn ring (OQ-135)
   is now `<ProgressRing size="sm">`; the preview stays `aria-hidden` as a
   whole.

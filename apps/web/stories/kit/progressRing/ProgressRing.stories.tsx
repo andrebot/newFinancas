@@ -22,7 +22,7 @@ type Story = StoryObj<typeof meta>;
 /** A goal on its rail card, in sky. */
 export const Goal: Story = {};
 
-/** Not funded yet: an empty track, the label faint. */
+/** Not funded yet: an empty track, the label muted. */
 export const Empty: Story = {
   args: { value: 0, label: '0%', ariaLabel: 'New Laptop Fund' },
 };

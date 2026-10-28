@@ -45,8 +45,10 @@ describe('labelColour', () => {
     expect(labelColour('coral', 0)).toBe('text-coral');
   });
 
-  it('is faint at 0 and the ink otherwise', () => {
-    expect(labelColour('sky', 0)).toBe('text-faint');
+  it('is muted while the label reads 0%, the ink otherwise', () => {
+    expect(labelColour('sky', 0)).toBe('text-muted');
+    expect(labelColour('sky', 0.3)).toBe('text-muted');
+    expect(labelColour('sky', 0.5)).toBe('text-ink');
     expect(labelColour('sky', 57)).toBe('text-ink');
     expect(labelColour('sun', 78)).toBe('text-ink');
   });
@@ -78,7 +80,10 @@ describe('ProgressRing', () => {
   });
 
   it('turns the sweep off under reduced motion', () => {
-    expect(RING_MOTION).toContain('motion-reduce:transition-none');
+    render(<ProgressRing value={57} ariaLabel="House Down Payment" />);
+    const { fill } = circlesOf(ringNamed('House Down Payment'));
+
+    expect(fill.getAttribute('class')).toContain('motion-reduce:transition-none');
   });
 
   it('holds the fill full for an over-budget value, its label still the real figure', () => {
@@ -94,12 +99,28 @@ describe('ProgressRing', () => {
     expect(label.getAttribute('aria-hidden')).toBe('true');
   });
 
-  it('shows an empty track with a faint label at 0', () => {
+  it('shows an empty track with a muted label at 0', () => {
     render(<ProgressRing value={-3} label="0%" ariaLabel="New Laptop Fund" />);
     const ring = ringNamed('New Laptop Fund');
 
     expect(circlesOf(ring).fill.getAttribute('stroke-dashoffset')).toBe('100');
-    expect(ring.querySelector('span')!.className).toBe('relative text-faint');
+    expect(ring.querySelector('span')!.className).toBe('relative text-muted');
+  });
+
+  it('mutes a label the caller rounds to 0%, though a sliver is drawn', () => {
+    render(<ProgressRing value={0.3} label="0%" ariaLabel="Trip Fund" />);
+    const ring = ringNamed('Trip Fund');
+
+    expect(circlesOf(ring).fill.getAttribute('stroke-dashoffset')).toBe('99.7');
+    expect(ring.querySelector('span')!.className).toBe('relative text-muted');
+  });
+
+  it('has no value text for an empty label', () => {
+    render(<ProgressRing value={20} label="" ariaLabel="Blank" />);
+    const ring = ringNamed('Blank');
+
+    expect(ring.hasAttribute('aria-valuetext')).toBe(false);
+    expect(ring.querySelector('span')).toBeNull();
   });
 
   it('draws the other tones and the small size', () => {

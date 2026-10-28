@@ -1,4 +1,4 @@
-import { FILL_MOTION_DURATION, clampPercent, progressAttributes } from '../progressBar/ProgressBar';
+import { FILL_MOTION_DURATION, clampPercent, progressAttributes } from '../progress/progress';
 
 // The kit's progress ring (K32, OQ-209): how far along a budget or a goal is,
 // as a ring with its percent inside (the rail cards on mockups 20–24, the
@@ -58,8 +58,9 @@ export const RING_MOTION = [
 ].join(' ');
 
 /**
- * Picks the label's colour: coral when the budget is over, faint while
- * nothing is done yet, the ink otherwise (as on the mockups).
+ * Picks the label's colour: coral when the budget is over, muted while the
+ * label reads 0% (the mockups' `faint` is not a text colour, OQ-209), the
+ * ink otherwise. The value is rounded as the label is, so 0.3% counts as 0.
  *
  * @param tone - The ring's tone.
  * @param value - The value, already held to 0–100.
@@ -69,7 +70,7 @@ export const labelColour = (tone: RingTone, value: number): string => {
   if (tone === 'coral') {
     return 'text-coral';
   }
-  return value === 0 ? 'text-faint' : 'text-ink';
+  return Math.round(value) === 0 ? 'text-muted' : 'text-ink';
 };
 
 /**
