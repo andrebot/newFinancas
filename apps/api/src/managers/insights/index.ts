@@ -15,7 +15,7 @@ import type { InsightsDeps } from './context';
 
 export type { InsightsDeps } from './context';
 export type { ProjectedHolding } from './holdings';
-export type { MonthAsked } from './reports';
+export type { MonthAsked, ReportType, TaggedReport } from './reports';
 export type { Goals, Holdings, Reports };
 export type { GoalWithProgress, MonthOverview };
 

@@ -1,6 +1,5 @@
 import type { AccountAccessor } from '../../accessors/accountAccessor';
 import type { AccountTransactionAccessor } from '../../accessors/accountTransactionAccessor';
-import type { CalendarMonth } from '../../accessors/calendarMonth';
 import type { GoalAccessor } from '../../accessors/goalAccessor';
 import type { InvestmentHoldingAccessor } from '../../accessors/investmentHoldingAccessor';
 import { calendar } from '../../config/constants';
@@ -13,8 +12,8 @@ import calendarDate from '../../utilities/calendar';
 // Engines it composes — ReportingEngine for the reshaped reads and
 // InvestmentProductEngine's `project` for a Holding's expected payout — plus
 // the Accessor reads its own decisions need: which Goals the viewer sees, one
-// Account or Holding's access facts, and the buy that opened a fixed-term
-// Holding (OQ-205). Reads never audit (VBD §3.0); there is no logger here.
+// Account or Holding's access facts, and the buys that opened fixed-term
+// Holdings (OQ-205). Reads never audit (VBD §3.0); there is no logger here.
 
 /** The components InsightsManager calls, and the clock. */
 export interface InsightsDeps {
@@ -25,7 +24,7 @@ export interface InsightsDeps {
   readonly goals: GoalAccessor;
   readonly accounts: AccountAccessor;
   readonly holdings: InvestmentHoldingAccessor;
-  readonly accountTransactions: Pick<AccountTransactionAccessor, 'findBuy'>;
+  readonly accountTransactions: Pick<AccountTransactionAccessor, 'findBuys'>;
   readonly authorization: Pick<AuthorizationUtility, 'authorize'>;
   /** The app-timezone clock (OQ-104). */
   readonly now: () => Date;
@@ -40,15 +39,3 @@ export interface InsightsDeps {
 export const todayOf = (deps: Pick<InsightsDeps, 'now'>): string => (
   calendarDate(deps.now(), calendar.timeZone)
 );
-
-/**
- * A month's last day — a by-month progress read is taken on it (FR-8.7).
- *
- * @param month - The month.
- * @returns `YYYY-MM-DD`.
- */
-export const monthEndOf = (month: CalendarMonth): string => {
-  const lastDay = new Date(Date.UTC(month.year, month.month, 0)).getUTCDate();
-  const key = `${month.year}-${String(month.month).padStart(2, '0')}`;
-  return `${key}-${String(lastDay).padStart(2, '0')}`;
-};

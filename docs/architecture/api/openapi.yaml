@@ -1814,6 +1814,8 @@ paths:
           required: false
           schema:
             type: integer
+            minimum: 1900
+            maximum: 9999
           description: month-overview
         - name: month
           in: query
@@ -2350,7 +2352,7 @@ paths:
       parameters:
         - name: year
           in: query
-          schema: { type: integer }
+          schema: { type: integer, minimum: 1900, maximum: 9999 }
         - name: month
           in: query
           schema: { type: integer, minimum: 1, maximum: 12 }

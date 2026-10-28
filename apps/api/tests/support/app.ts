@@ -120,7 +120,7 @@ export const mockTransaction = (): MockedTransaction => ({
  * @returns The mock Manager.
  */
 export const mockInsights = (): MockedInsights => ({
-  monthOverview: vi.fn(),
+  report: vi.fn(),
   goalProgressList: vi.fn(),
   goalProgressFor: vi.fn(),
   listHoldings: vi.fn(),

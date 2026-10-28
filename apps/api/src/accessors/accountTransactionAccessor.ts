@@ -1,6 +1,6 @@
 import type { TransactionEffect } from '@financas/reference';
 import {
-  and, desc, eq, getTableColumns, gte, inArray, isNotNull, lte, ne, or, sql, type AnyColumn,
+  and, asc, desc, eq, getTableColumns, gte, inArray, isNotNull, lte, ne, or, sql, type AnyColumn,
 } from 'drizzle-orm';
 import type { Database } from '../db/database';
 import { accountTransactions, accounts, investmentHoldings } from '../db/schema';
@@ -377,26 +377,29 @@ const createAccountTransactionAccessor = (db: Database) => ({
   ),
 
   /**
-   * The buy that opened a fixed-term Holding (OQ-205) — its date and amount are
-   * the contract terms InsightsManager projects from. A fixed-term buy always
-   * opens a new Holding, so there is exactly one such row while it exists.
+   * The buys that opened fixed-term Holdings (OQ-205) — their dates and amounts
+   * are the contract terms InsightsManager projects from — in one read for a
+   * whole list. A fixed-term buy always opens a new Holding, so each has one;
+   * oldest first on (date, id), so the opening buy is always the first seen.
    *
    * @param householdId - The household.
-   * @param holdingId - The Holding.
-   * @returns The buy, or `undefined`.
+   * @param holdingIds - The Holdings.
+   * @returns Their buys, oldest first; none for an empty list.
    */
-  findBuy: async (
+  findBuys: async (
     householdId: string,
-    holdingId: string,
-  ): Promise<AccountTransaction | undefined> => {
-    const [row] = await db.select(rowColumns).from(accountTransactions)
+    holdingIds: readonly string[],
+  ): Promise<AccountTransaction[]> => {
+    if (holdingIds.length === 0) return [];
+    const rows = await db.select(rowColumns).from(accountTransactions)
       .innerJoin(accounts, eq(accounts.id, accountTransactions.accountId))
       .where(and(
         eq(accountTransactions.kind, 'investment_buy'),
-        eq(accountTransactions.holdingId, holdingId),
+        inArray(accountTransactions.holdingId, [...holdingIds]),
         eq(accounts.householdId, householdId),
-      ));
-    return row && toTransaction(row);
+      ))
+      .orderBy(asc(accountTransactions.date), asc(accountTransactions.id));
+    return rows.map(toTransaction);
   },
 
   /**

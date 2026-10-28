@@ -5556,14 +5556,26 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
   and `payouts` answer 400 `report.unknown_type_or_range` — the code the
   contract already reserves for this endpoint — until task 133 implements them
   beside their first caller. Weighed and rejected: a literal route (fails the A1
-  guard) and inventing a new error code (the reserved one exists).
+  guard) and inventing a new error code (the reserved one exists). *(PR #130
+  review:)* the route hands every v1 type to `InsightsManager.report`, which
+  checks membership first and then serves `month-overview` alone, refusing the
+  rest — which types exist is the Manager's to decide (Managers refuse by code,
+  OQ-202), and a non-member gets `household.not_found` for every type.
+- **`year` is bounded to 1900..9999** on `/reports/{reportType}` and
+  `/goals/{goalId}/progress` *(PR #130 review)* — the contract left it an
+  unbounded integer, so a year like -3 or 12345 built a malformed `YYYY-MM-DD`
+  and failed in Postgres as a 500; out of range is now a 422 at the route.
 - **M4 reads Holdings straight from InvestmentHoldingAccessor**, not through
   ReportingEngine — E2 has no positions use case; the uc-12 diagram's
   `IM → RE: positions(accountId)` call was stale and is corrected in this task.
-- **`findBuy` on AccountTransactionAccessor** gives M4 a fixed-term Holding's
-  opening buy (its date and amount are the contract terms E1 projects from,
-  OQ-205). A direct accessor read rather than TransactionManager's list filter:
-  access is already decided by then, and Managers never call Managers.
+- **`findBuys` on AccountTransactionAccessor** gives M4 fixed-term Holdings'
+  opening buys (their dates and amounts are the contract terms E1 projects from,
+  OQ-205) — one read for a whole Holding list, oldest first on (date, id) so the
+  opening buy is chosen the same way every time *(PR #130 review: was a per-Holding
+  `findBuy` with no ordering)*. A direct accessor read rather than
+  TransactionManager's list filter: access is already decided by then, and
+  Managers never call Managers. E1's per-projection index-rate read stays as E1
+  designed it.
 - **ReportingEngine does all narrowing internally** — `monthOverview` and
   `goalProgress` narrow from the viewer they are handed (OQ-206); M4 only decides
   which day or month a read asks for (today's when absent, OQ-104; a by-month

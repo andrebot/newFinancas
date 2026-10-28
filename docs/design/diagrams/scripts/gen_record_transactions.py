@@ -464,9 +464,9 @@ sequenceDiagram
     participant VSA as ValuationSnapshotAccessor
 
     User->>API: GET /households/:householdId/reports/month-overview?year=2026&month=9
-    API->>IM: report(actor, "month-overview", {year, month})
-    IM->>AZ: visibleScope(actor)
-    AZ-->>IM: scope
+    API->>IM: report(context, householdId, "month-overview", {year, month})
+    IM->>AZ: authorize(actor, householdId, memberOnly)
+    AZ-->>IM: allowed &mdash; any role
     IM->>RE: monthOverview({householdId, viewerUserId}, {year, month})
     RE->>AA: list(householdId, viewerUserId) &mdash; the Accounts the viewer sees
     RE->>CCA: listByAccounts(accountIds)

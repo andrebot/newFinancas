@@ -4,7 +4,7 @@ import type {
   AccountTransactionAccessor, MonthKindTotal,
 } from '../../accessors/accountTransactionAccessor';
 import type { Budget, BudgetAccessor, BudgetPeriodOf } from '../../accessors/budgetAccessor';
-import type { CalendarMonth } from '../../accessors/calendarMonth';
+import { monthEnd, monthKey, type CalendarMonth } from '../../accessors/calendarMonth';
 import type { CardTransactionAccessor } from '../../accessors/cardTransactionAccessor';
 import type { CreditCard, CreditCardAccessor } from '../../accessors/creditCardAccessor';
 import type { GoalAccessor } from '../../accessors/goalAccessor';
@@ -14,7 +14,7 @@ import calendarDate from '../../utilities/calendar';
 import {
   goalProgress, visibleAccountIdsOf, type GoalProgressDeps, type GoalWithProgress,
 } from './goalProgress';
-import { monthEnd, monthKey, yearMonths } from './months';
+import yearMonths from './months';
 
 // ReportingEngine — the Month Overview (FR-6.11, FR-6.6, FR-4.3, FR-8.7,
 // OQ-201): a month's money in and out per currency with the year's strip, the

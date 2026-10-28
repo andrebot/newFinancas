@@ -96,28 +96,26 @@ sequenceDiagram
     participant AZ as AuthorizationUtility
     participant RE as ReportingEngine
 
-    User->>API: GET /households/:householdId/reports/month-overview?year=&month=
-    Note over API: contract check first: reportType one of the three v1 types,<br/>year a 4-digit number, month 1..12 &rarr; 422 validation.failed
-    alt investments-overview or payouts (task 133)
-        API-->>User: 400 report.unknown_type_or_range
-    else month-overview
-        API->>IM: monthOverview(context, householdId, {year?, month?})
-        IM->>AZ: authorize(actor, householdId, memberOnly)
-        alt not a member
-            IM-->>API: 404 household.not_found
-        else any role &mdash; data.view is everyone&#39;s on shared data (OQ-111)
-            Note over IM: the month asked for &mdash; each part defaults to today&#39;s (OQ-104)
-            IM->>RE: monthOverview({householdId, viewerUserId}, {year, month})
-            Note over RE: narrows everything from the viewer it is handed (OQ-206):<br/>per-currency in / out / net + the year strip,<br/>month-end balances, budgets and their status, goals with progress &mdash;<br/>funding the viewer can&#39;t see counts unnamed
-            RE-->>IM: the overview as this member sees it
-            IM-->>API: the overview
-        end
+    User->>API: GET /households/:householdId/reports/:reportType?year=&month=
+    Note over API: contract check first: reportType one of the three v1 types,<br/>year 1900..9999, month 1..12 &rarr; 422 validation.failed
+    API->>IM: report(context, householdId, reportType, {year?, month?})
+    IM->>AZ: authorize(actor, householdId, memberOnly)
+    alt not a member
+        IM-->>API: 404 household.not_found
+    else investments-overview or payouts (task 133)
+        IM-->>API: 400 report.unknown_type_or_range
+    else month-overview &mdash; any role: data.view is everyone&#39;s on shared data (OQ-111)
+        Note over IM: the month asked for &mdash; each part defaults to today&#39;s (OQ-104)
+        IM->>RE: monthOverview({householdId, viewerUserId}, {year, month})
+        Note over RE: narrows everything from the viewer it is handed (OQ-206):<br/>per-currency in / out / net + the year strip,<br/>month-end balances, budgets and their status, goals with progress &mdash;<br/>funding the viewer can&#39;t see counts unnamed
+        RE-->>IM: the overview as this member sees it
+        IM-->>API: the overview, tagged reportType: month-overview
     end
     API-->>User: 200 OK {reportType, summary, yearStrip, balances, budgets, goals}
 """,
     notes="""
     <ul>
-      <li><strong>As built in M4 (OQ-208):</strong> the route is the contract&#39;s parameterized operation from day one; a v1 type this build does not serve yet answers 400 <code>report.unknown_type_or_range</code>, the code the contract reserves for this endpoint. The Manager only decides which month was asked for (each part defaults to today&#39;s, OQ-104) and hands the viewer to ReportingEngine &mdash; all narrowing is the Engine&#39;s (OQ-206). Every member role may read it: <code>data.view</code> is everyone&#39;s on shared data (OQ-111), so a Viewer sees the same report, narrowed to what they can see.</li>
+      <li><strong>As built in M4 (OQ-208):</strong> the route is the contract&#39;s parameterized operation from day one and hands every v1 type to <code>InsightsManager.report</code>; the Manager decides which types exist &mdash; after the membership check, so a non-member learns nothing &mdash; and refuses one this build does not serve yet with 400 <code>report.unknown_type_or_range</code>, the code the contract reserves for this endpoint. Otherwise it only decides which month was asked for (each part defaults to today&#39;s, OQ-104) and hands the viewer to ReportingEngine &mdash; all narrowing is the Engine&#39;s (OQ-206). Every member role may read it: <code>data.view</code> is everyone&#39;s on shared data (OQ-111), so a Viewer sees the same report, narrowed to what they can see.</li>
       <li><strong>Lands with task 133:</strong> <code>investments-overview</code> and <code>payouts</code>, beside their first caller &mdash; the same generic use case, different parameters (spend-by-category, income-vs-expense, account-balance-by-month stay deferred to v2, OQ-71).</li>
       <li>FR-6.6 states this explicitly for account-balance-by-month, and it holds for the other two: "this requires no new stored data... a reporting view over existing history, not a new data-model concept."</li>
       <li>See FR-6.2, FR-6.3, FR-6.6, FR-6.11, OQ-71, OQ-104, OQ-206, OQ-208.</li>

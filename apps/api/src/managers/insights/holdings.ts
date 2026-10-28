@@ -1,18 +1,21 @@
 import { isFixedTerm } from '@financas/reference';
 import type { AccountTransaction } from '../../accessors/accountTransactionAccessor';
 import type { InvestmentHolding } from '../../accessors/investmentHoldingAccessor';
-import type { ContractRate, ContractTerms, IndexMissing } from '../../engines/investmentProduct';
+import type { ContractTerms, IndexMissing } from '../../engines/investmentProduct';
 import { accessToOwned, requireAccess } from '../access';
 import type { SignedInContext } from '../requestContext';
+import { engineRateOf } from '../transaction/effects';
 import type { InsightsDeps } from './context';
 import { accountNotFound, holdingNotFound } from './errors';
 
 // The Holding reads with projections (OQ-178): a Holding takes its Account's
-// access — personal, the owner's alone; shared, the table plus the Member who
-// created it (OQ-111). A fixed-term Holding carries what its contract is
-// expected to pay, computed on read by InvestmentProductEngine.project from
-// the Holding's own rate and due date plus its buy's date and amount (FR-11.2,
-// OQ-205); an index with no value yet leaves it unprojected, named why.
+// access — personal, the owner's alone; shared, any member (`data.view` is
+// everyone's on shared data, so no creator exception applies — OQ-111,
+// OQ-208). A fixed-term Holding carries what its contract is expected to pay,
+// computed on read by InvestmentProductEngine.project from the Holding's own
+// rate and due date plus its buy's date and amount (FR-11.2, OQ-205) — the
+// buys of a whole list read at once; an index with no value yet leaves it
+// unprojected, named why.
 
 /** A Holding as the contract shows it: its row plus its expected payout. */
 export interface ProjectedHolding extends InvestmentHolding {
@@ -48,30 +51,53 @@ const termsOf = (holding: InvestmentHolding, buy: AccountTransaction): ContractT
   date: buy.date,
   amount: buy.amount,
   dueDate: holding.dueDate!,
-  rate: {
-    type: holding.rateType! as ContractRate['type'],
-    value: holding.rateValue!,
-    ...(holding.rateSpread != null && { spread: holding.rateSpread }),
-  },
+  rate: engineRateOf({
+    type: holding.rateType!, value: holding.rateValue!, spread: holding.rateSpread,
+  }),
   interestPayment: holding.interestPayment ?? 'at_maturity',
 });
 
 /**
+ * The opening buy of each fixed-term Holding, in one read (OQ-205).
+ *
+ * @param deps - The tier below.
+ * @param householdId - The household.
+ * @param holdings - The Holdings; market-priced ones need no buy.
+ * @returns Each fixed-term Holding's opening buy, by Holding id.
+ */
+const buysOf = async (
+  deps: InsightsDeps,
+  householdId: string,
+  holdings: readonly InvestmentHolding[],
+): Promise<Map<string, AccountTransaction>> => {
+  const fixedTermIds = holdings
+    .filter((holding) => isFixedTerm(holding.assetType))
+    .map((holding) => holding.id);
+  const buys = await deps.accountTransactions.findBuys(householdId, fixedTermIds);
+  const byHolding = new Map<string, AccountTransaction>();
+  for (const buy of buys) {
+    if (!byHolding.has(buy.holdingId!)) byHolding.set(buy.holdingId!, buy);
+  }
+  return byHolding;
+};
+
+/**
  * Projects one Holding — a fixed-term one through the Engine, a market-priced
- * one left unprojected (its value is its latest snapshot's, not a projection).
+ * one (or one with no buy on record) left unprojected: a market-priced value is
+ * its latest snapshot's, not a projection.
  *
  * @param deps - The tier below.
  * @param householdId - The household whose index rates apply.
  * @param holding - The Holding.
+ * @param buy - Its opening buy, when fixed-term and on record.
  * @returns The Holding with its expected payout, or why it has none.
  */
 const projectOne = async (
   deps: InsightsDeps,
   householdId: string,
   holding: InvestmentHolding,
+  buy: AccountTransaction | undefined,
 ): Promise<ProjectedHolding> => {
-  if (!isFixedTerm(holding.assetType)) return { ...holding, ...NO_PROJECTION };
-  const buy = await deps.accountTransactions.findBuy(householdId, holding.id);
   if (!buy) return { ...holding, ...NO_PROJECTION };
   const result = await deps.investmentProducts.project(householdId, termsOf(holding, buy));
   if ('reason' in result) {
@@ -88,6 +114,25 @@ const projectOne = async (
     expectedTaxes: result.expectedTaxes,
     projectionUnavailable: null,
   };
+};
+
+/**
+ * Projects Holdings, reading their buys once for the lot.
+ *
+ * @param deps - The tier below.
+ * @param householdId - The household.
+ * @param holdings - The Holdings.
+ * @returns Each with its expected payout, in the same order.
+ */
+const projectAll = async (
+  deps: InsightsDeps,
+  householdId: string,
+  holdings: readonly InvestmentHolding[],
+): Promise<ProjectedHolding[]> => {
+  const buys = await buysOf(deps, householdId, holdings);
+  return Promise.all(holdings.map((holding) => (
+    projectOne(deps, householdId, holding, buys.get(holding.id))
+  )));
 };
 
 /**
@@ -123,7 +168,7 @@ export const createHoldings = (deps: InsightsDeps) => ({
     );
     if (!account) throw accountNotFound();
     const holdings = await deps.holdings.listByAccounts([accountId], { includeArchived });
-    return Promise.all(holdings.map((holding) => projectOne(deps, householdId, holding)));
+    return projectAll(deps, householdId, holdings);
   },
 
   /**
@@ -150,7 +195,8 @@ export const createHoldings = (deps: InsightsDeps) => ({
       holdingNotFound,
     );
     if (!holding || !account) throw holdingNotFound();
-    return projectOne(deps, householdId, holding);
+    const [projected] = await projectAll(deps, householdId, [holding]);
+    return projected!;
   },
 });
 

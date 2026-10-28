@@ -138,7 +138,7 @@ export const fakeDeps = () => {
     listByAccounts: vi.fn(async (): Promise<InvestmentHolding[]> => [HOLDING, STOCK]),
   };
   const accountTransactions = {
-    findBuy: vi.fn(async (): Promise<AccountTransaction | undefined> => BUY),
+    findBuys: vi.fn(async (): Promise<AccountTransaction[]> => [BUY]),
   };
   const authorization = {
     authorize: vi.fn(

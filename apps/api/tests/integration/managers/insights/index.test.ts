@@ -16,21 +16,21 @@ const VIEWER = { householdId: HOME, viewerUserId: ANA_ID };
 describe('createInsightsManager', () => {
   it('exposes every slice-3 use case on one object (VBD §2.1)', () => {
     const manager = createInsightsManager(fakeDeps().deps);
-    for (const name of ['monthOverview', 'goalProgressList', 'goalProgressFor',
+    for (const name of ['report', 'goalProgressList', 'goalProgressFor',
       'listHoldings', 'getHolding']) {
       expect(typeof (manager as Record<string, unknown>)[name]).toBe('function');
     }
   });
 });
 
-describe('monthOverview (FR-6.11)', () => {
-  it('answers with the Engine\'s overview for today when no month is asked', async () => {
+describe('report (FR-6.11, OQ-208)', () => {
+  it('answers with the Engine\'s overview for today, tagged, when no month is asked', async () => {
     const tier = fakeDeps();
     const manager = createInsightsManager(tier.deps);
 
-    const overview = await manager.monthOverview(context, HOME);
+    const report = await manager.report(context, HOME, 'month-overview');
 
-    expect(overview).toEqual(OVERVIEW);
+    expect(report).toEqual({ reportType: 'month-overview', ...OVERVIEW });
     expect(tier.reporting.monthOverview)
       .toHaveBeenCalledWith(VIEWER, { year: 2026, month: 10 });
   });
@@ -39,7 +39,7 @@ describe('monthOverview (FR-6.11)', () => {
     const tier = fakeDeps();
     const manager = createInsightsManager(tier.deps);
 
-    await manager.monthOverview(context, HOME, { year: 2025, month: 3 });
+    await manager.report(context, HOME, 'month-overview', { year: 2025, month: 3 });
 
     expect(tier.reporting.monthOverview)
       .toHaveBeenCalledWith(VIEWER, { year: 2025, month: 3 });
@@ -49,8 +49,8 @@ describe('monthOverview (FR-6.11)', () => {
     const tier = fakeDeps();
     const manager = createInsightsManager(tier.deps);
 
-    await manager.monthOverview(context, HOME, { year: 2025 });
-    await manager.monthOverview(context, HOME, { month: 2 });
+    await manager.report(context, HOME, 'month-overview', { year: 2025 });
+    await manager.report(context, HOME, 'month-overview', { month: 2 });
 
     expect(tier.reporting.monthOverview)
       .toHaveBeenNthCalledWith(1, VIEWER, { year: 2025, month: 10 });
@@ -58,14 +58,28 @@ describe('monthOverview (FR-6.11)', () => {
       .toHaveBeenNthCalledWith(2, VIEWER, { year: 2026, month: 2 });
   });
 
-  it('a non-member learns nothing (OQ-117)', async () => {
+  it('refuses the v1 types not served yet (task 133)', async () => {
+    const tier = fakeDeps();
+    const manager = createInsightsManager(tier.deps);
+
+    await Promise.all((['investments-overview', 'payouts'] as const).map((reportType) => (
+      expect(manager.report(context, HOME, reportType)).rejects.toMatchObject({
+        domainError: { code: 'report.unknown_type_or_range' },
+      })
+    )));
+    expect(tier.reporting.monthOverview).not.toHaveBeenCalled();
+  });
+
+  it('a non-member learns nothing, whatever the type (OQ-117)', async () => {
     const tier = fakeDeps();
     tier.authorization.authorize.mockResolvedValue({ outcome: 'not_member' });
     const manager = createInsightsManager(tier.deps);
 
-    await expect(manager.monthOverview(context, HOME)).rejects.toMatchObject({
-      domainError: { code: 'household.not_found' },
-    });
+    await Promise.all((['month-overview', 'payouts'] as const).map((reportType) => (
+      expect(manager.report(context, HOME, reportType)).rejects.toMatchObject({
+        domainError: { code: 'household.not_found' },
+      })
+    )));
     expect(tier.reporting.monthOverview).not.toHaveBeenCalled();
   });
 });
@@ -188,10 +202,33 @@ describe('listHoldings (FR-5.3)', () => {
     ]);
     expect(tier.holdings.listByAccounts)
       .toHaveBeenCalledWith([HOLDING.accountId], { includeArchived: false });
+    // One buy read for the whole list, fixed-term Holdings only (OQ-205).
+    expect(tier.accountTransactions.findBuys).toHaveBeenCalledTimes(1);
+    expect(tier.accountTransactions.findBuys).toHaveBeenCalledWith(HOME, [HOLDING.id]);
     // Only the fixed-term one reaches the Engine — with its buy's date and amount (OQ-205).
     expect(tier.investmentProducts.project).toHaveBeenCalledTimes(1);
     expect(tier.investmentProducts.project)
       .toHaveBeenCalledWith(HOME, expect.objectContaining({ date: BUY.date, amount: BUY.amount }));
+  });
+
+  it('projects each Holding from its own opening buy — the oldest one read', async () => {
+    const tier = fakeDeps();
+    const second = { ...HOLDING, id: '0199c5a0-0000-7000-8000-0000000000b3' };
+    const secondBuy = {
+      ...BUY, id: '0199c5a0-0000-7000-8000-0000000000e2', holdingId: second.id, amount: 500000,
+    };
+    const laterBuy = { ...BUY, id: '0199c5a0-0000-7000-8000-0000000000e3', amount: 1 };
+    tier.holdings.listByAccounts.mockResolvedValue([HOLDING, second]);
+    tier.accountTransactions.findBuys.mockResolvedValue([BUY, secondBuy, laterBuy]);
+    const manager = createInsightsManager(tier.deps);
+
+    await manager.listHoldings(context, HOME, HOLDING.accountId, false);
+
+    expect(tier.investmentProducts.project).toHaveBeenCalledTimes(2);
+    expect(tier.investmentProducts.project)
+      .toHaveBeenNthCalledWith(1, HOME, expect.objectContaining({ amount: BUY.amount }));
+    expect(tier.investmentProducts.project)
+      .toHaveBeenNthCalledWith(2, HOME, expect.objectContaining({ amount: 500000 }));
   });
 
   it('an Account that is not there answers account.not_found', async () => {
@@ -236,7 +273,7 @@ describe('getHolding (FR-5.4)', () => {
       expectedTaxes: { estimated: true, amount: 26112 },
       projectionUnavailable: null,
     });
-    expect(tier.accountTransactions.findBuy).toHaveBeenCalledWith(HOME, HOLDING.id);
+    expect(tier.accountTransactions.findBuys).toHaveBeenCalledWith(HOME, [HOLDING.id]);
   });
 
   it('carries a CDI spread into the terms it projects from', async () => {
@@ -274,13 +311,13 @@ describe('getHolding (FR-5.4)', () => {
     expect(holding).toEqual({
       ...STOCK, expectedPayout: null, expectedTaxes: null, projectionUnavailable: null,
     });
-    expect(tier.accountTransactions.findBuy).not.toHaveBeenCalled();
+    expect(tier.accountTransactions.findBuys).toHaveBeenCalledWith(HOME, []);
     expect(tier.investmentProducts.project).not.toHaveBeenCalled();
   });
 
   it('a fixed-term Holding with no buy on record stays unprojected', async () => {
     const tier = fakeDeps();
-    tier.accountTransactions.findBuy.mockResolvedValue(undefined);
+    tier.accountTransactions.findBuys.mockResolvedValue([]);
     const manager = createInsightsManager(tier.deps);
 
     const holding = await manager.getHolding(context, HOME, HOLDING.id);

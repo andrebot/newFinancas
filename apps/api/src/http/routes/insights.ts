@@ -5,7 +5,6 @@ import {
 } from '@financas/api-types/zod';
 import { Hono } from 'hono';
 import type { InsightsManager } from '../../managers/insights';
-import { createDomainError } from '../../utilities/domainError';
 import type { AppEnv } from '../errorHandler';
 import { validate } from '../validation';
 import {
@@ -16,23 +15,11 @@ import { signedInContextOf } from './requestContext';
 // InsightsManager's slice-3 routes (OQ-201): the Month Overview report, Goal
 // progress (current and by month) and the Holding reads with projections. The
 // other `/reports` types land beside their first caller (task 133); until then
-// they answer 400 `report.unknown_type_or_range`, the code the contract already
-// reserves for this endpoint. Every path sits under `/households/:householdId`
-// (OQ-174); the household role checks are InsightsManager's (OQ-111).
+// InsightsManager refuses them (OQ-208). Every path sits under
+// `/households/:householdId` (OQ-174); the household role checks are
+// InsightsManager's (OQ-111).
 
 const HOUSEHOLD = '/households/:householdId';
-
-/** The v1 report types this build does not serve yet — task 133. */
-const NOT_SERVED_YET = new Set(['investments-overview', 'payouts']);
-
-/**
- * Refuses a v1 report type this build has not implemented (task 133).
- *
- * @returns `report.unknown_type_or_range`, the code the contract reserves here.
- */
-const reportNotServed = () => createDomainError({
-  code: 'report.unknown_type_or_range', message: 'Report type not served yet',
-});
 
 /**
  * Builds the Insights routes.
@@ -47,15 +34,10 @@ const createInsightsRoutes = (insights: InsightsManager) => new Hono<AppEnv>()
     validate('query', zGetReportQuery),
     async (httpContext) => {
       const { householdId, reportType } = httpContext.req.valid('param');
-      if (NOT_SERVED_YET.has(reportType)) throw reportNotServed();
       const { year, month } = httpContext.req.valid('query');
       const context = signedInContextOf(httpContext);
-      const overview = await insights.monthOverview(context, householdId, { year, month });
-      return httpContext.json({
-        reportType: 'month-overview',
-        ...overview,
-        goals: overview.goals.map(toGoalWithProgressJson),
-      });
+      const report = await insights.report(context, householdId, reportType, { year, month });
+      return httpContext.json({ ...report, goals: report.goals.map(toGoalWithProgressJson) });
     },
   )
   .get(

@@ -1,8 +1,9 @@
+import { monthEnd } from '../../accessors/calendarMonth';
 import type { Goal, GoalStatus } from '../../accessors/goalAccessor';
 import type { GoalWithProgress, Viewer } from '../../engines/reporting';
 import { accessToOwned, memberOnly, requireAccess } from '../access';
 import type { SignedInContext } from '../requestContext';
-import { monthEndOf, todayOf, type InsightsDeps } from './context';
+import { todayOf, type InsightsDeps } from './context';
 import { goalNotFound } from './errors';
 import { monthAskedFor, type MonthAsked } from './reports';
 
@@ -82,7 +83,7 @@ export const createGoals = (deps: InsightsDeps) => ({
     const viewer: Viewer = { householdId, viewerUserId: context.actor.userId };
     const day = asked?.year === undefined && asked?.month === undefined
       ? todayOf(deps)
-      : monthEndOf(monthAskedFor(deps, asked));
+      : monthEnd(monthAskedFor(deps, asked));
     const [progress] = await deps.reporting.goalProgress(viewer, [goal], day);
     if (!progress) throw goalNotFound();
     return progress;

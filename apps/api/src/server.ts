@@ -107,18 +107,11 @@ const transactionStoresOver = (over: Database): TransactionStores => ({
   valuations: createValuationSnapshotAccessor(over),
 });
 const indexRates = createIndexRateAccessor(db);
-// InsightsManager's reads (M4, OQ-201): ReportingEngine over one instance of
-// each Accessor it needs, shared with the Manager's own reads.
-const insightStores = {
-  accounts: createAccountAccessor(db),
-  creditCards: createCreditCardAccessor(db),
-  budgets: createBudgetAccessor(db),
-  goals: createGoalAccessor(db),
-  holdings: createInvestmentHoldingAccessor(db),
-  valuations: createValuationSnapshotAccessor(db),
-  accountTransactions: createAccountTransactionAccessor(db),
-  cardTransactions: createCardTransactionAccessor(db),
-};
+// InsightsManager's reads (M4, OQ-201): ReportingEngine over the same
+// Accessors TransactionManager reads, shared with the Manager's own reads.
+const insightStores = transactionStoresOver(db);
+// One InvestmentProductEngine for both Managers that call it (OQ-205).
+const investmentProducts = createInvestmentProductEngine({ latestIndexRate: indexRates.latest });
 const reporting = createReportingEngine({
   listAccounts: insightStores.accounts.list,
   accountBalancesAsOf: insightStores.accounts.balancesAsOf,
@@ -162,14 +155,14 @@ const {
   },
   transaction: {
     ...transactionStoresOver(db),
-    investmentProducts: createInvestmentProductEngine({ latestIndexRate: indexRates.latest }),
+    investmentProducts,
     authorization,
     inTransaction: createUnitOfWork(db, transactionStoresOver),
     now: () => new Date(),
   },
   insights: {
     reporting,
-    investmentProducts: createInvestmentProductEngine({ latestIndexRate: indexRates.latest }),
+    investmentProducts,
     goals: insightStores.goals,
     accounts: insightStores.accounts,
     holdings: insightStores.holdings,
