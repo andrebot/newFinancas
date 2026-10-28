@@ -21,7 +21,6 @@ import { reweightSplit } from './allocations';
 import {
   accountMovementOf, accrueBudget, budgetAccrualOf, cardMovementOf, engineRateOf, holdingRateOf,
 } from './effects';
-import { tradeRefusal } from './edit';
 import {
   requestLogger, todayOf, type TransactionDeps, type TransactionStores,
 } from './context';
@@ -30,7 +29,7 @@ import {
   creditCardNotFound, currencyMismatch, goalCompleted, goalNotFound,
   holdingArchived, holdingNotFound, insufficientQuantity, indexRateMissing,
   investmentNotAllowedOnAccount, kindNotAllowedForTarget, subcategoryMismatch,
-  transactionChanged,
+  transactionChanged, tradeRefusal,
 } from './errors';
 import { createProblems } from './kindRules';
 
@@ -118,7 +117,9 @@ const loadCardTarget = async (
 
 /**
  * Loads the target a transaction is recorded against — its Account (and card),
- * deciding access on it.
+ * deciding access on it. A bill payment's card must be this household's and sit
+ * on that very Account: the movement lands on it, so a foreign id would move
+ * someone else's balance.
  *
  * @param deps - The tier below.
  * @param context - The signed-in request.
@@ -148,6 +149,11 @@ const loadTarget = async (
     accountNotFound,
   );
   if (!account) throw accountNotFound();
+  if (kind.code === 'credit_card_bill_payment') {
+    const card = await deps.creditCards.findById(householdId, request.creditCardId!);
+    if (!card || card.accountId !== account.id) throw creditCardNotFound();
+    return { account, card, role };
+  }
   return { account, role };
 };
 
@@ -180,8 +186,9 @@ const checkTarget = (kind: TransactionKind, target: LoadedTarget, currency: stri
 
 /**
  * Checks the Category and Subcategory a new transaction names (FR-3.4, OQ-201):
- * both must be this household's, the Subcategory under that Category, and the
- * Category open — history keeps an archived one, new money doesn't go there.
+ * both must be this household's, the Subcategory under that Category — a
+ * Subcategory without its Category is refused outright — and the Category open:
+ * history keeps an archived one, new money doesn't go there.
  *
  * @param deps - The tier below.
  * @param householdId - The household.
@@ -194,7 +201,12 @@ const checkCategory = async (
   householdId: string,
   request: TransactionCreate,
 ): Promise<void> => {
-  if (!request.categoryId) return;
+  if (!request.categoryId) {
+    // A Subcategory names its Category — without one it accrues to whatever
+    // Budget claims the id.
+    if (request.subcategoryId !== undefined) throw subcategoryMismatch();
+    return;
+  }
   const category = await deps.categories.findById(householdId, request.categoryId);
   if (!category) throw categoryNotFound();
   if (request.subcategoryId !== undefined
@@ -283,7 +295,7 @@ const accountRowOf = (
   ...(request.categoryId && { categoryId: request.categoryId }),
   ...(request.subcategoryId && { subcategoryId: request.subcategoryId }),
   ...(request.description !== undefined && { description: request.description }),
-  ...(kind.effect === 'bill_payment' && { creditCardId: request.creditCardId! }),
+  ...(kind.effect === 'bill_payment' && { creditCardId: target.card!.id }),
   ...(request.holdingId !== undefined && { holdingId: request.holdingId }),
   ...(request.source !== undefined && { source: request.source }),
   createdByUserId: userId,
@@ -336,7 +348,7 @@ const writeAccountCash = async (
   );
   if (!moved.ok) throw transactionChanged();
   if (kind.effect === 'bill_payment') {
-    const paid = await stores.creditCards.applyMovement(request.creditCardId!, {
+    const paid = await stores.creditCards.applyMovement(target.card!.id, {
       amount: -request.amount, currency: request.currency, date: request.date,
     });
     if (!paid.ok) throw transactionChanged();
@@ -398,17 +410,38 @@ const checkBuySplit = async (
   if (purchase.some((share) => completed.has(share.goalId))) throw goalCompleted();
 };
 
+/** The value of a Holding's position before this buy, at the buy's unit price. */
+const existingValueOf = (holding: InvestmentHolding, request: TransactionCreate): number => {
+  const quantity = request.quantity ?? 1;
+  return (holding.quantity * request.amount) / quantity;
+};
+
+/** Writes a split over the Holding, mapping the Accessor's refusals. */
+const replaceSplit = async (
+  stores: TransactionStores,
+  householdId: string,
+  holdingId: string,
+  split: AllocationShare[],
+  validFrom: string,
+): Promise<void> => {
+  const result = await stores.goals.replaceAllocations(householdId, holdingId, split, validFrom);
+  if (!result.ok) throw splitRefusal(result);
+};
+
 /**
- * Writes a buy's Goal split: on a fresh Holding the purchase's own shares from
- * its date; buying into an existing one re-weights the whole split by value,
- * so every Goal keeps exactly its money (OQ-168).
+ * Writes a buy's Goal split (OQ-168/OQ-207): on a fresh Holding the purchase's
+ * own shares from its date; buying into an existing one re-weights the whole
+ * split by value, so every Goal keeps exactly its money. A buy that allocates
+ * nothing dilutes: the existing shares shrink to their old value over the new
+ * total and the new money shows as unassigned — a Goal never grows without a
+ * decision (FR-8.9).
  *
  * @param stores - The Accessors over one transaction.
  * @param deps - The tier below.
  * @param householdId - The household.
  * @param role - The caller's role.
  * @param userId - The caller.
- * @param holding - The Holding the buy lands in, with its position after.
+ * @param holding - The Holding the buy lands in, with its position before.
  * @param request - The create request.
  */
 const writeBuyAllocations = async (
@@ -421,9 +454,20 @@ const writeBuyAllocations = async (
   request: TransactionCreate,
 ): Promise<void> => {
   const purchase = sharesOf(request);
-  if (purchase.length === 0) return;
-  await checkBuySplit(deps, householdId, role, userId, purchase);
   const current = await stores.goals.listAllocations({ holdingId: holding.id });
+  if (purchase.length === 0) {
+    // No allocation on the buy — nothing to check; an existing split dilutes.
+    if (current.length === 0) return;
+    await replaceSplit(
+      stores,
+      householdId,
+      holding.id,
+      reweightSplit(current, existingValueOf(holding, request), [], request.amount),
+      request.date,
+    );
+    return;
+  }
+  await checkBuySplit(deps, householdId, role, userId, purchase);
   let split: AllocationShare[];
   if (current.length === 0) {
     split = purchase;
@@ -431,18 +475,9 @@ const writeBuyAllocations = async (
     const total = current.reduce((sum, share) => sum + share.percentage, 0);
     const requested = purchase.reduce((sum, share) => sum + share.percentage, 0);
     if (requested > 100) throw allocationExceeds100(total, requested);
-    // Existing value at this buy's unit price — fresh and exact (OQ-168).
-    const quantity = request.quantity ?? 1;
-    const existingValue = (holding.quantity * request.amount) / quantity;
-    split = reweightSplit(current, existingValue, purchase, request.amount);
+    split = reweightSplit(current, existingValueOf(holding, request), purchase, request.amount);
   }
-  const result = await stores.goals.replaceAllocations(
-    householdId,
-    holding.id,
-    split,
-    request.date,
-  );
-  if (!result.ok) throw splitRefusal(result);
+  await replaceSplit(stores, householdId, holding.id, split, request.date);
 };
 
 /**

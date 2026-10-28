@@ -515,6 +515,40 @@ describe('editTransaction', () => {
       },
     };
 
+    it('refuses an incomplete rate — type and value are required (OQ-207)', async () => {
+      const fake = fakeDeps();
+      fake.accountTransactions.findById.mockResolvedValue(buyRow);
+      fake.holdings.findById.mockResolvedValue(FIXED_HOLDING);
+      await expect(editOf(fake).editTransaction(
+        context,
+        HOUSEHOLD_ID,
+        buyRow.id,
+        { rate: {} },
+      ))
+        .rejects.toMatchObject({
+          domainError: {
+            code: 'validation.failed',
+            details: [
+              { field: 'rate.type', code: 'field.required' },
+              { field: 'rate.value', code: 'field.required' },
+            ],
+          },
+        });
+    });
+
+    it('reruns the schedule on an amount-only edit — stored terms stand (OQ-205)', async () => {
+      const fake = fakeDeps();
+      fake.accountTransactions.findById.mockResolvedValue(buyRow);
+      fake.holdings.findById.mockResolvedValue(FIXED_HOLDING);
+      await editOf(fake).editTransaction(context, HOUSEHOLD_ID, buyRow.id, { amount: 60_000 });
+      // No term field moved — the Holding keeps its terms; only the schedule reruns.
+      expect(fake.holdings.updateTerms).not.toHaveBeenCalled();
+      expect(fake.investmentProducts.schedule).toHaveBeenCalledWith(
+        HOUSEHOLD_ID,
+        expect.objectContaining({ amount: 60_000 }),
+      );
+    });
+
     it(
       'locks its terms once the schedule has posted — only category and description stay open',
       async () => {
@@ -548,6 +582,23 @@ describe('editTransaction', () => {
         expect.anything(),
         expect.objectContaining({ description: 'locked but noted' }),
       );
+    });
+
+    it('edits a locked buy without re-applying its schedule (OQ-201 D8)', async () => {
+      const fake = fakeDeps();
+      fake.accountTransactions.findById.mockResolvedValue(buyRow);
+      fake.holdings.findById.mockResolvedValue(FIXED_HOLDING);
+      fake.holdings.listSchedule.mockResolvedValue([{ postedAt: NOW }]);
+      // The real accessor refuses to re-apply a schedule that has posted.
+      fake.holdings.applySchedule.mockResolvedValue({ ok: false, reason: 'schedule_started' });
+      await editOf(fake).editTransaction(
+        context,
+        HOUSEHOLD_ID,
+        buyRow.id,
+        { description: 'noted, terms untouched' },
+      );
+      expect(fake.holdings.applySchedule).not.toHaveBeenCalled();
+      expect(fake.investmentProducts.schedule).not.toHaveBeenCalled();
     });
 
     it('writes new terms and recomputes the schedule while unlocked (OQ-205)', async () => {
@@ -812,5 +863,32 @@ describe('editTransaction', () => {
     const [first, second] = fake.budgets.accrueIfClaimed.mock.calls.map((call) => call[0]);
     expect(first?.amount).toBe(-5_000);
     expect(second?.amount).toBe(7_000);
+  });
+
+  describe('the shared undo (reversal.ts)', () => {
+    it('reopens a system archive when an edit restores position (OQ-171)', async () => {
+      const fake = fakeDeps();
+      fake.accountTransactions.findById.mockResolvedValue(SELL_ROW);
+      // Undoing the sell restores 12 units — a zeroed Holding comes back.
+      fake.holdings.applyTrade.mockResolvedValue({ ok: true, quantity: 12, costBasis: 6_000 });
+      await editOf(fake).editTransaction(context, HOUSEHOLD_ID, SELL_ROW.id, { amount: 4_000 });
+      expect(fake.holdings.unarchiveIfSystemArchived).toHaveBeenCalledWith(MARKET_HOLDING.id);
+    });
+
+    it('edits a bill payment whose card is gone — cash leg and accrual only (OQ-207)', async () => {
+      const fake = fakeDeps();
+      // The card was deleted: `credit_card_id` is ON DELETE SET NULL.
+      const billRow = {
+        ...ROW,
+        id: 't-bill',
+        kind: 'credit_card_bill_payment' as const,
+        effect: 'bill_payment' as const,
+        accountId: CHECKING.id,
+      };
+      fake.accountTransactions.findById.mockResolvedValue(billRow);
+      await editOf(fake).editTransaction(context, HOUSEHOLD_ID, billRow.id, { amount: 7_000 });
+      expect(fake.creditCards.applyMovement).not.toHaveBeenCalled();
+      expect(fake.accounts.applyMovement).toHaveBeenCalledTimes(2);
+    });
   });
 });

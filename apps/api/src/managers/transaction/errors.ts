@@ -228,3 +228,10 @@ export const holdingInUse = (count: number): DomainError => createDomainError({
   message: 'Other transactions still reference this holding',
   params: { count },
 });
+
+/** Maps a refused trade to its error (OQ-203). */
+export const tradeRefusal = (reason: string): DomainError => {
+  if (reason === 'holding_not_found') return holdingNotFound();
+  if (reason === 'cost_basis_below_zero') return costBasisBelowZero();
+  return insufficientQuantity();
+};

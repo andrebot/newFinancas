@@ -5508,6 +5508,13 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
   three trade kinds (a non-trade kind refuses it as an unknown field). Weighed
   and rejected: leaving the contract as-is and dropping the sell split (loses
   OQ-206's feature).
+- **An unallocated buy into an already-split Holding dilutes that split.** The
+  re-weighting runs with an empty purchase, so each Goal keeps exactly its
+  money — OQ-168's invariant — and the new value shows as unassigned until
+  someone allocates it. Confirmed with Andre (2026-10-28): dilute. Weighed and
+  rejected: leaving the split untouched (a Goal's progress would grow silently
+  on money no one assigned to it) or refusing the buy (allocations are optional
+  on a purchase).
 - **A due schedule entry whose Holding its user archived closes out instead of
   retrying.** FR-5.8 lets a member archive a matured Holding before its scheduled
   redemption posts; posting it would resurrect money on a closed position, but

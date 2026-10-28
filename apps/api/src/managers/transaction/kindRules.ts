@@ -135,15 +135,26 @@ const spreadProblem = (request: CreateRequestFields): FieldDetail | undefined =>
   return { field: 'rate.spread', code: 'field.invalid' };
 };
 
+/** A present `rate` missing its type or value — the terms can't be computed. */
+const rateCompletenessProblems = (request: CreateRequestFields): FieldDetail[] => {
+  const { rate } = request;
+  if (!rate) return []; // absence is `field.required`'s job
+  const problems: FieldDetail[] = [];
+  if (rate.type === undefined) problems.push({ field: 'rate.type', code: 'field.required' });
+  if (rate.value === undefined) problems.push({ field: 'rate.value', code: 'field.required' });
+  return problems;
+};
+
 /**
  * A fixed-term buy's term problems (OQ-205): a `dueDate` not after the buy's
- * `date`, and a `rate.spread` on a type other than CDI/Selic.
+ * `date`, a `rate.spread` on a type other than CDI/Selic, and a rate missing
+ * its type or value — an incomplete one would schedule NaNs.
  *
  * @param request - The request, as the route validated it.
  * @returns The problems; empty when the terms are sound.
  */
 export const fixedTermProblems = (request: CreateRequestFields): FieldDetail[] => [
-  dueDateProblem(request), spreadProblem(request),
+  dueDateProblem(request), spreadProblem(request), ...rateCompletenessProblems(request),
 ].filter((problem): problem is FieldDetail => problem !== undefined);
 
 /**

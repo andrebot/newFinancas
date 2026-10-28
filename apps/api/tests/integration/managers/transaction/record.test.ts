@@ -197,6 +197,25 @@ describe('recordTransaction', () => {
       });
     });
 
+    it('refuses a bill payment whose card is not on its Account (OQ-207)', async () => {
+      const fake = fakeDeps();
+      fake.accounts.findById.mockResolvedValue(CHECKING);
+      // A card that exists but sits on another Account — the scoped lookup must
+      // treat it as absent, so no household can pay someone else's bill.
+      fake.creditCards.findById.mockResolvedValue({ ...CARD, accountId: ACCOUNT.id });
+      await expect(recordOf(fake).recordTransaction(
+        context,
+        HOUSEHOLD_ID,
+        cashRequest({
+          kind: 'credit_card_bill_payment',
+
+          accountId: CHECKING.id,
+          creditCardId: CARD.id,
+        }),
+      ))
+        .rejects.toMatchObject({ domainError: { code: 'credit_card.not_found' } });
+    });
+
     it(
       'answers transaction.changed when the bill payment card leg loses a race (OQ-203)',
       async () => {
@@ -398,6 +417,27 @@ describe('recordTransaction', () => {
       },
     );
 
+    it('dilutes the existing split when a buy carries no allocations (OQ-207)', async () => {
+      const fake = fakeDeps();
+      fake.goals.listAllocations.mockResolvedValue([{
+        goalId: 'gA',
+        percentage: 100,
+        id: 'al1',
+        holdingId: MARKET_HOLDING.id,
+        validFrom: '2026-09-01',
+        createdAt: NOW,
+      }]);
+      await recordOf(fake).recordTransaction(context, HOUSEHOLD_ID, buyRequest());
+      // The old shares keep their 10_000 of a now-12_000 position; the new money
+      // shows as unassigned until someone allocates it.
+      expect(fake.goals.replaceAllocations).toHaveBeenCalledWith(
+        HOUSEHOLD_ID,
+        MARKET_HOLDING.id,
+        [{ goalId: 'gA', percentage: 83 }],
+        '2026-10-13',
+      );
+    });
+
     it(
       'reopens a zeroed system-archived Holding and drops its worthless split (OQ-171)',
       async () => {
@@ -552,6 +592,28 @@ describe('recordTransaction', () => {
           domainError: {
             code: 'index_rate.missing',
             params: { indexCode: 'ipca' },
+          },
+        });
+    });
+
+    it('refuses an incomplete rate — type and value are required (OQ-207)', async () => {
+      const fake = fakeDeps();
+      await expect(recordOf(fake).recordTransaction(context, HOUSEHOLD_ID, buyRequest({
+        assetType: 'cdb',
+        ticker: 'CDB1',
+        amount: 50_000,
+        quantity: undefined,
+        rate: {},
+        dueDate: '2026-12-01',
+        interestPayment: 'semiannual',
+      })))
+        .rejects.toMatchObject({
+          domainError: {
+            code: 'validation.failed',
+            details: [
+              { field: 'rate.type', code: 'field.required' },
+              { field: 'rate.value', code: 'field.required' },
+            ],
           },
         });
     });
@@ -1053,10 +1115,16 @@ describe('recordTransaction', () => {
   describe('optional fields ride the row (OQ-207)', () => {
     it('keeps a cash row description and subcategory', async () => {
       const fake = fakeDeps();
+      fake.categories.findById.mockResolvedValue({
+        id: 'c1',
+        archivedAt: null,
+        subcategories: [{ id: 's1' }],
+      });
       await recordOf(fake).recordTransaction(
         context,
         HOUSEHOLD_ID,
         cashRequest({
+          categoryId: 'c1',
           description: 'groceries',
 
           subcategoryId: 's1',
@@ -1069,10 +1137,16 @@ describe('recordTransaction', () => {
 
     it('keeps a card row description and subcategory', async () => {
       const fake = fakeDeps();
+      fake.categories.findById.mockResolvedValue({
+        id: 'c1',
+        archivedAt: null,
+        subcategories: [{ id: 's1' }],
+      });
       await recordOf(fake).recordTransaction(context, HOUSEHOLD_ID, cashRequest({
         kind: 'charge',
         accountId: undefined,
         creditCardId: CARD.id,
+        categoryId: 'c1',
         description: 'dining',
         subcategoryId: 's1',
 
@@ -1081,6 +1155,16 @@ describe('recordTransaction', () => {
         description: 'dining',
         subcategoryId: 's1',
       });
+    });
+
+    it('refuses a subcategory without its category (OQ-207)', async () => {
+      const fake = fakeDeps();
+      await expect(recordOf(fake).recordTransaction(
+        context,
+        HOUSEHOLD_ID,
+        cashRequest({ subcategoryId: 's1' }),
+      ))
+        .rejects.toMatchObject({ domainError: { code: 'transaction.subcategory_mismatch' } });
     });
 
     it('keeps a buy row category, subcategory and description', async () => {

@@ -4,7 +4,7 @@ import type { CardTransaction } from '../../../../src/accessors/cardTransactionA
 import type { SignedInContext } from '../../../../src/managers/requestContext';
 import createBrowse from '../../../../src/managers/transaction/browse';
 import {
-  ACCOUNT, ANA_ID, CARD_ROW, HOUSEHOLD_ID, ROW, fakeDeps,
+  ACCOUNT, ANA_ID, CARD_ROW, HOUSEHOLD_ID, MARKET_HOLDING, ROW, fakeDeps,
 } from './fakes';
 
 // Browse & Filter (CUC-4, FR-3.12): both ledgers as one newest-first list —
@@ -190,6 +190,56 @@ describe('listTransactions', () => {
       context,
       HOUSEHOLD_ID,
       { accountIds: [ACCOUNT.id] },
+      undefined,
+      10,
+    );
+    expect(fake.cardTransactions.list).toHaveBeenCalledWith(
+      expect.objectContaining({ creditCardIds: [CARD_ROW.creditCardId] }),
+      undefined,
+      11,
+    );
+  });
+
+  it('a picked Account with no cards empties the card side (OQ-207)', async () => {
+    const fake = fakeDeps();
+    // The pick names nothing — every other visible card stays out of the page.
+    fake.creditCards.listByAccounts.mockResolvedValue([]);
+    await browseOf(fake).listTransactions(
+      context,
+      HOUSEHOLD_ID,
+      { accountIds: [ACCOUNT.id] },
+      undefined,
+      10,
+    );
+    expect(fake.cardTransactions.list).toHaveBeenCalledWith(
+      expect.objectContaining({ creditCardIds: [] }),
+      undefined,
+      11,
+    );
+  });
+
+  it('a named Holding empties the card side — card rows carry no Holding (OQ-207)', async () => {
+    const fake = fakeDeps();
+    await browseOf(fake).listTransactions(
+      context,
+      HOUSEHOLD_ID,
+      { holdingId: MARKET_HOLDING.id },
+      undefined,
+      10,
+    );
+    expect(fake.cardTransactions.list).toHaveBeenCalledWith(
+      expect.objectContaining({ creditCardIds: [] }),
+      undefined,
+      11,
+    );
+  });
+
+  it('a picked card alone narrows the card side', async () => {
+    const fake = fakeDeps();
+    await browseOf(fake).listTransactions(
+      context,
+      HOUSEHOLD_ID,
+      { creditCardIds: [CARD_ROW.creditCardId] },
       undefined,
       10,
     );

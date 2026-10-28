@@ -1,5 +1,4 @@
 import { findKind, isFixedTerm, type TransactionKind } from '@financas/reference';
-import type { Account } from '../../accessors/accountAccessor';
 import type {
   AccountTransaction, ExpectedTransaction, TradeDeltas,
 } from '../../accessors/accountTransactionAccessor';
@@ -11,8 +10,7 @@ import type {
 } from '../../accessors/investmentHoldingAccessor';
 import type { InterestPayment } from '../../db/schema/values';
 import type { ContractTerms } from '../../engines/investmentProduct';
-import { validationFailed, type DomainError } from '../../utilities/domainError';
-import { accessToOwned, requireAccess } from '../access';
+import { validationFailed } from '../../utilities/domainError';
 import type { SignedInContext } from '../requestContext';
 import { requireNoProblems } from '../validation';
 import { requestLogger, type TransactionDeps, type TransactionStores } from './context';
@@ -22,9 +20,13 @@ import {
 } from './effects';
 import { fixedTermProblems } from './kindRules';
 import {
-  categoryNotFound, costBasisBelowZero, holdingArchived, holdingNotFound, insufficientQuantity,
-  indexRateMissing, scheduleStarted, subcategoryMismatch, transactionChanged, transactionNotFound,
+  categoryNotFound, holdingArchived, indexRateMissing, scheduleStarted, subcategoryMismatch,
+  transactionChanged, tradeRefusal,
 } from './errors';
+import {
+  assetTypeOf, loadEditable, movesPosition, scheduleLocked, reverseAccountEffects,
+  reverseCardEffects, tradeHoldingOf, type EditableRow, type RestoredPosition,
+} from './reversal';
 
 // Edit Transaction (CUC-2, OQ-201 D6/D8): values only — kind and target never
 // change. It reverses the stored effects, reapplies them with the new values
@@ -59,24 +61,6 @@ interface MergedValues extends EffectValues {
   readonly terms?: HoldingTermChanges;
 }
 
-/** A loaded transaction with what its effects need. */
-export interface EditableRow {
-  readonly ledger: 'account' | 'card';
-  readonly transaction: AccountTransaction | CardTransaction;
-  /** The Account the movement and accrual act on (bill payment: its own). */
-  readonly account: Account;
-  /** Card rows and bill payments. */
-  readonly creditCardId?: string;
-  /** Trades only — the stored quantity, positive units. */
-  readonly storedQuantity?: number;
-}
-
-/** The position a trade's reversal restores (OQ-171). */
-export interface RestoredPosition {
-  readonly quantity: number;
-  readonly costBasis: number;
-}
-
 /** What an edit returns to the route. */
 export interface EditedTransaction {
   readonly ledger: 'account' | 'card';
@@ -85,17 +69,6 @@ export interface EditedTransaction {
 
 const BASE_FIELDS = ['date', 'amount', 'categoryId', 'subcategoryId', 'description'] as const;
 const TERM_FIELDS = ['rate', 'dueDate', 'interestPayment'];
-
-/** The kinds that move the Holding's position — dividends and friends don't (OQ-171). */
-const TRADE_KINDS = new Set(['investment_buy', 'investment_sell', 'investment_redemption']);
-
-/** Whether a kind carries trade deltas on its row. */
-export const movesPosition = (kind: TransactionKind): boolean => TRADE_KINDS.has(kind.code);
-
-/** The asset type a trade's Holding carries — none on the card ledger. */
-export const assetTypeOf = (row: EditableRow): string | undefined => (
-  row.ledger === 'account' ? (row.transaction as AccountTransaction).holding?.assetType : undefined
-);
 
 /** The fields an edit of this kind may change (OQ-201 D6/D8). */
 export const editableFieldsOf = (kind: TransactionKind, assetType?: string): Set<string> => {
@@ -192,76 +165,6 @@ const anythingChanged = (row: EditableRow, update: TransactionEdit): boolean => 
     || termChangesOf(update) !== undefined
 );
 
-/** The Account-ledger half of the load. */
-const loadAccountRow = async (
-  deps: TransactionDeps,
-  context: SignedInContext,
-  householdId: string,
-  transaction: AccountTransaction,
-): Promise<EditableRow> => {
-  const account = await deps.accounts.findById(householdId, transaction.accountId);
-  await requireAccess(
-    deps.authorization,
-    context.actor.userId,
-    householdId,
-    accessToOwned(account, 'data.edit'),
-    transactionNotFound,
-  );
-  if (!account) throw transactionNotFound();
-  return {
-    ledger: 'account',
-    transaction,
-    account,
-    ...(transaction.creditCardId && { creditCardId: transaction.creditCardId }),
-    ...(transaction.trade && { storedQuantity: Math.abs(transaction.trade.quantityDelta) }),
-  };
-};
-
-/** The card-ledger half of the load. */
-const loadCardRow = async (
-  deps: TransactionDeps,
-  context: SignedInContext,
-  householdId: string,
-  transaction: CardTransaction,
-): Promise<EditableRow> => {
-  const card = await deps.creditCards.findById(householdId, transaction.creditCardId);
-  const account = card && await deps.accounts.findById(householdId, card.accountId);
-  await requireAccess(
-    deps.authorization,
-    context.actor.userId,
-    householdId,
-    accessToOwned(account, 'data.edit'),
-    transactionNotFound,
-  );
-  if (!card || !account) throw transactionNotFound();
-  return {
-    ledger: 'card', transaction, account, creditCardId: transaction.creditCardId,
-  };
-};
-
-/** Loads a transaction from either ledger, deciding access on its Account. */
-export const loadEditable = async (
-  deps: TransactionDeps,
-  context: SignedInContext,
-  householdId: string,
-  transactionId: string,
-): Promise<EditableRow> => {
-  const accountRow = await deps.accountTransactions.findById(householdId, transactionId);
-  if (accountRow) return loadAccountRow(deps, context, householdId, accountRow);
-  const cardRow = await deps.cardTransactions.findById(householdId, transactionId);
-  if (!cardRow) throw transactionNotFound();
-  return loadCardRow(deps, context, householdId, cardRow);
-};
-
-/** Whether a fixed-term buy's schedule has posted — its terms are locked (OQ-201 D8). */
-export const scheduleLocked = async (
-  deps: TransactionDeps,
-  holdingId: string,
-): Promise<boolean> => {
-  const entries = await deps.holdings.listSchedule([holdingId]);
-  return entries.some((entry) => entry.postedAt !== null);
-};
-
 /** A locked schedule takes only the fields that don't touch its terms (OQ-201 D8). */
 const checkLockedTerms = (update: TransactionEdit, locked: boolean): void => {
   if (!locked) return;
@@ -316,149 +219,6 @@ const editedTermsOf = (holding: InvestmentHolding, merged: MergedValues): Contra
   };
 };
 
-/** Maps a refused trade to its error (OQ-203). */
-export const tradeRefusal = (reason: string): DomainError => {
-  if (reason === 'holding_not_found') return holdingNotFound();
-  if (reason === 'cost_basis_below_zero') return costBasisBelowZero();
-  return insufficientQuantity();
-};
-
-/** Reverses a trade's position deltas and returns the restored position. */
-const reverseTrade = async (
-  stores: TransactionStores,
-  holdingId: string | null,
-  trade: TradeDeltas,
-): Promise<RestoredPosition> => {
-  const reversed = await stores.holdings.applyTrade(holdingId!, {
-    quantityDelta: -trade.quantityDelta, costBasisDelta: -trade.costBasisDelta,
-  });
-  if (!reversed.ok) throw tradeRefusal(reversed.reason);
-  return { quantity: reversed.quantity, costBasis: reversed.costBasis };
-};
-
-/** The accrual that undoes one — the Budget counts it back. */
-const negateAccrual = (
-  accrual: ReturnType<typeof budgetAccrualOf>,
-): Parameters<typeof accrueBudget>[1] => {
-  if (accrual === null) return null;
-  return { ...accrual, amount: -accrual.amount };
-};
-
-/** Reverses the stored effects of an account-ledger transaction. */
-export const reverseAccountEffects = async (
-  stores: TransactionStores,
-  row: EditableRow,
-  kind: TransactionKind,
-): Promise<RestoredPosition | undefined> => {
-  const transaction = row.transaction as AccountTransaction;
-  const oldValues = {
-    amount: transaction.amount, currency: transaction.currency, date: transaction.date,
-  };
-  const movement = accountMovementOf(kind, oldValues);
-  const moved = await stores.accounts.applyMovement(
-    row.account.id,
-    { ...movement, amount: -movement.amount },
-  );
-  if (!moved.ok) throw transactionChanged();
-  let restored: RestoredPosition | undefined;
-  if (movesPosition(kind)) {
-    restored = await reverseTrade(stores, transaction.holdingId, transaction.trade!);
-  } else if (kind.code === 'credit_card_bill_payment') {
-    // The payment lowered the outstanding balance; undoing it raises it.
-    const paid = await stores.creditCards.applyMovement(transaction.creditCardId!, {
-      amount: transaction.amount, currency: transaction.currency, date: transaction.date,
-    });
-    if (!paid.ok) throw transactionChanged();
-  }
-  const accrual = budgetAccrualOf(
-    row.account,
-    kind,
-    oldValues,
-    transaction.categoryId,
-    transaction.subcategoryId,
-  );
-  await accrueBudget(stores, negateAccrual(accrual));
-  return restored;
-};
-
-/** Reverses the stored effects of a card-ledger transaction. */
-export const reverseCardEffects = async (
-  stores: TransactionStores,
-  row: EditableRow,
-  kind: TransactionKind,
-): Promise<RestoredPosition | undefined> => {
-  const transaction = row.transaction as CardTransaction;
-  const oldValues = {
-    amount: transaction.amount, currency: transaction.currency, date: transaction.date,
-  };
-  const movement = cardMovementOf(kind, oldValues);
-  const moved = await stores.creditCards.applyMovement(
-    row.creditCardId!,
-    { ...movement, amount: -movement.amount },
-  );
-  if (!moved.ok) throw transactionChanged();
-  const accrual = budgetAccrualOf(
-    row.account,
-    kind,
-    oldValues,
-    transaction.categoryId,
-    transaction.subcategoryId,
-  );
-  await accrueBudget(stores, negateAccrual(accrual));
-  return undefined;
-};
-
-/** Applies the new effects of an account-ledger transaction — its cash leg,
- *  the card side of a bill payment, and its Budget accrual (OQ-201 D4). */
-const applyAccountEffects = async (
-  stores: TransactionStores,
-  row: EditableRow,
-  kind: TransactionKind,
-  merged: MergedValues,
-): Promise<void> => {
-  const moved = await stores.accounts.applyMovement(
-    row.account.id,
-    accountMovementOf(kind, merged),
-  );
-  if (!moved.ok) throw transactionChanged();
-  if (kind.code === 'credit_card_bill_payment' && row.creditCardId) {
-    const paid = await stores.creditCards.applyMovement(row.creditCardId, {
-      amount: -merged.amount, currency: merged.currency, date: merged.date,
-    });
-    if (!paid.ok) throw transactionChanged();
-  }
-  const accrual = budgetAccrualOf(
-    row.account,
-    kind,
-    merged,
-    merged.categoryId,
-    merged.subcategoryId,
-  );
-  await accrueBudget(stores, accrual);
-};
-
-/** Applies the new effects of a card-ledger transaction. */
-const applyCardEffects = async (
-  stores: TransactionStores,
-  row: EditableRow,
-  kind: TransactionKind,
-  merged: MergedValues,
-): Promise<void> => {
-  const moved = await stores.creditCards.applyMovement(
-    row.creditCardId!,
-    cardMovementOf(kind, merged),
-  );
-  if (!moved.ok) throw transactionChanged();
-  const accrual = budgetAccrualOf(
-    row.account,
-    kind,
-    merged,
-    merged.categoryId,
-    merged.subcategoryId,
-  );
-  await accrueBudget(stores, accrual);
-};
-
 /** The terms a fixed-term buy's edit writes — guarded like every other write (OQ-107). */
 const expectedTermsOf = (holding: InvestmentHolding): ExpectedHoldingTerms => ({
   rateType: holding.rateType,
@@ -494,6 +254,14 @@ const applyTermsEdit = async (
   if (!applied.ok) {
     throw applied.reason === 'schedule_started' ? scheduleStarted() : transactionChanged();
   }
+};
+
+/** Whether the edit changes what a fixed-term buy's schedule is computed from —
+ *  its terms, or the purchase's date and amount (OQ-205). */
+const scheduleInputsChanged = (row: EditableRow, merged: MergedValues): boolean => {
+  const transaction = row.transaction as AccountTransaction;
+  return merged.terms !== undefined || merged.date !== transaction.date
+    || merged.amount !== transaction.amount;
 };
 
 /** A market-priced trade's automatic snapshot follows its new unit price (OQ-87). */
@@ -565,7 +333,11 @@ const applyTradeEdit = async ({
   if (!applied.ok) throw tradeRefusal(applied.reason);
   if (applied.quantity === 0) await stores.holdings.archive(current.id, 'system');
   if (kind.code === 'investment_buy' && isFixedTerm(current.assetType)) {
-    await applyTermsEdit(stores, deps, householdId, current, merged);
+    // A started schedule refuses re-application — so it runs only when the
+    // edit changes what it is computed from (OQ-201 D8).
+    if (scheduleInputsChanged(row, merged)) {
+      await applyTermsEdit(stores, deps, householdId, current, merged);
+    }
   } else {
     await refreshSnapshot(stores, row, current, merged);
   }
@@ -611,6 +383,43 @@ const guardedUpdate = async (
   return stores.accountTransactions.update(transaction.id, expected, changes);
 };
 
+/** Reapplies a transaction's cash leg and accrual with its new values — the
+ *  bill payment also raises its card's outstanding balance again. */
+const reapplyEffects = async (
+  stores: TransactionStores,
+  row: EditableRow,
+  kind: TransactionKind,
+  merged: MergedValues,
+): Promise<void> => {
+  if (row.ledger === 'card') {
+    const moved = await stores.creditCards.applyMovement(
+      row.creditCardId!,
+      cardMovementOf(kind, merged),
+    );
+    if (!moved.ok) throw transactionChanged();
+  } else {
+    const moved = await stores.accounts.applyMovement(
+      row.account.id,
+      accountMovementOf(kind, merged),
+    );
+    if (!moved.ok) throw transactionChanged();
+    if (kind.code === 'credit_card_bill_payment' && row.creditCardId) {
+      const paid = await stores.creditCards.applyMovement(row.creditCardId, {
+        amount: -merged.amount, currency: merged.currency, date: merged.date,
+      });
+      if (!paid.ok) throw transactionChanged();
+    }
+  }
+  const accrual = budgetAccrualOf(
+    row.account,
+    kind,
+    merged,
+    merged.categoryId,
+    merged.subcategoryId,
+  );
+  await accrueBudget(stores, accrual);
+};
+
 /** Reverses, reapplies and writes — all in the one transaction (OQ-175). */
 const applyEdit = async (
   stores: TransactionStores,
@@ -630,28 +439,10 @@ const applyEdit = async (
       stores, deps, householdId, row, kind, holding, merged, restored,
     });
   }
-  if (row.ledger === 'card') {
-    await applyCardEffects(stores, row, kind, merged);
-  } else {
-    await applyAccountEffects(stores, row, kind, merged);
-  }
+  await reapplyEffects(stores, row, kind, merged);
   const updated = await guardedUpdate(stores, row, kind, merged, trade);
   if (updated.status !== 'updated') throw transactionChanged();
   return { ledger: row.ledger, transaction: updated.transaction };
-};
-
-/** The Holding a trade names — anything else is its own not-found. */
-export const tradeHoldingOf = async (
-  deps: TransactionDeps,
-  householdId: string,
-  row: EditableRow,
-  kind: TransactionKind,
-): Promise<InvestmentHolding | undefined> => {
-  if (kind.effect !== 'investment_trade') return undefined;
-  const holdingId = (row.transaction as AccountTransaction).holdingId!;
-  const holding = await deps.holdings.findById(householdId, holdingId);
-  if (!holding) throw holdingNotFound();
-  return holding;
 };
 
 /** The terms a fixed-term buy's edit would take — for the term checks. */

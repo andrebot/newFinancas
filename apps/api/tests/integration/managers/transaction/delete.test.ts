@@ -125,6 +125,18 @@ describe('deleteTransaction', () => {
       expect(fake.holdings.archive).not.toHaveBeenCalled();
     });
 
+    it('deletes the row before settling a zeroed Holding (OQ-207)', async () => {
+      const fake = fakeDeps();
+      fake.accountTransactions.findById.mockResolvedValue(BUY_ROW);
+      // Undoing the buy zeros the position; no other row names the Holding.
+      fake.holdings.applyTrade.mockResolvedValue({ ok: true, quantity: 0, costBasis: 0 });
+      await deleteOf(fake).deleteTransaction(context, HOUSEHOLD_ID, BUY_ROW.id);
+      // The FK on `transactions.holding_id` has no ON DELETE action — the row
+      // must be gone before the Holding can go.
+      expect(fake.accountTransactions.delete.mock.invocationCallOrder[0]!)
+        .toBeLessThan(fake.holdings.delete.mock.invocationCallOrder[0]!);
+    });
+
     it('treats a buy row with no attached holding as market-priced — deletable', async () => {
       const fake = fakeDeps();
       // The FK makes this impossible; the guard must not treat it as fixed-term.

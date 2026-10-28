@@ -84,11 +84,6 @@ sequenceDiagram
     else a fixed-term buy whose schedule has posted
         TM-->>API: Conflict
         API-->>User: 409 transaction.schedule_started (OQ-201)
-    else the buy that created its Holding, and other transactions reference it
-        TM->>ATA: countForHolding(holdingId, buyId)
-        ATA-->>TM: n &gt; 0
-        TM-->>API: Conflict
-        API-->>User: 409 transaction.holding_in_use {count} (OQ-201)
     else authorized
         AZ-->>TM: allowed
         alt was a balance movement or bill payment
@@ -98,13 +93,10 @@ sequenceDiagram
             end
         else was an investment trade
             TM->>AA: applyMovement(accountId, {&plusmn;amount reversed, currency, date})
-            alt the buy that created its Holding, nothing else references it
-                TM->>IHA: delete(holdingId)
-                Note over IHA: the Holding goes with its buy &mdash; its Goal split,<br/>snapshots and schedule cascade (OQ-201, OQ-56)
-            else
-                TM->>IHA: applyTrade(holdingId, {-quantityDelta, -costBasisDelta})
+            TM->>IHA: applyTrade(holdingId, {-quantityDelta, -costBasisDelta})
+            opt the undo reopens a zeroed position
                 TM->>IHA: unarchiveIfSystemArchived(holdingId)
-                Note over IHA: if this was the sell/redemption that zeroed the<br/>Holding, it comes back (OQ-80), and its automatic snapshot dies with the row (OQ-56)
+                Note over IHA: if this was the sell/redemption that zeroed the<br/>Holding, it comes back (OQ-80) &mdash; user archives stay,<br/>and its automatic snapshot dies with the row (OQ-56)
             end
         else was a card charge/refund
             TM->>CCA: applyMovement(cardId, {-signedAmount, currency, date})
@@ -117,7 +109,21 @@ sequenceDiagram
             TM-->>API: Conflict
             API-->>User: 409 transaction.changed (reload and retry)
         else deleted
-            ATA-->>TM: deleted
+            opt was an investment trade whose undo zeros the position again
+                TM->>ATA: countForHolding(holdingId, buyId)
+                alt n = 0 &mdash; the buy that created its Holding
+                    TM->>IHA: delete(holdingId)
+                    Note over IHA: the row is gone first, so nothing still points<br/>at it &mdash; the Goal split, snapshots and schedule cascade (OQ-201, OQ-56)
+                else n &gt; 0 and this buy created it
+                    TM-->>API: Conflict
+                    API-->>User: 409 transaction.holding_in_use {count} (OQ-201) &mdash; rolled back
+                else a re-buy into an existing one
+                    TM->>IHA: archive(holdingId, system)
+                end
+            end
+            opt was the trade&#39;s split still current
+                TM->>GA: deleteFrom + reopenClosedAt (the split comes back with the position)
+            end
             TM-->>LOG: logActivity(correlationId, actor, "DeleteTransaction")
             TM-->>LOG: recordAudit(actor, "Transaction", transactionId)
             TM-->>API: deleted

@@ -8,17 +8,18 @@ import type {
 import { validationFailed } from '../../utilities/domainError';
 import type { SignedInContext } from '../requestContext';
 import { requestLogger, type TransactionDeps, type TransactionStores } from './context';
+import { holdingInUse, scheduleStarted, transactionChanged } from './errors';
 import {
   assetTypeOf, loadEditable, reverseAccountEffects, reverseCardEffects, scheduleLocked,
   tradeHoldingOf, type EditableRow, type RestoredPosition,
-} from './edit';
-import { holdingInUse, scheduleStarted, transactionChanged } from './errors';
+} from './reversal';
 
 // Delete Transaction (CUC-3, FR-3.2/OQ-201 D7): the reverse-effect half of an
 // edit — every stored effect is undone and the row goes with a guarded write,
-// all in one transaction (OQ-175). A buy that created its Holding takes it
-// with it when no other transaction references it; a fixed-term buy whose
-// schedule has started is history now and stays.
+// all in one transaction (OQ-175). The undo itself lives in reversal.ts,
+// shared with Edit. A buy that created its Holding takes it with it when no
+// other transaction references it; a fixed-term buy whose schedule has
+// started is history now and stays.
 
 /**
  * Undoes the Goal split this trade wrote — only while it is still the current
@@ -67,7 +68,7 @@ const settleZeroedHolding = async (
   await stores.holdings.archive(holdingId, 'system');
 };
 
-/** The trade's undo: the position comes back, and with it its archive and split. */
+/** The trade's undo: its split comes back with the position. */
 const undoTrade = async (
   stores: TransactionStores,
   householdId: string,
@@ -79,8 +80,7 @@ const undoTrade = async (
     await settleZeroedHolding(stores, householdId, transaction.holdingId!, transaction);
     return;
   }
-  // A zeroing sell's undo reopens a system archive (OQ-171); user archives stay.
-  await stores.holdings.unarchiveIfSystemArchived(transaction.holdingId!);
+  // A zeroing sell's undo reopens a system archive in the shared reversal.
   await undoSplit(stores, transaction.holdingId!, transaction.createdAt);
 };
 
@@ -110,7 +110,9 @@ const guardedDelete = async (stores: TransactionStores, row: EditableRow): Promi
   if (deleted === 'stale') throw transactionChanged();
 };
 
-/** Reverses every effect and deletes the row — all in the one transaction (OQ-175). */
+/** Reverses every effect and deletes the row — all in the one transaction
+ *  (OQ-175). The row goes first: a zeroed Holding's settlement counts its
+ *  references without it, so nothing still points at the deleted row. */
 const applyDelete = async (
   stores: TransactionStores,
   householdId: string,
@@ -120,10 +122,10 @@ const applyDelete = async (
   const restored = row.ledger === 'card'
     ? await reverseCardEffects(stores, row, kind)
     : await reverseAccountEffects(stores, row, kind);
+  await guardedDelete(stores, row);
   if (restored !== undefined && row.ledger === 'account') {
     await undoTrade(stores, householdId, row, restored);
   }
-  await guardedDelete(stores, row);
 };
 
 /** A fixed-term buy whose schedule has started is history now and stays (OQ-201 D8). */

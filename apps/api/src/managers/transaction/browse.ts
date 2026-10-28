@@ -210,26 +210,34 @@ const accountFilterOf = (filter: TransactionListFilter, scopeAccountIds: readonl
   ...sharedFiltersOf(filter),
 });
 
-/** The cards a picker names, narrowed to the visible ones (OQ-204). */
+/** The cards a picker names, narrowed to the visible ones (OQ-204): with no
+ *  pick at all every visible card; with one — an Account's or a card's own —
+ *  exactly those, and none when the picked Account has no cards. */
 const pickedCards = async (
   deps: TransactionDeps,
   filter: TransactionListFilter,
   visibleCardIds: readonly string[],
 ): Promise<string[]> => {
+  if (filter.accountIds === undefined && filter.creditCardIds === undefined) {
+    return [...visibleCardIds];
+  }
   const byAccount = filter.accountIds === undefined
     ? []
     : await deps.creditCards.listByAccounts(filter.accountIds);
   const picked = new Set([...(filter.creditCardIds ?? []), ...byAccount.map((card) => card.id)]);
-  return picked.size === 0 ? [...visibleCardIds] : visibleCardIds.filter((id) => picked.has(id));
+  return visibleCardIds.filter((id) => picked.has(id));
 };
 
-/** The Card ledger's criteria: its picker, a picked Account included (OQ-204). */
+/** The Card ledger's criteria: its picker, a picked Account included (OQ-204). A
+ *  named Holding empties the side — card rows carry no Holding. */
 const cardFilterOf = async (
   deps: TransactionDeps,
   filter: TransactionListFilter,
   visibleCards: readonly string[],
 ) => ({
-  creditCardIds: await pickedCards(deps, filter, visibleCards),
+  creditCardIds: filter.holdingId !== undefined
+    ? []
+    : await pickedCards(deps, filter, visibleCards),
   ...sharedFiltersOf(filter),
 });
 
