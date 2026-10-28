@@ -5,6 +5,7 @@ import { useI18n } from '../../utilities/I18nProvider';
 import type { Translator } from '../../utilities/i18n';
 import { BrandMark } from '../brand/BrandMark';
 import { Icon, type IconName } from '../icons/Icon';
+import { ProgressRing } from '../progressRing/ProgressRing';
 
 // The kit's auth layout (K34, OQ-135): every sign-in, sign-up, recovery and
 // MFA page (mockups 01–09). The brand panel on the left is the same on all of
@@ -61,33 +62,6 @@ export const previewGoalPercent = (translator: Translator) => (
 );
 
 /**
- * Draws the preview goal's progress ring.
- *
- * @param props - The percent label, already formatted.
- * @returns The 52px ring with the label inside.
- */
-function PreviewRing({ label }: { readonly label: string }) {
-  return (
-    <span className="relative grid size-13 shrink-0 place-items-center">
-      <svg viewBox="0 0 52 52" className="absolute inset-0 -rotate-90">
-        <circle cx="26" cy="26" r="22" fill="none" strokeWidth="6" className="stroke-track" />
-        <circle
-          cx="26"
-          cy="26"
-          r="22"
-          fill="none"
-          strokeWidth="6"
-          pathLength={100}
-          strokeDasharray={`${PREVIEW_GOAL_SHARE * 100} 100`}
-          className="stroke-sky"
-        />
-      </svg>
-      <span className="relative text-xs font-bold tabular-nums">{label}</span>
-    </span>
-  );
-}
-
-/**
  * Draws the brand panel's product preview: a balance card and a goal card,
  * tilted. It is an illustration, so screen readers skip it.
  *
@@ -115,7 +89,12 @@ function ProductPreview({ translator }: { readonly translator: Translator }) {
         <span className={`${SMALL_TEXT} text-mint`}>{text('preview.change')}</span>
       </div>
       <div className={GOAL_CARD}>
-        <PreviewRing label={previewGoalPercent(translator)} />
+        <ProgressRing
+          value={PREVIEW_GOAL_SHARE * 100}
+          label={previewGoalPercent(translator)}
+          size="sm"
+          ariaLabel={text('preview.goal')}
+        />
         <span>
           <span className="block text-[0.8125rem] font-semibold">{text('preview.goal')}</span>
           <span className={`block ${SMALL_TEXT} text-muted`}>{text('preview.goalProgress')}</span>

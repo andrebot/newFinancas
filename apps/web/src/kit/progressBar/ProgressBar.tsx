@@ -65,8 +65,11 @@ export const PILL_TRACK = 'relative h-7 overflow-hidden rounded-full bg-track';
 /** The thin bar's track, a row the segments sit in. */
 export const THIN_TRACK = 'flex h-2 overflow-hidden rounded-full bg-raised';
 
-/** The width animation every fill shares (the design system's 150–250ms). */
-export const FILL_MOTION = 'transition-[width] duration-200 ease-out';
+/** How long a fill takes to move (the design system's 150–250ms); the ring shares it. */
+export const FILL_MOTION_DURATION = 'duration-200';
+
+/** The width animation every fill shares. */
+export const FILL_MOTION = `transition-[width] ${FILL_MOTION_DURATION} ease-out`;
 
 /** The text inside the pill, centred; two copies are laid over each other. */
 export const PILL_LABEL = [
@@ -99,14 +102,15 @@ export const clampSegments = (segments: readonly ProgressSegment[]): number[] =>
 );
 
 /**
- * The accessible attributes of a progress bar.
+ * The accessible attributes of a progress bar; the progress ring (K32)
+ * shares them.
  *
  * @param ariaLabel - Its name.
  * @param value - Its value, already held to 0–100.
  * @param ariaValueText - What to say for the value, if not the bare number.
  * @returns The `role="progressbar"` attributes.
  */
-const progressAttributes = (ariaLabel: string, value: number, ariaValueText?: string) => ({
+export const progressAttributes = (ariaLabel: string, value: number, ariaValueText?: string) => ({
   role: 'progressbar',
   'aria-label': ariaLabel,
   'aria-valuemin': 0,

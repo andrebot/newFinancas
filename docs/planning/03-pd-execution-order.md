@@ -155,7 +155,7 @@ identity screens, the rest as later slices use them.
 - [x] **102.** `E2` ReportingEngine — slice 3's part (OQ-206): the Month Overview and Goal progress (current and by month); a fixed-term Holding's value on a date from its trades' cost-basis deltas (`AccountTransactionAccessor.costBasisAsOf`); funding the viewer can't see counts unnamed; the investments shapes land with task 133, the Dashboard's with task 139
 - [x] **103.** `M3` TransactionManager (OQ-207: allocations on all three trade kinds, a user-archived scheduled entry closes out, zeroed-Holding settlement by reference count, a lost race answers `transaction.changed`)
 - [x] **104.** `M4` InsightsManager — slice 3's part (OQ-208: the report route is the contract's parameterized operation from day one, deferred types answer 400; Holdings read straight from their Accessor with E1 projections): `month-overview`, Goal progress (current and by month), the Holding reads with projections; `investments-overview`/`payouts` land with task 133, the Dashboard, inbox and audit-export routes in slice 5
-- [ ] **105.** `K32` Progress ring
+- [x] **105.** `K32` Progress ring (OQ-209: SVG, not the conic gradient — a see-through hole and an animated sweep; held to 100% with the real figure in the label; the ring derives the label's colour — coral over budget, faint at 0; the auth preview now uses it)
 - [ ] **106.** `K44` Key–value list
 - [ ] **108.** `K29` Amount
 - [ ] **109.** `K35` Card rail

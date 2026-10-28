@@ -2371,8 +2371,9 @@ not a hardcoded assumption.
     ring. It is `aria-hidden`, and its sample figures are illustration
     copy in the catalog's new `brand` section (pt-BR and en-US). The ring
     is a plain SVG, and its percent is formatted in the page's locale
-    from one constant, so the fill and the label always agree. It doesn't
-    wait for K32 or K29.
+    from one constant, so the fill and the label always agree. It didn't
+    wait for K32 or K29; once K32 landed, the plain SVG became
+    `<ProgressRing size="sm">` (OQ-209).
 
   The form sits centred, at most 400px wide. Below `lg` the panel is
   hidden and the mark sits above the form.
@@ -5590,6 +5591,39 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
   locally as in M3). Reads never audit (VBD §3.0) — no logger on a read Manager.
 
 **Task 104 (`M4`) is complete.**
+
+### OQ-209: Progress ring (task K32)
+**Confirmed with the stakeholder (Oct 2026):**
+- **One `<ProgressRing>`** (`kit/progressRing/ProgressRing.tsx`): the
+  mockups' `.ring`, a budget's or a goal's percent in a ring on the rail
+  cards (pages 20–24). `md` (64px, default) for the rail cards, `sm`
+  (52px) for the auth panel's preview.
+- **Drawn in SVG, not the mockups' conic gradient.** Two circles with
+  `pathLength` 100, the fill swept from the top, clockwise. The hole is
+  see-through, so the ring works on any surface (the gradient painted it
+  in the card's colour), the tones are `stroke-*` token classes, and the
+  fill can animate. The stroke is 7 of 64, leaving the mockups' 78% hole;
+  `sm` scales the same drawing.
+- **Held to 100%, as K33 (OQ-181).** The fill is held to 0–100 (an
+  over-budget 106% draws full); the label still says the real figure.
+- **Display only, caller formats and picks the tone.** It takes a plain
+  percentage and an already-formatted `label`. Tones: `sky` (default,
+  goals), `mint`, `sun`, `coral`. When a budget is near or over its limit
+  is K36's call, not the ring's.
+- **The ring derives the label's colour**, so callers can't drift from
+  the mockups: `coral` when the tone is coral, `faint` at 0, the ink
+  otherwise. The label is 13px bold (`md`) / 12px (`sm`), tabular.
+- **Accessibility, as K33.** `role="progressbar"`, 0–100, `aria-valuenow`
+  the rounded held value, the label as `aria-valuetext`, the caller names
+  it (`ariaLabel`). The SVG and the label are `aria-hidden`. The
+  attributes and `clampPercent` are shared with K33's module.
+- **Motion.** The sweep animates over K33's 200ms (`FILL_MOTION_DURATION`,
+  shared), off under reduced motion.
+- **The auth preview uses it.** AuthLayout's hand-drawn ring (OQ-135)
+  is now `<ProgressRing size="sm">`; the preview stays `aria-hidden` as a
+  whole.
+
+**Task 105 (`K32`) is complete.**
 
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
