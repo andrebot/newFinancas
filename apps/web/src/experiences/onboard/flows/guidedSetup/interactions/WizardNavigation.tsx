@@ -79,7 +79,7 @@ export function WizardNavigation({
             {translator.text('guidedSetup', 'back')}
           </Button>
         ) : (
-          <span className="type-caption text-faint">{note}</span>
+          <span className="type-caption text-muted">{note}</span>
         )}
         <div className="flex flex-wrap gap-2">
           {secondary && <ActionButton action={secondary} variant="secondary" />}

@@ -74,7 +74,7 @@ export const compactClasses = (invalid: boolean) => [
   invalid
     ? 'border-coral focus:ring-coral/15'
     : 'border-line focus:border-mint focus:ring-mint/15',
-  'placeholder:text-faint disabled:cursor-not-allowed disabled:opacity-50',
+  'placeholder:text-muted disabled:cursor-not-allowed disabled:opacity-50',
 ].join(' ');
 
 /**

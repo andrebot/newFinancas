@@ -77,7 +77,7 @@ export interface GuidedSetupFlowProps {
 /** The dashed tip under the stepper (mockups 11–13). */
 const TIP = [
   'mt-8 flex gap-2 rounded-2xl border border-dashed border-line p-4',
-  'type-caption text-faint',
+  'type-caption text-muted',
 ].join(' ');
 
 /** The stepper's texts for each step. */
@@ -351,7 +351,7 @@ function BudgetStepBody({
         </ul>
       )}
       {budgets.length > 0 && editing === undefined && (
-        <div className="flex items-center gap-3 type-caption text-faint">
+        <div className="flex items-center gap-3 type-caption text-muted">
           <span className="h-px flex-1 bg-line" />
           {translator.text('guidedSetup', 'budget.addAnother')}
           <span className="h-px flex-1 bg-line" />

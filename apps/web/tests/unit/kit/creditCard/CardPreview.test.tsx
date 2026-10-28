@@ -41,7 +41,7 @@ describe('CardPreview', () => {
     render(<CardPreview network="mastercard" digits="550209424242" />);
 
     expect(screen.getByText('5502 0942 4242').className).toBe('');
-    expect(screen.getByText('••••').className).toBe('text-faint');
+    expect(screen.getByText('••••').className).toBe('text-muted');
   });
 
   it('shows a saved card’s last four digits when no number is typed', () => {

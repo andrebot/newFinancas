@@ -145,7 +145,7 @@ export function PasswordChange({
           />
         </div>
         <div className="mt-auto flex flex-wrap items-center justify-between gap-3">
-          <p className="type-caption text-faint">
+          <p className="type-caption text-muted">
             {translator.text('security', 'password.notice')}
           </p>
           <Button type="submit" variant="primary" busy={busy}>

@@ -210,7 +210,7 @@ function Figures({ goal, today }: { readonly goal: Goal; readonly today: string 
         <span className="type-body-sm font-semibold tabular-nums">
           {formatter.date(goal.dueDate)}
         </span>
-        <span className="type-caption text-faint">
+        <span className="type-caption text-muted">
           {dueTextOf(dueInOf(goal.dueDate, today), translator)}
         </span>
       </div>
@@ -247,7 +247,7 @@ function ProgressBlock({ goal, summary }: {
         ariaLabel={translator.text('goalManagement', 'progress.label', { name: goal.name })}
       />
       {summary.estimate && (
-        <span className="type-caption text-faint">
+        <span className="type-caption text-muted">
           {translator.text('goalManagement', 'estimate.note')}
         </span>
       )}
@@ -293,7 +293,7 @@ function FundingBlock({
     <div className="flex flex-col gap-2.5">
       <span className={BLOCK_LABEL}>{translator.text('goalManagement', 'card.fundedBy')}</span>
       {summary.rows.length === 0 && (
-        <span className="type-body-sm text-faint">
+        <span className="type-body-sm text-muted">
           {translator.text('goalManagement', 'fundedBy.none')}
         </span>
       )}
@@ -343,7 +343,7 @@ function NoProgress({ progress }: { readonly progress: ProgressStatus }) {
   const translator = useI18n();
   if (progress === 'loading') return null;
   return (
-    <span className="flex items-center gap-1.5 type-caption text-faint">
+    <span className="flex items-center gap-1.5 type-caption text-muted">
       <Icon name="info-outline" />
       {translator.text('goalManagement', 'progress.unavailable')}
     </span>

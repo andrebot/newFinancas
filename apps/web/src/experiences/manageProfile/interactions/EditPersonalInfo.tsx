@@ -141,7 +141,7 @@ export function EditPersonalInfo({
             </p>
             <p className="mt-0.5 type-body break-all">{email}</p>
           </div>
-          <p className="mt-2 type-caption text-faint">
+          <p className="mt-2 type-caption text-muted">
             {translator.text('profile', 'personal.emailNote')}
           </p>
         </div>

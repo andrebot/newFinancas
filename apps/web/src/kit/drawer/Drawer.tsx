@@ -68,7 +68,7 @@ export const PANEL = [
   'md:data-[status=close]:translate-x-full md:data-[status=close]:translate-y-0',
 ].join(' ');
 
-const CAPTION = 'type-caption font-semibold tracking-wider text-faint uppercase';
+const CAPTION = 'type-caption font-semibold tracking-wider text-muted uppercase';
 
 const CLOSE_BUTTON = [
   'flex size-10 shrink-0 items-center justify-center rounded-full text-muted',

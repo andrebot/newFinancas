@@ -56,7 +56,7 @@ export const boxClasses = (invalid: boolean) => [
  */
 export const inputClasses = (inputClassName?: string) => [
   'h-full min-w-0 flex-1 bg-transparent type-body-lg text-ink outline-none',
-  'placeholder:text-faint disabled:cursor-not-allowed',
+  'placeholder:text-muted disabled:cursor-not-allowed',
   inputClassName,
 ].filter(Boolean).join(' ');
 

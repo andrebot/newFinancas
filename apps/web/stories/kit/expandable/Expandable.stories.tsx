@@ -40,8 +40,8 @@ function TransactionDetails() {
   return (
     <div className="flex items-end justify-between gap-4 px-5 pb-4 pl-[68px]">
       <dl className="grid grid-cols-2 gap-x-6 gap-y-1 type-caption">
-        <dt className="text-faint">Kind</dt>
-        <dt className="text-faint">Date</dt>
+        <dt className="text-muted">Kind</dt>
+        <dt className="text-muted">Date</dt>
         <dd>Charge</dd>
         <dd>12/09/2026</dd>
       </dl>

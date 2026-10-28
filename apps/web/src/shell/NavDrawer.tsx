@@ -91,7 +91,7 @@ function Records({ onExportAuditLog }: RecordsProps) {
     <>
       <div className="mx-2 h-px bg-line" />
       <div className="flex flex-col gap-0.5">
-        <span className="px-3 pb-1 type-caption font-semibold tracking-wider text-faint uppercase">
+        <span className="px-3 pb-1 type-caption font-semibold tracking-wider text-muted uppercase">
           {translator.text('shell', 'records.title')}
         </span>
         <button type="button" className={RECORDS_BUTTON} onClick={onExportAuditLog}>

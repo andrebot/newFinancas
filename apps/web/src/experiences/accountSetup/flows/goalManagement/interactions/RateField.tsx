@@ -47,7 +47,7 @@ export function RateField({ pair, value, onChange }: RateFieldProps) {
         onChange={onChange}
       />
       <span className="font-semibold tabular-nums">{pair.quote}</span>
-      <span className="ml-auto type-caption text-faint">
+      <span className="ml-auto type-caption text-muted">
         {translator.text('goalManagement', 'rate.note')}
       </span>
     </div>

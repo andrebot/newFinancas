@@ -130,7 +130,7 @@ type LookProps = Omit<
 /** The input classes of the hero's amount: display type that fills the row. */
 const HERO_INPUT_CLASSES = [
   'min-w-0 flex-1 bg-transparent type-display-lg tabular-nums text-ink outline-none',
-  'placeholder:text-faint disabled:cursor-not-allowed',
+  'placeholder:text-muted disabled:cursor-not-allowed',
 ].join(' ');
 
 /**

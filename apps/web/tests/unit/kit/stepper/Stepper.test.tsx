@@ -55,7 +55,7 @@ describe('dotClasses', () => {
   it('fills a done dot mint, rings the current one and outlines the next ones', () => {
     expect(dotClasses('done')).toContain('bg-mint text-onmint');
     expect(dotClasses('current')).toContain('bg-mintdeep text-mint ring-2 ring-mint');
-    expect(dotClasses('next')).toContain('border border-line text-faint');
+    expect(dotClasses('next')).toContain('border border-line text-muted');
   });
 
   it('draws every dot as a 32px circle', () => {
@@ -64,10 +64,10 @@ describe('dotClasses', () => {
 });
 
 describe('labelClasses', () => {
-  it('writes the current label in ink, a done one muted and the next ones faint', () => {
+  it('writes the current label in ink, a done one muted and the next ones muted too', () => {
     expect(labelClasses('current')).toBe('text-sm font-semibold text-ink');
     expect(labelClasses('done')).toBe('text-sm font-semibold text-muted');
-    expect(labelClasses('next')).toBe('text-sm font-semibold text-faint');
+    expect(labelClasses('next')).toBe('text-sm font-semibold text-muted');
   });
 });
 
@@ -117,7 +117,7 @@ describe('Stepper', () => {
 
   it('shows the hints it is given', () => {
     renderStepper();
-    expect(screen.getByText('Where your money lives').className).toContain('text-xs text-faint');
+    expect(screen.getByText('Where your money lives').className).toContain('text-xs text-muted');
     expect(stepItems()[2]?.querySelectorAll('.text-xs')).toHaveLength(0);
   });
 
