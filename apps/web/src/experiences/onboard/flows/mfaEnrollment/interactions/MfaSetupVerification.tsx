@@ -119,7 +119,7 @@ export function MfaSetupVerification({
               onClick={() => copy(totpSecret)}
             />
           </div>
-          <span className="type-caption text-faint break-all">
+          <span className="type-caption text-muted break-all">
             {text('setup.account', { email: accountEmail })}
           </span>
         </div>

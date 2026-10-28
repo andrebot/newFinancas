@@ -83,7 +83,7 @@ interface RowProps extends RowsWiring {
 function RowEnd({ row, reasonId }: { readonly row: MenuRow; readonly reasonId: string }) {
   if (row.disabledReason) {
     return (
-      <span id={reasonId} className="mt-0.5 shrink-0 type-caption text-faint">
+      <span id={reasonId} className="mt-0.5 shrink-0 type-caption text-muted">
         {row.disabledReason}
       </span>
     );

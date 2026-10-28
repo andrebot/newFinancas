@@ -106,7 +106,7 @@ export function SetupCompleteSummary({
         ))}
       </ul>
       <div className="flex w-full flex-col gap-2 text-left">
-        <h2 className="type-caption font-semibold uppercase tracking-wider text-faint">
+        <h2 className="type-caption font-semibold uppercase tracking-wider text-muted">
           {translator.text('guidedSetup', 'complete.next')}
         </h2>
         <div className="grid gap-3 sm:grid-cols-3">

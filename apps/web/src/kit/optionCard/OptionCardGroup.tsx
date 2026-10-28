@@ -124,7 +124,7 @@ function TileContent<Value extends string>({ option, id }: ContentProps<Value>) 
         <span id={`${id}-label`}>{option.label}</span>
       </span>
       {option.description && (
-        <span id={`${id}-description`} className="type-caption text-faint">
+        <span id={`${id}-description`} className="type-caption text-muted">
           {option.description}
         </span>
       )}

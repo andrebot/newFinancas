@@ -35,13 +35,13 @@ export interface StepperProps {
 const DOTS: Record<StepState, string> = {
   done: 'bg-mint text-onmint',
   current: 'bg-mintdeep text-mint ring-2 ring-mint',
-  next: 'border border-line text-faint',
+  next: 'border border-line text-muted',
 };
 
 const LABELS: Record<StepState, string> = {
   done: 'text-muted',
   current: 'text-ink',
-  next: 'text-faint',
+  next: 'text-muted',
 };
 
 /** The step's label and hint: shown from `lg`, for screen readers only below it. */
@@ -127,7 +127,7 @@ function StepItem({
             {step.label}
             {state === 'done' && <span className="sr-only">{` (${completedLabel})`}</span>}
           </div>
-          {step.hint && <div className="text-xs text-faint">{step.hint}</div>}
+          {step.hint && <div className="text-xs text-muted">{step.hint}</div>}
         </div>
       </div>
       {!last && <div aria-hidden="true" className={connectorClasses(state)} />}

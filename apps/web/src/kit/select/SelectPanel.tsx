@@ -42,7 +42,7 @@ export interface OptionListProps {
 
 const SEARCH_INPUT = [
   'min-w-0 flex-1 bg-transparent type-body text-ink outline-none',
-  'placeholder:text-faint',
+  'placeholder:text-muted',
 ].join(' ');
 
 const SEARCH_BOX = [
@@ -142,7 +142,7 @@ function OptionRow({
       </span>
       <OptionSlot>{option.trailing}</OptionSlot>
       {disabled && (
-        <span id={reasonId} className="shrink-0 type-caption text-faint">
+        <span id={reasonId} className="shrink-0 type-caption text-muted">
           {option.disabledReason}
         </span>
       )}
@@ -183,7 +183,7 @@ function Section({
   }
   return (
     <div role="group" aria-labelledby={headingId} className="flex flex-col">
-      <span id={headingId} className="px-2 pt-2 pb-1 type-label text-faint">{section.label}</span>
+      <span id={headingId} className="px-2 pt-2 pb-1 type-label text-muted">{section.label}</span>
       {rows}
     </div>
   );

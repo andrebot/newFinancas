@@ -65,7 +65,7 @@ export function CardPreview({
         </div>
         <div className={NUMBER}>
           {cardNumberParts(network, digits, last4).map(({ text, placeholder }) => (
-            <span key={text} className={placeholder ? 'text-faint' : undefined}>{text}</span>
+            <span key={text} className={placeholder ? 'text-muted' : undefined}>{text}</span>
           ))}
         </div>
         <div className="flex justify-between gap-2 type-micro font-medium text-muted">

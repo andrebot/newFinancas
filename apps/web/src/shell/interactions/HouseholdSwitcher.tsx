@@ -32,7 +32,7 @@ const TOGGLE = [
   'outline-none focus-visible:bg-ink/5',
 ].join(' ');
 
-const EYEBROW = 'type-caption font-semibold tracking-wider text-faint uppercase';
+const EYEBROW = 'type-caption font-semibold tracking-wider text-muted uppercase';
 
 /**
  * Builds the card's classes: its border turns mint while unfolded.

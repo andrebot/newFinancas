@@ -51,7 +51,7 @@ export function AccountCardsField({
       <span className="type-caption font-semibold text-muted">
         {translator.text('guidedSetup', 'cards.title')}
         {' '}
-        <span className="font-normal text-faint">
+        <span className="font-normal text-muted">
           {translator.text('guidedSetup', 'cards.optional')}
         </span>
       </span>
@@ -92,7 +92,7 @@ export function AccountCardsField({
             {translator.text('guidedSetup', 'card.new')}
           </span>
           <CardFields form={form} errors={errors} onChange={onChange} />
-          <p className="type-caption text-faint">{translator.text('guidedSetup', 'card.note')}</p>
+          <p className="type-caption text-muted">{translator.text('guidedSetup', 'card.note')}</p>
           <div className="flex justify-end gap-2">
             <Button variant="ghost" size="sm" disabled={disabled} onClick={onCancel}>
               {translator.text('guidedSetup', 'card.cancel')}

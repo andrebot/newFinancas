@@ -45,7 +45,7 @@ function InboxRow({ icon, text, when }: InboxRowProps) {
       </span>
       <div className="min-w-0 flex-1">
         <div className="type-body">{text}</div>
-        <div className="type-caption text-faint">{when}</div>
+        <div className="type-caption text-muted">{when}</div>
       </div>
     </div>
   );

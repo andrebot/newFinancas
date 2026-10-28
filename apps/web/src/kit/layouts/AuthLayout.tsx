@@ -141,7 +141,7 @@ function BrandPanel() {
           ))}
         </ul>
       </div>
-      <p className="relative type-caption text-faint">
+      <p className="relative type-caption text-muted">
         {translator.text('brand', 'copyright', { year, name: brand.name })}
       </p>
     </aside>

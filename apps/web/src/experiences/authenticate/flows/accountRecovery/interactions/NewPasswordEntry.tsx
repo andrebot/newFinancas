@@ -140,7 +140,7 @@ export function NewPasswordEntry({
           {text('newPassword.submit')}
         </Button>
       </form>
-      <p className="text-center type-caption text-faint">{text('newPassword.signOutNotice')}</p>
+      <p className="text-center type-caption text-muted">{text('newPassword.signOutNotice')}</p>
     </>
   );
 }

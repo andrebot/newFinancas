@@ -2479,7 +2479,8 @@ not a hardcoded assumption.
   backup code's `font-mono` centred look).
 - **Look, from the mockups' `.field`.** The box is 46px tall,
   `rounded-[14px]`, with a `bg-bg` fill, a `border-line` border and 14px
-  side padding. Text is `type-body-lg` ink with `faint` placeholders.
+  side padding. Text is `type-body-lg` ink with `muted` placeholders (`faint` until
+  OQ-210).
   Focus draws a mint border and a 3px `mint/15` halo. It uses
   `focus-within`, so it shows for any focus (mouse included), as fields
   usually do, and it stays on while a slot's button has focus. Invalid
@@ -2539,7 +2540,7 @@ not a hardcoded assumption.
   a `role="group"`.
 - **Disabled means "has a reason".** An option is disabled exactly when
   it has a `disabledReason`, so a disabled option always says why. The
-  reason shows as faint trailing text ("in Fun Money", as mockup 42 shows
+  reason shows as muted trailing text ("in Fun Money", as mockup 42 shows
   claimed categories) and describes the option via `aria-describedby`.
   The row fades to 45%. Arrow keys, typeahead and clicks skip it.
 - **Keyboard.** The arrow keys walk the options and loop. Enter or Space
@@ -2559,7 +2560,7 @@ not a hardcoded assumption.
   while the list is open. The mint border and halo show while it is
   focused or open, as mockup 50's open multi-select does; coral while
   invalid. It shows the chosen option's leading slot and label, or the
-  faint placeholder. The panel is `OVERLAY_SURFACE`, at least as wide as
+  muted placeholder (OQ-210). The panel is `OVERLAY_SURFACE`, at least as wide as
   the trigger. Its list scrolls inside after 288px (`max-h-72`). The row
   under the keyboard or pointer gets `bg-ink/5`. The chosen row's label
   turns mint and gets a mint check.
@@ -2650,7 +2651,7 @@ not a hardcoded assumption.
 
   Every row may carry an `icon`, a `description` and a `disabledReason`.
   A row is disabled exactly when it has a reason, as in K11: it fades to
-  45% with the reason as faint trailing text (`aria-describedby`).
+  45% with the reason as muted trailing text (`aria-describedby`, OQ-210).
 - **Keyboard and pointer.** A click, Enter, Space or the arrow keys open
   the menu. The keyboard starts on the current choice. The arrow keys
   loop and skip disabled rows. Typing letters jumps forward to the next
@@ -4735,7 +4736,8 @@ not a hardcoded assumption.
 - **States, from the mockups.** Done: a mint 32px dot with an `onmint`
   check, the label `muted`. Current: a `mintdeep` dot with a mint number
   and a 2px mint ring, the label `ink`. Next: a `line`-bordered dot with
-  a `faint` number, the label `faint`. Hints are always `faint`. The
+  a `muted` number, the label `muted`. Hints are always `muted` (the
+  mockups' `faint`, moved by OQ-210). The
   connector under each step but the last is mint after a done step,
   `line` otherwise.
 - **The caller formats the caption** ("Getting started · step 1 of 3")
@@ -5633,6 +5635,49 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
   whole.
 
 **Task 105 (`K32`) is complete.**
+
+### OQ-210: Key–value list (task K44)
+**Confirmed with the stakeholder (Oct 2026):**
+- **One `<KeyValueList>`** (`kit/keyValueList/KeyValueList.tsx`):
+  labelled read-only facts in a grid — a transaction's details under its
+  open row (pages 30–35), a holding's Contract and Position cards (51/52).
+  Display only: values arrive formatted (FormattingUtility).
+- **Each pair is `<div><dt/><dd/></div>`.** The transaction mockups put
+  every `<dt>` in one row and every `<dd>` in the next, which pairs them
+  wrong for assistive tech; the build uses the holdings' markup
+  everywhere.
+- **Captions are `type-label` in `muted`.** The holdings' `.cap` is
+  exactly that; the transaction mockups draw them in `faint`, which is not
+  a text colour (OQ-121). The Drawer's caption moves from `faint` to
+  `muted` in the same PR.
+- **Two sizes, `sm` (default) and `lg`.** `sm` sets values in
+  `type-body-sm` (a transaction's details); `lg` in `type-heading-sm`,
+  the cards' display bold. The mockups' mobile 12.5px/10px tweak is not a
+  third size: the kit's type scale holds; only the column gap narrows below
+  `md`.
+- **The caller sets `columns`: 2 (default) or 3**, fixed as drawn, on
+  mobile too — no auto-fit.
+- **Typed items, not free markup:** `{ label, value?, tone?, suffix?,
+  numeric? }`. Tones `ink` (default), `mint` (money in), `coral` (money
+  out); `suffix` is a small muted unit ("/mo"); `numeric` sets tabular
+  figures. An empty or absent value renders a muted "—" without its
+  suffix; the dash is `aria-hidden` and screen readers hear the list's
+  `emptyLabel` instead (required, translated by the caller, e.g. "Not
+  set" — PR #132 review). A value stays on one truncated line, the value
+  and its suffix in `title` (the suffix is what truncation hides first).
+  Pairs are keyed by position: the list never reorders and captions need
+  not be unique.
+- **No text in `faint` anywhere (task 106).** Every text use moved to
+  `muted`: captions, notes, eyebrows, section headings, the Stepper's next
+  steps and hints (OQ-183), the field, select, money and number
+  placeholders and the card preview's placeholder dots (OQ-137, OQ-138),
+  and the disabled-option reasons of Select and Menu (OQ-138, OQ-140) —
+  the row's 45% fade still marks those disabled. On dark `faint` is ~3:1
+  on a card, under NFR-UX-2's 4.5:1 for text. `faint` stays for icons
+  (the ghost icon button, closed chevrons, the search glyph), dividers
+  and borders.
+
+**Task 106 (`K44`) is complete.**
 
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 

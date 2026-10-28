@@ -70,7 +70,7 @@ interface ChosenValueProps {
  */
 function ChosenValue({ option, placeholder }: ChosenValueProps) {
   if (!option) {
-    return <span className="min-w-0 flex-1 truncate type-body-lg text-faint">{placeholder}</span>;
+    return <span className="min-w-0 flex-1 truncate type-body-lg text-muted">{placeholder}</span>;
   }
   return (
     <>
