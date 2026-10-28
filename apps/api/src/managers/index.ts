@@ -3,6 +3,7 @@ import {
   createAccountManager, subscribeAccountManager, type AccountDeps, type AccountManager,
 } from './account';
 import { createIdentityManager, type IdentityDeps, type IdentityManager } from './identity';
+import { createInsightsManager, type InsightsDeps, type InsightsManager } from './insights';
 import {
   createTransactionManager, subscribeTransactionManager, type TransactionDeps,
   type TransactionManager,
@@ -19,6 +20,7 @@ export interface ManagersDeps {
   readonly identity: Omit<IdentityDeps, 'bus'>;
   readonly account: AccountDeps;
   readonly transaction: TransactionDeps;
+  readonly insights: InsightsDeps;
 }
 
 /** Every Manager, as the HTTP app takes them. */
@@ -26,6 +28,7 @@ export interface Managers {
   readonly identity: IdentityManager;
   readonly account: AccountManager;
   readonly transaction: TransactionManager;
+  readonly insights: InsightsManager;
 }
 
 /**
@@ -40,5 +43,9 @@ export const createManagers = (deps: ManagersDeps): Managers => {
   subscribeAccountManager(deps.bus, account);
   const transaction = createTransactionManager(deps.transaction);
   subscribeTransactionManager(deps.bus, transaction);
-  return { identity, account, transaction };
+  // InsightsManager is read-only — no events of its own (VBD §3.0).
+  const insights = createInsightsManager(deps.insights);
+  return {
+    identity, account, transaction, insights,
+  };
 };

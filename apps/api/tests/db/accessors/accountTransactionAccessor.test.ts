@@ -649,3 +649,26 @@ describe('costBasisAsOf', () => {
     expect(await ledger.costBasisAsOf([], '2026-12-31')).toEqual([]);
   }));
 });
+
+describe('findBuy', () => {
+  it('answers with the buy that opened the Holding', scenario(async ({
+    record, ledger, householdId, holding,
+  }) => {
+    const buy = await record({
+      kind: 'investment_buy',
+      effect: 'investment_trade',
+      holdingId: holding,
+      trade: { quantityDelta: 1, costBasisDelta: 100 },
+    });
+
+    const found = await ledger.findBuy(householdId, holding);
+
+    expect(found).toMatchObject({ id: buy.id, kind: 'investment_buy' });
+  }));
+
+  it('answers undefined when the Holding has no buy on record', scenario(async ({
+    ledger, householdId,
+  }) => {
+    expect(await ledger.findBuy(householdId, UNKNOWN_ID)).toBeUndefined();
+  }));
+});

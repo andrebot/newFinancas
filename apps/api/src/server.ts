@@ -29,6 +29,7 @@ import { logging } from './config/constants';
 import loadEnv from './config/env';
 import { createInvestmentProductEngine } from './engines/investmentProduct';
 import { createNotificationEngine } from './engines/notification';
+import { createReportingEngine } from './engines/reporting';
 import type { Database } from './db/database';
 import { createManagers } from './managers';
 import type { AccountStores } from './managers/account';
@@ -106,7 +107,36 @@ const transactionStoresOver = (over: Database): TransactionStores => ({
   valuations: createValuationSnapshotAccessor(over),
 });
 const indexRates = createIndexRateAccessor(db);
-const { identity, account, transaction } = createManagers({
+// InsightsManager's reads (M4, OQ-201): ReportingEngine over one instance of
+// each Accessor it needs, shared with the Manager's own reads.
+const insightStores = {
+  accounts: createAccountAccessor(db),
+  creditCards: createCreditCardAccessor(db),
+  budgets: createBudgetAccessor(db),
+  goals: createGoalAccessor(db),
+  holdings: createInvestmentHoldingAccessor(db),
+  valuations: createValuationSnapshotAccessor(db),
+  accountTransactions: createAccountTransactionAccessor(db),
+  cardTransactions: createCardTransactionAccessor(db),
+};
+const reporting = createReportingEngine({
+  listAccounts: insightStores.accounts.list,
+  accountBalancesAsOf: insightStores.accounts.balancesAsOf,
+  listCreditCards: insightStores.creditCards.listByAccounts,
+  cardBalancesAsOf: insightStores.creditCards.balancesAsOf,
+  accountMonthlySums: insightStores.accountTransactions.monthlySums,
+  cardMonthlySums: insightStores.cardTransactions.monthlySums,
+  listBudgets: insightStores.budgets.list,
+  budgetPeriodsAsOf: insightStores.budgets.periodsAsOf,
+  listGoals: insightStores.goals.list,
+  listAllocations: insightStores.goals.listAllocations,
+  findHoldings: insightStores.holdings.findByIds,
+  latestSnapshots: insightStores.valuations.latestAsOf,
+  costBasisAsOf: insightStores.accountTransactions.costBasisAsOf,
+});
+const {
+  identity, account, transaction, insights,
+} = createManagers({
   bus,
   identity: {
     users: createUserAccessor(db),
@@ -137,11 +167,21 @@ const { identity, account, transaction } = createManagers({
     inTransaction: createUnitOfWork(db, transactionStoresOver),
     now: () => new Date(),
   },
+  insights: {
+    reporting,
+    investmentProducts: createInvestmentProductEngine({ latestIndexRate: indexRates.latest }),
+    goals: insightStores.goals,
+    accounts: insightStores.accounts,
+    holdings: insightStores.holdings,
+    accountTransactions: insightStores.accountTransactions,
+    authorization,
+    now: () => new Date(),
+  },
 });
 
 serve({
   fetch: createApp({
-    identity, account, transaction, verifyAccessToken: authentication.verifyAccessToken,
+    identity, account, transaction, insights, verifyAccessToken: authentication.verifyAccessToken,
   }).fetch,
   port: env.port,
 });

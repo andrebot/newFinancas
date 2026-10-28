@@ -377,6 +377,29 @@ const createAccountTransactionAccessor = (db: Database) => ({
   ),
 
   /**
+   * The buy that opened a fixed-term Holding (OQ-205) — its date and amount are
+   * the contract terms InsightsManager projects from. A fixed-term buy always
+   * opens a new Holding, so there is exactly one such row while it exists.
+   *
+   * @param householdId - The household.
+   * @param holdingId - The Holding.
+   * @returns The buy, or `undefined`.
+   */
+  findBuy: async (
+    householdId: string,
+    holdingId: string,
+  ): Promise<AccountTransaction | undefined> => {
+    const [row] = await db.select(rowColumns).from(accountTransactions)
+      .innerJoin(accounts, eq(accounts.id, accountTransactions.accountId))
+      .where(and(
+        eq(accountTransactions.kind, 'investment_buy'),
+        eq(accountTransactions.holdingId, holdingId),
+        eq(accounts.householdId, householdId),
+      ));
+    return row && toTransaction(row);
+  },
+
+  /**
    * Lists one page of the filtered transactions, newest first on (date, id).
    *
    * @param filter - The criteria.

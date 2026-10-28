@@ -89,35 +89,38 @@ sequenceDiagram
 UCS.append(dict(
     filename="uc-03-view-report.html",
     title="View Report",
-    subtitle='<strong>Ad-hoc report types deferred to v2 (OQ-71)</strong> &mdash; the <code>/reports/:reportType</code> resource itself is v1, serving the fixed types <code>month-overview</code>, <code>investments-overview</code>, <code>payouts</code>. <span class="route">GET /households/:householdId/reports/:reportType</span> &mdash; FR-6.2/6.3/6.6. One generic use case standing in for spend-by-category, income-vs-expense, and account-balance-by-month &mdash; the same computation shape, different parameters.',
+    subtitle='<strong>Ad-hoc report types deferred to v2 (OQ-71)</strong> &mdash; the <code>/reports/:reportType</code> resource itself is v1, serving the fixed types <code>month-overview</code>, <code>investments-overview</code>, <code>payouts</code>. <span class="route">GET /households/:householdId/reports/:reportType?year=&amp;month=</span> &mdash; FR-6.2/6.3/6.6, FR-6.11. As built in M4 (OQ-208): <code>month-overview</code> is served; the other two answer 400 until task 133.',
     mermaid="""
 sequenceDiagram
 """ + P_CORE + """
+    participant AZ as AuthorizationUtility
     participant RE as ReportingEngine
-    participant ATA as AccountTransactionAccessor
-    participant CTA as CardTransactionAccessor
 
-    User->>API: GET /households/:householdId/reports/:reportType?dateRange=...&accountId=...
-    API->>IM: getReport(actor, reportType, params)
-    alt reportType unknown or dateRange malformed
-        IM-->>API: BadRequest
+    User->>API: GET /households/:householdId/reports/month-overview?year=&month=
+    Note over API: contract check first: reportType one of the three v1 types,<br/>year a 4-digit number, month 1..12 &rarr; 422 validation.failed
+    alt investments-overview or payouts (task 133)
         API-->>User: 400 report.unknown_type_or_range
-    else valid
-        IM->>RE: generate(reportType, params, actor)
-        RE->>ATA: query(actor, dateRange, filters)
-        ATA-->>RE: rows
-        RE->>CTA: query(actor, dateRange, filters)
-        CTA-->>RE: rows
-        Note over RE: income-vs-expense excludes transfers via the persisted<br/>effect column (FR-3.6) &mdash; not recomputed from kind each time
-        RE-->>IM: report data
-        IM-->>API: report
-        API-->>User: 200 OK {report data}
+    else month-overview
+        API->>IM: monthOverview(context, householdId, {year?, month?})
+        IM->>AZ: authorize(actor, householdId, memberOnly)
+        alt not a member
+            IM-->>API: 404 household.not_found
+        else any role &mdash; data.view is everyone&#39;s on shared data (OQ-111)
+            Note over IM: the month asked for &mdash; each part defaults to today&#39;s (OQ-104)
+            IM->>RE: monthOverview({householdId, viewerUserId}, {year, month})
+            Note over RE: narrows everything from the viewer it is handed (OQ-206):<br/>per-currency in / out / net + the year strip,<br/>month-end balances, budgets and their status, goals with progress &mdash;<br/>funding the viewer can&#39;t see counts unnamed
+            RE-->>IM: the overview as this member sees it
+            IM-->>API: the overview
+        end
     end
+    API-->>User: 200 OK {reportType, summary, yearStrip, balances, budgets, goals}
 """,
     notes="""
     <ul>
+      <li><strong>As built in M4 (OQ-208):</strong> the route is the contract&#39;s parameterized operation from day one; a v1 type this build does not serve yet answers 400 <code>report.unknown_type_or_range</code>, the code the contract reserves for this endpoint. The Manager only decides which month was asked for (each part defaults to today&#39;s, OQ-104) and hands the viewer to ReportingEngine &mdash; all narrowing is the Engine&#39;s (OQ-206). Every member role may read it: <code>data.view</code> is everyone&#39;s on shared data (OQ-111), so a Viewer sees the same report, narrowed to what they can see.</li>
+      <li><strong>Lands with task 133:</strong> <code>investments-overview</code> and <code>payouts</code>, beside their first caller &mdash; the same generic use case, different parameters (spend-by-category, income-vs-expense, account-balance-by-month stay deferred to v2, OQ-71).</li>
       <li>FR-6.6 states this explicitly for account-balance-by-month, and it holds for the other two: "this requires no new stored data... a reporting view over existing history, not a new data-model concept."</li>
-      <li>See FR-6.2, FR-6.3, FR-6.6, FR-3.6.</li>
+      <li>See FR-6.2, FR-6.3, FR-6.6, FR-6.11, OQ-71, OQ-104, OQ-206, OQ-208.</li>
     </ul>
 """,
 ))

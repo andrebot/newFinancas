@@ -63,6 +63,7 @@ sequenceDiagram
     participant API as Hono route
     participant IM as InsightsManager
     participant AZ as AuthorizationUtility
+    participant AA as AccountAccessor
     participant RE as ReportingEngine
     participant IPE as InvestmentProductEngine
     participant IHA as InvestmentHoldingAccessor
@@ -89,23 +90,51 @@ sequenceDiagram
     IM-->>API: report
     API-->>User: 200 OK
 
-    User->>API: GET /households/:householdId/accounts/:accountId/holdings
-    API->>IM: holdingsByAccount(actor, accountId)
-    IM->>RE: positions(accountId)
-    RE-->>IM: holdings with positions and values
-    loop for each fixed-term Holding
-        IM->>IPE: project(householdId, terms) &mdash; the Holding's rate, interestPayment, dueDate + its buy's date and amount (OQ-205)
-        IPE->>IRA: latest(householdId, index) &mdash; index-linked rates only
-        IRA-->>IPE: value, asOf &mdash; or none
-        alt the index has no value yet (OQ-205)
-            IPE-->>IM: {ok: false, reason: index_missing, indexCode}
-            Note over IM: that Holding only: expectedPayout, expectedTaxes = null,<br/>projectionUnavailable = {reason, indexCode}
-        else
-            Note over IPE: coded tax rules per type (OQ-79)<br/>US: expectedTaxes = not estimated
-            IPE-->>IM: {expectedPayout, expectedTaxes}
+    User->>API: GET /households/:householdId/accounts/:accountId/holdings?includeArchived=
+    API->>IM: listHoldings(context, householdId, accountId, includeArchived)
+    IM->>AA: findById(householdId, accountId)
+    AA-->>IM: its Account (or none)
+    IM->>AZ: authorize(actor, householdId, {data.view, account.visibility, account.ownerUserId})
+    alt not a member
+        IM-->>API: 404 household.not_found
+    else missing, or in someone else&#39;s personal Account
+        IM-->>API: 404 account.not_found
+    else any role &mdash; data.view is everyone&#39;s on shared data (OQ-111)
+        IM->>IHA: listByAccounts([accountId], {includeArchived})
+        IHA-->>IM: the Holdings, in the order opened
+        loop for each fixed-term Holding (a market-priced one carries no projection)
+            IM->>ATA: findBuy(householdId, holding.id) &mdash; its buy&#39;s date and amount (OQ-205)
+            ATA-->>IM: the buy (or none)
+            IM->>IPE: project(householdId, terms) &mdash; the Holding&#39;s rate, interestPayment, dueDate + its buy&#39;s date and amount
+            IPE->>IRA: latest(householdId, index) &mdash; index-linked rates only
+            IRA-->>IPE: value, asOf &mdash; or none
+            alt the index has no value yet (OQ-205)
+                IPE-->>IM: {ok: false, reason: index_missing, indexCode}
+                Note over IM: that Holding only: expectedPayout, expectedTaxes = null,<br/>projectionUnavailable = {reason, indexCode}
+            else
+                Note over IPE: coded tax rules per type (OQ-79)<br/>US: expectedTaxes = not estimated
+                IPE-->>IM: {expectedPayout, expectedTaxes}
+            end
         end
+        IM-->>API: the Holdings with their projections
     end
-    IM-->>API: holdings
+    API-->>User: 200 OK
+
+    User->>API: GET /households/:householdId/holdings/:holdingId
+    API->>IM: getHolding(context, householdId, holdingId)
+    IM->>IHA: findById(householdId, holdingId)
+    IHA-->>IM: the Holding (or none)
+    IM->>AA: findById(householdId, holding.accountId) &mdash; its Account&#39;s access decides (OQ-178)
+    AA-->>IM: its Account (or none)
+    IM->>AZ: authorize(actor, householdId, {data.view, account.visibility, account.ownerUserId})
+    alt not a member
+        IM-->>API: 404 household.not_found
+    else missing, or in someone else&#39;s personal Account
+        IM-->>API: 404 holding.not_found
+    else any role &mdash; data.view is everyone&#39;s on shared data (OQ-111)
+        Note over IM: the same projection as in the list &mdash; findBuy + project, fixed-term only
+        IM-->>API: the Holding with its expected payout
+    end
     API-->>User: 200 OK
     </pre>
   </div>
@@ -114,8 +143,9 @@ sequenceDiagram
       <li><strong>Two Engines side by side, never calling each other</strong> &mdash; <code>InsightsManager</code> composes them (VBD &sect;3).</li>
       <li>Payout comes only from linked transactions (FR-5.9); projections are computed on read (FR-11.2) &mdash; nothing new is stored.</li>
       <li>The Rates tab reads <code>GET /households/:householdId/index-rates</code> (every index with its history) &mdash; a plain read of <code>AccountManager</code>'s own entities, so it is <code>AccountManager</code>'s (<code>IndexRateAccessor.list</code>, read-ownership rule, OQ-172), not this Manager's; so are a Holding's value history (<code>GET &hellip;/holdings/:holdingId/valuation-snapshots</code>), its schedule (<code>&hellip;/schedule-entries</code>) and its visible Goal split (<code>&hellip;/allocations</code>) &mdash; built in M2 part 5 (OQ-178).</li>
-      <li><strong>Still this Manager&#39;s (M4):</strong> <code>GET &hellip;/accounts/:accountId/holdings</code> and <code>GET &hellip;/holdings/:holdingId</code> &mdash; a Holding read carries <code>expectedPayout</code> / <code>expectedTaxes</code>, and only <code>InsightsManager</code> calls <code>InvestmentProductEngine</code> (OQ-178).</li>
-      <li>See FR-5.3, FR-5.4, FR-5.9, FR-11.2, FR-11.6, OQ-58, OQ-73, OQ-79.</li>
+      <li><strong>As built in M4 (OQ-208):</strong> <code>GET &hellip;/accounts/:accountId/holdings</code> and <code>GET &hellip;/holdings/:holdingId</code> read the rows straight from <code>InvestmentHoldingAccessor</code> — there is no ReportingEngine positions use case — and project each fixed-term one on read: its buy&#39;s date and amount come from <code>AccountTransactionAccessor.findBuy</code>, then only <code>InsightsManager</code> calls <code>InvestmentProductEngine.project</code> (OQ-178, OQ-205). A Holding takes its Account&#39;s access; an unseen one answers the entity&#39;s own not-found.</li>
+      <li><strong>Lands with task 133:</strong> the two report types above — until then they answer 400 <code>report.unknown_type_or_range</code>, the code the contract reserves for this endpoint (OQ-208).</li>
+      <li>See FR-5.3, FR-5.4, FR-5.9, FR-11.2, FR-11.6, OQ-58, OQ-73, OQ-79, OQ-208.</li>
     </ul>
   </div>
   <script>
