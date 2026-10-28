@@ -5661,7 +5661,12 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
   numeric? }`. Tones `ink` (default), `mint` (money in), `coral` (money
   out); `suffix` is a small muted unit ("/mo"); `numeric` sets tabular
   figures. An empty or absent value renders a muted "—" without its
-  suffix. A value stays on one truncated line, the full text in `title`.
+  suffix; the dash is `aria-hidden` and screen readers hear the list's
+  `emptyLabel` instead (required, translated by the caller, e.g. "Not
+  set" — PR #132 review). A value stays on one truncated line, the value
+  and its suffix in `title` (the suffix is what truncation hides first).
+  Pairs are keyed by position: the list never reorders and captions need
+  not be unique.
 - **No text in `faint` anywhere (task 106).** Every text use moved to
   `muted`: captions, notes, eyebrows, section headings, the Stepper's next
   steps and hints (OQ-183), the field, select, money and number

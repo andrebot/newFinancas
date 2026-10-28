@@ -9,6 +9,7 @@ const meta = {
   title: 'Kit/KeyValueList',
   component: KeyValueList,
   args: {
+    emptyLabel: 'Not set',
     columns: 3,
     items: [
       { label: 'Kind', value: 'Charge' },
@@ -43,7 +44,10 @@ export const Contract: Story = {
   },
 };
 
-/** A fund's Position card: the payout carries a per-month suffix; a missing value shows a dash. */
+/**
+ * A fund's Position card: the payout carries a per-month suffix; a missing
+ * value shows a dash, which screen readers hear as "Not set".
+ */
 export const Position: Story = {
   args: {
     size: 'lg',

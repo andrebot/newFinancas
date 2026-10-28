@@ -20,9 +20,12 @@ export type KeyValueColumns = 2 | 3;
 
 /** One labelled fact. */
 export interface KeyValueItem {
-  /** The caption, already translated; unique within the list. */
+  /** The caption, already translated. */
   readonly label: string;
-  /** The value, already formatted; empty or absent renders a muted "—". */
+  /**
+   * The value, already formatted; empty or absent renders a muted "—",
+   * which screen readers hear as the list's `emptyLabel`.
+   */
   readonly value?: string | undefined;
   /** Defaults to `ink`. */
   readonly tone?: KeyValueTone | undefined;
@@ -40,6 +43,8 @@ export interface KeyValueListProps {
   readonly size?: KeyValueSize | undefined;
   /** Defaults to 2. */
   readonly columns?: KeyValueColumns | undefined;
+  /** What a screen reader says for a missing value, already translated, e.g. "Not set". */
+  readonly emptyLabel: string;
 }
 
 /** The placeholder for a missing value. */
@@ -86,23 +91,70 @@ export const valueClasses = (item: KeyValueItem, size: KeyValueSize): string => 
 };
 
 /**
+ * Spells a value out whole, suffix included, for the tooltip of a value cut
+ * short — the suffix is what truncation hides first.
+ *
+ * @param item - The pair whose value it spells out.
+ * @returns The value and its suffix, or `undefined` when there is no value.
+ */
+export const fullValue = (item: KeyValueItem): string | undefined => (
+  item.value ? `${item.value}${item.suffix ?? ''}` : undefined
+);
+
+/** The pair value's props. */
+interface PairValueProps {
+  readonly item: KeyValueItem;
+  readonly emptyLabel: string;
+}
+
+/**
+ * Renders what goes in a `<dd>`: the value and its suffix, or the dash
+ * (hidden from screen readers, which hear `emptyLabel` instead).
+ *
+ * @param props - The pair and the missing value's spoken label.
+ * @returns The value's content.
+ */
+function PairValue({ item, emptyLabel }: PairValueProps) {
+  if (!item.value) {
+    return (
+      <>
+        <span aria-hidden="true">{EMPTY_VALUE}</span>
+        <span className="sr-only">{emptyLabel}</span>
+      </>
+    );
+  }
+  return (
+    <>
+      {item.value}
+      {item.suffix && <span className={KV_SUFFIX}>{item.suffix}</span>}
+    </>
+  );
+}
+
+/**
  * Renders labelled facts as a description list, `columns` pairs to a row.
  * It holds no state.
  *
- * @param props - The pairs, size and column count.
+ * @param props - The pairs, size, column count and missing value's label.
  * @returns The key–value list.
  */
-export function KeyValueList({ items, size = 'sm', columns = 2 }: KeyValueListProps) {
+export function KeyValueList({
+  items, size = 'sm', columns = 2, emptyLabel,
+}: KeyValueListProps) {
   const sizing = SIZES[size];
 
   return (
     <dl className={`m-0 grid ${COLUMNS[columns]} ${sizing.list}`}>
-      {items.map((item) => (
-        <div key={item.label} className={`flex min-w-0 flex-col ${sizing.pair}`.trimEnd()}>
+      {items.map((item, position) => (
+        <div
+          // The list never reorders; a pair's position is its key.
+          // eslint-disable-next-line react/no-array-index-key
+          key={position}
+          className={`flex min-w-0 flex-col ${sizing.pair}`.trimEnd()}
+        >
           <dt className={KV_CAPTION}>{item.label}</dt>
-          <dd className={valueClasses(item, size)} title={item.value || undefined}>
-            {item.value || EMPTY_VALUE}
-            {item.value && item.suffix && <span className={KV_SUFFIX}>{item.suffix}</span>}
+          <dd className={valueClasses(item, size)} title={fullValue(item)}>
+            <PairValue item={item} emptyLabel={emptyLabel} />
           </dd>
         </div>
       ))}

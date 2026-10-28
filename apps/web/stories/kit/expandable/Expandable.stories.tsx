@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Button } from '../../../src/kit/button/Button';
 import { Expandable, type ExpandableProps } from '../../../src/kit/expandable/Expandable';
+import { KeyValueList } from '../../../src/kit/keyValueList/KeyValueList';
 import { ListRowIcon } from '../../../src/kit/listRow/ListRowIcon';
 import { Tag } from '../../../src/kit/tag/Tag';
 
@@ -39,12 +40,13 @@ function TransactionSummary({ name, amount }: { readonly name: string; readonly 
 function TransactionDetails() {
   return (
     <div className="flex items-end justify-between gap-4 px-5 pb-4 pl-[68px]">
-      <dl className="grid grid-cols-2 gap-x-6 gap-y-1 type-caption">
-        <dt className="text-muted">Kind</dt>
-        <dt className="text-muted">Date</dt>
-        <dd>Charge</dd>
-        <dd>12/09/2026</dd>
-      </dl>
+      <KeyValueList
+        emptyLabel="Not set"
+        items={[
+          { label: 'Kind', value: 'Charge' },
+          { label: 'Date', value: '12/09/2026', numeric: true },
+        ]}
+      />
       <div className="flex shrink-0 gap-2">
         <Button size="md" leadingIcon="edit-outline">Edit</Button>
         <Button size="md" variant="danger" leadingIcon="delete-outline">Delete</Button>
