@@ -649,3 +649,54 @@ describe('costBasisAsOf', () => {
     expect(await ledger.costBasisAsOf([], '2026-12-31')).toEqual([]);
   }));
 });
+
+describe('findBuys', () => {
+  it('answers each Holding\'s buys in one read, oldest first on (date, id)', scenario(async ({
+    db, record, ledger, householdId, holding, checking,
+  }) => {
+    const other = await idOf(db.insert(investmentHoldings).values({
+      accountId: checking, assetType: 'cdb', quantity: 0, costBasis: 0,
+    }).returning({ id: investmentHoldings.id }));
+    const trade = { quantityDelta: 1, costBasisDelta: 100 };
+    const later = await record({
+      kind: 'investment_buy', effect: 'investment_trade', holdingId: holding, trade,
+    });
+    const earlier = await record({
+      kind: 'investment_buy',
+      effect: 'investment_trade',
+      holdingId: other,
+      trade,
+      date: '2026-10-01',
+    });
+    await record({
+      kind: 'investment_sell', effect: 'investment_trade', holdingId: holding, trade,
+    });
+
+    const found = await ledger.findBuys(householdId, [holding, other]);
+
+    expect(found.map((buy) => buy.id)).toEqual([earlier.id, later.id]);
+  }));
+
+  it('answers nothing for another household\'s Holdings', scenario(async ({
+    db, record, ledger, holding,
+  }) => {
+    await record({
+      kind: 'investment_buy',
+      effect: 'investment_trade',
+      holdingId: holding,
+      trade: { quantityDelta: 1, costBasisDelta: 100 },
+    });
+    const elsewhere = await idOf(
+      db.insert(households).values({ name: 'Other' }).returning({ id: households.id }),
+    );
+
+    expect(await ledger.findBuys(elsewhere, [holding])).toEqual([]);
+  }));
+
+  it('answers nothing for an empty list, or a Holding with no buy on record', scenario(async ({
+    ledger, householdId,
+  }) => {
+    expect(await ledger.findBuys(householdId, [])).toEqual([]);
+    expect(await ledger.findBuys(householdId, [UNKNOWN_ID])).toEqual([]);
+  }));
+});

@@ -3,6 +3,7 @@ import createApp from '../../src/app';
 import type { VerifyAccessToken } from '../../src/http/authentication';
 import type { AccountManager } from '../../src/managers/account';
 import type { IdentityManager } from '../../src/managers/identity';
+import type { InsightsManager } from '../../src/managers/insights';
 import type { TransactionManager } from '../../src/managers/transaction';
 
 // The app with its Managers mocked — the one boundary below the routes (BDT).
@@ -11,6 +12,7 @@ import type { TransactionManager } from '../../src/managers/transaction';
 export type MockedIdentity = { [K in keyof IdentityManager]: Mock<IdentityManager[K]> };
 export type MockedAccount = { [K in keyof AccountManager]: Mock<AccountManager[K]> };
 export type MockedTransaction = { [K in keyof TransactionManager]: Mock<TransactionManager[K]> };
+export type MockedInsights = { [K in keyof InsightsManager]: Mock<InsightsManager[K]> };
 
 /**
  * An IdentityManager whose every use case is a mock.
@@ -113,6 +115,19 @@ export const mockTransaction = (): MockedTransaction => ({
 });
 
 /**
+ * An InsightsManager whose every use case is a mock.
+ *
+ * @returns The mock Manager.
+ */
+export const mockInsights = (): MockedInsights => ({
+  report: vi.fn(),
+  goalProgressList: vi.fn(),
+  goalProgressFor: vi.fn(),
+  listHoldings: vi.fn(),
+  getHolding: vi.fn(),
+});
+
+/**
  * Builds the app over mocked Managers and a programmable token check.
  *
  * @param verifyAccessToken - Token verification (default: every token is invalid).
@@ -124,13 +139,15 @@ export const appWithMocks = (
   const identity = mockIdentity();
   const account = mockAccount();
   const transaction = mockTransaction();
+  const insights = mockInsights();
   return {
     app: createApp({
-      identity, account, transaction, verifyAccessToken,
+      identity, account, transaction, insights, verifyAccessToken,
     }),
     identity,
     account,
     transaction,
+    insights,
   };
 };
 

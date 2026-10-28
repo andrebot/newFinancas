@@ -1,5 +1,7 @@
 // Calendar months shared by the Accessors that keep one row per month
-// (Budget Periods, Account and Credit Card month balances). Pure helpers, no database.
+// (Budget Periods, Account and Credit Card month balances), and by the reads
+// keyed by month — ReportingEngine's `YYYY-MM` keys and InsightsManager's
+// "as of the month's end" day (FR-8.7). Pure helpers, no database.
 
 /** A calendar month in the app's time zone — the Manager works it out (OQ-104). */
 export interface CalendarMonth {
@@ -50,4 +52,25 @@ export const monthsBetween = (from: CalendarMonth, to: CalendarMonth): CalendarM
     year: Math.floor((first + offset) / MONTHS_PER_YEAR),
     month: ((first + offset) % MONTHS_PER_YEAR) + 1,
   }));
+};
+
+/**
+ * Formats a month as reports key it (OQ-201).
+ *
+ * @param month - The month.
+ * @returns `YYYY-MM`.
+ */
+export const monthKey = (month: CalendarMonth): string => (
+  `${month.year}-${String(month.month).padStart(2, '0')}`
+);
+
+/**
+ * The last day of a month — "as of the month's end" reads take it (FR-8.7).
+ *
+ * @param month - The month.
+ * @returns `YYYY-MM-DD`.
+ */
+export const monthEnd = (month: CalendarMonth): string => {
+  const lastDay = new Date(Date.UTC(month.year, month.month, 0)).getUTCDate();
+  return `${monthKey(month)}-${String(lastDay).padStart(2, '0')}`;
 };

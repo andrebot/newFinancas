@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>View Goals</h1>
-  <p class="subtitle"><span class="route">GET /households/:householdId/goal-progress?status=active|completed</span> &mdash; FR-8.5/8.7/FR-9. Progress per currency, computed on read &mdash; the frontend blends currencies with the user&#39;s on-the-fly rate (nothing stored).</p>
+  <p class="subtitle"><span class="route">GET /households/:householdId/goal-progress?status=active|completed</span>, <span class="route">GET /households/:householdId/goals/:goalId/progress?year=&amp;month=</span> &mdash; FR-8.5/8.7/FR-9. Progress per currency, computed on read &mdash; the frontend blends currencies with the user&#39;s on-the-fly rate (nothing stored). As built in M4 (OQ-208).</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -71,18 +71,40 @@ sequenceDiagram
     participant ATA as AccountTransactionAccessor
 
     User->>API: GET /households/:householdId/goal-progress?status=active
-    API->>IM: viewGoals(actor, status)
-    IM->>AZ: visibleScope(actor)
-    IM->>GA: list(householdId, viewerUserId, status)
-    IM->>RE: goalProgress({householdId, viewerUserId}, goals, today)
-    RE->>AA: list(householdId, viewerUserId) &mdash; the Accounts the viewer sees
-    RE->>GA: listAllocations({goalIds}, date) &mdash; the split in effect then (OQ-206)
-    RE->>IHA: findByIds(householdId, allocated holdingIds) &mdash; with their currency
-    RE->>VSA: latestAsOf(market-priced holdingIds, date)
-    RE->>ATA: costBasisAsOf(fixed-term holdingIds, date) &mdash; OQ-206
-    Note over RE: contribution = value &times; allocated %, kept in the<br/>Holding&#39;s own currency (OQ-49) &mdash; never converted here &mdash;<br/>a Holding in an Account the viewer can&#39;t see counts, unnamed (OQ-206)
-    RE-->>IM: [{goal, fundedBy[{holdingId, name, percentage, contribution}]}]
-    IM-->>API: goals
+    API->>IM: goalProgressList(context, householdId, status)
+    IM->>AZ: authorize(actor, householdId, memberOnly)
+    alt not a member
+        IM-->>API: 404 household.not_found
+    else any role &mdash; the list holds only what this viewer sees (OQ-111)
+        IM->>GA: list(householdId, viewerUserId, status)
+        GA-->>IM: the Goals the viewer sees
+        IM->>RE: goalProgress({householdId, viewerUserId}, goals, today)
+        RE->>AA: list(householdId, viewerUserId) &mdash; the Accounts the viewer sees (the rest count unnamed)
+        RE->>GA: listAllocations({goalIds}, date) &mdash; the split in effect then (OQ-206)
+        RE->>IHA: findByIds(householdId, allocated holdingIds) &mdash; with their currency
+        RE->>VSA: latestAsOf(market-priced holdingIds, date)
+        RE->>ATA: costBasisAsOf(fixed-term holdingIds, date) &mdash; OQ-206
+        Note over RE: contribution = value &times; allocated %, kept in the<br/>Holding&#39;s own currency (OQ-49) &mdash; never converted here &mdash;<br/>a Holding in an Account the viewer can&#39;t see counts, unnamed (OQ-206)
+        RE-->>IM: [{goal, fundedBy[{holdingId, name, percentage, contribution}]}]
+        IM-->>API: goals
+    end
+    API-->>User: 200 OK {data: [...]}
+
+    User->>API: GET /households/:householdId/goals/:goalId/progress?year=&month=
+    API->>IM: goalProgressFor(context, householdId, goalId, {year?, month?})
+    IM->>GA: findById(householdId, goalId)
+    GA-->>IM: the Goal (or none)
+    IM->>AZ: authorize(actor, householdId, {data.view, goal.visibility, goal.ownerUserId})
+    alt not a member
+        IM-->>API: 404 household.not_found
+    else missing, or in someone else&#39;s personal Goal
+        IM-->>API: 404 goal.not_found
+    else any role &mdash; data.view is everyone&#39;s on shared data (OQ-111)
+        Note over IM: today when no month is asked, that month&#39;s end by month (FR-8.7)
+        IM->>RE: goalProgress({householdId, viewerUserId}, [goal], day)
+        RE-->>IM: the Goal with its progress on that day &mdash; the same reads as above
+        IM-->>API: {goal, fundedBy}
+    end
     API-->>User: 200 OK
     </pre>
   </div>
@@ -91,7 +113,7 @@ sequenceDiagram
       <li><strong>FX stays in the browser (FR-9, OQ-49):</strong> &ldquo;1 USD = x BRL&rdquo; is typed on the goal card and only blends the returned per-currency contributions for display.</li>
       <li>Reshaped read &rarr; <code>InsightsManager</code> + <code>ReportingEngine</code> (read-ownership rule), built with M4. <strong>OQ-177:</strong> moved to its own route &mdash; <code>GET /households/:householdId/goals</code> is <code>AccountManager</code>&#39;s plain list of definitions (OQ-174); <code>GET &hellip;/goals/:goalId/allocations</code> was dropped, as <code>fundedBy</code> here covers it. <code>GET /households/:householdId/goals/:goalId/progress</code> stays for the by-month history (FR-8.7).</li>
       <li><strong>OQ-206:</strong> a fixed-term Holding&#39;s value on a date is its trades&#39; cost basis by then (the by-month history uses the month&#39;s end); funding in an Account the viewer can&#39;t see counts, with <code>holdingId</code> and <code>name</code> null, so every member sees a shared Goal&#39;s same total.</li>
-      <li>See FR-8.5, FR-8.7, FR-9, OQ-49, OQ-177, OQ-206.</li>
+      <li>See FR-8.5, FR-8.7, FR-9, OQ-49, OQ-177, OQ-206, OQ-208.</li>
     </ul>
   </div>
   <script>

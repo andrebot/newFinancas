@@ -169,7 +169,9 @@ payouts, goal progress).
 ### Managers (4)
 
 M1 `IdentityManager` · M2 `AccountManager` · M3 `TransactionManager`
-(incl. the `investmentsDaily` subscription) · M4 `InsightsManager`.
+(incl. the `investmentsDaily` subscription) · M4 `InsightsManager` (slice 3:
+month-overview, Goal progress current and by month, Holding reads with
+projections — OQ-208; Dashboard, inbox and audit export in slice 5).
 Each includes its HTTP routes for its own use cases.
 
 ## 4. Frontend (FU, FL, X, S)

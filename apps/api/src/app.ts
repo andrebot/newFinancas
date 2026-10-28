@@ -12,9 +12,11 @@ import createHoldingRoutes from './http/routes/holdings';
 import createHouseholdRoutes from './http/routes/households';
 import createIdentityRoutes from './http/routes/identity';
 import createIndexRateRoutes from './http/routes/indexRates';
+import createInsightsRoutes from './http/routes/insights';
 import createTransactionRoutes from './http/routes/transactions';
 import type { AccountManager } from './managers/account';
 import type { IdentityManager } from './managers/identity';
+import type { InsightsManager } from './managers/insights';
 import type { TransactionManager } from './managers/transaction';
 
 /** What the routes call: the Managers, and access-token verification. */
@@ -22,6 +24,7 @@ export interface AppDeps {
   readonly identity: IdentityManager;
   readonly account: AccountManager;
   readonly transaction: TransactionManager;
+  readonly insights: InsightsManager;
   readonly verifyAccessToken: VerifyAccessToken;
 }
 
@@ -67,6 +70,7 @@ const createApp = (deps: AppDeps): Hono<AppEnv> => {
   app.route('/api/v1', createHoldingRoutes(deps.account));
   app.route('/api/v1', createIndexRateRoutes(deps.account));
   app.route('/api/v1', createTransactionRoutes(deps.transaction));
+  app.route('/api/v1', createInsightsRoutes(deps.insights));
   return app;
 };
 

@@ -1751,7 +1751,7 @@ export const zGetReportPath = z.object({
 });
 
 export const zGetReportQuery = z.object({
-    year: z.int().optional(),
+    year: z.int().gte(1900).lte(9999).optional(),
     month: z.int().gte(1).lte(12).optional(),
     holdingIds: z.array(z.string()).optional(),
     months: z.int().optional().default(12)
@@ -1998,7 +1998,7 @@ export const zGetGoalProgressPath = z.object({
 });
 
 export const zGetGoalProgressQuery = z.object({
-    year: z.int().optional(),
+    year: z.int().gte(1900).lte(9999).optional(),
     month: z.int().gte(1).lte(12).optional()
 });
 
