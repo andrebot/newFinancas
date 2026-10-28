@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import { FILL_MOTION_DURATION, clampPercent, progressAttributes } from '../progress/progress';
 
 // The kit's progress bar (K33, OQ-181): how far along something is, as a
 // share of 100%. Two shapes from the mockups: the 28px pill with the amount
@@ -65,24 +66,14 @@ export const PILL_TRACK = 'relative h-7 overflow-hidden rounded-full bg-track';
 /** The thin bar's track, a row the segments sit in. */
 export const THIN_TRACK = 'flex h-2 overflow-hidden rounded-full bg-raised';
 
-/** The width animation every fill shares (the design system's 150–250ms). */
-export const FILL_MOTION = 'transition-[width] duration-200 ease-out';
+/** The width animation every fill shares. */
+export const FILL_MOTION = `transition-[width] ${FILL_MOTION_DURATION} ease-out`;
 
 /** The text inside the pill, centred; two copies are laid over each other. */
 export const PILL_LABEL = [
   'absolute inset-0 flex items-center justify-center px-3.5 whitespace-nowrap',
   'text-xs font-semibold tabular-nums',
 ].join(' ');
-
-/**
- * Holds a percentage to 0–100; anything that is not a number counts as 0.
- *
- * @param value - The percentage.
- * @returns The percentage between 0 and 100.
- */
-export const clampPercent = (value: number): number => (
-  Number.isNaN(value) ? 0 : Math.min(100, Math.max(0, value))
-);
 
 /**
  * Holds each segment to what is left of the bar, so together they never
@@ -97,23 +88,6 @@ export const clampSegments = (segments: readonly ProgressSegment[]): number[] =>
     return [...widths, Math.min(clampPercent(segment.value), 100 - used)];
   }, [])
 );
-
-/**
- * The accessible attributes of a progress bar.
- *
- * @param ariaLabel - Its name.
- * @param value - Its value, already held to 0–100.
- * @param ariaValueText - What to say for the value, if not the bare number.
- * @returns The `role="progressbar"` attributes.
- */
-const progressAttributes = (ariaLabel: string, value: number, ariaValueText?: string) => ({
-  role: 'progressbar',
-  'aria-label': ariaLabel,
-  'aria-valuemin': 0,
-  'aria-valuemax': 100,
-  'aria-valuenow': Math.round(value),
-  'aria-valuetext': ariaValueText,
-});
 
 /**
  * Renders the pill: the fill, the text in ink over the track, and a copy in
