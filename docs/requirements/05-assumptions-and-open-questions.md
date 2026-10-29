@@ -2346,7 +2346,10 @@ not a hardcoded assumption.
   - a quiet inline `hint` ("newest first");
   - a caption `description` under the title;
   - an `actions` slot on the right (rail arrows, a count `Tag`, "You're
-    the Owner", the payout total).
+    the Owner", the payout total), centred on a one-line header (the
+    mockups' rails, Members, Pending invitations) and top-aligned beside a
+    title with a description (Payout) — amended in task 109, PR #135
+    review; it was always top-aligned.
 - **`PageHeader`** (`kit/pageHeader/PageHeader.tsx`) holds:
   - an optional `type-label` eyebrow naming the Experience;
   - the page's `h1` (`type-display-lg`) and an optional muted description;
@@ -5711,6 +5714,55 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
   (K44, OQ-210) takes its values pre-formatted with its own tone.
 
 **Task 108 (`K29`) is complete.**
+
+### OQ-212: Card rail (task K35)
+**Confirmed with the stakeholder (Oct 2026):**
+- **The rail owns its whole section** (`kit/cardRail/CardRail.tsx`):
+  `<CardRail title period? as? loading? placeholderClassName?>{cards}`
+  draws the `SectionHeader` (title and period chip, OQ-135), the arrows in
+  its `actions` slot, and the track. The cards' width and look are K36's;
+  the rail only lines them up — a 12px gap, `shrink-0`, snapping to each
+  card's start (`scroll-snap-type: x mandatory`), the mockups' thin
+  scrollbar in `line`. The snap is padded by the fade's width
+  (`scroll-padding-inline-start`), so a snapped card starts clear of the
+  left fade and only the previous card peeks into it (PR #135 review).
+- **Arrows page by the cards' own positions**, so none is skipped (PR #135
+  review — a plain visible-width scroll jumped past the card cut at the
+  edge). Forward brings the first card not wholly clear of the right fade
+  to the left inset; back goes as far as still shows whole the card cut at
+  the left. A card wider than the window still moves on, to its
+  neighbour. Each is disabled at its end; both are gone when every card fits, and below
+  `md` (mockup 34 draws none — the rail is swiped). They are `outline`
+  `sm` `IconButton`s named "Scroll {title} left / right" (translated, in
+  the `cardRail` catalog section). An arrow that reaches its end while
+  focused hands focus to the other one, and arrows that go away (the rail
+  stopped overflowing) while one holds focus hand it to the track, so the
+  keyboard is never dropped to the page. The scroll is smooth only when motion is allowed
+  (`motion-safe:scroll-smooth`).
+- **The edge fade follows the scroll, on both sides** — not the mockups'
+  fixed right-hand overlay. A CSS `mask-image` (so it works on any
+  background, in both themes) fades a side while there is more to see
+  there; a reached end is sharp, and nothing fades when every card fits.
+  The fade reaches `config/constants.ts → cardRail.fadePx` (56px, the
+  mockups'). A second, solid mask layer keeps the bottom 8px (the
+  scrollbar) unfaded.
+- **The edges are re-read whenever the track changes size** — a
+  `ResizeObserver` on the track, not the window's `resize`, so a page
+  scrollbar appearing or a grid narrowing the rail updates the arrows and
+  the fade (PR #135 review); and after every render, for new cards.
+- **The track is a focusable region** named by the title, so a keyboard
+  can scroll it (WCAG 2.1.1). Its keyboard ring is drawn on an unmasked
+  frame around it (`has-[>:focus-visible]`), so the fade never thins the
+  ring (WCAG 2.4.7).
+- **The rail owns its loading state.** `loading` swaps the cards for
+  `cardRail.placeholderCards` (3) `Skeleton` blocks, sized by the
+  caller's `placeholderClassName`, in one `role="status"` `aria-busy`
+  region named "Loading {title}"; no arrows meanwhile.
+- **Not the rail's:** the mobile mockup's full-bleed rail (the track
+  running to the screen edge past the page gutter) is the page's layout,
+  decided with the Experience (X6 / Dashboard).
+
+**Task 109 (`K35`) is complete.**
 
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 

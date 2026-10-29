@@ -782,6 +782,11 @@ const enUS: Catalog = {
     month: 'mm',
     year: 'yyyy',
   },
+  cardRail: {
+    scrollBack: 'Scroll {title} left',
+    scrollForward: 'Scroll {title} right',
+    loading: 'Loading {title}',
+  },
   drawer: {
     close: 'Close',
   },

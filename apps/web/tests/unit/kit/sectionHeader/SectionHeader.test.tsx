@@ -51,4 +51,20 @@ describe('SectionHeader', () => {
     expect(container.firstElementChild!.lastElementChild!.textContent).toBe('Rolar');
     expect(screen.getByRole('button', { name: 'Rolar' })).toBeTruthy();
   });
+
+  it('centres the actions on a one-line header', () => {
+    const { container } = render(
+      <SectionHeader title="Saldos" actions={<button type="button">Rolar</button>} />,
+    );
+
+    expect(container.firstElementChild!.className).toContain('items-center');
+  });
+
+  it('top-aligns the actions beside a title with a description', () => {
+    const { container } = render(
+      <SectionHeader title="Proventos" description="Últimos 12 meses" actions={<p>R$1,00</p>} />,
+    );
+
+    expect(container.firstElementChild!.className).toContain('items-start');
+  });
 });

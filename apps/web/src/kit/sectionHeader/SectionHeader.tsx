@@ -39,7 +39,9 @@ export function SectionHeader({
   title, as: Heading = 'h2', period, hint, description, actions,
 }: SectionHeaderProps) {
   return (
-    <div className="flex items-start justify-between gap-4">
+    // The mockups centre the actions on a one-line header (rails, Members) and
+    // top-align them beside a title with a description under it (Payout).
+    <div className={`flex justify-between gap-4 ${description ? 'items-start' : 'items-center'}`}>
       <div className="min-w-0">
         <Heading className="type-heading-sm">
           {title}

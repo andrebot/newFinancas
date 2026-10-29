@@ -797,6 +797,11 @@ const ptBR = {
     month: 'mm',
     year: 'aaaa',
   },
+  cardRail: {
+    scrollBack: 'Rolar {title} para a esquerda',
+    scrollForward: 'Rolar {title} para a direita',
+    loading: 'Carregando {title}',
+  },
   drawer: {
     close: 'Fechar',
   },

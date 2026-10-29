@@ -164,6 +164,14 @@ export const skeleton = {
   rows: 2,
 } as const;
 
+/** Card rails: balances, budgets and goals on the Dashboard and Transactions (K35, OQ-212). */
+export const cardRail = {
+  /** How far the edge fade reaches into the rail, in px (the mockups' 56px). */
+  fadePx: 56,
+  /** How many placeholder cards stand in while the rail loads. */
+  placeholderCards: 3,
+} as const;
+
 /** Initials avatars: members, profile and the nav drawer (K31, OQ-134). */
 export const avatar = {
   /** The signed-in user's own colour, on every screen. */
