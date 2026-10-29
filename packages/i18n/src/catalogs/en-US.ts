@@ -793,6 +793,12 @@ const enUS: Catalog = {
     'preset.thisYear': 'This year',
     'preset.custom': 'Custom',
   },
+  multiSelect: {
+    all: 'All',
+    clear: 'Clear',
+    done: 'Done',
+    more: '+{count}',
+  },
   cardRail: {
     scrollBack: 'Scroll {title} left',
     scrollForward: 'Scroll {title} right',

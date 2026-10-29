@@ -172,6 +172,12 @@ export const cardRail = {
   placeholderCards: 3,
 } as const;
 
+/** Multi-selects: the payout holdings and the ledger filter's long lists (K12, OQ-214). */
+export const multiSelect = {
+  /** How many chosen names the closed box lists before "+n", as mockup 50 shows. */
+  summaryNames: 3,
+} as const;
+
 /** Initials avatars: members, profile and the nav drawer (K31, OQ-134). */
 export const avatar = {
   /** The signed-in user's own colour, on every screen. */
