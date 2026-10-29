@@ -60,7 +60,7 @@ function AccountCard({ account, editable, onEdit }: AccountCardProps) {
   return (
     <OpenableCard
       name={account.name}
-      nameClassName="block text-base font-semibold"
+      nameClassName="block type-body-lg font-semibold"
       onOpen={editable ? onEdit : undefined}
       className="flex flex-col gap-3"
     >
@@ -153,7 +153,9 @@ export function AccountList({
           <Button variant="primary" leadingIcon="add" onClick={onAdd}>
             {translator.text('accountSetup', 'add')}
           </Button>
-          <span className="text-sm text-muted">{translator.text('accountSetup', 'add.hint')}</span>
+          <span className="type-body text-muted">
+            {translator.text('accountSetup', 'add.hint')}
+          </span>
         </div>
       )}
       {active.length === 0 ? (

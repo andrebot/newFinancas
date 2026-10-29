@@ -62,7 +62,9 @@ function CardsSection({
   const translator = useI18n();
   return (
     <div className="flex flex-col gap-4">
-      <span className="text-sm font-medium">{translator.text('accountSetup', 'cards.title')}</span>
+      <span className="type-body font-medium">
+        {translator.text('accountSetup', 'cards.title')}
+      </span>
       {slots.map((slot, index) => (slot.removed ? null : (
         <div key={slot.id} className="rounded-lg border border-line p-4">
           <AttachedCardFields
@@ -321,7 +323,7 @@ export function EditAccountDrawer({
             value={account.currency}
           />
         </div>
-        <span className="-mt-2 text-xs text-muted">
+        <span className="-mt-2 type-caption text-muted">
           {translator.text('accountSetup', 'lockedNote')}
         </span>
         <VisibilityField

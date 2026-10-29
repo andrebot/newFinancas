@@ -32,8 +32,8 @@ const TONES: Record<AvatarTone, string> = {
 };
 
 const SIZES: Record<AvatarSize, string> = {
-  md: 'size-10 text-sm',
-  lg: 'size-16 text-2xl',
+  md: 'size-10 type-body',
+  lg: 'size-16 type-heading-lg',
 };
 
 /**

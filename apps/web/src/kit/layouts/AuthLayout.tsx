@@ -96,7 +96,7 @@ function ProductPreview({ translator }: { readonly translator: Translator }) {
           ariaLabel={text('preview.goal')}
         />
         <span>
-          <span className="block text-[0.8125rem] font-semibold">{text('preview.goal')}</span>
+          <span className="block type-body-sm font-semibold">{text('preview.goal')}</span>
           <span className={`block ${SMALL_TEXT} text-muted`}>{text('preview.goalProgress')}</span>
         </span>
       </div>

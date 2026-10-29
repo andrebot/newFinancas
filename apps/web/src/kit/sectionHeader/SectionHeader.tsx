@@ -25,7 +25,7 @@ export interface SectionHeaderProps {
 
 const PERIOD = [
   'ml-2 inline-block rounded-full bg-mintdeep px-2.5 py-0.5 align-middle',
-  'font-sans text-xs font-semibold text-mint',
+  'type-caption font-semibold text-mint',
 ].join(' ');
 
 /**
@@ -44,7 +44,7 @@ export function SectionHeader({
         <Heading className="type-heading-sm">
           {title}
           {period && <span className={PERIOD}>{period}</span>}
-          {hint && <span className="ml-1 font-sans text-sm font-medium text-muted">{hint}</span>}
+          {hint && <span className="ml-1 type-body font-medium text-muted">{hint}</span>}
         </Heading>
         {description && <p className="mt-0.5 type-caption text-muted">{description}</p>}
       </div>

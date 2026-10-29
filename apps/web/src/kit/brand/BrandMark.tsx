@@ -15,8 +15,8 @@ export interface BrandMarkProps {
 }
 
 const TILES: Record<BrandMarkSize, string> = {
-  md: 'size-8 rounded-[10px] text-lg',
-  lg: 'size-10 rounded-xl text-[1.375rem]',
+  md: 'size-8 rounded-[10px] type-heading-sm',
+  lg: 'size-10 rounded-xl type-display-xs',
 };
 
 const NAMES: Record<BrandMarkSize, string> = {

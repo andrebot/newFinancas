@@ -197,7 +197,7 @@ export function CreateAccountDrawer({
         />
         {showCards && (
           <div className="flex flex-col gap-4">
-            <span className="text-sm font-medium">
+            <span className="type-body font-medium">
               {translator.text('accountSetup', 'cards.title')}
             </span>
             {cards.map((form, index) => (

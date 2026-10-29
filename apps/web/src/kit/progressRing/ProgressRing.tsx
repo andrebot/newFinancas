@@ -44,8 +44,8 @@ const STROKES: Record<RingTone, string> = {
 };
 
 const SIZES: Record<RingSize, string> = {
-  sm: 'size-13 text-xs',
-  md: 'size-16 text-[0.8125rem]',
+  sm: 'size-13 type-caption',
+  md: 'size-16 type-body-sm',
 };
 
 /** The ring's box: the SVG behind, the label centred on top. */

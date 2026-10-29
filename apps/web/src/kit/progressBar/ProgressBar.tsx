@@ -72,7 +72,7 @@ export const FILL_MOTION = `transition-[width] ${FILL_MOTION_DURATION} ease-out`
 /** The text inside the pill, centred; two copies are laid over each other. */
 export const PILL_LABEL = [
   'absolute inset-0 flex items-center justify-center px-3.5 whitespace-nowrap',
-  'text-xs font-semibold tabular-nums',
+  'type-caption font-semibold tabular-nums',
 ].join(' ');
 
 /**

@@ -77,7 +77,7 @@ export const discClasses = (size: DiscSize, className?: string) => [
  */
 export const chipClasses = (className?: string) => [
   'inline-flex h-7.5 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full',
-  'bg-raised pr-3 pl-1.5 text-[13px] text-ink',
+  'bg-raised pr-3 pl-1.5 type-body-sm text-ink',
   className,
 ].filter(Boolean).join(' ');
 
