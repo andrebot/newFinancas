@@ -12,7 +12,7 @@ import type { SelectEntry } from '../select/options';
 import { triggerClasses } from '../select/Select';
 import { SearchBox, type SelectSearch } from '../select/SelectPanel';
 import {
-  allOptions, applyPreset, chosenNames, everyValue, toggleValue,
+  allOptions, applyPreset, chosenNames, everyValue, groupCounts, knownValues, toggleValue,
 } from './choices';
 import {
   Footer, OptionGroups, Presets, type MultiSelectPreset,
@@ -95,6 +95,8 @@ function ChoiceSummary({
       <span className="shrink-0 font-semibold text-ink tabular-nums">
         {summary(value.length, allOptions(options).length)}
       </span>
+      {/* The flex gap spaces them on screen; this space spaces them when read. */}
+      {listed && ' '}
       {listed && <span className="min-w-0 truncate text-muted">{`· ${listed}`}</span>}
     </span>
   );
@@ -103,6 +105,8 @@ function ChoiceSummary({
 /** The floating panel's props: the running panel, the choice and its moves. */
 interface FloatingPanelProps {
   readonly panel: ReturnType<typeof useMultiSelectPanel<string>>;
+  /** Each group's "n/m", counted over the whole group. */
+  readonly counts: ReadonlyMap<string, string>;
   readonly value: readonly string[];
   readonly presets: readonly MultiSelectPreset<string>[];
   readonly search: SelectSearch | undefined;
@@ -123,7 +127,7 @@ interface FloatingPanelProps {
  * @returns The floating panel.
  */
 function FloatingPanel({
-  panel, value, presets, search, note, label, onToggle, onPreset,
+  panel, counts, value, presets, search, note, label, onToggle, onPreset,
 }: FloatingPanelProps) {
   const searchRef = useRef<HTMLInputElement>(null);
   return (
@@ -148,7 +152,14 @@ function FloatingPanel({
           )}
           <Presets presets={presets} onPreset={onPreset} />
           {panel.sections.length > 0
-            ? <OptionGroups sections={panel.sections} value={value} onToggle={onToggle} />
+            ? (
+              <OptionGroups
+                sections={panel.sections}
+                counts={counts}
+                value={value}
+                onToggle={onToggle}
+              />
+            )
             : <p className="px-1 py-2 type-body-sm text-muted">{search?.noResults}</p>}
           <Footer note={note} onDone={panel.close} />
         </div>
@@ -160,14 +171,15 @@ function FloatingPanel({
 /**
  * Renders a labelled multi-select with an optional hint or error. It holds
  * no choice: the caller passes `value` and gets every change through
- * `onChange`, in display order. The panel's open state and search live in
+ * `onChange`, in display order. Values no option holds are ignored. The
+ * panel's open state and search live in
  * `useMultiSelectPanel`; the moves on the choice are in `choices.ts`.
  *
  * @param props - The options, choice, change handler, texts and settings.
  * @returns The multi-select.
  */
 export function MultiSelect<Value extends string>({
-  options, value, onChange, summary, placeholder, presets = [], search, note,
+  options, value: given, onChange, summary, placeholder, presets = [], search, note,
   disabled, id, className, labelHidden, ...texts
 }: MultiSelectProps<Value>) {
   const generatedId = useId();
@@ -175,6 +187,7 @@ export function MultiSelect<Value extends string>({
   const summaryId = `${controlId}-summary`;
   const aria = fieldAria(controlId, texts);
   const panel = useMultiSelectPanel(options);
+  const value = knownValues(options, given);
   const toggle = (option: string, checked: boolean) => (
     onChange(toggleValue(options, value, option as Value, checked))
   );
@@ -213,6 +226,7 @@ export function MultiSelect<Value extends string>({
       {panel.open && (
         <FloatingPanel
           panel={panel}
+          counts={groupCounts(options, value)}
           value={value}
           presets={presets}
           search={search}

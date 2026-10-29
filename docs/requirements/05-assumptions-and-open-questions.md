@@ -5828,10 +5828,14 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
   opt-in search (case and accents ignored; a group whose heading matches
   keeps all its options). The value is the chosen values, always
   reported **in display order**, whatever order they were ticked in.
+  Values no option holds (a sold holding still in the caller's choice)
+  are ignored: never counted, listed or reported back (PR #137 review).
 - **Live:** every tick and preset reaches `onChange` at once, so the chart
   behind updates as you pick. **Done**, Esc, a click outside or tabbing
-  away only close the panel, and focus returns to the trigger. Focus goes
-  to the search box on open, else to the first preset.
+  away only close the panel. After Done, Esc or a click outside, focus
+  returns to the trigger; after tabbing away it stays where Tab put it
+  (PR #137 review). Focus goes to the search box on open, else to the
+  first preset.
 - **Presets are buttons:** **All**, then the caller's `{label, values}`,
   then **Clear**. Each one *replaces* the choice and ignores the search.
   Disabled options never change, whether by a tick, a preset or Clear.
@@ -5839,7 +5843,9 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
   count (`summary(chosen, total)`, so the caller's noun is translated:
   "7 of 12 holdings"), and in muted the first chosen names in display
   order with "+n" for the rest ("· XPML11, KNRI11, HGLG11 +4").
-  `multiSelect.summaryNames: 3` sits in `config/constants.ts`. With
+  `multiSelect.summaryNames: 3` sits in `config/constants.ts`. A space,
+  not only the flex gap, separates the count from "·", so it is read as
+  "7 of 12 holdings · XPML11…" (PR #137 review). With
   nothing chosen, it shows the `placeholder` when one is given. The
   label names the button over its text, so the summary *describes* it
   (`aria-describedby`, before the hint or error).
@@ -5847,10 +5853,15 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
   the search, then the presets (small `opt` chips, Clear muted), then
   the groups as columns (as many 12rem columns as fit, scrolling inside
   past 288px), then a footer. Each group heading is `type-label` with
-  its "n/m" count. Loose options form a group with no heading. An
-  unticked row's label is muted, a ticked one ink. The caller draws the
-  swatch and the amount in the slots (Amount K29, tone `inflow`). A
-  disabled row shows its reason under the label.
+  its "n/m" count, which also describes the group (`aria-describedby`).
+  The count is over the **whole group**, so a search narrowing the rows
+  doesn't change it (PR #137 review). Loose options sit in a plain
+  column, with no heading and no group role. An unticked row's label is
+  muted, a ticked one ink. The caller draws the swatch and the amount in
+  the slots (Amount K29, tone `inflow`); a mark like "—" for no payout
+  is the caller's to hide from screen readers. A disabled row shows its
+  reason under the label, **in place of** its description: the Checkbox
+  has one description line, and nothing yet needs both.
 - **The footer** holds the caller's optional `note` (the chart's "the 5
   largest keep their colour…") and Done, a small primary button. The
   mockup's faint note becomes **muted**, since OQ-210 forbids `faint`

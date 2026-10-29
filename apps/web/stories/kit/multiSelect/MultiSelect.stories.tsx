@@ -47,7 +47,7 @@ function Swatch({ color }: { readonly color: string }) {
 
 /**
  * Builds a holding option: its swatch before the ticker, this month's payout
- * after it (a muted "—" when none).
+ * after it (a muted "—" when none, hidden from screen readers).
  *
  * @param value - The holding's ticker, as its id too.
  * @param color - The holding's chart colour.
@@ -60,7 +60,7 @@ const holding = (value: string, color: string, cents: number) => ({
   leading: <Swatch color={color} />,
   trailing: cents > 0 ? (
     <Amount amount={cents} currency="BRL" tone="inflow" sign="auto" />
-  ) : <span>—</span>,
+  ) : <span aria-hidden>—</span>,
 });
 
 const holdings: readonly SelectEntry<string>[] = [

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  allOptions, applyPreset, chosenNames, countChosen, everyValue, toggleValue,
+  allOptions, applyPreset, chosenNames, everyValue, groupCounts, knownValues, toggleValue,
 } from '../../../../src/kit/multiSelect/choices';
 import type { SelectEntry } from '../../../../src/kit/select/options';
 
@@ -78,9 +78,15 @@ describe('chosenNames', () => {
   });
 });
 
-describe('countChosen', () => {
-  it('counts the chosen options of one section', () => {
-    const section = { label: 'FIIs', options: allOptions(holdings).slice(1, 3) };
-    expect(countChosen(section, ['xpml', 'vale'])).toBe(1);
+describe('knownValues', () => {
+  it('keeps the values an option holds, in display order', () => {
+    expect(knownValues(holdings, ['vale', 'gone' as Holding, 'cash'])).toEqual(['cash', 'vale']);
+  });
+});
+
+describe('groupCounts', () => {
+  it('gives each group its chosen and total count, leaving loose options out', () => {
+    expect([...groupCounts(holdings, ['xpml', 'cash', 'cdb'])])
+      .toEqual([['FIIs', '1/2'], ['Stocks', '1/2']]);
   });
 });

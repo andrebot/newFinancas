@@ -37,6 +37,19 @@ const inDisplayOrder = <Value extends string>(
 ) => options.filter((option) => chosen.has(option.value)).map((option) => option.value);
 
 /**
+ * Keeps the values some option holds, in display order, so a stale id (a
+ * sold holding still in the caller's choice) is neither counted nor listed.
+ *
+ * @param entries - The caller's list.
+ * @param value - The caller's choice.
+ * @returns The choice the multi-select shows, in display order.
+ */
+export const knownValues = <Value extends string>(
+  entries: readonly SelectEntry<Value>[],
+  value: readonly Value[],
+) => inDisplayOrder(allOptions(entries), new Set(value));
+
+/**
  * Ticks or unticks one option.
  *
  * @param entries - The caller's list.
@@ -115,13 +128,20 @@ export const chosenNames = <Value extends string>(
 };
 
 /**
- * Counts how many of a section's options are chosen, for its "n/m" heading.
+ * Counts, per group heading, how many of the group's options are chosen and
+ * how many it has, for its "n/m" heading. It counts the whole group, so a
+ * search narrowing the rows doesn't change the count.
  *
- * @param section - The section drawn.
+ * @param entries - The caller's list.
  * @param value - The current choice.
- * @returns The count chosen.
+ * @returns The "n/m" text of each group, by heading.
  */
-export const countChosen = <Value extends string>(
-  section: SelectSection<Value>,
+export const groupCounts = <Value extends string>(
+  entries: readonly SelectEntry<Value>[],
   value: readonly Value[],
-) => section.options.filter((option) => value.includes(option.value)).length;
+): ReadonlyMap<string, string> => new Map(toSections(entries)
+  .filter((section) => section.label !== undefined)
+  .map((section: SelectSection<Value>) => {
+    const chosen = section.options.filter((option) => value.includes(option.value));
+    return [section.label!, `${chosen.length}/${section.options.length}`];
+  }));

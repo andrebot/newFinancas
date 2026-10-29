@@ -4,7 +4,6 @@ import { Button } from '../button/Button';
 import { Checkbox } from '../checkbox/Checkbox';
 import type { SelectOption, SelectSection } from '../select/options';
 import { OptionSlot } from '../select/SelectPanel';
-import { countChosen } from './choices';
 
 // What the multi-select's floating panel draws (K12, OQ-214), below its
 // search box: the preset buttons, the options as checkboxes in groups laid
@@ -30,6 +29,8 @@ interface PresetsProps {
 /** The groups' props: what is drawn, the choice and how a tick reaches it. */
 export interface OptionGroupsProps {
   readonly sections: readonly SelectSection<string>[];
+  /** Each group's "n/m", by heading, counted over the whole group. */
+  readonly counts: ReadonlyMap<string, string>;
   readonly value: readonly string[];
   readonly onToggle: (option: string, checked: boolean) => void;
 }
@@ -115,32 +116,38 @@ function RowLabel({ option, checked }: {
 }
 
 /** One group's props: its options, the choice and the tick handler. */
-interface OptionGroupProps extends Omit<OptionGroupsProps, 'sections'> {
+interface OptionGroupProps extends Omit<OptionGroupsProps, 'sections' | 'counts'> {
   readonly section: SelectSection<string>;
+  /** The group's "n/m"; absent for the loose options. */
+  readonly count?: string | undefined;
 }
 
 /**
  * Renders one group: its heading with how many of its options are chosen
- * ("5/6"), then a checkbox per option. A disabled option says why under its
- * label. Loose options form a group with no heading.
+ * ("5/6", which also describes the group), then a checkbox per option. A
+ * disabled option's reason takes its description's place under the label.
+ * Loose options sit in a plain column, with no heading and no group role.
  *
- * @param props - The section, the choice and the tick handler.
+ * @param props - The section, its count, the choice and the tick handler.
  * @returns The group.
  */
-function OptionGroup({ section, value, onToggle }: OptionGroupProps) {
+function OptionGroup({
+  section, count, value, onToggle,
+}: OptionGroupProps) {
   const headingId = useId();
   const named = section.label !== undefined;
   return (
     <div
-      role="group"
+      role={named ? 'group' : undefined}
       aria-labelledby={named ? headingId : undefined}
+      aria-describedby={named ? `${headingId}-count` : undefined}
       className="flex min-w-0 flex-col gap-2"
     >
       {named && (
         <div className="flex items-center justify-between gap-2 px-1">
           <span id={headingId} className="type-label text-muted">{section.label}</span>
-          <span className="type-caption text-muted tabular-nums">
-            {`${countChosen(section, value)}/${section.options.length}`}
+          <span id={`${headingId}-count`} className="type-caption text-muted tabular-nums">
+            {count}
           </span>
         </div>
       )}
@@ -165,10 +172,12 @@ function OptionGroup({ section, value, onToggle }: OptionGroupProps) {
  * Renders the groups side by side, as many columns as fit, scrolling inside
  * the panel past 288px.
  *
- * @param props - The sections drawn, the choice and the tick handler.
+ * @param props - The sections drawn, their counts, the choice and the tick handler.
  * @returns The groups.
  */
-export function OptionGroups({ sections, value, onToggle }: OptionGroupsProps) {
+export function OptionGroups({
+  sections, counts, value, onToggle,
+}: OptionGroupsProps) {
   return (
     <div className={GROUPS}>
       {sections.map((section, index) => (
@@ -176,6 +185,7 @@ export function OptionGroups({ sections, value, onToggle }: OptionGroupsProps) {
           // Sections have no id; a heading is unique within one multi-select.
           key={section.label ?? `loose-${index}`}
           section={section}
+          count={section.label === undefined ? undefined : counts.get(section.label)}
           value={value}
           onToggle={onToggle}
         />

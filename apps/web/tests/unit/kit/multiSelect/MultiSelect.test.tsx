@@ -122,7 +122,12 @@ describe('MultiSelect', () => {
     expect(trigger().getAttribute('aria-expanded')).toBe('false');
     expect(screen.queryByRole('dialog')).toBeNull();
     const summary = document.getElementById(trigger().getAttribute('aria-describedby')!)!;
-    expect(summary.textContent).toBe('5 of 7 holdings· XPML11, KNRI11, HGLG11 +2');
+    expect(summary.textContent).toBe('5 of 7 holdings · XPML11, KNRI11, HGLG11 +2');
+  });
+
+  it('ignores chosen values no option holds', () => {
+    renderHolder({ value: ['vale', 'sold' as Holding] });
+    expect(trigger().textContent).toBe('1 of 7 holdings · VALE3');
   });
 
   it('lists no names while nothing is chosen', () => {
@@ -147,8 +152,10 @@ describe('MultiSelect', () => {
     expect(box(/KNRI11/).checked).toBe(false);
     expect(screen.getByText('R$84,10')).toBeDefined();
     expect(screen.getByText('Monthly payer')).toBeDefined();
-    // The loose option forms a group with no heading.
-    expect(within(panel()).getAllByRole('group')).toHaveLength(3);
+    // The group is described by its count; the loose option sits in no group.
+    expect(within(panel()).getByRole('group', { name: 'FIIs', description: '1/4' }))
+      .toBeDefined();
+    expect(within(panel()).getAllByRole('group')).toHaveLength(2);
   });
 
   it('mutes an unticked row’s label', async () => {
@@ -208,20 +215,47 @@ describe('MultiSelect', () => {
     await waitFor(() => expect(document.activeElement).toBe(trigger()));
   });
 
-  it('closes on Esc and on a click outside', async () => {
+  it('closes on Esc and gives focus back to the trigger', async () => {
     renderHolder();
     await togglePanel();
+    await waitFor(() => expect(document.activeElement?.textContent).toBe('All'));
     await act(async () => {
       fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
     });
-    expect(screen.queryByRole('dialog')).toBeNull();
 
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await waitFor(() => expect(document.activeElement).toBe(trigger()));
+  });
+
+  it('closes on a click outside and gives focus back to the trigger', async () => {
+    renderHolder();
     await togglePanel();
+    await waitFor(() => expect(document.activeElement?.textContent).toBe('All'));
     await act(async () => {
       fireEvent.pointerDown(screen.getByText('Outside'));
       fireEvent.mouseDown(screen.getByText('Outside'));
     });
+
     expect(screen.queryByRole('dialog')).toBeNull();
+    await waitFor(() => expect(document.activeElement).toBe(trigger()));
+  });
+
+  it('closes when focus leaves it, leaving focus where it went', async () => {
+    renderHolder({ hint: 'Shown on the chart' });
+    await togglePanel();
+    await waitFor(() => expect(document.activeElement?.textContent).toBe('All'));
+    const elsewhere = document.createElement('button');
+    document.body.append(elsewhere);
+
+    // Tab moves focus out of the panel to a control after it.
+    await act(async () => {
+      fireEvent.focusOut(document.activeElement!, { relatedTarget: elsewhere });
+      elsewhere.focus();
+    });
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(document.activeElement).toBe(elsewhere);
+    elsewhere.remove();
   });
 
   it('shows the note beside Done', async () => {
@@ -238,6 +272,8 @@ describe('MultiSelect', () => {
     await waitFor(() => expect(document.activeElement).toBe(searchBox));
     fireEvent.change(searchBox, { target: { value: 'vale' } });
     expect(screen.getAllByRole('checkbox')).toHaveLength(1);
+    // The heading still counts the whole group.
+    expect(within(panel()).getByText('0/2')).toBeDefined();
 
     fireEvent.change(searchBox, { target: { value: 'tesouro' } });
     expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
@@ -247,6 +283,18 @@ describe('MultiSelect', () => {
     await togglePanel();
     expect(screen.getByRole<HTMLInputElement>('searchbox').value).toBe('');
     expect(screen.getAllByRole('checkbox')).toHaveLength(7);
+  });
+
+  it('applies presets to the whole list while the search narrows it', async () => {
+    const onChange = renderHolder({
+      search: { label: 'Search holdings', noResults: 'No holdings found' },
+    });
+    await togglePanel();
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'vale' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'All' }));
+
+    expect(onChange).toHaveBeenLastCalledWith(['xpml', 'knri', 'hglg', 'mxrf', 'vale', 'itsa']);
   });
 
   it('ties the hint to the trigger after the summary', () => {
