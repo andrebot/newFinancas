@@ -804,6 +804,16 @@ const enUS: Catalog = {
     scrollForward: 'Scroll {title} right',
     loading: 'Loading {title}',
   },
+  railCard: {
+    outstanding: 'Outstanding',
+    of: '/ {amount}',
+    'budget.left': '{amount} left',
+    'budget.over': 'Over by {amount}',
+    'goal.toGo': '{amount} to go',
+    'goal.reached': 'Goal reached',
+    'goal.unfunded': 'Not funded yet',
+    'goal.needsRate': 'Other currencies need a rate',
+  },
   drawer: {
     close: 'Close',
   },

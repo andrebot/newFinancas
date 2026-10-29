@@ -172,6 +172,12 @@ export const cardRail = {
   placeholderCards: 3,
 } as const;
 
+/** Rail cards: the balance, budget and goal cards on the card rails (K36, OQ-215). */
+export const railCard = {
+  /** From what share of its target, in whole percent, a budget reads as near its limit (sun). */
+  budgetNearPercent: 75,
+} as const;
+
 /** Multi-selects: the payout holdings and the ledger filter's long lists (K12, OQ-214). */
 export const multiSelect = {
   /** How many chosen names the closed box lists before "+n", as mockup 50 shows. */

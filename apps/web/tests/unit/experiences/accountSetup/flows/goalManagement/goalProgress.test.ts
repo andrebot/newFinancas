@@ -116,7 +116,7 @@ describe('progressOf', () => {
   it('blends a mixed goal into an estimate once its rate is typed (mockup 43)', () => {
     expect(progressOf(goal(), { 'USD/BRL': 52000 })).toMatchObject({
       funded: 365508,
-      percent: 61,
+      percent: 60,
       toGo: 234492,
       mixed: true,
       estimate: true,
@@ -156,7 +156,7 @@ describe('progressOf', () => {
       ],
     });
     expect(progressOf(house, {})).toMatchObject({
-      funded: 8500000, percent: 57, toGo: 6500000, mixed: false, estimate: false,
+      funded: 8500000, percent: 56, toGo: 6500000, mixed: false, estimate: false,
     });
   });
 
@@ -170,7 +170,7 @@ describe('progressOf', () => {
     const over = goal({
       fundedBy: [funder('aapl', 'AAPL', 10, { currency: 'USD', amount: 700000 })],
     });
-    expect(progressOf(over, {})).toMatchObject({ percent: 117, toGo: 0 });
+    expect(progressOf(over, {})).toMatchObject({ percent: 116, toGo: 0 });
   });
 });
 

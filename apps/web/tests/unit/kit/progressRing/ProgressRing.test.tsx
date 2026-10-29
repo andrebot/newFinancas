@@ -123,6 +123,12 @@ describe('ProgressRing', () => {
     expect(ring.querySelector('span')).toBeNull();
   });
 
+  it('draws the rail size small on a phone, medium from md', () => {
+    render(<ProgressRing value={57} label="57%" size="rail" ariaLabel="House" />);
+    expect(screen.getByRole('progressbar', { name: 'House' }).className)
+      .toBe(`${RING_FRAME} size-13 type-caption md:size-16 md:type-body-sm`);
+  });
+
   it('draws the other tones and the small size', () => {
     render(<ProgressRing value={48} label="48%" tone="mint" size="sm" ariaLabel="Fun Money" />);
     const ring = ringNamed('Fun Money');

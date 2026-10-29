@@ -3,6 +3,7 @@ import {
   FILL_MOTION_DURATION,
   clampPercent,
   progressAttributes,
+  wholePercent,
 } from '../../../../src/kit/progress/progress';
 
 // Kit utility (BDT: Utility → unit, nothing mocked): pure helpers.
@@ -42,5 +43,17 @@ describe('progressAttributes', () => {
 describe('FILL_MOTION_DURATION', () => {
   it('stays within the design system’s 150–250ms', () => {
     expect(FILL_MOTION_DURATION).toBe('duration-200');
+  });
+});
+
+describe('wholePercent', () => {
+  it('rounds down, so a share just short of the whole never reads 100%', () => {
+    expect(wholePercent(997, 1000)).toBe(99);
+    expect(wholePercent(4250, 4000)).toBe(106);
+  });
+
+  it('is 0 below zero and against a target of zero or less', () => {
+    expect(wholePercent(-2000, 40000)).toBe(0);
+    expect(wholePercent(500, 0)).toBe(0);
   });
 });

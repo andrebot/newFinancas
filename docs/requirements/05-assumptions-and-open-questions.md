@@ -5603,7 +5603,8 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
 - **One `<ProgressRing>`** (`kit/progressRing/ProgressRing.tsx`): the
   mockups' `.ring`, a budget's or a goal's percent in a ring on the rail
   cards (pages 20–24). `md` (64px, default) for the rail cards, `sm`
-  (52px) for the auth panel's preview.
+  (52px) for the auth panel's preview. *Amended by OQ-215:* the rail
+  cards use `rail` (`sm` on a phone, as mockup 34, and `md` from `md`).
 - **Drawn in SVG, not the mockups' conic gradient.** Two circles with
   `pathLength` 100, the fill swept from the top, clockwise. The hole is
   see-through, so the ring works on any surface (the gradient painted it
@@ -5875,6 +5876,80 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
   K12 is their fallback when a list grows, as K11 is for single picks.
 
 **Task 111 (`K12`) is complete.**
+
+### OQ-215: Rail cards (task K36)
+**Confirmed with the stakeholder (Oct 2026):**
+- **Three cards in `kit/railCard/`**, each laid out by the card rail
+  (K35, OQ-212): `<BalanceRailCard name icon color amount currency
+  outstanding?>`, `<BudgetRailCard name spend target currency>` and
+  `<GoalRailCard name funded target currency needsRate?>`. They only
+  display: they don't open anything, as on the mockups. The caller
+  formats the name (a card's "Visa •••• 1111"); the cards translate their
+  own lines (a `railCard` catalog section in both locales) and write money
+  through `<Amount>` / `formatMoney` (K29).
+- **Fixed widths, narrower on a phone:** a balance card 150px, 196px from
+  `md`; a ring card 230px, 272px from `md` (mockups 34 and 30). Both use
+  the card surface's border and colour with `rounded-card`.
+  `RAIL_CARD_PLACEHOLDERS.balance` / `.ring` are the sizes a rail's
+  `placeholderClassName` takes while it loads. **On a phone, mockup 34's
+  sizes** (PR #138 review): the ring is 52px (K32's new `rail` size —
+  `sm`, then `md` from `md`, amending OQ-209's "md for the rail cards"),
+  the icon disc 24px (28px from `md`), the "Outstanding" caption
+  `type-micro`. The status line stays 12px (`type-caption`) where the
+  mockup draws 11px: no 11px text style exists outside the uppercase
+  `type-label`. The balance keeps `type-display-xs`' 800 weight, as every
+  display figure does, where the mockup draws 700.
+- **Only the name is ever cut off** (PR #138 review). The text column
+  beside a ring is 160px wide (124px on a phone), so "R$ 85.000,00 /
+  R$ 150.000,00", a pt-BR "Excedido em R$ 250,00" or the rate note don't
+  fit on one line. The target moves to its own line when needed, and the
+  status line wraps to at most two. A balance too wide for its card
+  (R$ 100.000 and up on a phone) is cut off with an ellipsis instead of
+  spilling into the next card, and its tooltip holds the whole figure.
+- **Balance card:** the name in muted, beside a 28px disc with the icon on
+  a tint of its palette colour (K50's `discStyle`), then the amount,
+  plain (a balance is not money in or out). A credit card's outstanding
+  has the "Outstanding" caption over it (`type-label`). Which icon and
+  colour stand for which account is the caller's choice (FL17 / FL21).
+- **Budget card:** the ring (K32), the name, "spent / target" (the target
+  muted) and a status line. The card picks the tone (OQ-209): **mint**,
+  then **sun from 75%** of the target (`config/constants.ts →
+  railCard.budgetNearPercent`), and **coral only once spend is above the
+  target**. A budget spent exactly to its target is sun and reads
+  "Restam R$ 0,00" / "$0.00 left", not over. Over the target, the line reads "Over by …" in coral with a
+  warning glyph, and the card is ringed in coral, as on the mockups.
+  When refunds outweigh spend (OQ-201), the card shows that negative
+  spend, the ring reads 0%, and what is left exceeds the target.
+- **Percents are whole and rounded down**, so 99.7% never reads 100%.
+  They are not held to 100: the ring holds its fill (OQ-209), and the
+  label reads e.g. 106%. The rule is `wholePercent` in
+  `kit/progress/progress.ts`, and **the Goals page uses it too** (PR #138
+  review), so a Goal reads the same percent on both pages. The Goals
+  page used to round to the nearest whole, so some of its figures drop
+  by one: mockup 43's trip reads 60%, not 61%. Mockup 30's 57% for
+  R$ 85.000 of R$ 150.000 reads 56%.
+- **Goal card:** a sky ring, the name, "funded / target" in the Goal's
+  own currency, and "… to go". At or past the target, the line reads
+  "Goal reached" in mint with a check. **A Goal no Holding funds** reads
+  "Not funded yet" in muted italics, with no figures. The caller says so
+  (`unfunded`); it isn't inferred from a 0, so a Holding with no value
+  yet still shows "$0.00 / …", as on the Goals page (PR #138 review). That is `muted`, not
+  the mockups' `faint` (OQ-210). **When other currencies fund it too
+  (OQ-201)**, the "to go" line becomes an info glyph and "Other
+  currencies need a rate", because "to go" can't be told without them;
+  the rate stays on the Goals page (FR-9). A reached Goal still reads
+  "Goal reached" in that case.
+- **One reading of a Goal's funding for every page**
+  (`experiences/goalFunding.ts → ownFundingOf`, PR #138 review). It
+  takes the read's `GoalWithProgress` and returns the own-currency
+  `funded` plus the `unfunded` and `needsRate` flags. This is what the
+  card takes, and the Goals page's `progressOf` builds on it. It sits
+  beside `setupRequests.ts`, owned by no Experience, so Manage Finances
+  and the Dashboard don't reach into Account Setup's Flow for it.
+- **pt-BR:** an unfunded Goal reads "Ainda sem aportes" (here and on the
+  Goals page), not "financiamento", which reads as a loan.
+
+**Task 112 (`K36`) is complete.**
 
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
