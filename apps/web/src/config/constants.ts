@@ -64,6 +64,8 @@ export const formatting = {
     dayMonth: { day: 'numeric', month: 'short' },
     /** setembro de 2026 · September 2026 — month headers. */
     monthYear: { month: 'long', year: 'numeric' },
+    /** set. · Sep — the period bar's months. */
+    monthShort: { month: 'short' },
     /** seg., 7 de set. · Mon, Sep 7 — ledger day headers. */
     weekdayDayMonth: { weekday: 'short', day: 'numeric', month: 'short' },
   },

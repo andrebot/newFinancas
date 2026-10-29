@@ -29,6 +29,11 @@ type StoryModule = { default: Meta } & Record<string, unknown>;
 // decorators, so they'd render without StoryFrame.
 setProjectAnnotations(preview);
 
+// jsdom can't scroll an element (nothing overflows without layout); the
+// period bar centres its selected month on mount. Only here: elsewhere a
+// stray `scrollTo` should still fail.
+Element.prototype.scrollTo ??= () => {};
+
 const modules = import.meta.glob<StoryModule>('../../../stories/**/*.stories.tsx', {
   eager: true,
 });

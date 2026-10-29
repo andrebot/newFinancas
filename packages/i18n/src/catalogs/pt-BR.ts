@@ -829,6 +829,15 @@ const ptBR = {
     'goal.unfunded': 'Ainda sem aportes',
     'goal.needsRate': 'Outras moedas precisam de cotação',
   },
+  periodBar: {
+    label: 'Período',
+    previousYear: 'Ano anterior',
+    nextYear: 'Próximo ano',
+    previousMonth: 'Mês anterior',
+    nextMonth: 'Próximo mês',
+    months: 'Meses de {year}',
+    figures: '{year}: entradas {in}, saídas {out}',
+  },
   drawer: {
     close: 'Fechar',
   },

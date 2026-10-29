@@ -814,6 +814,15 @@ const enUS: Catalog = {
     'goal.unfunded': 'Not funded yet',
     'goal.needsRate': 'Other currencies need a rate',
   },
+  periodBar: {
+    label: 'Period',
+    previousYear: 'Previous year',
+    nextYear: 'Next year',
+    previousMonth: 'Previous month',
+    nextMonth: 'Next month',
+    months: 'Months of {year}',
+    figures: '{year}: in {in}, out {out}',
+  },
   drawer: {
     close: 'Close',
   },

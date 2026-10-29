@@ -93,6 +93,8 @@ describe('formatDate', () => {
     expect(formatDate('2026-09-07', 'en-US', 'monthYear')).toBe('September 2026');
     expect(formatDate('2026-09-07', 'pt-BR', 'monthYear')).toBe('setembro de 2026');
     expect(formatDate('2026-09-07', 'en-US', 'weekdayDayMonth')).toBe('Mon, Sep 7');
+    expect(formatDate('2026-09-07', 'en-US', 'monthShort')).toBe('Sep');
+    expect(formatDate('2026-09-07', 'pt-BR', 'monthShort')).toBe('set.');
   });
 
   it('returns the input when it isn’t a date', () => {
