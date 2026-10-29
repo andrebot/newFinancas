@@ -71,7 +71,7 @@ export const stepState = (index: number, current: number): StepState => {
  * @returns The dot's classes.
  */
 export const dotClasses = (state: StepState) => (
-  `grid size-8 shrink-0 place-items-center rounded-full text-[13px] font-bold ${DOTS[state]}`
+  `grid size-8 shrink-0 place-items-center rounded-full type-body-sm font-bold ${DOTS[state]}`
 );
 
 /**

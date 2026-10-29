@@ -29,7 +29,7 @@ const SUB_ARCHIVE_CLASS = [
 /** The dashed pill that opens the inline field (mockup 41's `.addsub`). */
 const ADD_SUB_PILL_CLASS = [
   'inline-flex h-[30px] cursor-pointer items-center gap-1 rounded-full border border-dashed',
-  'border-line px-3 text-[13px] text-muted hover:border-mint/50 hover:text-mint',
+  'border-line px-3 type-body-sm text-muted hover:border-mint/50 hover:text-mint',
   'disabled:cursor-default disabled:opacity-40',
 ].join(' ');
 
@@ -141,7 +141,7 @@ function SubcategoryEntry({ liveCount, busy, onAdd }: SubcategoryEntryProps) {
         aria-busy={busy}
         onChange={(event) => setSubName(event.target.value)}
         onKeyDown={onKeyDown}
-        className="w-36 bg-transparent text-[13px] outline-none"
+        className="w-36 bg-transparent type-body-sm outline-none"
       />
       <button
         type="button"
@@ -250,7 +250,7 @@ export function CategoryCard({
           const label = translator.text('categoryManagement', 'sub.archive', { name: sub.name });
           return (
             <span key={sub.id} className="flex items-center gap-1">
-              <span className="rounded-full bg-card px-3 py-1 text-[13px]">{sub.name}</span>
+              <span className="rounded-full bg-card px-3 py-1 type-body-sm">{sub.name}</span>
               {canManage && (
                 <button
                   type="button"
