@@ -272,6 +272,26 @@ describe('NumberInput', () => {
       expect(input.className).toContain('border-coral');
     });
 
+    it('turns coral when the caller marks it invalid and writes the error elsewhere', () => {
+      renderInLocale(
+        <NumberInput
+          label="Taxa"
+          kind="percent"
+          size="compact"
+          value={null}
+          onChange={vi.fn()}
+          aria-invalid
+          aria-describedby="erro"
+        />,
+        'pt-BR',
+      );
+
+      const input = numberBox();
+      expect(input.getAttribute('aria-invalid')).toBe('true');
+      expect(input.getAttribute('aria-describedby')).toBe('erro');
+      expect(input.className).toContain('border-coral');
+    });
+
     it('takes typing like the field, with no suffix for a quantity', () => {
       const onChange = renderHolder({ kind: 'quantity', size: 'compact' });
 
