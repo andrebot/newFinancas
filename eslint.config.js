@@ -9,6 +9,10 @@ const NODE_FILES = [
 const STORY_FILES = ['apps/web/stories/**', 'apps/web/.storybook/**'];
 const DEV_ONLY_FILES = ['**/tests/**', '**/*.config.{js,ts}', ...STORY_FILES];
 const NO_CLASSES = 'Purely functional codebase — no classes (NFR-MAINT-1).';
+// Tailwind's default font sizes, which typography.css removes (OQ-125).
+const DEAD_TEXT_SIZE = String.raw`/(^|[\s:])text-(xs|sm|base|lg|[2-9]?xl)(\s|$)/`;
+const USE_TYPE_ROLES = "Tailwind's size scale is removed (OQ-125): "
+  + 'size text with a type-* role (type-body, type-caption, …).';
 
 /**
  * Scopes every entry of a flat-config list to the given file globs.
@@ -170,6 +174,24 @@ export default [
         'error',
         { selector: 'ClassDeclaration', message: NO_CLASSES },
         { selector: 'ClassExpression', message: NO_CLASSES },
+      ],
+    },
+  },
+
+  // Typography (OQ-125): typography.css removes Tailwind's size scale, so
+  // `text-sm` and friends generate no CSS — and Tailwind says nothing. The
+  // web app's sources and stories size text through the `type-*` roles.
+  // Repeats the class selectors: a later `no-restricted-syntax` replaces them.
+  {
+    name: 'project/type-roles',
+    files: ['apps/web/src/**/*.{ts,tsx}', 'apps/web/stories/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        { selector: 'ClassDeclaration', message: NO_CLASSES },
+        { selector: 'ClassExpression', message: NO_CLASSES },
+        { selector: `Literal[value=${DEAD_TEXT_SIZE}]`, message: USE_TYPE_ROLES },
+        { selector: `TemplateElement[value.raw=${DEAD_TEXT_SIZE}]`, message: USE_TYPE_ROLES },
       ],
     },
   },

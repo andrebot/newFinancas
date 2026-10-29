@@ -194,7 +194,7 @@ export const ComingDue: Story = {
         leading={(
           <div className="flex w-12 flex-col items-center rounded-xl bg-sun/10 py-1 text-sun">
             <span className="type-micro">Dec</span>
-            <span className="font-display text-lg leading-5 font-extrabold">15</span>
+            <span className="type-heading-sm leading-5 font-extrabold">15</span>
           </div>
         )}
         title="Used Car Savings CD"

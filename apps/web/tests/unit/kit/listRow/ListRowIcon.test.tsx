@@ -19,8 +19,8 @@ describe('listRowIconClasses', () => {
   });
 
   it('sizes the circle and glyph: 40px for rows, 36px for dense lists', () => {
-    expect(listRowIconClasses('neutral', 'md')).toContain('size-10 text-xl');
-    expect(listRowIconClasses('neutral', 'sm')).toContain('size-9 text-lg');
+    expect(listRowIconClasses('neutral', 'md')).toContain('size-10 type-heading-md');
+    expect(listRowIconClasses('neutral', 'sm')).toContain('size-9 type-heading-sm');
   });
 });
 

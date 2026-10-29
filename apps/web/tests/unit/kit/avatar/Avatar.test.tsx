@@ -58,8 +58,8 @@ describe('avatarClasses', () => {
   });
 
   it('sizes the circle as the mockups do', () => {
-    expect(avatarClasses('mint', 'md')).toContain('size-10 text-sm');
-    expect(avatarClasses('mint', 'lg')).toContain('size-16 text-2xl');
+    expect(avatarClasses('mint', 'md')).toContain('size-10 type-body');
+    expect(avatarClasses('mint', 'lg')).toContain('size-16 type-heading-lg');
   });
 
   it('appends the caller’s classes', () => {

@@ -65,9 +65,9 @@ describe('dotClasses', () => {
 
 describe('labelClasses', () => {
   it('writes the current label in ink, a done one muted and the next ones muted too', () => {
-    expect(labelClasses('current')).toBe('text-sm font-semibold text-ink');
-    expect(labelClasses('done')).toBe('text-sm font-semibold text-muted');
-    expect(labelClasses('next')).toBe('text-sm font-semibold text-muted');
+    expect(labelClasses('current')).toBe('type-body font-semibold text-ink');
+    expect(labelClasses('done')).toBe('type-body font-semibold text-muted');
+    expect(labelClasses('next')).toBe('type-body font-semibold text-muted');
   });
 });
 
@@ -117,8 +117,9 @@ describe('Stepper', () => {
 
   it('shows the hints it is given', () => {
     renderStepper();
-    expect(screen.getByText('Where your money lives').className).toContain('text-xs text-muted');
-    expect(stepItems()[2]?.querySelectorAll('.text-xs')).toHaveLength(0);
+    expect(screen.getByText('Where your money lives').className)
+      .toContain('type-caption text-muted');
+    expect(stepItems()[2]?.querySelectorAll('.type-caption')).toHaveLength(0);
   });
 
   it('keeps the step text for screen readers only below lg', () => {

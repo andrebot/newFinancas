@@ -80,7 +80,7 @@ export const dotClasses = (state: StepState) => (
  * @param state - Where the step stands.
  * @returns The label's classes.
  */
-export const labelClasses = (state: StepState) => `text-sm font-semibold ${LABELS[state]}`;
+export const labelClasses = (state: StepState) => `type-body font-semibold ${LABELS[state]}`;
 
 /**
  * Builds the classes of the connector after a step: across between the dots
@@ -127,7 +127,7 @@ function StepItem({
             {step.label}
             {state === 'done' && <span className="sr-only">{` (${completedLabel})`}</span>}
           </div>
-          {step.hint && <div className="text-xs text-muted">{step.hint}</div>}
+          {step.hint && <div className="type-caption text-muted">{step.hint}</div>}
         </div>
       </div>
       {!last && <div aria-hidden="true" className={connectorClasses(state)} />}

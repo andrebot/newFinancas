@@ -178,7 +178,7 @@ function ArchivedSection({ categories }: { readonly categories: readonly Categor
       summary={(
         <span className="flex flex-col">
           <span className="font-semibold">{title}</span>
-          <span className="text-sm text-muted">
+          <span className="type-body text-muted">
             {translator.text('categoryManagement', 'archived.note')}
           </span>
         </span>

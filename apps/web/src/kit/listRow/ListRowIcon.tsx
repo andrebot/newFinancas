@@ -29,8 +29,8 @@ const TONES: Record<ListRowIconTone, string> = {
 };
 
 const SIZES: Record<ListRowIconSize, string> = {
-  md: 'size-10 text-xl',
-  sm: 'size-9 text-lg',
+  md: 'size-10 type-heading-md',
+  sm: 'size-9 type-heading-sm',
 };
 
 /**

@@ -44,7 +44,7 @@ const STROKES: Record<RingTone, string> = {
 };
 
 const SIZES: Record<RingSize, string> = {
-  sm: 'size-13 text-xs',
+  sm: 'size-13 type-caption',
   md: 'size-16 text-[0.8125rem]',
 };
 

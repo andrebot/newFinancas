@@ -78,7 +78,7 @@ export function CategoryFormCard({
 
   return (
     <div className="flex flex-col gap-4 rounded-xl2 border border-dashed border-mint/40 p-5">
-      <span className="text-sm font-semibold text-muted">{caption}</span>
+      <span className="type-body font-semibold text-muted">{caption}</span>
       {alert && <InlineBanner tone="error" message={alert} />}
       <TextField
         label={translator.text('categoryManagement', 'field.name')}

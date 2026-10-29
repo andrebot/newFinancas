@@ -136,7 +136,7 @@ export function Drawer({
           <div className="flex items-center justify-between gap-3 border-b border-line px-6 py-5">
             <div className="min-w-0">
               {caption && <div className={CAPTION}>{caption}</div>}
-              <h2 id={titleId} className="truncate font-display text-xl font-bold">{title}</h2>
+              <h2 id={titleId} className="truncate type-heading-md">{title}</h2>
             </div>
             <button
               ref={closeButton}

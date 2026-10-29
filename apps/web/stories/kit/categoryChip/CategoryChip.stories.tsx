@@ -66,7 +66,7 @@ export const BesideName: Story = {
   render: () => (
     <div className="flex items-center gap-3">
       <CategoryDisc icon="shopping-cart-outline" color="mint" />
-      <span className="text-sm font-semibold text-ink">Groceries</span>
+      <span className="type-body font-semibold text-ink">Groceries</span>
     </div>
   ),
 };

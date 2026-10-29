@@ -127,7 +127,7 @@ describe('ProgressRing', () => {
     render(<ProgressRing value={48} label="48%" tone="mint" size="sm" ariaLabel="Fun Money" />);
     const ring = ringNamed('Fun Money');
 
-    expect(ring.className).toBe(`${RING_FRAME} size-13 text-xs`);
+    expect(ring.className).toBe(`${RING_FRAME} size-13 type-caption`);
     expect(circlesOf(ring).fill.getAttribute('class')).toContain('stroke-mint');
     expect(ring.querySelector('span')!.className).toBe('relative text-ink');
   });

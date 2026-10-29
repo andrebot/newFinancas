@@ -240,7 +240,7 @@ export function CategoryCard({
           </span>
         )}
       </div>
-      <p className="text-sm text-muted">
+      <p className="type-body text-muted">
         {subs.length === 0
           ? translator.text('categoryManagement', 'sub.none')
           : translator.text('categoryManagement', 'subs.count', { count: subs.length })}
