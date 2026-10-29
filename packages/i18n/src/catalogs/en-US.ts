@@ -823,6 +823,12 @@ const enUS: Catalog = {
     months: 'Months of {year}',
     figures: '{year}: in {in}, out {out}',
   },
+  groupedList: {
+    loading: 'Loading',
+    loadingMore: 'Loading more',
+    loadFailed: "Couldn't load more.",
+    retry: 'Try again',
+  },
   drawer: {
     close: 'Close',
   },

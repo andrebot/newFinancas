@@ -838,6 +838,12 @@ const ptBR = {
     months: 'Meses de {year}',
     figures: '{year}: entradas {in}, saídas {out}',
   },
+  groupedList: {
+    loading: 'Carregando',
+    loadingMore: 'Carregando mais',
+    loadFailed: 'Não foi possível carregar mais.',
+    retry: 'Tentar de novo',
+  },
   drawer: {
     close: 'Fechar',
   },

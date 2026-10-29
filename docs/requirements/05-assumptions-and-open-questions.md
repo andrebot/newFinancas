@@ -2263,7 +2263,8 @@ not a hardcoded assumption.
   doesn't exist yet. The same component covers "nothing yet" and "no
   results for these filters".
 - **The month header's "loading…" label is not K28.** It belongs to the
-  grouped list's sticky header (K41).
+  grouped list's sticky header (K41). *(Superseded by OQ-217: K41 shows no guessed
+  header while a page loads, only K28's rows.)*
 
 **Task 36 (`K28`) is complete.**
 
@@ -5998,6 +5999,57 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
   focus stays on the arrow. A `periodBar` catalog section in both locales.
 
 **Task 113 (`K40`) is complete.**
+
+### OQ-217: Grouped list + infinite scroll (task K41)
+**Confirmed with the stakeholder (Oct 2026):**
+- **The list groups; the caller orders and fills**
+  (`kit/groupedList/GroupedList.tsx`): `<GroupedList items dateOf keyOf
+  renderItem monthAside? dayAside? hasMore status? onReachedEnd empty?
+  headingLevel? stickyTop?>`. The caller passes every item loaded so far,
+  already ordered (the ledger's newest first). `groupedList.ts →
+  groupByMonthAndDay` starts a new group whenever the date changes, so a
+  month or day split across two pages joins up again. The kit knows
+  nothing of transactions: Browse (FL16) puts the month's count
+  (`monthCounts`) in `monthAside`, the day's totals in `dayAside`, and its
+  rows (K42 `Expandable`) in `renderItem`.
+- **Names in the interface language.** Month headers use
+  `formatting.dateStyles.monthYear` ("September 2026" · "Setembro de
+  2026", its first letter raised by CSS), not the mockups' "September/2026".
+  Day bands use `weekdayDayMonth` ("Sat, Sep 12"). Each month is a
+  `section` named by its heading (level 3 by default, the caller's choice);
+  each day is a heading one level below, its rows a `ul`.
+- **Mockup 30's look.** The month header is sticky: mint display-font
+  bold on `bg-card`, hairlines above and below, the aside a muted caption.
+  The day band is `type-label` muted on `bg-raised/60`, its aside not
+  uppercased. Hairlines (`line/70`) run between a day's rows; the day bands
+  separate the days.
+- **Two currencies on one day: both totals, side by side** — R$ first,
+  then $, a middle dot between, each in K29's `inflow` tone. FL16 lays
+  them out in `dayAside` from `dayTotals`.
+- **On phones the month header sticks too, under the page's sticky period
+  bar.** The caller passes `stickyTop` (a CSS length) to clear the bar.
+  This adds to mockup 34, which shows a single month's heading. Nothing
+  above the list may clip it (`overflow-clip`, not `overflow-hidden`), or
+  the headers won't stick.
+- **Infinite scroll through a sentinel.** An IntersectionObserver watches
+  it with `config/constants.ts → groupedList.prefetchMargin` (400px)
+  below the view. It asks `onReachedEnd` once, then disarms, and arms
+  again only when `status` is back to `idle` with `hasMore`. A short page
+  whose sentinel is still in view asks again. Nothing watches while a page
+  loads, after one failed, or at the end.
+- **While a page loads: skeleton rows only.** K28's rows ("Loading more",
+  or "Loading" when nothing has loaded) stand under the last month, with no
+  guessed next header. The list can't know the next month (a filter may
+  skip months; the same month may continue), so mockup 30's "August/2026 ·
+  loading…" header is dropped, superseding OQ-132's note.
+- **A failed page offers to try again.** The row reads "Couldn't load
+  more." (a polite status) and has a ghost "Try again" button that calls
+  `onReachedEnd`. The sentinel stays quiet until then.
+- **Empty only when nothing loaded and nothing follows:** the caller's
+  `empty` (K28 `EmptyState`). Nothing shows after the last row at the end.
+  A `groupedList` catalog section in both locales.
+
+**Task 114 (`K41`) is complete.**
 
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
