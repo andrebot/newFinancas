@@ -129,6 +129,14 @@ describe('ProgressRing', () => {
       .toBe(`${RING_FRAME} size-13 type-caption md:size-16 md:type-body-sm`);
   });
 
+  it('draws the extra-small size with no label, for an allocation row', () => {
+    render(<ProgressRing value={57} size="xs" ariaLabel="House" />);
+
+    const ring = screen.getByRole('progressbar', { name: 'House' });
+    expect(ring.className).toBe(`${RING_FRAME} size-9 type-caption`);
+    expect(ring.querySelector('span')).toBeNull();
+  });
+
   it('draws the other tones and the small size', () => {
     render(<ProgressRing value={48} label="48%" tone="mint" size="sm" ariaLabel="Fun Money" />);
     const ring = ringNamed('Fun Money');

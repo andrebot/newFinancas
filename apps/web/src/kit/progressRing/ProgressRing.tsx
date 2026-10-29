@@ -11,11 +11,12 @@ import { FILL_MOTION_DURATION, clampPercent, progressAttributes } from '../progr
 export type RingTone = 'sky' | 'mint' | 'sun' | 'coral';
 
 /**
- * The ring's size: `md` (64px), `sm` (52px, the auth preview) or `rail` —
+ * The ring's size: `md` (64px), `sm` (52px, the auth preview), `rail` —
  * `sm` on a phone and `md` from the `md` breakpoint, as the rail cards
- * draw it (mockups 34 and 30, OQ-215).
+ * draw it (mockups 34 and 30, OQ-215) — or `xs` (36px, no label), a Goal
+ * allocation row's (mockup 32, OQ-218).
  */
-export type RingSize = 'sm' | 'md' | 'rail';
+export type RingSize = 'xs' | 'sm' | 'md' | 'rail';
 
 /** The progress ring's props. */
 export interface ProgressRingProps {
@@ -48,6 +49,7 @@ const STROKES: Record<RingTone, string> = {
 };
 
 const SIZES: Record<RingSize, string> = {
+  xs: 'size-9 type-caption',
   sm: 'size-13 type-caption',
   md: 'size-16 type-body-sm',
   rail: 'size-13 type-caption md:size-16 md:type-body-sm',

@@ -6067,6 +6067,59 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
 
 **Task 114 (`K41`) is complete.**
 
+### OQ-218: Allocation editor (task K47)
+**Confirmed with the stakeholder (Oct 2026):**
+- **One component for the buy drawer and Holding Maintenance**
+  (`kit/allocationEditor/AllocationEditor.tsx`): `<AllocationEditor rows
+  goals onChange showErrors?>`. The caller holds the split — `rows` of
+  `{goalId, name, percent | null, progress?, completed?}` in display order
+  — and `onChange` gets the whole new one. `goals` lists every Goal that
+  can take a share (the active ones); the editor leaves out those already
+  in the split. The caller owns the frame: mockup 32's "Assign to Goals ·
+  optional" heading and text, mockup 51's "Counts toward goals" card with
+  Reset / Save. The pure sums and checks live in `allocation.ts`.
+- **Mockups 32 and 51's rows.** Each row is a raised strip: the Goal's name
+  (cut off when long), K8's `compact` percent box named "Percentage for
+  {goal}" for screen readers, and a ghost remove button ("Remove {goal}").
+  **The ring is optional:** a row (or Goal) with `progress` draws the Goal's
+  progress in K32's new `xs` size (36px, no label), mint once reached. The
+  buy drawer passes it; Holding Maintenance doesn't, as in mockup 51.
+- **"Add goal" opens the Goals left.** With two or more left, the dashed
+  button opens a K23 menu ("Goals to add") of their names. With one left,
+  it names that Goal ("Add goal · New Laptop Fund", mockup 32) and adds it
+  directly. With none left, there is no button. An added Goal joins at the
+  end, empty, and its box takes focus. Removing a share sends focus to the
+  editor itself, so the keyboard isn't dropped to the page.
+- **The total may pass 100% while typing.** K33's thin bar draws one
+  segment per Goal, sky and `skysoft` by turns, beside "85% allocated · 15%
+  free". Over 100% it reads "110% allocated · 10% over" in coral, and the
+  bar stays full. The text is a polite live region, so a screen reader
+  hears the sum change. This lets the user raise one share before lowering
+  another. The caller blocks the write with `isAllocationValid(rows)`:
+  every share at least 1% (the table's CHECK) and the total at most 100%
+  (FR-8.3). The BDT plan's "kept ≤ 100 client-side" means exactly that.
+  Weighed and rejected: capping each box at what the others leave (rebalancing
+  would take two steps).
+- **An empty or 0% share errs only when the caller asks** (`showErrors`,
+  e.g. once Save or Record was tried): "Enter at least 1%" in coral under
+  the Goal's name, with the box turned coral and pointing at it. To allow
+  that, K8's compact box now also turns coral when the caller marks it
+  `aria-invalid` and writes the message elsewhere.
+- **A completed Goal's share is shown, not edited** (`completed`, FR-8.9;
+  the server's 409 `goal.completed` refuses growing or adding one): a mint
+  "Completed" tag beside the name, the percent as fixed text, and the
+  remove button still there. Completed Goals never appear in "Add goal" —
+  the caller passes only active Goals in `goals`.
+- **Only the visible split.** `listHoldingAllocations` answers the shares
+  the user can see (OQ-178); another member's personal Goals keep theirs
+  and count toward the 100% on the server alone. So "free" covers the
+  visible shares, and a split that passes 100% only with the hidden ones is
+  refused with 409 `goal.allocation_exceeds_100` (its message names the
+  requested total). Nothing on the screen hints at hidden shares.
+- An `allocationEditor` catalog section in both locales.
+
+**Task 115 (`K47`) is complete.**
+
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
 *(None currently — OQ-29, the last item here, was resolved during data

@@ -100,7 +100,9 @@ function NumberField({
 
 /**
  * Renders the compact size: a small box with the suffix beside it, the label
- * for screen readers only and the hint or error under it.
+ * for screen readers only and the hint or error under it. A caller that
+ * writes the error elsewhere (the allocation row, OQ-218) marks the box
+ * `aria-invalid` and points `aria-describedby` at it; the box turns coral.
  *
  * @param props - The masked text, its handler, the suffix, field texts and native props.
  * @returns The compact number input.
@@ -121,9 +123,10 @@ function CompactNumber({
           {...native}
           {...aria}
           aria-describedby={joinIds(describedBy, aria['aria-describedby'])}
+          aria-invalid={aria['aria-invalid'] ?? native['aria-invalid']}
           id={controlId}
           ref={ref}
-          className={compactClasses(Boolean(error))}
+          className={compactClasses(Boolean(error) || native['aria-invalid'] === true)}
           value={shown}
           onChange={(event) => change(event.target.value)}
         />
