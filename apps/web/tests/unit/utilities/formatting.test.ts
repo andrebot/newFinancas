@@ -27,6 +27,11 @@ describe('formatMoney', () => {
     expect(formatMoney(0, 'USD', { sign: 'always' })).toBe('$0.00');
     expect(formatMoney(320000, 'USD', { sign: 'auto' })).toBe('$3,200.00');
   });
+
+  it('writes no minus on a negative zero, e.g. a negated empty sum', () => {
+    expect(formatMoney(-0, 'USD')).toBe('$0.00');
+    expect(formatMoney(-0, 'USD', { sign: 'always' })).toBe('$0.00');
+  });
 });
 
 describe('moneyConventions', () => {

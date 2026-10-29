@@ -157,7 +157,7 @@ identity screens, the rest as later slices use them.
 - [x] **104.** `M4` InsightsManager — slice 3's part (OQ-208: the report route is the contract's parameterized operation from day one, deferred types answer 400; Holdings read straight from their Accessor with E1 projections): `month-overview`, Goal progress (current and by month), the Holding reads with projections; `investments-overview`/`payouts` land with task 133, the Dashboard, inbox and audit-export routes in slice 5
 - [x] **105.** `K32` Progress ring (OQ-209: SVG, not the conic gradient — a see-through hole and an animated sweep; held to 100% with the real figure in the label; the ring derives the label's colour — coral over budget, muted at 0 (not the mockups' faint); helpers shared via `kit/progress`; the auth preview now uses it)
 - [x] **106.** `K44` Key–value list (OQ-210: `<dl>` of `<div>` pairs, the transaction mockups' row-split markup dropped; captions `type-label` in muted; no text in `faint` anywhere in the app — it stays for icons, dividers and borders; `sm`/`lg` sizes; the caller sets 2 or 3 columns; typed items — tone, suffix, tabular figures, a muted "—" when empty)
-- [ ] **108.** `K29` Amount
+- [x] **108.** `K29` Amount (OQ-211: minor units through `formatMoney`, tabular on one line, no minus on −0; tones `plain` (default), `signed` (mint / coral by sign) and `inflow` (mint above zero only — the ledger's day totals); a coloured amount writes its `+`; size and weight from the caller's `className`; the account-setup money spans moved onto it)
 - [ ] **109.** `K35` Card rail
 - [ ] **110.** `K10` Date range picker
 - [ ] **111.** `K12` Multi-select with search + presets

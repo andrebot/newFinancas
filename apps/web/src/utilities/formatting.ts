@@ -20,7 +20,7 @@ export type DateStyle = keyof typeof formatting.dateStyles;
 /** How a money amount shows its sign. */
 export interface MoneyOptions {
   /** `always` writes `+` on a positive amount (income); `auto` only `−` on a negative one. */
-  readonly sign?: 'auto' | 'always';
+  readonly sign?: 'auto' | 'always' | undefined;
 }
 
 /** How a currency writes its amounts: what a money input needs to mask them (K7). */
@@ -132,7 +132,8 @@ export const formatMoney = (
   });
   // Always set for a currency format; the lib types it as optional.
   const minorDigits = Number(format.resolvedOptions().maximumFractionDigits);
-  return withMinusSign(format.format(amount / 10 ** minorDigits));
+  // `+ 0` turns −0 (e.g. a negated empty sum) into 0, so it reads `$0.00`, not `−$0.00`.
+  return withMinusSign(format.format(amount / 10 ** minorDigits + 0));
 };
 
 /**

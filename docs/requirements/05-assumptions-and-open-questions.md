@@ -5679,6 +5679,39 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
 
 **Task 106 (`K44`) is complete.**
 
+### OQ-211: Amount (task K29)
+**Confirmed with the stakeholder (Oct 2026):**
+- **One `<Amount amount currency sign? tone? className?>`**
+  (`kit/amount/Amount.tsx`): the API's minor units, signed, written by
+  FormattingUtility's `formatMoney` in the currency's own conventions, in
+  tabular figures on one line.
+- **Colour is opt-in, three tones.** `plain` (default) takes the
+  surrounding colour; `signed` is mint above zero and coral below;
+  `inflow` is mint above zero only. Zero keeps the surrounding colour on
+  every tone. Page 30 needs all three: a transaction's amount and In / Out
+  are `signed`; the ledger's day totals are `inflow` (`+$3,200.00` mint,
+  `−$45.99` in the header's muted); balances and the In/Out Total are
+  `plain`.
+- **A coloured amount writes its `+` by default** (`sign` defaults to
+  `always` on `signed` / `inflow`, `auto` on `plain`), so colour never
+  carries "money in" alone (WCAG 1.4.1). The caller may still pass `sign`.
+- **No minus on a negative zero.** `formatMoney` turns −0 (a negated empty
+  sum) into 0, so it reads `$0.00` in both sign modes — for `formatter.money`
+  in sentences too (PR #133 review).
+- **No size of its own.** Amounts run from the 34px hero to 11px
+  captions in several weights; the caller's `className` sets the type
+  role and weight, as Tag, Avatar and Card take theirs.
+- **Amounts shown as their own element go through it (task 108).** The
+  accounts' balance (now mockup 40's muted caption over a
+  `type-display-sm` figure — it was set in `text-lg`, which the type
+  scale doesn't generate), the budgets' target and the goals' target,
+  contribution and converted figure moved onto `<Amount>`. Two cases
+  stay strings: money inside a translated sentence (a goal's headline,
+  Guided Setup's summary) uses `formatter.money`, and a key–value list
+  (K44, OQ-210) takes its values pre-formatted with its own tone.
+
+**Task 108 (`K29`) is complete.**
+
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
 *(None currently — OQ-29, the last item here, was resolved during data

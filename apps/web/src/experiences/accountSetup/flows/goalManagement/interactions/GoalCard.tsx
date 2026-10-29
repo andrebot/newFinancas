@@ -1,4 +1,5 @@
 import type { Goal } from '@financas/api-types';
+import { Amount } from '../../../../../kit/amount/Amount';
 import { ABOVE_OPENER, OpenableCard } from '../../../../../kit/card/OpenableCard';
 import { Icon } from '../../../../../kit/icons/Icon';
 import { ProgressBar } from '../../../../../kit/progressBar/ProgressBar';
@@ -199,9 +200,11 @@ function Figures({ goal, today }: { readonly goal: Goal; readonly today: string 
         <span className="type-caption text-muted">
           {translator.text('goalManagement', 'card.target')}
         </span>
-        <span className="type-display-sm tabular-nums">
-          {formatter.money(goal.targetAmount, goal.targetCurrency)}
-        </span>
+        <Amount
+          amount={goal.targetAmount}
+          currency={goal.targetCurrency}
+          className="type-display-sm"
+        />
       </div>
       <div className="flex flex-col text-right">
         <span className="type-caption text-muted">
@@ -303,13 +306,16 @@ function FundingBlock({
             {`${fundingNameOf(row, translator)} · ${formatter.percent(row.percentage)}`}
           </span>
           {row.contribution && (
-            <span className="font-semibold tabular-nums">
-              {formatter.money(row.contribution.amount, row.contribution.currency)}
-            </span>
+            <Amount
+              amount={row.contribution.amount}
+              currency={row.contribution.currency}
+              className="font-semibold"
+            />
           )}
           {row.converted !== undefined && (
-            <span className="type-caption tabular-nums text-muted">
-              {`≈ ${formatter.money(row.converted, goal.targetCurrency)}`}
+            <span className="type-caption whitespace-nowrap text-muted">
+              {'≈ '}
+              <Amount amount={row.converted} currency={goal.targetCurrency} />
             </span>
           )}
         </div>
