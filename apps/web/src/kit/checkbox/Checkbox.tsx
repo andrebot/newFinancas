@@ -86,7 +86,9 @@ export function Checkbox({
           />
           <Icon name="check" className="invisible size-3.5 group-has-checked:visible" />
         </span>
-        <span className="flex flex-col gap-0.5">
+        {/* The text takes the rest of the row, so a multi-select row's amount
+            can sit at its right edge. */}
+        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
           <span id={`${id}-label`}>{label}</span>
           {description && (
             <span id={descriptionId} className="type-caption text-muted">{description}</span>

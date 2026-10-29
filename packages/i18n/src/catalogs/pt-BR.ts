@@ -808,6 +808,12 @@ const ptBR = {
     'preset.thisYear': 'Este ano',
     'preset.custom': 'Personalizado',
   },
+  multiSelect: {
+    all: 'Todos',
+    clear: 'Limpar',
+    done: 'Concluir',
+    more: '+{count}',
+  },
   cardRail: {
     scrollBack: 'Rolar {title} para a esquerda',
     scrollForward: 'Rolar {title} para a direita',

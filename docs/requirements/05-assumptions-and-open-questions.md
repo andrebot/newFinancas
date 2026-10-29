@@ -5812,6 +5812,59 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
 
 **Task 110 (`K10`) is complete.**
 
+### OQ-214: Multi-select (task K12)
+**Confirmed with the stakeholder (Oct 2026):**
+- **A disclosure of checkboxes, not a listbox.** The trigger opens a
+  non-modal dialog named by the field's label. Its rows are K16
+  Checkboxes, as OQ-130 planned, so Tab reaches every row and Space ticks
+  it. Mockup 50's `role="listbox" aria-multiselectable` markup is dropped:
+  with arrow keys, the groups' columns would walk oddly. The lists are
+  small (a household's holdings), so one Tab stop per row is fine, and
+  the search shortens long ones.
+- **`kit/multiSelect/MultiSelect.tsx`**: `<MultiSelect label labelHidden?
+  options value onChange summary placeholder? presets? search? note?
+  disabled? hint? error? className?>`. It takes K11's entries (groups,
+  `leading` / `trailing` slots, `description`, `disabledReason`) and K11's
+  opt-in search (case and accents ignored; a group whose heading matches
+  keeps all its options). The value is the chosen values, always
+  reported **in display order**, whatever order they were ticked in.
+- **Live:** every tick and preset reaches `onChange` at once, so the chart
+  behind updates as you pick. **Done**, Esc, a click outside or tabbing
+  away only close the panel, and focus returns to the trigger. Focus goes
+  to the search box on open, else to the first preset.
+- **Presets are buttons:** **All**, then the caller's `{label, values}`,
+  then **Clear**. Each one *replaces* the choice and ignores the search.
+  Disabled options never change, whether by a tick, a preset or Clear.
+- **The box** (mockups 20 / 50) shows the `filter-list` icon, the caller's
+  count (`summary(chosen, total)`, so the caller's noun is translated:
+  "7 of 12 holdings"), and in muted the first chosen names in display
+  order with "+n" for the rest ("· XPML11, KNRI11, HGLG11 +4").
+  `multiSelect.summaryNames: 3` sits in `config/constants.ts`. With
+  nothing chosen, it shows the `placeholder` when one is given. The
+  label names the button over its text, so the summary *describes* it
+  (`aria-describedby`, before the hint or error).
+- **The panel** is `OVERLAY_SURFACE`, as wide as the trigger. In order:
+  the search, then the presets (small `opt` chips, Clear muted), then
+  the groups as columns (as many 12rem columns as fit, scrolling inside
+  past 288px), then a footer. Each group heading is `type-label` with
+  its "n/m" count. Loose options form a group with no heading. An
+  unticked row's label is muted, a ticked one ink. The caller draws the
+  swatch and the amount in the slots (Amount K29, tone `inflow`). A
+  disabled row shows its reason under the label.
+- **The footer** holds the caller's optional `note` (the chart's "the 5
+  largest keep their colour…") and Done, a small primary button. The
+  mockup's faint note becomes **muted**, since OQ-210 forbids `faint`
+  for text.
+- **Checkbox (K16):** its text column now takes the rest of the row, so
+  a row's amount sits at the right edge. Nothing else changes for its
+  other uses.
+- **Catalog:** a `multiSelect` section (All, Clear, Done, `+{count}`) in
+  both locales.
+- The ledger filter's short lists stay as the mockup's chips (mockup 33).
+  K12 is their fallback when a list grows, as K11 is for single picks.
+
+**Task 111 (`K12`) is complete.**
+
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
 *(None currently — OQ-29, the last item here, was resolved during data
