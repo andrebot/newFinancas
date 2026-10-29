@@ -5712,6 +5712,41 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
 
 **Task 108 (`K29`) is complete.**
 
+### OQ-212: Card rail (task K35)
+**Confirmed with the stakeholder (Oct 2026):**
+- **The rail owns its whole section** (`kit/cardRail/CardRail.tsx`):
+  `<CardRail title period? as? loading? placeholderClassName?>{cards}`
+  draws the `SectionHeader` (title and period chip, OQ-135), the arrows in
+  its `actions` slot, and the track. The cards' width and look are K36's;
+  the rail only lines them up — a 12px gap, `shrink-0`, snapping to each
+  card's start (`scroll-snap-type: x mandatory`), the mockups' thin
+  scrollbar in `line`.
+- **Arrows scroll one visible width**, and snapping settles on a card. Each
+  is disabled at its end; both are gone when every card fits, and below
+  `md` (mockup 34 draws none — the rail is swiped). They are `outline`
+  `sm` `IconButton`s named "Scroll {title} left / right" (translated, in
+  the `cardRail` catalog section). An arrow that reaches its end while
+  focused hands focus to the other one, so the keyboard isn't dropped to
+  the page. The scroll is smooth only when motion is allowed
+  (`motion-safe:scroll-smooth`).
+- **The edge fade follows the scroll, on both sides** — not the mockups'
+  fixed right-hand overlay. A CSS `mask-image` (so it works on any
+  background, in both themes) fades a side while there is more to see
+  there; a reached end is sharp, and nothing fades when every card fits.
+  The fade reaches `config/constants.ts → cardRail.fadePx` (56px, the
+  mockups').
+- **The track is a focusable region** named by the title, so a keyboard
+  can scroll it (WCAG 2.1.1).
+- **The rail owns its loading state.** `loading` swaps the cards for
+  `cardRail.placeholderCards` (3) `Skeleton` blocks, sized by the
+  caller's `placeholderClassName`, in one `role="status"` `aria-busy`
+  region named "Loading {title}"; no arrows meanwhile.
+- **Not the rail's:** the mobile mockup's full-bleed rail (the track
+  running to the screen edge past the page gutter) is the page's layout,
+  decided with the Experience (X6 / Dashboard).
+
+**Task 109 (`K35`) is complete.**
+
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
 *(None currently — OQ-29, the last item here, was resolved during data
