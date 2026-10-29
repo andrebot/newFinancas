@@ -15,7 +15,7 @@ export type ClientErrorCode = 'network.unavailable';
 export type ErrorCode = Exclude<keyof Source['errors'], 'fallback' | ClientErrorCode>;
 
 /** A field code the web client makes itself, never sent by the API. */
-export type ClientFieldCode = 'password.mismatch';
+export type ClientFieldCode = 'password.mismatch' | 'date.before_start';
 
 /** A field code the catalog translates: the API's and the web client's own. */
 export type FieldCode = keyof Source['fields'];

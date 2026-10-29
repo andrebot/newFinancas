@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  dateRangeEnd,
   email,
   firstError,
   isoDate,
@@ -175,6 +176,31 @@ describe('isoDate', () => {
 
     expect(rule('2026-01-01')).toBeUndefined();
     expect(rule('2026-12-31')).toBeUndefined();
+  });
+});
+
+describe('dateRangeEnd', () => {
+  it.each(['2026-09-14', '2026-10-01'])('passes an end on or after the start (%j)', (value) => {
+    expect(dateRangeEnd('2026-09-14')(value)).toBeUndefined();
+  });
+
+  it('fails an end before the start', () => {
+    expect(dateRangeEnd('2026-09-14')('2026-09-13')).toEqual({ code: 'date.before_start' });
+  });
+
+  it('fails a malformed end first, whatever the start', () => {
+    expect(dateRangeEnd('2026-09-14')('2026-02-31'))
+      .toEqual({ code: 'string.format', params: { format: 'date' } });
+    expect(dateRangeEnd('-0-14')('--1'))
+      .toEqual({ code: 'string.format', params: { format: 'date' } });
+  });
+
+  it.each([undefined, ''])('lets an empty end through (%j)', (value) => {
+    expect(dateRangeEnd('2026-09-14')(value)).toBeUndefined();
+  });
+
+  it.each(['', '-0-14', '2026-02-31'])('orders nothing against a non-date start (%j)', (start) => {
+    expect(dateRangeEnd(start)('2020-01-01')).toBeUndefined();
   });
 });
 

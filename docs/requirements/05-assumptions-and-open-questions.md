@@ -4995,6 +4995,7 @@ not a hardcoded assumption.
   the date range picker (K10, on the popover). A native `type="date"` was
   turned down: it writes the browser's format, not the app's, and can't
   take the theme.
+  *(Corrected by OQ-213: the date range picker has no calendar either.)*
 - **The pieces follow the interface language**: `dd/mm/aaaa` in pt-BR,
   `mm/dd/yyyy` in en-US, read from `Intl` by `dateConventions(locale)` in
   the FormattingUtility, as every date on screen reads (FU6). Digits only,
@@ -5046,7 +5047,7 @@ not a hardcoded assumption.
   stay without animation.
 
 **Amended in FL11 (Oct 2026):**
-- **One stacking order for the kit (`LAYERS`, `kit/popover/overlay.ts`).** Bottom to top: the shell's chrome (z-20/30), the drawer's scrim and panel (z-40/50), the panels (select, menu, popover — the date input's calendar and the icon picker's "more" too), tooltips, toasts. The panels had been at z-40, under the drawer, so a Select inside a drawer opened behind it with no visible options.
+- **One stacking order for the kit (`LAYERS`, `kit/popover/overlay.ts`).** Bottom to top: the shell's chrome (z-20/30), the drawer's scrim and panel (z-40/50), the panels (select, menu, popover — the icon picker's "more" too), tooltips, toasts. The panels had been at z-40, under the drawer, so a Select inside a drawer opened behind it with no visible options.
 - **Two widths from `md`: `default` 520px and `wide` 640px.** The account drawers are wide: beside the 200px card preview, a 520px drawer left the card number about 160px — too narrow for a 16-digit number. Below `md` every drawer is still the full-screen sheet.
 
 **Task 107 (`K20`) is complete.**
@@ -5763,6 +5764,53 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
   decided with the Experience (X6 / Dashboard).
 
 **Task 109 (`K35`) is complete.**
+
+### OQ-213: Date range picker (task K10)
+**Confirmed with the stakeholder (Oct 2026):**
+- **As the mockups draw it, no calendar** (the ledger's filter, mockup
+  33; the audit export, 24): preset chips over a typed From and To, two
+  Date inputs (K9). This corrects OQ-190, which put a calendar on a
+  popover here; K10 no longer depends on the Popover (K22) in the PD
+  network.
+- **`kit/dateRangePicker/DateRangePicker.tsx`**: `<DateRangePicker label
+  labelHidden? presets value onChange errors? className?>`, a `fieldset`
+  named by its `legend` (a field caption, or for screen readers only when
+  a dialog title already says it). The chips are a native-radio group in
+  the mockups' `opt` style (`h-8`, `type-body-sm`, mint when chosen).
+- **The caller picks the presets** from `anyTime`, `thisMonth`,
+  `last30Days`, `last90Days`, `thisYear`, in its order; **Custom is always
+  offered last**, since typing a date switches to it.
+- **Presets end today, today included** (`useToday`, the local date):
+  Last 30 days = today − 29 … today; This month from the 1st, This year
+  from 1 January; Any time leaves both dates empty.
+- **The value is `{preset, from, to}`** in the contract's `YYYY-MM-DD`
+  (`''` an open end; the Date input's pieces while incomplete). Choosing
+  Custom keeps the dates shown; typing either date changes it and switches
+  to Custom. The pure moves live in `dateRangePresets.ts`.
+- **The caller validates** and passes the translated errors
+  (`errors.from` / `errors.to`): `isoDate()` on From and the new
+  ValidationUtility rule **`dateRangeEnd(from)`** on To — malformed first,
+  then **`date.before_start`** ("Can't be before the start date."), a
+  client-only field code like `password.mismatch`: the API answers a
+  reversed range with no rows, not a 422. Nothing is ordered against a
+  From that isn't a real date.
+- **A chosen preset keeps ending today** (PR #136 review): past midnight
+  the picker reports the preset's new dates (`refreshPreset`), so a
+  filter left open overnight doesn't send yesterday's window under a
+  label that says otherwise. Custom stays as typed.
+- **Choosing a preset replaces typed dates**; going back to Custom does
+  not restore them — a preset shows its dates at once and two dates are
+  cheap to retype (PR #136 review, kept simple).
+- **Mockup 33's "Editing From/To switches the preset to Custom." is
+  dropped**: it is faint text (no text in `faint`, OQ-210) and the chip
+  switching says it.
+- **Named once**: the `fieldset`'s legend names the chips and dates; the
+  chips' radiogroup carries no name of its own, so it isn't read twice.
+  Chips to dates 8px apart (mockup 33's `gap-2`).
+- **Catalog:** a `dateRangePicker` section (From / To and the six preset
+  names) in both locales; "Any time" is "Qualquer período" in pt-BR.
+
+**Task 110 (`K10`) is complete.**
 
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
