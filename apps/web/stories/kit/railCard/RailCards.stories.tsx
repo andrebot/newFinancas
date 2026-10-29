@@ -142,6 +142,42 @@ export const Goals: Story = {
         funded={0}
         target={500000}
         currency="USD"
+        unfunded
+      />,
+    ],
+  },
+};
+
+/**
+ * Wide figures (best in pt-BR, at a phone's width): the figures and the
+ * status wrap, a six-figure balance is cut off with the whole in its tooltip.
+ */
+export const WideFigures: Story = {
+  args: {
+    title: 'Overview',
+    children: [
+      <BalanceRailCard
+        key="xp"
+        name="XP Investimentos"
+        icon="trending-up"
+        color="mint"
+        amount={12345678}
+        currency="BRL"
+      />,
+      <BudgetRailCard
+        key="renovation"
+        name="Home Renovation"
+        spend={12525000}
+        target={12000000}
+        currency="BRL"
+      />,
+      <GoalRailCard
+        key="house"
+        name="House Down Payment"
+        funded={8500000}
+        target={15000000}
+        currency="BRL"
+        needsRate
       />,
     ],
   },

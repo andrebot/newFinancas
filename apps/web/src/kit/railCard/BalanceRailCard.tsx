@@ -1,6 +1,7 @@
 import type { Currency } from '@financas/api-types';
 import type { PaletteToken } from '@financas/reference';
 import { useI18n } from '../../utilities/I18nProvider';
+import { formatMoney } from '../../utilities/formatting';
 import { Amount } from '../amount/Amount';
 import { discStyle } from '../categoryChip/CategoryChip';
 import { Icon, type IconName } from '../icons/Icon';
@@ -10,7 +11,10 @@ import { railCardClasses } from './RailCard';
 // card's outstanding under its caption, at the month's end (mockups 20, 30,
 // 34). The icon sits on a tint of its palette colour, as a category's disc
 // does (K50); which icon and colour stand for which account is the caller's
-// call. The amount stays plain: a balance is not money in or out.
+// call. The amount stays plain: a balance is not money in or out. A figure
+// too wide for the card (R$ 100.000 and up on a phone) is cut off with an
+// ellipsis, the whole of it in the tooltip, rather than spill into the next
+// card (PR #138 review).
 
 /** The balance card's props. */
 export interface BalanceRailCardProps {
@@ -41,23 +45,23 @@ export function BalanceRailCard({
     <div className={railCardClasses('balance')}>
       <div className="flex min-w-0 items-center gap-2 type-body-sm text-muted">
         <span
-          className="grid size-7 shrink-0 place-items-center rounded-full"
+          className="grid size-6 shrink-0 place-items-center rounded-full md:size-7"
           style={discStyle(color)}
         >
           <Icon name={icon} className="size-3.5 md:size-4" />
         </span>
         <span className="truncate">{name}</span>
       </div>
-      <div className="flex flex-col">
+      <div className="flex min-w-0 flex-col" title={formatMoney(amount, currency)}>
         {outstanding && (
-          <span className="type-label text-muted">
+          <span className="type-micro text-muted md:type-label">
             {translator.text('railCard', 'outstanding')}
           </span>
         )}
         <Amount
           amount={amount}
           currency={currency}
-          className="type-heading-sm md:type-display-xs"
+          className="block truncate type-heading-sm md:type-display-xs"
         />
       </div>
     </div>

@@ -1,11 +1,11 @@
 import { railCard as railCardSettings } from '../../config/constants';
+import { wholePercent } from '../progress/progress';
 import type { RingTone } from '../progressRing/ProgressRing';
 
 // What the rail cards (K36, OQ-215) read from their figures: a budget's
 // percent, tone and what is left or over; a goal's percent and what is to
-// go. Pure, so it tests without React. Percents are whole and rounded down,
-// so 99.7% never reads 100%; they are not held to 100 (the ring holds its
-// fill, the label says the real figure, OQ-209).
+// go. Pure, so it tests without React. Percents are `wholePercent`'s: whole,
+// rounded down, not held to 100 (the ring holds its fill, OQ-209).
 
 /** A budget's state on its card. */
 export interface BudgetStatus {
@@ -32,22 +32,10 @@ export interface GoalStatus {
 /** The placeholder sizes a card rail gives `placeholderClassName` while it loads. */
 export const RAIL_CARD_PLACEHOLDERS = {
   /** A balance card: 150px wide on a phone, 196px from `md` (mockups 34, 30). */
-  balance: 'h-26 w-37.5 md:h-30 md:w-49',
+  balance: 'h-24 w-37.5 md:h-29 md:w-49',
   /** A budget's or a goal's card: 230px wide on a phone, 272px from `md`. */
-  ring: 'h-22.5 w-57.5 md:h-24 md:w-68',
+  ring: 'h-19.5 w-57.5 md:h-23.5 md:w-68',
 } as const;
-
-/**
- * Writes a share as a whole percent, rounded down and never below zero.
- *
- * @param part - The amount so far, in minor units.
- * @param whole - The target, in minor units; a non-positive one reads 0%.
- * @returns E.g. 106 for 4,250 of 4,000.
- */
-export const wholePercent = (part: number, whole: number): number => {
-  if (whole <= 0) return 0;
-  return Math.max(0, Math.floor((part * 100) / whole));
-};
 
 /**
  * Picks a budget's tone: coral once spend passes the target, sun from

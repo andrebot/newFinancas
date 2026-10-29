@@ -10,8 +10,12 @@ import { FILL_MOTION_DURATION, clampPercent, progressAttributes } from '../progr
 /** The fill's colour: sky for goals; mint, sun or coral as a budget fills up. */
 export type RingTone = 'sky' | 'mint' | 'sun' | 'coral';
 
-/** The ring's size: `md` (64px) on the rail cards, `sm` (52px) in the auth preview. */
-export type RingSize = 'sm' | 'md';
+/**
+ * The ring's size: `md` (64px), `sm` (52px, the auth preview) or `rail` —
+ * `sm` on a phone and `md` from the `md` breakpoint, as the rail cards
+ * draw it (mockups 34 and 30, OQ-215).
+ */
+export type RingSize = 'sm' | 'md' | 'rail';
 
 /** The progress ring's props. */
 export interface ProgressRingProps {
@@ -46,6 +50,7 @@ const STROKES: Record<RingTone, string> = {
 const SIZES: Record<RingSize, string> = {
   sm: 'size-13 type-caption',
   md: 'size-16 type-body-sm',
+  rail: 'size-13 type-caption md:size-16 md:type-body-sm',
 };
 
 /** The ring's box: the SVG behind, the label centred on top. */

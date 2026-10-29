@@ -6,10 +6,12 @@ import { goalStatus, type GoalStatus } from './railCard';
 
 // A goal's rail card (K36, OQ-215): its sky ring, name, "funded / target" in
 // the goal's own currency and what is to go (mockups 20, 30, 34). A goal
-// reached says so in mint; one nothing funds reads "Not funded yet" (muted,
-// not the mockups' faint — OQ-210); one other currencies fund too notes that
-// they need a rate in place of "to go", which can't be told without them —
-// the rate itself stays on the Goals page (OQ-201, FR-9).
+// reached says so in mint; one no Holding funds reads "Not funded yet"
+// (muted, not the mockups' faint — OQ-210); one other currencies fund too
+// notes that they need a rate in place of "to go", which can't be told
+// without them — the rate itself stays on the Goals page (OQ-201, FR-9). The
+// caller passes `ownFundingOf(goal)` (experiences/goalFunding.ts), so the
+// card reads as the Goals page does.
 
 /** The goal card's props. */
 export interface GoalRailCardProps {
@@ -20,6 +22,8 @@ export interface GoalRailCardProps {
   readonly target: number;
   /** The goal's own currency. */
   readonly currency: Currency;
+  /** No Holding funds it at all; funding still worth 0 is not unfunded. */
+  readonly unfunded?: boolean | undefined;
   /** Holdings in other currencies fund it too, left out of `funded`. */
   readonly needsRate?: boolean | undefined;
 }
@@ -62,15 +66,14 @@ function GoalLine({ status, currency, needsRate }: GoalLineProps) {
 /**
  * Renders a goal's rail card.
  *
- * @param props - The name, what funds it and its target, their currency and the rate note.
+ * @param props - The name, what funds it and its target, their currency and the two flags.
  * @returns The card.
  */
 export function GoalRailCard({
-  name, funded, target, currency, needsRate = false,
+  name, funded, target, currency, unfunded = false, needsRate = false,
 }: GoalRailCardProps) {
   const translator = useI18n();
   const status = goalStatus(funded, target);
-  const unfunded = funded === 0 && !needsRate;
 
   return (
     <RingRailCard name={name} percent={status.percent} tone="sky">

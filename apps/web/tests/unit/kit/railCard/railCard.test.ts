@@ -1,20 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { railCard } from '../../../../src/config/constants';
-import { budgetStatus, goalStatus, wholePercent } from '../../../../src/kit/railCard/railCard';
+import { budgetStatus, goalStatus } from '../../../../src/kit/railCard/railCard';
 
 // Kit helpers (BDT: Interaction tier → unit): pure, nothing to stand in for.
-
-describe('wholePercent', () => {
-  it('rounds down, so a share just short of the whole never reads 100%', () => {
-    expect(wholePercent(997, 1000)).toBe(99);
-    expect(wholePercent(4250, 4000)).toBe(106);
-  });
-
-  it('is 0 below zero and against a target of zero or less', () => {
-    expect(wholePercent(-2000, 40000)).toBe(0);
-    expect(wholePercent(500, 0)).toBe(0);
-  });
-});
 
 describe('budgetStatus', () => {
   it('is mint with what is left while on track', () => {

@@ -618,7 +618,7 @@ const ptBR = {
     'progress.toGo': '{percent}% · faltam {amount}',
     'progress.toGoEstimate': '{percent}% · faltam ≈ {amount}',
     'progress.reached': '{percent}% · alvo atingido',
-    'progress.unfunded': '0% · ainda sem financiamento',
+    'progress.unfunded': '0% · ainda sem aportes',
     'progress.amounts': '{funded} / {target}',
     'progress.amountsEstimate': '≈ {funded} / {target}',
     'progress.unavailable': 'Progresso indisponível',
@@ -826,7 +826,7 @@ const ptBR = {
     'budget.over': 'Excedido em {amount}',
     'goal.toGo': 'Faltam {amount}',
     'goal.reached': 'Meta atingida',
-    'goal.unfunded': 'Ainda sem financiamento',
+    'goal.unfunded': 'Ainda sem aportes',
     'goal.needsRate': 'Outras moedas precisam de cotação',
   },
   drawer: {

@@ -4,6 +4,7 @@ import { BalanceRailCard } from '../../../../src/kit/railCard/BalanceRailCard';
 import { BudgetRailCard } from '../../../../src/kit/railCard/BudgetRailCard';
 import { GoalRailCard } from '../../../../src/kit/railCard/GoalRailCard';
 import { StatusLine, railCardClasses } from '../../../../src/kit/railCard/RailCard';
+import { formatMoney } from '../../../../src/utilities/formatting';
 import { renderInLocale } from '../../../support/renderInLocale';
 
 // Kit components (BDT: Interaction tier → unit): display only; the
@@ -24,6 +25,14 @@ const ringNamed = (name: string) => screen.getByRole('progressbar', { name });
  * @returns The fill circle.
  */
 const fillOf = (name: string) => ringNamed(name).querySelectorAll('circle')[1];
+
+/**
+ * Takes the glyph drawn before a status line's text.
+ *
+ * @param text - The line's text.
+ * @returns The line's icon, or nothing.
+ */
+const glyphBefore = (text: string) => screen.getByText(text).parentElement!.querySelector('svg');
 
 /**
  * Expects an element to carry every one of some classes.
@@ -109,6 +118,38 @@ describe('BalanceRailCard', () => {
     );
     const disc = container.querySelector<HTMLElement>('span[style]')!;
     expect(disc.style.color).toBe('var(--c-cat-sky)');
+    expectClasses(disc, 'size-6', 'md:size-7');
+  });
+
+  it('cuts off a figure too wide for the card, the whole of it in the tooltip', () => {
+    renderInLocale(
+      <BalanceRailCard
+        name="XP Investimentos"
+        icon="trending-up"
+        color="mint"
+        amount={12345678}
+        currency="BRL"
+      />,
+      'pt-BR',
+    );
+    const figure = screen.getByText('R$ 123.456,78');
+    expectClasses(figure, 'block', 'truncate');
+    expect(figure.parentElement!.getAttribute('title')).toBe(formatMoney(12345678, 'BRL'));
+    expectClasses(figure.parentElement, 'min-w-0');
+  });
+
+  it('shows an overdrawn balance with its minus, uncoloured', () => {
+    renderInLocale(
+      <BalanceRailCard
+        name="Main Checking"
+        icon="account-balance-outline"
+        color="mint"
+        amount={-12000}
+        currency="USD"
+      />,
+    );
+    const figure = screen.getByText('−$120.00');
+    expect(figure.className).not.toContain('text-coral');
   });
 });
 
@@ -140,7 +181,26 @@ describe('BudgetRailCard', () => {
     );
     expect(ringNamed('Household Essentials').getAttribute('aria-valuetext')).toBe('106%');
     expectClasses(screen.getByText('Over by $250.00').parentElement, 'text-coral');
+    expect(glyphBefore('Over by $250.00')).not.toBeNull();
     expectClasses(container.firstElementChild, 'ring-coral/50');
+  });
+
+  it('lets the figures and the status wrap instead of cutting them off', () => {
+    renderInLocale(
+      <BudgetRailCard name="Essenciais" spend={425000} target={400000} currency="BRL" />,
+      'pt-BR',
+    );
+    const target = screen.getByText('/ R$ 4.000,00');
+    expectClasses(target.parentElement, 'flex-wrap');
+    expect(target.parentElement!.className).not.toContain('truncate');
+    expectClasses(screen.getByText('Excedido em R$ 250,00'), 'line-clamp-2');
+  });
+
+  it('shows refunds outweighing spend as a negative spend, the ring at 0%', () => {
+    renderInLocale(<BudgetRailCard name="Fun" spend={-2000} target={40000} currency="USD" />);
+    expect(ringNamed('Fun').getAttribute('aria-valuetext')).toBe('0%');
+    expect(screen.getByText('−$20.00')).toBeTruthy();
+    expect(screen.getByText('$420.00 left')).toBeTruthy();
   });
 
   it('writes its lines in the interface language', () => {
@@ -154,6 +214,12 @@ describe('BudgetRailCard', () => {
       'pt-BR',
     );
     expect(screen.getByText('Restam R$ 154,50')).toBeTruthy();
+    expect(glyphBefore('Restam R$ 154,50')).toBeNull();
+  });
+
+  it('draws its ring small on a phone, medium from md', () => {
+    renderInLocale(<BudgetRailCard name="Fun" spend={0} target={100} currency="USD" />);
+    expectClasses(ringNamed('Fun'), 'size-13', 'md:size-16');
   });
 });
 
@@ -173,23 +239,44 @@ describe('GoalRailCard', () => {
     expect(screen.getByText('$6,800.00 to go')).toBeTruthy();
   });
 
+  it('writes its lines in the interface language', () => {
+    const { rerenderInLocale } = renderInLocale(
+      <GoalRailCard name="Casa" funded={8500000} target={15000000} currency="BRL" />,
+      'pt-BR',
+    );
+    expect(screen.getByText('Faltam R$ 65.000,00')).toBeTruthy();
+    rerenderInLocale(<GoalRailCard name="Casa" funded={0} target={500} currency="BRL" unfunded />);
+    expect(screen.getByText('Ainda sem aportes')).toBeTruthy();
+    rerenderInLocale(<GoalRailCard name="Casa" funded={500} target={500} currency="BRL" />);
+    expect(screen.getByText('Meta atingida')).toBeTruthy();
+  });
+
   it('says it is reached, in mint', () => {
     renderInLocale(<GoalRailCard name="Trip" funded={1100000} target={1000000} currency="USD" />);
     expect(ringNamed('Trip').getAttribute('aria-valuetext')).toBe('110%');
     expectClasses(screen.getByText('Goal reached').parentElement, 'text-mint');
+    expect(glyphBefore('Goal reached')).not.toBeNull();
   });
 
-  it('reads "Not funded yet" while nothing funds it, with no figures', () => {
+  it('reads "Not funded yet" while no Holding funds it, with no figures', () => {
     renderInLocale(
       <GoalRailCard
         name="New Laptop Fund"
         funded={0}
         target={500000}
         currency="USD"
+        unfunded
       />,
     );
     expectClasses(screen.getByText('Not funded yet'), 'text-muted', 'italic');
     expect(screen.queryByText('/ $5,000.00')).toBeNull();
+  });
+
+  it('shows its figures at 0 when a Holding funds it with no value yet', () => {
+    renderInLocale(<GoalRailCard name="Laptop" funded={0} target={500000} currency="USD" />);
+    expect(screen.queryByText('Not funded yet')).toBeNull();
+    expect(screen.getByText('/ $5,000.00')).toBeTruthy();
+    expect(screen.getByText('$5,000.00 to go')).toBeTruthy();
   });
 
   it('notes the rate in place of "to go" when other currencies fund it', () => {
@@ -199,7 +286,18 @@ describe('GoalRailCard', () => {
     );
     expect(screen.getByText('/ R$ 150.000,00')).toBeTruthy();
     expect(screen.getByText('Outras moedas precisam de cotação')).toBeTruthy();
+    expect(glyphBefore('Outras moedas precisam de cotação')).not.toBeNull();
     expect(screen.queryByText(/Faltam/)).toBeNull();
+  });
+
+  it('shows what its own currency funds beside the rate note', () => {
+    renderInLocale(
+      <GoalRailCard name="Trip" funded={48200} target={600000} currency="USD" needsRate />,
+    );
+    expect(ringNamed('Trip').getAttribute('aria-valuetext')).toBe('8%');
+    expect(screen.getByText('$482.00')).toBeTruthy();
+    expect(screen.getByText('Other currencies need a rate')).toBeTruthy();
+    expect(screen.queryByText(/to go/)).toBeNull();
   });
 
   it('says it is reached even when other currencies fund it too', () => {

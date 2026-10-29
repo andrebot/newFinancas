@@ -1,15 +1,18 @@
 import type { Currency, GoalWithProgress } from '@financas/api-types';
 import { goals as goalSettings } from '../../../../config/constants';
 import { KIND_SCALE } from '../../../../kit/numberInput/decimal';
+import { wholePercent } from '../../../../kit/progress/progress';
+import { ownFundingOf } from '../../../goalFunding';
 
 // A Goal's progress as its card shows it (FL14; FR-8.4/8.5, FR-9, OQ-195):
 // the progress read gives each funding Holding's contribution in its own
 // currency, carried on each Holding funding it (OQ-206 — one the viewer can't
-// see comes unnamed, its amount still counted); this reads them, adds
-// up what is in the target's currency, and converts the rest at the rate the
-// user typed — the only FX conversion in the app, kept in the browser and
-// never sent (FR-9.1). A pair with no rate stays out of the total and is
-// named so the card can ask for it. Pure, so it tests without React.
+// see comes unnamed, its amount still counted); this reads them, adds up
+// what is in the target's currency (`ownFundingOf`, shared with the rail
+// cards, OQ-215), and converts the rest at the rate the user typed — the
+// only FX conversion in the app, kept in the browser and never sent (FR-9.1).
+// A pair with no rate stays out of the total and is named so the card can
+// ask for it. Pure, so it tests without React.
 
 /** One currency pair, `1 base = rate quote` (OQ-195). */
 export interface RatePair {
@@ -39,7 +42,7 @@ export interface ProgressSummary {
   readonly rows: readonly FundingRow[];
   /** What is counted so far, in minor units of the target's currency. */
   readonly funded: number;
-  /** `funded` against the target, as a whole percent (not held to 100). */
+  /** `funded` against the target, as a whole percent rounded down (not held to 100, OQ-215). */
   readonly percent: number;
   /** What is left to reach the target; zero once it is reached. */
   readonly toGo: number;
@@ -136,20 +139,6 @@ const pairsOf = (goal: GoalWithProgress): RatePair[] => {
 };
 
 /**
- * Tells what a row counts toward the target: its own amount in the target's
- * currency, its converted amount, or nothing without a rate.
- *
- * @param row - The funding row.
- * @param target - The Goal's currency.
- * @returns Minor units of the target's currency.
- */
-const countedOf = (row: FundingRow, target: Currency) => {
-  if (!row.contribution) return 0;
-  if (row.contribution.currency === target) return row.contribution.amount;
-  return row.converted ?? 0;
-};
-
-/**
  * Sums a Goal's progress in its target's currency (FR-8.5).
  *
  * @param goal - The Goal with its progress.
@@ -157,16 +146,16 @@ const countedOf = (row: FundingRow, target: Currency) => {
  * @returns The rows, what is counted, the percent, what is left and the flags.
  */
 export const progressOf = (goal: GoalWithProgress, rates: EnteredRates): ProgressSummary => {
-  const target = goal.targetCurrency;
   const rows = fundingRowsOf(goal, rates);
-  const funded = rows.reduce((sum, row) => sum + countedOf(row, target), 0);
+  const own = ownFundingOf(goal);
+  const funded = rows.reduce((sum, row) => sum + (row.converted ?? 0), own.funded);
   const pairs = pairsOf(goal);
   return {
     rows,
     funded,
-    percent: Math.round((funded * 100) / goal.targetAmount),
+    percent: wholePercent(funded, goal.targetAmount),
     toGo: Math.max(0, goal.targetAmount - funded),
-    mixed: pairs.length > 0,
+    mixed: own.needsRate,
     estimate: rows.some((row) => row.converted !== undefined),
     pairs,
     missingPairs: pairs.filter((pair) => !rates[pairKey(pair)]),

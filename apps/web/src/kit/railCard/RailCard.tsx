@@ -9,8 +9,9 @@ import { ProgressRing, type RingTone } from '../progressRing/ProgressRing';
 // The rail cards' shared parts (K36, OQ-215): the surface every card on a
 // card rail (K35) sits on, at the mockups' fixed widths — narrower on a
 // phone (mockup 34) — and the ring card a budget and a goal both draw: the
-// ring, the name, "spent / target" and a status line. The rail lines the
-// cards up; the cards only display.
+// ring, the name, "spent / target" and a status line. Only the name is ever
+// cut off; the figures and the status wrap. The rail lines the cards up; the
+// cards only display.
 
 /** Which card the surface is for: a balance or a ring card. */
 export type RailCardKind = 'balance' | 'ring';
@@ -54,7 +55,9 @@ export interface StatusLineProps {
 }
 
 /**
- * Renders a ring card's last line: what is left, over or to go.
+ * Renders a ring card's last line: what is left, over or to go. It wraps to
+ * a second line rather than cut off: a pt-BR "Excedido em R$ 250,00" or the
+ * rate note doesn't fit the card's text column on one (PR #138 review).
  *
  * @param props - The text, its tone, an optional icon and extra classes.
  * @returns The line.
@@ -65,13 +68,13 @@ export function StatusLine({
   return (
     <div
       className={[
-        'inline-flex items-center gap-1 type-caption tabular-nums',
+        'flex items-start gap-1 type-caption tabular-nums',
         STATUS_TONES[tone],
         className,
       ].filter(Boolean).join(' ')}
     >
-      {icon && <Icon name={icon} className="size-3.25 shrink-0" />}
-      <span className="truncate">{children}</span>
+      {icon && <Icon name={icon} className="mt-0.5 size-3.25 shrink-0" />}
+      <span className="line-clamp-2">{children}</span>
     </div>
   );
 }
@@ -86,7 +89,9 @@ export interface ProgressFiguresProps {
 }
 
 /**
- * Renders "so far / target", the target muted, in tabular figures.
+ * Renders "so far / target", the target muted, in tabular figures. The
+ * target moves to its own line when both don't fit — "R$ 85.000,00 /
+ * R$ 150.000,00" is wider than the card — so neither is ever cut off.
  *
  * @param props - The amount so far, the target and their currency.
  * @returns The line.
@@ -95,10 +100,10 @@ export function ProgressFigures({ amount, target, currency }: ProgressFiguresPro
   const translator = useI18n();
   const formatter = useFormatter();
   return (
-    <div className="truncate type-caption md:type-body-sm">
+    <div className="flex flex-wrap gap-x-1 type-caption md:type-body-sm">
       <Amount amount={amount} currency={currency} />
       {' '}
-      <span className="text-muted tabular-nums">
+      <span className="whitespace-nowrap text-muted tabular-nums">
         {translator.text('railCard', 'of', { amount: formatter.money(target, currency) })}
       </span>
     </div>
@@ -135,6 +140,7 @@ export function RingRailCard({
         value={percent}
         label={formatter.percent(percent)}
         tone={tone}
+        size="rail"
         ariaLabel={name}
       />
       <div className="flex min-w-0 flex-col">
