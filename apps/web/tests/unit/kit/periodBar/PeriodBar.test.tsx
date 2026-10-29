@@ -81,8 +81,8 @@ describe('centreSelected', () => {
   it('does nothing before the strip mounts or without a selected month', () => {
     const strip = document.createElement('div');
     strip.scrollTo = vi.fn();
-    expect(() => centreSelected(null)).not.toThrow();
-    centreSelected(strip);
+    expect(() => centreSelected(null, 'instant')).not.toThrow();
+    centreSelected(strip, 'instant');
     expect(strip.scrollTo).not.toHaveBeenCalled();
   });
 });
@@ -153,11 +153,11 @@ describe('PeriodBar', () => {
     expect(months.querySelectorAll('button')).toHaveLength(12);
   });
 
-  it('shows the year from `lg` and the formatted month below it', () => {
+  it('shows the year from `xl` and the formatted month below it', () => {
     renderBar();
     const year = screen.getByText('2026', { selector: '.type-heading-lg' });
-    expect(year.parentElement!.className).toContain('lg:flex');
-    expect(screen.getByText('September/2026').parentElement!.className).toContain('lg:hidden');
+    expect(year.parentElement!.className).toContain('xl:flex');
+    expect(screen.getByText('September/2026').parentElement!.className).toContain('xl:hidden');
   });
 
   it('marks the selected month and reads each month\'s money in and out', () => {
@@ -234,9 +234,9 @@ describe('PeriodBar', () => {
 
   it('lays out the caller\'s summary, and nothing without one', () => {
     renderBar({ summary: <p>In / Out / Total</p> });
-    expect(screen.getByText('In / Out / Total').parentElement!.className).toContain('lg:border-l');
+    expect(screen.getByText('In / Out / Total').parentElement!.className).toContain('xl:border-l');
     const { container } = renderBar();
-    expect(container.querySelector('.lg\\:border-l')).toBeNull();
+    expect(container.querySelector('.xl\\:border-l')).toBeNull();
   });
 
   it('centres the selected month on the swiped strip', () => {
@@ -244,8 +244,28 @@ describe('PeriodBar', () => {
     vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(52);
     vi.spyOn(Element.prototype, 'clientWidth', 'get').mockReturnValue(200);
     const scrollTo = vi.spyOn(Element.prototype, 'scrollTo');
+    const { onChange, rerenderInLocale } = renderBar();
+    expect(scrollTo).toHaveBeenCalledExactlyOnceWith({ left: 226, behavior: 'instant' });
+
+    rerenderInLocale(
+      <PeriodBar
+        period={{ year: 2026, month: 3 }}
+        periodLabel="March/2026"
+        months={MONTHS}
+        currency="USD"
+        firstYear={2024}
+        onChange={onChange}
+      />,
+    );
+    expect(scrollTo).toHaveBeenCalledTimes(2);
+    expect(scrollTo).toHaveBeenLastCalledWith({ left: 226, behavior: 'auto' });
+  });
+
+  it('announces the month and year the arrows move to', () => {
     renderBar();
-    expect(scrollTo).toHaveBeenCalledWith({ left: 300 - (200 - 52) / 2 });
+    expect(screen.getByText('September/2026').getAttribute('aria-live')).toBe('polite');
+    const year = screen.getByText('2026', { selector: '.type-heading-lg' });
+    expect(year.getAttribute('aria-live')).toBe('polite');
   });
 
   it('writes the months and their figures in pt-BR', () => {

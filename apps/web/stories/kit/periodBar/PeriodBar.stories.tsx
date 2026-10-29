@@ -5,7 +5,7 @@ import { Amount } from '../../../src/kit/amount/Amount';
 import { PeriodBar, type PeriodBarProps } from '../../../src/kit/periodBar/PeriodBar';
 import type { Period, PeriodMonth } from '../../../src/kit/periodBar/periodBar';
 
-// The period bar (K40, OQ-216): mockup 30's card from `lg` up, mockup 34's
+// The period bar (K40, OQ-216): mockup 30's card from `xl` up, mockup 34's
 // month stepper and swiped strip below it — narrow the viewport to see it.
 // It holds no state, so the story keeps the selected month; months after
 // today's are disabled. The summary is the caller's: here a stand-in for
@@ -31,16 +31,16 @@ function Summary({ figures }: { figures: PeriodMonth | undefined }) {
   const income = figures?.in ?? 0;
   const spend = figures?.out ?? 0;
   return (
-    <div className="grid grid-cols-3 gap-2 type-body-sm lg:flex lg:flex-col">
-      <span className="flex flex-col lg:flex-row lg:justify-between lg:gap-6">
+    <div className="grid grid-cols-3 gap-2 type-body-sm xl:flex xl:flex-col">
+      <span className="flex flex-col xl:flex-row xl:justify-between xl:gap-6">
         In
         <Amount amount={income} currency="USD" tone="signed" />
       </span>
-      <span className="flex flex-col lg:flex-row lg:justify-between lg:gap-6">
+      <span className="flex flex-col xl:flex-row xl:justify-between xl:gap-6">
         Out
         <Amount amount={-spend} currency="USD" tone="signed" />
       </span>
-      <span className="flex flex-col font-semibold lg:flex-row lg:justify-between lg:gap-6">
+      <span className="flex flex-col font-semibold xl:flex-row xl:justify-between xl:gap-6">
         Total
         <Amount amount={income - spend} currency="USD" sign="always" />
       </span>

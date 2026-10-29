@@ -5957,11 +5957,12 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
   (`kit/periodBar/PeriodBar.tsx`): `<PeriodBar period periodLabel months
   currency firstYear onChange summary?>`. The bar draws the year switch
   and the twelve months, and lays out the caller's `summary` — beside the
-  months from `lg` (mockup 30's divided column), under them in a small
-  card below it (mockup 34). Month Overview (FL17) fills the slot with
+  months from `xl` (mockup 30's divided column), under them in a small
+  card below `xl` (mockup 34). Month Overview (FL17) fills the slot with
   In / Out / Total and the $ / R$ switch (K13); the bar holds no state.
-  `months` is the report's `yearStrip` already narrowed to the switch's
-  currency (FR-6.11); a month left out reads as empty.
+  `months` is the report's `yearStrip` narrowed by the caller to the
+  switch's currency, each row's `YYYY-MM` read as its month's number,
+  1–12 (FR-6.11); a month left out reads as empty.
 - **Bars scale against the year's largest figure, in or out**, in that
   currency, so the strip shows how the months compare. The selected
   month draws them in full mint and coral on `mintdeep` with a mint ring;
@@ -5976,19 +5977,25 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
 - **The caller's `firstYear` bounds the past**: "Previous year" (and the
   phone's "Previous month" at its January) is disabled there. Which year
   that is — e.g. the household's creation — is FL17's call.
-- **Below `lg`, mockup 34's layout**: the caller's `periodLabel`
+- **Below `xl`, mockup 34's layout**: the caller's `periodLabel`
   ("September/2026", formatted as the rails' period chip) between two
   arrows that step a month at a time, across years; the year's twelve
   months on a swiped strip (scrollbar hidden) that centres the selected
-  month. `lg`, not `md`: twelve months beside a 250px summary need about
-  950px. **The bar isn't sticky itself** — the page makes it sticky where
-  it wants it, as mockup 34 does on a phone.
+  month — at once on the first paint, gliding to a month picked later.
+  **`xl`, not `lg`** (PR #139 review): at 1024px, inside the App Shell's
+  48px gutters, the twelve months beside the year and a 250px summary
+  get about 30px each and their names touch; mockup 30's row needs about
+  1,100px. Up to 1280px, the stepper and strip fit with room to spare.
+  **The bar isn't sticky itself** — the page makes it sticky where it
+  wants it, as mockup 34 does on a phone.
 - **What a month is heard as**: its short name, then (visually hidden)
   the year and its money in and out — "Sep 2026: in $3,200.00, out
   $831.39" — so the visible name starts the accessible one (WCAG 2.5.3);
   a month ahead is heard with its year only. The selected month carries
   `aria-current`; the months are a group named "Months of 2026", the bar
-  a region named "Period". A `periodBar` catalog section in both locales.
+  a region named "Period". The month or year between the arrows is a
+  polite live region (PR #139 review), so an arrow's move is heard while
+  focus stays on the arrow. A `periodBar` catalog section in both locales.
 
 **Task 113 (`K40`) is complete.**
 

@@ -12,22 +12,27 @@ import {
 // The kit's period bar (K40, OQ-216): the month the Month Overview shows,
 // picked from a year's twelve months, each with its money in (mint) and out
 // (coral) as two small bars — the strip itself shows how each month went
-// (FR-6.11). From `lg` up it is mockup 30's card: the year between two
+// (FR-6.11). From `xl` up it is mockup 30's card: the year between two
 // arrows, the twelve months in a row, the caller's summary on the right.
-// Below `lg` it is mockup 34's: the month between two arrows that step a
+// Below `xl` it is mockup 34's: the month between two arrows that step a
 // month at a time, across years, over a swiped strip that keeps the
 // selected month in view, the summary under it. Months after today's can't
 // be picked; nor can years before the caller's `firstYear`. The caller
 // fills the summary (In / Out / Total and the $ / R$ switch) and makes the
-// bar sticky where it wants it.
+// bar sticky where it wants it. The month or year between the arrows is a
+// polite live region, so an arrow's move is heard where focus stays.
 
 /** The period bar's props. */
 export interface PeriodBarProps {
   /** The selected month. */
   readonly period: Period;
-  /** The selected month, already formatted, e.g. "September/2026" — shown below `lg`. */
+  /** The selected month, already formatted, e.g. "September/2026" — shown below `xl`. */
   readonly periodLabel: string;
-  /** The selected year's months in one currency; a month left out reads as empty. */
+  /**
+   * The selected year's months in one currency: the report's `yearStrip`
+   * narrowed to the chosen currency, its `YYYY-MM` read as the month's
+   * number. A month left out reads as empty.
+   */
   readonly months: readonly PeriodMonth[];
   /** The currency of `months`, for the months' accessible names. */
   readonly currency: Currency;
@@ -35,7 +40,7 @@ export interface PeriodBarProps {
   readonly firstYear: number;
   /** Called with the month picked, or reached by an arrow. */
   readonly onChange: (period: Period) => void;
-  /** The selected month's summary: beside the months from `lg`, under them below it. */
+  /** The selected month's summary: beside the months from `xl`, under them below it. */
   readonly summary?: ReactNode;
 }
 
@@ -72,7 +77,7 @@ const BAR_COLORS = {
 } as const;
 
 const MONTH = [
-  'flex w-13 shrink-0 flex-col items-center gap-1 rounded-2xl px-2 pt-2 pb-1.5 lg:w-auto',
+  'flex w-13 shrink-0 flex-col items-center gap-1 rounded-2xl px-2 pt-2 pb-1.5 xl:w-auto',
   'transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-40',
   // Inset, so the strip's overflow doesn't clip it.
   'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-mint',
@@ -80,8 +85,8 @@ const MONTH = [
 
 const SUMMARY = [
   'rounded-2xl border border-line bg-card px-3 py-2.5',
-  'lg:min-w-62.5 lg:shrink-0 lg:rounded-none lg:border-0 lg:border-l lg:bg-transparent',
-  'lg:py-0 lg:pr-0 lg:pl-8',
+  'xl:min-w-62.5 xl:shrink-0 xl:rounded-none xl:border-0 xl:border-l xl:bg-transparent',
+  'xl:py-0 xl:pr-0 xl:pl-8',
 ].join(' ');
 
 /**
@@ -130,13 +135,13 @@ function MonthButton({
       disabled={future}
       onClick={onSelect}
     >
-      <span className="flex h-4.5 items-end gap-0.5 lg:h-5.5" aria-hidden="true">
+      <span className="flex h-4.5 items-end gap-0.5 xl:h-5.5" aria-hidden="true">
         <span
-          className={`min-h-1 w-1 rounded-full lg:w-1.25 ${barColor('mint', bars.in, selected)}`}
+          className={`min-h-1 w-1 rounded-full xl:w-1.25 ${barColor('mint', bars.in, selected)}`}
           style={{ height: `${bars.in}%` }}
         />
         <span
-          className={`min-h-1 w-1 rounded-full lg:w-1.25 ${barColor('coral', bars.out, selected)}`}
+          className={`min-h-1 w-1 rounded-full xl:w-1.25 ${barColor('coral', bars.out, selected)}`}
           style={{ height: `${bars.out}%` }}
         />
       </span>
@@ -238,27 +243,33 @@ const useHeardMonth = (currency: Currency) => {
 
 /**
  * Scrolls the strip so its selected month sits in the middle; with every
- * month showing (from `lg` up) there is nothing to scroll.
+ * month showing (from `xl` up) there is nothing to scroll.
  *
  * @param strip - The months' strip, once mounted.
+ * @param behavior - `instant` to jump there, `auto` to follow the strip's
+ *   own smooth scrolling (kept off when the user asks for less motion).
  */
-export const centreSelected = (strip: HTMLElement | null) => {
+export const centreSelected = (strip: HTMLElement | null, behavior: ScrollBehavior) => {
   const selected = strip?.querySelector<HTMLElement>('[aria-current="true"]');
   if (!strip || !selected) return;
-  strip.scrollTo({ left: selected.offsetLeft - (strip.clientWidth - selected.offsetWidth) / 2 });
+  const left = selected.offsetLeft - (strip.clientWidth - selected.offsetWidth) / 2;
+  strip.scrollTo({ left, behavior });
 };
 
 /**
- * Keeps the selected month in view on the swiped strip.
+ * Keeps the selected month in view on the swiped strip: it is there from the
+ * first paint, and glides to a month picked later.
  *
  * @param period - The selected month.
  * @returns The ref for the strip.
  */
 const useSelectedInView = (period: Period) => {
   const stripRef = useRef<HTMLDivElement | null>(null);
+  const mountedRef = useRef(false);
 
   useLayoutEffect(() => {
-    centreSelected(stripRef.current);
+    centreSelected(stripRef.current, mountedRef.current ? 'auto' : 'instant');
+    mountedRef.current = true;
   }, [period.year, period.month]);
 
   return stripRef;
@@ -287,10 +298,10 @@ export function PeriodBar({
       aria-label={translator.text('periodBar', 'label')}
       className={[
         'flex flex-col gap-3 border-b border-line py-3',
-        'lg:flex-row lg:items-center lg:gap-8 lg:rounded-card lg:border lg:bg-card lg:p-5',
+        'xl:flex-row xl:items-center xl:gap-8 xl:rounded-card xl:border xl:bg-card xl:p-5',
       ].join(' ')}
     >
-      <div className="flex items-center justify-between px-3 lg:hidden">
+      <div className="flex items-center justify-between px-3 xl:hidden">
         <Arrows
           back={reachable(stepMonth(period, -1), firstYear, today)}
           forward={isFuture(nextMonth, today) ? undefined : nextMonth}
@@ -298,10 +309,10 @@ export function PeriodBar({
           forwardLabel={translator.text('periodBar', 'nextMonth')}
           onChange={onChange}
         >
-          <span className="type-heading-md tabular-nums">{periodLabel}</span>
+          <span className="type-heading-md tabular-nums" aria-live="polite">{periodLabel}</span>
         </Arrows>
       </div>
-      <div className="hidden shrink-0 items-center gap-2 lg:flex">
+      <div className="hidden shrink-0 items-center gap-2 xl:flex">
         <Arrows
           back={yearArrow(period, period.year - 1, firstYear, today)}
           forward={yearArrow(period, period.year + 1, firstYear, today)}
@@ -309,7 +320,7 @@ export function PeriodBar({
           forwardLabel={translator.text('periodBar', 'nextYear')}
           onChange={onChange}
         >
-          <span className="type-heading-lg tabular-nums">{period.year}</span>
+          <span className="type-heading-lg tabular-nums" aria-live="polite">{period.year}</span>
         </Arrows>
       </div>
       <div
@@ -319,7 +330,7 @@ export function PeriodBar({
         className={[
           'relative flex gap-1.5 overflow-x-auto px-3 [scrollbar-width:none]',
           'motion-safe:scroll-smooth',
-          'lg:grid lg:flex-1 lg:grid-cols-12 lg:overflow-visible lg:px-0',
+          'xl:grid xl:flex-1 xl:grid-cols-12 xl:overflow-visible xl:px-0',
         ].join(' ')}
       >
         {Array.from({ length: 12 }, (_, index) => {
@@ -338,7 +349,7 @@ export function PeriodBar({
           );
         })}
       </div>
-      {summary !== undefined && <div className={`mx-3 lg:mx-0 ${SUMMARY}`}>{summary}</div>}
+      {summary !== undefined && <div className={`mx-3 xl:mx-0 ${SUMMARY}`}>{summary}</div>}
     </section>
   );
 }
