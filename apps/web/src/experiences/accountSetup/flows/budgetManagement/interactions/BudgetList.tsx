@@ -1,9 +1,9 @@
 import type { Budget, Category } from '@financas/api-types';
+import { Amount } from '../../../../../kit/amount/Amount';
 import { OpenableCard } from '../../../../../kit/card/OpenableCard';
 import { CategoryChip } from '../../../../../kit/categoryChip/CategoryChip';
 import { EmptyState } from '../../../../../kit/emptyState/EmptyState';
 import { Tag } from '../../../../../kit/tag/Tag';
-import { formatMoney } from '../../../../../utilities/formatting';
 import { useI18n } from '../../../../../utilities/I18nProvider';
 import { coverChipsOf } from '../../../budgetForm';
 
@@ -55,9 +55,11 @@ function BudgetCard({ budget, categories, onOpen }: BudgetCardProps) {
       )}
     >
       <div className="flex items-baseline gap-2">
-        <span className="type-display-sm tabular-nums">
-          {formatMoney(budget.targetAmount, budget.currency)}
-        </span>
+        <Amount
+          amount={budget.targetAmount}
+          currency={budget.currency}
+          className="type-display-sm"
+        />
         <span className="type-body-sm text-muted">
           {translator.text('budgetManagement', 'card.perMonth')}
         </span>

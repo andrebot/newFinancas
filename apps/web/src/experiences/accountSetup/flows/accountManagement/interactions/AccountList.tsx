@@ -1,6 +1,6 @@
 import type { Account } from '@financas/api-types';
-import { formatMoney } from '../../../../../utilities/formatting';
 import { useI18n } from '../../../../../utilities/I18nProvider';
+import { Amount } from '../../../../../kit/amount/Amount';
 import { Button } from '../../../../../kit/button/Button';
 import { Card } from '../../../../../kit/card/Card';
 import { OpenableCard } from '../../../../../kit/card/OpenableCard';
@@ -55,9 +55,7 @@ function AccountCard({ account, editable, onEdit }: AccountCardProps) {
   const typeLabel = translator.text('accountSetup', `type.${account.type}`);
   const visibilityTag = VISIBILITY_TAGS[account.visibility];
   const isCreditCard = account.type === 'credit_card_only';
-  const amount = isCreditCard
-    ? formatMoney(outstandingOf(account), account.currency)
-    : formatMoney(account.currentBalance, account.currency);
+  const amount = isCreditCard ? outstandingOf(account) : account.currentBalance;
 
   return (
     <OpenableCard
@@ -77,7 +75,7 @@ function AccountCard({ account, editable, onEdit }: AccountCardProps) {
         <span className="text-sm text-muted">
           {translator.text('accountSetup', isCreditCard ? 'card.outstanding' : 'card.balance')}
         </span>
-        <span className="text-lg font-semibold tabular-nums">{amount}</span>
+        <Amount amount={amount} currency={account.currency} className="text-lg font-semibold" />
       </div>
       <div className="flex flex-col gap-2 text-sm">
         {account.cards.length === 0 && (

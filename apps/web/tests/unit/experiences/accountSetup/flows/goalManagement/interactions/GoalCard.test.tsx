@@ -227,7 +227,7 @@ describe('the card', () => {
     expect(screen.getByRole<HTMLInputElement>('textbox', { name: 'BRL per USD' }).value)
       .toMatch(/^5\.2/);
     expect(screen.getByText('61% · ≈ $2,344.92 to go')).toBeTruthy();
-    expect(screen.getByText('≈ $3,173.08')).toBeTruthy();
+    expect(screen.getByText('$3,173.08').parentElement!.textContent).toBe('≈ $3,173.08');
     expect(screen.getByText(translator.text('goalManagement', 'estimate.note'))).toBeTruthy();
     expect(screen.queryByText(/Enter the USD → BRL rate/)).toBeNull();
   });

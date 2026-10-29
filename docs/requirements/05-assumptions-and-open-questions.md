@@ -5679,6 +5679,30 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
 
 **Task 106 (`K44`) is complete.**
 
+### OQ-211: Amount (task K29)
+**Confirmed with the stakeholder (Oct 2026):**
+- **One `<Amount amount currency sign? tone? className?>`**
+  (`kit/amount/Amount.tsx`): the API's minor units, signed, written by
+  FormattingUtility's `formatMoney` in the currency's own conventions, in
+  tabular figures on one line. `sign` passes through: `auto` (default,
+  only `−`) or `always` (`+` on money in).
+- **Colour is opt-in: `tone` `plain` (default) or `signed`.** Plain takes
+  the surrounding colour; signed turns a positive amount mint and a
+  negative one coral, and leaves zero in the surrounding colour. The
+  mockups colour a transaction's amount and In / Out by sign, but keep
+  balances, the In/Out Total and the ledger's day totals in ink or muted
+  (page 30), so colour can't follow the sign alone.
+- **No size of its own.** Amounts run from the 34px hero to 11px
+  captions in several weights; the caller's `className` sets the type
+  role and weight, as Tag, Avatar and Card take theirs.
+- **Every amount on screen goes through it (task 108).** The accounts'
+  balance, the budgets' target and the goals' target, contribution and
+  converted figure moved onto `<Amount>`. Money inside a translated
+  sentence (a goal's headline, Guided Setup's summary) stays
+  `formatter.money`, since it's text, not an element.
+
+**Task 108 (`K29`) is complete.**
+
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
 *(None currently — OQ-29, the last item here, was resolved during data
