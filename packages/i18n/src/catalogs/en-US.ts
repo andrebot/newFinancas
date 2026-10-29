@@ -84,6 +84,7 @@ const enUS: Catalog = {
     'value.min': 'Value is below the minimum.',
     'value.max': 'Value is above the maximum.',
     'password.mismatch': "Passwords don't match.",
+    'date.before_start': "Can't be before the start date.",
   },
   notifications: {
     fallback: 'You have a new notification.',
@@ -781,6 +782,16 @@ const enUS: Catalog = {
     day: 'dd',
     month: 'mm',
     year: 'yyyy',
+  },
+  dateRangePicker: {
+    from: 'From',
+    to: 'To',
+    'preset.anyTime': 'Any time',
+    'preset.thisMonth': 'This month',
+    'preset.last30Days': 'Last 30 days',
+    'preset.last90Days': 'Last 90 days',
+    'preset.thisYear': 'This year',
+    'preset.custom': 'Custom',
   },
   cardRail: {
     scrollBack: 'Scroll {title} left',

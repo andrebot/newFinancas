@@ -99,6 +99,7 @@ const ptBR = {
     'value.min': 'Valor abaixo do mínimo.',
     'value.max': 'Valor acima do máximo.',
     'password.mismatch': 'As senhas não coincidem.',
+    'date.before_start': 'Não pode ser anterior à data inicial.',
   },
   notifications: {
     fallback: 'Você tem uma nova notificação.',
@@ -796,6 +797,16 @@ const ptBR = {
     day: 'dd',
     month: 'mm',
     year: 'aaaa',
+  },
+  dateRangePicker: {
+    from: 'De',
+    to: 'Até',
+    'preset.anyTime': 'Qualquer data',
+    'preset.thisMonth': 'Este mês',
+    'preset.last30Days': 'Últimos 30 dias',
+    'preset.last90Days': 'Últimos 90 dias',
+    'preset.thisYear': 'Este ano',
+    'preset.custom': 'Personalizado',
   },
   cardRail: {
     scrollBack: 'Rolar {title} para a esquerda',

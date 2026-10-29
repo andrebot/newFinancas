@@ -195,6 +195,26 @@ export const isoDate = (bounds: Bounds<string> = {}): Rule<string | undefined> =
 };
 
 /**
+ * Builds the rule for a date range's end (the date range picker's To, K10):
+ * a `YYYY-MM-DD` date, as `isoDate` checks it, that is not before the start.
+ * The start is checked by its own `isoDate` rule; while it isn't a real date
+ * there is nothing to order against. Client-only — the API answers a
+ * reversed range with no rows, not a 422.
+ *
+ * @param start - The range's start (From), as the picker holds it.
+ * @returns A rule failing a malformed end (`string.format`) or one before the
+ *   start (`date.before_start`).
+ */
+export const dateRangeEnd = (start: string): Rule<string | undefined> => (value) => {
+  const malformed = isoDate()(value);
+  if (malformed !== undefined || isEmpty(value) || !isCalendarDate(start) || value >= start) {
+    return malformed;
+  }
+
+  return { code: 'date.before_start' };
+};
+
+/**
  * Combines rules for one field; the first failure is the one shown.
  *
  * @param rules - The rules, in the order they should be checked.

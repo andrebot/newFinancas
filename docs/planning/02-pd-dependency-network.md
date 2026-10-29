@@ -78,7 +78,6 @@ Delays here ripple furthest, so they should be built early and solidly.
 | K4 | Button | 7 |
 | S1 | App Shell | 7 |
 | K3 | Icon set | 6 |
-| K22 | Popover | 6 |
 
 ## What the network says
 

@@ -5764,6 +5764,40 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
 
 **Task 109 (`K35`) is complete.**
 
+### OQ-213: Date range picker (task K10)
+**Confirmed with the stakeholder (Oct 2026):**
+- **As the mockups draw it, no calendar** (the ledger's filter, mockup
+  33; the audit export, 24): preset chips over a typed From and To, two
+  Date inputs (K9). This corrects OQ-190, which put a calendar on a
+  popover here; K10 no longer depends on the Popover (K22) in the PD
+  network.
+- **`kit/dateRangePicker/DateRangePicker.tsx`**: `<DateRangePicker label
+  labelHidden? presets value onChange errors? className?>`, a `fieldset`
+  named by its `legend` (a field caption, or for screen readers only when
+  a dialog title already says it). The chips are a native-radio group in
+  the mockups' `opt` style (`h-8`, `type-body-sm`, mint when chosen).
+- **The caller picks the presets** from `anyTime`, `thisMonth`,
+  `last30Days`, `last90Days`, `thisYear`, in its order; **Custom is always
+  offered last**, since typing a date switches to it.
+- **Presets end today, today included** (`useToday`, the local date):
+  Last 30 days = today − 29 … today; This month from the 1st, This year
+  from 1 January; Any time leaves both dates empty.
+- **The value is `{preset, from, to}`** in the contract's `YYYY-MM-DD`
+  (`''` an open end; the Date input's pieces while incomplete). Choosing
+  Custom keeps the dates shown; typing either date changes it and switches
+  to Custom. The pure moves live in `dateRangePresets.ts`.
+- **The caller validates** and passes the translated errors
+  (`errors.from` / `errors.to`): `isoDate()` on From and the new
+  ValidationUtility rule **`dateRangeEnd(from)`** on To — malformed first,
+  then **`date.before_start`** ("Can't be before the start date."), a
+  client-only field code like `password.mismatch`: the API answers a
+  reversed range with no rows, not a 422. Nothing is ordered against a
+  From that isn't a real date.
+- **Catalog:** a `dateRangePicker` section (From / To and the six preset
+  names) in both locales.
+
+**Task 110 (`K10`) is complete.**
+
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
 *(None currently — OQ-29, the last item here, was resolved during data

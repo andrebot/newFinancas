@@ -95,7 +95,7 @@ describe('catalog contents', () => {
   });
 
   it("has the web client's own field codes", () => {
-    const clientCodes: ClientFieldCode[] = ['password.mismatch'];
+    const clientCodes: ClientFieldCode[] = ['password.mismatch', 'date.before_start'];
 
     clientCodes.forEach((code) => expect(primary.fields[code]).toBeTruthy());
   });
