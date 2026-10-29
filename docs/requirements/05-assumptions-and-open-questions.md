@@ -5876,6 +5876,50 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
 
 **Task 111 (`K12`) is complete.**
 
+### OQ-215: Rail cards (task K36)
+**Confirmed with the stakeholder (Oct 2026):**
+- **Three cards in `kit/railCard/`**, each laid out by the card rail
+  (K35, OQ-212): `<BalanceRailCard name icon color amount currency
+  outstanding?>`, `<BudgetRailCard name spend target currency>` and
+  `<GoalRailCard name funded target currency needsRate?>`. They only
+  display: they don't open anything, as on the mockups. The caller
+  formats the name (a card's "Visa •••• 1111"); the cards translate their
+  own lines (a `railCard` catalog section in both locales) and write money
+  through `<Amount>` / `formatMoney` (K29).
+- **Fixed widths, narrower on a phone:** a balance card 150px, 196px from
+  `md`; a ring card 230px, 272px from `md` (mockups 34 and 30). Both use
+  the card surface's border and colour with `rounded-card`.
+  `RAIL_CARD_PLACEHOLDERS.balance` / `.ring` are the sizes a rail's
+  `placeholderClassName` takes while it loads.
+- **Balance card:** the name in muted, beside a 28px disc with the icon on
+  a tint of its palette colour (K50's `discStyle`), then the amount,
+  plain (a balance is not money in or out). A credit card's outstanding
+  has the "Outstanding" caption over it (`type-label`). Which icon and
+  colour stand for which account is the caller's choice (FL17 / FL21).
+- **Budget card:** the ring (K32), the name, "spent / target" (the target
+  muted) and a status line. The card picks the tone (OQ-209): **mint**,
+  then **sun from 75%** of the target (`config/constants.ts →
+  railCard.budgetNearPercent`), and **coral only once spend is above the
+  target**. A budget spent exactly to its target is sun, "R$0.00 left",
+  not over. Over the target, the line reads "Over by …" in coral with a
+  warning glyph, and the card is ringed in coral, as on the mockups.
+  When refunds outweigh spend (OQ-201), the card shows that negative
+  spend, the ring reads 0%, and what is left exceeds the target.
+- **Percents are whole and rounded down**, so 99.7% never reads 100%.
+  They are not held to 100: the ring holds its fill (OQ-209), and the
+  label reads e.g. 106%.
+- **Goal card:** a sky ring, the name, "funded / target" in the Goal's
+  own currency, and "… to go". At or past the target, the line reads
+  "Goal reached" in mint with a check. A Goal nothing funds reads "Not
+  funded yet" in muted italics, with no figures. That is `muted`, not
+  the mockups' `faint` (OQ-210). **When other currencies fund it too
+  (OQ-201)**, the "to go" line becomes an info glyph and "Other
+  currencies need a rate", because "to go" can't be told without them;
+  the rate stays on the Goals page (FR-9). A reached Goal still reads
+  "Goal reached" in that case.
+
+**Task 112 (`K36`) is complete.**
+
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
 *(None currently — OQ-29, the last item here, was resolved during data

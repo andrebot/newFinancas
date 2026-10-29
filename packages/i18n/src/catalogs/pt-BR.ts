@@ -819,6 +819,16 @@ const ptBR = {
     scrollForward: 'Rolar {title} para a direita',
     loading: 'Carregando {title}',
   },
+  railCard: {
+    outstanding: 'Em aberto',
+    of: '/ {amount}',
+    'budget.left': 'Restam {amount}',
+    'budget.over': 'Excedido em {amount}',
+    'goal.toGo': 'Faltam {amount}',
+    'goal.reached': 'Meta atingida',
+    'goal.unfunded': 'Ainda sem financiamento',
+    'goal.needsRate': 'Outras moedas precisam de cotação',
+  },
   drawer: {
     close: 'Fechar',
   },
