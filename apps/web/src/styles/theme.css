@@ -128,6 +128,10 @@
 
   --radius-card: 20px;
   --radius-input: 14px;
+
+  /* The App Shell's sticky header: its height, and where whatever else
+     sticks on the page starts (the ledger's month headers, K41 / OQ-217). */
+  --spacing-shell-header: 4rem;
 }
 
 /* `inline` makes each utility read the variable at runtime, so a theme swap

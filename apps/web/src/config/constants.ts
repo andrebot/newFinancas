@@ -166,6 +166,12 @@ export const skeleton = {
   rows: 2,
 } as const;
 
+/** Grouped lists: the ledger's months and days, loaded a page at a time (K41, OQ-217). */
+export const groupedList = {
+  /** How far below the view the next page starts loading, so a scroll rarely meets the skeleton. */
+  prefetchMargin: '400px',
+} as const;
+
 /** Card rails: balances, budgets and goals on the Dashboard and Transactions (K35, OQ-212). */
 export const cardRail = {
   /** How far the edge fade reaches into the rail, in px (the mockups' 56px). */

@@ -19,7 +19,3 @@ function InertResizeObserver(): ResizeObserver {
 }
 
 globalThis.ResizeObserver ??= InertResizeObserver as unknown as typeof ResizeObserver;
-
-// jsdom lacks element scrolling too (nothing overflows without layout); a
-// test that checks where something scrolls spies on this.
-Element.prototype.scrollTo ??= () => {};

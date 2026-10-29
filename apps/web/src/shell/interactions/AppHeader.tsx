@@ -9,7 +9,7 @@ import { useI18n } from '../../utilities/I18nProvider';
 // one tap away.
 
 const HEADER = [
-  'sticky top-0 z-30 flex h-16 shrink-0 items-center gap-3',
+  'sticky top-0 z-30 flex h-shell-header shrink-0 items-center gap-3',
   'border-b border-line bg-card/80 px-4 backdrop-blur sm:px-6',
 ].join(' ');
 

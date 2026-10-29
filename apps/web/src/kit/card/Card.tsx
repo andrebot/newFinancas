@@ -14,7 +14,10 @@ export type CardElement = 'section' | 'article' | 'div';
 /** The card's props. */
 export interface CardProps {
   readonly children: ReactNode;
-  /** Defaults to `md`. `none` is for flush content, a ledger or a table, and clips it. */
+  /**
+   * Defaults to `md`. `none` is for flush content, a ledger or a table, and
+   * clips it (`overflow-clip`, so the ledger's month headers still stick).
+   */
   readonly size?: CardSize | undefined;
   /** Defaults to `section`. */
   readonly as?: CardElement | undefined;
@@ -23,7 +26,7 @@ export interface CardProps {
 }
 
 const SIZES: Record<CardSize, string> = {
-  none: 'overflow-hidden rounded-card',
+  none: 'overflow-clip rounded-card',
   sm: 'rounded-2xl p-4',
   md: 'rounded-card p-5',
   lg: 'rounded-3xl p-7',
