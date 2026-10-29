@@ -59,7 +59,7 @@ describe('ProgressRing', () => {
     render(<ProgressRing value={57} label="57%" ariaLabel="House Down Payment" />);
 
     const ring = ringNamed('House Down Payment');
-    expect(ring.className).toBe(`${RING_FRAME} size-16 text-[0.8125rem]`);
+    expect(ring.className).toBe(`${RING_FRAME} size-16 type-body-sm`);
     expect(ring.getAttribute('aria-valuemin')).toBe('0');
     expect(ring.getAttribute('aria-valuemax')).toBe('100');
     expect(ring.getAttribute('aria-valuenow')).toBe('57');
