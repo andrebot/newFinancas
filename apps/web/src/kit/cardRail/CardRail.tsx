@@ -1,19 +1,22 @@
 import {
-  useLayoutEffect, useRef, type CSSProperties, type ReactNode,
+  useCallback, useLayoutEffect, useRef, type CSSProperties, type ReactNode,
 } from 'react';
 import { cardRail } from '../../config/constants';
 import { useI18n } from '../../utilities/I18nProvider';
 import { IconButton } from '../button/IconButton';
 import { SectionHeader, type SectionHeadingLevel } from '../sectionHeader/SectionHeader';
 import { Skeleton } from '../skeleton/Skeleton';
-import { fadeMask, useRailScroll } from './railScroll';
+import {
+  fadeMask, useRailScroll, type RailDirection, type RailEdges,
+} from './railScroll';
 
 // The kit's card rail (K35, OQ-212): a titled row of fixed-width cards that
 // scrolls sideways — the balances, budgets and goals of the Dashboard and
-// Transactions. Cards snap to the start; the side with more to see fades out.
-// From `md` up, two arrows beside the title scroll a page at a time, disabled
-// at their end and gone when every card fits; below it the rail is swiped.
-// The cards' widths are theirs (K36); the rail only lines them up.
+// Transactions. Cards snap to the start, clear of the left fade; the side with
+// more to see fades out. From `md` up, two arrows beside the title page
+// through the cards, disabled at their end and gone when every card fits;
+// below it the rail is swiped. The cards' widths are theirs (K36); the rail
+// only lines them up.
 
 /** The card rail's props. */
 export interface CardRailProps {
@@ -31,11 +34,30 @@ export interface CardRailProps {
   readonly children?: ReactNode;
 }
 
+/** The rail arrows' props. */
+interface RailArrowsProps {
+  readonly title: string;
+  readonly edges: RailEdges;
+  readonly onScroll: (direction: RailDirection) => void;
+  /** Called when the arrows go away while one of them holds focus. */
+  readonly onFocusLost: () => void;
+}
+
+// The keyboard ring sits on this unmasked frame, so the fade never thins it.
+const FRAME = [
+  'rounded-2xl has-[>:focus-visible]:outline-2 has-[>:focus-visible]:outline-offset-2',
+  'has-[>:focus-visible]:outline-mint',
+].join(' ');
+
+// The mask's two layers: the fade over the cards, and a solid strip along the
+// bottom 8px (the padding the scrollbar sits under), so the scrollbar stays sharp.
 const TRACK = [
-  'flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 motion-safe:scroll-smooth',
+  'relative flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 outline-none',
+  'motion-safe:scroll-smooth',
   '[scrollbar-width:thin] [scrollbar-color:var(--color-line)_transparent]',
-  '*:shrink-0 *:snap-start [mask-image:var(--rail-fade)]',
-  'rounded-2xl focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-mint',
+  '*:shrink-0 *:snap-start',
+  '[mask-image:var(--rail-fade)] [mask-repeat:no-repeat] [mask-position:top,bottom]',
+  '[mask-size:100%_calc(100%-8px),100%_8px]',
 ].join(' ');
 
 /**
@@ -55,6 +77,61 @@ export const handOffFocus = (
     to?.focus();
   }
 };
+
+/**
+ * Renders the two rail arrows. When the rail stops overflowing they unmount;
+ * if one held focus, `onFocusLost` gets to place it before they leave the page.
+ *
+ * @param props - The rail's title, its edges, the scroll and the focus hand-off.
+ * @returns The arrows (shown from `md` up).
+ */
+function RailArrows({
+  title, edges, onScroll, onFocusLost,
+}: RailArrowsProps) {
+  const translator = useI18n();
+  const groupRef = useRef<HTMLDivElement | null>(null);
+  const backRef = useRef<HTMLButtonElement | null>(null);
+  const forwardRef = useRef<HTMLButtonElement | null>(null);
+
+  // A layout effect, so the hand-off lands before the browser moves focus off
+  // the arrow it is about to disable.
+  useLayoutEffect(() => {
+    handOffFocus(edges.atStart, backRef.current, forwardRef.current);
+    handOffFocus(edges.atEnd, forwardRef.current, backRef.current);
+  }, [edges.atStart, edges.atEnd]);
+
+  // A layout cleanup runs while the arrows are still in the page, so it can
+  // still see which of them holds focus.
+  useLayoutEffect(() => {
+    const group = groupRef.current;
+    return () => {
+      if (group?.contains(document.activeElement)) {
+        onFocusLost();
+      }
+    };
+  }, [onFocusLost]);
+
+  return (
+    <div ref={groupRef} className="hidden gap-1 md:flex">
+      <IconButton
+        ref={backRef}
+        icon="chevron-left"
+        tone="outline"
+        label={translator.text('cardRail', 'scrollBack', { title })}
+        disabled={edges.atStart}
+        onClick={() => onScroll('back')}
+      />
+      <IconButton
+        ref={forwardRef}
+        icon="chevron-right"
+        tone="outline"
+        label={translator.text('cardRail', 'scrollForward', { title })}
+        disabled={edges.atEnd}
+        onClick={() => onScroll('forward')}
+      />
+    </div>
+  );
+}
 
 /**
  * Renders the loading rail: placeholder cards in one status region, so
@@ -91,38 +168,19 @@ export function CardRail({
 }: CardRailProps) {
   const translator = useI18n();
   const {
-    trackRef, edges, update, scrollPage,
-  } = useRailScroll();
-  const backRef = useRef<HTMLButtonElement | null>(null);
-  const forwardRef = useRef<HTMLButtonElement | null>(null);
+    attachTrack, trackRef, edges, update, scrollPage,
+  } = useRailScroll(cardRail.fadePx);
   const mask = fadeMask(edges, cardRail.fadePx);
-  const overflows = !loading && mask !== undefined;
+  const focusTrack = useCallback(() => trackRef.current?.focus(), [trackRef]);
+  const trackStyle = {
+    // Through a variable: Tailwind writes the prefixed `-webkit-mask-image` too.
+    '--rail-fade': mask,
+    // A snapped card's start sits clear of the left fade.
+    scrollPaddingInlineStart: cardRail.fadePx,
+  } as CSSProperties;
 
-  // Before the browser blurs the arrow it is about to disable.
-  useLayoutEffect(() => {
-    handOffFocus(edges.atStart, backRef.current, forwardRef.current);
-    handOffFocus(edges.atEnd, forwardRef.current, backRef.current);
-  }, [edges.atStart, edges.atEnd]);
-
-  const arrows = overflows && (
-    <div className="hidden gap-1 md:flex">
-      <IconButton
-        ref={backRef}
-        icon="chevron-left"
-        tone="outline"
-        label={translator.text('cardRail', 'scrollBack', { title })}
-        disabled={edges.atStart}
-        onClick={() => scrollPage('back')}
-      />
-      <IconButton
-        ref={forwardRef}
-        icon="chevron-right"
-        tone="outline"
-        label={translator.text('cardRail', 'scrollForward', { title })}
-        disabled={edges.atEnd}
-        onClick={() => scrollPage('forward')}
-      />
-    </div>
+  const arrows = !loading && mask !== undefined && (
+    <RailArrows title={title} edges={edges} onScroll={scrollPage} onFocusLost={focusTrack} />
   );
 
   return (
@@ -134,19 +192,20 @@ export function CardRail({
           className={placeholderClassName}
         />
       ) : (
-        <div
-          ref={trackRef}
-          role="region"
-          aria-label={title}
-          // Scrollable content must be reachable by keyboard (WCAG 2.1.1).
-          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
-          tabIndex={0}
-          className={TRACK}
-          // Through a variable: Tailwind writes the prefixed `-webkit-mask-image` too.
-          style={{ '--rail-fade': mask } as CSSProperties}
-          onScroll={update}
-        >
-          {children}
+        <div className={FRAME}>
+          <div
+            ref={attachTrack}
+            role="region"
+            aria-label={title}
+            // Scrollable content must be reachable by keyboard (WCAG 2.1.1).
+            // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+            tabIndex={0}
+            className={TRACK}
+            style={trackStyle}
+            onScroll={update}
+          >
+            {children}
+          </div>
         </div>
       )}
     </section>

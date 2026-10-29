@@ -3,3 +3,19 @@ import { afterEach } from 'vitest';
 
 // Unmount everything rendered by a test so tests never share DOM state.
 afterEach(cleanup);
+
+/**
+ * Stands in for ResizeObserver, which jsdom lacks (it lays nothing out, so
+ * nothing ever resizes). A test that needs to drive one stubs its own.
+ *
+ * @returns An observer that watches nothing.
+ */
+function InertResizeObserver(): ResizeObserver {
+  return {
+    observe: () => {},
+    unobserve: () => {},
+    disconnect: () => {},
+  };
+}
+
+globalThis.ResizeObserver ??= InertResizeObserver as unknown as typeof ResizeObserver;

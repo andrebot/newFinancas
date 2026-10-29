@@ -1,14 +1,15 @@
 import { act, fireEvent, screen } from '@testing-library/react';
 import {
-  describe, expect, it, vi,
+  afterEach, describe, expect, it, vi,
 } from 'vitest';
 import { cardRail } from '../../../../src/config/constants';
 import { CardRail, handOffFocus } from '../../../../src/kit/cardRail/CardRail';
 import { renderInLocale } from '../../../support/renderInLocale';
 
 // Kit component (BDT: Interaction tier → unit): the translator and the hook
-// run for real. jsdom lays nothing out, so a test sets the track's geometry
-// itself and stands in for `scrollBy`, the browser's own scrolling.
+// run for real. jsdom lays nothing out, so a test sets the track's and the
+// cards' geometry itself, and stands in for the browser's own `scrollTo` and
+// ResizeObserver.
 
 /** A track's geometry, as the browser would report it. */
 interface Geometry {
@@ -39,6 +40,52 @@ const scrollTrack = (
   Object.defineProperty(track, 'scrollWidth', { configurable: true, value: scrollWidth });
   fireEvent.scroll(track, { target: { scrollLeft } });
 };
+
+/** The stand-in cards: 272px wide with a 12px gap, a new one every 284px. */
+const CARD_WIDTH = 272;
+const CARD_STEP = 284;
+
+/**
+ * Places the track's cards side by side, as the browser would lay them out.
+ *
+ * @param track - The scroll region.
+ */
+const layCards = (track: HTMLElement) => {
+  Array.from(track.children).forEach((card, index) => {
+    Object.defineProperty(card, 'offsetLeft', { configurable: true, value: index * CARD_STEP });
+    Object.defineProperty(card, 'offsetWidth', { configurable: true, value: CARD_WIDTH });
+  });
+};
+
+/**
+ * Replaces ResizeObserver with one the test can fire.
+ *
+ * @returns The observers made, each with its callback and spies.
+ */
+const stubResizeObserver = () => {
+  const observers: {
+    callback: () => void;
+    observe: ReturnType<typeof vi.fn>;
+    disconnect: ReturnType<typeof vi.fn>;
+  }[] = [];
+  /**
+   * Makes an observer and records it (called with `new`, so not an arrow).
+   *
+   * @param callback - What a resize calls.
+   * @returns The observer.
+   */
+  function FakeResizeObserver(callback: () => void) {
+    const observer = { callback, observe: vi.fn(), disconnect: vi.fn() };
+    observers.push(observer);
+    return { ...observer, unobserve: vi.fn() };
+  }
+  vi.stubGlobal('ResizeObserver', FakeResizeObserver);
+  return observers;
+};
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 /**
  * Renders a rail of three cards.
@@ -91,8 +138,11 @@ describe('CardRail', () => {
     expect(screen.getByRole('heading', { level: 3, name: 'Goals' })).toBeTruthy();
   });
 
-  it('shows no arrows and no fade while every card fits', () => {
+  it('drops the arrows and the fade once every card fits', () => {
     renderRail();
+    scrollTrack(trackNamed(), { scrollLeft: 300 });
+    expect(forward()).not.toBeNull();
+
     scrollTrack(trackNamed(), { scrollLeft: 0, scrollWidth: 600 });
 
     expect(back()).toBeNull();
@@ -126,19 +176,36 @@ describe('CardRail', () => {
     expect(forward()?.disabled).toBe(true);
   });
 
-  it('scrolls one visible width each way', () => {
+  it('pages to a card snap position, clear of the fade, each way', () => {
     renderRail();
     const track = trackNamed();
-    track.scrollBy = vi.fn();
-    scrollTrack(track, { scrollLeft: 300 });
+    track.scrollTo = vi.fn();
+    layCards(track);
+    // The second card snapped: its start at the fade's inner edge.
+    scrollTrack(track, { scrollLeft: CARD_STEP - cardRail.fadePx, scrollWidth: 840 });
 
     fireEvent.click(forward()!);
     fireEvent.click(back()!);
 
-    expect(track.scrollBy).toHaveBeenNthCalledWith(1, { left: 600 });
-    expect(track.scrollBy).toHaveBeenNthCalledWith(2, { left: -600 });
+    expect(track.scrollTo).toHaveBeenNthCalledWith(1, { left: 2 * CARD_STEP - cardRail.fadePx });
+    expect(track.scrollTo).toHaveBeenNthCalledWith(2, { left: -cardRail.fadePx });
   });
 
+  it('pads the snap by the fade, so a snapped card starts clear of it', () => {
+    renderRail();
+
+    expect(trackNamed().style.scrollPaddingInlineStart).toBe(`${cardRail.fadePx}px`);
+  });
+
+  it('draws the keyboard ring on an unmasked frame around the track', () => {
+    renderRail();
+
+    expect(trackNamed().parentElement!.className).toContain('has-[>:focus-visible]:outline-mint');
+    expect(trackNamed().className).toContain('outline-none');
+  });
+
+  // jsdom never blurs a disabled button, so this checks the hand-off itself,
+  // not that it beats the browser's blur; that was checked in Chromium (PR #135).
   it('hands focus to the other arrow when the focused one reaches its end', () => {
     renderRail();
     const track = trackNamed();
@@ -152,27 +219,70 @@ describe('CardRail', () => {
     expect(document.activeElement).toBe(forward());
   });
 
-  it('re-reads the edges when the window resizes', () => {
+  it('keeps focus on an arrow while the rail just scrolls', () => {
+    renderRail();
+    const track = trackNamed();
+    scrollTrack(track, { scrollLeft: 200 });
+
+    forward()!.focus();
+    scrollTrack(track, { scrollLeft: 300 });
+
+    expect(document.activeElement).toBe(forward());
+  });
+
+  it('hands focus to the track when the arrows go while one holds it', () => {
+    renderRail();
+    const track = trackNamed();
+    scrollTrack(track, { scrollLeft: 300 });
+
+    forward()!.focus();
+    scrollTrack(track, { scrollLeft: 0, scrollWidth: 600 });
+
+    expect(forward()).toBeNull();
+    expect(document.activeElement).toBe(track);
+  });
+
+  it('leaves focus alone when the arrows go without it', () => {
+    renderRail();
+    const track = trackNamed();
+    scrollTrack(track, { scrollLeft: 300 });
+
+    scrollTrack(track, { scrollLeft: 0, scrollWidth: 600 });
+
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it('re-reads the edges when the track changes size', () => {
+    const observers = stubResizeObserver();
     renderRail();
     const track = trackNamed();
     scrollTrack(track, { scrollLeft: 0 });
     Object.defineProperty(track, 'clientWidth', { configurable: true, value: 1200 });
 
-    act(() => {
-      window.dispatchEvent(new Event('resize'));
-    });
+    act(() => observers[0]!.callback());
 
+    expect(observers[0]!.observe).toHaveBeenCalledWith(track);
     expect(forward()).toBeNull();
   });
 
-  it('stops listening for resizes once gone', () => {
-    const removeListener = vi.spyOn(window, 'removeEventListener');
+  it('stops observing the track it observed once gone', () => {
+    const observers = stubResizeObserver();
     const { unmount } = renderRail();
 
     unmount();
 
-    expect(removeListener).toHaveBeenCalledWith('resize', expect.any(Function));
-    removeListener.mockRestore();
+    expect(observers).toHaveLength(1);
+    expect(observers[0]!.disconnect).toHaveBeenCalledOnce();
+  });
+
+  it('observes the track that replaces the placeholders', () => {
+    const observers = stubResizeObserver();
+    const { rerenderInLocale } = renderInLocale(<CardRail title="Balances" loading />);
+    expect(observers).toHaveLength(0);
+
+    rerenderInLocale(<CardRail title="Balances"><article>Main Checking</article></CardRail>);
+
+    expect(observers[0]!.observe).toHaveBeenCalledWith(trackNamed());
   });
 
   it('stands placeholder cards in while loading, announced once, with no arrows', () => {
