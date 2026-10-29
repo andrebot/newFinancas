@@ -71,13 +71,13 @@ function AccountCard({ account, editable, onEdit }: AccountCardProps) {
           {translator.text('accountSetup', visibilityTag.label)}
         </Tag>
       </div>
-      <div className="flex items-baseline gap-2">
-        <span className="text-sm text-muted">
+      <div className="flex flex-col gap-1">
+        <span className="type-label text-muted">
           {translator.text('accountSetup', isCreditCard ? 'card.outstanding' : 'card.balance')}
         </span>
-        <Amount amount={amount} currency={account.currency} className="text-lg font-semibold" />
+        <Amount amount={amount} currency={account.currency} className="type-display-sm" />
       </div>
-      <div className="flex flex-col gap-2 text-sm">
+      <div className="flex flex-col gap-2 type-body">
         {account.cards.length === 0 && (
           <span className="text-muted">{translator.text('accountSetup', 'card.none')}</span>
         )}

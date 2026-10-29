@@ -3,7 +3,8 @@ import { Amount } from '../../../src/kit/amount/Amount';
 
 // The kit's amount (K29, OQ-211): minor units in, the currency's own
 // conventions out, in tabular figures. The examples are the mockups': the
-// ledger's rows and In/Out (30), the balance rail (30), the net-worth hero (20).
+// ledger's rows, day totals and In/Out (30), the balance rail (30), the
+// net-worth hero (20).
 
 const meta = {
   title: 'Kit/Amount',
@@ -12,7 +13,7 @@ const meta = {
   argTypes: {
     currency: { control: 'inline-radio', options: ['BRL', 'USD'] },
     sign: { control: 'inline-radio', options: ['auto', 'always'] },
-    tone: { control: 'inline-radio', options: ['plain', 'signed'] },
+    tone: { control: 'inline-radio', options: ['plain', 'signed', 'inflow'] },
   },
 } satisfies Meta<typeof Amount>;
 
@@ -27,21 +28,25 @@ export const Plain: Story = {};
 export const Signed: Story = {
   render: () => (
     <div className="flex flex-col gap-2 type-body-sm">
-      <Amount
-        amount={320000}
-        currency="USD"
-        sign="always"
-        tone="signed"
-        className="font-semibold"
-      />
-      <Amount
-        amount={-4599}
-        currency="USD"
-        sign="always"
-        tone="signed"
-        className="font-semibold"
-      />
-      <Amount amount={-5840} currency="BRL" sign="always" tone="signed" className="font-semibold" />
+      <Amount amount={320000} currency="USD" tone="signed" className="font-semibold" />
+      <Amount amount={-4599} currency="USD" tone="signed" className="font-semibold" />
+      <Amount amount={-5840} currency="BRL" tone="signed" className="font-semibold" />
+    </div>
+  ),
+};
+
+/** The ledger's day totals: mint only when money came in, the rest in the header's muted. */
+export const DayTotals: Story = {
+  render: () => (
+    <div className="flex w-64 flex-col gap-1 type-label text-muted">
+      <div className="flex justify-between">
+        <span>Mon · Sep 7</span>
+        <Amount amount={-4599} currency="USD" tone="inflow" />
+      </div>
+      <div className="flex justify-between">
+        <span>Tue · Sep 1</span>
+        <Amount amount={320000} currency="USD" tone="inflow" />
+      </div>
     </div>
   ),
 };
@@ -52,23 +57,11 @@ export const InOutSummary: Story = {
     <div className="flex w-56 flex-col gap-2 type-body">
       <div className="flex justify-between">
         <span className="text-muted">In</span>
-        <Amount
-          amount={320000}
-          currency="USD"
-          sign="always"
-          tone="signed"
-          className="font-semibold"
-        />
+        <Amount amount={320000} currency="USD" tone="signed" className="font-semibold" />
       </div>
       <div className="flex justify-between">
         <span className="text-muted">Out</span>
-        <Amount
-          amount={-83139}
-          currency="USD"
-          sign="always"
-          tone="signed"
-          className="font-semibold"
-        />
+        <Amount amount={-83139} currency="USD" tone="signed" className="font-semibold" />
       </div>
       <div className="flex justify-between border-t border-line pt-2">
         <span className="font-semibold">Total</span>

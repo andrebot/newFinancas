@@ -6,11 +6,16 @@ import { formatMoney, type MoneyOptions } from '../../utilities/formatting';
 // (FormattingUtility), in tabular figures so columns of amounts line up. It
 // sets no size or weight: amounts run from the 34px hero to 11px captions,
 // so the caller's `className` sets them. Colour is opt-in: the mockups
-// colour a transaction's amount by its sign but keep balances, the In/Out
-// Total and the ledger's day totals in the surrounding colour.
+// colour a transaction's amount by its sign, the ledger's day totals only
+// when money came in, and keep balances and the In/Out Total plain. A
+// coloured amount writes its `+` by default, so the colour never carries
+// the meaning alone (WCAG 1.4.1).
 
-/** How the amount is coloured: the surrounding colour, or mint / coral by its sign. */
-export type AmountTone = 'plain' | 'signed';
+/**
+ * How the amount is coloured: `plain` takes the surrounding colour; `signed`
+ * is mint above zero and coral below; `inflow` is mint above zero only.
+ */
+export type AmountTone = 'plain' | 'signed' | 'inflow';
 
 /** The amount's props. */
 export interface AmountProps {
@@ -18,7 +23,10 @@ export interface AmountProps {
   readonly amount: number;
   /** The amount's currency. */
   readonly currency: Currency;
-  /** `always` writes `+` on a positive amount; defaults to `auto`, only `−` on a negative one. */
+  /**
+   * `always` writes `+` on a positive amount, `auto` only `−` on a negative
+   * one; defaults to `always` on a coloured tone, `auto` on a plain one.
+   */
   readonly sign?: MoneyOptions['sign'];
   /** Defaults to `plain`. */
   readonly tone?: AmountTone | undefined;
@@ -27,29 +35,31 @@ export interface AmountProps {
 }
 
 /**
- * Picks the colour of a signed amount: mint for money in, coral for money
- * out, the surrounding colour at zero.
+ * Picks the colour of an amount: mint for money in on a coloured tone,
+ * coral for money out on a signed one, else the surrounding colour.
  *
  * @param amount - The amount, signed.
- * @returns The colour class, or nothing at zero.
+ * @param tone - How the amount is coloured.
+ * @returns The colour class, or nothing for the surrounding colour.
  */
-const signedColor = (amount: number): string | undefined => {
+const colorOf = (amount: number, tone: AmountTone): string | undefined => {
+  if (tone === 'plain') return undefined;
   if (amount > 0) return 'text-mint';
-  if (amount < 0) return 'text-coral';
+  if (amount < 0 && tone === 'signed') return 'text-coral';
   return undefined;
 };
 
 /**
  * Builds the classes of an amount.
  *
- * @param amount - The amount, signed; it decides a signed tone's colour.
+ * @param amount - The amount, signed; it decides a coloured tone's colour.
  * @param tone - How the amount is coloured.
  * @param className - The caller's size, weight and extra classes, if any.
  * @returns The amount's classes.
  */
 export const amountClasses = (amount: number, tone: AmountTone, className?: string) => [
   'tabular-nums whitespace-nowrap',
-  tone === 'signed' && signedColor(amount),
+  colorOf(amount, tone),
   className,
 ].filter(Boolean).join(' ');
 
@@ -60,11 +70,12 @@ export const amountClasses = (amount: number, tone: AmountTone, className?: stri
  * @returns The formatted amount, e.g. `R$ 1.234,56`, `+$3,200.00`, `−$45.99`.
  */
 export function Amount({
-  amount, currency, sign = 'auto', tone = 'plain', className,
+  amount, currency, sign, tone = 'plain', className,
 }: AmountProps) {
+  const shownSign = sign ?? (tone === 'plain' ? 'auto' : 'always');
   return (
     <span className={amountClasses(amount, tone, className)}>
-      {formatMoney(amount, currency, { sign })}
+      {formatMoney(amount, currency, { sign: shownSign })}
     </span>
   );
 }

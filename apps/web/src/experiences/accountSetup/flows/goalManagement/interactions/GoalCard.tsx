@@ -313,7 +313,7 @@ function FundingBlock({
             />
           )}
           {row.converted !== undefined && (
-            <span className="type-caption text-muted">
+            <span className="type-caption whitespace-nowrap text-muted">
               {'≈ '}
               <Amount amount={row.converted} currency={goal.targetCurrency} />
             </span>
