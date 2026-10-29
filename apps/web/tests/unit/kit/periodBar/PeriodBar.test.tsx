@@ -11,7 +11,8 @@ import { renderInLocale } from '../../../support/renderInLocale';
 
 // Kit component (BDT: Interaction tier → unit): display and events only; the
 // translator, the formatter and today's date (pinned) run for real. jsdom
-// has no layout, so the strip's geometry is stood in for and `scrollTo` spied on.
+// has no layout, so the strip's geometry is stood in for, and `scrollTo` (jsdom
+// lacks it) stood in for here and spied on.
 
 const MONTHS: readonly PeriodMonth[] = [
   { month: 1, in: 320000, out: 260000 },
@@ -139,11 +140,13 @@ describe('PeriodBar', () => {
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date(2026, 8, 17, 12, 0, 0));
+    Element.prototype.scrollTo = () => {};
   });
 
   afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();
+    delete (Element.prototype as Partial<Element>).scrollTo;
   });
 
   it('names itself and its year\'s twelve months', () => {

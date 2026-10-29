@@ -18,7 +18,7 @@ describe('cardClasses', () => {
   });
 
   it('clips flush content and adds no padding at size none', () => {
-    expect(cardClasses('none')).toBe('border border-line bg-card overflow-hidden rounded-card');
+    expect(cardClasses('none')).toBe('border border-line bg-card overflow-clip rounded-card');
   });
 
   it("appends the caller's classes", () => {

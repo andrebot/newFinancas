@@ -34,6 +34,30 @@ setProjectAnnotations(preview);
 // stray `scrollTo` should still fail.
 Element.prototype.scrollTo ??= () => {};
 
+/**
+ * Stands in for IntersectionObserver, which jsdom lacks; the grouped list
+ * watches its end with one. Only here, like `scrollTo`: elsewhere a test
+ * drives its own, so a list that never loads its next page can't pass unseen.
+ *
+ * @returns An observer that watches nothing.
+ */
+function InertIntersectionObserver(): IntersectionObserver {
+  return {
+    root: null,
+    rootMargin: '',
+    scrollMargin: '',
+    thresholds: [],
+    observe: () => {},
+    unobserve: () => {},
+    disconnect: () => {},
+    takeRecords: () => [],
+  };
+}
+
+globalThis.IntersectionObserver ??= (
+  InertIntersectionObserver as unknown as typeof IntersectionObserver
+);
+
 const modules = import.meta.glob<StoryModule>('../../../stories/**/*.stories.tsx', {
   eager: true,
 });

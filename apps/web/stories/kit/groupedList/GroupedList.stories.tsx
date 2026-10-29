@@ -2,16 +2,17 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import type { Currency } from '@financas/api-types';
 import { Fragment, useState } from 'react';
 import { Amount } from '../../../src/kit/amount/Amount';
+import { Card } from '../../../src/kit/card/Card';
 import { EmptyState } from '../../../src/kit/emptyState/EmptyState';
 import {
   GroupedList, type GroupedListStatus,
 } from '../../../src/kit/groupedList/GroupedList';
-import { ListRow } from '../../../src/kit/listRow/ListRow';
 import { ListRowIcon } from '../../../src/kit/listRow/ListRowIcon';
 
 // The grouped list (K41, OQ-217): the ledger's sticky month headers and day
-// bands, a page at a time (mockups 30, 34). Scroll the card: the next page
-// loads as its end nears, after a short pause standing in for the network.
+// bands, a page at a time (mockups 30, 34). Scroll the page: the headers
+// stick at its top (no App Shell here), and the next page loads as the end
+// nears, after a short pause standing in for the network.
 // The asides and rows are the caller's — here stand-ins for Browse
 // Transactions' month counts, day totals (R$ first, then $) and rows.
 
@@ -26,7 +27,7 @@ interface SampleRow {
 
 const NAMES = ['Groceries', 'Coffee Shop', 'Netflix', 'Paycheck', 'Amazon', 'Pharmacy', 'Rent'];
 
-/** Forty rows, newest first, two a day, alternating currencies, from September back. */
+/** Forty rows, newest first, two a day every other day, every third in R$, from September back. */
 const SAMPLE: readonly SampleRow[] = Array.from({ length: 40 }, (_, index) => {
   const day = new Date(Date.UTC(2026, 8, 12 - Math.floor(index / 2) * 2));
   return {
@@ -85,19 +86,20 @@ const renderTotals = (date: string) => dayTotals(date).map((total, index) => (
 ));
 
 /**
- * Renders a stand-in ledger row.
+ * Renders a stand-in ledger row, laid out as mockup 30's (FL16 renders K42's
+ * `Expandable` here; `ListRow` is an `li` of its own `ListRows`, so it can't).
  *
  * @param row - The row.
  * @returns The row.
  */
 const renderRow = (row: SampleRow) => (
-  <div className="px-5 py-3">
-    <ListRow
-      leading={<ListRowIcon icon={row.amount > 0 ? 'savings-outline' : 'shopping-cart-outline'} />}
-      title={row.name}
-      meta="Main Checking"
-      trailing={<Amount amount={row.amount} currency={row.currency} tone="signed" />}
-    />
+  <div className="flex items-center gap-3 py-3 pr-4 pl-5">
+    <ListRowIcon icon={row.amount > 0 ? 'savings-outline' : 'shopping-cart-outline'} size="sm" />
+    <div className="min-w-0 flex-1">
+      <p className="truncate type-body font-medium">{row.name}</p>
+      <p className="truncate type-body-sm text-muted">Main Checking</p>
+    </div>
+    <Amount amount={row.amount} currency={row.currency} tone="signed" className="font-semibold" />
   </div>
 );
 
@@ -121,7 +123,7 @@ function Ledger({ initial, status: initialStatus, blank }: LedgerProps) {
   };
 
   return (
-    <section className="max-h-[560px] overflow-y-auto rounded-card border border-line bg-card">
+    <Card size="none" className="max-w-xl">
       <h2 className="px-5 pt-4 pb-3 type-heading-sm">All transactions</h2>
       <GroupedList<SampleRow>
         items={source.slice(0, loaded)}
@@ -134,8 +136,9 @@ function Ledger({ initial, status: initialStatus, blank }: LedgerProps) {
         status={status}
         onReachedEnd={loadMore}
         empty={<EmptyState icon="receipt-long-outline" title="No transactions yet" />}
+        stickyTop="0px"
       />
-    </section>
+    </Card>
   );
 }
 

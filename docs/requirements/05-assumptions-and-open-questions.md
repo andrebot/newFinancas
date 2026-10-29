@@ -2334,7 +2334,9 @@ not a hardcoded assumption.
   `className`, because some cards stack and some run in a row (the year
   bar). It renders a `section` by default (`as`: `article`, `div`). Its
   `size` sets padding and radius together, so tighter cards round less:
-  `none` (flush and clipped, 20px, for the ledger and tables), `sm` (16px
+  `none` (flush and clipped, 20px, for the ledger and tables — clipped by
+  `overflow-clip`, not `overflow-hidden`, so the ledger's month headers
+  still stick, OQ-217), `sm` (16px
   padding and radius, for the nested contract / position panels), `md`
   (20px / 20px, the default page panel) and `lg` (28px / 24px, the
   wizard's step card). The mockups' one-off 18px `.acard` / `.ccard`
@@ -6006,7 +6008,8 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
   (`kit/groupedList/GroupedList.tsx`): `<GroupedList items dateOf keyOf
   renderItem monthAside? dayAside? hasMore status? onReachedEnd empty?
   headingLevel? stickyTop?>`. The caller passes every item loaded so far,
-  already ordered (the ledger's newest first). `groupedList.ts →
+  already ordered (the ledger's newest first), and its `status` (required,
+  so no caller can forget it and stall the paging). `groupedList.ts →
   groupByMonthAndDay` starts a new group whenever the date changes, so a
   month or day split across two pages joins up again. The kit knows
   nothing of transactions: Browse (FL16) puts the month's count
@@ -6015,9 +6018,11 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
 - **Names in the interface language.** Month headers use
   `formatting.dateStyles.monthYear` ("September 2026" · "Setembro de
   2026", its first letter raised by CSS), not the mockups' "September/2026".
-  Day bands use `weekdayDayMonth` ("Sat, Sep 12"). Each month is a
-  `section` named by its heading (level 3 by default, the caller's choice);
-  each day is a heading one level below, its rows a `ul`.
+  Day bands use `weekdayDayMonth` ("Sat, Sep 12"). Each month is headed at
+  level 3 by default (the caller's choice), each day one level below, its
+  rows a `ul`. The headings carry the structure: a month is no landmark,
+  so a long scroll doesn't bury the page's own (PR #140 review). A month or
+  day that comes back after another keeps its own group (keyed by place).
 - **Mockup 30's look.** The month header is sticky: mint display-font
   bold on `bg-card`, hairlines above and below, the aside a muted caption.
   The day band is `type-label` muted on `bg-raised/60`, its aside not
@@ -6026,25 +6031,36 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
 - **Two currencies on one day: both totals, side by side** — R$ first,
   then $, a middle dot between, each in K29's `inflow` tone. FL16 lays
   them out in `dayAside` from `dayTotals`.
-- **On phones the month header sticks too, under the page's sticky period
-  bar.** The caller passes `stickyTop` (a CSS length) to clear the bar.
-  This adds to mockup 34, which shows a single month's heading. Nothing
-  above the list may clip it (`overflow-clip`, not `overflow-hidden`), or
-  the headers won't stick.
+- **The month header sticks under the App Shell's header** (PR #140
+  review): the page scrolls and the shell's header is sticky, so mockup
+  30's `top: 0` would hide the headers under it. `stickyTop` (a CSS
+  length) defaults to `var(--spacing-shell-header)`, the header's height
+  as a theme token (`theme.css`, also `h-shell-header` on the header). On
+  phones the header sticks too, under the page's sticky period bar: the
+  page passes the shell header plus the bar's height. This adds to mockup
+  34, which shows a single month's heading. Nothing above the list may clip
+  it (`overflow-clip`, not `overflow-hidden` — K34's `Card size="none"`
+  now clips that way), or the headers won't stick.
 - **Infinite scroll through a sentinel.** An IntersectionObserver watches
   it with `config/constants.ts → groupedList.prefetchMargin` (400px)
   below the view. It asks `onReachedEnd` once, then disarms, and arms
-  again only when `status` is back to `idle` with `hasMore`. A short page
-  whose sentinel is still in view asks again. Nothing watches while a page
-  loads, after one failed, or at the end.
+  again with each new page or when `status` is back to `idle` with
+  `hasMore` — so a page that lands in the same render as its `loading`
+  still re-arms. A short page whose sentinel is still in view asks again.
+  Nothing watches while a page loads, after one failed, at the end, or
+  before the first page: that one is the Flow's to ask for (the Browse
+  sequence's `cursor = null`), so the list never doubles it.
 - **While a page loads: skeleton rows only.** K28's rows ("Loading more",
   or "Loading" when nothing has loaded) stand under the last month, with no
   guessed next header. The list can't know the next month (a filter may
   skip months; the same month may continue), so mockup 30's "August/2026 ·
   loading…" header is dropped, superseding OQ-132's note.
 - **A failed page offers to try again.** The row reads "Couldn't load
-  more." (a polite status) and has a ghost "Try again" button that calls
-  `onReachedEnd`. The sentinel stays quiet until then.
+  more." and has a ghost "Try again" button that calls `onReachedEnd` (with
+  no arguments). The text lands in a polite status region that is always
+  there, so it is heard when it appears. "Try again" hands focus to the
+  list's end before the button goes, so the keyboard stays put. The
+  sentinel stays quiet until then.
 - **Empty only when nothing loaded and nothing follows:** the caller's
   `empty` (K28 `EmptyState`). Nothing shows after the last row at the end.
   A `groupedList` catalog section in both locales.

@@ -23,6 +23,28 @@ const ROWS: readonly Row[] = [
   { id: 'rent', date: '2026-08-31', name: 'Rent' },
 ];
 
+const MORE: Row = { id: 'groceries', date: '2026-08-20', name: 'Groceries' };
+
+/**
+ * Builds the list with the given items, status and handler, more to load.
+ *
+ * @param props - The items, the status and the page handler.
+ * @returns The list element, for a rerender.
+ */
+const listWith = ({ items, status, onReachedEnd }: Pick<
+  Parameters<typeof GroupedList<Row>>[0], 'items' | 'status' | 'onReachedEnd'
+>) => (
+  <GroupedList<Row>
+    items={items}
+    dateOf={(row) => row.date}
+    keyOf={(row) => row.id}
+    renderItem={(row) => <span>{row.name}</span>}
+    hasMore
+    status={status}
+    onReachedEnd={onReachedEnd}
+  />
+);
+
 /** A stand-in observer: what it was built with and what it was asked. */
 interface ObserverStub {
   readonly callback: IntersectionObserverCallback;
@@ -85,6 +107,7 @@ const renderList = (
       keyOf={(row) => row.id}
       renderItem={(row) => <span>{row.name}</span>}
       hasMore
+      status="idle"
       onReachedEnd={onReachedEnd}
       {...overrides}
     />,
@@ -103,13 +126,33 @@ afterEach(() => {
 });
 
 describe('GroupedList', () => {
-  it('names each month in a section headed by it, and each day under it', () => {
+  it('heads each month, and each day one level below it, adding no landmarks', () => {
     renderList();
-    const september = screen.getByRole('region', { name: 'September 2026' });
-    expect(screen.getByRole('heading', { level: 3, name: 'September 2026' })).toBeTruthy();
-    expect(screen.getByRole('heading', { level: 3, name: 'August 2026' })).toBeTruthy();
-    expect(september.querySelectorAll('h4')).toHaveLength(2);
-    expect(screen.getByRole('heading', { level: 4, name: 'Sat, Sep 12' })).toBeTruthy();
+    const headings = screen.getAllByRole('heading').map((heading) => [
+      heading.tagName, heading.textContent,
+    ]);
+    expect(headings).toEqual([
+      ['H3', 'September 2026'],
+      ['H4', 'Sat, Sep 12'],
+      ['H4', 'Tue, Sep 1'],
+      ['H3', 'August 2026'],
+      ['H4', 'Mon, Aug 31'],
+    ]);
+    expect(screen.queryAllByRole('region')).toHaveLength(0);
+  });
+
+  it('keeps a month or day that comes back after another apart, without key clashes', () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    renderList({
+      items: [
+        { id: 'a', date: '2026-09-12', name: 'First' },
+        { id: 'b', date: '2026-08-31', name: 'Second' },
+        { id: 'c', date: '2026-09-12', name: 'Third' },
+      ],
+    });
+    expect(screen.getAllByRole('heading', { level: 3, name: 'September 2026' })).toHaveLength(2);
+    expect(error).not.toHaveBeenCalled();
+    error.mockRestore();
   });
 
   it('writes the month and day in the interface language, the month capitalised', () => {
@@ -144,10 +187,10 @@ describe('GroupedList', () => {
     expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(3);
   });
 
-  it('sticks the month headers at the top, or where the caller says', () => {
+  it('sticks the month headers under the App Shell\'s header, or where the caller says', () => {
     const { rerenderInLocale } = renderList();
     const header = () => screen.getByRole('heading', { name: 'September 2026' }).parentElement!;
-    expect(header().style.top).toBe('0px');
+    expect(header().style.top).toBe('var(--spacing-shell-header)');
     rerenderInLocale(
       <GroupedList<Row>
         items={ROWS}
@@ -155,6 +198,7 @@ describe('GroupedList', () => {
         keyOf={(row) => row.id}
         renderItem={(row) => <span>{row.name}</span>}
         hasMore
+        status="idle"
         onReachedEnd={() => {}}
         stickyTop="120px"
       />,
@@ -184,6 +228,7 @@ describe('GroupedList', () => {
         keyOf={(row) => row.id}
         renderItem={(row) => <span>{row.name}</span>}
         hasMore
+        status="idle"
         onReachedEnd={latest}
       />,
     );
@@ -193,11 +238,33 @@ describe('GroupedList', () => {
     expect(onReachedEnd).not.toHaveBeenCalled();
   });
 
-  it('watches nothing while a page loads, after one failed, or at the end', () => {
+  it('watches nothing while loading, after a failure, at the end, or before the first page', () => {
     renderList({ status: 'loading' });
     renderList({ status: 'error' });
     renderList({ hasMore: false });
+    renderList({ items: [] });
     expect(observers).toHaveLength(0);
+  });
+
+  it('asks again once the page it asked for has loaded and the sentinel is still in view', () => {
+    const { rerenderInLocale, onReachedEnd } = renderList();
+    sentinelSeen(true);
+    expect(onReachedEnd).toHaveBeenCalledTimes(1);
+    rerenderInLocale(listWith({ items: ROWS, status: 'loading', onReachedEnd }));
+    expect(observers).toHaveLength(1);
+    rerenderInLocale(listWith({ items: [...ROWS, MORE], status: 'idle', onReachedEnd }));
+    expect(observers).toHaveLength(2);
+    sentinelSeen(true);
+    expect(onReachedEnd).toHaveBeenCalledTimes(2);
+  });
+
+  it('arms again when a new page arrives without the status ever leaving idle', () => {
+    const { rerenderInLocale, onReachedEnd } = renderList();
+    sentinelSeen(true);
+    rerenderInLocale(listWith({ items: [...ROWS, MORE], status: 'idle', onReachedEnd }));
+    expect(observers).toHaveLength(2);
+    sentinelSeen(true);
+    expect(onReachedEnd).toHaveBeenCalledTimes(2);
   });
 
   it('stops watching when it unmounts', () => {
@@ -210,7 +277,9 @@ describe('GroupedList', () => {
     renderList({ status: 'loading' });
     const status = screen.getByRole('status', { name: 'Loading more' });
     expect(status.getAttribute('aria-busy')).toBe('true');
-    expect(screen.getAllByRole('region')).toHaveLength(2);
+    expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(2);
+    expect(status.compareDocumentPosition(screen.getByText('Rent')))
+      .toBe(Node.DOCUMENT_POSITION_PRECEDING);
   });
 
   it('says just "loading" while the first page loads', () => {
@@ -218,11 +287,29 @@ describe('GroupedList', () => {
     expect(screen.getByRole('status', { name: 'Carregando' })).toBeTruthy();
   });
 
-  it('offers to try again when a page failed', () => {
+  it('keeps an empty live region at the end, so a failure is heard when it appears', () => {
+    const { rerenderInLocale, onReachedEnd } = renderList();
+    const region = screen.getByRole('status');
+    expect(region.textContent).toBe('');
+    rerenderInLocale(listWith({ items: ROWS, status: 'error', onReachedEnd }));
+    expect(screen.getByRole('status')).toBe(region);
+    expect(region.textContent).toBe('Couldn\'t load more.');
+  });
+
+  it('offers to try again when a page failed, asking with no arguments', () => {
     const { onReachedEnd } = renderList({ status: 'error' });
-    expect(screen.getByRole('status').textContent).toBe('Couldn\'t load more.');
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
-    expect(onReachedEnd).toHaveBeenCalledTimes(1);
+    expect(onReachedEnd).toHaveBeenCalledExactlyOnceWith();
+  });
+
+  it('keeps focus at the list\'s end when "Try again" goes away', () => {
+    const { rerenderInLocale, onReachedEnd } = renderList({ status: 'error' });
+    const retry = screen.getByRole('button', { name: 'Try again' });
+    retry.focus();
+    fireEvent.click(retry);
+    rerenderInLocale(listWith({ items: ROWS, status: 'loading', onReachedEnd }));
+    expect(document.activeElement).not.toBe(document.body);
+    expect(document.activeElement?.getAttribute('tabindex')).toBe('-1');
   });
 
   it('shows the caller\'s empty state only when nothing loaded and nothing follows', () => {
@@ -230,6 +317,11 @@ describe('GroupedList', () => {
     const { unmount } = renderList({ items: [], hasMore: true, empty });
     expect(screen.queryByText('Nothing yet')).toBeNull();
     unmount();
+    const { unmount: unmountFailed } = renderList({
+      items: [], hasMore: false, status: 'error', empty,
+    });
+    expect(screen.queryByText('Nothing yet')).toBeNull();
+    unmountFailed();
     renderList({ items: [], hasMore: false, empty });
     expect(screen.getByText('Nothing yet')).toBeTruthy();
   });
