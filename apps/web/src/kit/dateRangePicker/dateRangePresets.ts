@@ -86,6 +86,23 @@ export const choosePreset = (
 );
 
 /**
+ * Brings a relative preset's dates up to today, e.g. after midnight. Custom
+ * and a preset already ending today come back as they are.
+ *
+ * @param current - The value held.
+ * @param today - Today's local date, `YYYY-MM-DD`.
+ * @returns `current` when nothing moved, else the preset with today's dates.
+ */
+export const refreshPreset = (current: DateRangeValue, today: string): DateRangeValue => {
+  if (current.preset === 'custom') return current;
+
+  const range = resolvePreset(current.preset, today);
+  const unchanged = range.from === current.from && range.to === current.to;
+
+  return unchanged ? current : { preset: current.preset, ...range };
+};
+
+/**
  * Builds the value after one end is typed: the date changes and the preset
  * becomes Custom.
  *

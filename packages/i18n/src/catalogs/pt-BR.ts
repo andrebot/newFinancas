@@ -801,7 +801,7 @@ const ptBR = {
   dateRangePicker: {
     from: 'De',
     to: 'Até',
-    'preset.anyTime': 'Qualquer data',
+    'preset.anyTime': 'Qualquer período',
     'preset.thisMonth': 'Este mês',
     'preset.last30Days': 'Últimos 30 dias',
     'preset.last90Days': 'Últimos 90 dias',

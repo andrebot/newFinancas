@@ -1,4 +1,4 @@
-import { fireEvent, screen } from '@testing-library/react';
+import { act, fireEvent, screen } from '@testing-library/react';
 import { useState } from 'react';
 import {
   afterEach, beforeEach, describe, expect, it, vi,
@@ -94,15 +94,52 @@ describe('DateRangePicker', () => {
     vi.useRealTimers();
   });
 
-  it('offers the given presets, then Custom, named by the group', () => {
+  it('offers the given presets, then Custom, inside the named group', () => {
     renderHolder({ presets: ['last30Days', 'thisYear'] });
 
-    const group = screen.getByRole('radiogroup', { name: 'Date range' });
+    const fieldset = screen.getByRole('group', { name: 'Date range' });
     const chips = screen.getAllByRole('radio').map((radio) => radio.closest('label')?.textContent);
 
-    expect(group).toBeDefined();
     expect(chips).toEqual(['Last 30 days', 'This year', 'Custom']);
-    expect(screen.getByRole('group', { name: 'Date range' })).toBeDefined();
+    // Named once, by the fieldset's legend — not again on the chips' group.
+    expect(fieldset.querySelector('[role="radiogroup"]')!.hasAttribute('aria-label')).toBe(false);
+    expect(screen.getByRole('radiogroup').hasAttribute('aria-labelledby')).toBe(false);
+  });
+
+  it('reports nothing on mount while the preset already ends today', () => {
+    const onChange = renderHolder();
+
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('moves a chosen preset on to the new day past midnight', () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] });
+    vi.setSystemTime(new Date(2026, 9, 29, 23, 59, 0));
+    const onChange = renderHolder({
+      value: { preset: 'last30Days', from: '2026-09-30', to: '2026-10-29' },
+    });
+
+    act(() => {
+      vi.advanceTimersByTime(2 * 60 * 1000);
+    });
+
+    expect(onChange).toHaveBeenCalledExactlyOnceWith(
+      { preset: 'last30Days', from: '2026-10-01', to: '2026-10-30' },
+    );
+    expect(dateBox('To').value).toBe('10/30/2026');
+  });
+
+  it('leaves a Custom range as typed past midnight', () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] });
+    vi.setSystemTime(new Date(2026, 9, 29, 23, 59, 0));
+    const onChange = renderHolder({ value: { ...LAST_90, preset: 'custom' } });
+
+    act(() => {
+      vi.advanceTimersByTime(2 * 60 * 1000);
+    });
+
+    expect(onChange).not.toHaveBeenCalled();
+    expect(dateBox('To').value).toBe('10/29/2026');
   });
 
   it('marks the chosen preset and shows its dates', () => {

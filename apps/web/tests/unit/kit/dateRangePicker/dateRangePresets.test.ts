@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  addDays, choosePreset, editDate, resolvePreset, type DateRangeValue,
+  addDays, choosePreset, editDate, refreshPreset, resolvePreset, type DateRangeValue,
 } from '../../../../src/kit/dateRangePicker/dateRangePresets';
 
 // Pure helpers of the date range picker (BDT: Interaction tier → unit, no mocks).
@@ -51,6 +51,32 @@ describe('choosePreset', () => {
 
     expect(choosePreset(current, 'custom', TODAY))
       .toEqual({ preset: 'custom', from: '2026-01-01', to: TODAY });
+  });
+});
+
+describe('refreshPreset', () => {
+  it('moves a relative preset on to today', () => {
+    const yesterday: DateRangeValue = { preset: 'thisMonth', from: '2026-10-01', to: '2026-10-28' };
+
+    expect(refreshPreset(yesterday, TODAY))
+      .toEqual({ preset: 'thisMonth', from: '2026-10-01', to: TODAY });
+  });
+
+  it('returns the same value when the preset already ends today', () => {
+    const current: DateRangeValue = { preset: 'thisYear', from: '2026-01-01', to: TODAY };
+
+    expect(refreshPreset(current, TODAY)).toBe(current);
+  });
+
+  it('returns the same value only when both ends match', () => {
+    const current: DateRangeValue = { preset: 'thisYear', from: '2025-01-01', to: TODAY };
+
+    expect(refreshPreset(current, TODAY))
+      .toEqual({ preset: 'thisYear', from: '2026-01-01', to: TODAY });
+  });
+
+  it('leaves Custom as typed', () => {
+    expect(refreshPreset(CUSTOM, TODAY)).toBe(CUSTOM);
   });
 });
 

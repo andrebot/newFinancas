@@ -1,17 +1,18 @@
-import { useId } from 'react';
+import { useEffect, useId } from 'react';
 import { useI18n } from '../../utilities/I18nProvider';
 import useToday from '../../utilities/useToday';
 import { DateInput } from '../dateInput/DateInput';
 import FOCUS_RING from '../focusRing';
 import {
-  choosePreset, editDate,
+  choosePreset, editDate, refreshPreset,
   type DateRangePreset, type DateRangeSide, type DateRangeValue, type RelativePreset,
 } from './dateRangePresets';
 
 // The kit's date range picker (K10, OQ-213): preset chips over a typed From
 // and To, as mockups 33 (the ledger's filter) and 24 (the audit export) draw
 // it — no calendar. A relative preset fills both dates, ending today; typing a
-// date switches to Custom, which is always offered last. The caller holds the
+// date switches to Custom, which is always offered last. A chosen preset keeps
+// ending today: past midnight its new dates are reported. The caller holds the
 // value and validates it (`isoDate` on From, `dateRangeEnd(from)` on To); the
 // picker only shows the errors it is given.
 
@@ -57,19 +58,24 @@ export function DateRangePicker({
   const translator = useI18n();
   const today = useToday();
   const id = useId();
-  const legendId = `${id}-legend`;
   const offered: readonly DateRangePreset[] = [...presets, 'custom'];
   const edit = (side: DateRangeSide) => (date: string) => onChange(editDate(value, side, date));
 
+  useEffect(() => {
+    const refreshed = refreshPreset(value, today);
+    if (refreshed !== value) onChange(refreshed);
+  }, [value, today, onChange]);
+
   return (
-    <fieldset className={['flex min-w-0 flex-col gap-3', className].filter(Boolean).join(' ')}>
+    <fieldset className={['flex min-w-0 flex-col gap-2', className].filter(Boolean).join(' ')}>
       <legend
-        id={legendId}
         className={labelHidden ? 'sr-only' : 'mb-2 type-caption font-semibold text-muted'}
       >
         {label}
       </legend>
-      <div role="radiogroup" aria-labelledby={legendId} className="flex flex-wrap gap-2">
+      {/* The fieldset's legend names the chips and dates together; a name on
+          the group too would be read twice. */}
+      <div role="radiogroup" className="flex flex-wrap gap-2">
         {offered.map((preset) => (
           <label key={preset} htmlFor={`${id}-${preset}`} className={CHIP}>
             <input
