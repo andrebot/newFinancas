@@ -431,8 +431,8 @@ TransactionManager.record(input)
                  InvestmentHoldingAccessor.applySchedule(holdingId, schedule)
                if allocations provided (OQ-54, investment-buy only):
                  the buy's split applies to the purchase, not the Holding (OQ-168):
-                 re-weight the existing split by value (existing quantity × this
-                 buy's unit price), add the purchase's shares, round by largest
+                 re-weight the existing split by value (the Holding's latest
+                 snapshot by the buy's date, OQ-222), add the purchase's shares, round by largest
                  remainder, drop a share that rounds to 0%
                  GoalAccessor.replaceAllocations(householdId, holdingId, shares)
                    if the purchase's own split passes 100%: reject (FR-8.3) → 409 Conflict

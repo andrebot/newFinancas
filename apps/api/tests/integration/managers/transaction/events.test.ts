@@ -105,9 +105,9 @@ describe('postScheduledEntry (VBD §3.2a)', () => {
       date: '2026-10-13',
     });
     expect(fake.holdings.archive).toHaveBeenCalledWith(MARKET_HOLDING.id, 'system');
-    // The automatic snapshot follows the redemption price.
+    // Sold out: the Holding is worth nothing, whatever it was worth before (PR #145).
     expect(fake.valuations.insertAutomatic).toHaveBeenCalledWith(
-      expect.objectContaining({ valuation: 1_000, asOfDate: '2026-10-13' }),
+      expect.objectContaining({ valuation: 0, asOfDate: '2026-10-13' }),
     );
   });
 

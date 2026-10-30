@@ -489,10 +489,25 @@ describe('editTransaction', () => {
         amount: 2_000,
         quantity: 2,
       });
+      // The value before the sell — its own snapshot left out — less the new amount (PR #145).
+      expect(fake.valuations.latestAsOf)
+        .toHaveBeenCalledWith([MARKET_HOLDING.id], '2026-10-13', SELL_ROW.id);
       expect(fake.valuations.updateAutomatic).toHaveBeenCalledWith(SELL_ROW.id, {
-        valuation: 1_000,
+        valuation: 8_000,
         asOfDate: '2026-10-13',
       });
+    });
+
+    it('values a sold-out position at zero after an edit', async () => {
+      const fake = fakeDeps();
+      fake.accountTransactions.findById.mockResolvedValue(SELL_ROW);
+      fake.holdings.applyTrade.mockResolvedValueOnce({ ok: true, quantity: 10, costBasis: 5_000 })
+        .mockResolvedValueOnce({ ok: true, quantity: 0, costBasis: 0 });
+      await editOf(fake).editTransaction(context, HOUSEHOLD_ID, SELL_ROW.id, { amount: 2_000 });
+      expect(fake.valuations.updateAutomatic).toHaveBeenCalledWith(
+        SELL_ROW.id,
+        expect.objectContaining({ valuation: 0 }),
+      );
     });
 
     it('refuses a trade the Holding refuses — insufficient quantity (OQ-171)', async () => {

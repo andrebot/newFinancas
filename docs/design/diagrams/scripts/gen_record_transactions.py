@@ -137,8 +137,10 @@ sequenceDiagram
             IHA-->>TM: {quantity, costBasis}
             Note over IHA: refused below zero: insufficient_quantity / cost_basis_below_zero
             opt market-priced assetType (OQ-51)
+                TM->>VSA: latestAsOf([holdingId], date)
+                VSA-->>TM: the value before the trade (or none: 0)
                 TM->>VSA: insertAutomatic(holdingId, transactionId, valuation, date)
-                Note over VSA: source = transaction &mdash; changes only with its transaction (OQ-56)
+                Note over VSA: valuation = the value before + a buy&#39;s amount, or &minus; a sell&#39;s,<br/>never below 0, 0 once sold out &mdash; the money, not the units (OQ-222)<br/>source = transaction &mdash; changes only with its transaction (OQ-56)
             end
             alt quantity = 0 (full sell or redemption)
                 TM->>IHA: archive(holdingId, by = system)
@@ -176,7 +178,7 @@ sequenceDiagram
                     TM-->>API: Conflict
                     API-->>User: 409 goal.allocation_exceeds_100 {current, requested}
                 else
-                    Note over TM: the split applies to the purchase: re-weight the existing split by value<br/>(existing quantity &times; this buy's unit price) plus the purchase's shares &mdash;<br/>largest remainder, a share rounding to 0% dropped, completed Goals re-weighted too
+                    Note over TM: the split applies to the purchase: re-weight the existing split by value<br/>(the Holding&#39;s value before the buy, its latest snapshot &mdash; OQ-222) plus the purchase&#39;s shares &mdash;<br/>largest remainder, a share rounding to 0% dropped, completed Goals re-weighted too
                     TM->>GA: replaceAllocations(householdId, holdingId, shares)
                     GA-->>TM: replaced
                 end
@@ -207,7 +209,7 @@ sequenceDiagram
       <li><strong>Oct 2026 review:</strong> automatic Valuation Snapshot is explicit (<code>source = transaction</code>, OQ-56); a full sell/redemption auto-archives the Holding (OQ-72); investment kinds rejected on credit-card-only accounts (OQ-76); the Engine call carries the debenture flag and returns coded taxes (OQ-79); error responses use OQ-83 codes. No recurring option (OQ-55).</li>
       <li><strong>Re-buying a zeroed Holding (OQ-171):</strong> a market-priced buy reopens the system-archived Holding of its ticker. Its old Goal split is worth 0 at quantity 0, so the buy's re-weighting (OQ-168) drops every old share &mdash; the new buy's split is the only one left; undoing the zeroing sell instead restores the old split intact.</li>
       <li><strong>Goal allocation can be bundled here (OQ-54, added after the API coverage audit):</strong> one call in, no separate <code>PATCH /households/:householdId/holdings/{holdingId}</code> follow-up required &mdash; same 100%-cap rejection as that endpoint's own allocation edit (FR-8.3), just reachable from this pipeline too. Direction of control is unchanged (OQ-48): still written from the Holding's side, never the Goal's.</li>
-      <li><strong>The buy's split is the purchase's (OQ-168):</strong> buying into a Holding that already funds Goals re-weights its whole split by value at this buy's unit price, so every Goal keeps exactly its money (900 at Retirement 60% / Trip 20%, plus 100 for Car 100% &rarr; 54% / 18% / 10%). One replace-all write, so a refusal never leaves half a split behind.</li>
+      <li><strong>The buy's split is the purchase's (OQ-168):</strong> buying into a Holding that already funds Goals re-weights its whole split by value &mdash; its value before the buy, the latest snapshot (amended in OQ-222) &mdash; so every Goal keeps exactly its money (900 at Retirement 60% / Trip 20%, plus 100 for Car 100% &rarr; 54% / 18% / 10%). One replace-all write, so a refusal never leaves half a split behind.</li>
       <li><strong>Slice 3 readiness (OQ-201):</strong> every trade moves the account&#39;s cash (a buy debits it, a sell or redemption credits it); sell, redemption, dividend, interest and tax name their Holding by <code>holdingId</code>; a credit-card-only account takes no Account Transaction &mdash; another account pays its cards&#39; bills (OQ-219); any kind may carry a category and money in reduces the claiming Budget&#39;s spend; the trade&#39;s deltas and the recorder are stored with the transaction. Transfers are two unlinked entries &mdash; each is an ordinary <code>transfer</code>-effect movement.</li>
       <li><strong>Bill payments (OQ-219):</strong> any open Account but a credit-card-only one pays a card in its currency. The payer&#39;s gates come first, then the card&#39;s own Account: one the actor may edit (404 <code>credit_card.not_found</code>), open (409 <code>credit_card.account_archived</code>) and in the payment&#39;s currency.</li>
       <li>All writes share one database transaction (<code>UnitOfWorkUtility</code>) &mdash; any refusal rolls every one back.</li>
@@ -324,7 +326,7 @@ sequenceDiagram
     <ul>
       <li><strong>Reverse-then-reapply, all inside one transaction</strong> &mdash; the same complexity flagged in <code>02-data-model.md</code>&#39;s Transactions domain, now traced call-by-call. If the edit only changes the <code>date</code> to a different month, the reverse/reapply pair is what actually drives the backdated-balance cascade documented in the Accounts domain (shift every subsequent month&#39;s opening/ending balance by one delta).</li>
       <li><code>CardTransactionAccessor.update</code> path (not shown, same shape) applies when the target was a Card Transaction instead of an Account Transaction.</li>
-      <li><strong>Oct 2026 review:</strong> the automatic snapshot follows the edit; the Holding is re-archived or un-archived to match the new quantity (OQ-72, OQ-80).</li>
+      <li><strong>Oct 2026 review:</strong> the automatic snapshot follows the edit (the value before the trade, its own snapshot left out, &plusmn; the new amount &mdash; OQ-222); the Holding is re-archived or un-archived to match the new quantity (OQ-72, OQ-80).</li>
       <li><strong>OQ-201:</strong> the trade&#39;s cash leg is undone and redone with it; a buy or sell may change its quantity, a fixed-term buy its rate, due date, interest payment and debenture flag &mdash; and its schedule is recomputed while no entry has posted. Once one has, its amount, date and terms are locked (409). The Budget accrual is undone and redone with its sign (money in subtracts). Transactions the schedule posted edit like any other.</li>
       <li><strong>OQ-219:</strong> a bill payment&#39;s card may sit on another Account than its payer, so editing or deleting it decides on both: the card&#39;s Account must still be one the actor may edit (404 <code>credit_card.not_found</code>) and open (409 <code>credit_card.account_archived</code>).</li>
       <li>See FR-3.2, FR-5.8, OQ-201.</li>

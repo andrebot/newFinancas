@@ -17,6 +17,7 @@ import { requestLogger, type TransactionDeps, type TransactionStores } from './c
 import {
   accountMovementOf, accrueBudget, budgetAccrualOf, cardMovementOf, engineRateOf, holdingRateOf,
   type EffectValues, type RequestRate,
+  valueAfterTrade, valueBefore,
 } from './effects';
 import { fixedTermProblems } from './kindRules';
 import {
@@ -264,20 +265,37 @@ const scheduleInputsChanged = (row: EditableRow, merged: MergedValues): boolean 
     || merged.amount !== transaction.amount;
 };
 
-/** A market-priced trade's automatic snapshot follows its new unit price (OQ-87). */
+/**
+ * A market-priced trade's automatic snapshot follows its edit: the Holding's
+ * value before the trade (its own snapshot left out), moved by the new amount
+ * (FR-5.2, PR #145).
+ *
+ * A fixed-term Holding has none (OQ-51).
+ *
+ * @param stores - The Accessors over one transaction.
+ * @param row - The trade as stored.
+ * @param kind - Its kind; the direction moves the value.
+ * @param holding - The Holding, after the edit.
+ * @param merged - Its values after the edit.
+ * @param heldAfter - The units held once the edit is applied.
+ */
 const refreshSnapshot = async (
   stores: TransactionStores,
   row: EditableRow,
+  kind: TransactionKind,
   holding: InvestmentHolding,
   merged: MergedValues,
+  heldAfter: number,
 ): Promise<void> => {
   const transaction = row.transaction as AccountTransaction;
   if (isFixedTerm(holding.assetType)) return;
   const changed = merged.amount !== transaction.amount || merged.quantity !== row.storedQuantity
     || merged.date !== transaction.date;
   if (!changed) return;
+  const before = await valueBefore(stores, holding.id, merged.date, transaction.id);
   await stores.valuations.updateAutomatic(transaction.id, {
-    valuation: Math.round(merged.amount / merged.quantity!), asOfDate: merged.date,
+    valuation: valueAfterTrade(before, kind.direction, merged.amount, heldAfter),
+    asOfDate: merged.date,
   });
 };
 
@@ -339,7 +357,7 @@ const applyTradeEdit = async ({
       await applyTermsEdit(stores, deps, householdId, current, merged);
     }
   } else {
-    await refreshSnapshot(stores, row, current, merged);
+    await refreshSnapshot(stores, row, kind, current, merged, applied.quantity);
   }
   return trade;
 };

@@ -20,6 +20,7 @@ import { requireNoProblems } from '../validation';
 import { reweightSplit } from './allocations';
 import {
   accountMovementOf, accrueBudget, budgetAccrualOf, cardMovementOf, engineRateOf, holdingRateOf,
+  valueAfterTrade, valueBefore,
 } from './effects';
 import {
   requestLogger, todayOf, type TransactionDeps, type TransactionStores,
@@ -411,12 +412,6 @@ const checkBuySplit = async (
   if (purchase.some((share) => completed.has(share.goalId))) throw goalCompleted();
 };
 
-/** The value of a Holding's position before this buy, at the buy's unit price. */
-const existingValueOf = (holding: InvestmentHolding, request: TransactionCreate): number => {
-  const quantity = request.quantity ?? 1;
-  return (holding.quantity * request.amount) / quantity;
-};
-
 /** Writes a split over the Holding, mapping the Accessor's refusals. */
 const replaceSplit = async (
   stores: TransactionStores,
@@ -432,7 +427,8 @@ const replaceSplit = async (
 /**
  * Writes a buy's Goal split (OQ-168/OQ-207): on a fresh Holding the purchase's
  * own shares from its date; buying into an existing one re-weights the whole
- * split by value, so every Goal keeps exactly its money. A buy that allocates
+ * split by value — the Holding's value before the buy (its latest snapshot by
+ * then, PR #145) — so every Goal keeps exactly its money. A buy that allocates
  * nothing dilutes: the existing shares shrink to their old value over the new
  * total and the new money shows as unassigned — a Goal never grows without a
  * decision (FR-8.9).
@@ -459,11 +455,12 @@ const writeBuyAllocations = async (
   if (purchase.length === 0) {
     // No allocation on the buy — nothing to check; an existing split dilutes.
     if (current.length === 0) return;
+    const existing = await valueBefore(stores, holding.id, request.date);
     await replaceSplit(
       stores,
       householdId,
       holding.id,
-      reweightSplit(current, existingValueOf(holding, request), [], request.amount),
+      reweightSplit(current, existing, [], request.amount),
       request.date,
     );
     return;
@@ -476,7 +473,8 @@ const writeBuyAllocations = async (
     const total = current.reduce((sum, share) => sum + share.percentage, 0);
     const requested = purchase.reduce((sum, share) => sum + share.percentage, 0);
     if (requested > 100) throw allocationExceeds100(total, requested);
-    split = reweightSplit(current, existingValueOf(holding, request), purchase, request.amount);
+    const existing = await valueBefore(stores, holding.id, request.date);
+    split = reweightSplit(current, existing, purchase, request.amount);
   }
   await replaceSplit(stores, householdId, holding.id, split, request.date);
 };
@@ -624,28 +622,41 @@ const tradeRowOf = (
   createdByUserId: userId,
 });
 
-/** A market-priced trade's automatic snapshot at its unit price (OQ-87). */
+/**
+ * A market-priced trade's automatic snapshot: the Holding's value before it,
+ * moved by the trade's amount (FR-5.2, PR #145). Written after the split,
+ * which reads the value before the trade.
+ *
+ * @param stores - The Accessors over one transaction.
+ * @param holdingId - The Holding.
+ * @param transactionId - The trade.
+ * @param kind - The trade's kind; its direction moves the value.
+ * @param request - The trade's amount and date.
+ * @param heldAfter - The units held after the trade.
+ */
 const insertTradeSnapshot = async (
   stores: TransactionStores,
   holdingId: string,
   transactionId: string,
-  amount: number,
-  quantity: number,
-  date: string,
+  kind: TransactionKind,
+  request: Pick<TransactionCreate, 'amount' | 'date'>,
+  heldAfter: number,
 ): Promise<void> => {
+  const before = await valueBefore(stores, holdingId, request.date);
   await stores.valuations.insertAutomatic({
     holdingId,
     accountTransactionId: transactionId,
-    valuation: Math.round(amount / quantity),
-    asOfDate: date,
+    valuation: valueAfterTrade(before, kind.direction, request.amount, heldAfter),
+    asOfDate: request.date,
   });
 };
 
 /**
  * Records an investment buy (FR-3.8, OQ-201 D1): the cash leg debits the
  * Account, the Holding takes its position — a fixed-term one with its schedule
- * first — and market-priced buys leave their automatic snapshot at the unit
- * price; the Goal split is written in the same call (OQ-54).
+ * first — the Goal split is written in the same call (OQ-54), and a
+ * market-priced buy then leaves its automatic snapshot: the value before plus
+ * what was paid (PR #145).
  *
  * @param stores - The Accessors over one transaction.
  * @param deps - The tier below.
@@ -682,18 +693,18 @@ const writeBuy = async (
   const traded = await stores.holdings.applyTrade(holding.id, trade);
   // A buy only adds position and basis — the row vanishing is its one refusal.
   if (!traded.ok) throw holdingNotFound();
+  // A scheduled post never records a buy, so this branch's userId is never null.
+  await writeBuyAllocations(stores, deps, householdId, target.role, userId!, holding, request);
   if (!isFixedTerm(request.assetType!)) {
     await insertTradeSnapshot(
       stores,
       holding.id,
       inserted.transaction.id,
-      request.amount,
-      quantity,
-      request.date,
+      kind,
+      request,
+      traded.quantity,
     );
   }
-  // A scheduled post never records a buy, so this branch's userId is never null.
-  await writeBuyAllocations(stores, deps, householdId, target.role, userId!, holding, request);
   await accrueBudget(stores, recordAccrualOf(target, kind, request));
   return inserted.transaction;
 };
@@ -781,9 +792,9 @@ const writeSellOrRedemption = async (
       stores,
       holding.id,
       inserted.transaction.id,
-      request.amount,
-      sold,
-      request.date,
+      kind,
+      request,
+      traded.quantity,
     );
   }
   // A scheduled post carries no split — the Holding's current one stands (OQ-206).

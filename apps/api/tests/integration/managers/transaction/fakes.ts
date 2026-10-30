@@ -284,6 +284,10 @@ export const fakeDeps = () => {
   const valuations = {
     insertAutomatic: vi.fn(async () => ({})),
     updateAutomatic: vi.fn(async () => ({})),
+    // The Holding's value before a trade: R$ 100,00 unless a test says otherwise (PR #145).
+    latestAsOf: vi.fn(async (..._call: unknown[]): Promise<{ valuation: number }[]> => [
+      { valuation: 10_000 },
+    ]),
   };
   const stores = {
     accounts,

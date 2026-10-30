@@ -4065,7 +4065,8 @@ not a hardcoded assumption.
   an existing market-priced Holding (OQ-50 accumulate) re-weights the whole
   split by value, so every Goal keeps exactly its money: existing value =
   existing quantity × **this buy's unit price** (fresh and exact, not the
-  latest snapshot, not cost basis). E.g. a Holding worth 900 funding
+  latest snapshot, not cost basis). *(Amended in OQ-222: the existing value
+  is now the Holding's latest snapshot — the money, not the units.)* E.g. a Holding worth 900 funding
   Retirement 60% / Trip 20%, plus a buy of 100 for Car 100% → 1,000:
   Retirement 54%, Trip 18%, Car 10%. Whole percents (OQ-87) are rounded by
   largest remainder; the small drift each buy leaves is accepted (editable
@@ -6524,6 +6525,23 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
   the month arrows already step a month at a time.
 - **A new Budget missed the month's spend recorded before it** (stakeholder
   report): fixed in AccountManager — see OQ-166's amendment.
+- **A buy funded its Goal with nothing** (stakeholder report: R$ 600 for 20
+  FII units at 100% left "Vamos la" at R$ 0). The automatic snapshot was
+  written as a unit price (`amount / quantity`) — against the data model,
+  where `valuation` is the Holding's total — and over the stored quantity
+  (units × 10⁸), so it rounded to 0; the tests used whole units and hid it.
+  **Confirmed with the stakeholder:** the money decides, not the units. A
+  buy of R$ 600 for 20 units means R$ 30 each; the quantity is kept for
+  IRPF (the position and its average cost), and a Goal's percentage counts
+  toward the money. So a market-priced trade's snapshot is the Holding's
+  value before it (its latest snapshot at or before the trade's date, an
+  edit leaving its own out) plus what a buy paid, or less what a sell
+  brought in — never below zero, zero once sold out. A buy into a funded
+  Holding re-weights the split by that same value before (amends OQ-168's
+  "existing quantity × this buy's unit price"). Known gap: a backdated
+  trade doesn't move the later snapshots; a market value typed in fixes it.
+  Market prices moving over time come from typed-in market values (OQ-56,
+  `AccountManager`); their screen is for a later version.
 - **The Transactions page kept a deleted Budget** (stakeholder report): the
   Month Overview didn't know Account Setup's writes. Fixed with shared cache
   tags for accounts, budgets, categories and goals — see OQ-124's amendment.

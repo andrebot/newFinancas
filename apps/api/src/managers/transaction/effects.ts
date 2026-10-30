@@ -1,4 +1,4 @@
-import type { TransactionKind } from '@financas/reference';
+import type { Direction, TransactionKind } from '@financas/reference';
 import type { Account, Movement } from '../../accessors/accountAccessor';
 import type { HoldingRate } from '../../accessors/investmentHoldingAccessor';
 import type { ContractRate } from '../../engines/investmentProduct';
@@ -118,4 +118,46 @@ export const accrueBudget = async (
   accrual: BudgetAccrual | null,
 ): Promise<void> => {
   if (accrual !== null) await stores.budgets.accrueIfClaimed(accrual);
+};
+
+/**
+ * A market-priced Holding's value after a trade (PR #145): the money moves it,
+ * not the units — a buy adds what was paid, a sell takes off what came in,
+ * never below zero, and a position sold out is worth nothing. The units are
+ * kept for the position and its average cost (IRPF), never for the value.
+ *
+ * @param before - The Holding's value before the trade.
+ * @param direction - `out` for a buy (money into the Holding), `in` for a sell.
+ * @param amount - The trade's amount, positive.
+ * @param heldAfter - The units held after the trade.
+ * @returns The value to snapshot.
+ */
+export const valueAfterTrade = (
+  before: number,
+  direction: Direction,
+  amount: number,
+  heldAfter: number,
+): number => {
+  if (heldAfter === 0) return 0;
+  return Math.max(0, before + (direction === 'out' ? amount : -amount));
+};
+
+/**
+ * A Holding's value on a day, before a trade: its latest snapshot at or
+ * before it — a trade's, or a market value typed in — or zero with none.
+ *
+ * @param stores - The Accessors.
+ * @param holdingId - The Holding.
+ * @param date - The trade's date.
+ * @param exceptTransactionId - The trade itself, when it already has a snapshot (an edit).
+ * @returns The value, in the Holding's currency.
+ */
+export const valueBefore = async (
+  stores: Pick<TransactionStores, 'valuations'>,
+  holdingId: string,
+  date: string,
+  exceptTransactionId?: string,
+): Promise<number> => {
+  const [latest] = await stores.valuations.latestAsOf([holdingId], date, exceptTransactionId);
+  return latest?.valuation ?? 0;
 };
