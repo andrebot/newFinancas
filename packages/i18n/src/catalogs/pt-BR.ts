@@ -788,6 +788,7 @@ const ptBR = {
     other: 'Outra bandeira',
   },
   creditCard: {
+    name: '{network} •••• {last4}',
     number: 'Número do cartão',
     billing: 'Fecha {closingDay} · Vence {dueDay}',
     expires: 'Val. {expiry}',
@@ -854,6 +855,7 @@ const ptBR = {
     out: 'Saídas',
     total: 'Total',
     failed: 'Não foi possível carregar {period}.',
+    unavailable: 'Indisponível',
     retry: 'Tentar de novo',
   },
   groupedList: {
@@ -896,7 +898,6 @@ const ptBR = {
     'kind.investment_dividend': 'Dividendo',
     'kind.investment_interest': 'Juros',
     'kind.investment_tax': 'Imposto',
-    card: '{network} •••• {last4}',
   },
   browseTransactions: {
     title: 'Todas as transações',

@@ -192,6 +192,14 @@ describe('PeriodBar', () => {
     expect(barsOf('Oct').inBar.style.height).toBe('0%');
   });
 
+  it('while the figures are unknown, draws empty bars and reads only the year, never zeros', () => {
+    renderBar({ months: undefined });
+    expect(month('Sep').textContent).toBe('Sep 2026');
+    expect(month('Sep').hasAttribute('disabled')).toBe(false);
+    expect(barsOf('Aug').inBar.style.height).toBe('0%');
+    expect(barsOf('Aug').outBar.style.height).toBe('0%');
+  });
+
   it('reports a month picked', () => {
     const { onChange } = renderBar();
     fireEvent.click(month('Mar'));

@@ -773,6 +773,7 @@ const enUS: Catalog = {
     other: 'Other network',
   },
   creditCard: {
+    name: '{network} •••• {last4}',
     number: 'Card number',
     billing: 'Closes {closingDay} · Due {dueDay}',
     expires: 'Exp {expiry}',
@@ -839,6 +840,7 @@ const enUS: Catalog = {
     out: 'Out',
     total: 'Total',
     failed: "Couldn't load {period}.",
+    unavailable: 'Not available',
     retry: 'Try again',
   },
   groupedList: {
@@ -881,7 +883,6 @@ const enUS: Catalog = {
     'kind.investment_dividend': 'Dividend',
     'kind.investment_interest': 'Interest',
     'kind.investment_tax': 'Tax',
-    card: '{network} •••• {last4}',
   },
   browseTransactions: {
     title: 'All transactions',

@@ -25,13 +25,14 @@ vi.mock('../../../../../../src/experiences/manageFinances/flows/monthOverview/in
    * @returns The stub.
    */
   PeriodSummary: ({
-    period, currency, figures, onCurrencyChange,
+    period, currency, figures, loading, onCurrencyChange,
   }: PeriodSummaryProps) => (
     <div
       data-testid="summary"
       data-period={period}
       data-currency={currency}
       data-figures={JSON.stringify(figures ?? null)}
+      data-loading={String(loading)}
     >
       <button type="button" onClick={() => onCurrencyChange('USD')}>pick $</button>
     </div>
@@ -172,7 +173,7 @@ describe('MonthOverviewFlow', () => {
   it('hands the rails the named balances, the budgets and the goals', () => {
     renderFlow();
     expect(handed('rails', 'balances'))
-      .toBe('Itaú Conta, Visa •••• 1111, Emergency Fund, Mastercard •••• 4242');
+      .toBe('Itaú Conta, Visa •••• 1111, Emergency Fund, Nubank');
     expect(handed('rails', 'budgets')).toBe('1');
     expect(handed('rails', 'goals')).toBe('1');
   });
@@ -180,8 +181,9 @@ describe('MonthOverviewFlow', () => {
   it('shows placeholders, empty months and no figures while the month loads', () => {
     renderFlow({ overview: { status: 'loading' } });
     expect(handed('rails', 'balances')).toBe('loading');
+    expect(handed('summary', 'loading')).toBe('true');
     expect(handed('summary', 'figures')).toBe('null');
-    expect(screen.getByRole('button', { name: /^Sep .*in R\$\s0,00, out R\$\s0,00/ })).toBeTruthy();
+    expect(month('Sep').textContent).toBe('Sep 2026');
   });
 
   it('stands a banner with Try again in for the rails when the month fails', () => {
@@ -189,6 +191,8 @@ describe('MonthOverviewFlow', () => {
     expect(screen.queryByTestId('rails')).toBeNull();
     expect(screen.getByRole('alert').textContent).toContain("Couldn't load September/2026.");
     expect(handed('summary', 'figures')).toBe('null');
+    expect(handed('summary', 'loading')).toBe('false');
+    expect(month('Aug').textContent).toBe('Aug 2026');
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(props.onRetry).toHaveBeenCalledOnce();
   });

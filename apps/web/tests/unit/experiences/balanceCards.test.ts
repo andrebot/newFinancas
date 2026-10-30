@@ -3,7 +3,9 @@ import { accounts as accountSettings } from '../../../src/config/constants';
 import { balanceCardsOf } from '../../../src/experiences/balanceCards';
 import { createTranslator } from '../../../src/utilities/i18n';
 import { pickByHash } from '../../../src/utilities/stableHash';
-import { ACCOUNTS, REPORT } from './monthFixtures';
+import {
+  ACCOUNTS, REPORT, accountOf, cardOf,
+} from './monthFixtures';
 
 // The Balance rail's cards (BDT: pure logic shared by Experiences, unit;
 // nothing mocked — the translator is a Utility).
@@ -14,7 +16,7 @@ describe('balanceCardsOf', () => {
   it('names each figure, in the report\'s order', () => {
     const cards = balanceCardsOf(REPORT.balances, ACCOUNTS, translator);
     expect(cards.map((card) => card.name)).toEqual([
-      'Itaú Conta', 'Visa •••• 1111', 'Emergency Fund', 'Mastercard •••• 4242',
+      'Itaú Conta', 'Visa •••• 1111', 'Emergency Fund', 'Nubank',
     ]);
   });
 
@@ -36,6 +38,44 @@ describe('balanceCardsOf', () => {
     cards.forEach((card) => {
       expect(card.color).toBe(pickByHash(card.key, accountSettings.balanceTones));
     });
+  });
+
+  it('shows a credit-card-only account as one outstanding card, its cards summed', () => {
+    const nubank = accountOf('nubank', {
+      name: 'Nubank',
+      type: 'credit_card_only',
+      cards: [cardOf('master', 'nubank'), cardOf('elo', 'nubank', { network: 'elo' })],
+    });
+    const cards = balanceCardsOf([
+      {
+        accountId: 'nubank', creditCardId: null, currency: 'BRL', amount: 0,
+      },
+      {
+        accountId: 'nubank', creditCardId: 'master', currency: 'BRL', amount: 45000,
+      },
+      {
+        accountId: 'nubank', creditCardId: 'elo', currency: 'BRL', amount: 5000,
+      },
+    ], [nubank], translator);
+    expect(cards).toEqual([{
+      key: 'nubank',
+      name: 'Nubank',
+      icon: 'credit-card-outline',
+      color: pickByHash('nubank', accountSettings.balanceTones),
+      amount: 50000,
+      outstanding: true,
+      currency: 'BRL',
+    }]);
+  });
+
+  it('shows a credit-card-only account with no cards as owing nothing', () => {
+    const empty = accountOf('empty', { type: 'credit_card_only' });
+    const [card] = balanceCardsOf([
+      {
+        accountId: 'empty', creditCardId: null, currency: 'BRL', amount: 0,
+      },
+    ], [empty], translator);
+    expect(card).toMatchObject({ amount: 0, outstanding: true });
   });
 
   it('leaves out a figure whose account or card the page does not know yet', () => {

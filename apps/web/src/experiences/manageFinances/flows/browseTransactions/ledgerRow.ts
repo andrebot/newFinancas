@@ -6,7 +6,8 @@ import type { KeyValueItem } from '../../../../kit/keyValueList/KeyValueList';
 import type { Formatter } from '../../../../utilities/formatting';
 import type { Translator } from '../../../../utilities/i18n';
 import { mayManageOwned } from '../../../ownership';
-import { cardName, kindIcon, kindName } from '../../transactionNames';
+import { cardName } from '../../../cardNames';
+import { kindIcon, kindName } from '../../transactionNames';
 import { browseText } from './browseText';
 
 // What a ledger row shows (FL16, mockups 30, 34; OQ-201, OQ-220): its title

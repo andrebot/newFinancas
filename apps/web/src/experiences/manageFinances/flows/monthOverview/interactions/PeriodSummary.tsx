@@ -2,6 +2,7 @@ import type { Currency } from '@financas/api-types';
 import type { ReactNode } from 'react';
 import { money } from '../../../../../config/constants';
 import { Amount } from '../../../../../kit/amount/Amount';
+import { EMPTY_VALUE } from '../../../../../kit/keyValueList/KeyValueList';
 import { SegmentedControl } from '../../../../../kit/segmentedControl/SegmentedControl';
 import { useI18n } from '../../../../../utilities/I18nProvider';
 import { moneyConventions } from '../../../../../utilities/formatting';
@@ -11,7 +12,9 @@ import type { MonthFigures } from '../monthOverview';
 // money in, out and total in the one currency the $ / R$ switch picks —
 // nothing is converted or summed across currencies (FR-9). In reads mint,
 // Out coral, Total plain with its sign. Until the month loads, or when it
-// failed, each figure is a dash. Display only: it emits the currency picked.
+// failed, each figure is the kit's dash, heard as "not available" (busy while
+// loading). The month's label shows only from `xl`: on a phone the bar's own
+// arrows name it (mockup 34). Display only: it emits the currency picked.
 
 /** The summary's props. */
 export interface PeriodSummaryProps {
@@ -21,6 +24,8 @@ export interface PeriodSummaryProps {
   readonly onCurrencyChange: (currency: Currency) => void;
   /** The month's figures in that currency; unknown while it loads or after it failed. */
   readonly figures: MonthFigures | undefined;
+  /** The month is loading: the figures are busy. */
+  readonly loading?: boolean | undefined;
 }
 
 /**
@@ -50,18 +55,23 @@ function Line({ label, total = false, children }: {
 /**
  * Renders the month's summary and the currency switch.
  *
- * @param props - The month, the currency, its figures and the switch's handler.
+ * @param props - The month, the currency, its figures, whether they load and the switch's handler.
  * @returns The summary.
  */
 export function PeriodSummary({
-  period, currency, onCurrencyChange, figures,
+  period, currency, onCurrencyChange, figures, loading = false,
 }: PeriodSummaryProps) {
   const translator = useI18n();
-  const dash = <span className="text-muted">—</span>;
+  const dash = (
+    <>
+      <span className="text-muted" aria-hidden="true">{EMPTY_VALUE}</span>
+      <span className="sr-only">{translator.text('monthOverview', 'unavailable')}</span>
+    </>
+  );
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between gap-4">
-        <span className="type-label text-muted">{period}</span>
+        <span className="hidden type-label text-muted xl:inline">{period}</span>
         <SegmentedControl
           size="xs"
           label={translator.text('monthOverview', 'currency')}
@@ -72,7 +82,7 @@ export function PeriodSummary({
           onChange={onCurrencyChange}
         />
       </div>
-      <dl className="flex flex-col gap-2">
+      <dl className="flex flex-col gap-2" aria-busy={loading || undefined}>
         <Line label={translator.text('monthOverview', 'in')}>
           {figures ? <Amount amount={figures.in} currency={currency} tone="signed" /> : dash}
         </Line>

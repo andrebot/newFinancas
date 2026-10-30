@@ -68,7 +68,46 @@ describe('PeriodSummary', () => {
         figures={undefined}
       />,
     );
-    expect([figureOf('In'), figureOf('Out'), figureOf('Total')]).toEqual(['—', '—', '—']);
+    expect([figureOf('In'), figureOf('Out'), figureOf('Total')])
+      .toEqual(['—Not available', '—Not available', '—Not available']);
+    screen.getAllByText('—').forEach((dash) => {
+      expect(dash.getAttribute('aria-hidden')).toBe('true');
+    });
+  });
+
+  it('marks the figures busy while the month loads, and not otherwise', () => {
+    const { rerenderInLocale } = renderInLocale(
+      <PeriodSummary
+        period="September/2026"
+        currency="BRL"
+        onCurrencyChange={() => {}}
+        figures={undefined}
+        loading
+      />,
+    );
+    expect(document.querySelector('dl')!.getAttribute('aria-busy')).toBe('true');
+    rerenderInLocale(
+      <PeriodSummary
+        period="September/2026"
+        currency="BRL"
+        onCurrencyChange={() => {}}
+        figures={undefined}
+      />,
+    );
+    expect(document.querySelector('dl')!.hasAttribute('aria-busy')).toBe(false);
+  });
+
+  it('shows the month\'s label only from `xl`; on a phone the bar names it', () => {
+    renderInLocale(
+      <PeriodSummary
+        period="September/2026"
+        currency="BRL"
+        onCurrencyChange={() => {}}
+        figures={undefined}
+      />,
+    );
+    expect(screen.getByText('September/2026').className).toContain('hidden');
+    expect(screen.getByText('September/2026').className).toContain('xl:inline');
   });
 
   it('offers R$ then $, and emits the currency picked', () => {

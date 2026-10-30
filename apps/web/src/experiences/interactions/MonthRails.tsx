@@ -19,7 +19,9 @@ import { ownFundingOf } from '../goalFunding';
 // end, the budgets come over-budget first (the report's order), and a Goal
 // shows what funds it in its own currency — a note when others fund it too.
 // A rail with nothing to show keeps its title and says so in one line, so
-// the column keeps its shape from month to month. Display only.
+// the column keeps its shape from month to month. On a phone the period
+// chips are left out: the period bar above names the month (mockup 34).
+// Display only.
 
 /** A budget's month, as the report sends it. */
 export type MonthBudget = MonthOverviewReport['budgets'][number];
@@ -93,6 +95,7 @@ export function MonthRails({ period, content }: MonthRailsProps) {
       <CardRail
         title={translator.text('monthRails', 'balances')}
         period={period}
+        periodFromXl
         loading={loading}
         placeholderClassName={RAIL_CARD_PLACEHOLDERS.balance}
       >
@@ -111,6 +114,7 @@ export function MonthRails({ period, content }: MonthRailsProps) {
       <CardRail
         title={translator.text('monthRails', 'budgets')}
         period={period}
+        periodFromXl
         loading={loading}
         placeholderClassName={RAIL_CARD_PLACEHOLDERS.ring}
       >
@@ -127,6 +131,7 @@ export function MonthRails({ period, content }: MonthRailsProps) {
       <CardRail
         title={translator.text('monthRails', 'goals')}
         period={period}
+        periodFromXl
         loading={loading}
         placeholderClassName={RAIL_CARD_PLACEHOLDERS.ring}
       >

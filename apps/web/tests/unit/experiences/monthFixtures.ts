@@ -4,7 +4,8 @@ import type {
 
 // What the month's suites read (Month Overview, its rails, the balance
 // cards): a BRL checking account with a Visa, a USD savings account, a
-// credit-card-only account with its own Mastercard; a September 2026 report
+// credit-card-only account with its own Mastercard (the report sends its own
+// row, as the server does, and its card's); a September 2026 report
 // in both currencies with a budget over its target and a Goal.
 
 const NOW = '2026-09-01T12:00:00Z';
@@ -104,6 +105,9 @@ export const REPORT: MonthOverviewReport = {
     },
     {
       accountId: 'savings', creditCardId: null, currency: 'USD', amount: 850000,
+    },
+    {
+      accountId: 'nubank', creditCardId: null, currency: 'BRL', amount: 0,
     },
     {
       accountId: 'nubank', creditCardId: 'master', currency: 'BRL', amount: 45000,

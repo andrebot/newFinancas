@@ -939,7 +939,7 @@ export type MonthOverviewReport = {
         out: Money;
     }>;
     /**
-     * Each visible, unarchived Account's balance at the month's end, and each of its cards' outstanding balance at the month's end (OQ-201)
+     * Each visible Account open at the month's end (one archived later included, OQ-206) with its balance then, and each of its cards' outstanding balance at the month's end (OQ-201). A credit_card_only Account's own row never moves; the app shows its cards' sum (OQ-175, OQ-221)
      */
     balances: Array<{
         accountId: string;
@@ -3109,7 +3109,7 @@ export type GetDashboardResponses = {
         }>;
         payouts?: PayoutsReport;
         /**
-         * Each visible, unarchived Account's balance at the month's end, and each of its cards' outstanding balance at the month's end (OQ-201)
+         * Each visible Account open at the month's end (one archived later included, OQ-206) with its balance then, and each of its cards' outstanding balance at the month's end (OQ-201). A credit_card_only Account's own row never moves; the app shows its cards' sum (OQ-175, OQ-221)
          */
         balances?: Array<{
             accountId: string;

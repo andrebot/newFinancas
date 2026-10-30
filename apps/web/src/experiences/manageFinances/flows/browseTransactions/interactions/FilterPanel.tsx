@@ -11,8 +11,9 @@ import type { RelativePreset } from '../../../../../kit/dateRangePicker/dateRang
 import { Drawer } from '../../../../../kit/drawer/Drawer';
 import { useI18n } from '../../../../../utilities/I18nProvider';
 import type { Translator } from '../../../../../utilities/i18n';
+import { cardName } from '../../../../cardNames';
 import {
-  cardName, groupName, kindIcon, kindName,
+  groupName, kindIcon, kindName,
 } from '../../../transactionNames';
 import { browseText } from '../browseText';
 import {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  cardName, groupName, kindIcon, kindName,
+  groupName, kindIcon, kindName,
 } from '../../../../src/experiences/manageFinances/transactionNames';
 import { createTranslator } from '../../../../src/utilities/i18n';
 
@@ -14,10 +14,6 @@ describe('transactionNames', () => {
     expect(kindName(english, 'pix_payment')).toBe('Pix payment');
     expect(kindName(portuguese, 'investment_buy')).toBe('Aplicação');
     expect(groupName(english, 'credit_card')).toBe('Credit card');
-  });
-
-  it('names a card by its network and last four digits', () => {
-    expect(cardName(english, { network: 'visa', last4: '1111' })).toBe('Visa •••• 1111');
   });
 
   it("picks a kind's icon, the generic one for an unknown kind", () => {

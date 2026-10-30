@@ -39,6 +39,13 @@ export interface MonthOverviewFlowProps {
   readonly period: Period;
   /** Asks for another month. */
   readonly onPeriodChange: (period: Period) => void;
+  /**
+   * The report for `period`. It is `loaded` only once both it and the
+   * accounts are in — the balances are named from the accounts, and the bar
+   * reaches back by them. Map RTK Query's `currentData`, which is undefined
+   * while the month changes, never `data`, which keeps the previous month's
+   * report: the report doesn't say which month it is for (OQ-221).
+   */
   readonly overview: MonthOverviewRead;
   /** Asks for the month again after it failed. */
   readonly onRetry: () => void;
@@ -94,7 +101,7 @@ export function MonthOverviewFlow({
         <PeriodBar
           period={period}
           periodLabel={label}
-          months={report ? stripOf(report.yearStrip, currency) : []}
+          months={report && stripOf(report.yearStrip, currency)}
           currency={currency}
           firstYear={firstYearOf(accounts, householdCreatedAt)}
           onChange={onPeriodChange}
@@ -104,6 +111,7 @@ export function MonthOverviewFlow({
               currency={currency}
               onCurrencyChange={changeCurrency}
               figures={report && figuresOf(report.summary, currency)}
+              loading={overview.status === 'loading'}
             />
           )}
         />

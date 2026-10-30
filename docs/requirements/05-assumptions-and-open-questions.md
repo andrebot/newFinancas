@@ -6360,7 +6360,30 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
   accounts refetch.
 - **Contract tidy-up:** `MonthOverviewReport` and its items now list their
   fields as `required` — the server always sends them; the generated types
-  had every field optional.
+  had every field optional. The `balances` description now says what the
+  server sends: every visible Account open at the month's end (one archived
+  later included, OQ-206), and each of its cards.
+- **A credit-card-only account is one balance card** (PR #144 review): its
+  name, captioned Outstanding, with its cards' outstanding summed (OQ-175,
+  mockups 20 and 30) — the server sends the account's own row (its balance
+  never moves) and one per card. Its cards get no cards of their own.
+- **What X6 owes the Flow** (PR #144 review): `overview` is `loaded` only
+  once both the report for the month and the accounts are in — the balances
+  are named from the accounts, and the bar reaches back by them — and it is
+  read from RTK Query's `currentData`, never `data`, which keeps the
+  previous month's report while the next loads (the report doesn't name its
+  month, so the Flow can't tell).
+- **While the figures aren't known, the period bar reads no zeros**
+  (PR #144 review): the kit's `months` is undefined then, every bar empty
+  and each month heard by its year alone. The summary's dashes are the kit's
+  `EMPTY_VALUE`, heard as "Not available", busy while loading.
+- **On a phone, mockup 34** (PR #144 review): the summary's month label and
+  the rails' period chips show only from `xl` (the kit's new
+  `periodFromXl`); the bar's arrows already name the month.
+- **A card's name is every page's** (PR #144 review): `cardName` moved from
+  Manage Finances' `transactionNames.ts` to `experiences/cardNames.ts`, its
+  text to `creditCard.name`, so the shared balance cards don't reach into
+  Manage Finances.
 
 **Task 118 (`FL17`) is complete.**
 

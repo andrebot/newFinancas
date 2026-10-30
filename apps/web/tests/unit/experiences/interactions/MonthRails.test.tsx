@@ -43,11 +43,18 @@ describe('MonthRails', () => {
       .toEqual(['BalancesSeptember/2026', 'BudgetsSeptember/2026', 'GoalsSeptember/2026']);
   });
 
+  it('leaves the period chips out on a phone, where the bar names the month', () => {
+    renderInLocale(<MonthRails period="September/2026" content={CONTENT} />);
+    screen.getAllByText('September/2026').forEach((chip) => {
+      expect(chip.className).toContain('hidden xl:inline-block');
+    });
+  });
+
   it('draws a card per balance, a card\'s outstanding captioned', () => {
     renderInLocale(<MonthRails period="September/2026" content={CONTENT} />);
     const balances = screen.getByRole('region', { name: 'Balances' });
     expect(balances.textContent).toContain('Itaú Conta');
-    expect(balances.textContent).toContain('Mastercard •••• 4242');
+    expect(balances.textContent).toContain('Nubank');
     expect(screen.getAllByText('Outstanding')).toHaveLength(2);
   });
 

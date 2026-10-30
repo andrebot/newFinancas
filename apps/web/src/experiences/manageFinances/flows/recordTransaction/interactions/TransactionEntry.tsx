@@ -7,7 +7,7 @@ import { MoneyInput } from '../../../../../kit/moneyInput/MoneyInput';
 import { TextField } from '../../../../../kit/textField/TextField';
 import { useI18n } from '../../../../../utilities/I18nProvider';
 import type { Translator } from '../../../../../utilities/i18n';
-import { cardName } from '../../../transactionNames';
+import { cardName } from '../../../../cardNames';
 import {
   accountChoicesOf, cardEntriesOf, cardEntryOf, directionOf, groupOf, isBillPayment, isBuy,
   isCardKind, isTrade, namesCard, type CardEntry, type TransactionForm,

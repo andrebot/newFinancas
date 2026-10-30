@@ -26,7 +26,14 @@ describe('SectionHeader', () => {
     const chip = screen.getByText('Setembro/2026');
 
     expect(chip.className).toContain('bg-mintdeep');
+    expect(chip.className).toContain('inline-block');
+    expect(chip.className).not.toContain('hidden');
     expect(screen.getByRole('heading').textContent).toBe('SaldosSetembro/2026');
+  });
+
+  it('shows the period only from `xl` when asked', () => {
+    render(<SectionHeader title="Saldos" period="Setembro/2026" periodFromXl />);
+    expect(screen.getByText('Setembro/2026').className).toContain('hidden xl:inline-block');
   });
 
   it('shows the hint as quiet text inside the heading', () => {

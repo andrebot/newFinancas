@@ -4,6 +4,7 @@
 
 import type { Account, Currency } from '@financas/api-types';
 import type { CardNetwork, CategoryIcon, PaletteToken } from '@financas/reference';
+import type { IconName } from '../kit/icons/Icon';
 
 /** An account's type, as the contract names it. */
 type AccountType = Account['type'];
@@ -209,8 +210,8 @@ export const accounts = {
    */
   balanceTones: ['mint', 'sky', 'peach', 'lilac', 'sun', 'teal', 'indigo', 'orange'],
 } as const satisfies {
-  readonly typeIcons: Readonly<Record<AccountType, string>>;
-  readonly cardIcon: string;
+  readonly typeIcons: Readonly<Record<AccountType, IconName>>;
+  readonly cardIcon: IconName;
   readonly balanceTones: readonly [PaletteToken, ...PaletteToken[]];
 };
 
