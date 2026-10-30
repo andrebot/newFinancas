@@ -32,6 +32,7 @@ import {
   transactionChanged, tradeRefusal,
 } from './errors';
 import { createProblems } from './kindRules';
+import requirePaidCard from './paidCard';
 
 // Record Transaction (CUC-1, FR-3): the household's cash-flow events — one of
 // fifteen kinds (FR-3.1), each with its own side effects: a card balance or an
@@ -116,51 +117,9 @@ const loadCardTarget = async (
 };
 
 /**
- * Loads the target a transaction is recorded against — its Account (and card),
- * deciding access on it. A bill payment's card must be this household's and sit
- * on that very Account: the movement lands on it, so a foreign id would move
- * someone else's balance.
- *
- * @param deps - The tier below.
- * @param context - The signed-in request.
- * @param householdId - The household.
- * @param request - The create request.
- * @param kind - Its kind, already looked up.
- * @returns The target and the caller's role.
- * @throws {DomainError} `household.not_found` / `account.not_found` /\
- *   `credit_card.not_found`; `auth.forbidden`.
- */
-const loadTarget = async (
-  deps: TransactionDeps,
-  context: SignedInContext,
-  householdId: string,
-  request: TransactionCreate,
-  kind: TransactionKind,
-): Promise<LoadedTarget> => {
-  if (kind.target === 'card') {
-    return loadCardTarget(deps, context, householdId, request.creditCardId!);
-  }
-  const account = await deps.accounts.findById(householdId, request.accountId!);
-  const role = await requireAccess(
-    deps.authorization,
-    context.actor.userId,
-    householdId,
-    accessToOwned(account, 'data.edit'),
-    accountNotFound,
-  );
-  if (!account) throw accountNotFound();
-  if (kind.code === 'credit_card_bill_payment') {
-    const card = await deps.creditCards.findById(householdId, request.creditCardId!);
-    if (!card || card.accountId !== account.id) throw creditCardNotFound();
-    return { account, card, role };
-  }
-  return { account, role };
-};
-
-/**
- * The target gates a kind must pass (FR-3.1/OQ-76/OQ-201 D5): the kind fits the
- * target's type — investments and cash kinds alike are refused on a
- * `credit_card_only` Account except bill payments — the Account is open, and
+ * The target gates a kind must pass (FR-3.1/OQ-76/OQ-201 D5, OQ-219): the kind
+ * fits the target's type — a `credit_card_only` Account takes no Account
+ * Transaction, investments named as such — the Account is open, and
  * the amount is in its currency (FR-2.2).
  *
  * @param kind - The kind.
@@ -182,6 +141,48 @@ const checkTarget = (kind: TransactionKind, target: LoadedTarget, currency: stri
   }
   if (account.archivedAt !== null) throw accountArchived();
   if (account.currency !== currency) throw currencyMismatch(account.currency);
+};
+
+/**
+ * Loads the target a transaction is recorded against — its Account (and card),
+ * deciding access on it. A bill payment's card may sit on any Account of the
+ * household the caller may edit (OQ-219): the payer's gates are checked first,
+ * then the card's own Account.
+ *
+ * @param deps - The tier below.
+ * @param context - The signed-in request.
+ * @param householdId - The household.
+ * @param request - The create request.
+ * @param kind - Its kind, already looked up.
+ * @returns The target and the caller's role.
+ * @throws {DomainError} `household.not_found` / `account.not_found` /\
+ *   `credit_card.not_found`; `auth.forbidden`; a bill payer's target gates;
+ *   `credit_card.account_archived` / the paid card's `transaction.currency_mismatch`.
+ */
+const loadTarget = async (
+  deps: TransactionDeps,
+  context: SignedInContext,
+  householdId: string,
+  request: TransactionCreate,
+  kind: TransactionKind,
+): Promise<LoadedTarget> => {
+  if (kind.target === 'card') {
+    return loadCardTarget(deps, context, householdId, request.creditCardId!);
+  }
+  const account = await deps.accounts.findById(householdId, request.accountId!);
+  const role = await requireAccess(
+    deps.authorization,
+    context.actor.userId,
+    householdId,
+    accessToOwned(account, 'data.edit'),
+    accountNotFound,
+  );
+  if (!account) throw accountNotFound();
+  if (kind.code !== 'credit_card_bill_payment') return { account, role };
+  checkTarget(kind, { account, role }, request.currency);
+  const paid = await requirePaidCard(deps, context, householdId, request.creditCardId!);
+  if (paid.account.currency !== request.currency) throw currencyMismatch(paid.account.currency);
+  return { account, card: paid.card, role };
 };
 
 /**

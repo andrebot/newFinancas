@@ -92,6 +92,23 @@ describe('deleteTransaction', () => {
     );
   });
 
+  it('refuses a bill payment whose card\'s Account is archived (OQ-219)', async () => {
+    const fake = fakeDeps();
+    fake.accountTransactions.findById.mockResolvedValue({
+      ...ROW,
+      id: 't6',
+      kind: 'credit_card_bill_payment',
+      effect: 'bill_payment' as const,
+      creditCardId: CARD_ROW.creditCardId,
+    });
+    fake.accounts.findById
+      .mockResolvedValueOnce(ACCOUNT)
+      .mockResolvedValueOnce({ ...ACCOUNT, archivedAt: NOW });
+    await expect(deleteOf(fake).deleteTransaction(context, HOUSEHOLD_ID, 't6'))
+      .rejects.toMatchObject({ domainError: { code: 'credit_card.account_archived' } });
+    expect(fake.accountTransactions.delete).not.toHaveBeenCalled();
+  });
+
   it('answers transaction.changed when the row changed meanwhile (OQ-203)', async () => {
     const fake = fakeDeps();
     fake.accountTransactions.delete.mockResolvedValue('stale');

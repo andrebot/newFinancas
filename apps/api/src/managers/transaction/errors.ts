@@ -73,6 +73,16 @@ export const accountArchived = (): DomainError => createDomainError({
 });
 
 /**
+ * A bill payment — recorded, edited or deleted — on a card whose Account is
+ * archived (OQ-219): the payer may be open, but the card's balance can't move.
+ *
+ * @returns `credit_card.account_archived`.
+ */
+export const cardAccountArchived = (): DomainError => createDomainError({
+  code: 'credit_card.account_archived', message: "Credit card's account is archived",
+});
+
+/**
  * A sell or cash event on a user-archived Holding (FR-5.8, OQ-80): a system
  * archive is undone by the trade itself, a user's stays.
  *

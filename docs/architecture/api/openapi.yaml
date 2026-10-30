@@ -1602,14 +1602,16 @@ paths:
         No recurring option (FR-3.5 removed, OQ-55). Investment kinds are
         rejected on credit-card-only accounts (422
         `transaction.investment_not_allowed_on_account`, OQ-76), and so are
-        cash kinds — such an account takes only bill payments to its cards
+        cash kinds and bill payments — another account pays its cards' bills (OQ-219)
         (`transaction.kind_not_allowed_for_target`, OQ-201); a full
         sell/redemption auto-archives the Holding (OQ-72).
         **OQ-201:** every investment kind moves the account's cash (buy −,
         sell/redemption/dividend/interest +, tax −); sell, redemption,
         dividend, interest and tax name their Holding by `holdingId`, only a
         buy by `assetType` + `ticker`; a bill payment carries `accountId`
-        (the paying account) and `creditCardId`; any kind may carry a
+        (the paying account — any open account the caller may edit but a
+        credit-card-only one) and `creditCardId` (a card on any account the
+        caller may edit, open and in the payment's currency — OQ-219); any kind may carry a
         category — money in reduces the claiming Budget's spend. See
         docs/design/diagrams/sequences/record-transactions/uc-01-record-transaction.html.
       requestBody:
@@ -1633,7 +1635,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
         "409":
-          description: The purchase's own split exceeds 100% (FR-8.3), or names a completed Goal (`goal.completed`). The split applies to the purchase; buying into a funded Holding re-weights its existing split by value (OQ-168). Also `account.archived` (OQ-169), `holding.archived` (a sell or cash event on a user-archived Holding), `holding.insufficient_quantity`, `holding.cost_basis_below_zero` (OQ-171).
+          description: The purchase's own split exceeds 100% (FR-8.3), or names a completed Goal (`goal.completed`). The split applies to the purchase; buying into a funded Holding re-weights its existing split by value (OQ-168). Also `account.archived` (OQ-169), `credit_card.account_archived` (a bill payment's card on an archived Account — OQ-219), `holding.archived` (a sell or cash event on a user-archived Holding), `holding.insufficient_quantity`, `holding.cost_basis_below_zero` (OQ-171).
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
@@ -1683,7 +1685,8 @@ paths:
         month. **OQ-201:** an edit changes values, never identity — kind
         and target (account, card, Holding) never change; a fixed-term
         buy's terms edit only while its schedule hasn't started, and its
-        schedule is recomputed. See
+        schedule is recomputed. **OQ-219:** a bill payment is decided on
+        both its payer and its card's Account, which must be open. See
         docs/design/diagrams/sequences/record-transactions/uc-02-edit-transaction.html.
       requestBody:
         required: true
@@ -1698,12 +1701,12 @@ paths:
               schema: { $ref: "#/components/schemas/LedgerItem" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404":
-          description: '`transaction.not_found`, `category.not_found`.'
+          description: '`transaction.not_found`, `category.not_found`, `credit_card.not_found` (a bill payment whose card sits on an Account the caller may not edit — OQ-219).'
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
         "409":
-          description: '`transaction.schedule_started` (a fixed-term buy whose schedule has posted keeps its amount, date and terms), `account.archived`, `holding.insufficient_quantity`, `holding.cost_basis_below_zero`.'
+          description: '`transaction.schedule_started` (a fixed-term buy whose schedule has posted keeps its amount, date and terms), `account.archived`, `credit_card.account_archived` (a bill payment whose card''s Account is archived — OQ-219), `holding.insufficient_quantity`, `holding.cost_basis_below_zero`.'
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
@@ -1721,12 +1724,15 @@ paths:
         reapply half. Deleting the buy that created a Holding deletes the
         Holding (snapshots, schedule, Goal split) when no other transaction
         references it (OQ-201); a deleted scheduled post isn't re-posted.
+        A bill payment is decided on both its payer and its card's Account,
+        which must be open (OQ-219): `credit_card.not_found` /
+        `credit_card.account_archived`.
       responses:
         "204": { description: No Content }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409":
-          description: '`transaction.schedule_started`, `transaction.holding_in_use` (the buy created a Holding other transactions still reference — params: `count`), `holding.insufficient_quantity` (undoing the buy would take the Holding below zero).'
+          description: '`transaction.schedule_started`, `credit_card.account_archived` (a bill payment whose card''s Account is archived — OQ-219), `transaction.holding_in_use` (the buy created a Holding other transactions still reference — params: `count`), `holding.insufficient_quantity` (undoing the buy would take the Holding below zero).'
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
@@ -2487,7 +2493,7 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
     Conflict:
-      description: "The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `budget.target_already_claimed` (params: the target and the claiming `budgetId` — OQ-176), `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `holding.archived` (OQ-178), `holding.not_matured` (OQ-178), `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107), `holding.insufficient_quantity`, `holding.cost_basis_below_zero` (OQ-171), `transaction.schedule_started`, `transaction.holding_in_use` (OQ-201), `transaction.changed` (the transaction, or something it names, changed by a concurrent request — reload and retry, OQ-203)."
+      description: "The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `credit_card.account_archived` (a bill payment on a card whose Account is archived — OQ-219), `budget.target_already_claimed` (params: the target and the claiming `budgetId` — OQ-176), `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `holding.archived` (OQ-178), `holding.not_matured` (OQ-178), `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107), `holding.insufficient_quantity`, `holding.cost_basis_below_zero` (OQ-171), `transaction.schedule_started`, `transaction.holding_in_use` (OQ-201), `transaction.changed` (the transaction, or something it names, changed by a concurrent request — reload and retry, OQ-203)."
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
@@ -3209,7 +3215,7 @@ components:
         take `holdingId`. A field the kind has no use for is a 422.
       properties:
         accountId: { type: string, format: uuid, description: "Every kind but charge/refund — for a bill payment, the paying account" }
-        creditCardId: { type: string, format: uuid, description: "charge/refund: the card; a bill payment: the card it pays (FR-3.7)" }
+        creditCardId: { type: string, format: uuid, description: "charge/refund: the card; a bill payment: the card it pays (FR-3.7) — on any account the caller may edit, open and in the payment's currency (OQ-219)" }
         kind: { type: string, description: "Reference data (`@financas/reference`, OQ-98), e.g. withdrawal, pix_payment, transfer_sent, credit_card_bill_payment, charge, investment_buy — FR-3.1" }
         date: { type: string, format: date }
         amount: { $ref: "#/components/schemas/PositiveMoney" }

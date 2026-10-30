@@ -337,6 +337,40 @@ describe('editTransaction', () => {
     );
   });
 
+  describe('a bill payment\'s card\'s Account (OQ-219)', () => {
+    const payment = {
+      ...ROW,
+      id: 't10',
+      kind: 'credit_card_bill_payment' as const,
+      effect: 'bill_payment' as const,
+      creditCardId: CARD_ROW.creditCardId,
+    };
+
+    it('is decided on too: one the caller may no longer edit hides the card', async () => {
+      const fake = fakeDeps();
+      fake.accountTransactions.findById.mockResolvedValue(payment);
+      fake.authorization.authorize
+        .mockResolvedValueOnce({ outcome: 'allowed', role: 'Owner' })
+        .mockResolvedValueOnce({ outcome: 'not_visible' });
+      await expect(editOf(fake).editTransaction(context, HOUSEHOLD_ID, payment.id, {
+        amount: 8_000,
+      })).rejects.toMatchObject({ domainError: { code: 'credit_card.not_found' } });
+      expect(fake.creditCards.applyMovement).not.toHaveBeenCalled();
+    });
+
+    it('must be open: an archived one refuses the edit', async () => {
+      const fake = fakeDeps();
+      fake.accountTransactions.findById.mockResolvedValue(payment);
+      fake.accounts.findById
+        .mockResolvedValueOnce(CHECKING)
+        .mockResolvedValueOnce({ ...ACCOUNT, archivedAt: NOW });
+      await expect(editOf(fake).editTransaction(context, HOUSEHOLD_ID, payment.id, {
+        amount: 8_000,
+      })).rejects.toMatchObject({ domainError: { code: 'credit_card.account_archived' } });
+      expect(fake.accounts.applyMovement).not.toHaveBeenCalled();
+    });
+  });
+
   describe('trades (OQ-171)', () => {
     it('reverses the stored deltas and reapplies at average cost — not last-in price', async () => {
       const fake = fakeDeps();

@@ -46,8 +46,8 @@ const defineKind = <const Code extends string>(
 }) as TransactionKind & { readonly code: Code };
 
 export const TRANSACTION_KINDS = [
-  defineKind('withdrawal', 'cash', 'account', 'out', 'movement'),
   defineKind('deposit', 'cash', 'account', 'in', 'movement'),
+  defineKind('withdrawal', 'cash', 'account', 'out', 'movement'),
   defineKind('boleto_payment', 'cash', 'account', 'out', 'movement'),
   defineKind('pix_payment', 'cash', 'account', 'out', 'movement'),
   defineKind('pix_receipt', 'cash', 'account', 'in', 'movement'),
@@ -82,8 +82,9 @@ export const findKind = (code: string): TransactionKind | undefined => (
 
 /**
  * Tells whether a kind may be recorded against a target (FR-3.1, OQ-76,
- * OQ-201 D5): card targets take only card kinds; a `credit_card_only` account
- * takes no cash or investment kinds — only bill payments to its cards.
+ * OQ-201 D5, OQ-219): card targets take only card kinds; a `credit_card_only`
+ * account takes none — its cards take charges and refunds, and another account
+ * pays their bills.
  *
  * @param kind - The kind.
  * @param context - The target being recorded against.
@@ -92,8 +93,7 @@ export const findKind = (code: string): TransactionKind | undefined => (
 export const isKindAllowed = (kind: TransactionKind, context: KindTargetContext): boolean => {
   if (kind.target !== context.target) return false;
   if (context.target === 'card') return true;
-  if (context.accountType === 'credit_card_only' && kind.effect !== 'bill_payment') return false;
-  return true;
+  return context.accountType !== 'credit_card_only';
 };
 
 /**

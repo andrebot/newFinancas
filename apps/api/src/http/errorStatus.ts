@@ -24,6 +24,7 @@ const STATUS_OF: Readonly<Record<ErrorCode, ContentfulStatusCode>> = {
   'budget.target_already_claimed': 409,
   'category.archived': 422,
   'category.not_found': 404,
+  'credit_card.account_archived': 409,
   'credit_card.not_found': 404,
   'goal.allocation_exceeds_100': 409,
   'goal.completed': 409,

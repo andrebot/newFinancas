@@ -250,8 +250,12 @@ vice versa; only a Credit Card Bill Payment (FR-3.7) bridges the two.
   currency, not linked to each other.
 - **FR-3.7** A **Credit Card Bill Payment** is an Account Transaction that
   additionally links to a specific Credit Card (FR-2.7). Recording one
-  debits the linked account (per FR-3.1) and reduces that Credit Card's
-  outstanding balance by the paid amount (see FR-2.10).
+  debits the paying account (per FR-3.1) and reduces that Credit Card's
+  outstanding balance by the paid amount (see FR-2.10). **The paying account
+  need not be the card's own (OQ-219):** any open account but a
+  credit-card-only one pays a card in its currency — a card on a
+  credit-card-only account is paid from Checking, say. Recording, editing or
+  deleting one needs edit access to both accounts, the card's open.
 - **FR-3.8** An investment-related Account Transaction — buy, sell,
   dividend, interest, redemption, or tax — links to a specific Investment
   Holding within that same account (see FR-5.1). **Every investment kind

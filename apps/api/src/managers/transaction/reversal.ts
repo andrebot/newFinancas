@@ -14,6 +14,7 @@ import {
 import {
   tradeRefusal, holdingNotFound, transactionChanged, transactionNotFound,
 } from './errors';
+import requirePaidCard from './paidCard';
 
 // The "undo a stored row" half that Edit and Delete share: loading the row
 // with its effects' context, reversing those effects (cash leg, trade deltas,
@@ -51,7 +52,11 @@ export const assetTypeOf = (row: EditableRow): string | undefined => (
   row.ledger === 'account' ? (row.transaction as AccountTransaction).holding?.assetType : undefined
 );
 
-/** The Account-ledger half of the load. */
+/**
+ * The Account-ledger half of the load: a bill payment's card's Account is
+ * decided on too, and must be open — editing or deleting the payment moves the
+ * card's balance (OQ-219).
+ */
 const loadAccountRow = async (
   deps: TransactionDeps,
   context: SignedInContext,
@@ -67,6 +72,9 @@ const loadAccountRow = async (
     transactionNotFound,
   );
   if (!account) throw transactionNotFound();
+  if (transaction.creditCardId) {
+    await requirePaidCard(deps, context, householdId, transaction.creditCardId);
+  }
   return {
     ledger: 'account',
     transaction,
