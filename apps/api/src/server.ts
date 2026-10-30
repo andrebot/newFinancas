@@ -91,6 +91,8 @@ const accountStoresOver = (over: Database): AccountStores => ({
   creditCards: createCreditCardAccessor(over),
   budgets: createBudgetAccessor(over),
   goals: createGoalAccessor(over),
+  accountTransactions: createAccountTransactionAccessor(over),
+  cardTransactions: createCardTransactionAccessor(over),
 });
 
 /**

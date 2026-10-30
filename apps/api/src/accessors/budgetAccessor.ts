@@ -38,6 +38,12 @@ export interface BudgetScope {
 /** A calendar month in the app's time zone — the Manager works it out (OQ-104). */
 export type BudgetMonth = CalendarMonth;
 
+/** One month's spend, in signed minor units (out − in, OQ-201). */
+export interface MonthSpend {
+  readonly month: BudgetMonth;
+  readonly amount: number;
+}
+
 export interface Budget extends BudgetScope {
   readonly id: string;
   readonly name: string;
@@ -128,7 +134,7 @@ interface TargetColumns {
 }
 
 /** The Budget fields a period snapshots (OQ-95). */
-interface PeriodOwner {
+export interface PeriodOwner {
   readonly id: string;
   readonly householdId: string;
   readonly currency: string;
@@ -478,6 +484,40 @@ const findClaimingBudget = async (db: Database, spend: Spend) => {
 };
 
 /**
+ * The target in effect for a month: the latest period at or before it.
+ *
+ * @param db - Where to read.
+ * @param budgetId - The Budget.
+ * @param month - The month.
+ * @returns The period's target, or `undefined` before the Budget's first period.
+ */
+const targetInEffect = async (db: Database, budgetId: string, month: BudgetMonth) => {
+  const [row] = await db.select({ targetAmount: budgetPeriods.targetAmount })
+    .from(budgetPeriods)
+    .where(and(eq(budgetPeriods.budgetId, budgetId), periodMonth('<=', month)))
+    .orderBy(desc(budgetPeriods.year), desc(budgetPeriods.month))
+    .limit(1);
+  return row;
+};
+
+/**
+ * Writes one month's restated spend, opening its period with the target in
+ * effect then; a month before the Budget's first period is left out.
+ *
+ * @param db - A transaction.
+ * @param budget - The Budget's id, household and currency.
+ * @param spend - The month and its spend.
+ */
+const writeSpend = async (db: Database, budget: PeriodOwner, spend: MonthSpend) => {
+  const inEffect = await targetInEffect(db, budget.id, spend.month);
+  if (!inEffect) return;
+  await db.insert(budgetPeriods).values({
+    ...periodValues(budget, spend.month, inEffect.targetAmount),
+    spendAmount: spend.amount,
+  }).onConflictDoUpdate({ target: periodKey, set: { spendAmount: spend.amount } });
+};
+
+/**
  * Builds the BudgetAccessor over a database (or a transaction).
  *
  * @param db - Where to read and write.
@@ -676,11 +716,7 @@ const createBudgetAccessor = (db: Database) => ({
       const budgetId = await findClaimingBudget(tx, spend);
       if (!budgetId) return 'untracked';
       const month = monthOf(spend.date);
-      const [inEffect] = await tx.select({ targetAmount: budgetPeriods.targetAmount })
-        .from(budgetPeriods)
-        .where(and(eq(budgetPeriods.budgetId, budgetId), periodMonth('<=', month)))
-        .orderBy(desc(budgetPeriods.year), desc(budgetPeriods.month))
-        .limit(1);
+      const inEffect = await targetInEffect(tx, budgetId, month);
       if (!inEffect) return 'untracked';
       const { householdId } = spend.scope;
       const owner = { id: budgetId, householdId, currency: spend.currency };
@@ -694,6 +730,31 @@ const createBudgetAccessor = (db: Database) => ({
       return 'accrued';
     });
   },
+
+  /**
+   * Restates a Budget's spend from a month on (OQ-166): every period from it
+   * is zeroed, then each month given is written, opened if needed with the
+   * target in effect then. Earlier periods are history and stay as they are.
+   *
+   * @param budget - The Budget's id, household and currency.
+   * @param from - The first month restated.
+   * @param spends - Each month's spend from `from` on; a month left out has none.
+   */
+  restateSpend: (
+    budget: PeriodOwner,
+    from: BudgetMonth,
+    spends: readonly MonthSpend[],
+  ): Promise<void> => db.transaction(async (tx) => {
+    await tx.update(budgetPeriods).set({ spendAmount: 0 })
+      .where(and(eq(budgetPeriods.budgetId, budget.id), periodMonth('>=', from)));
+    await spends.reduce<Promise<void>>(
+      async (previous, spend) => {
+        await previous;
+        await writeSpend(tx, budget, spend);
+      },
+      Promise.resolve(),
+    );
+  }),
 });
 
 /** The BudgetAccessor's operations. */

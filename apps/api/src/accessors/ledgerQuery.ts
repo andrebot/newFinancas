@@ -32,6 +32,15 @@ export interface MonthKindTotal {
   readonly total: number;
 }
 
+/**
+ * What a Budget claims (FR-4.6/4.8): whole Categories and single
+ * Subcategories, matched on the row's own columns, as a spend's accrual is.
+ */
+export interface ClaimedCategories {
+  readonly categoryIds: readonly string[];
+  readonly subcategoryIds: readonly string[];
+}
+
 /** How many filtered transactions fall in a month (`YYYY-MM`). */
 export interface MonthCount {
   readonly month: string;
@@ -135,6 +144,25 @@ export const inCategories = (
     inArray(columns.subcategoryId, ownSubcategories),
   );
 };
+
+/**
+ * The claims condition: a row naming a claimed Category, or a claimed
+ * Subcategory — the same match a spend's accrual makes (OQ-166).
+ *
+ * @param columns - The ledger's Category and Subcategory columns.
+ * @param claims - The claimed Categories and Subcategories.
+ * @returns The condition; it matches nothing when nothing is claimed.
+ */
+export const inClaims = (
+  columns: { readonly categoryId: PgColumn; readonly subcategoryId: PgColumn },
+  claims: ClaimedCategories,
+) => or(
+  sql`false`,
+  hasAny(claims.categoryIds) ? inArray(columns.categoryId, [...claims.categoryIds]) : undefined,
+  hasAny(claims.subcategoryIds)
+    ? inArray(columns.subcategoryId, [...claims.subcategoryIds])
+    : undefined,
+);
 
 /**
  * The names of a ledger's foreign keys on its Category and Subcategory columns.

@@ -619,6 +619,60 @@ describe('monthlySums', () => {
   }));
 });
 
+describe('claimedSums', () => {
+  it('sums a Budget\'s claims by month, currency and kind from a day on', scenario(async ({
+    record, ledger, checking, savings, food, groceries, transport,
+  }) => {
+    await recordAll(record, [
+      { categoryId: food, date: '2026-10-01', amount: 100 },
+      {
+        categoryId: food, subcategoryId: groceries, date: '2026-10-20', amount: 200,
+      },
+      {
+        kind: 'pix_receipt', categoryId: food, date: '2026-10-21', amount: 5,
+      },
+      { categoryId: food, date: '2026-09-30', amount: 9 },
+      { categoryId: transport, date: '2026-10-03', amount: 11 },
+      {
+        accountId: savings, categoryId: food, date: '2026-10-02', amount: 1,
+      },
+    ]);
+
+    const sums = await ledger.claimedSums(
+      [checking],
+      { categoryIds: [food], subcategoryIds: [] },
+      '2026-10-01',
+    );
+
+    expect(sums).toHaveLength(2);
+    expect(sums).toEqual(expect.arrayContaining([
+      {
+        month: '2026-10', currency: 'BRL', kind: 'pix_payment', total: 300,
+      },
+      {
+        month: '2026-10', currency: 'BRL', kind: 'pix_receipt', total: 5,
+      },
+    ]));
+  }));
+
+  it('matches a claimed Subcategory alone; nothing for no Accounts', scenario(async ({
+    record, ledger, checking, food, groceries,
+  }) => {
+    await recordAll(record, [
+      {
+        categoryId: food, subcategoryId: groceries, date: '2026-10-20', amount: 200,
+      },
+      { categoryId: food, date: '2026-10-21', amount: 5 },
+    ]);
+    const claims = { categoryIds: [], subcategoryIds: [groceries] };
+
+    expect(await ledger.claimedSums([checking], claims, '2026-10-01')).toEqual([{
+      month: '2026-10', currency: 'BRL', kind: 'pix_payment', total: 200,
+    }]);
+    expect(await ledger.claimedSums([], claims, '2026-10-01')).toEqual([]);
+  }));
+});
+
 describe('costBasisAsOf', () => {
   it('sums each Holding\'s trade deltas dated by then, payouts left out', scenario(async ({
     record, ledger, holding,

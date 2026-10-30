@@ -1,23 +1,29 @@
 import type {
-  Budget, BudgetChanges, BudgetPeriod, BudgetTarget, TargetRejection,
+  Budget, BudgetChanges, BudgetMonth, BudgetPeriod, BudgetTarget, TargetRejection,
 } from '../../accessors/budgetAccessor';
-import { monthOf, type MonthRange } from '../../accessors/calendarMonth';
+import { monthKey, monthOf, type MonthRange } from '../../accessors/calendarMonth';
+import type { ClaimedCategories } from '../../accessors/ledgerQuery';
 import type { Category } from '../../accessors/categoryAccessor';
 import type { Visibility } from '../../db/schema/values';
 import { validationFailed, type DomainError } from '../../utilities/domainError';
 import type { DataAction } from '../../utilities/authorization';
 import { checkFields, nonBlank, type FieldDetail } from '../../utilities/validation';
 import { accessToOwned, memberOnly, requireAccess } from '../access';
+import { spendByMonth } from '../budgetSpend';
 import type { SignedInContext } from '../requestContext';
 import { requireNoProblems } from '../validation';
-import { requestLogger, todayOf, type AccountDeps } from './context';
+import {
+  requestLogger, todayOf, type AccountDeps, type AccountStores,
+} from './context';
 import { budgetNotFound, targetAlreadyClaimed } from './errors';
 
 // Budgets (budget-spending/uc-01..03, FR-4). A Budget is personal (its owner's
 // alone) or shared (the permission table, plus a Member may edit what they
 // created — OQ-111), like an Account. Its targets are whole Categories or single
 // Subcategories, claimed once per scope (FR-4.7, OQ-166). Spend against target
-// is the Budget status read, not this definition's (OQ-176).
+// is the Budget status read, not this definition's (OQ-176) — but a new Budget,
+// or one whose claims change, has its spend restated from this month on, from
+// the transactions already in its scope (OQ-166, PR #145).
 
 /** A target as the route validated it: the contract can't say "exactly one" (OQ-176). */
 export interface TargetInput {
@@ -192,6 +198,50 @@ const requireValidRequest = (
 };
 
 /**
+ * Splits a Budget's claims into Categories and Subcategories.
+ *
+ * @param targets - The claims.
+ * @returns Their ids, by level.
+ */
+export const claimsOf = (targets: readonly BudgetTarget[]): ClaimedCategories => ({
+  categoryIds: targets.flatMap((target) => ('categoryId' in target ? [target.categoryId] : [])),
+  subcategoryIds: targets.flatMap((target) => (
+    'subcategoryId' in target ? [target.subcategoryId] : []
+  )),
+});
+
+/**
+ * Restates a Budget's spend from a month on, from the transactions in its
+ * scope — the Accounts and cards a spend of it accrues from (OQ-166): its
+ * household's shared ones, or its owner's personal ones.
+ *
+ * @param stores - The Accessors, over the write's transaction.
+ * @param budget - The Budget, with its claims as they now stand.
+ * @param from - The first month restated: the current one.
+ * @param actorId - The member writing it: who reads a shared Budget's Accounts
+ *   when its owner is gone (a personal one always has its owner).
+ */
+const restateSpend = async (
+  stores: AccountStores,
+  budget: Budget,
+  from: BudgetMonth,
+  actorId: string,
+) => {
+  const viewerId = budget.ownerUserId ?? actorId;
+  const accountIds = (await stores.accounts.list(budget.householdId, viewerId, {
+    visibility: budget.visibility,
+  })).map((account) => account.id);
+  const cardIds = (await stores.creditCards.listByAccounts(accountIds)).map((card) => card.id);
+  const claims = claimsOf(budget.targets);
+  const firstDay = `${monthKey(from)}-01`;
+  const sums = [
+    ...await stores.accountTransactions.claimedSums(accountIds, claims, firstDay),
+    ...await stores.cardTransactions.claimedSums(cardIds, claims, firstDay),
+  ];
+  await stores.budgets.restateSpend(budget, from, spendByMonth(sums, budget.currency));
+};
+
+/**
  * Loads a Budget the caller may take an action on.
  *
  * @param deps - The tier below.
@@ -221,10 +271,12 @@ const loadBudget = async (
 
 /**
  * Writes an edit — name and target, then targets — in one transaction, so a
- * refused target keeps none of it (OQ-176). Every check ran before.
+ * refused target keeps none of it (OQ-176). New targets restate the spend from
+ * this month on (OQ-166). Every check ran before.
  *
  * @param deps - The tier below.
- * @param ids - The household and the Budget.
+ * @param actorId - The member editing it.
+ * @param budget - The Budget as it stood.
  * @param changes - The name and target to write, if any.
  * @param targets - The new claims, if sent.
  * @throws {DomainError} `budget.not_found`; `budget.target_already_claimed`;
@@ -232,20 +284,24 @@ const loadBudget = async (
  */
 const writeEdit = (
   deps: AccountDeps,
-  ids: { readonly householdId: string; readonly budgetId: string },
+  actorId: string,
+  budget: Budget,
   changes: BudgetChanges,
   targets: readonly BudgetTarget[] | undefined,
 ): Promise<void> => deps.inTransaction(async (stores) => {
-  const { householdId, budgetId } = ids;
+  const { householdId, id: budgetId } = budget;
+  const month = monthOf(todayOf(deps));
   if (Object.keys(changes).length > 0) {
-    const month = monthOf(todayOf(deps));
     const updated = await stores.budgets.update(householdId, budgetId, changes, month);
     if (updated === 'not_found') throw budgetNotFound();
   }
   if (!targets) return;
-  const result = await stores.budgets.replaceTargets(householdId, budgetId, uniqueTargets(targets));
-  if (result.ok) return;
-  throw result.reason === 'not_found' ? budgetNotFound() : rejectionError(result, targets);
+  const claimed = uniqueTargets(targets);
+  const result = await stores.budgets.replaceTargets(householdId, budgetId, claimed);
+  if (!result.ok) {
+    throw result.reason === 'not_found' ? budgetNotFound() : rejectionError(result, targets);
+  }
+  await restateSpend(stores, { ...budget, targets: claimed }, month, actorId);
 });
 
 /**
@@ -294,7 +350,8 @@ const createBudgets = (deps: AccountDeps) => ({
 
   /**
    * Creates a Budget, owned by its creator, claiming its targets and opening this
-   * month's period — together or not at all (uc-01, FR-4.1/4.2/4.7, OQ-166).
+   * month's period with the spend already recorded in it — together or not at
+   * all (uc-01, FR-4.1/4.2/4.7, OQ-166).
    *
    * @param context - The signed-in request.
    * @param householdId - The household.
@@ -314,25 +371,31 @@ const createBudgets = (deps: AccountDeps) => ({
     });
     const targets = requireValidRequest(input, input.targets);
     await requireClaimable(deps, householdId, targets);
-    const result = await deps.budgets.insert({
-      householdId,
-      ownerUserId,
-      visibility: input.visibility,
-      name: input.name.trim(),
-      targetAmount: input.targetAmount,
-      currency: input.currency,
-    }, uniqueTargets(targets), monthOf(todayOf(deps)));
-    if (!result.ok) throw rejectionError(result, targets);
-    requestLogger(context).audit('CreateBudget', {
-      entityType: 'Budget', entityId: result.budget.id, householdId,
+    const month = monthOf(todayOf(deps));
+    const budget = await deps.inTransaction(async (stores) => {
+      const result = await stores.budgets.insert({
+        householdId,
+        ownerUserId,
+        visibility: input.visibility,
+        name: input.name.trim(),
+        targetAmount: input.targetAmount,
+        currency: input.currency,
+      }, uniqueTargets(targets), month);
+      if (!result.ok) throw rejectionError(result, targets);
+      await restateSpend(stores, result.budget, month, ownerUserId);
+      return result.budget;
     });
-    return result.budget;
+    requestLogger(context).audit('CreateBudget', {
+      entityType: 'Budget', entityId: budget.id, householdId,
+    });
+    return budget;
   },
 
   /**
    * Edits a Budget's name, target and targets in one write (uc-02, FR-4.7/4.9,
-   * OQ-176): a new target applies from this month on. An empty edit reads the
-   * Budget back, unaudited.
+   * OQ-176): a new target applies from this month on, and new targets restate
+   * its spend from this month on (OQ-166). An empty edit reads the Budget back,
+   * unaudited.
    *
    * @param context - The signed-in request.
    * @param householdId - The household.
@@ -355,7 +418,7 @@ const createBudgets = (deps: AccountDeps) => ({
     if (targets) await requireClaimable(deps, householdId, targets, budget.targets);
     const changes = budgetChangesOf(edit);
     if (Object.keys(changes).length === 0 && !targets) return budget;
-    await writeEdit(deps, ids, changes, targets);
+    await writeEdit(deps, context.actor.userId, budget, changes, targets);
     requestLogger(context).audit('EditBudget', {
       entityType: 'Budget', entityId: budgetId, householdId,
     });

@@ -5,13 +5,14 @@ import {
 import type { Database } from '../db/database';
 import { accountTransactions, accounts, investmentHoldings } from '../db/schema';
 import {
-  afterCursor, categoryForeignKeys, countRows, hasAny, holds, inCategories, inMonths,
+  afterCursor, categoryForeignKeys, countRows, hasAny, holds, inCategories, inClaims, inMonths,
   isVanishedReference, monthOf, sumOf,
-  type DayKindTotal, type LedgerCursor, type MonthCount, type MonthKindTotal,
+  type ClaimedCategories, type DayKindTotal, type LedgerCursor, type MonthCount,
+  type MonthKindTotal,
 } from './ledgerQuery';
 
 export type {
-  DayKindTotal, LedgerCursor, MonthCount, MonthKindTotal,
+  ClaimedCategories, DayKindTotal, LedgerCursor, MonthCount, MonthKindTotal,
 } from './ledgerQuery';
 
 // AccountTransactionAccessor (A7, VBD): the Account Transaction ledger
@@ -501,6 +502,36 @@ const createAccountTransactionAccessor = (db: Database) => ({
         accountTransactions.effect,
       );
     return rows.map((row) => ({ ...row, effect: row.effect as TransactionEffect }));
+  },
+
+  /**
+   * Sums some Accounts' transactions in a Budget's claims by month, currency
+   * and kind, from a day on — for AccountManager to restate the Budget's spend
+   * (FR-4.5, OQ-166).
+   *
+   * @param accountIds - The Accounts in the Budget's scope.
+   * @param claims - The Budget's Categories and Subcategories.
+   * @param from - First day, inclusive (`YYYY-MM-DD`); no end.
+   * @returns One sum per group present, in no particular order.
+   */
+  claimedSums: async (
+    accountIds: readonly string[],
+    claims: ClaimedCategories,
+    from: string,
+  ): Promise<MonthKindTotal[]> => {
+    if (accountIds.length === 0) return [];
+    return db.select({
+      month: monthOfDate,
+      currency: accountTransactions.currency,
+      kind: accountTransactions.kind,
+      total: sumOfAmounts,
+    }).from(accountTransactions)
+      .where(and(
+        inArray(accountTransactions.accountId, [...accountIds]),
+        inClaims(accountTransactions, claims),
+        gte(accountTransactions.date, from),
+      ))
+      .groupBy(monthOfDate, accountTransactions.currency, accountTransactions.kind);
   },
 
   /**

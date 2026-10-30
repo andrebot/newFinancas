@@ -2,6 +2,7 @@ import type { TransactionKind } from '@financas/reference';
 import type { Account, Movement } from '../../accessors/accountAccessor';
 import type { HoldingRate } from '../../accessors/investmentHoldingAccessor';
 import type { ContractRate } from '../../engines/investmentProduct';
+import { signedSpend } from '../budgetSpend';
 import type { TransactionStores } from './context';
 
 // The signed effects a transaction kind makes on its ledgers (OQ-201 D1/D4):
@@ -106,7 +107,7 @@ export const budgetAccrualOf = (
     currency: values.currency,
     categoryId,
     subcategoryId,
-    amount: (kind.direction === 'in' ? -1 : 1) * values.amount,
+    amount: signedSpend(kind.direction, values.amount),
     date: values.date,
   };
 };

@@ -3969,6 +3969,23 @@ not a hardcoded assumption.
 - **Not here yet:** Delete User's cascade (personal Budgets deleted, shared
   ones' owner cleared) waits for `M1D` (task 136), like the other
   Accessors.
+- **Amended (PR #145, stakeholder report): a Budget counts the spend
+  already recorded in its first month.** A spend accrues as it is
+  written, so a Budget created mid-month missed the month's earlier
+  spends, and a Category added to a Budget missed its earlier ones. Now
+  `AccountManager` restates the spend **from the current month on** when a
+  Budget is created and whenever its targets change: it reads the Budget's
+  scope (the household's shared Accounts, or the owner's personal ones,
+  through `AccountAccessor.list`, and their cards), sums both ledgers'
+  transactions in its claims from the month's first day
+  (`claimedSums` — the same match as `accrueIfClaimed`: the row's Category
+  or Subcategory claimed), signs them out − in in the Budget's currency
+  (`managers/budgetSpend.ts`, shared with TransactionManager's accrual), and
+  `BudgetAccessor.restateSpend` zeroes every period from that month and
+  writes each month's spend, opening a month with the target in effect.
+  Past periods are history and keep their spend (glossary: no retroactive
+  change). All in the create's or the edit's transaction. A spend written
+  in the very instant a Budget is created can still be missed — accepted.
 
 ### OQ-167: ValuationSnapshotAccessor (task A12)
 **Confirmed with the stakeholder (Oct 2026):**
@@ -6470,6 +6487,8 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
   sideways until it reaches that end, when the wheel scrolls the page again
   (`kit/periodBar/stripScroll.ts`). No visible scrollbar or extra arrows:
   the month arrows already step a month at a time.
+- **A new Budget missed the month's spend recorded before it** (stakeholder
+  report): fixed in AccountManager — see OQ-166's amendment.
 - Tests added for the race, the failed refetch, the switch, the time zone of
   a card's issue (April in UTC, March in São Paulo) and an edit's body (the
   old default also turned every PATCH into a terms edit).
