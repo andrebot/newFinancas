@@ -7,7 +7,7 @@ import type { BrowseTransactionsFlowProps } from '../../../../src/experiences/ma
 import type { MonthOverviewFlowProps } from '../../../../src/experiences/manageFinances/flows/monthOverview/MonthOverviewFlow';
 import type { RecordTransactionFlowProps } from '../../../../src/experiences/manageFinances/flows/recordTransaction/RecordTransactionFlow';
 import ManageFinancesExperience from '../../../../src/experiences/manageFinances/ManageFinancesExperience';
-import { householdChosen } from '../../../../src/shell/shellState';
+import { householdChosen, switchHousehold } from '../../../../src/shell/shellState';
 import { AlertProvider } from '../../../../src/utilities/AlertProvider';
 import { createAlertQueue } from '../../../../src/utilities/alerts';
 import { envelope, jsonResponse } from '../../api/fakes';
@@ -211,7 +211,7 @@ const renderExperience = async (answers: Answers = {}, path = '/transactions') =
   );
   await settle();
   await settle();
-  return { fetchFn };
+  return { fetchFn, store };
 };
 
 /**
@@ -447,6 +447,32 @@ describe('the filter drawer', () => {
   });
 });
 
+describe('the Holding filter across households', () => {
+  it('is dropped when the household switches, never sent for the new one', async () => {
+    const { fetchFn, store } = await renderExperience({
+      'GET /households': () => jsonResponse(200, {
+        data: [DOE, { ...DOE, id: 'rivera', name: 'Rivera' }],
+      }),
+      'GET /households/doe/holdings/h-1': () => jsonResponse(200, { id: 'h-1', ticker: 'BBAS3' }),
+      'GET /households/rivera/accounts': () => jsonResponse(200, { data: ACCOUNTS }),
+      'GET /households/rivera/categories': () => jsonResponse(200, { data: [] }),
+      'GET /households/rivera/transactions': () => jsonResponse(200, pageOf('r-1', null)),
+      'GET /households/rivera/reports/month-overview': () => jsonResponse(200, REPORT),
+    }, '/transactions?holding=h-1');
+    await act(async () => {
+      store.dispatch(switchHousehold('rivera'));
+    });
+    await settle();
+    await settle();
+    expect(screen.getByTestId('location').textContent).toBe('/transactions');
+    expect(calls(fetchFn).filter((call) => call.startsWith('GET /households/rivera/transactions')))
+      .toEqual(['GET /households/rivera/transactions']);
+    expect(shownBy('browse')).toEqual(expect.objectContaining({
+      filters: expect.not.objectContaining({ holdingId: 'h-1' }),
+    }));
+  });
+});
+
 describe('a delete', () => {
   it('refreshes the ledger, the month and the Goals once it went through', async () => {
     const { fetchFn } = await renderExperience({
@@ -472,6 +498,23 @@ describe('a delete', () => {
     expect(countOf(fetchFn, 'GET /households/doe/transactions')).toBe(2);
   });
 
+  it('shows a failed refresh with its rows, and fetches it again on Try again', async () => {
+    let failing = false;
+    const { fetchFn } = await renderExperience({
+      'DELETE /households/doe/transactions/t-1': () => new Response(null, { status: 204 }),
+      'GET /households/doe/transactions': () => (failing
+        ? jsonResponse(500, envelope('internal.unexpected'))
+        : jsonResponse(200, pageOf('t-1', null))),
+    });
+    failing = true;
+    await press('deleteRow');
+    expect(shownBy('browse')).toEqual(expect.objectContaining({ status: 'error', pages: 1 }));
+    failing = false;
+    await press('reachEnd');
+    expect(countOf(fetchFn, 'GET /households/doe/transactions')).toBe(3);
+    expect(shownBy('browse')).toEqual(expect.objectContaining({ status: 'idle', pages: 1 }));
+  });
+
   it('refreshes nothing after another refusal', async () => {
     const { fetchFn } = await renderExperience({
       'DELETE /households/doe/transactions/t-1': () => jsonResponse(
@@ -487,6 +530,7 @@ describe('a delete', () => {
 describe('the record drawer', () => {
   it('opens on a new transaction with the Goals, active first', async () => {
     const { fetchFn } = await renderExperience();
+    expect(countOf(fetchFn, 'GET /households/doe/goal-progress')).toBe(0);
     await click('Record Transaction');
     await settle();
     expect(shownBy('record')).toEqual({
@@ -592,6 +636,29 @@ describe('an edit', () => {
     expect(shownBy('record')).toEqual(expect.objectContaining({
       transaction: { item: BUY, holding },
     }));
+  });
+
+  it('drops a Holding read that returns after another row was opened', async () => {
+    const hold = deferred();
+    await renderExperience({ 'GET /households/doe/holdings/h-1': () => hold.promise });
+    await press('editBuy');
+    await press('editPlain');
+    await settle();
+    expect(shownBy('record')).toEqual(expect.objectContaining({ transaction: { item: PLAIN } }));
+    await settleWith(hold, jsonResponse(200, { id: 'h-1', ticker: 'CDB' }));
+    expect(shownBy('record')).toEqual(expect.objectContaining({ transaction: { item: PLAIN } }));
+  });
+
+  it('drops a failed Holding read once the user moved on, without a toast', async () => {
+    const hold = deferred();
+    await renderExperience({ 'GET /households/doe/holdings/h-1': () => hold.promise });
+    await press('editBuy');
+    await click('Record Transaction');
+    await settle();
+    await press('close');
+    await settleWith(hold, jsonResponse(500, envelope('internal.unexpected')));
+    expect(screen.queryByText("Couldn't open this transaction. Try again.")).toBeNull();
+    expect(screen.queryByTestId('record')).toBeNull();
   });
 
   it('toasts and opens nothing when the Holding can’t be read', async () => {

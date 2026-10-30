@@ -6422,11 +6422,13 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
   Overview's `overview` is `loaded` as soon as the month's `currentData` is.
   The household's creation date (the bar's reach) comes from the households
   list.
-- **The ledger's status**: an error once the first or the next page failed,
-  loading while either is out, idle otherwise — a refetch after a write keeps
-  the rows. The pages are the query's `currentData`, so new filters never show
-  the old ones' rows; "Try again" after a failed refetch fetches every page
-  again, after a failed next page that page.
+- **The ledger's status**: an error once any fetch failed — the first page,
+  the next page, or a refetch after a write, its rows kept above "Try again"
+  (PR #145 review: a failed refetch was idle, so nothing said so) — loading
+  while the first or the next page is out, idle otherwise. The pages are the
+  query's `currentData`, so new filters never show the old ones' rows; "Try
+  again" after a failed refetch fetches every page again, after a failed next
+  page that page.
 - **The drawer mounts once the Goals a split names are read** (both statuses,
   `goal-progress`, each with its own-currency progress in whole percent); a
   failed read opens it with no Goals to add. Its own endpoint
@@ -6438,6 +6440,23 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
   only below `xl`; Record is a floating button.
 - A `manageFinances` catalog section in both locales; `setupApi` now exports
   `useListAccountsQuery`.
+
+**PR #145 review fixes:**
+- **A late Holding read no longer replaces the open drawer.** Each Edit,
+  Record and close is numbered; a buy's Holding read that returns after the
+  user moved on is dropped (no drawer, no toast) — before, it swapped the
+  drawer's row under a form opened on another, and Save could have sent one
+  row's changes to the other. Each opening mounts a fresh drawer.
+- **The address's Holding belongs to the household the page opened in:**
+  after a household switch it is ignored and dropped from the address, rather
+  than filtering the new household by a Holding it doesn't have.
+- **The Goals are read only while the drawer is open**, not on every visit.
+- **A card is listed only under its Account:** an Account with no history by
+  the month's end is left out with its cards — the 0-outstanding rule below
+  had let a card show without one.
+- Tests added for the race, the failed refetch, the switch, the time zone of
+  a card's issue (April in UTC, March in São Paulo) and an edit's body (the
+  old default also turned every PATCH into a terms edit).
 
 **Bugs found while checking the page against the real API (fixed here):**
 - **Every create but a fixed-term buy answered 422.** The contract's

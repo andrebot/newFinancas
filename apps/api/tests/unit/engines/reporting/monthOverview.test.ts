@@ -221,8 +221,10 @@ describe('monthOverview', () => {
     const deps = fakeDeps();
     deps.listAccounts.mockResolvedValue([anAccount()]);
     deps.listCreditCards.mockResolvedValue([
-      { ...aCard('visa', 'checking'), createdAt: new Date('2026-03-31T23:00:00Z') },
-      { ...aCard('master', 'checking'), createdAt: new Date('2026-04-01T12:00:00Z') },
+      // April in UTC, still 31 March in São Paulo: issued by the month's end.
+      { ...aCard('visa', 'checking'), createdAt: new Date('2026-04-01T02:00:00Z') },
+      // 1 April in São Paulo: not yet.
+      { ...aCard('master', 'checking'), createdAt: new Date('2026-04-01T03:00:00Z') },
     ]);
     deps.accountBalancesAsOf.mockResolvedValue([{
       accountId: 'checking', ...MARCH, openingBalance: 0, endingBalance: 5_000, updatedAt: NOW,
@@ -239,6 +241,26 @@ describe('monthOverview', () => {
         accountId: 'checking', creditCardId: 'visa', currency: 'BRL', amount: 0,
       },
     ]);
+  });
+
+  it('leaves out an Account with no history by then, and its cards with it', async () => {
+    const deps = fakeDeps();
+    deps.listAccounts.mockResolvedValue([anAccount()]);
+    deps.listCreditCards.mockResolvedValue([
+      { ...aCard('visa', 'checking'), createdAt: new Date('2026-01-01T12:00:00Z') },
+    ]);
+    deps.accountBalancesAsOf.mockResolvedValue([]);
+    deps.cardBalancesAsOf.mockResolvedValue([{
+      creditCardId: 'visa',
+      ...MARCH,
+      openingOutstandingBalance: 0,
+      endingOutstandingBalance: 1_200,
+      updatedAt: NOW,
+    }]);
+
+    const { balances } = await monthOverview(deps, VIEWER, MARCH);
+
+    expect(balances).toEqual([]);
   });
 
   // With no period that month: the target in effect then and zero spend.

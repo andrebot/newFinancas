@@ -1,5 +1,5 @@
-import type { CSSProperties } from 'react';
-import type { Account, Category } from '@financas/api-types';
+import { useState, type CSSProperties } from 'react';
+import type { Account, Category, MyHousehold } from '@financas/api-types';
 import { useListAccountsQuery, useListCategoriesQuery } from '../../api/setupApi';
 import { useHouseholds } from '../../api/identityApi';
 import { monthOverview } from '../../config/constants';
@@ -19,6 +19,7 @@ import { BrowseTransactionsFlow } from './flows/browseTransactions/BrowseTransac
 import { activeFilterCount } from './flows/browseTransactions/ledgerFilters';
 import { MonthOverviewFlow } from './flows/monthOverview/MonthOverviewFlow';
 import { RecordTransactionFlow } from './flows/recordTransaction/RecordTransactionFlow';
+import type { EditedTransaction } from './flows/recordTransaction/recordTransactionState';
 import { splitGoalsOf } from './manageFinances';
 import useLedger from './useLedger';
 import useMonthOverview from './useMonthOverview';
@@ -73,6 +74,8 @@ interface FinancesPageProps {
   readonly userId: string;
   /** When the household was created, ISO: how far back the period bar reaches. */
   readonly createdAt: string;
+  /** Whether the address's Holding filter is this household's (the one the page opened in). */
+  readonly holdingFromAddress: boolean;
 }
 
 /** The lists every Flow reads, once loaded. */
@@ -115,27 +118,56 @@ function FilterButton({ count, onOpen, compact }: {
 }
 
 /**
- * Renders the Record Transaction drawer once the Goals a trade's split names
- * are read — a failed read leaves the split without Goals to add.
+ * Renders the open drawer once the Goals a trade's split names are read — a
+ * failed read leaves the split without Goals to add. The Goals are read only
+ * while it is open.
+ *
+ * @param props - The household, the lists, the open drawer and the Flow's requests.
+ * @returns The drawer, or nothing while the Goals load.
+ */
+function OpenRecordDrawer({
+  householdId, lists, transaction, requests,
+}: {
+  readonly householdId: string;
+  readonly lists: PageLists;
+  readonly transaction: EditedTransaction | undefined;
+  readonly requests: RecordDrawer['requests'];
+}) {
+  const active = useListGoalsWithProgressQuery({ householdId, status: 'active' });
+  const completed = useListGoalsWithProgressQuery({ householdId, status: 'completed' });
+  if (active.isLoading || completed.isLoading) return null;
+  return (
+    <RecordTransactionFlow
+      transaction={transaction}
+      accounts={lists.accounts}
+      categories={lists.categories}
+      goals={splitGoalsOf(active.data ?? [], completed.data ?? [])}
+      {...requests}
+    />
+  );
+}
+
+/**
+ * Renders the Record Transaction drawer while it is open, a fresh one for
+ * each opening — so a form never outlives the row it was opened on.
  *
  * @param props - The household, the lists and the drawer.
- * @returns The drawer, or nothing while the Goals load.
+ * @returns The drawer, or nothing while it is closed.
  */
 function RecordDrawerHost({ householdId, lists, record }: {
   readonly householdId: string;
   readonly lists: PageLists;
   readonly record: RecordDrawer;
 }) {
-  const active = useListGoalsWithProgressQuery({ householdId, status: 'active' });
-  const completed = useListGoalsWithProgressQuery({ householdId, status: 'completed' });
-  if (!record.drawer.open || active.isLoading || completed.isLoading) return null;
+  const { drawer } = record;
+  if (!drawer.open) return null;
   return (
-    <RecordTransactionFlow
-      transaction={record.drawer.transaction}
-      accounts={lists.accounts}
-      categories={lists.categories}
-      goals={splitGoalsOf(active.data ?? [], completed.data ?? [])}
-      {...record.requests}
+    <OpenRecordDrawer
+      key={drawer.opening}
+      householdId={householdId}
+      lists={lists}
+      transaction={drawer.transaction}
+      requests={record.requests}
     />
   );
 }
@@ -147,10 +179,10 @@ function RecordDrawerHost({ householdId, lists, record }: {
  * @returns The page.
  */
 function FinancesPage({
-  household, userId, createdAt, lists,
+  household, userId, createdAt, holdingFromAddress, lists,
 }: FinancesPageProps & { readonly lists: PageLists }) {
   const translator = useI18n();
-  const ledger = useLedger(household.id);
+  const ledger = useLedger(household.id, holdingFromAddress);
   const month = useMonthOverview(household.id);
   const record = useRecordDrawer(household.id);
   const [gridRef, barHeight] = useChildHeight(BAR_REGION);
@@ -227,16 +259,15 @@ function FinancesPage({
  * @param props - The household, the user and the household's creation date.
  * @returns The page, its skeleton or its retry.
  */
-function FinancesLists({ household, userId, createdAt }: FinancesPageProps) {
+function FinancesLists(props: FinancesPageProps) {
+  const { household } = props;
   const translator = useI18n();
   const accounts = useListAccountsQuery(household.id);
   const categories = useListCategoriesQuery(household.id);
   if (accounts.data !== undefined && categories.data !== undefined) {
     return (
       <FinancesPage
-        household={household}
-        userId={userId}
-        createdAt={createdAt}
+        {...props}
         lists={{ accounts: accounts.data, categories: categories.data }}
       />
     );
@@ -258,6 +289,31 @@ function FinancesLists({ household, userId, createdAt }: FinancesPageProps) {
 }
 
 /**
+ * Finds when a household was created.
+ *
+ * @param households - The user's households.
+ * @param householdId - The household.
+ * @returns Its creation time, ISO, if it is listed.
+ */
+const createdAtOf = (households: readonly MyHousehold[], householdId: string) => (
+  households.find(({ id }) => id === householdId)?.createdAt
+);
+
+/**
+ * Remembers the household the page opened in: a Holding filter in the address
+ * belongs to it, not to one switched to later.
+ *
+ * @param householdId - The active household, once known.
+ * @returns The household the page opened in, once known.
+ */
+const useOpenedIn = (householdId: string | undefined) => {
+  const [openedIn, setOpenedIn] = useState<string>();
+  // Adjusted while rendering, as React advises for state that follows a value.
+  if (openedIn === undefined && householdId !== undefined) setOpenedIn(householdId);
+  return openedIn ?? householdId;
+};
+
+/**
  * Renders the active household's Transactions page once the user and the
  * household are known: a skeleton until then, a retry if the user can't be
  * loaded.
@@ -268,6 +324,7 @@ export default function ManageFinancesExperience() {
   const translator = useI18n();
   const active = useActiveHousehold();
   const households = useHouseholds();
+  const openedIn = useOpenedIn(active.status === 'ready' ? active.data.household.id : undefined);
 
   if (active.status === 'failed') {
     return (
@@ -281,13 +338,19 @@ export default function ManageFinancesExperience() {
     );
   }
   const created = households.status === 'ready' && active.status === 'ready'
-    ? households.data.find(({ id }) => id === active.data.household.id)?.createdAt
+    ? createdAtOf(households.data, active.data.household.id)
     : undefined;
   if (active.status !== 'ready' || created === undefined) {
     return <SkeletonRows label={translator.text('manageFinances', 'loading')} />;
   }
   const { household, userId } = active.data;
   return (
-    <FinancesLists key={household.id} household={household} userId={userId} createdAt={created} />
+    <FinancesLists
+      key={household.id}
+      household={household}
+      userId={userId}
+      createdAt={created}
+      holdingFromAddress={household.id === openedIn}
+    />
   );
 }

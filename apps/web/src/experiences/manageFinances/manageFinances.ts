@@ -20,7 +20,6 @@ export interface LedgerQueryState {
   readonly isFetching: boolean;
   readonly isFetchingNextPage: boolean;
   readonly isError: boolean;
-  readonly isFetchNextPageError: boolean;
 }
 
 /** What the month's report query holds, as far as the Flow needs. */
@@ -42,15 +41,16 @@ export const periodOf = (date: string): Period => ({
 });
 
 /**
- * Reads the ledger's status for the grouped list: an error once a page failed
- * (the next page's, or the first one's), loading while the first page or the
- * next is out, idle otherwise — a refetch after a write keeps the rows shown.
+ * Reads the ledger's status for the grouped list: an error once a fetch failed
+ * — the first page's, the next page's, or a refetch after a write, whose rows
+ * stay shown above "Try again" — loading while the first page or the next is
+ * out, idle otherwise; a refetch under way keeps the rows.
  *
  * @param query - The infinite query's state.
  * @returns The status.
  */
 export const ledgerStatusOf = (query: LedgerQueryState): GroupedListStatus => {
-  if (query.isFetchNextPageError || (query.isError && query.pages === undefined)) return 'error';
+  if (query.isError) return 'error';
   if (query.isFetchingNextPage || (query.isFetching && query.pages === undefined)) return 'loading';
   return 'idle';
 };

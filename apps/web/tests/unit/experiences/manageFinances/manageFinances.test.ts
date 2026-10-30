@@ -20,7 +20,6 @@ const ledgerQuery = (over: Partial<LedgerQueryState> = {}): LedgerQueryState => 
   isFetching: false,
   isFetchingNextPage: false,
   isError: false,
-  isFetchNextPageError: false,
   ...over,
 });
 
@@ -28,11 +27,10 @@ describe('ledgerStatusOf', () => {
   it.each<[string, Partial<LedgerQueryState>, string]>([
     ['at rest', {}, 'idle'],
     ['refetching after a write, the rows kept', { isFetching: true }, 'idle'],
-    ['a failed refetch, the rows kept', { isError: true }, 'idle'],
+    ['a failed refetch, the rows kept above Try again', { isError: true }, 'error'],
     ['the first page out', { pages: undefined, isFetching: true }, 'loading'],
     ['the next page out', { isFetching: true, isFetchingNextPage: true }, 'loading'],
     ['the first page failed', { pages: undefined, isError: true }, 'error'],
-    ['the next page failed', { isError: true, isFetchNextPageError: true }, 'error'],
   ])('reads %s', (_name, over, status) => {
     expect(ledgerStatusOf(ledgerQuery(over))).toBe(status);
   });

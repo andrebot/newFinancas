@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type {
   HoldingAllocation, InvestmentHolding, InvestmentScheduleEntry, LedgerItem,
 } from '@financas/api-types';
@@ -17,13 +17,21 @@ import { holdingToReadFor } from './manageFinances';
 // OQ-219, OQ-222): whether it is open, on a new transaction or a ledger row's
 // edit, and the reads and writes the Flow asks for. An edited buy opens only
 // once its Holding is read — its terms come from it; when that read fails a
-// toast says so and nothing opens, so Edit can be pressed again. A write
+// toast says so and nothing opens, so Edit can be pressed again. A read that
+// returns after the user moved on — opened another row, Record, or closed —
+// is dropped, and each opening mounts a fresh drawer (PR #145 review). A write
 // refreshes the ledger, the month and the Goals by its cache tags, so closing
 // only unmounts the drawer.
 
-/** The drawer: closed, or open on a new transaction or an edit. */
-export type DrawerState = { readonly open: false }
-  | { readonly open: true; readonly transaction?: EditedTransaction | undefined };
+/**
+ * The drawer: closed, or open on a new transaction or an edit — each opening
+ * numbered, so the page mounts a fresh Flow for it.
+ */
+export type DrawerState = { readonly open: false } | {
+  readonly open: true;
+  readonly opening: number;
+  readonly transaction?: EditedTransaction | undefined;
+};
 
 /** What the page holds of the drawer. */
 export interface RecordDrawer {
@@ -46,6 +54,8 @@ export default function useRecordDrawer(householdId: string): RecordDrawer {
   const alerts = useAlerts();
   const translator = useI18n();
   const [drawer, setDrawer] = useState<DrawerState>({ open: false });
+  // Counts the user's moves: an Edit, Record or close each takes the next one.
+  const latest = useRef(0);
   const [readHolding] = useLazyGetHoldingQuery();
   const [readHoldings] = useLazyListHoldingsQuery();
   const [readSplit] = useLazyListHoldingAllocationsQuery();
@@ -54,30 +64,43 @@ export default function useRecordDrawer(householdId: string): RecordDrawer {
   const [save] = useSaveTransactionMutation();
 
   /**
-   * Opens the drawer on a row, reading a buy's Holding first.
+   * Takes the user's next move.
+   *
+   * @returns Its number.
+   */
+  const nextMove = () => {
+    latest.current += 1;
+    return latest.current;
+  };
+
+  /**
+   * Opens the drawer on a row, reading a buy's Holding first — unless the
+   * user has moved on by the time it is read.
    *
    * @param item - The row to edit.
    */
   const openEdit = async (item: LedgerItem) => {
+    const move = nextMove();
     const holdingId = holdingToReadFor(item);
     if (holdingId === undefined) {
-      setDrawer({ open: true, transaction: { item } });
+      setDrawer({ open: true, opening: move, transaction: { item } });
       return;
     }
     // An awaited trigger has settled: its result holds the data or the error.
     const result = await (readHolding({ householdId, holdingId }) as Promise<
       EndpointResult<InvestmentHolding>
     >);
+    if (move !== latest.current) return;
     if (result.error !== undefined) {
       alerts.error(translator.text('manageFinances', 'editFailed'));
       return;
     }
-    setDrawer({ open: true, transaction: { item, holding: result.data } });
+    setDrawer({ open: true, opening: move, transaction: { item, holding: result.data } });
   };
 
   return {
     drawer,
-    openNew: () => setDrawer({ open: true }),
+    openNew: () => setDrawer({ open: true, opening: nextMove() }),
     openEdit,
     requests: {
       onLoadHoldings: async (accountId) => toDataOutcome(await (
@@ -99,7 +122,10 @@ export default function useRecordDrawer(householdId: string): RecordDrawer {
       onSave: async (transactionId, changes) => toRequestOutcome(
         await save({ householdId, transactionId, changes }),
       ),
-      onClose: () => setDrawer({ open: false }),
+      onClose: () => {
+        nextMove();
+        setDrawer({ open: false });
+      },
     },
   };
 }

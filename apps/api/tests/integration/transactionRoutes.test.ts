@@ -134,6 +134,9 @@ describe('transaction routes', () => {
     const response = await send(app, 'PATCH', ITEM, { description: 'Rent' });
     expect(response.status).toBe(200);
     expect((await response.json() as { description: string }).description).toBe('Rent');
+    // Validation adds no field — a default would read as a terms edit (OQ-222).
+    const [, , , update] = transaction.editTransaction.mock.calls[0] ?? [];
+    expect(update).toEqual({ description: 'Rent' });
   });
 
   it('deletes with no body', async () => {

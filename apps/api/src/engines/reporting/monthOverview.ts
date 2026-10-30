@@ -207,8 +207,8 @@ export const issuedByMonthEnd = (card: CreditCard, month: CalendarMonth): boolea
 /**
  * Reads the balance of each Account open at the month's end and its cards'
  * outstanding then (F10, D16). An Account with no history by then is left
- * out; a card with none owes nothing yet — 0 once issued by then (OQ-222), a
- * card's history starting only with its first charge.
+ * out, its cards with it; a card with none owes nothing yet — 0 once issued
+ * by then (OQ-222), a card's history starting only with its first charge.
  *
  * @param deps - The balance reads.
  * @param accounts - The viewer's Accounts, in display order.
@@ -232,18 +232,22 @@ const balancesOf = async (
     ...accountRows.map((row) => [row.accountId, row.endingBalance] as const),
     ...cardRows.map((row) => [row.creditCardId, row.endingOutstandingBalance] as const),
   ]);
-  return open.flatMap((account) => [
-    { id: account.id, creditCardId: null, unused: undefined },
-    ...openCards.filter((card) => card.accountId === account.id)
-      .map((card) => ({
-        id: card.id, creditCardId: card.id, unused: issuedByMonthEnd(card, month) ? 0 : undefined,
-      })),
-  ].flatMap(({ id, creditCardId, unused }) => {
-    const amount = ending.get(id) ?? unused;
-    return amount === undefined ? [] : [{
+  return open.flatMap((account) => {
+    const balance = ending.get(account.id);
+    // An Account with no history by then is left out, and its cards with it.
+    if (balance === undefined) return [];
+    /** Shapes one of this Account's figures: its own, or a card's. */
+    const row = (creditCardId: string | null, amount: number) => ({
       accountId: account.id, creditCardId, currency: account.currency, amount,
-    }];
-  }));
+    });
+    return [
+      row(null, balance),
+      ...openCards.filter((card) => card.accountId === account.id).flatMap((card) => {
+        const owed = ending.get(card.id) ?? (issuedByMonthEnd(card, month) ? 0 : undefined);
+        return owed === undefined ? [] : [row(card.id, owed)];
+      }),
+    ];
+  });
 };
 
 /**
