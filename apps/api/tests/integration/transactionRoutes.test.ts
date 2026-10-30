@@ -74,6 +74,22 @@ describe('transaction routes', () => {
     expect(transaction.recordTransaction).toHaveBeenCalledTimes(1);
   });
 
+  it('hands the Manager only the fields sent — validation adds none (OQ-222)', async () => {
+    const { app, transaction } = setup();
+    transaction.recordTransaction.mockResolvedValueOnce(ROW);
+    const body = {
+      kind: 'withdrawal',
+      accountId: ROW.accountId,
+      date: '2026-10-13',
+      amount: 2_000,
+      currency: 'BRL',
+    };
+    const response = await send(app, 'POST', TRANSACTIONS, body);
+    expect(response.status).toBe(201);
+    const [, , request] = transaction.recordTransaction.mock.calls[0] ?? [];
+    expect(request).toEqual(body);
+  });
+
   it('rejects a body the contract does not name before reaching the Manager', async () => {
     const { app, transaction } = setup();
     const response = await send(app, 'POST', TRANSACTIONS, {

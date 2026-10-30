@@ -193,8 +193,22 @@ export const openAtMonthEnd = (account: Account, month: CalendarMonth): boolean 
 );
 
 /**
+ * Tells whether a card was issued by a month's end — in the app's time zone
+ * (OQ-104). One with no history by then still owes nothing (OQ-222).
+ *
+ * @param card - The card.
+ * @param month - The month.
+ * @returns `true` when it belongs on that month's Balance rail.
+ */
+export const issuedByMonthEnd = (card: CreditCard, month: CalendarMonth): boolean => (
+  calendarDate(card.createdAt, calendar.timeZone) <= monthEnd(month)
+);
+
+/**
  * Reads the balance of each Account open at the month's end and its cards'
- * outstanding then (F10, D16); one with no history by then is left out.
+ * outstanding then (F10, D16). An Account with no history by then is left
+ * out; a card with none owes nothing yet — 0 once issued by then (OQ-222), a
+ * card's history starting only with its first charge.
  *
  * @param deps - The balance reads.
  * @param accounts - The viewer's Accounts, in display order.
@@ -219,11 +233,13 @@ const balancesOf = async (
     ...cardRows.map((row) => [row.creditCardId, row.endingOutstandingBalance] as const),
   ]);
   return open.flatMap((account) => [
-    { id: account.id, creditCardId: null },
+    { id: account.id, creditCardId: null, unused: undefined },
     ...openCards.filter((card) => card.accountId === account.id)
-      .map((card) => ({ id: card.id, creditCardId: card.id })),
-  ].flatMap(({ id, creditCardId }) => {
-    const amount = ending.get(id);
+      .map((card) => ({
+        id: card.id, creditCardId: card.id, unused: issuedByMonthEnd(card, month) ? 0 : undefined,
+      })),
+  ].flatMap(({ id, creditCardId, unused }) => {
+    const amount = ending.get(id) ?? unused;
     return amount === undefined ? [] : [{
       accountId: account.id, creditCardId, currency: account.currency, amount,
     }];

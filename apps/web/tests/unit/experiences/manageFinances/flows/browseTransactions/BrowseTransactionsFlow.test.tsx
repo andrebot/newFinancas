@@ -252,6 +252,14 @@ describe('the header', () => {
     const chip = screen.getByRole('button', { name: 'Stop filtering by this Holding' });
     expect(chip.textContent).toBe('Holding');
   });
+
+  it('places the Experience’s Filter button beside the heading', () => {
+    renderFlow({ filterAction: <button type="button">Phone filter</button> });
+
+    const heading = screen.getByRole('heading', { level: 2 });
+    expect(heading.parentElement?.contains(screen.getByRole('button', { name: 'Phone filter' })))
+      .toBe(true);
+  });
 });
 
 describe('rows', () => {

@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Manage Finances — Browse Transactions</h1>
-  <p class="subtitle"><span class="route">GET /households/:householdId/transactions?…&cursor=</span>, <span class="route">DELETE /households/:householdId/transactions/:id</span>.</p>
+  <p class="subtitle"><span class="route">GET /households/:householdId/transactions?…&cursor=</span>, <span class="route">GET …/holdings/:holdingId</span>, <span class="route">DELETE /households/:householdId/transactions/:id</span>.</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -67,6 +67,10 @@ sequenceDiagram
     participant FLOW as Browse Transactions<br/>Flow
     participant EXP as Manage Finances<br/>Experience
     participant API as Backend API
+    opt a Holding's "See in Transactions" — /transactions?holding=:holdingId
+        EXP->>API: GET …/holdings/:holdingId — the chip's name (its ticker)
+        API-->>EXP: the Holding
+    end
     EXP->>API: GET /households/:householdId/transactions?filters (infinite query keyed by the applied filters)
     API-->>EXP: items, dayTotals, monthCounts, nextCursor
     EXP-->>FLOW: state: pages, hasMore, status
@@ -77,7 +81,7 @@ sequenceDiagram
         EXP->>API: GET /households/:householdId/transactions?filters&cursor=…
     end
     opt filter
-        User->>EXP: Filter (page header) — opens the drawer
+        User->>EXP: Filter (page header, or the ledger heading's on a phone) — opens the drawer
         EXP-->>FLOW: state: filterOpen, applied filters → draft
         User->>FP: kinds by group, accounts / cards, categories, any date range
         FP->>FLOW: emit draftChanged / show
@@ -97,9 +101,13 @@ sequenceDiagram
         DC->>FLOW: emit confirmDelete
         FLOW->>EXP: request delete(transaction)
         EXP->>API: DELETE /households/:householdId/transactions/:transactionId
-        alt 409 / 404
+        alt 409
             API-->>EXP: error code + params
             EXP-->>FLOW: outcome: failure — shown in the confirm
+        else 404 transaction.not_found (deleted elsewhere)
+            API-->>EXP: error code — the transactions tag invalidated too
+            EXP-->>FLOW: outcome: failure — shown in the confirm
+            EXP->>API: refetch every loaded page — the row goes
         else 204
             API-->>EXP: done — the transactions tag invalidated
             EXP-->>FLOW: outcome: ok → toast, row closed
@@ -109,7 +117,7 @@ sequenceDiagram
     </pre>
   </div>
   <div class="notes">
-<ul><li>Not scoped to the period bar (OQ-61).</li><li>Edit goes through the Experience to Record Transaction — no Flow-to-Flow call.</li><li>OQ-201: month headers show the month's count (monthCounts); accounts and cards are one filter picker; a Category includes its Subcategories.</li><li>OQ-220: the Experience keeps the applied filters and the pages (an RTK Query infinite query, refetched whole after a record, edit or delete); the Flow keeps the drawer's draft and the open row. A Holding filter shows as a removable chip, never picked in the drawer.</li></ul>
+<ul><li>Not scoped to the period bar (OQ-61).</li><li>Edit goes through the Experience to Record Transaction — no Flow-to-Flow call.</li><li>OQ-201: month headers show the month's count (monthCounts); accounts and cards are one filter picker; a Category includes its Subcategories.</li><li>OQ-220: the Experience keeps the applied filters and the pages (an RTK Query infinite query, refetched whole after a record, edit or delete); the Flow keeps the drawer's draft and the open row. A Holding filter shows as a removable chip, never picked in the drawer.</li><li>OQ-222: the Holding filter lives in the address (?holding=), dropped by replacing the entry when its chip is removed; the other filters are the page's state.</li></ul>
   </div>
   <script>
     mermaid.initialize({

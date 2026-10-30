@@ -217,6 +217,30 @@ describe('monthOverview', () => {
     expect(deps.cardBalancesAsOf).toHaveBeenCalledWith(['visa', 'master'], MARCH);
   });
 
+  it('shows a card issued by the month\'s end with no charges as owing 0 (OQ-222)', async () => {
+    const deps = fakeDeps();
+    deps.listAccounts.mockResolvedValue([anAccount()]);
+    deps.listCreditCards.mockResolvedValue([
+      { ...aCard('visa', 'checking'), createdAt: new Date('2026-03-31T23:00:00Z') },
+      { ...aCard('master', 'checking'), createdAt: new Date('2026-04-01T12:00:00Z') },
+    ]);
+    deps.accountBalancesAsOf.mockResolvedValue([{
+      accountId: 'checking', ...MARCH, openingBalance: 0, endingBalance: 5_000, updatedAt: NOW,
+    }]);
+    deps.cardBalancesAsOf.mockResolvedValue([]);
+
+    const { balances } = await monthOverview(deps, VIEWER, MARCH);
+
+    expect(balances).toEqual([
+      {
+        accountId: 'checking', creditCardId: null, currency: 'BRL', amount: 5_000,
+      },
+      {
+        accountId: 'checking', creditCardId: 'visa', currency: 'BRL', amount: 0,
+      },
+    ]);
+  });
+
   // With no period that month: the target in effect then and zero spend.
   it('shows the Budgets active that month, over-budget first (F9)', async () => {
     const deps = fakeDeps();

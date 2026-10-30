@@ -834,6 +834,18 @@ const enUS: Catalog = {
     goals: 'Goals',
     'goals.empty': 'No goals yet',
   },
+  manageFinances: {
+    title: 'Transactions',
+    description: "Every Account and Credit Card transaction, alongside this month's status.",
+    loading: 'Loading your transactions',
+    failed: "Couldn't load your transactions.",
+    retry: 'Try again',
+    filter: 'Filter',
+    filterCount: '{count, plural, one {# filter in use} other {# filters in use}}',
+    record: 'Record Transaction',
+    recordShort: 'Record',
+    editFailed: "Couldn't open this transaction. Try again.",
+  },
   monthOverview: {
     currency: 'Summary currency',
     in: 'In',

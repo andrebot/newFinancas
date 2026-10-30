@@ -6387,6 +6387,75 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
 
 **Task 118 (`FL17`) is complete.**
 
+### OQ-222: Manage Finances (task X6)
+**Confirmed with the stakeholder (Oct 2026):**
+- **A Holding's "See in Transactions" links to `/transactions?holding=<id>`**
+  (`config/constants.ts → manageFinances.holdingParam`). The filter lives in
+  the address, so it survives a reload and a notification can link to it;
+  removing the chip (or Clear all) drops the parameter by replacing the entry,
+  the address's other parameters kept. The chip is named by the Holding's
+  ticker (`GET …/holdings/:holdingId`). Weighed and rejected: router state
+  (gone on a reload).
+- **The other filters are the page's state alone** — kinds, accounts, cards,
+  categories and the range are lost on leaving the page. Weighed and
+  rejected: every filter in the address (parsing and validation for little
+  gain).
+- **On a phone, Filter sits in the ledger's heading** (mockup 34): Browse
+  Transactions takes an optional `filterAction` the Experience fills with its
+  icon button below `md`; from `md` the page header has Filter (with the count
+  in use) and Record Transaction, as mockup 30.
+- **An edited buy opens only once its Holding is read** (its terms, OQ-219);
+  when the read fails a toast says so ("Couldn't open this transaction. Try
+  again.") and nothing opens — the row stays open, so Edit can be pressed
+  again. Weighed and rejected: opening without it (a valid fixed-term buy
+  would be refused on save).
+
+**Design decisions:**
+- **Writes refresh by cache tags** (`experiences/manageFinances/api.ts`): a
+  record, edit or delete that went through — or a delete answered 404
+  `transaction.not_found`, the row deleted elsewhere (OQ-220's note) —
+  invalidates `Ledger`, `MonthOverview` and `GoalProgress`; any other refusal
+  nothing. Every loaded ledger page and the month are fetched again; closing
+  the drawer only unmounts it.
+- **The page shows once the accounts and categories are in** — all three
+  Flows read them; a skeleton until then, one retry for both. So Month
+  Overview's `overview` is `loaded` as soon as the month's `currentData` is.
+  The household's creation date (the bar's reach) comes from the households
+  list.
+- **The ledger's status**: an error once the first or the next page failed,
+  loading while either is out, idle otherwise — a refetch after a write keeps
+  the rows. The pages are the query's `currentData`, so new filters never show
+  the old ones' rows; "Try again" after a failed refetch fetches every page
+  again, after a failed next page that page.
+- **The drawer mounts once the Goals a split names are read** (both statuses,
+  `goal-progress`, each with its own-currency progress in whole percent); a
+  failed read opens it with no Goals to add. Its own endpoint
+  (`listGoalsWithProgress`), as Account Setup's isn't a shared read.
+- **Mockup 34's phone layout**: the page header is kept for screen readers
+  only; the period bar sticks under the App Shell's header and the ledger's
+  month headers stick under the bar — its height measured by a new
+  `utilities/useChildHeight.ts` (the regions carry `data-region`) and counted
+  only below `xl`; Record is a floating button.
+- A `manageFinances` catalog section in both locales; `setupApi` now exports
+  `useListAccountsQuery`.
+
+**Bugs found while checking the page against the real API (fixed here):**
+- **Every create but a fixed-term buy answered 422.** The contract's
+  `InterestPayment` had `default: at_maturity`, so the route's request
+  validation added `interestPayment` to every create, and the Manager refuses
+  it for any kind with no use for it (`object.unknown_keys`). The default is
+  gone from the schema — the Managers already read a fixed-term buy without
+  one as paying at maturity — and a route test checks the Manager gets only
+  the fields sent (the route tests mock the Manager, so none caught it).
+- **A card with no charges was missing from the Balance rail.** A card's
+  month-balance rows start with its first charge, and ReportingEngine left out
+  any figure with no history by the month's end — right for an Account opened
+  later, wrong for a card, which owes nothing until then. A card issued by the
+  month's end (in the app's time zone) with no history now shows 0
+  outstanding (`issuedByMonthEnd`), as OQ-221's "each of its cards" says.
+
+**Task 119 (`X6`) is complete.**
+
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
 *(None currently — OQ-29, the last item here, was resolved during data

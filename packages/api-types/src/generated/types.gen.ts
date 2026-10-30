@@ -619,7 +619,7 @@ export type TransactionCreateRequest = {
 };
 
 /**
- * When a fixed-term contract pays interest (FR-11.2, OQ-201) — part of the contract, entered on the buy; InvestmentProductEngine builds the schedule from it.
+ * When a fixed-term contract pays interest (FR-11.2, OQ-201) — part of the contract, entered on the buy; InvestmentProductEngine builds the schedule from it. A fixed-term buy that leaves it out pays at maturity. No schema default (OQ-222) — a default here makes request validation add the field to every create, and a kind with no use for it is a 422.
  */
 export type InterestPayment = 'at_maturity' | 'monthly' | 'semiannual';
 

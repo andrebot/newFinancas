@@ -849,6 +849,18 @@ const ptBR = {
     goals: 'Metas',
     'goals.empty': 'Nenhuma meta ainda',
   },
+  manageFinances: {
+    title: 'Transações',
+    description: 'Todas as transações das contas e dos cartões, ao lado do resumo do mês.',
+    loading: 'Carregando as transações',
+    failed: 'Não foi possível carregar as transações.',
+    retry: 'Tentar de novo',
+    filter: 'Filtrar',
+    filterCount: '{count, plural, one {# filtro em uso} other {# filtros em uso}}',
+    record: 'Registrar transação',
+    recordShort: 'Registrar',
+    editFailed: 'Não foi possível abrir esta transação. Tente de novo.',
+  },
   monthOverview: {
     currency: 'Moeda do resumo',
     in: 'Entradas',

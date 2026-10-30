@@ -185,6 +185,7 @@ export const setupApi = backendApi.enhanceEndpoints({
 });
 
 export const {
+  useListAccountsQuery,
   useLazyListAccountsQuery,
   useGetAccountStatusQuery,
   useCreateAccountMutation,

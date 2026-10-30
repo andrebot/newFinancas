@@ -6,6 +6,7 @@ import signOut from './experiences/authenticate/signOut';
 import { useHouseholds } from './api/identityApi';
 import { useAccountInUse } from './api/setupApi';
 import { AccountSetupExperience } from './experiences/accountSetup/AccountSetupExperience';
+import ManageFinancesExperience from './experiences/manageFinances/ManageFinancesExperience';
 import { ManageHouseholdExperience } from './experiences/manageHousehold/ManageHouseholdExperience';
 import { ManageProfileExperience } from './experiences/manageProfile/ManageProfileExperience';
 import {
@@ -59,6 +60,7 @@ export const shellConfigFor = (
     household: <ManageHouseholdExperience />,
     profile: <ManageProfileExperience />,
     accountSetup: <AccountSetupExperience />,
+    transactions: <ManageFinancesExperience />,
   },
   sources: {
     useIdentity, useHouseholds, usePendingInvitationCount, useAccountInUse,

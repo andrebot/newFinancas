@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Manage Finances — Record Transaction</h1>
-  <p class="subtitle"><span class="route">POST /households/:householdId/transactions</span>; edit reuses it with <span class="route">PATCH /households/:householdId/transactions/:id</span>. Reads: <span class="route">GET …/accounts/:accountId/holdings</span>, <span class="route">GET …/holdings/:holdingId/allocations</span>, <span class="route">GET …/holdings/:holdingId/schedule-entries</span>.</p>
+  <p class="subtitle"><span class="route">POST /households/:householdId/transactions</span>; edit reuses it with <span class="route">PATCH /households/:householdId/transactions/:id</span>. Reads: <span class="route">GET …/goal-progress?status=</span>, <span class="route">GET …/holdings/:holdingId</span>, <span class="route">GET …/accounts/:accountId/holdings</span>, <span class="route">GET …/holdings/:holdingId/allocations</span>, <span class="route">GET …/holdings/:holdingId/schedule-entries</span>.</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -68,11 +68,18 @@ sequenceDiagram
     participant FLOW as Record Transaction<br/>Flow
     participant EXP as Manage Finances<br/>Experience
     participant API as Backend API
+    EXP->>API: GET …/goal-progress?status=active and ?status=completed — the Goals a split names
+    API-->>EXP: Goals with their progress (a failed read: none to add)
+    EXP-->>FLOW: mount the drawer — accounts, categories, Goals
     alt record
         User->>KS: group (Cash / Transfer / Credit card / Investment), then kind
         KS->>FLOW: emit kindSelected — amount, date, description and category carry over
     else edit (from a ledger row, via the Experience)
-        EXP-->>FLOW: state: the row (+ a trade's Holding, for its terms)
+        opt a buy
+            EXP->>API: GET …/holdings/:holdingId — its terms (OQ-222)
+            API-->>EXP: the Holding (a failure: error toast, nothing opens)
+        end
+        EXP-->>FLOW: state: the row (+ a buy's Holding)
         FLOW-->>KS: kind and target read-only (OQ-201)
         opt a fixed-term buy
             FLOW->>EXP: request schedule(holdingId)
@@ -114,12 +121,12 @@ sequenceDiagram
         EXP-->>FLOW: state: error — I18nUtility renders it in the drawer's banner
     else 201 / 200
         API-->>EXP: the transaction
-        EXP-->>FLOW: done → toast, close → Experience refreshes Browse + Month Overview
+        EXP-->>FLOW: done → toast, close — the ledger, the month and the Goals' progress invalidated (cache tags), so Browse + Month Overview refetch
     end
     </pre>
   </div>
   <div class="notes">
-<ul><li>No recurring option (OQ-55).</li><li>The Experience, not this Flow, refreshes the sibling Flows on completion.</li><li>OQ-201: the Holding is picked, never typed, for every investment kind but a buy, a category is offered for every kind, a transfer is one side, recorded on its own account.</li><li>OQ-219: any open account but a credit-card-only one pays a card's bill, in the card's currency. Accounts, cards and categories are chips up to 10, a select beyond.</li></ul>
+<ul><li>No recurring option (OQ-55).</li><li>The Experience, not this Flow, refreshes the sibling Flows on completion — by invalidating their cache tags (OQ-222).</li><li>OQ-201: the Holding is picked, never typed, for every investment kind but a buy, a category is offered for every kind, a transfer is one side, recorded on its own account.</li><li>OQ-219: any open account but a credit-card-only one pays a card's bill, in the card's currency. Accounts, cards and categories are chips up to 10, a select beyond.</li></ul>
   </div>
   <script>
     mermaid.initialize({

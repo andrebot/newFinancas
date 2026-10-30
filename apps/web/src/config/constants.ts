@@ -215,6 +215,12 @@ export const accounts = {
   readonly balanceTones: readonly [PaletteToken, ...PaletteToken[]];
 };
 
+/** The Manage Finances page (X6, OQ-222). */
+export const manageFinances = {
+  /** The address's parameter a Holding's "See in Transactions" filters the ledger by. */
+  holdingParam: 'holding',
+} as const;
+
 /** Month Overview (FL17, OQ-221). */
 export const monthOverview = {
   /** Where the $ / R$ switch's last pick is remembered, so the next visit opens on it. */
