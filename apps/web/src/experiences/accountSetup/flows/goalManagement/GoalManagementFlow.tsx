@@ -9,7 +9,7 @@ import type { Translator } from '../../../../utilities/i18n';
 import type { RequestFailure, RequestOutcome } from '../../../../utilities/requestOutcome';
 import useToday from '../../../../utilities/useToday';
 import useDrawerClosedOnHide from '../../hiddenTab';
-import { mayCreateOwned, mayManageOwned, mayShareOwned } from '../../ownership';
+import { mayCreateOwned, mayManageOwned, mayShareOwned } from '../../../ownership';
 import type { ProgressStatus } from '../../sharedLists';
 import {
   afterAction, confirmCancelled, confirmOpened, drawerClosed, drawerOpened, entriesOf, goalIn,

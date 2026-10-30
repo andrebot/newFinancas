@@ -242,18 +242,16 @@ export const choiceField = {
   chipListLimit: 10,
 } as const;
 
-/** Record Transaction (FL15, mockups 31, 32, 35; OQ-219). */
-export const recordTransaction = {
-  /** The amount's currency while no target is chosen yet. */
-  placeholderCurrency: 'BRL',
-  /** Each kind group's tile icon (mockup 31). */
+/** The transaction kinds' icons, shared by Manage Finances' Flows (FL15, FL16). */
+export const transactionKinds = {
+  /** Each kind group's tile icon (mockup 31; the filter's groups, mockup 33). */
   groupIcons: {
     cash: 'payments-outline',
     transfer: 'swap-horiz',
     credit_card: 'credit-card-outline',
     investment: 'trending-up',
   },
-  /** Each kind's chip icon (mockups 31, 32). */
+  /** Each kind's chip icon (mockups 31, 32); a ledger row's icon when it has no category. */
   kindIcons: {
     deposit: 'south-west',
     withdrawal: 'north-east',
@@ -272,6 +270,12 @@ export const recordTransaction = {
     investment_interest: 'percent',
     investment_tax: 'receipt-long-outline',
   },
+} as const;
+
+/** Record Transaction (FL15, mockups 31, 32, 35; OQ-219). */
+export const recordTransaction = {
+  /** The amount's currency while no target is chosen yet. */
+  placeholderCurrency: 'BRL',
   /**
    * The asset type picker's groups (mockup 32): the market-priced types listed
    * under "Equity & funds"; the fixed-term ones under "Fixed income"; the

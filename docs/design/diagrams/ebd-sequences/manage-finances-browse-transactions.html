@@ -67,37 +67,49 @@ sequenceDiagram
     participant FLOW as Browse Transactions<br/>Flow
     participant EXP as Manage Finances<br/>Experience
     participant API as Backend API
-    FLOW->>EXP: request page(filters, cursor = null)
-    EXP->>API: GET /households/:householdId/transactions
-    API-->>EXP: items, dayTotals, nextCursor
-    EXP-->>FLOW: state: page
-    FLOW-->>LG: render grouped by month / day
+    EXP->>API: GET /households/:householdId/transactions?filters (infinite query keyed by the applied filters)
+    API-->>EXP: items, dayTotals, monthCounts, nextCursor
+    EXP-->>FLOW: state: pages, hasMore, status
+    FLOW-->>LG: render grouped by month (count) / day (totals, R$ first)
     loop user scrolls
         LG->>FLOW: emit reachedEnd
-        FLOW->>EXP: request page(filters, nextCursor)
-        EXP->>API: GET /households/:householdId/transactions?cursor=…
+        FLOW->>EXP: request next page
+        EXP->>API: GET /households/:householdId/transactions?filters&cursor=…
     end
     opt filter
-        User->>FP: kinds, accounts, cards, categories, holding, any date range
-        FP->>FLOW: emit filtersApplied
-        FLOW->>EXP: request page(new filters, null)
+        User->>EXP: Filter (page header) — opens the drawer
+        EXP-->>FLOW: state: filterOpen, applied filters → draft
+        User->>FP: kinds by group, accounts / cards, categories, any date range
+        FP->>FLOW: emit draftChanged / show
+        FLOW->>EXP: request filtersChange(draft) — once the range is sound
+        EXP->>API: GET /households/:householdId/transactions?new filters (first page)
     end
     User->>LG: click a row
-    LG->>FLOW: emit rowSelected
-    FLOW-->>XR: render details + Edit / Delete
+    LG->>FLOW: emit rowToggled — one row open at a time
+    FLOW-->>XR: render details + Edit / Delete (or the archived note)
     alt edit
         XR->>FLOW: emit edit
         FLOW->>EXP: request edit(transaction) — Experience opens Record Transaction pre-filled
     else delete
+        XR->>FLOW: emit delete
+        FLOW-->>DC: render confirm in the row
         User->>DC: confirm
-        DC->>FLOW: emit delete
-        FLOW->>EXP: request delete(id)
+        DC->>FLOW: emit confirmDelete
+        FLOW->>EXP: request delete(transaction)
         EXP->>API: DELETE /households/:householdId/transactions/:transactionId
+        alt 409 / 404
+            API-->>EXP: error code + params
+            EXP-->>FLOW: outcome: failure — shown in the confirm
+        else 204
+            API-->>EXP: done — the transactions tag invalidated
+            EXP-->>FLOW: outcome: ok → toast, row closed
+            EXP->>API: refetch every loaded page (and Month Overview)
+        end
     end
     </pre>
   </div>
   <div class="notes">
-<ul><li>Not scoped to the period bar (OQ-61).</li><li>Edit goes through the Experience to Record Transaction — no Flow-to-Flow call.</li><li>OQ-201: month headers show the month's count (monthCounts); accounts and cards are one filter picker; a Category includes its Subcategories.</li></ul>
+<ul><li>Not scoped to the period bar (OQ-61).</li><li>Edit goes through the Experience to Record Transaction — no Flow-to-Flow call.</li><li>OQ-201: month headers show the month's count (monthCounts); accounts and cards are one filter picker; a Category includes its Subcategories.</li><li>OQ-220: the Experience keeps the applied filters and the pages (an RTK Query infinite query, refetched whole after a record, edit or delete); the Flow keeps the drawer's draft and the open row. A Holding filter shows as a removable chip, never picked in the drawer.</li></ul>
   </div>
   <script>
     mermaid.initialize({
