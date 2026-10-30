@@ -15,6 +15,11 @@ export interface SectionHeaderProps {
   readonly as?: SectionHeadingLevel | undefined;
   /** The period the section shows, already formatted, e.g. "September/2026". */
   readonly period?: string | undefined;
+  /**
+   * Shows the period's chip only from `xl`: on a phone the page's own period
+   * bar already names the month (mockup 34).
+   */
+  readonly periodFromXl?: boolean | undefined;
   /** A quiet note after the title, e.g. "newest first". */
   readonly hint?: string | undefined;
   /** A line under the title saying what the section holds. */
@@ -24,19 +29,29 @@ export interface SectionHeaderProps {
 }
 
 const PERIOD = [
-  'ml-2 inline-block rounded-full bg-mintdeep px-2.5 py-0.5 align-middle',
+  'ml-2 rounded-full bg-mintdeep px-2.5 py-0.5 align-middle',
   'type-caption font-semibold text-mint',
 ].join(' ');
 
 /**
+ * Builds the classes of the period's chip.
+ *
+ * @param fromXl - Whether it shows only from `xl`; by default it always shows.
+ * @returns The chip's classes.
+ */
+export const periodClasses = (fromXl = false) => (
+  `${PERIOD} ${fromXl ? 'hidden xl:inline-block' : 'inline-block'}`
+);
+
+/**
  * Renders a section header.
  *
- * @param props - The title, its heading level, the optional period, hint and
- *   description, and the actions.
+ * @param props - The title, its heading level, the optional period (and
+ *   whether it shows only from `xl`), hint and description, and the actions.
  * @returns The header row.
  */
 export function SectionHeader({
-  title, as: Heading = 'h2', period, hint, description, actions,
+  title, as: Heading = 'h2', period, periodFromXl, hint, description, actions,
 }: SectionHeaderProps) {
   return (
     // The mockups centre the actions on a one-line header (rails, Members) and
@@ -45,7 +60,7 @@ export function SectionHeader({
       <div className="min-w-0">
         <Heading className="type-heading-sm">
           {title}
-          {period && <span className={PERIOD}>{period}</span>}
+          {period && <span className={periodClasses(periodFromXl)}>{period}</span>}
           {hint && <span className="ml-1 type-body font-medium text-muted">{hint}</span>}
         </Heading>
         {description && <p className="mt-0.5 type-caption text-muted">{description}</p>}

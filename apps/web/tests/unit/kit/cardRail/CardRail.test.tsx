@@ -132,6 +132,11 @@ describe('CardRail', () => {
     expect(trackNamed().textContent).toBe('Main CheckingEmergency FundItaú Conta');
   });
 
+  it('passes the period\'s `xl`-only chip to its header', () => {
+    renderInLocale(<CardRail title="Balances" period="September/2026" periodFromXl />);
+    expect(screen.getByText('September/2026').className).toContain('hidden xl:inline-block');
+  });
+
   it('takes an h3 when asked', () => {
     renderInLocale(<CardRail title="Goals" as="h3" />);
 

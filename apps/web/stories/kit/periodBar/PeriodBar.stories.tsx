@@ -66,7 +66,7 @@ function Interactive({
       period={period}
       periodLabel={`${NAMES[period.month - 1]}/${period.year}`}
       months={shown}
-      summary={<Summary figures={shown.find((entry) => entry.month === period.month)} />}
+      summary={<Summary figures={shown?.find((entry) => entry.month === period.month)} />}
       onChange={(next) => {
         setPeriod(next);
         onChange(next);
@@ -104,4 +104,9 @@ export const PastYear: Story = {
 /** A year with no money moved: every bar grey. */
 export const Empty: Story = {
   args: { period: { year: THIS_YEAR, month: 1 }, months: [] },
+};
+
+/** The figures not known yet (loading, or a failed read): empty bars, only the year heard. */
+export const Unknown: Story = {
+  args: { months: undefined },
 };

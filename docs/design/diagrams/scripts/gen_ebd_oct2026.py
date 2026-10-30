@@ -1063,24 +1063,30 @@ else delete
 end
 """, ["Not scoped to the period bar (OQ-61).", "Edit goes through the Experience to Record Transaction — no Flow-to-Flow call.", "OQ-201: month headers show the month's count (monthCounts); accounts and cards are one filter picker; a Category includes its Subcategories.", "OQ-220: the Experience keeps the applied filters and the pages (an RTK Query infinite query, refetched whole after a record, edit or delete); the Flow keeps the drawer's draft and the open row. A Holding filter shows as a removable chip, never picked in the drawer."]),
     ("manage-finances-month-overview", "Manage Finances — Month Overview", f"{R('GET /households/:householdId/reports/month-overview?year=&month=')}.",
-     [("PB", "Period Bar"), ("CS", "Currency Switch"), ("RL", "Balance / Budget /<br/>Goal Rails"), FLOW("Month Overview"), EXP("Manage Finances"), API],
+     [("PB", "Period Bar"), ("CS", "Period Summary<br/>($ / R$ switch)"), ("RL", "Balance / Budget /<br/>Goal Rails"), FLOW("Month Overview"), EXP("Manage Finances"), API],
      """
-FLOW->>EXP: request overview(year, month = today)
-EXP->>API: GET /households/:householdId/reports/month-overview
+EXP->>API: GET /households/:householdId/reports/month-overview?year=&month= (today's month)
 API-->>EXP: summary per currency, year strip, balances, budgets, goals
-EXP-->>FLOW: state
-FLOW-->>PB: render year + 12 months (mini in/out bars)
-FLOW-->>RL: render rails labelled 'Month/Year'
+EXP-->>FLOW: period, report (loading / failed / loaded), accounts
+FLOW-->>PB: render year + 12 months in the switch's currency
+FLOW-->>CS: render In / Out / Total (R$ the first time, then the remembered pick)
+FLOW-->>RL: render rails labelled 'Month/Year' (placeholders while loading)
 alt pick another month or year
     User->>PB: select
     PB->>FLOW: emit periodChanged
-    FLOW->>EXP: request overview(year, month)
-    EXP->>API: GET /households/:householdId/reports/month-overview
+    FLOW->>EXP: periodChanged(year, month)
+    EXP->>API: GET /households/:householdId/reports/month-overview?year=&month=
 else switch currency
     User->>CS: $ or R$
-    CS->>FLOW: emit currencyChanged (local — no request)
+    CS->>FLOW: emit currencyChanged (local — remembered in this browser, no request)
+else the month fails
+    EXP-->>FLOW: failed
+    FLOW-->>RL: banner "Couldn't load Month/Year" + Try again, in the rails' place
+    User->>FLOW: Try again
+    FLOW->>EXP: retry
+    EXP->>API: GET /households/:householdId/reports/month-overview?year=&month=
 end
-""", ["FormattingUtility formats every amount in its own currency; nothing is summed across currencies.", "OQ-201: a Goal funded in other currencies shows its own currency's progress and a note pointing to Goals (the exchange rate lives there); a card shows its outstanding at the month's end."]),
+""", ["FormattingUtility formats every amount in its own currency; nothing is summed across currencies.", "OQ-201: a Goal funded in other currencies shows its own currency's progress and a note pointing to Goals (the exchange rate lives there); a card shows its outstanding at the month's end.", "OQ-221: the Experience holds the month (its query's argument) and refetches it after a record, edit or delete; the Flow keeps only the $ / R$ switch. Its two regions (bar, rails) are placed by the Experience's page grid around Browse's ledger. A failed month never shows the previous month's figures."]),
     ("track-investments-portfolio-overview", "Track Investments — Portfolio Overview", f"{R('GET /households/:householdId/reports/investments-overview')}, {R('GET /households/:householdId/reports/payouts?holdingIds=')}.",
      [("NW", "Net Worth / Allocation /<br/>Coming Due cards"), ("PT", "Payout This Month"), ("HS", "Payout Holding Selector"), ("PC", "Payout Chart"), FLOW("Portfolio Overview"), EXP("Track Investments"), API],
      """

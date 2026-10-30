@@ -6307,6 +6307,86 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
 
 **Task 117 (`FL16`) is complete.**
 
+### OQ-221: Month Overview (task FL17)
+**Confirmed with the stakeholder (Oct 2026):**
+- **One Flow, two regions for the page grid.** On a phone the period bar,
+  the rails and the ledger stack (mockup 34); from `xl` the bar spans the
+  page and the rails sit beside the ledger (mockup 30), so Month Overview's
+  two parts sit around Browse's ledger. `MonthOverviewFlow` renders a
+  fragment of two regions with the grid areas `overview-bar` and
+  `overview-rails`; X6's page grid places them and the ledger. Weighed and
+  rejected: the ledger as the Flow's slot (the Flow would own the page's
+  layout and host a sibling's output), and two components sharing a hook.
+- **The month is the Experience's, the $ / R$ switch the Flow's** — this
+  supersedes the BDT row's "year, month" and the sequence's "request
+  overview(year, month)", as OQ-220 did for Browse. The month is the
+  Experience's RTK Query argument (today's month on arrival), refetched
+  after a record, edit or delete; the Flow gets `period` and the report
+  (`loading`, `failed` or `loaded`) and emits `onPeriodChange` and
+  `onRetry`.
+- **The switch remembers its last pick in this browser**
+  (`config/constants.ts → monthOverview.currencyStorageKey`, through
+  `safeStorage`, like the theme and the language); **R$ the first time**
+  (`monthOverview.defaultCurrency`). The switch offers R$ then $, as
+  `money.currencies` orders them (mockup 30 draws $ first). A currency with
+  no figures that month reads zeros.
+- **How far back the bar reaches**: the earliest of the household's
+  creation and the accounts' starting-balance dates, archived accounts
+  included. History backdated before all of them stays reachable in the
+  ledger, not from the bar.
+- **A balance card's colour is hashed from its id** (an account's, or a
+  card's) onto `accounts.balanceTones` — mint, sky, peach, lilac, sun,
+  teal, indigo, orange; coral (errors) and slate (disabled) left out — so it
+  never moves from month to month; neighbours may repeat. The member
+  avatars' hash is now shared (`utilities/stableHash.ts`). An account's
+  glyph is its type's (`accounts.typeIcons`, moved out of the first-account
+  form), a card's the card glyph; a card is named "Visa •••• 1111".
+- **An empty rail keeps its title and period and says so in one muted
+  line**: "No accounts to show", "No budgets this month", "No goals yet".
+- **Loading and failure**: while the month loads, the rails show
+  placeholder cards, the bar's months are empty and the summary's figures
+  are dashes. When it fails, an error banner with Try again ("Couldn't load
+  September/2026.") stands in for the rails — the previous month's figures
+  are never kept under the new month's name; the bar stays usable.
+- **The month reads "September/2026" / "setembro/2026"** on the bar, the
+  summary and every rail's chip (`monthRails.period`, the new
+  `formatting.dateStyles.monthLong`).
+- **The rails and the balance cards are shared, owned by no Experience**:
+  `experiences/interactions/MonthRails.tsx` (the three rails) and
+  `experiences/balanceCards.ts` (the join of the report's balances with the
+  accounts the page holds), beside `goalFunding.ts`, so the Dashboard (FL21)
+  draws the same rails without reaching into Manage Finances. A balance
+  whose account or card the page doesn't hold yet is left out until the
+  accounts refetch.
+- **Contract tidy-up:** `MonthOverviewReport` and its items now list their
+  fields as `required` — the server always sends them; the generated types
+  had every field optional. The `balances` description now says what the
+  server sends: every visible Account open at the month's end (one archived
+  later included, OQ-206), and each of its cards.
+- **A credit-card-only account is one balance card** (PR #144 review): its
+  name, captioned Outstanding, with its cards' outstanding summed (OQ-175,
+  mockups 20 and 30) — the server sends the account's own row (its balance
+  never moves) and one per card. Its cards get no cards of their own.
+- **What X6 owes the Flow** (PR #144 review): `overview` is `loaded` only
+  once both the report for the month and the accounts are in — the balances
+  are named from the accounts, and the bar reaches back by them — and it is
+  read from RTK Query's `currentData`, never `data`, which keeps the
+  previous month's report while the next loads (the report doesn't name its
+  month, so the Flow can't tell).
+- **While the figures aren't known, the period bar reads no zeros**
+  (PR #144 review): the kit's `months` is undefined then, every bar empty
+  and each month heard by its year alone. The summary's dashes are the kit's
+  `EMPTY_VALUE`, heard as "Not available", busy while loading.
+- **On a phone, mockup 34** (PR #144 review): the summary's month label and
+  the rails' period chips show only from `xl` (the kit's new
+  `periodFromXl`); the bar's arrows already name the month.
+- **A card's name is every page's** (PR #144 review): `cardName` moved from
+  Manage Finances' `transactionNames.ts` to `experiences/cardNames.ts`, its
+  text to `creditCard.name`, so the shared balance cards don't reach into
+  Manage Finances.
+
+**Task 118 (`FL17`) is complete.**
+
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
 *(None currently — OQ-29, the last item here, was resolved during data

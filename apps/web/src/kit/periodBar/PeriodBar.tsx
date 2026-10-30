@@ -31,9 +31,11 @@ export interface PeriodBarProps {
   /**
    * The selected year's months in one currency: the report's `yearStrip`
    * narrowed to the chosen currency, its `YYYY-MM` read as the month's
-   * number. A month left out reads as empty.
+   * number. A month left out reads as empty. Undefined while the figures
+   * aren't known (loading, or a failed read): every bar is empty and a
+   * month is heard by its year alone — never as zeros it didn't have.
    */
-  readonly months: readonly PeriodMonth[];
+  readonly months: readonly PeriodMonth[] | undefined;
   /** The currency of `months`, for the months' accessible names. */
   readonly currency: Currency;
   /** The earliest year the arrows reach. */
@@ -289,8 +291,8 @@ export function PeriodBar({
   const today = useToday();
   const stripRef = useSelectedInView(period);
   const heardMonth = useHeardMonth(currency);
-  const heights = barHeights(months);
-  const figures = new Map(months.map((entry) => [entry.month, entry]));
+  const heights = barHeights(months ?? []);
+  const figures = new Map(months?.map((entry) => [entry.month, entry]));
   const nextMonth = stepMonth(period, 1);
 
   return (
@@ -336,12 +338,13 @@ export function PeriodBar({
         {Array.from({ length: 12 }, (_, index) => {
           const shown = { year: period.year, month: index + 1 };
           const future = isFuture(shown, today);
+          const unknown = future || months === undefined;
           return (
             <MonthButton
               key={shown.month}
               period={shown}
-              bars={(!future && heights.get(shown.month)) || EMPTY_BARS}
-              heard={future ? String(shown.year) : heardMonth(shown, figures.get(shown.month))}
+              bars={(!unknown && heights.get(shown.month)) || EMPTY_BARS}
+              heard={unknown ? String(shown.year) : heardMonth(shown, figures.get(shown.month))}
               selected={shown.month === period.month}
               future={future}
               onSelect={() => onChange(shown)}

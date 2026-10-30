@@ -788,6 +788,7 @@ const ptBR = {
     other: 'Outra bandeira',
   },
   creditCard: {
+    name: '{network} •••• {last4}',
     number: 'Número do cartão',
     billing: 'Fecha {closingDay} · Vence {dueDay}',
     expires: 'Val. {expiry}',
@@ -839,6 +840,24 @@ const ptBR = {
     months: 'Meses de {year}',
     figures: '{year}: entradas {in}, saídas {out}',
   },
+  monthRails: {
+    period: '{month}/{year}',
+    balances: 'Saldos',
+    'balances.empty': 'Nenhuma conta para mostrar',
+    budgets: 'Orçamentos',
+    'budgets.empty': 'Nenhum orçamento neste mês',
+    goals: 'Metas',
+    'goals.empty': 'Nenhuma meta ainda',
+  },
+  monthOverview: {
+    currency: 'Moeda do resumo',
+    in: 'Entradas',
+    out: 'Saídas',
+    total: 'Total',
+    failed: 'Não foi possível carregar {period}.',
+    unavailable: 'Indisponível',
+    retry: 'Tentar de novo',
+  },
   groupedList: {
     loading: 'Carregando',
     loadingMore: 'Carregando mais',
@@ -879,7 +898,6 @@ const ptBR = {
     'kind.investment_dividend': 'Dividendo',
     'kind.investment_interest': 'Juros',
     'kind.investment_tax': 'Imposto',
-    card: '{network} •••• {last4}',
   },
   browseTransactions: {
     title: 'Todas as transações',

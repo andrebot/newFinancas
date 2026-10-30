@@ -26,6 +26,8 @@ export interface CardRailProps {
   readonly as?: SectionHeadingLevel | undefined;
   /** The period the cards show, already formatted, e.g. "September/2026". */
   readonly period?: string | undefined;
+  /** Shows the period's chip only from `xl` (the section header's `periodFromXl`). */
+  readonly periodFromXl?: boolean | undefined;
   /** While true, placeholder cards stand in for the children. */
   readonly loading?: boolean | undefined;
   /** One placeholder card's size, e.g. `h-31 w-49` — the size of the cards it stands in for. */
@@ -160,11 +162,12 @@ function RailPlaceholder({ label, className }: { label: string; className?: stri
 /**
  * Renders a titled, sideways-scrolling row of cards.
  *
- * @param props - The title, heading level, period, loading state and the cards.
+ * @param props - The title, heading level, period (and where it shows), loading
+ *   state and the cards.
  * @returns The rail's section.
  */
 export function CardRail({
-  title, as, period, loading = false, placeholderClassName, children,
+  title, as, period, periodFromXl, loading = false, placeholderClassName, children,
 }: CardRailProps) {
   const translator = useI18n();
   const {
@@ -185,7 +188,13 @@ export function CardRail({
 
   return (
     <section className="flex min-w-0 flex-col gap-3">
-      <SectionHeader title={title} as={as} period={period} actions={arrows} />
+      <SectionHeader
+        title={title}
+        as={as}
+        period={period}
+        periodFromXl={periodFromXl}
+        actions={arrows}
+      />
       {loading ? (
         <RailPlaceholder
           label={translator.text('cardRail', 'loading', { title })}

@@ -2,8 +2,12 @@
 // only in code, grouped by area. Facts that belong to an algorithm (a regular
 // expression, a date format) stay next to the code that implements it.
 
-import type { Currency } from '@financas/api-types';
-import type { CardNetwork, CategoryIcon } from '@financas/reference';
+import type { Account, Currency } from '@financas/api-types';
+import type { CardNetwork, CategoryIcon, PaletteToken } from '@financas/reference';
+import type { IconName } from '../kit/icons/Icon';
+
+/** An account's type, as the contract names it. */
+type AccountType = Account['type'];
 
 /** Form field rules (FU1 ValidationUtility). */
 export const validation = {
@@ -66,6 +70,8 @@ export const formatting = {
     monthYear: { month: 'long', year: 'numeric' },
     /** set. · Sep — the period bar's months. */
     monthShort: { month: 'short' },
+    /** setembro · September — a period chip's month (FL17). */
+    monthLong: { month: 'long' },
     /** seg., 7 de set. · Mon, Sep 7 — ledger day headers. */
     weekdayDayMonth: { weekday: 'short', day: 'numeric', month: 'short' },
   },
@@ -185,6 +191,37 @@ export const railCard = {
   /** From what share of its target, in whole percent, a budget reads as near its limit (sun). */
   budgetNearPercent: 75,
 } as const;
+
+/** Accounts as the pages draw them (FL6, FL17). */
+export const accounts = {
+  /** Each account type's glyph: its first-account tile (mockup 11) and its balance card. */
+  typeIcons: {
+    checking: 'account-balance-outline',
+    savings: 'savings-outline',
+    credit_card_only: 'credit-card-outline',
+    investment: 'trending-up',
+  },
+  /** A credit card's glyph on its balance card. */
+  cardIcon: 'credit-card-outline',
+  /**
+   * The balance cards' disc colours (mockups 20, 30): an account or card
+   * keeps the one its id hashes to, every month. Coral is left out (it
+   * means errors), and so is slate (it reads as disabled).
+   */
+  balanceTones: ['mint', 'sky', 'peach', 'lilac', 'sun', 'teal', 'indigo', 'orange'],
+} as const satisfies {
+  readonly typeIcons: Readonly<Record<AccountType, IconName>>;
+  readonly cardIcon: IconName;
+  readonly balanceTones: readonly [PaletteToken, ...PaletteToken[]];
+};
+
+/** Month Overview (FL17, OQ-221). */
+export const monthOverview = {
+  /** Where the $ / R$ switch's last pick is remembered, so the next visit opens on it. */
+  currencyStorageKey: 'financas.monthOverview.currency',
+  /** The switch's pick until one is remembered: R$ first, as everywhere else. */
+  defaultCurrency: 'BRL',
+} as const satisfies { readonly currencyStorageKey: string; readonly defaultCurrency: Currency };
 
 /** Multi-selects: the payout holdings and the ledger filter's long lists (K12, OQ-214). */
 export const multiSelect = {

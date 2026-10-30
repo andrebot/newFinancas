@@ -773,6 +773,7 @@ const enUS: Catalog = {
     other: 'Other network',
   },
   creditCard: {
+    name: '{network} •••• {last4}',
     number: 'Card number',
     billing: 'Closes {closingDay} · Due {dueDay}',
     expires: 'Exp {expiry}',
@@ -824,6 +825,24 @@ const enUS: Catalog = {
     months: 'Months of {year}',
     figures: '{year}: in {in}, out {out}',
   },
+  monthRails: {
+    period: '{month}/{year}',
+    balances: 'Balances',
+    'balances.empty': 'No accounts to show',
+    budgets: 'Budgets',
+    'budgets.empty': 'No budgets this month',
+    goals: 'Goals',
+    'goals.empty': 'No goals yet',
+  },
+  monthOverview: {
+    currency: 'Summary currency',
+    in: 'In',
+    out: 'Out',
+    total: 'Total',
+    failed: "Couldn't load {period}.",
+    unavailable: 'Not available',
+    retry: 'Try again',
+  },
   groupedList: {
     loading: 'Loading',
     loadingMore: 'Loading more',
@@ -864,7 +883,6 @@ const enUS: Catalog = {
     'kind.investment_dividend': 'Dividend',
     'kind.investment_interest': 'Interest',
     'kind.investment_tax': 'Tax',
-    card: '{network} •••• {last4}',
   },
   browseTransactions: {
     title: 'All transactions',

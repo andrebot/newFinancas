@@ -1,4 +1,5 @@
 import { avatar } from '../../config/constants';
+import { pickByHash } from '../../utilities/stableHash';
 
 // The kit's avatar (K31, OQ-134): a person's initials in a tinted circle, as
 // on the household members list, the nav drawer and the profile header. It is
@@ -56,18 +57,6 @@ export const avatarInitials = (firstName: string, lastName: string) => (
 );
 
 /**
- * Hashes a user id to a whole number (a 31-multiplier string hash), so the
- * same id always lands on the same member colour.
- *
- * @param userId - The person's user id.
- * @returns A non-negative 32-bit hash.
- */
-const hashUserId = (userId: string) => Array.from(userId).reduce(
-  (hash, character) => (hash * 31 + character.codePointAt(0)!) % (2 ** 32),
-  0,
-);
-
-/**
  * Picks a person's avatar colour: mint for the signed-in user; anyone else
  * keeps the colour their id hashes to, on every screen and device.
  *
@@ -78,7 +67,7 @@ const hashUserId = (userId: string) => Array.from(userId).reduce(
 export const avatarTone = (userId: string, isSelf: boolean): AvatarTone => (
   isSelf
     ? avatar.selfTone
-    : avatar.memberTones[hashUserId(userId) % avatar.memberTones.length]!
+    : pickByHash(userId, avatar.memberTones)
 );
 
 /**
