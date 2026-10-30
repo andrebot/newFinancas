@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { EMPTY_TERMS } from '../../../../../../src/experiences/manageFinances/flows/recordTransaction/transactionForm';
 import {
-  changesOf, createRequestOf, editableOf, editFormOf,
+  changesOf, createRequestOf, editableOf, editFormOf, ownTransferFieldsOf,
 } from '../../../../../../src/experiences/manageFinances/flows/recordTransaction/transactionRequest';
 import { CDB, accountRowOf, formOf } from './fixtures';
 
@@ -343,5 +343,103 @@ describe('changesOf', () => {
 
     expect(changesOf(before, after, locked)).toEqual({});
     expect(changesOf(before, { ...before, amount: null, quantity: null }, OPEN)).toEqual({});
+  });
+});
+
+describe('a transfer between own accounts (OQ-222)', () => {
+  const OPEN = { amountAndDate: true, quantity: false, terms: false };
+  const own = formOf({
+    kind: 'transfer_sent',
+    ownTransfer: true,
+    accountId: 'itau',
+    toAccountId: 'chase',
+    amount: 5_000,
+  });
+
+  it('sends From and To, and what arrived across currencies', () => {
+    expect(createRequestOf({ ...own, receivedAmount: 950 }, 'BRL')).toEqual({
+      kind: 'transfer_sent',
+      date: '2026-09-14',
+      amount: 5_000,
+      currency: 'BRL',
+      accountId: 'itau',
+      toAccountId: 'chase',
+      receivedAmount: 950,
+    });
+    expect(createRequestOf(own, 'BRL')).not.toHaveProperty('receivedAmount');
+  });
+
+  it('sends a transfer to someone else with no account it reached', () => {
+    const external = createRequestOf({ ...own, ownTransfer: false }, 'BRL');
+    expect(external).not.toHaveProperty('toAccountId');
+  });
+
+  const sent = accountRowOf({
+    id: 's',
+    kind: 'transfer_sent',
+    effect: 'transfer',
+    accountId: 'itau',
+    amount: 5_000,
+    categoryId: null,
+    transfer: { accountId: 'chase', amount: 950, currency: 'USD' },
+  });
+  const received = accountRowOf({
+    id: 'r',
+    kind: 'transfer_received',
+    effect: 'transfer',
+    accountId: 'chase',
+    amount: 950,
+    currency: 'USD',
+    categoryId: null,
+    transfer: { accountId: 'itau', amount: 5_000, currency: 'BRL' },
+  });
+
+  it.each([['sent', sent], ['received', received]])('opens either side as sent — the %s one', (
+    _side,
+    item,
+  ) => {
+    expect(editFormOf(item, undefined)).toMatchObject({
+      kind: 'transfer_sent',
+      ownTransfer: true,
+      accountId: 'itau',
+      toAccountId: 'chase',
+      amount: 5_000,
+      receivedAmount: 950,
+    });
+  });
+
+  it('asks nothing received within one currency, nor knows an account it can\'t see', () => {
+    const item = accountRowOf({ kind: 'transfer_sent', accountId: 'itau', amount: 700 });
+    expect(ownTransferFieldsOf(
+      item as Parameters<typeof ownTransferFieldsOf>[0],
+      { accountId: null, amount: null, currency: null },
+    )).toMatchObject({ toAccountId: undefined, receivedAmount: null });
+    expect(ownTransferFieldsOf(
+      item as Parameters<typeof ownTransferFieldsOf>[0],
+      { accountId: 'savings', amount: 700, currency: 'BRL' },
+    )).toMatchObject({ toAccountId: 'savings', amount: 700, receivedAmount: null });
+  });
+
+  it('opens a received side whose sent side is hidden with nothing sent yet', () => {
+    const item = accountRowOf({ kind: 'transfer_received', accountId: 'itau', amount: 700 });
+    expect(ownTransferFieldsOf(
+      item as Parameters<typeof ownTransferFieldsOf>[0],
+      { accountId: null, amount: null, currency: null },
+    )).toMatchObject({
+      accountId: undefined, toAccountId: 'itau', amount: null, receivedAmount: 700,
+    });
+  });
+
+  it('opens a row with no other side as it is', () => {
+    expect(editFormOf(accountRowOf(), undefined).ownTransfer).toBe(false);
+  });
+
+  it('sends what arrived when it changed, across currencies only', () => {
+    const before = editFormOf(sent, undefined);
+    expect(changesOf(before, { ...before, receivedAmount: 980 }, OPEN))
+      .toEqual({ receivedAmount: 980 });
+    expect(changesOf(before, { ...before, receivedAmount: null }, OPEN)).toEqual({});
+    const within = { ...before, receivedAmount: null };
+    expect(changesOf(within, { ...within, amount: 6_000 }, OPEN)).toEqual({ amount: 6_000 });
   });
 });

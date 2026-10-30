@@ -352,7 +352,8 @@ const createGoalAccessor = (db: Database) => ({
     from: string,
   ): Promise<ReplaceAllocationsResult> => db.transaction(async (tx) => {
     const [holding] = await tx.select({ id: investmentHoldings.id }).from(investmentHoldings)
-      .where(eq(investmentHoldings.id, holdingId)).for('update');
+      // NO KEY UPDATE: the buy's row already points here (key share).
+      .where(eq(investmentHoldings.id, holdingId)).for('no key update');
     if (!holding) return { ok: false, reason: 'holding_not_found' };
     const goalIds = shares.map((share) => share.goalId);
     const foreignGoalId = await findForeignGoal(tx, householdId, goalIds);

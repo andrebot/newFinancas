@@ -215,7 +215,20 @@ export const accounts = {
   readonly balanceTones: readonly [PaletteToken, ...PaletteToken[]];
 };
 
+/** The Manage Finances page (X6, OQ-222). */
+export const manageFinances = {
+  /** The address's parameter a Holding's "See in Transactions" filters the ledger by. */
+  holdingParam: 'holding',
+} as const;
+
 /** Month Overview (FL17, OQ-221). */
+export const periodBar = {
+  /** How far the swiped strip's edge fade reaches in, in px: about half a month tile. */
+  fadePx: 28,
+  /** A wheel's line, in px, when the browser counts the wheel in lines (DOM_DELTA_LINE). */
+  wheelLinePx: 16,
+} as const;
+
 export const monthOverview = {
   /** Where the $ / R$ switch's last pick is remembered, so the next visit opens on it. */
   currencyStorageKey: 'financas.monthOverview.currency',

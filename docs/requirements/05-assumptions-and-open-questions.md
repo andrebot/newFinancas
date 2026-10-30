@@ -1939,6 +1939,39 @@ OQ-118). Delete User's cascade is `M1D` (task 136, slice 5).
   clears the shared refresh token, but other tabs noticed only when their
   access token next failed (≤ 15 minutes). The shell now listens to the
   `storage` event, which ends them at once.
+- **Amended (PR #145, stakeholder report): shared data has shared tags.**
+  The household's accounts, budgets and categories are shown by more than
+  one Experience, so their tags (`Accounts`, `Budgets`, `Categories`) are
+  declared on `backendApi` itself and owned by none. The setup reads provide
+  them, the setup writes that went through invalidate them (a budget write
+  also on `budget.not_found`), a transaction write invalidates `Accounts`
+  (it moved a balance), and any read built on that data provides its tags
+  too: the Month Overview provides `Accounts` and `Budgets`. So a write on
+  one page refreshes every page showing the data, and the writer never names
+  its readers. This replaces `setupApi.ts`'s "nothing else reads them, so
+  only the host refetches" (OQ-193/OQ-194), which X6 made untrue — a budget
+  deleted in Account Setup stayed on the Transactions page until a reload.
+  The hosts still wait for the list before answering their Flow (OQ-193);
+  that refetch joins the read the tag started, so nothing is fetched twice.
+- **Goals join them (PR #145).** The goal endpoints moved from Account
+  Setup's `api.ts` to a shared `api/goalsApi.ts`, so Account Setup and
+  Manage Finances read one `goal-progress` cache (Manage Finances had its own
+  copy). Both goal reads provide `Goals` — a progress read only once it
+  loaded, so a failed one still waits for Retry (OQ-195); the goal writes
+  invalidate it (also on `goal.not_found`); a transaction write invalidates
+  it instead of Manage Finances' own `GoalProgress` tag (a buy's split moves
+  the funding); the Month Overview provides it (its Goals rail).
+- **Credit cards need no tag of their own:** a card is part of its account
+  (OQ-175 — the accounts list carries each card and its outstanding, card
+  changes ride the account edit), so `Accounts` covers card writes, and
+  charges, refunds and bill payments are transaction writes. A card read of
+  its own (a statement) would provide `Accounts` or bring its own tag.
+- **The rule for what comes next:** a read built on household data
+  provides that data's tags; a write invalidates the tags of everything it
+  changes, on whatever page it happens. So the Investments work (Edit
+  Holding's split and market values) invalidates `Goals` and `Accounts`, and
+  its Holdings reads share a `Holdings` tag with the Record drawer's Holdings
+  reads (which have none today).
 
 ## Refined (resolved, with a follow-up still open)
 
@@ -3969,6 +4002,23 @@ not a hardcoded assumption.
 - **Not here yet:** Delete User's cascade (personal Budgets deleted, shared
   ones' owner cleared) waits for `M1D` (task 136), like the other
   Accessors.
+- **Amended (PR #145, stakeholder report): a Budget counts the spend
+  already recorded in its first month.** A spend accrues as it is
+  written, so a Budget created mid-month missed the month's earlier
+  spends, and a Category added to a Budget missed its earlier ones. Now
+  `AccountManager` restates the spend **from the current month on** when a
+  Budget is created and whenever its targets change: it reads the Budget's
+  scope (the household's shared Accounts, or the owner's personal ones,
+  through `AccountAccessor.list`, and their cards), sums both ledgers'
+  transactions in its claims from the month's first day
+  (`claimedSums` — the same match as `accrueIfClaimed`: the row's Category
+  or Subcategory claimed), signs them out − in in the Budget's currency
+  (`managers/budgetSpend.ts`, shared with TransactionManager's accrual), and
+  `BudgetAccessor.restateSpend` zeroes every period from that month and
+  writes each month's spend, opening a month with the target in effect.
+  Past periods are history and keep their spend (glossary: no retroactive
+  change). All in the create's or the edit's transaction. A spend written
+  in the very instant a Budget is created can still be missed — accepted.
 
 ### OQ-167: ValuationSnapshotAccessor (task A12)
 **Confirmed with the stakeholder (Oct 2026):**
@@ -4015,7 +4065,8 @@ not a hardcoded assumption.
   an existing market-priced Holding (OQ-50 accumulate) re-weights the whole
   split by value, so every Goal keeps exactly its money: existing value =
   existing quantity × **this buy's unit price** (fresh and exact, not the
-  latest snapshot, not cost basis). E.g. a Holding worth 900 funding
+  latest snapshot, not cost basis). *(Amended in OQ-222: the existing value
+  is now the Holding's latest snapshot — the money, not the units.)* E.g. a Holding worth 900 funding
   Retirement 60% / Trip 20%, plus a buy of 100 for Car 100% → 1,000:
   Retirement 54%, Trip 18%, Car 10%. Whole percents (OQ-87) are rounded by
   largest remainder; the small drift each buy leaves is accepted (editable
@@ -5263,7 +5314,9 @@ fixes and doc drift they bring, is `docs/planning/04-slice-3-readiness.md`.
 - **Transfers stay two separate entries** (D2): `transfer_sent` on one
   account and `transfer_received` on the other, unlinked, each in its own
   currency; `effect = transfer` keeps both out of In/Out (FR-3.6). A
-  paired single entry was weighed and declined.
+  paired single entry was weighed and declined. *(Reversed in OQ-222: a
+  transfer between own accounts is now a linked pair; one recorded alone
+  is to or from someone else and counts.)*
 - **Every kind may take a category, and money coming in reduces spend**
   (D4): a Budget's spend is out − in per claimed category (a refund or a
   categorized receipt lowers it). A categorized bill payment would count
@@ -6386,6 +6439,200 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
   Manage Finances.
 
 **Task 118 (`FL17`) is complete.**
+
+### OQ-222: Manage Finances (task X6)
+**Confirmed with the stakeholder (Oct 2026):**
+- **A Holding's "See in Transactions" links to `/transactions?holding=<id>`**
+  (`config/constants.ts → manageFinances.holdingParam`). The filter lives in
+  the address, so it survives a reload and a notification can link to it;
+  removing the chip (or Clear all) drops the parameter by replacing the entry,
+  the address's other parameters kept. The chip is named by the Holding's
+  ticker (`GET …/holdings/:holdingId`). Weighed and rejected: router state
+  (gone on a reload).
+- **The other filters are the page's state alone** — kinds, accounts, cards,
+  categories and the range are lost on leaving the page. Weighed and
+  rejected: every filter in the address (parsing and validation for little
+  gain).
+- **On a phone, Filter sits in the ledger's heading** (mockup 34): Browse
+  Transactions takes an optional `filterAction` the Experience fills with its
+  icon button below `md`; from `md` the page header has Filter (with the count
+  in use) and Record Transaction, as mockup 30.
+- **An edited buy opens only once its Holding is read** (its terms, OQ-219);
+  when the read fails a toast says so ("Couldn't open this transaction. Try
+  again.") and nothing opens — the row stays open, so Edit can be pressed
+  again. Weighed and rejected: opening without it (a valid fixed-term buy
+  would be refused on save).
+
+**Design decisions:**
+- **Writes refresh by cache tags** (`experiences/manageFinances/api.ts`): a
+  record, edit or delete that went through — or a delete answered 404
+  `transaction.not_found`, the row deleted elsewhere (OQ-220's note) —
+  invalidates `Ledger` and `MonthOverview`, and the shared `Accounts` and
+  `Goals` (OQ-124's amendment — `GoalProgress` was replaced); any other
+  refusal nothing. Every loaded ledger page and the month are fetched again; closing
+  the drawer only unmounts it.
+- **The page shows once the accounts and categories are in** — all three
+  Flows read them; a skeleton until then, one retry for both. So Month
+  Overview's `overview` is `loaded` as soon as the month's `currentData` is.
+  The household's creation date (the bar's reach) comes from the households
+  list.
+- **The ledger's status**: an error once any fetch failed — the first page,
+  the next page, or a refetch after a write, its rows kept above "Try again"
+  (PR #145 review: a failed refetch was idle, so nothing said so) — loading
+  while the first or the next page is out, idle otherwise. The pages are the
+  query's `currentData`, so new filters never show the old ones' rows; "Try
+  again" after a failed refetch fetches every page again, after a failed next
+  page that page.
+- **The drawer mounts once the Goals a split names are read** (both statuses,
+  `goal-progress`, each with its own-currency progress in whole percent); a
+  failed read opens it with no Goals to add. It reads them through the
+  shared `listGoalProgress` (`api/goalsApi.ts`), one cache with Account
+  Setup's (PR #145 — it first had its own endpoint, a second cache of the
+  same read that writes on either page left stale).
+- **Mockup 34's phone layout**: the page header is kept for screen readers
+  only; the period bar sticks under the App Shell's header and the ledger's
+  month headers stick under the bar — its height measured by a new
+  `utilities/useChildHeight.ts` (the regions carry `data-region`) and counted
+  only below `xl`; Record is a floating button.
+- A `manageFinances` catalog section in both locales; `setupApi` now exports
+  `useListAccountsQuery`.
+
+**PR #145 review fixes:**
+- **A late Holding read no longer replaces the open drawer.** Each Edit,
+  Record and close is numbered; a buy's Holding read that returns after the
+  user moved on is dropped (no drawer, no toast) — before, it swapped the
+  drawer's row under a form opened on another, and Save could have sent one
+  row's changes to the other. Each opening mounts a fresh drawer.
+- **The address's Holding belongs to the household the page opened in:**
+  after a household switch it is ignored and dropped from the address, rather
+  than filtering the new household by a Holding it doesn't have.
+- **The Goals are read only while the drawer is open**, not on every visit.
+- **A card is listed only under its Account:** an Account with no history by
+  the month's end is left out with its cards — the 0-outstanding rule below
+  had let a card show without one.
+- **The period bar between `md` and `xl`** (stakeholder report: cramped
+  below 1280 px): mockup 34's stack was used at every width under `xl`, its
+  strip a scroller exactly a tile high, so the selected month's tile was
+  clipped against the month above and the summary below. From `md` the bar
+  is now a card (as from `xl`) whose twelve months fit in a row, no swiping,
+  with more room between its parts; on a phone the strip keeps a little
+  padding so the selected tile is never clipped (K40, amends OQ-216).
+- **The month strip below `md`** (stakeholder report: under ~740 px the
+  months overflowed behind a hidden scrollbar, reachable by mouse only with
+  shift+wheel). The card with its twelve months in a row now starts at `sm`
+  (640 px), the tiles a little narrower until `md`. Below `sm` the strip
+  still swipes, and now fades the side with more months to scroll to (the
+  card rail's fade, OQ-212), and a plain mouse wheel over it scrolls it
+  sideways until it reaches that end, when the wheel scrolls the page again
+  (`kit/periodBar/stripScroll.ts`). No visible scrollbar or extra arrows:
+  the month arrows already step a month at a time.
+- **A new Budget missed the month's spend recorded before it** (stakeholder
+  report): fixed in AccountManager — see OQ-166's amendment.
+- **A buy funded its Goal with nothing** (stakeholder report: R$ 600 for 20
+  FII units at 100% left "Vamos la" at R$ 0). The automatic snapshot was
+  written as a unit price (`amount / quantity`) — against the data model,
+  where `valuation` is the Holding's total — and over the stored quantity
+  (units × 10⁸), so it rounded to 0; the tests used whole units and hid it.
+  **Confirmed with the stakeholder:** the money decides, not the units. A
+  buy of R$ 600 for 20 units means R$ 30 each; the quantity is kept for
+  IRPF (the position and its average cost), and a Goal's percentage counts
+  toward the money. So a market-priced trade's snapshot is the Holding's
+  value before it (its latest snapshot at or before the trade's date, an
+  edit leaving its own out) plus what a buy paid, or less what a sell
+  brought in — never below zero, zero once sold out. A buy into a funded
+  Holding re-weights the split by that same value before (amends OQ-168's
+  "existing quantity × this buy's unit price").
+  **PR #145 review:** a single trade's snapshot computed from "the value
+  before it" went wrong once later trades existed — a trade backdated,
+  moved past a later one (counted twice), re-priced or deleted left every
+  later value stale, and the next buy's split read it. Now every write that
+  can move a Holding's value — a trade recorded, edited or deleted, a market
+  value typed in, edited or deleted — restates all its automatic snapshots
+  from its whole history (`managers/holdingValues.ts`, shared by
+  TransactionManager and AccountManager): in order of date, then time
+  written, a typed value sets the value, a buy adds its amount, a sell or
+  redemption takes its amount off (never below zero), a position sold out
+  is worth nothing. Migration 0015 restates the snapshots written before
+  (unit prices, about 0) the same way in SQL — there a value dipping below
+  zero mid-way is floored once, not at each step.
+  Market prices moving over time come from typed-in market values (OQ-56,
+  `AccountManager`); their screen is for a later version.
+- **Transfers between own accounts are a linked pair; any other transfer
+  counts** (stakeholder report: a salary recorded as "Transfer received"
+  never reached October's In — unlinked transfers were all assumed to be
+  between own accounts, and no Brazilian reads "transferência" that way).
+  **Confirmed with the stakeholder:** a transfer is to or from someone else
+  by default and counts as money in or out; the drawer asks "Between your
+  accounts?", and when on, the user picks From and To. Reverses OQ-201 D2.
+  - **Across currencies, two amounts:** what left From, and — when To's
+    currency differs — `receivedAmount`, typed, never converted (FR-2.2).
+    Within one currency the same amount arrives; a `receivedAmount` is
+    then refused.
+  - **One transfer, edited and deleted as one:** either side's edit
+    changes both (date, description, `amount` = what was sent,
+    `receivedAmount`); either side's delete removes both. From and To
+    never change (D6): delete and record again. A pair takes no category
+    — it is neither spending nor income — and the caller must be able to
+    edit both accounts (`auth.forbidden` otherwise, since they see the
+    row they asked for).
+  - **Stored:** `transfer_id` links the sides (migration 0014); both keep
+    `effect = transfer`; an external transfer is stored as `movement`.
+    Existing transfers became external (`movement`), so they count.
+  - **Reports:** a `transfer` row is left out of In/Out only when its
+    other side is also among the viewer's accounts. A member who sees one
+    side only (Ben's personal account to the shared one, seen by Ana)
+    counts it — for them the money came from outside. The other side's
+    account, amount and currency are hidden from them in the ledger.
+  - **Ledger:** a pair's rows read "Checking → Savings" on both sides
+    ("another account" for one the user can't see); Edit and Delete need
+    both accounts manageable and open.
+- **PR #145 review, the rest:**
+  - **Locks:** an Account's, card's or Holding's balance write locked its row
+    `FOR UPDATE`, which waits on the key-share lock a concurrent write takes
+    by inserting a row that points to it — two writes on one Account could
+    deadlock. They now lock `FOR NO KEY UPDATE` (balance writes still queue,
+    key shares don't block them), and a transfer pair's two Accounts are
+    written in Account-id order, so opposite pairs never wait on each other.
+  - **Pair invariants in the database (migration 0015):** `transfer_id` is
+    set exactly when the effect is `transfer`, and unique per (`transfer_id`,
+    `kind`) — one sent and one received side. The pair's id is drawn by the
+    database on the first insert, no longer the sent row's own id.
+  - **An unchanged pair edit** is read back, neither written nor audited,
+    as a single row's is.
+- **A new Budget or Goal starts personal** (stakeholder request): the
+  create forms — Account Setup's budget and goal drawers and Onboard's
+  budget step — open on Personal for everyone; sharing is a choice. A
+  Viewer still can't pick Shared. (They opened on Shared for anyone who
+  could share; accounts keep their own default.)
+- **The Goals rail wraps instead of scrolling** (stakeholder request): the
+  kit's card rail takes `wrap`, which lays its cards out in rows that wrap
+  downwards — no scroll region, arrows or fade (amends OQ-212 for that
+  rail). The Month Rails' Goals use it, so on the Transactions page (and
+  the Dashboard, which shares them) every Goal shows at once. The Balance
+  and Budget rails still scroll.
+- **The Transactions page kept a deleted Budget** (stakeholder report): the
+  Month Overview didn't know Account Setup's writes. Fixed with shared cache
+  tags for accounts, budgets, categories and goals — see OQ-124's amendment.
+- Tests added for the race, the failed refetch, the switch, the time zone of
+  a card's issue (April in UTC, March in São Paulo) and an edit's body (the
+  old default also turned every PATCH into a terms edit).
+
+**Bugs found while checking the page against the real API (fixed here):**
+- **Every create but a fixed-term buy answered 422.** The contract's
+  `InterestPayment` had `default: at_maturity`, so the route's request
+  validation added `interestPayment` to every create, and the Manager refuses
+  it for any kind with no use for it (`object.unknown_keys`). The default is
+  gone from the schema — the Managers already read a fixed-term buy without
+  one as paying at maturity — and a route test checks the Manager gets only
+  the fields sent (the route tests mock the Manager, so none caught it).
+- **A card with no charges was missing from the Balance rail.** A card's
+  month-balance rows start with its first charge, and ReportingEngine left out
+  any figure with no history by the month's end — right for an Account opened
+  later, wrong for a card, which owes nothing until then. A card issued by the
+  month's end (in the app's time zone) with no history now shows 0
+  outstanding (`issuedByMonthEnd`), as OQ-221's "each of its cards" says.
+
+**Task 119 (`X6`) is complete.**
 
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 

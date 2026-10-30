@@ -135,7 +135,8 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain:</strong> <code>AccountManager</code> ① <code>AuthorizationUtility.authorize(data.create)</code> (sync) → ② <code>ValidationUtility.checkFields(...)</code> (sync) → ③ <code>CategoryAccessor.list(...)</code> (sync — which targets are open) → ④ <code>BudgetAccessor.insert(...)</code> (sync, validated write — the Budget, its claims and this month&#39;s period in one transaction; rejects a target claimed in the scope, FR-4.7) → ⑤ <code>LoggingUtility</code> (async).</p>
+    <p><strong>Chain:</strong> <code>AccountManager</code> ① <code>AuthorizationUtility.authorize(data.create)</code> (sync) → ② <code>ValidationUtility.checkFields(...)</code> (sync) → ③ <code>CategoryAccessor.list(...)</code> (sync — which targets are open) → ④ <code>BudgetAccessor.insert(...)</code> (sync, validated write — the Budget, its claims and this month&#39;s period; rejects a target claimed in the scope, FR-4.7; later <code>restateSpend</code>) → ⑤ <code>AccountAccessor.list(...)</code> and ⑥ <code>CreditCardAccessor.listByAccounts(...)</code> (sync — the Accounts and cards in the Budget&#39;s scope) → ⑦ <code>AccountTransactionAccessor.claimedSums(...)</code> and ⑧ <code>CardTransactionAccessor.claimedSums(...)</code> (sync — the spend already recorded this month on, OQ-166) → ⑨ <code>LoggingUtility</code> (async).</p>
+    <p><strong>Corrected (PR #145):</strong> a Budget created mid-month counts the spend already recorded in its scope that month. The Manager reads the ledgers and decides the signs; each Accessor only sums or writes — no Accessor calls another.</p>
     <p><strong>Corrected (OQ-176):</strong> the authorization call is needed — a shared Budget needs a role that may create (a Viewer may not); and a new target must be an open Category or Subcategory, read through <code>CategoryAccessor</code> (a Manager reading two Accessors, no Accessor-to-Accessor call).</p>
     <p><strong>No smell:</strong> the overlap-uniqueness invariant is still enforced inside the single Accessor write, not as a separate pre-check.</p>
   </div>
@@ -150,7 +151,7 @@
       svg.style.width = containerRect.width + 'px';
       svg.style.height = containerRect.height + 'px';
 
-      var edges = [{"from": "mgr-account", "to": "util-authz", "type": "sync", "order": 1}, {"from": "mgr-account", "to": "util-validation", "type": "sync", "order": 2}, {"from": "mgr-account", "to": "acc-category", "type": "sync", "order": 3}, {"from": "mgr-account", "to": "acc-budget", "type": "sync", "order": 4}, {"from": "mgr-account", "to": "util-logging", "type": "async", "order": 5}];
+      var edges = [{"from": "mgr-account", "to": "util-authz", "type": "sync", "order": 1}, {"from": "mgr-account", "to": "util-validation", "type": "sync", "order": 2}, {"from": "mgr-account", "to": "acc-category", "type": "sync", "order": 3}, {"from": "mgr-account", "to": "acc-budget", "type": "sync", "order": 4}, {"from": "mgr-account", "to": "acc-account", "type": "sync", "order": 5}, {"from": "mgr-account", "to": "acc-creditcard", "type": "sync", "order": 6}, {"from": "mgr-account", "to": "acc-accounttxn", "type": "sync", "order": 7}, {"from": "mgr-account", "to": "acc-cardtxn", "type": "sync", "order": 8}, {"from": "mgr-account", "to": "util-logging", "type": "async", "order": 9}];
 
       var activeIds = {};
       edges.forEach(function (e) { activeIds[e.from] = true; activeIds[e.to] = true; });

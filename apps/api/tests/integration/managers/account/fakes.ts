@@ -214,6 +214,16 @@ export const fakeDeps = () => {
     delete: vi.fn(async () => true),
     listPeriods: vi.fn(async () => [PERIOD]),
     accrueIfClaimed: vi.fn(async () => 'accrued' as const),
+    restateSpend: vi.fn(async (..._call: unknown[]) => undefined),
+  };
+  // The ledgers' sums a Budget's spend is restated from (OQ-166).
+  const accountTransactions = {
+    claimedSums: vi.fn(async (..._call: unknown[]): Promise<object[]> => []),
+    // A Holding's trades, its values restated from (OQ-222): none unless a test says so.
+    listTrades: vi.fn(async (..._call: unknown[]): Promise<object[]> => []),
+  };
+  const cardTransactions = {
+    claimedSums: vi.fn(async (..._call: unknown[]): Promise<object[]> => []),
   };
   const goals = {
     insert: vi.fn(async () => GOAL),
@@ -254,7 +264,7 @@ export const fakeDeps = () => {
     authorize: vi.fn(async (): Promise<Outcome> => ({ outcome: 'allowed', role: 'Owner' })),
   };
   const stores = {
-    categories, accounts, creditCards, budgets, goals,
+    categories, accounts, creditCards, budgets, goals, accountTransactions, cardTransactions,
   };
   // The work runs against the same mocks, so a test sees its writes; a throw
   // inside it is what the real unit of work would roll back.
@@ -279,6 +289,8 @@ export const fakeDeps = () => {
     creditCards,
     budgets,
     goals,
+    accountTransactions,
+    cardTransactions,
     holdings,
     valuations,
     indexRates,

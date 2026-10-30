@@ -66,12 +66,29 @@ describe('transaction routes', () => {
       holding: { ticker: 'PETR4', assetType: 'stock' },
       quantity: 2,
       creditCardId: null,
+      transfer: null,
       createdByUserId: ANA_ID,
       source: 'manual',
       createdAt: ISO,
       ledger: 'account',
     });
     expect(transaction.recordTransaction).toHaveBeenCalledTimes(1);
+  });
+
+  it('hands the Manager only the fields sent — validation adds none (OQ-222)', async () => {
+    const { app, transaction } = setup();
+    transaction.recordTransaction.mockResolvedValueOnce(ROW);
+    const body = {
+      kind: 'withdrawal',
+      accountId: ROW.accountId,
+      date: '2026-10-13',
+      amount: 2_000,
+      currency: 'BRL',
+    };
+    const response = await send(app, 'POST', TRANSACTIONS, body);
+    expect(response.status).toBe(201);
+    const [, , request] = transaction.recordTransaction.mock.calls[0] ?? [];
+    expect(request).toEqual(body);
   });
 
   it('rejects a body the contract does not name before reaching the Manager', async () => {
@@ -102,6 +119,26 @@ describe('transaction routes', () => {
     expect(page.nextCursor).toBeNull();
   });
 
+  it('shows a transfer between own accounts with its other side (OQ-222)', async () => {
+    const { app, transaction } = setup();
+    transaction.getTransaction.mockResolvedValueOnce({
+      ledger: 'account',
+      transaction: {
+        ...ROW,
+        kind: 'transfer_sent',
+        effect: 'transfer',
+        transferId: ROW.id,
+        pair: {
+          id: 'pair', accountId: 'savings', amount: 480, currency: 'BRL',
+        },
+      },
+    });
+    const response = await send(app, 'GET', ITEM);
+    expect((await response.json() as { transfer: unknown }).transfer).toEqual({
+      accountId: 'savings', amount: 480, currency: 'BRL',
+    });
+  });
+
   it('answers one row by id', async () => {
     const { app, transaction } = setup();
     transaction.getTransaction.mockResolvedValueOnce({ ledger: 'card', transaction: CARD_ROW });
@@ -118,6 +155,9 @@ describe('transaction routes', () => {
     const response = await send(app, 'PATCH', ITEM, { description: 'Rent' });
     expect(response.status).toBe(200);
     expect((await response.json() as { description: string }).description).toBe('Rent');
+    // Validation adds no field — a default would read as a terms edit (OQ-222).
+    const [, , , update] = transaction.editTransaction.mock.calls[0] ?? [];
+    expect(update).toEqual({ description: 'Rent' });
   });
 
   it('deletes with no body', async () => {

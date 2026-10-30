@@ -137,8 +137,41 @@ const cardNameOf = (lookup: LedgerLookup, creditCardId: string, translator: Tran
 };
 
 /**
- * Names an account row's source: its account, or a bill payment's payer and
- * card — the payer alone when the user can't see the card.
+ * Names an account the user can see.
+ *
+ * @param lookup - The accounts.
+ * @param accountId - The account, if any.
+ * @returns Its name, or nothing for one they can't see.
+ */
+const accountNameOf = (lookup: LedgerLookup, accountId: string | null | undefined) => (
+  accountId ? lookup.accounts.get(accountId)?.name : undefined
+);
+
+/**
+ * Names where a transfer between own accounts went (OQ-222): "Checking →
+ * Savings" on either side — "another account" for one the user can't see.
+ *
+ * @param item - Either side, with its other side.
+ * @param lookup - The accounts.
+ * @param translator - The texts.
+ * @returns The route.
+ */
+const transferSourceOf = (
+  item: LedgerItem & { readonly ledger: 'account' },
+  lookup: LedgerLookup,
+  translator: Translator,
+) => {
+  const own = accountNameOf(lookup, item.accountId) ?? '';
+  const other = accountNameOf(lookup, item.transfer?.accountId)
+    ?? browseText(translator, 'source.otherAccount');
+  const [from, to] = item.kind === 'transfer_sent' ? [own, other] : [other, own];
+  return browseText(translator, 'source.transfer', { from, to });
+};
+
+/**
+ * Names an account row's source: its account, either side of a transfer
+ * between own accounts, or a bill payment's payer and card — the payer alone
+ * when the user can't see the card.
  *
  * @param item - The account row.
  * @param lookup - The accounts and cards.
@@ -150,6 +183,7 @@ const accountSourceOf = (
   lookup: LedgerLookup,
   translator: Translator,
 ) => {
+  if (item.transfer) return transferSourceOf(item, lookup, translator);
   const payer = lookup.accounts.get(item.accountId ?? '')?.name ?? '';
   const card = item.creditCardId ? cardNameOf(lookup, item.creditCardId, translator) : '';
   return card ? browseText(translator, 'source.billPayment', { payer, card }) : payer;
@@ -282,8 +316,25 @@ export const rowDetailsOf = (
 ];
 
 /**
- * Lists the accounts a change to the row touches: its own (a card's), and a
- * bill payment's card's too (OQ-219).
+ * Lists the other accounts an account row's change touches: a transfer's
+ * other side's — which edits and deletes with it (OQ-222) — or a bill
+ * payment's card's (OQ-219).
+ *
+ * @param item - The account row.
+ * @param lookup - The accounts and cards.
+ * @returns Those accounts; `undefined` stands for one the user can't see.
+ */
+const otherAccountsOf = (
+  item: LedgerItem & { readonly ledger: 'account' },
+  lookup: LedgerLookup,
+) => {
+  if (item.transfer) return [lookup.accounts.get(item.transfer.accountId ?? '')];
+  return item.creditCardId ? [lookup.cards.get(item.creditCardId)?.account] : [];
+};
+
+/**
+ * Lists the accounts a change to the row touches: its own (a card's), a bill
+ * payment's card's too (OQ-219), and a transfer's other side's (OQ-222).
  *
  * @param item - The row.
  * @param lookup - The accounts and cards.
@@ -292,8 +343,7 @@ export const rowDetailsOf = (
 const touchedAccountsOf = (item: LedgerItem, lookup: LedgerLookup) => {
   if (item.ledger === 'card') return [lookup.cards.get(item.creditCardId ?? '')?.account];
   const own = lookup.accounts.get(item.accountId ?? '');
-  if (!item.creditCardId) return [own];
-  return [own, lookup.cards.get(item.creditCardId)?.account];
+  return [own, ...otherAccountsOf(item, lookup)];
 };
 
 /**

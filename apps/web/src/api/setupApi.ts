@@ -4,7 +4,7 @@ import type {
   ListAccountsResponse, ListBudgetsResponse, ListCategoriesResponse,
 } from '@financas/api-types';
 import { skipToken } from '@reduxjs/toolkit/query/react';
-import backendApi from './backendApi';
+import backendApi, { changedTags } from './backendApi';
 import send from './send';
 import type { SourceState } from '../utilities/sourceState';
 import { toSourceState } from './sourceState';
@@ -15,13 +15,18 @@ import { toSourceState } from './sourceState';
 // the App Shell's household gate asks whether an account is in use. Like the
 // identity reads (`identityApi.ts`), they belong to no one Experience, so each
 // imports them from here and never from a sibling.
-// - The accounts are the Account Management Flow's own list, fetched as it
-//   mounts and patched with what each write returns.
-// - The categories and the budgets are a host Experience's shared lists. It
-//   fetches them again after each write, before it answers the Flow
-//   (`setupRequests.ts`). Nothing else reads them, so invalidating would only
-//   fetch them twice.
-// - The account status (FR-1.22) carries the one tag. A create or archive that
+// - Each list provides its shared tag (`Accounts`, `Budgets`, `Categories`,
+//   `backendApi.ts`), and each write that went through invalidates it — a
+//   budget write also when the budget is already gone (OQ-194 refreshes
+//   then). Other pages build on this data (the Month Overview's balances and
+//   budgets, the ledger's pickers), so a write here refreshes them wherever
+//   they are shown (PR #145; this replaces
+//   "nothing else reads them", which the Transactions page made untrue).
+// - The Account Management Flow keeps its own list, fetched as it mounts and
+//   patched with what each write returns. The categories and the budgets are
+//   a host Experience's shared lists; it waits for the tag's refetch before it
+//   answers the Flow (`setupRequests.ts`).
+// - The account status (FR-1.22) carries its own tag. A create or archive that
 //   went through invalidates it.
 // The request shapes come straight from the contract (`@financas/api-types`).
 
@@ -117,6 +122,19 @@ const accountStatusTag = (error: unknown, householdId: string) => (
   error ? [] : [{ type: 'AccountStatus' as const, id: householdId }]
 );
 
+/**
+ * Names what an account write changed: the accounts, and the status when the
+ * write can change it.
+ *
+ * @param error - The write's failure, if any.
+ * @param householdId - The household it wrote to.
+ * @returns The tags to invalidate.
+ */
+const accountWriteTags = (error: unknown, householdId: string) => [
+  ...accountStatusTag(error, householdId),
+  ...changedTags(['Accounts'], error),
+];
+
 /** The shared setup endpoints. */
 export const setupApi = backendApi.enhanceEndpoints({
   addTagTypes: ['AccountStatus'],
@@ -125,6 +143,7 @@ export const setupApi = backendApi.enhanceEndpoints({
     listAccounts: build.query<readonly Account[], string>({
       query: accountsPath,
       transformResponse: (response: ListAccountsResponse) => response.data ?? [],
+      providesTags: ['Accounts'],
     }),
     // The household gate's read: whether any account, of any visibility, is in use.
     getAccountStatus: build.query<boolean, string>({
@@ -134,57 +153,68 @@ export const setupApi = backendApi.enhanceEndpoints({
     }),
     createAccount: build.mutation<Account, CreateAccountInput>({
       query: ({ householdId, ...request }) => send('POST', accountsPath(householdId), request),
-      invalidatesTags: (_result, error, { householdId }) => accountStatusTag(error, householdId),
+      invalidatesTags: (_result, error, { householdId }) => accountWriteTags(error, householdId),
     }),
     editAccount: build.mutation<Account, EditAccountInput>({
       query: ({ householdId, accountId, ...changes }) => (
         send('PATCH', accountPath({ householdId, accountId }), changes)
       ),
+      invalidatesTags: (_result, error) => changedTags(['Accounts'], error),
     }),
     archiveAccount: build.mutation<void, AccountTarget>({
       query: (target) => send('POST', `${accountPath(target)}/archive`),
-      invalidatesTags: (_result, error, { householdId }) => accountStatusTag(error, householdId),
+      invalidatesTags: (_result, error, { householdId }) => accountWriteTags(error, householdId),
     }),
     listCategories: build.query<readonly Category[], string>({
       query: (householdId) => `${categoriesPath(householdId)}?includeArchived=true`,
       transformResponse: (response: ListCategoriesResponse) => response.data ?? [],
+      providesTags: ['Categories'],
     }),
     createCategory: build.mutation<Category, CreateCategoryInput>({
       query: ({ householdId, ...request }) => send('POST', categoriesPath(householdId), request),
+      invalidatesTags: (_result, error) => changedTags(['Categories'], error),
     }),
     editCategory: build.mutation<Category, EditCategoryInput>({
       query: ({ householdId, categoryId, ...changes }) => (
         send('PATCH', categoryPath({ householdId, categoryId }), changes)
       ),
+      invalidatesTags: (_result, error) => changedTags(['Categories'], error),
     }),
     archiveCategory: build.mutation<void, CategoryTarget>({
       query: (target) => send('POST', `${categoryPath(target)}/archive`),
+      invalidatesTags: (_result, error) => changedTags(['Categories'], error),
     }),
     archiveSubcategory: build.mutation<void, SubcategoryTarget>({
       query: ({ householdId, categoryId, subcategoryId }) => {
         const base = categoryPath({ householdId, categoryId });
         return send('POST', `${base}/subcategories/${encodeURIComponent(subcategoryId)}/archive`);
       },
+      invalidatesTags: (_result, error) => changedTags(['Categories'], error),
     }),
     listBudgets: build.query<readonly Budget[], string>({
       query: budgetsPath,
       transformResponse: (response: ListBudgetsResponse) => response.data ?? [],
+      providesTags: ['Budgets'],
     }),
     createBudget: build.mutation<Budget, CreateBudgetInput>({
       query: ({ householdId, ...request }) => send('POST', budgetsPath(householdId), request),
+      invalidatesTags: (_result, error) => changedTags(['Budgets'], error, 'budget.not_found'),
     }),
     editBudget: build.mutation<Budget, EditBudgetInput>({
       query: ({ householdId, budgetId, ...changes }) => (
         send('PATCH', budgetPath({ householdId, budgetId }), changes)
       ),
+      invalidatesTags: (_result, error) => changedTags(['Budgets'], error, 'budget.not_found'),
     }),
     deleteBudget: build.mutation<void, BudgetTarget>({
       query: (target) => send('DELETE', budgetPath(target)),
+      invalidatesTags: (_result, error) => changedTags(['Budgets'], error, 'budget.not_found'),
     }),
   }),
 });
 
 export const {
+  useListAccountsQuery,
   useLazyListAccountsQuery,
   useGetAccountStatusQuery,
   useCreateAccountMutation,

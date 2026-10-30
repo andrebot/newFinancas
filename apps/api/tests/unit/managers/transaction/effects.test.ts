@@ -5,6 +5,7 @@ import {
 import type { Account } from '../../../../src/accessors/accountAccessor';
 import {
   accountMovementOf, accrueBudget, budgetAccrualOf, cardMovementOf, engineRateOf, holdingRateOf,
+  valueBefore,
 } from '../../../../src/managers/transaction/effects';
 import type { TransactionStores } from '../../../../src/managers/transaction/context';
 
@@ -136,5 +137,21 @@ describe('rate builders (OQ-205)', () => {
 
       rateSpread: 1.5,
     });
+  });
+});
+
+describe('valueBefore', () => {
+  it('reads the latest value by the trade\'s date, its own left out', async () => {
+    const latestAsOf = vi.fn(async () => [{ valuation: 4_200 }]);
+    const stores = { valuations: { latestAsOf } } as unknown as TransactionStores;
+    expect(await valueBefore(stores, 'h-1', '2026-10-13', 't-1')).toBe(4_200);
+    expect(latestAsOf).toHaveBeenCalledWith(['h-1'], '2026-10-13', 't-1');
+  });
+
+  it('reads zero for a Holding with no value yet', async () => {
+    const stores = {
+      valuations: { latestAsOf: vi.fn(async () => []) },
+    } as unknown as TransactionStores;
+    expect(await valueBefore(stores, 'h-1', '2026-10-13')).toBe(0);
   });
 });

@@ -2,8 +2,8 @@ import type {
   Currency, InvestmentHolding, LedgerItem, TransactionCreateRequest, TransactionUpdateRequest,
 } from '@financas/api-types';
 import {
-  EMPTY_TERMS, isBillPayment, isBuy, isCardKind, isFixedTermBuy, isDebentureBuy, isTrade,
-  namesHolding, takesSpread, type ContractTerms, type TransactionForm,
+  EMPTY_TERMS, isBillPayment, isBuy, isCardKind, isFixedTermBuy, isDebentureBuy, isOwnTransfer,
+  isTrade, namesHolding, takesSpread, type ContractTerms, type TransactionForm,
 } from './transactionForm';
 
 // What the Record Transaction form sends (FL15; FR-3.1/FR-3.2, OQ-201): the
@@ -11,7 +11,10 @@ import {
 // it has no use for is a 422 — and, on an edit, the form a ledger row opens
 // with and the changes it sends. An edit changes values, never identity
 // (OQ-201 D6): kind, account, card and Holding stay; a fixed-term buy whose
-// schedule has started keeps its amount, date, quantity and terms (D8).
+// schedule has started keeps its amount, date, quantity and terms (D8). A
+// transfer between own accounts (OQ-222) is sent From → To, with what arrived
+// when the currencies differ, and edits as one from either side: the form
+// always shows it as sent.
 
 /** What an edit may change, for its kind and whether its schedule has started. */
 export interface Editable {
@@ -97,6 +100,13 @@ const targetOf = (form: TransactionForm): Partial<TransactionCreateRequest> => {
   const card = fieldIf('creditCardId', form.creditCardId);
   if (isCardKind(form.kind)) return card;
   const account = fieldIf('accountId', form.accountId);
+  if (isOwnTransfer(form)) {
+    return {
+      ...account,
+      ...fieldIf('toAccountId', form.toAccountId),
+      ...fieldIf('receivedAmount', form.receivedAmount ?? undefined),
+    };
+  }
   return isBillPayment(form.kind) ? { ...account, ...card } : account;
 };
 
@@ -223,9 +233,43 @@ const accountFieldsOf = (item: LedgerItem & { readonly ledger: 'account' }) => (
   ticker: item.holding?.ticker ?? '',
 });
 
+/** A ledger row on the Account ledger. */
+type AccountItem = LedgerItem & { readonly ledger: 'account' };
+
+/**
+ * Turns either side of a transfer between own accounts into the form as sent
+ * (OQ-222): From and To, the amount sent and — across currencies — what arrived.
+ *
+ * @param item - Either side, with its other side.
+ * @param transfer - Its other side.
+ * @returns The form's transfer fields.
+ */
+export const ownTransferFieldsOf = (
+  item: AccountItem,
+  transfer: NonNullable<AccountItem['transfer']>,
+): Partial<TransactionForm> => {
+  const sent = item.kind === 'transfer_sent';
+  const own = { accountId: item.accountId, amount: item.amount, currency: item.currency };
+  const other = {
+    accountId: transfer.accountId ?? undefined,
+    amount: transfer.amount,
+    currency: transfer.currency,
+  };
+  const [from, to] = sent ? [own, other] : [other, own];
+  return {
+    kind: 'transfer_sent',
+    ownTransfer: true,
+    accountId: from.accountId,
+    toAccountId: to.accountId,
+    amount: from.amount ?? null,
+    receivedAmount: from.currency === to.currency ? null : to.amount ?? null,
+  };
+};
+
 /**
  * Builds the form a ledger row opens with on an edit: its values as recorded;
- * a buy's terms from the Holding it created.
+ * a buy's terms from the Holding it created; either side of a transfer
+ * between own accounts as sent (OQ-222).
  *
  * @param item - The transaction, either ledger.
  * @param holding - A trade's Holding, when read.
@@ -238,12 +282,16 @@ export const editFormOf = (
   const targets = item.ledger === 'card'
     ? { creditCardId: item.creditCardId, quantity: null, ticker: '' }
     : accountFieldsOf(item);
+  const transfer = item.ledger === 'account' ? item.transfer : undefined;
   return {
     ...commonFieldsOf(item),
     ...targets,
     terms: termsOf(holding),
     allocations: [],
     allocationsEdited: false,
+    ownTransfer: false,
+    receivedAmount: null,
+    ...(transfer && ownTransferFieldsOf(item as AccountItem, transfer)),
   };
 };
 
@@ -308,6 +356,26 @@ const termChangesOf = (
 });
 
 /**
+ * What arrived on the other account, when a transfer between own accounts
+ * crosses currencies (OQ-222) — within one, the server sends the amount over.
+ *
+ * @param before - The form as it opened.
+ * @param after - The form as it stands.
+ * @param editable - What the edit may change.
+ * @returns `receivedAmount` when it changed, or nothing.
+ */
+const receivedChangeOf = (
+  before: TransactionForm,
+  after: TransactionForm,
+  editable: Editable,
+) => changeIf(
+  'receivedAmount',
+  before.receivedAmount,
+  after.receivedAmount ?? before.receivedAmount,
+  editable.amountAndDate && before.receivedAmount !== null,
+);
+
+/**
  * Builds the changes an edit sends: only what changed and may change; a
  * cleared category, subcategory or description as `null`.
  *
@@ -331,5 +399,6 @@ export const changesOf = (
     after.description.trim() || undefined,
   ),
   ...changeIf('quantity', before.quantity, after.quantity ?? before.quantity, editable.quantity),
+  ...receivedChangeOf(before, after, editable),
   ...(editable.terms ? termChangesOf(before.terms, after.terms, isDebentureBuy(after)) : {}),
 }) as TransactionUpdateRequest;

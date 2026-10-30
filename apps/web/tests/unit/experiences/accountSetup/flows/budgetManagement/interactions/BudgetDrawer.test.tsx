@@ -137,7 +137,8 @@ describe('adding a budget', () => {
     expect(screen.getAllByText('Visibility').length).toBeGreaterThan(0);
     expect(screen.queryByRole('alert')).toBeNull();
     expect(screen.getByRole<HTMLInputElement>('radio', { name: 'BRL' }).checked).toBe(true);
-    expect(screen.getByRole<HTMLInputElement>('radio', { name: 'Shared' }).checked).toBe(true);
+    // Personal by default — sharing is a choice (OQ-222).
+    expect(screen.getByRole<HTMLInputElement>('radio', { name: 'Personal' }).checked).toBe(true);
     const note = "Currency and visibility can't be changed after the budget is created.";
     expect(screen.getByText(note))
       .toBeTruthy();
@@ -156,7 +157,7 @@ describe('adding a budget', () => {
       name: 'Household',
       targetAmount: 80000,
       currency: 'USD',
-      visibility: 'shared',
+      visibility: 'personal',
       targets: [{ categoryId: 'Groceries' }, { subcategoryId: 'Streaming' }],
     });
   });
@@ -218,6 +219,9 @@ describe('adding a budget', () => {
       id: 's1', name: 'Home', visibility: 'shared', targets: [{ categoryId: 'Groceries' }],
     });
     const { onSubmit } = renderDrawer({ budgets: [shared] });
+    expect(screen.getByRole<HTMLInputElement>('checkbox', { name: /^Groceries/ }).disabled)
+      .toBe(false);
+    fireEvent.click(screen.getByRole('radio', { name: 'Shared' }));
     expect(screen.getByRole<HTMLInputElement>('checkbox', { name: /^Groceries/ }).disabled)
       .toBe(true);
     expect(screen.getByText('in Home')).toBeTruthy();

@@ -16,11 +16,14 @@ import { distinctItems } from '../../utilities/validation';
 import { accessToOwned, requireAccess } from '../access';
 import { canSeeGoal, growsCompletedGoal, hiddenShares } from '../goalSplit';
 import type { SignedInContext } from '../requestContext';
+import inSequence from '../sequence';
 import { requireNoProblems } from '../validation';
 import { reweightSplit } from './allocations';
 import {
   accountMovementOf, accrueBudget, budgetAccrualOf, cardMovementOf, engineRateOf, holdingRateOf,
+  valueBefore,
 } from './effects';
+import { restateHoldingValues } from '../holdingValues';
 import {
   requestLogger, todayOf, type TransactionDeps, type TransactionStores,
 } from './context';
@@ -32,6 +35,7 @@ import {
   transactionChanged, tradeRefusal,
 } from './errors';
 import { createProblems } from './kindRules';
+import { accountsInLockOrder } from './lockOrder';
 import requirePaidCard from './paidCard';
 
 // Record Transaction (CUC-1, FR-3): the household's cash-flow events — one of
@@ -71,6 +75,10 @@ export interface TransactionCreate {
     readonly percentage: number;
   }[] | undefined;
   readonly incentivised?: boolean | undefined;
+  /** transfer_sent only — the account a transfer between own accounts reaches (OQ-222). */
+  readonly toAccountId?: string | undefined;
+  /** With `toAccountId`, across currencies — what reached it, in its currency. */
+  readonly receivedAmount?: number | undefined;
   /** Internal only — a scheduled post's provenance (VBD §3.2a); the route never sets it. */
   readonly source?: TransactionSource | undefined;
 }
@@ -280,6 +288,18 @@ const writeCard = async (
   return inserted.transaction;
 };
 
+/**
+ * The effect an Account-ledger row stores (OQ-222): a transfer recorded on its
+ * own is to or from someone else — money that came in or went out — so it
+ * stores `movement`; only a pair between own accounts stores `transfer`.
+ *
+ * @param kind - The kind.
+ * @returns The effect to store.
+ */
+export const storedEffectOf = (kind: TransactionKind): NewAccountTransaction['effect'] => (
+  kind.effect === 'transfer' ? 'movement' : kind.effect!
+);
+
 /** The row an Account-ledger cash or transfer kind writes. */
 const accountRowOf = (
   target: LoadedTarget,
@@ -289,7 +309,7 @@ const accountRowOf = (
 ) => ({
   accountId: target.account.id,
   kind: kind.code,
-  effect: kind.effect!,
+  effect: storedEffectOf(kind),
   date: request.date,
   amount: request.amount,
   currency: request.currency,
@@ -411,12 +431,6 @@ const checkBuySplit = async (
   if (purchase.some((share) => completed.has(share.goalId))) throw goalCompleted();
 };
 
-/** The value of a Holding's position before this buy, at the buy's unit price. */
-const existingValueOf = (holding: InvestmentHolding, request: TransactionCreate): number => {
-  const quantity = request.quantity ?? 1;
-  return (holding.quantity * request.amount) / quantity;
-};
-
 /** Writes a split over the Holding, mapping the Accessor's refusals. */
 const replaceSplit = async (
   stores: TransactionStores,
@@ -432,7 +446,8 @@ const replaceSplit = async (
 /**
  * Writes a buy's Goal split (OQ-168/OQ-207): on a fresh Holding the purchase's
  * own shares from its date; buying into an existing one re-weights the whole
- * split by value, so every Goal keeps exactly its money. A buy that allocates
+ * split by value — the Holding's value before the buy (its latest snapshot by
+ * then, PR #145) — so every Goal keeps exactly its money. A buy that allocates
  * nothing dilutes: the existing shares shrink to their old value over the new
  * total and the new money shows as unassigned — a Goal never grows without a
  * decision (FR-8.9).
@@ -459,11 +474,12 @@ const writeBuyAllocations = async (
   if (purchase.length === 0) {
     // No allocation on the buy — nothing to check; an existing split dilutes.
     if (current.length === 0) return;
+    const existing = await valueBefore(stores, holding.id, request.date);
     await replaceSplit(
       stores,
       householdId,
       holding.id,
-      reweightSplit(current, existingValueOf(holding, request), [], request.amount),
+      reweightSplit(current, existing, [], request.amount),
       request.date,
     );
     return;
@@ -476,7 +492,8 @@ const writeBuyAllocations = async (
     const total = current.reduce((sum, share) => sum + share.percentage, 0);
     const requested = purchase.reduce((sum, share) => sum + share.percentage, 0);
     if (requested > 100) throw allocationExceeds100(total, requested);
-    split = reweightSplit(current, existingValueOf(holding, request), purchase, request.amount);
+    const existing = await valueBefore(stores, holding.id, request.date);
+    split = reweightSplit(current, existing, purchase, request.amount);
   }
   await replaceSplit(stores, householdId, holding.id, split, request.date);
 };
@@ -624,28 +641,36 @@ const tradeRowOf = (
   createdByUserId: userId,
 });
 
-/** A market-priced trade's automatic snapshot at its unit price (OQ-87). */
+/**
+ * A market-priced trade's automatic snapshot (FR-5.2, OQ-222): written, then
+ * the Holding's values restated from its whole history, so this trade's value
+ * and every later one's follow it — a backdated trade included. Written after
+ * the split, which reads the value before the trade.
+ *
+ * @param stores - The Accessors over one transaction.
+ * @param holdingId - The Holding.
+ * @param transactionId - The trade.
+ * @param date - The trade's date.
+ */
 const insertTradeSnapshot = async (
   stores: TransactionStores,
   holdingId: string,
   transactionId: string,
-  amount: number,
-  quantity: number,
   date: string,
 ): Promise<void> => {
+  // Its value comes from the restating below, as every other trade's does.
   await stores.valuations.insertAutomatic({
-    holdingId,
-    accountTransactionId: transactionId,
-    valuation: Math.round(amount / quantity),
-    asOfDate: date,
+    holdingId, accountTransactionId: transactionId, valuation: 0, asOfDate: date,
   });
+  await restateHoldingValues(stores, holdingId);
 };
 
 /**
  * Records an investment buy (FR-3.8, OQ-201 D1): the cash leg debits the
  * Account, the Holding takes its position — a fixed-term one with its schedule
- * first — and market-priced buys leave their automatic snapshot at the unit
- * price; the Goal split is written in the same call (OQ-54).
+ * first — the Goal split is written in the same call (OQ-54), and a
+ * market-priced buy then leaves its automatic snapshot: the value before plus
+ * what was paid (PR #145).
  *
  * @param stores - The Accessors over one transaction.
  * @param deps - The tier below.
@@ -682,18 +707,11 @@ const writeBuy = async (
   const traded = await stores.holdings.applyTrade(holding.id, trade);
   // A buy only adds position and basis — the row vanishing is its one refusal.
   if (!traded.ok) throw holdingNotFound();
-  if (!isFixedTerm(request.assetType!)) {
-    await insertTradeSnapshot(
-      stores,
-      holding.id,
-      inserted.transaction.id,
-      request.amount,
-      quantity,
-      request.date,
-    );
-  }
   // A scheduled post never records a buy, so this branch's userId is never null.
   await writeBuyAllocations(stores, deps, householdId, target.role, userId!, holding, request);
+  if (!isFixedTerm(request.assetType!)) {
+    await insertTradeSnapshot(stores, holding.id, inserted.transaction.id, request.date);
+  }
   await accrueBudget(stores, recordAccrualOf(target, kind, request));
   return inserted.transaction;
 };
@@ -777,14 +795,7 @@ const writeSellOrRedemption = async (
   if (!traded.ok) throw tradeRefusal(traded.reason);
   if (traded.quantity === 0) await stores.holdings.archive(holding.id, 'system');
   if (!isFixedTerm(holding.assetType)) {
-    await insertTradeSnapshot(
-      stores,
-      holding.id,
-      inserted.transaction.id,
-      request.amount,
-      sold,
-      request.date,
-    );
+    await insertTradeSnapshot(stores, holding.id, inserted.transaction.id, request.date);
   }
   // A scheduled post carries no split — the Holding's current one stands (OQ-206).
   await writeTradeSplit(stores, deps, householdId, target.role, userId!, holding, request);
@@ -889,6 +900,109 @@ export const recordScheduled = async (
   });
 };
 
+/** The kind each side of a transfer between own accounts records. */
+const RECEIVED = findKind('transfer_received')!;
+
+/** One side of a transfer between own accounts, as the Accessor takes it. */
+const transferSideOf = (
+  target: LoadedTarget,
+  kind: TransactionKind,
+  values: Pick<TransactionCreate, 'amount' | 'date' | 'description'>,
+  userId: string,
+): NewAccountTransaction => ({
+  accountId: target.account.id,
+  kind: kind.code,
+  effect: 'transfer',
+  date: values.date,
+  amount: values.amount,
+  currency: target.account.currency,
+  ...(values.description !== undefined && { description: values.description }),
+  createdByUserId: userId,
+});
+
+/**
+ * What reaches the receiving account (OQ-222): the amount sent when the two
+ * share a currency, otherwise the `receivedAmount` given — no automatic
+ * conversion (FR-2.2).
+ *
+ * @param from - Where it leaves.
+ * @param to - Where it arrives.
+ * @param request - The create request.
+ * @returns The amount received, in `to`'s currency.
+ * @throws {DomainError} `validation.failed` on `toAccountId` (the same
+ *   account) or `receivedAmount` (missing across currencies, given within one).
+ */
+export const receivedAmountOf = (
+  from: Account,
+  to: Account,
+  request: Pick<TransactionCreate, 'amount' | 'receivedAmount'>,
+): number => {
+  if (from.id === to.id) {
+    throw validationFailed([{ field: 'toAccountId', code: 'field.invalid' }]);
+  }
+  if (from.currency === to.currency) {
+    if (request.receivedAmount !== undefined) {
+      throw validationFailed([{ field: 'receivedAmount', code: 'field.invalid' }]);
+    }
+    return request.amount;
+  }
+  if (request.receivedAmount === undefined) {
+    throw validationFailed([{ field: 'receivedAmount', code: 'field.required' }]);
+  }
+  return request.receivedAmount;
+};
+
+/**
+ * Records a transfer between the household's own accounts (OQ-222): both
+ * sides, linked, each moving its own account in its own currency, with
+ * `effect = transfer` so neither counts as money in or out. The caller must be
+ * able to edit both accounts, and both must take a transfer.
+ *
+ * @param deps - The tier below.
+ * @param context - The signed-in request.
+ * @param householdId - The household.
+ * @param request - A transfer_sent with its `toAccountId`.
+ * @param kind - transfer_sent.
+ * @returns The sent side.
+ * @throws {DomainError} either account's load and target gates;
+ *   `validation.failed`; `transaction.changed` on a race (OQ-203).
+ */
+const recordOwnTransfer = async (
+  deps: TransactionDeps,
+  context: SignedInContext,
+  householdId: string,
+  request: TransactionCreate,
+  kind: TransactionKind,
+): Promise<AccountTransaction> => {
+  const from = await loadTarget(deps, context, householdId, request, kind);
+  const to = await loadTarget(deps, context, householdId, {
+    ...request, accountId: request.toAccountId,
+  }, RECEIVED);
+  const received = receivedAmountOf(from.account, to.account, request);
+  checkTarget(kind, from, request.currency);
+  checkTarget(RECEIVED, to, to.account.currency);
+  const { userId } = context.actor;
+  return deps.inTransaction<AccountTransaction>(async (stores) => {
+    const inserted = await stores.accountTransactions.insertTransfer({
+      sent: transferSideOf(from, kind, request, userId),
+      received: transferSideOf(to, RECEIVED, { ...request, amount: received }, userId),
+    });
+    if (!inserted.ok) throw transactionChanged();
+    const sides = accountsInLockOrder([
+      { account: from.account, kind, row: inserted.sent },
+      { account: to.account, kind: RECEIVED, row: inserted.received },
+    ]);
+    await inSequence(sides, async (side) => {
+      const moved = await stores.accounts.applyMovement(
+        side.account.id,
+        accountMovementOf(side.kind, side.row),
+      );
+      if (!moved.ok) throw transactionChanged();
+    });
+    return inserted.sent;
+  });
+};
+
 /** Builds the Record Transaction use case. */
 const createRecord = (deps: TransactionDeps) => ({
   /**
@@ -913,15 +1027,16 @@ const createRecord = (deps: TransactionDeps) => ({
     const kind = findKind(request.kind);
     if (!kind) throw validationFailed([{ field: 'kind', code: 'field.invalid_option' }]);
     requireNoProblems(createProblems(request, kind));
-    const target = await loadTarget(deps, context, householdId, request, kind);
-    const transaction = await recordCore(
-      deps,
-      householdId,
-      target,
-      kind,
-      request,
-      context.actor.userId,
-    );
+    const transaction = request.toAccountId === undefined
+      ? await recordCore(
+        deps,
+        householdId,
+        await loadTarget(deps, context, householdId, request, kind),
+        kind,
+        request,
+        context.actor.userId,
+      )
+      : await recordOwnTransfer(deps, context, householdId, request, kind);
     requestLogger(context).audit('RecordTransaction', {
       entityType: kind.target === 'card' ? 'CardTransaction' : 'AccountTransaction',
       entityId: transaction.id,

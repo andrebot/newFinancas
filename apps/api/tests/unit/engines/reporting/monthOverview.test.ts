@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  budgetStatusOf, cashFlowOf, flowsOf, monthOverview, openAtMonthEnd, overBudgetFirst,
-  type BudgetStatus,
+  budgetStatusOf, cashFlowOf, flowsOf, monthOverview, movedInside, openAtMonthEnd,
+  overBudgetFirst, type BudgetStatus,
 } from '../../../../src/engines/reporting/monthOverview';
 import {
   aBudget, aCard, aGoal, anAccount, aPeriod, fakeDeps, HOUSEHOLD_ID, NOW, VIEWER,
@@ -32,6 +32,28 @@ const aSum = (kind: string, total: number, month = '2026-03', currency = 'BRL') 
  */
 const aStatus = (name: string, targetAmount: number, spendAmount: number): BudgetStatus => ({
   budgetId: name, name, currency: 'BRL', visibility: 'shared', targetAmount, spendAmount,
+});
+
+describe('movedInside (OQ-222)', () => {
+  const sum = { month: '2026-03', currency: 'BRL', total: 100 };
+
+  it('leaves out a transfer whose other side the viewer sees, and a bill payment', () => {
+    expect(movedInside({
+      ...sum, kind: 'transfer_sent', effect: 'transfer', pairInView: true,
+    })).toBe(true);
+    expect(movedInside({
+      ...sum, kind: 'credit_card_bill_payment', effect: 'bill_payment', pairInView: false,
+    })).toBe(true);
+  });
+
+  it('counts a transfer whose other side is out of view, and money to or from others', () => {
+    expect(movedInside({
+      ...sum, kind: 'transfer_received', effect: 'transfer', pairInView: false,
+    })).toBe(false);
+    expect(movedInside({
+      ...sum, kind: 'transfer_received', effect: 'movement', pairInView: false,
+    })).toBe(false);
+  });
 });
 
 describe('cashFlowOf', () => {
@@ -150,12 +172,13 @@ describe('monthOverview', () => {
     ]);
     deps.listCreditCards.mockResolvedValue([aCard('visa', 'checking')]);
     deps.accountMonthlySums.mockResolvedValue([
-      { ...aSum('deposit', 1_000), effect: 'movement' },
-      { ...aSum('transfer_received', 400), effect: 'transfer' },
-      { ...aSum('deposit', 99), effect: 'transfer' },
-      { ...aSum('credit_card_bill_payment', 800), effect: 'bill_payment' },
-      { ...aSum('investment_buy', 300), effect: 'investment_trade' },
-      { ...aSum('investment_sell', 200), effect: 'investment_trade' },
+      { ...aSum('deposit', 1_000), effect: 'movement', pairInView: false },
+      // Between two of the viewer's Accounts: left out (OQ-222).
+      { ...aSum('transfer_received', 400), effect: 'transfer', pairInView: true },
+      { ...aSum('deposit', 99), effect: 'transfer', pairInView: true },
+      { ...aSum('credit_card_bill_payment', 800), effect: 'bill_payment', pairInView: false },
+      { ...aSum('investment_buy', 300), effect: 'investment_trade', pairInView: false },
+      { ...aSum('investment_sell', 200), effect: 'investment_trade', pairInView: false },
     ]);
     deps.cardMonthlySums.mockResolvedValue([aSum('charge', 250), aSum('refund', 50)]);
 
@@ -215,6 +238,52 @@ describe('monthOverview', () => {
     ]);
     expect(deps.accountBalancesAsOf).toHaveBeenCalledWith(['checking', 'new', 'later'], MARCH);
     expect(deps.cardBalancesAsOf).toHaveBeenCalledWith(['visa', 'master'], MARCH);
+  });
+
+  it('shows a card issued by the month\'s end with no charges as owing 0 (OQ-222)', async () => {
+    const deps = fakeDeps();
+    deps.listAccounts.mockResolvedValue([anAccount()]);
+    deps.listCreditCards.mockResolvedValue([
+      // April in UTC, still 31 March in São Paulo: issued by the month's end.
+      { ...aCard('visa', 'checking'), createdAt: new Date('2026-04-01T02:00:00Z') },
+      // 1 April in São Paulo: not yet.
+      { ...aCard('master', 'checking'), createdAt: new Date('2026-04-01T03:00:00Z') },
+    ]);
+    deps.accountBalancesAsOf.mockResolvedValue([{
+      accountId: 'checking', ...MARCH, openingBalance: 0, endingBalance: 5_000, updatedAt: NOW,
+    }]);
+    deps.cardBalancesAsOf.mockResolvedValue([]);
+
+    const { balances } = await monthOverview(deps, VIEWER, MARCH);
+
+    expect(balances).toEqual([
+      {
+        accountId: 'checking', creditCardId: null, currency: 'BRL', amount: 5_000,
+      },
+      {
+        accountId: 'checking', creditCardId: 'visa', currency: 'BRL', amount: 0,
+      },
+    ]);
+  });
+
+  it('leaves out an Account with no history by then, and its cards with it', async () => {
+    const deps = fakeDeps();
+    deps.listAccounts.mockResolvedValue([anAccount()]);
+    deps.listCreditCards.mockResolvedValue([
+      { ...aCard('visa', 'checking'), createdAt: new Date('2026-01-01T12:00:00Z') },
+    ]);
+    deps.accountBalancesAsOf.mockResolvedValue([]);
+    deps.cardBalancesAsOf.mockResolvedValue([{
+      creditCardId: 'visa',
+      ...MARCH,
+      openingOutstandingBalance: 0,
+      endingOutstandingBalance: 1_200,
+      updatedAt: NOW,
+    }]);
+
+    const { balances } = await monthOverview(deps, VIEWER, MARCH);
+
+    expect(balances).toEqual([]);
   });
 
   // With no period that month: the target in effect then and zero spend.

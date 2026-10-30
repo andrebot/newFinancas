@@ -65,7 +65,12 @@ sequenceDiagram
     participant AU as AuthorizationUtility
     participant VU as ValidationUtility
     participant CA as CategoryAccessor
+    participant UW as UnitOfWorkUtility
     participant BA as BudgetAccessor
+    participant AA as AccountAccessor
+    participant CCA as CreditCardAccessor
+    participant ATA as AccountTransactionAccessor
+    participant CTA as CardTransactionAccessor
     participant LOG as LoggingUtility
 
     User->>API: POST /households/:householdId/budgets {name, targetAmount, currency, visibility, targets: [{categoryId} | {subcategoryId}]}
@@ -86,16 +91,25 @@ sequenceDiagram
             alt a target archived or not this household&#39;s
                 AM-->>API: 422 validation.failed {targets[i].categoryId | subcategoryId: field.invalid_option}
             else all claimable
+                AM->>UW: inTransaction(work)
                 AM->>BA: insert(budget, targets once each, this month)
-                Note over BA: one transaction: the Budget, every claim and this<br/>month&#39;s period &mdash; a refusal keeps nothing (OQ-166)
+                Note over BA: the Budget, every claim and this month&#39;s period<br/>&mdash; a refusal keeps nothing (OQ-166)
                 alt a target is claimed in this scope (FR-4.7)
                     BA-->>AM: target_claimed {target, claimedByBudgetId}
-                    AM-->>API: 409 budget.target_already_claimed {target, budgetId}
+                    AM-->>API: 409 budget.target_already_claimed {target, budgetId} (rolled back)
                 else a target gone since the check
                     BA-->>AM: target_not_found {target}
-                    AM-->>API: 422 validation.failed {targets[i]...}
+                    AM-->>API: 422 validation.failed {targets[i]...} (rolled back)
                 else all claimed
                     BA-->>AM: budget
+                    AM->>AA: list(householdId, owner, {visibility})
+                    AM->>CCA: listByAccounts(accountIds)
+                    AM->>ATA: claimedSums(accountIds, claims, first of this month)
+                    AM->>CTA: claimedSums(cardIds, claims, first of this month)
+                    Note over AM: spend per month = out &minus; in, in the Budget&#39;s currency (OQ-201)
+                    AM->>BA: restateSpend(budget, this month, spends)
+                    Note over BA: the spend already recorded in its scope counts<br/>from its first month (OQ-166, PR #145)
+                    UW-->>AM: committed
                     AM-->>LOG: audit CreateBudget
                     AM-->>API: budget
                     API-->>User: 201 Created {budget}
@@ -112,7 +126,8 @@ sequenceDiagram
       <li>Each scope claims a Category once: the same Category can sit in one shared Budget and in each member&#39;s personal Budget; a spend counts toward the Budget of its Account&#39;s scope (OQ-166). So the claiming Budget named by a 409 is always one the caller can see.</li>
       <li>The generated validator can&#39;t say &ldquo;exactly one of <code>categoryId</code> / <code>subcategoryId</code>&rdquo;, so the Manager checks it; a target sent twice is claimed once (OQ-176).</li>
       <li>&ldquo;This month&rdquo; is the app time zone&#39;s (OQ-104), from the Manager&#39;s clock.</li>
-      <li>See FR-4.1, FR-4.2, FR-4.7, OQ-166, OQ-176.</li>
+      <li><strong>Corrected (PR #145):</strong> a spend counts as it is written, so a Budget created mid-month used to miss the month&#39;s earlier spends. The Manager now restates its spend from this month on, from the transactions already in its scope &mdash; the Accounts and their cards a spend of it accrues from, matched on the same claims and signed the same way (<code>managers/budgetSpend.ts</code>).</li>
+      <li>See FR-4.1, FR-4.2, FR-4.5, FR-4.7, OQ-166, OQ-176.</li>
     </ul>
   </div>
   <script>

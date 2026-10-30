@@ -5,7 +5,8 @@ import {
 import { createAccountManager } from '../../../../src/managers/account';
 import { expectAudited } from '../audit';
 import {
-  ANA_ID, BEA_ID, BUDGET, CATEGORY, CONTEXT, fakeDeps, HOUSEHOLD_ID, PERIOD, SUBCATEGORY,
+  ACCOUNT, ANA_ID, BEA_ID, BUDGET, CARD, CATEGORY, CONTEXT, fakeDeps, HOUSEHOLD_ID, PERIOD,
+  SUBCATEGORY,
 } from './fakes';
 
 const BUDGET_ID = BUDGET.id;
@@ -19,6 +20,8 @@ const NEW_BUDGET = {
   visibility: 'shared' as const,
   targets: [{ categoryId: CATEGORY.id }],
 };
+/** A Budget's Category claim, as the ledgers' sums take it. */
+const FOOD_CLAIMS = { categoryIds: [CATEGORY.id], subcategoryIds: [] };
 const HOUSEHOLD_NOT_FOUND = { domainError: { code: 'household.not_found' } };
 const FORBIDDEN = { domainError: { code: 'auth.forbidden' } };
 const BUDGET_NOT_FOUND = { domainError: { code: 'budget.not_found' } };
@@ -143,6 +146,55 @@ describe('AccountManager — create a Budget (uc-01, FR-4.1/4.7, OQ-176)', () =>
     expectAudited(logs.events, audit('CreateBudget'));
   });
 
+  it('opens its month with the spend already recorded in its scope (OQ-166)', async () => {
+    const {
+      deps, accounts, creditCards, accountTransactions, cardTransactions, budgets, inTransaction,
+    } = fakeDeps();
+    accountTransactions.claimedSums.mockResolvedValueOnce([
+      {
+        month: '2026-10', currency: 'BRL', kind: 'pix_payment', total: 3000,
+      },
+      {
+        month: '2026-10', currency: 'BRL', kind: 'pix_receipt', total: 500,
+      },
+    ]);
+    cardTransactions.claimedSums.mockResolvedValueOnce([
+      {
+        month: '2026-10', currency: 'BRL', kind: 'charge', total: 20000,
+      },
+      {
+        month: '2026-10', currency: 'USD', kind: 'charge', total: 999,
+      },
+    ]);
+
+    await createAccountManager(deps).createBudget(CONTEXT, HOUSEHOLD_ID, NEW_BUDGET);
+
+    expect(inTransaction).toHaveBeenCalledTimes(1);
+    expect(accounts.list).toHaveBeenCalledWith(HOUSEHOLD_ID, ANA_ID, { visibility: 'shared' });
+    expect(creditCards.listByAccounts).toHaveBeenCalledWith([ACCOUNT.id]);
+    expect(accountTransactions.claimedSums)
+      .toHaveBeenCalledWith([ACCOUNT.id], FOOD_CLAIMS, '2026-10-01');
+    expect(cardTransactions.claimedSums)
+      .toHaveBeenCalledWith([CARD.id], FOOD_CLAIMS, '2026-10-01');
+    expect(budgets.restateSpend).toHaveBeenCalledWith(BUDGET, OCTOBER, [
+      { month: OCTOBER, amount: 22500 },
+    ]);
+  });
+
+  it('restates nothing when its targets are refused', async () => {
+    const { deps, budgets } = fakeDeps();
+    budgets.insert.mockResolvedValueOnce({
+      ok: false,
+      reason: 'target_claimed',
+      target: { categoryId: CATEGORY.id },
+      claimedByBudgetId: OTHER_BUDGET_ID,
+    });
+
+    await expect(createAccountManager(deps).createBudget(CONTEXT, HOUSEHOLD_ID, NEW_BUDGET))
+      .rejects.toMatchObject({ domainError: { code: 'budget.target_already_claimed' } });
+    expect(budgets.restateSpend).not.toHaveBeenCalled();
+  });
+
   it('claims a target sent twice once, and takes a Subcategory', async () => {
     const { deps, budgets } = fakeDeps();
     const market = { subcategoryId: SUBCATEGORY.id };
@@ -260,6 +312,57 @@ describe('AccountManager — edit a Budget (uc-02, FR-4.7/4.9, OQ-176)', () => {
     expectAudited(logs.events, audit('EditBudget'));
   });
 
+  it('restates the spend from this month on for the new targets (OQ-166)', async () => {
+    const {
+      deps, accounts, accountTransactions, budgets,
+    } = fakeDeps();
+    const market = { subcategoryId: SUBCATEGORY.id };
+    accountTransactions.claimedSums.mockResolvedValueOnce([
+      {
+        month: '2026-11', currency: 'BRL', kind: 'withdrawal', total: 700,
+      },
+    ]);
+
+    await createAccountManager(deps).editBudget(CONTEXT, HOUSEHOLD_ID, BUDGET_ID, {
+      targets: [market, { categoryId: CATEGORY.id }],
+    });
+
+    expect(accounts.list).toHaveBeenCalledWith(HOUSEHOLD_ID, ANA_ID, { visibility: 'shared' });
+    expect(accountTransactions.claimedSums).toHaveBeenCalledWith(
+      [ACCOUNT.id],
+      { categoryIds: [CATEGORY.id], subcategoryIds: [SUBCATEGORY.id] },
+      '2026-10-01',
+    );
+    expect(budgets.restateSpend).toHaveBeenCalledWith(
+      { ...BUDGET, targets: [market, { categoryId: CATEGORY.id }] },
+      OCTOBER,
+      [{ month: { year: 2026, month: 11 }, amount: 700 }],
+    );
+  });
+
+  it('reads a shared Budget\'s Accounts as the editor once its owner is gone', async () => {
+    const { deps, accounts, budgets } = fakeDeps();
+    budgets.findById.mockResolvedValue({ ...BUDGET, ownerUserId: null });
+    const asBea = { ...CONTEXT, actor: { ...CONTEXT.actor, userId: BEA_ID } };
+
+    await createAccountManager(deps).editBudget(asBea, HOUSEHOLD_ID, BUDGET_ID, {
+      targets: [{ categoryId: CATEGORY.id }],
+    });
+
+    expect(accounts.list).toHaveBeenCalledWith(HOUSEHOLD_ID, BEA_ID, { visibility: 'shared' });
+  });
+
+  it('reads a personal Budget\'s Accounts as its owner\'s', async () => {
+    const { deps, accounts, budgets } = fakeDeps();
+    budgets.findById.mockResolvedValue({ ...BUDGET, visibility: 'personal' });
+
+    await createAccountManager(deps).editBudget(CONTEXT, HOUSEHOLD_ID, BUDGET_ID, {
+      targets: [{ categoryId: CATEGORY.id }],
+    });
+
+    expect(accounts.list).toHaveBeenCalledWith(HOUSEHOLD_ID, ANA_ID, { visibility: 'personal' });
+  });
+
   it('only replaces the targets when only they are sent', async () => {
     const { deps, budgets } = fakeDeps();
 
@@ -286,6 +389,7 @@ describe('AccountManager — edit a Budget (uc-02, FR-4.7/4.9, OQ-176)', () => {
       OCTOBER,
     );
     expect(budgets.replaceTargets).not.toHaveBeenCalled();
+    expect(budgets.restateSpend).not.toHaveBeenCalled();
     expect(categories.list).not.toHaveBeenCalled();
   });
 

@@ -14,7 +14,8 @@ import type { HoldingSelectionProps } from '../../../../../../src/experiences/ma
 import type { InvestmentBuyEntryProps } from '../../../../../../src/experiences/manageFinances/flows/recordTransaction/interactions/InvestmentBuyEntry';
 import type { KindSelectionProps } from '../../../../../../src/experiences/manageFinances/flows/recordTransaction/interactions/KindSelection';
 import type {
-  AmountFieldProps, CategoryFieldsProps, DetailFieldsProps, TargetFieldsProps,
+  AmountFieldProps, CategoryFieldsProps, DetailFieldsProps, OwnTransferSwitchProps,
+  ReceivedAmountFieldProps, TargetFieldsProps,
 } from '../../../../../../src/experiences/manageFinances/flows/recordTransaction/interactions/TransactionEntry';
 import { EMPTY_TERMS } from '../../../../../../src/experiences/manageFinances/flows/recordTransaction/transactionForm';
 import { AlertProvider } from '../../../../../../src/utilities/AlertProvider';
@@ -47,9 +48,14 @@ vi.mock('../../../../../../src/experiences/manageFinances/flows/recordTransactio
    * @returns The stub.
    */
   KindSelection: ({
-    kind, locked, onGroupChange, onKindChange,
+    kind, locked, kindsHidden, onGroupChange, onKindChange,
   }: KindSelectionProps) => (
-    <div data-testid="kind" data-kind={kind} data-locked={String(Boolean(locked))}>
+    <div
+      data-testid="kind"
+      data-kind={kind}
+      data-locked={String(Boolean(locked))}
+      data-kinds-hidden={String(Boolean(kindsHidden))}
+    >
       <button type="button" onClick={() => onGroupChange('investment')}>group investment</button>
       {TRANSACTION_KINDS.map(({ code }) => (
         <button key={code} type="button" onClick={() => onKindChange(code)}>
@@ -85,16 +91,47 @@ vi.mock('../../../../../../src/experiences/manageFinances/flows/recordTransactio
    * @returns The stub.
    */
   TargetFields: ({
-    locked, accountError, cardError, onAccount, onCard,
+    locked, accountError, cardError, toAccountError, onAccount, onCard, onToAccount,
   }: TargetFieldsProps) => (
     <div
       data-testid="targets"
       data-locked={String(Boolean(locked))}
       data-account-error={accountError ?? ''}
       data-card-error={cardError ?? ''}
+      data-to-error={toAccountError ?? ''}
     >
       <button type="button" onClick={() => onAccount('itau')}>account itau</button>
       <button type="button" onClick={() => onCard('nu1')}>card nu1</button>
+      <button type="button" onClick={() => onToAccount('chase')}>to chase</button>
+    </div>
+  ),
+  /**
+   * "Between your accounts?"'s stand-in (OQ-222).
+   *
+   * @param props - What the Flow passes.
+   * @returns The stub.
+   */
+  OwnTransferSwitch: ({ on, locked, onChange }: OwnTransferSwitchProps) => (
+    <div data-testid="own" data-on={String(on)} data-locked={String(Boolean(locked))}>
+      <button type="button" onClick={() => onChange(!on)}>between accounts</button>
+    </div>
+  ),
+  /**
+   * What arrived's stand-in (OQ-222).
+   *
+   * @param props - What the Flow passes.
+   * @returns The stub.
+   */
+  ReceivedAmountField: ({
+    account, value, error, onChange,
+  }: ReceivedAmountFieldProps) => (
+    <div
+      data-testid="received"
+      data-account={account.id}
+      data-value={data(value)}
+      data-error={error ?? ''}
+    >
+      <button type="button" onClick={() => onChange(950)}>received</button>
     </div>
   ),
   /**
@@ -707,6 +744,75 @@ describe('editing a ledger row (OQ-201 D6)', () => {
     renderFlow({ transaction: { item: accountRowOf({ kind: 'investment_tax', holdingId: 'x' }) } });
 
     expect(attr('holding', 'locked')).toBe('');
+  });
+});
+
+describe('a transfer between own accounts (OQ-222)', () => {
+  it('asks only on a transfer, and turns the drawer to From → To with no category', async () => {
+    renderFlow();
+    expect(screen.queryByTestId('own')).toBeNull();
+
+    await press('kind transfer_received');
+    expect(attr('own', 'on')).toBe('false');
+    expect(screen.getByTestId('category')).toBeDefined();
+
+    await press('between accounts');
+    expect(attr('own', 'on')).toBe('true');
+    expect(attr('kind', 'kind')).toBe('transfer_sent');
+    expect(attr('kind', 'kinds-hidden')).toBe('true');
+    expect(screen.queryByTestId('category')).toBeNull();
+  });
+
+  it('asks what arrived across currencies, refusing it empty, then records the pair', async () => {
+    const { onRecord } = renderFlow();
+    await press('kind transfer_sent');
+    await press('between accounts');
+    await press('account itau');
+    await press('amount');
+    await press('Record Transaction');
+    expect(attr('targets', 'to-error')).toBe('Choose the account it goes to.');
+    expect(screen.queryByTestId('received')).toBeNull();
+
+    await press('to chase');
+    expect(attr('received', 'account')).toBe('chase');
+    await press('Record Transaction');
+    expect(attr('received', 'error')).toBe('Enter the amount received.');
+    expect(onRecord).not.toHaveBeenCalled();
+
+    await press('received');
+    await press('Record Transaction');
+    expect(onRecord).toHaveBeenCalledExactlyOnceWith({
+      kind: 'transfer_sent',
+      date: '2026-09-14',
+      amount: 5_000,
+      currency: 'BRL',
+      accountId: 'itau',
+      toAccountId: 'chase',
+      receivedAmount: 950,
+    });
+  });
+
+  it('edits a pair from its received side as sent, the switch locked', async () => {
+    const { onSave } = renderFlow({
+      transaction: {
+        item: accountRowOf({
+          id: 'r',
+          kind: 'transfer_received',
+          effect: 'transfer',
+          accountId: 'chase',
+          amount: 900,
+          currency: 'USD',
+          categoryId: null,
+          transfer: { accountId: 'itau', amount: 4_000, currency: 'BRL' },
+        }),
+      },
+    });
+    expect(attr('own', 'locked')).toBe('true');
+    expect(attr('received', 'value')).toBe('900');
+
+    await press('received');
+    await press('Save changes');
+    expect(onSave).toHaveBeenCalledExactlyOnceWith('r', { receivedAmount: 950 });
   });
 });
 

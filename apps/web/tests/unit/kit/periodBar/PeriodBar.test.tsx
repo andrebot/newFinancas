@@ -3,7 +3,7 @@ import {
   afterEach, beforeEach, describe, expect, it, vi,
 } from 'vitest';
 import {
-  PeriodBar, barColor, centreSelected, monthClasses, reachable, yearArrow,
+  PeriodBar, barColor, monthClasses, reachable, yearArrow,
 } from '../../../../src/kit/periodBar/PeriodBar';
 import type { Period, PeriodMonth } from '../../../../src/kit/periodBar/periodBar';
 import { formatMoney } from '../../../../src/utilities/formatting';
@@ -77,16 +77,6 @@ const barsOf = (name: string) => {
  */
 const isDisabled = (name: string) => screen.getAllByRole('button', { name })
   .every((button) => button.hasAttribute('disabled'));
-
-describe('centreSelected', () => {
-  it('does nothing before the strip mounts or without a selected month', () => {
-    const strip = document.createElement('div');
-    strip.scrollTo = vi.fn();
-    expect(() => centreSelected(null, 'instant')).not.toThrow();
-    centreSelected(strip, 'instant');
-    expect(strip.scrollTo).not.toHaveBeenCalled();
-  });
-});
 
 describe('barColor', () => {
   it('greys an empty bar', () => {
@@ -270,6 +260,22 @@ describe('PeriodBar', () => {
     );
     expect(scrollTo).toHaveBeenCalledTimes(2);
     expect(scrollTo).toHaveBeenLastCalledWith({ left: 226, behavior: 'auto' });
+  });
+
+  it('fades the strip and scrolls it by the wheel while it overflows', () => {
+    vi.spyOn(Element.prototype, 'clientWidth', 'get').mockReturnValue(200);
+    vi.spyOn(Element.prototype, 'scrollWidth', 'get').mockReturnValue(700);
+    const scrollBy = vi.fn();
+    Element.prototype.scrollBy = scrollBy;
+    renderBar();
+    const strip = screen.getByRole('group', { name: 'Months of 2026' });
+    expect(strip.style.getPropertyValue('--strip-fade')).toContain('linear-gradient');
+
+    const turn = new WheelEvent('wheel', { deltaY: 120, cancelable: true });
+    strip.dispatchEvent(turn);
+    expect(scrollBy).toHaveBeenCalledExactlyOnceWith({ left: 120 });
+    expect(turn.defaultPrevented).toBe(true);
+    delete (Element.prototype as Partial<Element>).scrollBy;
   });
 
   it('announces the month and year the arrows move to', () => {

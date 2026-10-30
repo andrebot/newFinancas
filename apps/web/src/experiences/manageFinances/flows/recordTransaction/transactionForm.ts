@@ -16,6 +16,9 @@ import type { AllocationRow } from '../../../../kit/allocationEditor/allocation'
 // (OQ-219); every other kind an account that isn't credit-card-only (OQ-201
 // D5). A trade (buy, sell, redemption) moves units and carries a Goal split;
 // every investment kind but a buy picks the account's Holding (OQ-201 D10).
+// A transfer is to or from someone else unless "Between your accounts?" is on
+// (OQ-222): then it goes From one of the user's accounts To another, takes no
+// category, and asks what arrived when the two currencies differ.
 
 /** How a fixed-term contract's rate is quoted (FR-11.1). */
 export type RateType = 'fixed' | 'cdi' | 'ipca' | 'igpm' | 'selic';
@@ -73,6 +76,12 @@ export interface TransactionForm {
   readonly allocations: readonly AllocationRow[];
   /** The user changed the split: a sell sends it only then — the server keeps it otherwise. */
   readonly allocationsEdited: boolean;
+  /** "Between your accounts?" — a transfer From `accountId` To `toAccountId` (OQ-222). */
+  readonly ownTransfer: boolean;
+  /** The account a transfer between own accounts reaches. */
+  readonly toAccountId?: string | undefined;
+  /** What reached `toAccountId` in its currency, when it differs; `null` while empty. */
+  readonly receivedAmount: number | null;
 }
 
 /** A card with the account it sits on, whose currency is the card's. */
@@ -220,6 +229,54 @@ export const cardEntryOf = (
   .map((card) => ({ card, account })))[0];
 
 /**
+ * Tells whether an account can take a transfer: open and not credit-card-only.
+ *
+ * @param account - The account.
+ * @returns `true` when it can.
+ */
+const takesTransfers = (account: Account) => isOpen(account) && account.type !== 'credit_card_only';
+
+/**
+ * Tells whether the form is a transfer between the user's own accounts (OQ-222).
+ *
+ * @param form - The form.
+ * @returns `true` when "Between your accounts?" is on for a transfer.
+ */
+export const isOwnTransfer = (form: TransactionForm) => (
+  form.ownTransfer && groupOf(form.kind) === 'transfer'
+);
+
+/**
+ * Lists the accounts a transfer between own accounts may reach: any that takes
+ * a transfer but the one it leaves.
+ *
+ * @param form - The form, for the account it leaves.
+ * @param accounts - The accounts the user can see.
+ * @returns The accounts offered.
+ */
+export const toAccountChoicesOf = (form: TransactionForm, accounts: readonly Account[]) => (
+  accounts.filter((account) => takesTransfers(account) && account.id !== form.accountId)
+);
+
+/**
+ * Finds the account a transfer between own accounts reaches, when it is in
+ * another currency than the one it leaves — the form then asks what arrived.
+ *
+ * @param form - The form.
+ * @param accounts - The accounts the user can see.
+ * @returns That account, or nothing within one currency or before both are chosen.
+ */
+export const receivingAccountOf = (
+  form: TransactionForm,
+  accounts: readonly Account[],
+): Account | undefined => {
+  if (!isOwnTransfer(form)) return undefined;
+  const from = accounts.find((account) => account.id === form.accountId);
+  const to = accounts.find((account) => account.id === form.toAccountId);
+  return from && to && from.currency !== to.currency ? to : undefined;
+};
+
+/**
  * Lists the accounts a form's kind may be recorded on: open, not
  * credit-card-only (OQ-201 D5) — for a bill payment, in its card's currency
  * once the card is chosen (OQ-219). A card kind names no account.
@@ -230,9 +287,7 @@ export const cardEntryOf = (
  */
 export const accountChoicesOf = (form: TransactionForm, accounts: readonly Account[]) => {
   if (isCardKind(form.kind)) return [];
-  const usable = accounts.filter(
-    (account) => isOpen(account) && account.type !== 'credit_card_only',
-  );
+  const usable = accounts.filter(takesTransfers);
   const card = isBillPayment(form.kind) ? cardEntryOf(accounts, form.creditCardId) : undefined;
   return card ? usable.filter((account) => account.currency === card.account.currency) : usable;
 };
@@ -369,8 +424,10 @@ export const withKind = (
   accounts: readonly Account[],
 ): TransactionForm => {
   const keepsSplit = splitSourceOf(form.kind) === splitSourceOf(kind);
+  const ownTransfer = form.ownTransfer && groupOf(kind) === 'transfer';
   return withFittedTargets({
     ...form,
+    ...(!ownTransfer && { ownTransfer: false, toAccountId: undefined, receivedAmount: null }),
     kind,
     holdingId: namesHolding(kind) ? form.holdingId : undefined,
     quantity: isTrade(kind) ? form.quantity : null,
@@ -428,6 +485,9 @@ export const withAccount = (
   return {
     ...form,
     accountId,
+    // A transfer between own accounts never reaches the account it leaves.
+    toAccountId: form.toAccountId === accountId ? undefined : form.toAccountId,
+    receivedAmount: null,
     holdingId: undefined,
     quantity: fromHolding ? null : form.quantity,
     assetType: assetTypeKept(form.assetType, currency),
@@ -435,6 +495,48 @@ export const withAccount = (
     allocationsEdited: !fromHolding && form.allocationsEdited,
   };
 };
+
+/**
+ * Turns "Between your accounts?" on or off (OQ-222): on, the transfer leaves
+ * the account chosen for another of the user's — sent, with no category; off,
+ * it is to or from someone else again.
+ *
+ * @param form - The form, on a transfer.
+ * @param on - Whether it is between own accounts.
+ * @param accounts - The accounts the user can see.
+ * @returns The form.
+ */
+export const withOwnTransfer = (
+  form: TransactionForm,
+  on: boolean,
+  accounts: readonly Account[],
+): TransactionForm => {
+  if (!on) {
+    return {
+      ...form, ownTransfer: false, toAccountId: undefined, receivedAmount: null,
+    };
+  }
+  const sent = { ...form, kind: 'transfer_sent', ownTransfer: true };
+  const choices = toAccountChoicesOf(sent, accounts).map((account) => account.id);
+  return {
+    ...sent,
+    categoryId: undefined,
+    subcategoryId: undefined,
+    toAccountId: fittedChoice(form.toAccountId, choices),
+  };
+};
+
+/**
+ * Picks the account a transfer between own accounts reaches; what arrived is
+ * asked afresh, since its currency may change.
+ *
+ * @param form - The form.
+ * @param toAccountId - The account picked.
+ * @returns The form on that account.
+ */
+export const withToAccount = (form: TransactionForm, toAccountId: string): TransactionForm => (
+  toAccountId === form.toAccountId ? form : { ...form, toAccountId, receivedAmount: null }
+);
 
 /**
  * Picks the card; a bill payment's payer is fitted to its currency (OQ-219).
@@ -535,5 +637,7 @@ export const newFormOf = (accounts: readonly Account[], today: string): Transact
     terms: EMPTY_TERMS,
     allocations: [],
     allocationsEdited: false,
+    ownTransfer: false,
+    receivedAmount: null,
   }, accounts)
 );

@@ -9,9 +9,12 @@ import { validationFailed } from '../../utilities/domainError';
 import type { SignedInContext } from '../requestContext';
 import { requestLogger, type TransactionDeps, type TransactionStores } from './context';
 import { holdingInUse, scheduleStarted, transactionChanged } from './errors';
+import { restateHoldingValues } from '../holdingValues';
+import inSequence from '../sequence';
+import { inLockOrder } from './lockOrder';
 import {
-  assetTypeOf, loadEditable, reverseAccountEffects, reverseCardEffects, scheduleLocked,
-  tradeHoldingOf, type EditableRow, type RestoredPosition,
+  assetTypeOf, loadEditable, loadPairSide, reverseAccountEffects, reverseCardEffects,
+  scheduleLocked, tradeHoldingOf, type EditableRow, type RestoredPosition,
 } from './reversal';
 
 // Delete Transaction (CUC-3, FR-3.2/OQ-201 D7): the reverse-effect half of an
@@ -125,6 +128,9 @@ const applyDelete = async (
   await guardedDelete(stores, row);
   if (restored !== undefined && row.ledger === 'account') {
     await undoTrade(stores, householdId, row, restored);
+    // Its money leaves every later value too (OQ-222); a Holding deleted with
+    // it has no history left to restate.
+    await restateHoldingValues(stores, (row.transaction as AccountTransaction).holdingId!);
   }
 };
 
@@ -147,7 +153,8 @@ const createDelete = (deps: TransactionDeps) => ({
    * stored effect and deletes the row in one guarded transaction — all or
    * nothing (OQ-175). A buy that created its Holding takes it with it when no
    * other transaction references it (`transaction.holding_in_use` otherwise);
-   * a fixed-term buy whose schedule has started is refused.
+   * a fixed-term buy whose schedule has started is refused. A transfer between
+   * own accounts deletes both its sides (OQ-222).
    *
    * @param context - The signed-in request.
    * @param householdId - The household.
@@ -165,7 +172,19 @@ const createDelete = (deps: TransactionDeps) => ({
     const kind = findKind(row.transaction.kind);
     if (!kind) throw validationFailed([{ field: 'kind', code: 'field.invalid_option' }]);
     await checkDeletable(deps, householdId, row, kind);
-    await deps.inTransaction<void>((stores) => applyDelete(stores, householdId, row, kind));
+    // A transfer between own accounts goes as one: both sides (OQ-222).
+    const pair = await loadPairSide(deps, context, householdId, row);
+    // Both sides in their Accounts' order, so opposite pairs never wait on each other.
+    const sides = inLockOrder([row, ...(pair === undefined ? [] : [pair])]
+      .map((side) => ({ side })));
+    await deps.inTransaction<void>(async (stores) => {
+      await inSequence(sides, ({ side }) => applyDelete(
+        stores,
+        householdId,
+        side,
+        findKind(side.transaction.kind)!,
+      ));
+    });
     requestLogger(context).audit('DeleteTransaction', {
       entityType: row.ledger === 'card' ? 'CardTransaction' : 'AccountTransaction',
       entityId: transactionId,

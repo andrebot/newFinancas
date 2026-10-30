@@ -26,6 +26,19 @@ describe('KindSelection', () => {
     expect(screen.getByRole<HTMLInputElement>('radio', { name: 'Pix payment' }).checked).toBe(true);
   });
 
+  it('offers only the groups for a transfer between own accounts (OQ-222)', () => {
+    renderInLocale(
+      <KindSelection
+        kind="transfer_sent"
+        kindsHidden
+        onGroupChange={vi.fn()}
+        onKindChange={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole<HTMLInputElement>('radio', { name: 'Transfer' }).checked).toBe(true);
+    expect(screen.queryByRole('radiogroup', { name: 'Kind' })).toBeNull();
+  });
+
   it('emits the group and the kind picked', () => {
     const onGroupChange = vi.fn();
     const onKindChange = vi.fn();

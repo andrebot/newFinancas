@@ -537,7 +537,9 @@ Backs `AccountManager`'s `InvestmentHoldingAccessor`,
   match-by-ticker-and-accumulate the way FR-5.1 originally described.
 - **`valuation_snapshots`** — `id` (PK), `holding_id` (FK, not null),
   `valuation` (the *total* dollar figure, not a per-unit price — FR-5.2:
-  "current valuation is simply its latest snapshot"), `as_of_date`,
+  "current valuation is simply its latest snapshot"; a trade's is the
+  Holding's money right after it, restated from the whole history on every
+  change — OQ-222), `as_of_date`,
   **`source`** (`manual` | `transaction`, Oct 2026 — OQ-56),
   **`account_transaction_id`** (FK → `account_transactions`, nullable,
   unique, `ON DELETE CASCADE` — set for `transaction` snapshots so they
@@ -730,9 +732,10 @@ set that both **dispatches** the write (which Accessor call happens) and
 `movement` (deposit/withdrawal/boleto/Pix/dividend/interest/tax — all
 plain cash ± movements via `AccountAccessor.applyMovement`; dividend/
 interest/tax stay `movement` since FR-3.8 calls them "pure cash events,"
-not quantity-changing), `transfer` (transfer sent/received — same
-Accessor call as `movement`, tagged separately so `ReportingEngine` can
-exclude it from income/expense, FR-3.6), `bill_payment` (→
+not quantity-changing), `transfer` (a transfer **between the household's
+own accounts** — same Accessor call as `movement`, tagged separately so
+`ReportingEngine` can exclude it from income/expense, FR-3.6; a transfer
+to or from someone else is stored as `movement` and counts, OQ-222), `bill_payment` (→
 `AccountAccessor.applyMovement` on the paying account and
 `CreditCardAccessor.applyMovement` on the card, OQ-15/OQ-170), `investment_trade` (buy/sell/
 redemption → `InvestmentHoldingAccessor.applyTrade`).
@@ -778,10 +781,19 @@ history.
   simply wouldn't be tagged with a Budget-claimed spend category, so
   FR-4.8's own "uncategorized-for-budgets is just not tracked" rule
   handles it without any extra mechanism.
-- **A transfer is two unlinked rows (OQ-201)** — `transfer_sent` on one
-  account, `transfer_received` on the other, each in its own currency; no
-  pairing column. `effect = transfer` is what keeps both out of
-  income/expense (FR-3.6).
+- **A transfer between own accounts is a linked pair (OQ-222, reversing
+  OQ-201 D2)** — `transfer_sent` on one account, `transfer_received` on
+  the other, each in its own currency and amount (no conversion), both
+  carrying the same nullable **`transfer_id`** (drawn by the database,
+  indexed, migration 0014) and `effect = transfer`. Migration 0015 makes it
+  an invariant: `transfer_id` is set exactly when the effect is `transfer`,
+  and unique per (`transfer_id`, `kind`). They are recorded, edited and
+  deleted together. `ReportingEngine` leaves a `transfer` row out of
+  income/expense only when its other side is also among the viewer's
+  accounts — otherwise, for that viewer, the money came from or went
+  outside. A transfer recorded alone has no `transfer_id`, is stored as
+  `movement` and counts (FR-3.6). Migration 0014 turned every transfer
+  recorded before pairs existed into `movement`.
 - **Two separate ledgers, one bridge (OQ-16/FR-3.7)** — not really an
   "invariant" to enforce so much as a structural fact: `account_
   transactions` and `card_transactions` are two distinct tables with no

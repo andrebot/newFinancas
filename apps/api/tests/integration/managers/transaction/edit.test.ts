@@ -4,6 +4,7 @@ import createEdit from '../../../../src/managers/transaction/edit';
 import {
   ACCOUNT, ANA_ID, BUY_ROW, CARD_ROW, CHECKING, FIXED_HOLDING, HOUSEHOLD_ID, MARKET_HOLDING, NOW,
   ROW, SELL_ROW, fakeDeps,
+  snapshotOf, tradeOf,
 } from './fakes';
 
 // Edit Transaction (CUC-2, OQ-201 D6/D8): values only — kind and target never
@@ -480,19 +481,47 @@ describe('editTransaction', () => {
         .rejects.toMatchObject({ domainError: { code: 'holding.archived' } });
     });
 
-    it('refreshes the automatic snapshot when a market-priced trade changes', async () => {
+    it('restates the Holding\'s values once the trade changes (OQ-222)', async () => {
       const fake = fakeDeps();
       fake.accountTransactions.findById.mockResolvedValue(SELL_ROW);
       fake.holdings.applyTrade.mockResolvedValueOnce({ ok: true, quantity: 10, costBasis: 5_000 })
         .mockResolvedValueOnce({ ok: true, quantity: 8, costBasis: 4_000 });
+      // The history as it stands after the write: the sell now 2,000 for 2 units.
+      fake.accountTransactions.listTrades.mockResolvedValue([
+        tradeOf('buy', 'investment_buy', 10_000, 10, '2026-10-01'),
+        tradeOf(SELL_ROW.id, 'investment_sell', 2_000, -2, '2026-10-13'),
+      ]);
+      fake.valuations.list.mockResolvedValue([
+        snapshotOf(10_000, '2026-10-01', 'buy'), snapshotOf(7_000, '2026-10-13', SELL_ROW.id),
+      ]);
       await editOf(fake).editTransaction(context, HOUSEHOLD_ID, SELL_ROW.id, {
         amount: 2_000,
         quantity: 2,
       });
-      expect(fake.valuations.updateAutomatic).toHaveBeenCalledWith(SELL_ROW.id, {
-        valuation: 1_000,
+      expect(fake.valuations.updateAutomatic).toHaveBeenCalledExactlyOnceWith(SELL_ROW.id, {
+        valuation: 8_000,
         asOfDate: '2026-10-13',
       });
+    });
+
+    it('moves a later trade\'s value when an earlier one moves past it (OQ-222)', async () => {
+      const fake = fakeDeps();
+      fake.accountTransactions.findById.mockResolvedValue(BUY_ROW);
+      // A's 100 moved to 3 Oct, after B's 50 on 2 Oct: B is 50, A brings it to 150.
+      fake.accountTransactions.listTrades.mockResolvedValue([
+        tradeOf('b', 'investment_buy', 5_000, 1, '2026-10-02'),
+        tradeOf(BUY_ROW.id, 'investment_buy', 10_000, 2, '2026-10-03'),
+      ]);
+      fake.valuations.list.mockResolvedValue([
+        snapshotOf(15_000, '2026-10-02', 'b'), snapshotOf(10_000, '2026-10-01', BUY_ROW.id),
+      ]);
+      await editOf(fake).editTransaction(context, HOUSEHOLD_ID, BUY_ROW.id, {
+        date: '2026-10-03',
+      });
+      expect(fake.valuations.updateAutomatic)
+        .toHaveBeenCalledWith('b', { valuation: 5_000, asOfDate: '2026-10-02' });
+      expect(fake.valuations.updateAutomatic)
+        .toHaveBeenCalledWith(BUY_ROW.id, { valuation: 15_000, asOfDate: '2026-10-03' });
     });
 
     it('refuses a trade the Holding refuses — insufficient quantity (OQ-171)', async () => {

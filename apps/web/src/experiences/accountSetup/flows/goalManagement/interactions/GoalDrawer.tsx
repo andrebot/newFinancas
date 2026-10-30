@@ -84,13 +84,12 @@ export interface InitialFields {
 
 /**
  * Builds the form's starting fields: the goal's on an edit; on a create, an
- * empty form in BRL, shared unless the actor can't share (mockup 43).
+ * empty form in BRL, personal — sharing is a choice (OQ-222, stakeholder).
  *
  * @param goal - The goal an edit is about, if any.
- * @param personalOnly - The actor can't share (a Viewer).
  * @returns The fields the form opens with.
  */
-export const initialFieldsOf = (goal: Goal | undefined, personalOnly: boolean): InitialFields => (
+export const initialFieldsOf = (goal: Goal | undefined): InitialFields => (
   goal
     ? {
       name: goal.name,
@@ -102,7 +101,7 @@ export const initialFieldsOf = (goal: Goal | undefined, personalOnly: boolean): 
     : {
       name: '',
       currency: 'BRL',
-      visibility: personalOnly ? 'personal' : 'shared',
+      visibility: 'personal',
       target: null,
       dueDate: '',
     });
@@ -325,7 +324,7 @@ export function GoalDrawer({
   goal, personalOnly, busy, disabled, alert, onSubmit, onCancel, steps,
 }: GoalDrawerProps) {
   const translator = useI18n();
-  const [initial] = useState(() => initialFieldsOf(goal, personalOnly));
+  const [initial] = useState(() => initialFieldsOf(goal));
   const [name, setName] = useState(initial.name);
   const [currency, setCurrency] = useState(initial.currency);
   const [visibility, setVisibility] = useState(initial.visibility);

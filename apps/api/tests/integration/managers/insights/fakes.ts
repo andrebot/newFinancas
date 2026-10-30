@@ -94,6 +94,8 @@ export const BUY: AccountTransaction = {
   holding: { ticker: null, assetType: 'cdb' },
   trade: { quantityDelta: 1, costBasisDelta: 1000000 },
   creditCardId: null,
+  transferId: null,
+  pair: null,
   createdByUserId: ANA_ID,
   source: 'manual',
   createdAt: NOW,

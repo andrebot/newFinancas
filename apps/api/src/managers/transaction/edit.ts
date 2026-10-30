@@ -12,19 +12,22 @@ import type { InterestPayment } from '../../db/schema/values';
 import type { ContractTerms } from '../../engines/investmentProduct';
 import { validationFailed } from '../../utilities/domainError';
 import type { SignedInContext } from '../requestContext';
+import inSequence from '../sequence';
 import { requireNoProblems } from '../validation';
+import { inLockOrder } from './lockOrder';
 import { requestLogger, type TransactionDeps, type TransactionStores } from './context';
 import {
   accountMovementOf, accrueBudget, budgetAccrualOf, cardMovementOf, engineRateOf, holdingRateOf,
   type EffectValues, type RequestRate,
 } from './effects';
+import { restateHoldingValues } from '../holdingValues';
 import { fixedTermProblems } from './kindRules';
 import {
   categoryNotFound, holdingArchived, indexRateMissing, scheduleStarted, subcategoryMismatch,
   transactionChanged, tradeRefusal,
 } from './errors';
 import {
-  assetTypeOf, loadEditable, movesPosition, scheduleLocked, reverseAccountEffects,
+  assetTypeOf, loadEditable, loadPairSide, movesPosition, scheduleLocked, reverseAccountEffects,
   reverseCardEffects, tradeHoldingOf, type EditableRow, type RestoredPosition,
 } from './reversal';
 
@@ -43,6 +46,8 @@ export interface TransactionEdit {
   readonly description?: string | null | undefined;
   /** Buy, sell and redemption only — positive units. */
   readonly quantity?: number | undefined;
+  /** A transfer between own accounts across currencies only — what reached the other one. */
+  readonly receivedAmount?: number | undefined;
   /** Fixed-term buy terms only (OQ-201 D8). */
   readonly rate?: RequestRate | null | undefined;
   readonly dueDate?: string | undefined;
@@ -264,23 +269,6 @@ const scheduleInputsChanged = (row: EditableRow, merged: MergedValues): boolean 
     || merged.amount !== transaction.amount;
 };
 
-/** A market-priced trade's automatic snapshot follows its new unit price (OQ-87). */
-const refreshSnapshot = async (
-  stores: TransactionStores,
-  row: EditableRow,
-  holding: InvestmentHolding,
-  merged: MergedValues,
-): Promise<void> => {
-  const transaction = row.transaction as AccountTransaction;
-  if (isFixedTerm(holding.assetType)) return;
-  const changed = merged.amount !== transaction.amount || merged.quantity !== row.storedQuantity
-    || merged.date !== transaction.date;
-  if (!changed) return;
-  await stores.valuations.updateAutomatic(transaction.id, {
-    valuation: Math.round(merged.amount / merged.quantity!), asOfDate: merged.date,
-  });
-};
-
 /** The checks a trade's edit passes before it writes — the fresh state decides. */
 const checkTradeEdit = async (
   stores: TransactionStores,
@@ -332,14 +320,11 @@ const applyTradeEdit = async ({
   const applied = await stores.holdings.applyTrade(current.id, trade);
   if (!applied.ok) throw tradeRefusal(applied.reason);
   if (applied.quantity === 0) await stores.holdings.archive(current.id, 'system');
-  if (kind.code === 'investment_buy' && isFixedTerm(current.assetType)) {
-    // A started schedule refuses re-application — so it runs only when the
-    // edit changes what it is computed from (OQ-201 D8).
-    if (scheduleInputsChanged(row, merged)) {
-      await applyTermsEdit(stores, deps, householdId, current, merged);
-    }
-  } else {
-    await refreshSnapshot(stores, row, current, merged);
+  // A started schedule refuses re-application — so it runs only when the
+  // edit changes what it is computed from (OQ-201 D8).
+  if (kind.code === 'investment_buy' && isFixedTerm(current.assetType)
+    && scheduleInputsChanged(row, merged)) {
+    await applyTermsEdit(stores, deps, householdId, current, merged);
   }
   return trade;
 };
@@ -442,6 +427,8 @@ const applyEdit = async (
   await reapplyEffects(stores, row, kind, merged);
   const updated = await guardedUpdate(stores, row, kind, merged, trade);
   if (updated.status !== 'updated') throw transactionChanged();
+  // The trade's new amount or date moves its value and every later one (OQ-222).
+  if (trade !== undefined) await restateHoldingValues(stores, holding!.id);
   return { ledger: row.ledger, transaction: updated.transaction };
 };
 
@@ -462,6 +449,147 @@ const termCheckValues = (holding: InvestmentHolding, merged: MergedValues): {
   }),
 });
 
+/**
+ * Edits one row's values (OQ-201 D6/D8): checks the fields and terms, then
+ * reverses, reapplies and writes in one transaction.
+ *
+ * @param deps - The tier below.
+ * @param householdId - The household.
+ * @param row - The row.
+ * @param kind - Its kind.
+ * @param update - The edit.
+ * @returns The edited row — the row as it was when nothing changes.
+ * @throws {DomainError} `validation.failed`; the category's and the trade's refusals.
+ */
+const editOne = async (
+  deps: TransactionDeps,
+  householdId: string,
+  row: EditableRow,
+  kind: TransactionKind,
+  update: TransactionEdit,
+): Promise<EditedTransaction> => {
+  checkEditFields(update, editableFieldsOf(kind, assetTypeOf(row)));
+  const merged = mergedValuesOf(row, kind, update);
+  const holding = await tradeHoldingOf(deps, householdId, row, kind);
+  if (kind.code === 'investment_buy' && holding !== undefined && isFixedTerm(holding.assetType)) {
+    checkLockedTerms(update, await scheduleLocked(deps, holding.id));
+    requireNoProblems(fixedTermProblems(termCheckValues(holding, merged)));
+  }
+  if (!anythingChanged(row, update)) return { ledger: row.ledger, transaction: row.transaction };
+  await checkEditCategory(deps, householdId, merged);
+  return deps.inTransaction<EditedTransaction>(
+    (stores) => applyEdit(stores, deps, householdId, row, kind, holding, merged),
+  );
+};
+
+/** What a transfer between own accounts may change (OQ-222): never a category. */
+const PAIR_FIELDS = new Set(['date', 'amount', 'receivedAmount', 'description']);
+
+/** Both sides of a transfer between own accounts, the sent one first. */
+interface PairSides {
+  readonly sent: EditableRow;
+  readonly received: EditableRow;
+}
+
+/**
+ * The values both sides of a transfer between own accounts hold after an edit
+ * (OQ-222): one date and description, `amount` always the sent side's, and the
+ * received side's the same amount within one currency — across two, its own
+ * `receivedAmount`.
+ *
+ * @param sides - The two sides.
+ * @param update - The edit.
+ * @returns Each side's new values.
+ * @throws {DomainError} `validation.failed` on `receivedAmount` within one currency.
+ */
+export const pairValuesOf = (
+  { sent, received }: PairSides,
+  update: TransactionEdit,
+): { readonly sent: MergedValues; readonly received: MergedValues } => {
+  const sameCurrency = sent.transaction.currency === received.transaction.currency;
+  if (sameCurrency && update.receivedAmount !== undefined) {
+    throw validationFailed([{ field: 'receivedAmount', code: 'field.invalid' }]);
+  }
+  const { date, amount, description } = keptBaseValues(sent.transaction, update);
+  const receivedAmount = sameCurrency
+    ? amount
+    : update.receivedAmount ?? received.transaction.amount;
+  /** One side's values. */
+  const side = (row: EditableRow, value: number): MergedValues => ({
+    date,
+    amount: value,
+    currency: row.transaction.currency,
+    categoryId: null,
+    subcategoryId: null,
+    description,
+  });
+  return { sent: side(sent, amount), received: side(received, receivedAmount) };
+};
+
+/**
+ * Tells whether an edit changes either side of a pair — one that doesn't is
+ * read back, neither written nor audited, as a single row's is.
+ *
+ * @param sides - The two sides as stored.
+ * @param values - Their values after the edit.
+ * @returns `true` when a date, amount or description moves.
+ */
+export const pairChanged = (
+  sides: PairSides,
+  values: { readonly sent: MergedValues; readonly received: MergedValues },
+): boolean => [
+  [sides.sent, values.sent], [sides.received, values.received],
+].some(([side, after]) => {
+  const before = (side as EditableRow).transaction;
+  const next = after as MergedValues;
+  return before.date !== next.date || before.amount !== next.amount
+    || before.description !== next.description;
+});
+
+/**
+ * Edits both sides of a transfer between own accounts as one (OQ-222): each is
+ * reversed, reapplied and guarded-updated, in one transaction — in their
+ * Accounts' order, so two edits of opposite pairs never wait on each other.
+ *
+ * @param deps - The tier below.
+ * @param householdId - The household.
+ * @param row - The side asked for.
+ * @param other - The other side.
+ * @param update - The edit.
+ * @returns The side asked for, edited.
+ * @throws {DomainError} `validation.failed`; `transaction.changed`.
+ */
+const editPair = async (
+  deps: TransactionDeps,
+  householdId: string,
+  row: EditableRow,
+  other: EditableRow,
+  update: TransactionEdit,
+): Promise<EditedTransaction> => {
+  checkEditFields(update, PAIR_FIELDS);
+  const sides: PairSides = row.transaction.kind === 'transfer_sent'
+    ? { sent: row, received: other }
+    : { sent: other, received: row };
+  const values = pairValuesOf(sides, update);
+  if (!pairChanged(sides, values)) return { ledger: row.ledger, transaction: row.transaction };
+  const steps = inLockOrder([
+    { side: sides.sent, values: values.sent },
+    { side: sides.received, values: values.received },
+  ]);
+  return deps.inTransaction<EditedTransaction>(async (stores) => {
+    const edited = await inSequence(steps, (step) => applyEdit(
+      stores,
+      deps,
+      householdId,
+      step.side,
+      findKind(step.side.transaction.kind)!,
+      undefined,
+      step.values,
+    ));
+    return edited[steps.findIndex((step) => step.side === row)]!;
+  });
+};
+
 /** Builds the Edit Transaction use case. */
 const createEdit = (deps: TransactionDeps) => ({
   /**
@@ -469,7 +597,8 @@ const createEdit = (deps: TransactionDeps) => ({
    * reverses the stored effects, reapplies them with the new values and
    * guarded-updates the row in one transaction. A concurrent write is a 409
    * `transaction.changed` (OQ-203); a fixed-term buy whose schedule has started
-   * takes only category, subcategory and description.
+   * takes only category, subcategory and description. A transfer between own
+   * accounts edits both its sides as one (OQ-222).
    *
    * @param context - The signed-in request.
    * @param householdId - The household.
@@ -489,18 +618,12 @@ const createEdit = (deps: TransactionDeps) => ({
     const row = await loadEditable(deps, context, householdId, transactionId);
     const kind = findKind(row.transaction.kind);
     if (!kind) throw validationFailed([{ field: 'kind', code: 'field.invalid_option' }]);
-    checkEditFields(update, editableFieldsOf(kind, assetTypeOf(row)));
-    const merged = mergedValuesOf(row, kind, update);
-    const holding = await tradeHoldingOf(deps, householdId, row, kind);
-    if (kind.code === 'investment_buy' && holding !== undefined && isFixedTerm(holding.assetType)) {
-      checkLockedTerms(update, await scheduleLocked(deps, holding.id));
-      requireNoProblems(fixedTermProblems(termCheckValues(holding, merged)));
-    }
-    if (!anythingChanged(row, update)) return { ledger: row.ledger, transaction: row.transaction };
-    await checkEditCategory(deps, householdId, merged);
-    const edited = await deps.inTransaction<EditedTransaction>(
-      (stores) => applyEdit(stores, deps, householdId, row, kind, holding, merged),
-    );
+    const pair = await loadPairSide(deps, context, householdId, row);
+    const edited = pair === undefined
+      ? await editOne(deps, householdId, row, kind, update)
+      : await editPair(deps, householdId, row, pair, update);
+    // An empty edit reads the row back, unaudited.
+    if (edited.transaction === row.transaction) return edited;
     requestLogger(context).audit('EditTransaction', {
       entityType: row.ledger === 'card' ? 'CardTransaction' : 'AccountTransaction',
       entityId: transactionId,

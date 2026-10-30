@@ -16,7 +16,11 @@ import {
 // more to see fades out. From `md` up, two arrows beside the title page
 // through the cards, disabled at their end and gone when every card fits;
 // below it the rail is swiped. The cards' widths are theirs (K36); the rail
-// only lines them up.
+// only lines them up. A `wrap` rail lays them out in rows instead, wrapping
+// down as they need room — no scrolling, arrows or fade (OQ-222).
+
+/** What either layout of the rail draws. */
+type RailBody = Omit<CardRailProps, 'wrap'>;
 
 /** The card rail's props. */
 export interface CardRailProps {
@@ -34,6 +38,8 @@ export interface CardRailProps {
   readonly placeholderClassName?: string | undefined;
   /** The cards. */
   readonly children?: ReactNode;
+  /** Wraps the cards onto new rows instead of scrolling them sideways. */
+  readonly wrap?: boolean | undefined;
 }
 
 /** The rail arrows' props. */
@@ -142,7 +148,11 @@ function RailArrows({
  * @param props - The announcement and one placeholder's size.
  * @returns The placeholder row.
  */
-function RailPlaceholder({ label, className }: { label: string; className?: string | undefined }) {
+function RailPlaceholder({ label, className, wrap = false }: {
+  label: string;
+  className?: string | undefined;
+  wrap?: boolean;
+}) {
   const cards = Array.from({ length: cardRail.placeholderCards }, (_, index) => index);
 
   return (
@@ -150,12 +160,40 @@ function RailPlaceholder({ label, className }: { label: string; className?: stri
       role="status"
       aria-busy="true"
       aria-label={label}
-      className="flex gap-3 overflow-hidden pb-2"
+      className={`flex gap-3 pb-2 ${wrap ? 'flex-wrap' : 'overflow-hidden'}`}
     >
       {cards.map((index) => (
         <Skeleton key={index} shape="block" className={`shrink-0 ${className ?? ''}`} />
       ))}
     </div>
+  );
+}
+
+/**
+ * Renders a titled row of cards that wraps onto new rows: nothing to scroll,
+ * so no arrows, fade or scroll region.
+ *
+ * @param props - The title, heading level, period (and where it shows), loading
+ *   state and the cards.
+ * @returns The rail's section.
+ */
+function WrappingRail({
+  title, as, period, periodFromXl, loading = false, placeholderClassName, children,
+}: RailBody) {
+  const translator = useI18n();
+  return (
+    <section className="flex min-w-0 flex-col gap-3">
+      <SectionHeader title={title} as={as} period={period} periodFromXl={periodFromXl} />
+      {loading ? (
+        <RailPlaceholder
+          label={translator.text('cardRail', 'loading', { title })}
+          className={placeholderClassName}
+          wrap
+        />
+      ) : (
+        <div className="flex flex-wrap gap-3">{children}</div>
+      )}
+    </section>
   );
 }
 
@@ -166,9 +204,9 @@ function RailPlaceholder({ label, className }: { label: string; className?: stri
  *   state and the cards.
  * @returns The rail's section.
  */
-export function CardRail({
+function ScrollingRail({
   title, as, period, periodFromXl, loading = false, placeholderClassName, children,
-}: CardRailProps) {
+}: RailBody) {
   const translator = useI18n();
   const {
     attachTrack, trackRef, edges, update, scrollPage,
@@ -219,4 +257,15 @@ export function CardRail({
       )}
     </section>
   );
+}
+
+/**
+ * Renders a titled row of cards: scrolling sideways, or wrapping onto new rows.
+ *
+ * @param props - The rail's props.
+ * @returns The rail's section.
+ */
+export function CardRail({ wrap = false, ...rail }: CardRailProps) {
+  // A wrapping rail has no scroll to follow, so it runs none of its hooks.
+  return wrap ? <WrappingRail {...rail} /> : <ScrollingRail {...rail} />;
 }

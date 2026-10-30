@@ -2,6 +2,7 @@ import type { TransactionKind } from '@financas/reference';
 import type { Account, Movement } from '../../accessors/accountAccessor';
 import type { HoldingRate } from '../../accessors/investmentHoldingAccessor';
 import type { ContractRate } from '../../engines/investmentProduct';
+import { signedSpend } from '../budgetSpend';
 import type { TransactionStores } from './context';
 
 // The signed effects a transaction kind makes on its ledgers (OQ-201 D1/D4):
@@ -106,7 +107,7 @@ export const budgetAccrualOf = (
     currency: values.currency,
     categoryId,
     subcategoryId,
-    amount: (kind.direction === 'in' ? -1 : 1) * values.amount,
+    amount: signedSpend(kind.direction, values.amount),
     date: values.date,
   };
 };
@@ -117,4 +118,24 @@ export const accrueBudget = async (
   accrual: BudgetAccrual | null,
 ): Promise<void> => {
   if (accrual !== null) await stores.budgets.accrueIfClaimed(accrual);
+};
+
+/**
+ * A Holding's value on a day, before a trade: its latest snapshot at or
+ * before it — a trade's, or a market value typed in — or zero with none.
+ *
+ * @param stores - The Accessors.
+ * @param holdingId - The Holding.
+ * @param date - The trade's date.
+ * @param exceptTransactionId - The trade itself, when it already has a snapshot (an edit).
+ * @returns The value, in the Holding's currency.
+ */
+export const valueBefore = async (
+  stores: Pick<TransactionStores, 'valuations'>,
+  holdingId: string,
+  date: string,
+  exceptTransactionId?: string,
+): Promise<number> => {
+  const [latest] = await stores.valuations.latestAsOf([holdingId], date, exceptTransactionId);
+  return latest?.valuation ?? 0;
 };

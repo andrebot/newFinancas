@@ -106,7 +106,7 @@ sequenceDiagram
     end
     alt 404 goal.not_found (deleted meanwhile)
         API-->>EXP: error code
-        EXP->>API: GET …/goals + each …/goal-progress that loaded (fetched again — the goal is gone)
+        EXP->>API: GET …/goals + each …/goal-progress that loaded (the Goals tag's refetch, awaited — the goal is gone)
         EXP-->>FLOW: outcome: failed — the drawer closes
         Note over FLOW: toast "{name} was deleted by someone else…"
     else other failure
@@ -114,7 +114,8 @@ sequenceDiagram
         EXP-->>FLOW: outcome: failed — a form's in its banner, typing kept — a step's toasted, confirm kept
     else ok
         API-->>EXP: goal (or 204)
-        EXP->>API: GET …/goals + each …/goal-progress that loaded (fetched again — one that never loaded waits for Retry)
+        EXP->>API: GET …/goals + each …/goal-progress that loaded (the Goals tag's refetch, awaited — one that never loaded waits for Retry)
+        Note over EXP: the Goals tag also marks the Month Overview's Goals rail and the Record drawer's split stale (PR #145)
         opt a refetch fails
             EXP-->>FLOW: last good goals and funding kept, marked stale — "may be out of date" banner + retry
         end

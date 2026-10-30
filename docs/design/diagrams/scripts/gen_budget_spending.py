@@ -52,7 +52,12 @@ sequenceDiagram
     participant AU as AuthorizationUtility
     participant VU as ValidationUtility
     participant CA as CategoryAccessor
+    participant UW as UnitOfWorkUtility
     participant BA as BudgetAccessor
+    participant AA as AccountAccessor
+    participant CCA as CreditCardAccessor
+    participant ATA as AccountTransactionAccessor
+    participant CTA as CardTransactionAccessor
     participant LOG as LoggingUtility
 
     User->>API: POST /households/:householdId/budgets {name, targetAmount, currency, visibility, targets: [{categoryId} | {subcategoryId}]}
@@ -73,16 +78,25 @@ sequenceDiagram
             alt a target archived or not this household&#39;s
                 AM-->>API: 422 validation.failed {targets[i].categoryId | subcategoryId: field.invalid_option}
             else all claimable
+                AM->>UW: inTransaction(work)
                 AM->>BA: insert(budget, targets once each, this month)
-                Note over BA: one transaction: the Budget, every claim and this<br/>month&#39;s period &mdash; a refusal keeps nothing (OQ-166)
+                Note over BA: the Budget, every claim and this month&#39;s period<br/>&mdash; a refusal keeps nothing (OQ-166)
                 alt a target is claimed in this scope (FR-4.7)
                     BA-->>AM: target_claimed {target, claimedByBudgetId}
-                    AM-->>API: 409 budget.target_already_claimed {target, budgetId}
+                    AM-->>API: 409 budget.target_already_claimed {target, budgetId} (rolled back)
                 else a target gone since the check
                     BA-->>AM: target_not_found {target}
-                    AM-->>API: 422 validation.failed {targets[i]...}
+                    AM-->>API: 422 validation.failed {targets[i]...} (rolled back)
                 else all claimed
                     BA-->>AM: budget
+                    AM->>AA: list(householdId, owner, {visibility})
+                    AM->>CCA: listByAccounts(accountIds)
+                    AM->>ATA: claimedSums(accountIds, claims, first of this month)
+                    AM->>CTA: claimedSums(cardIds, claims, first of this month)
+                    Note over AM: spend per month = out &minus; in, in the Budget&#39;s currency (OQ-201)
+                    AM->>BA: restateSpend(budget, this month, spends)
+                    Note over BA: the spend already recorded in its scope counts<br/>from its first month (OQ-166, PR #145)
+                    UW-->>AM: committed
                     AM-->>LOG: audit CreateBudget
                     AM-->>API: budget
                     API-->>User: 201 Created {budget}
@@ -98,7 +112,8 @@ sequenceDiagram
       <li>Each scope claims a Category once: the same Category can sit in one shared Budget and in each member&#39;s personal Budget; a spend counts toward the Budget of its Account&#39;s scope (OQ-166). So the claiming Budget named by a 409 is always one the caller can see.</li>
       <li>The generated validator can&#39;t say &ldquo;exactly one of <code>categoryId</code> / <code>subcategoryId</code>&rdquo;, so the Manager checks it; a target sent twice is claimed once (OQ-176).</li>
       <li>&ldquo;This month&rdquo; is the app time zone&#39;s (OQ-104), from the Manager&#39;s clock.</li>
-      <li>See FR-4.1, FR-4.2, FR-4.7, OQ-166, OQ-176.</li>
+      <li><strong>Corrected (PR #145):</strong> a spend counts as it is written, so a Budget created mid-month used to miss the month&#39;s earlier spends. The Manager now restates its spend from this month on, from the transactions already in its scope &mdash; the Accounts and their cards a spend of it accrues from, matched on the same claims and signed the same way (<code>managers/budgetSpend.ts</code>).</li>
+      <li>See FR-4.1, FR-4.2, FR-4.5, FR-4.7, OQ-166, OQ-176.</li>
     </ul>
 """,
 ))
@@ -116,6 +131,10 @@ sequenceDiagram
     participant CA as CategoryAccessor
     participant UW as UnitOfWorkUtility
     participant BA as BudgetAccessor
+    participant AA as AccountAccessor
+    participant CCA as CreditCardAccessor
+    participant ATA as AccountTransactionAccessor
+    participant CTA as CardTransactionAccessor
     participant LOG as LoggingUtility
 
     User->>API: PATCH /households/:householdId/budgets/:budgetId {name?, targetAmount?, targets?: [...]}
@@ -142,6 +161,12 @@ sequenceDiagram
             opt targets sent
                 AM->>BA: replaceTargets(householdId, budgetId, targets once each)
                 Note over BA: dropped claims released, new ones claimed (OQ-166)
+                AM->>AA: list(householdId, owner, {visibility})
+                AM->>CCA: listByAccounts(accountIds)
+                AM->>ATA: claimedSums(accountIds, new claims, first of this month)
+                AM->>CTA: claimedSums(cardIds, new claims, first of this month)
+                AM->>BA: restateSpend(budget, this month, spends)
+                Note over BA: this month on is restated for the new claims,<br/>past periods stay as history (OQ-166, PR #145)
             end
             alt the Budget deleted meanwhile
                 AM-->>API: 404 budget.not_found (rolled back)
@@ -163,7 +188,8 @@ sequenceDiagram
     <ul>
       <li>Historical actual-vs-target reporting never gets silently rewritten by a later edit &mdash; the immutable snapshot lives one layer down, not enforced here.</li>
       <li><strong>Corrected (OQ-176):</strong> <code>update</code> and <code>replaceTargets</code> used to be drawn as two separate writes, so a 409 on the targets left the new name and amount saved. They now share one transaction through <code>UnitOfWorkUtility</code>: a refusal keeps none of the edit.</li>
-      <li>See FR-4.7, FR-4.9, OQ-166, OQ-176.</li>
+      <li><strong>Corrected (PR #145):</strong> new targets restate the spend from this month on, from the transactions already in the Budget&#39;s scope, so a Category added mid-month counts the month&#39;s earlier spends in it and one dropped stops counting. Past periods are history and keep their spend.</li>
+      <li>See FR-4.5, FR-4.7, FR-4.9, OQ-166, OQ-176.</li>
     </ul>
 """,
 ))
@@ -220,9 +246,12 @@ write_chain(
     "Use case 1 of 3 in the Budget &amp; Spending set (CUC-5, FR-4.1/4.7). Create pattern. As built in M2 part 3 (OQ-176).",
     E((1, "mgr-account", "util-authz"), (2, "mgr-account", "util-validation"),
       (3, "mgr-account", "acc-category"), (4, "mgr-account", "acc-budget"),
-      (5, "mgr-account", "util-logging", "a")),
+      (5, "mgr-account", "acc-account"), (6, "mgr-account", "acc-creditcard"),
+      (7, "mgr-account", "acc-accounttxn"), (8, "mgr-account", "acc-cardtxn"),
+      (9, "mgr-account", "util-logging", "a")),
     [
-        "<strong>Chain:</strong> <code>AccountManager</code> ① <code>AuthorizationUtility.authorize(data.create)</code> (sync) → ② <code>ValidationUtility.checkFields(...)</code> (sync) → ③ <code>CategoryAccessor.list(...)</code> (sync — which targets are open) → ④ <code>BudgetAccessor.insert(...)</code> (sync, validated write — the Budget, its claims and this month&#39;s period in one transaction; rejects a target claimed in the scope, FR-4.7) → ⑤ <code>LoggingUtility</code> (async).",
+        "<strong>Chain:</strong> <code>AccountManager</code> ① <code>AuthorizationUtility.authorize(data.create)</code> (sync) → ② <code>ValidationUtility.checkFields(...)</code> (sync) → ③ <code>CategoryAccessor.list(...)</code> (sync — which targets are open) → ④ <code>BudgetAccessor.insert(...)</code> (sync, validated write — the Budget, its claims and this month&#39;s period; rejects a target claimed in the scope, FR-4.7; later <code>restateSpend</code>) → ⑤ <code>AccountAccessor.list(...)</code> and ⑥ <code>CreditCardAccessor.listByAccounts(...)</code> (sync — the Accounts and cards in the Budget&#39;s scope) → ⑦ <code>AccountTransactionAccessor.claimedSums(...)</code> and ⑧ <code>CardTransactionAccessor.claimedSums(...)</code> (sync — the spend already recorded this month on, OQ-166) → ⑨ <code>LoggingUtility</code> (async).",
+        "<strong>Corrected (PR #145):</strong> a Budget created mid-month counts the spend already recorded in its scope that month. The Manager reads the ledgers and decides the signs; each Accessor only sums or writes — no Accessor calls another.",
         "<strong>Corrected (OQ-176):</strong> the authorization call is needed — a shared Budget needs a role that may create (a Viewer may not); and a new target must be an open Category or Subcategory, read through <code>CategoryAccessor</code> (a Manager reading two Accessors, no Accessor-to-Accessor call).",
         "<strong>No smell:</strong> the overlap-uniqueness invariant is still enforced inside the single Accessor write, not as a separate pre-check.",
     ],
@@ -233,9 +262,11 @@ write_chain(
     "Use case 2 of 3 in the Budget &amp; Spending set (CUC-5, FR-4.7/4.9). Edit pattern. As built in M2 part 3 (OQ-176).",
     E((1, "mgr-account", "acc-budget"), (2, "mgr-account", "util-authz"),
       (3, "mgr-account", "util-validation"), (4, "mgr-account", "acc-category"),
-      (5, "mgr-account", "util-logging", "a")),
+      (5, "mgr-account", "acc-account"), (6, "mgr-account", "acc-creditcard"),
+      (7, "mgr-account", "acc-accounttxn"), (8, "mgr-account", "acc-cardtxn"),
+      (9, "mgr-account", "util-logging", "a")),
     [
-        "<strong>Chain:</strong> <code>AccountManager</code> ① <code>BudgetAccessor.findById(...)</code> (sync — the Budget&#39;s visibility and owner feed the check; later <code>update</code>, <code>replaceTargets</code> and the read back) → ② <code>AuthorizationUtility.authorize(data.edit)</code> (sync) → ③ <code>ValidationUtility.checkFields(...)</code> (sync) → ④ <code>CategoryAccessor.list(...)</code> (sync, only when targets are sent) → ⑤ <code>LoggingUtility</code> (async).",
+        "<strong>Chain:</strong> <code>AccountManager</code> ① <code>BudgetAccessor.findById(...)</code> (sync — the Budget&#39;s visibility and owner feed the check; later <code>update</code>, <code>replaceTargets</code> and the read back) → ② <code>AuthorizationUtility.authorize(data.edit)</code> (sync) → ③ <code>ValidationUtility.checkFields(...)</code> (sync) → ④ <code>CategoryAccessor.list(...)</code> (sync, only when targets are sent) → ⑤–⑧ the scope&#39;s Accounts and cards and the ledgers&#39; <code>claimedSums</code>, then <code>BudgetAccessor.restateSpend</code> (sync, only when targets are sent — OQ-166) → ⑨ <code>LoggingUtility</code> (async).",
         "<strong>No smell:</strong> the same components as Create (UC-1) — Edit and Create differ in Accessor method, not in which components are involved.",
         UOW,
     ],

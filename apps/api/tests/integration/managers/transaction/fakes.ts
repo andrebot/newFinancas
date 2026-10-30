@@ -3,6 +3,7 @@ import type {
   AccountTransaction, DayKindTotal,
   MonthCount,
 } from '../../../../src/accessors/accountTransactionAccessor';
+import type { ValuationSnapshot } from '../../../../src/accessors/valuationSnapshotAccessor';
 import type { CardTransaction } from '../../../../src/accessors/cardTransactionAccessor';
 import type { Account } from '../../../../src/accessors/accountAccessor';
 import type { CreditCard } from '../../../../src/accessors/creditCardAccessor';
@@ -110,6 +111,8 @@ export const ROW: AccountTransaction = {
   holding: null,
   trade: null,
   creditCardId: null,
+  transferId: null,
+  pair: null,
   source: 'manual',
   createdByUserId: ANA_ID,
   createdAt: NOW,
@@ -154,6 +157,55 @@ export const SELL_ROW: AccountTransaction = {
   trade: { quantityDelta: -3, costBasisDelta: -1_500 },
 };
 
+/**
+ * A trade in a Holding's history (OQ-222).
+ *
+ * @param id - The transaction.
+ * @param kind - Buy, sell or redemption.
+ * @param amount - Its money.
+ * @param quantityDelta - Its signed units.
+ * @param date - Its date.
+ * @returns The row as `listTrades` reads it.
+ */
+export const tradeOf = (
+  id: string,
+  kind: string,
+  amount: number,
+  quantityDelta: number,
+  date: string,
+): AccountTransaction => ({
+  ...ROW,
+  id,
+  kind,
+  effect: 'investment_trade',
+  amount,
+  date,
+  holdingId: MARKET_HOLDING.id,
+  trade: { quantityDelta, costBasisDelta: amount },
+});
+
+/**
+ * A snapshot in a Holding's history: a trade's, or a market value typed in.
+ *
+ * @param valuation - The value stored.
+ * @param asOfDate - Its date.
+ * @param accountTransactionId - Its trade; none for a typed value.
+ * @returns The snapshot as `list` reads it.
+ */
+export const snapshotOf = (
+  valuation: number,
+  asOfDate: string,
+  accountTransactionId: string | null = null,
+): ValuationSnapshot => ({
+  id: `snap-${accountTransactionId ?? asOfDate}`,
+  holdingId: MARKET_HOLDING.id,
+  valuation,
+  asOfDate,
+  source: accountTransactionId === null ? 'manual' : 'transaction',
+  accountTransactionId,
+  createdAt: NOW,
+});
+
 /** A Goal the split tests name — shared by default. */
 export const GOAL: Goal = {
   id: '0199c5a0-0000-7000-8000-0000000000g1',
@@ -170,7 +222,7 @@ export const GOAL: Goal = {
 
 export const fakeDeps = () => {
   const accounts = {
-    findById: vi.fn(async (): Promise<Account | undefined> => ACCOUNT),
+    findById: vi.fn(async (..._call: string[]): Promise<Account | undefined> => ACCOUNT),
     list: vi.fn(async (): Promise<Account[]> => [ACCOUNT]),
     applyMovement: vi.fn(async () => ({ ok: true })),
   };
@@ -181,7 +233,7 @@ export const fakeDeps = () => {
         transaction: { ...ROW, ...(row as object) },
       }),
     ),
-    findById: vi.fn(async (): Promise<AccountTransaction | undefined> => ROW),
+    findById: vi.fn(async (..._call: string[]): Promise<AccountTransaction | undefined> => ROW),
     update: vi.fn(
       async (
         _id: string,
@@ -195,8 +247,20 @@ export const fakeDeps = () => {
         transaction: { ...ROW, ...changes },
       }),
     ),
+    // Both sides of a transfer between own accounts, linked (OQ-222).
+    insertTransfer: vi.fn(async (
+      transfer: { sent: object; received: object },
+    ): Promise<
+      | { ok: true; sent: AccountTransaction; received: AccountTransaction }
+      | { ok: false; reason: string }
+    > => ({
+      ok: true,
+      sent: { ...ROW, ...transfer.sent },
+      received: { ...ROW, id: 'received', ...transfer.received },
+    })),
     delete: vi.fn(async (): Promise<'deleted' | 'stale'> => 'deleted'),
     list: vi.fn(async (): Promise<AccountTransaction[]> => []),
+    listTrades: vi.fn(async (..._call: unknown[]): Promise<AccountTransaction[]> => []),
     dayTotals: vi.fn(async (): Promise<DayKindTotal[]> => []),
     monthCounts: vi.fn(async (): Promise<MonthCount[]> => []),
     countForHolding: vi.fn(async () => 0),
@@ -284,6 +348,12 @@ export const fakeDeps = () => {
   const valuations = {
     insertAutomatic: vi.fn(async () => ({})),
     updateAutomatic: vi.fn(async () => ({})),
+    // The Holding's value before a trade: R$ 100,00 unless a test says otherwise (PR #145).
+    latestAsOf: vi.fn(async (..._call: unknown[]): Promise<{ valuation: number }[]> => [
+      { valuation: 10_000 },
+    ]),
+    // Its history, which the values are restated from (OQ-222): none unless a test says so.
+    list: vi.fn(async (..._call: unknown[]): Promise<ValuationSnapshot[]> => []),
   };
   const stores = {
     accounts,

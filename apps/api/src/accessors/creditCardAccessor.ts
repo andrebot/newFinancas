@@ -306,7 +306,9 @@ const createCreditCardAccessor = (db: Database) => ({
       closingDay: creditCards.closingDay, currency: accounts.currency,
     }).from(creditCards).innerJoin(accounts, eq(accounts.id, creditCards.accountId))
       .where(eq(creditCards.id, creditCardId))
-      .for('update', { of: creditCards });
+      // NO KEY UPDATE: a charge's row already points here (key share) — see
+      // AccountAccessor.applyMovement.
+      .for('no key update', { of: creditCards });
     if (!card) return { ok: false, reason: 'card_not_found' };
     if (card.currency !== movement.currency) {
       return { ok: false, reason: 'currency_mismatch', cardCurrency: card.currency };

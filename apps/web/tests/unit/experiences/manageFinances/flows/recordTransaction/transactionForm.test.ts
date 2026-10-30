@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest';
 import {
   accountChoicesOf, assetTypesFor, cardEntriesOf, cardEntryOf, currencyOf, directionOf, groupOf,
   isBillPayment, isBuy, isCardKind, isDebentureBuy, isFixedTermBuy, isTrade, kindsOfGroup,
-  namesCard, namesHolding, newFormOf, takesHoldingSplit, takesSpread, withAccount, withAllocations,
-  withCard, withCategory, withFittedTargets, withGroup, withHolding, withHoldingSplit, withKind,
+  isOwnTransfer, namesCard, namesHolding, newFormOf, receivingAccountOf, takesHoldingSplit,
+  takesSpread, toAccountChoicesOf, withAccount, withAllocations, withCard, withCategory,
+  withFittedTargets, withGroup, withHolding, withHoldingSplit, withKind, withOwnTransfer,
+  withToAccount,
 } from '../../../../../../src/experiences/manageFinances/flows/recordTransaction/transactionForm';
 import {
-  ACCOUNTS, CDB, ITAU, NUBANK_CARD_ONLY, STOCK, accountOf, formOf,
+  ACCOUNTS, CDB, CHASE, ITAU, NUBANK_CARD_ONLY, STOCK, accountOf, formOf,
 } from './fixtures';
 
 // The Record Transaction form (BDT: Flow tier, pure → unit): which fields a
@@ -335,5 +337,72 @@ describe('the split (OQ-206)', () => {
   it('marks a split the user set as edited', () => {
     expect(withAllocations(formOf(), SPLIT))
       .toMatchObject({ allocations: SPLIT, allocationsEdited: true });
+  });
+});
+
+describe('a transfer between own accounts (OQ-222)', () => {
+  const SAVINGS = accountOf('savings', { name: 'Poupança', type: 'savings' });
+  const MINE = [...ACCOUNTS, SAVINGS];
+  const transfer = formOf({ kind: 'transfer_received', accountId: 'itau', categoryId: 'food' });
+
+  it('turns on as sent, with no category, and picks the only account it can reach', () => {
+    const on = withOwnTransfer(transfer, true, [ITAU, SAVINGS]);
+    expect(on).toMatchObject({
+      kind: 'transfer_sent', ownTransfer: true, toAccountId: 'savings', categoryId: undefined,
+    });
+    expect(isOwnTransfer(on)).toBe(true);
+  });
+
+  it('leaves the account to reach for the user when there are several', () => {
+    expect(withOwnTransfer(transfer, true, MINE).toAccountId).toBeUndefined();
+  });
+
+  it('turns off back to a transfer to or from someone else', () => {
+    const on = withOwnTransfer(transfer, true, MINE);
+    const off = withOwnTransfer({ ...on, toAccountId: 'chase', receivedAmount: 10 }, false, MINE);
+    expect(off).toMatchObject({ ownTransfer: false, toAccountId: undefined, receivedAmount: null });
+    expect(isOwnTransfer(off)).toBe(false);
+  });
+
+  it('counts only on a transfer', () => {
+    expect(isOwnTransfer(formOf({ kind: 'deposit', ownTransfer: true }))).toBe(false);
+  });
+
+  it('offers every account that takes a transfer but the one it leaves', () => {
+    const on = withOwnTransfer(transfer, true, MINE);
+    expect(toAccountChoicesOf(on, MINE).map((account) => account.id))
+      .toEqual(['chase', 'savings']);
+  });
+
+  it('asks what arrived only across currencies', () => {
+    const on = withOwnTransfer(transfer, true, MINE);
+    expect(receivingAccountOf({ ...on, toAccountId: 'chase' }, MINE)).toBe(CHASE);
+    expect(receivingAccountOf({ ...on, toAccountId: 'savings' }, MINE)).toBeUndefined();
+    expect(receivingAccountOf({ ...on, toAccountId: undefined }, MINE)).toBeUndefined();
+    expect(receivingAccountOf({ ...transfer, toAccountId: 'chase' }, MINE)).toBeUndefined();
+  });
+
+  it('asks afresh what arrived once the account it reaches changes', () => {
+    const on = {
+      ...withOwnTransfer(transfer, true, MINE), toAccountId: 'chase', receivedAmount: 9,
+    };
+    expect(withToAccount(on, 'chase')).toBe(on);
+    expect(withToAccount(on, 'savings')).toMatchObject({
+      toAccountId: 'savings', receivedAmount: null,
+    });
+  });
+
+  it('never reaches the account it now leaves', () => {
+    const on = { ...withOwnTransfer(transfer, true, MINE), toAccountId: 'savings' };
+    expect(withAccount(on, 'savings', MINE).toAccountId).toBeUndefined();
+    expect(withAccount(on, 'chase', MINE).toAccountId).toBe('savings');
+  });
+
+  it('ends when the form leaves the transfers', () => {
+    const on = { ...withOwnTransfer(transfer, true, MINE), toAccountId: 'savings' };
+    expect(withKind(on, 'deposit', MINE)).toMatchObject({
+      ownTransfer: false, toAccountId: undefined,
+    });
+    expect(withKind(on, 'transfer_received', MINE).ownTransfer).toBe(true);
   });
 });

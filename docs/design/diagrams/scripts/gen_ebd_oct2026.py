@@ -70,7 +70,7 @@ EXPERIENCES = [
       ("Browse Transactions", ["Filter Panel", "Ledger (lazy, grouped by month/day)", "Expanded Row", "Delete Confirm"], "browse-transactions"),
       ("Month Overview", ["Period Bar", "Currency Switch", "Balance Rail", "Budget Rail", "Goal Rail"], "month-overview")],
      [], ["ValidationUtility", "AlertUtility", "ThemeUtility", "I18nUtility", "FormattingUtility"],
-     "Transaction Correction Flow removed — editing reuses Record Transaction's entry Interactions from an expanded ledger row, kind and target shown read-only (OQ-201). Month Overview stays here (Q4): same page, same period state. Transfers are two separate entries (OQ-201)."),
+     "Transaction Correction Flow removed — editing reuses Record Transaction's entry Interactions from an expanded ledger row, kind and target shown read-only (OQ-201). Month Overview stays here (Q4): same page, same period state. A transfer is to or from someone else by default; \"Between your accounts?\" turns it into From → To, recorded as a linked pair kept out of In/Out (OQ-222)."),
     ("Track Investments", "track-investments", "Follow and maintain investments",
      [("Portfolio Overview", ["Net Worth Cards", "Payout This Month", "Payout Holding Selector", "Payout Chart", "Allocation Cards", "Coming Due"], "portfolio-overview"),
       ("Holding Maintenance", ["Account Picker", "Holdings Table", "Goal Allocation Editor", "Market Value Entry", "Value History Editor"], "holding-maintenance"),
@@ -837,8 +837,8 @@ alt failure
     API-->>EXP: error code
     EXP-->>FLOW: outcome: failed(code) — a form's in its banner, typing kept, a card action's toasted
 else ok
-    API-->>EXP: done
-    EXP->>API: GET …/categories?includeArchived=true (fetched again)
+    API-->>EXP: done — the Categories tag invalidated (PR #145)
+    EXP->>API: GET …/categories?includeArchived=true (the tag's refetch, awaited)
     alt list fetched
         API-->>EXP: categories
         EXP-->>FLOW: outcome: ok, categories refreshed — form / confirm closes
@@ -853,7 +853,7 @@ opt an open edit form's category shows archived in a list fetched again (someone
     Note over FLOW: toast "{name} was archived by someone else…" (OQ-194)
 end
 FLOW-->>CC: re-render (colour via ThemeUtility)
-""", ["Colour stored as a token, resolved per theme (OQ-85).", "The Experience answers after the list is fetched again, so the Flow never patches it (OQ-193).", "A subcategory's add is the category's own atomic PATCH — unlisted ones untouched (OQ-173)."]),
+""", ["Colour stored as a token, resolved per theme (OQ-85).", "The Experience answers after the list is read again — the refetch its Categories tag starts (PR #145) — so the Flow never patches it (OQ-193).", "A subcategory's add is the category's own atomic PATCH — unlisted ones untouched (OQ-173)."]),
     ("account-setup-budget-management", "Account Setup — Budget Management", f"{R('GET/POST/PATCH/DELETE /households/:householdId/budgets')}, with the categories the Experience already holds. Built in FL13 (OQ-194).",
      [("BL", "Budget Cards"), ("BF", "Budget Form"), ("CP", "Claim-Aware<br/>Category Picker"), ("DC", "Delete Confirm"), FLOW("Budget Management"), EXP("Account Setup"), API],
      """
@@ -885,7 +885,7 @@ alt 409 budget.target_already_claimed
     EXP-->>FLOW: outcome: failed — banner names the target and its budget, picker shows it taken
 else 404 budget.not_found (deleted meanwhile)
     API-->>EXP: error code
-    EXP->>API: GET …/budgets (fetched again — the budget is gone)
+    EXP->>API: GET …/budgets (the Budgets tag's refetch, awaited — the budget is gone)
     EXP-->>FLOW: outcome: failed — an edit's drawer closes, a delete's confirm stays
     Note over FLOW: toast "{name} was deleted by someone else…" (edit) / the error (delete)
 else 422 validation.failed (a category archived meanwhile)
@@ -897,7 +897,8 @@ else other failure
     EXP-->>FLOW: outcome: failed — a form's in its banner, typing kept, a delete's toasted
 else ok
     API-->>EXP: budget (or 204 — its claims are free again)
-    EXP->>API: GET …/budgets (fetched again)
+    EXP->>API: GET …/budgets (the Budgets tag's refetch, awaited)
+    Note over EXP: the Budgets tag also marks the Month Overview stale, so the Transactions page reads it again (PR #145)
     EXP-->>FLOW: outcome: ok, budgets refreshed — the drawer closes
     Note over FLOW: toast "{name} created / updated / deleted."
 end
@@ -905,7 +906,7 @@ opt the tab is hidden — Back or a link, the Flow stays mounted (OQ-197)
     EXP-->>FLOW: active: false
     FLOW-->>BF: the open drawer closes — kept, unseen, while its request is out
 end
-""", ["Setup page shows no spend progress (stakeholder) — the list carries definitions only (OQ-176).", "Claims are shared state other members change, so the budgets are the Experience's and fetched again after each write, and after a failure that says they moved (OQ-194).", "Currency and visibility can't change after creation: the edit form shows them locked."]),
+""", ["Setup page shows no spend progress (stakeholder) — the list carries definitions only (OQ-176).", "Claims are shared state other members change, so the budgets are the Experience's and read again after each write (its Budgets tag, which other pages showing budgets share — PR #145), and after a failure that says they moved (OQ-194).", "Currency and visibility can't change after creation: the edit form shows them locked."]),
     ("account-setup-goal-management", "Account Setup — Goal Management", f"{R('GET/POST/PATCH/DELETE /households/:householdId/goals')}, {R('POST /households/:householdId/goals/:goalId/complete|reopen')} (definitions, AccountManager) + {R('GET /households/:householdId/goal-progress')} (progress, InsightsManager — OQ-177). Built in FL14 (OQ-195).",
      [("GL", "Goal Cards"), ("GF", "Goal Form"), ("GP", "Goal Progress Card"), ("FX", "Exchange-Rate<br/>Calculator"), ("CR", "Complete / Reopen /<br/>Delete Confirm"), FLOW("Goal Management"), EXP("Account Setup"), API],
      """
@@ -947,7 +948,7 @@ else complete / reopen / delete (from the edit drawer)
 end
 alt 404 goal.not_found (deleted meanwhile)
     API-->>EXP: error code
-    EXP->>API: GET …/goals + each …/goal-progress that loaded (fetched again — the goal is gone)
+    EXP->>API: GET …/goals + each …/goal-progress that loaded (the Goals tag's refetch, awaited — the goal is gone)
     EXP-->>FLOW: outcome: failed — the drawer closes
     Note over FLOW: toast "{name} was deleted by someone else…"
 else other failure
@@ -955,7 +956,8 @@ else other failure
     EXP-->>FLOW: outcome: failed — a form's in its banner, typing kept — a step's toasted, confirm kept
 else ok
     API-->>EXP: goal (or 204)
-    EXP->>API: GET …/goals + each …/goal-progress that loaded (fetched again — one that never loaded waits for Retry)
+    EXP->>API: GET …/goals + each …/goal-progress that loaded (the Goals tag's refetch, awaited — one that never loaded waits for Retry)
+    Note over EXP: the Goals tag also marks the Month Overview's Goals rail and the Record drawer's split stale (PR #145)
     opt a refetch fails
         EXP-->>FLOW: last good goals and funding kept, marked stale — "may be out of date" banner + retry
     end
@@ -967,14 +969,21 @@ opt the tab is hidden — Back or a link, the Flow stays mounted (OQ-197)
     FLOW-->>GF: the open drawer closes — kept, unseen, while its request is out
 end
 """, ["Allocations are never edited here — always from the Holding (OQ-48).", "FX never leaves the browser (FR-9): the rate lives in the Flow's state, keyed by pair, and every card needing it reads it.", "Definitions and progress are two reads (OQ-177); the definitions show alone when progress fails (OQ-195). A completed Goal can still be edited."]),
-    ("manage-finances-record-transaction", "Manage Finances — Record Transaction", f"{R('POST /households/:householdId/transactions')}; edit reuses it with {R('PATCH /households/:householdId/transactions/:id')}. Reads: {R('GET …/accounts/:accountId/holdings')}, {R('GET …/holdings/:holdingId/allocations')}, {R('GET …/holdings/:holdingId/schedule-entries')}.",
+    ("manage-finances-record-transaction", "Manage Finances — Record Transaction", f"{R('POST /households/:householdId/transactions')}; edit reuses it with {R('PATCH /households/:householdId/transactions/:id')}. Reads: {R('GET …/goal-progress?status=')}, {R('GET …/holdings/:holdingId')}, {R('GET …/accounts/:accountId/holdings')}, {R('GET …/holdings/:holdingId/allocations')}, {R('GET …/holdings/:holdingId/schedule-entries')}.",
      [("KS", "Kind Group &<br/>Kind Selection"), ("TE", "Transaction Entry"), ("HS", "Holding Selection"), ("IB", "Investment Buy Entry"), ("GA", "Goal Allocation Entry"), FLOW("Record Transaction"), EXP("Manage Finances"), API],
      """
+EXP->>API: GET …/goal-progress?status=active and ?status=completed — the Goals a split names
+API-->>EXP: Goals with their progress (a failed read: none to add)
+EXP-->>FLOW: mount the drawer — accounts, categories, Goals
 alt record
     User->>KS: group (Cash / Transfer / Credit card / Investment), then kind
     KS->>FLOW: emit kindSelected — amount, date, description and category carry over
 else edit (from a ledger row, via the Experience)
-    EXP-->>FLOW: state: the row (+ a trade's Holding, for its terms)
+    opt a buy
+        EXP->>API: GET …/holdings/:holdingId — its terms (OQ-222)
+        API-->>EXP: the Holding (a failure: error toast, nothing opens)
+    end
+    EXP-->>FLOW: state: the row (+ a buy's Holding)
     FLOW-->>KS: kind and target read-only (OQ-201)
     opt a fixed-term buy
         FLOW->>EXP: request schedule(holdingId)
@@ -1016,12 +1025,16 @@ alt 4xx (e.g. goal.allocation_exceeds_100, transaction.kind_not_allowed_for_targ
     EXP-->>FLOW: state: error — I18nUtility renders it in the drawer's banner
 else 201 / 200
     API-->>EXP: the transaction
-    EXP-->>FLOW: done → toast, close → Experience refreshes Browse + Month Overview
+    EXP-->>FLOW: done → toast, close — the ledger, the month, the accounts' balances and the goals invalidated (cache tags), so Browse + Month Overview refetch
 end
-""", ["No recurring option (OQ-55).", "The Experience, not this Flow, refreshes the sibling Flows on completion.", "OQ-201: the Holding is picked, never typed, for every investment kind but a buy, a category is offered for every kind, a transfer is one side, recorded on its own account.", "OQ-219: any open account but a credit-card-only one pays a card's bill, in the card's currency. Accounts, cards and categories are chips up to 10, a select beyond."]),
-    ("manage-finances-browse-transactions", "Manage Finances — Browse Transactions", f"{R('GET /households/:householdId/transactions?…&cursor=')}, {R('DELETE /households/:householdId/transactions/:id')}.",
+""", ["No recurring option (OQ-55).", "The Experience, not this Flow, refreshes the sibling Flows on completion — by invalidating their cache tags (OQ-222).", "OQ-201: the Holding is picked, never typed, for every investment kind but a buy, a category is offered for every kind but a transfer between own accounts. OQ-222: a transfer is to or from someone else unless \"Between your accounts?\" is on — then From → To, both sides recorded and edited as one, with the amount received across currencies.", "OQ-219: any open account but a credit-card-only one pays a card's bill, in the card's currency. Accounts, cards and categories are chips up to 10, a select beyond."]),
+    ("manage-finances-browse-transactions", "Manage Finances — Browse Transactions", f"{R('GET /households/:householdId/transactions?…&cursor=')}, {R('GET …/holdings/:holdingId')}, {R('DELETE /households/:householdId/transactions/:id')}.",
      [("FP", "Filter Panel"), ("LG", "Ledger"), ("XR", "Expanded Row"), ("DC", "Delete Confirm"), FLOW("Browse Transactions"), EXP("Manage Finances"), API],
      """
+opt a Holding's "See in Transactions" — /transactions?holding=:holdingId
+    EXP->>API: GET …/holdings/:holdingId — the chip's name (its ticker)
+    API-->>EXP: the Holding
+end
 EXP->>API: GET /households/:householdId/transactions?filters (infinite query keyed by the applied filters)
 API-->>EXP: items, dayTotals, monthCounts, nextCursor
 EXP-->>FLOW: state: pages, hasMore, status
@@ -1032,7 +1045,7 @@ loop user scrolls
     EXP->>API: GET /households/:householdId/transactions?filters&cursor=…
 end
 opt filter
-    User->>EXP: Filter (page header) — opens the drawer
+    User->>EXP: Filter (page header, or the ledger heading's on a phone) — opens the drawer
     EXP-->>FLOW: state: filterOpen, applied filters → draft
     User->>FP: kinds by group, accounts / cards, categories, any date range
     FP->>FLOW: emit draftChanged / show
@@ -1052,16 +1065,20 @@ else delete
     DC->>FLOW: emit confirmDelete
     FLOW->>EXP: request delete(transaction)
     EXP->>API: DELETE /households/:householdId/transactions/:transactionId
-    alt 409 / 404
+    alt 409
         API-->>EXP: error code + params
         EXP-->>FLOW: outcome: failure — shown in the confirm
+    else 404 transaction.not_found (deleted elsewhere)
+        API-->>EXP: error code — the transactions tag invalidated too
+        EXP-->>FLOW: outcome: failure — shown in the confirm
+        EXP->>API: refetch every loaded page — the row goes
     else 204
         API-->>EXP: done — the transactions tag invalidated
         EXP-->>FLOW: outcome: ok → toast, row closed
         EXP->>API: refetch every loaded page (and Month Overview)
     end
 end
-""", ["Not scoped to the period bar (OQ-61).", "Edit goes through the Experience to Record Transaction — no Flow-to-Flow call.", "OQ-201: month headers show the month's count (monthCounts); accounts and cards are one filter picker; a Category includes its Subcategories.", "OQ-220: the Experience keeps the applied filters and the pages (an RTK Query infinite query, refetched whole after a record, edit or delete); the Flow keeps the drawer's draft and the open row. A Holding filter shows as a removable chip, never picked in the drawer."]),
+""", ["Not scoped to the period bar (OQ-61).", "Edit goes through the Experience to Record Transaction — no Flow-to-Flow call.", "OQ-201: month headers show the month's count (monthCounts); accounts and cards are one filter picker; a Category includes its Subcategories.", "OQ-220: the Experience keeps the applied filters and the pages (an RTK Query infinite query, refetched whole after a record, edit or delete); the Flow keeps the drawer's draft and the open row. A Holding filter shows as a removable chip, never picked in the drawer.", "OQ-222: the Holding filter lives in the address (?holding=), dropped by replacing the entry when its chip is removed; the other filters are the page's state."]),
     ("manage-finances-month-overview", "Manage Finances — Month Overview", f"{R('GET /households/:householdId/reports/month-overview?year=&month=')}.",
      [("PB", "Period Bar"), ("CS", "Period Summary<br/>($ / R$ switch)"), ("RL", "Balance / Budget /<br/>Goal Rails"), FLOW("Month Overview"), EXP("Manage Finances"), API],
      """

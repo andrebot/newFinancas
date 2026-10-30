@@ -4,9 +4,10 @@ import {
 import type { Database } from '../db/database';
 import { accounts, cardTransactions, creditCards } from '../db/schema';
 import {
-  afterCursor, categoryForeignKeys, countRows, hasAny, holds, inCategories, inMonths,
+  afterCursor, categoryForeignKeys, countRows, hasAny, holds, inCategories, inClaims, inMonths,
   isVanishedReference, monthOf, sumOf,
-  type DayKindTotal, type LedgerCursor, type MonthCount, type MonthKindTotal,
+  type ClaimedCategories, type DayKindTotal, type LedgerCursor, type MonthCount,
+  type MonthKindTotal,
 } from './ledgerQuery';
 
 // CardTransactionAccessor (A8, VBD): the Card Transaction ledger, kept apart
@@ -330,6 +331,36 @@ const createCardTransactionAccessor = (db: Database) => ({
         inArray(cardTransactions.creditCardId, [...creditCardIds]),
         gte(cardTransactions.date, from),
         lte(cardTransactions.date, to),
+      ))
+      .groupBy(monthOfDate, cardTransactions.currency, cardTransactions.kind);
+  },
+
+  /**
+   * Sums some cards' charges and refunds in a Budget's claims by month,
+   * currency and kind, from a day on — for AccountManager to restate the
+   * Budget's spend (FR-4.5, OQ-166).
+   *
+   * @param creditCardIds - The cards in the Budget's scope.
+   * @param claims - The Budget's Categories and Subcategories.
+   * @param from - First day, inclusive (`YYYY-MM-DD`); no end.
+   * @returns One sum per group present, in no particular order.
+   */
+  claimedSums: async (
+    creditCardIds: readonly string[],
+    claims: ClaimedCategories,
+    from: string,
+  ): Promise<MonthKindTotal[]> => {
+    if (creditCardIds.length === 0) return [];
+    return db.select({
+      month: monthOfDate,
+      currency: cardTransactions.currency,
+      kind: cardTransactions.kind,
+      total: sumOfAmounts,
+    }).from(cardTransactions)
+      .where(and(
+        inArray(cardTransactions.creditCardId, [...creditCardIds]),
+        inClaims(cardTransactions, claims),
+        gte(cardTransactions.date, from),
       ))
       .groupBy(monthOfDate, cardTransactions.currency, cardTransactions.kind);
   },

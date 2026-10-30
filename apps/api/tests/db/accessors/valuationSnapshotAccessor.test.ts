@@ -390,4 +390,21 @@ describe('latestAsOf', () => {
   it('reads nothing for no Holdings', scenario(async ({ snapshots }) => {
     expect(await snapshots.latestAsOf([], '2026-03-31')).toEqual([]);
   }));
+
+  it('leaves out a trade\'s own snapshot — the value before it (PR #145)', scenario(async ({
+    snapshots, stock, record, trade,
+  }) => {
+    await record(5_000, '2026-03-01');
+    const edited = await trade(7_000, '2026-03-31');
+
+    const [before] = await snapshots.latestAsOf(
+      [stock],
+      '2026-03-31',
+      edited.accountTransactionId!,
+    );
+
+    expect(before).toMatchObject({ valuation: 5_000, source: 'manual' });
+    const [latest] = await snapshots.latestAsOf([stock], '2026-03-31');
+    expect(latest).toMatchObject({ valuation: 7_000 });
+  }));
 });

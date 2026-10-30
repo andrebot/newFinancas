@@ -17,7 +17,8 @@ import {
 import { recordText } from './recordText';
 import { isClear, problemsOf, type CheckedField } from './transactionChecks';
 import {
-  currencyOf, isBuy, isTrade, namesHolding, newFormOf, withHoldingSplit, type TransactionForm,
+  currencyOf, isBuy, isTrade, namesHolding, newFormOf, receivingAccountOf, withHoldingSplit,
+  type TransactionForm,
 } from './transactionForm';
 import { changesOf, createRequestOf, editFormOf } from './transactionRequest';
 
@@ -271,7 +272,11 @@ export default function useRecordTransaction(
    */
   const submit = () => {
     const editable = state.original ? editableNow(state) : undefined;
-    const problems = problemsOf(state.form, { holdings: loadedHoldingsOf(state), editable });
+    const problems = problemsOf(state.form, {
+      holdings: loadedHoldingsOf(state),
+      editable,
+      receivesOtherCurrency: receivingAccountOf(state.form, input.accounts) !== undefined,
+    });
     if (!isClear(problems)) {
       setState((current) => submitRefused(current, problems));
       return;

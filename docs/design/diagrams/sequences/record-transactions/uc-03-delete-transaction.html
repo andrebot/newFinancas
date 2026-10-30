@@ -140,6 +140,8 @@ sequenceDiagram
   </div>
   <div class="notes">
     <ul>
+      <li><strong>PR #145 review:</strong> a trade&#39;s change restates its Holding&#39;s automatic snapshots from the whole history (<code>listTrades</code>, <code>list</code>, then <code>updateAutomatic</code> where a value or date moved), so later trades&#39; values follow it; a pair&#39;s two sides are written in Account-id order.</li>
+      <li><strong>OQ-222:</strong> deleting either side of a transfer between own accounts deletes both, moving both accounts back, in the same unit of work; the caller must be able to edit both accounts (403 otherwise).</li>
       <li>A deleted, backdated transaction runs the balance cascade in reverse across every subsequent month, same mechanic as Edit (UC-02) minus the reapply half.</li>
       <li><strong>OQ-201:</strong> a trade&#39;s cash leg is reversed too. Deleting the buy that created a Holding deletes the Holding (its Goal split, snapshots and schedule with it) when no other transaction references it, and is refused otherwise; a fixed-term buy whose schedule has posted can&#39;t be deleted. A deleted transaction the schedule posted isn&#39;t posted again &mdash; its entry stays marked.</li>
       <li><strong>OQ-219:</strong> a bill payment&#39;s card may sit on another Account than its payer, so editing or deleting it decides on both: the card&#39;s Account must still be one the actor may edit (404 <code>credit_card.not_found</code>) and open (409 <code>credit_card.account_archived</code>).</li>

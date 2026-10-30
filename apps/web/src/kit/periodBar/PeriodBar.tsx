@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import type { Currency } from '@financas/api-types';
 import { useI18n } from '../../utilities/I18nProvider';
 import useFormatter from '../../utilities/useFormatter';
@@ -8,6 +8,7 @@ import {
   barHeights, isFuture, stepMonth, switchYear,
   type BarHeights, type Period, type PeriodMonth,
 } from './periodBar';
+import { useStripScroll } from './stripScroll';
 
 // The kit's period bar (K40, OQ-216): the month the Month Overview shows,
 // picked from a year's twelve months, each with its money in (mint) and out
@@ -15,8 +16,9 @@ import {
 // (FR-6.11). From `xl` up it is mockup 30's card: the year between two
 // arrows, the twelve months in a row, the caller's summary on the right.
 // Below `xl` it is mockup 34's: the month between two arrows that step a
-// month at a time, across years, over a swiped strip that keeps the
-// selected month in view, the summary under it. Months after today's can't
+// month at a time, across years, over a swiped strip (`stripScroll.ts`) that keeps the
+// selected month in view, the summary under it; from `sm` that stack is a
+// card whose twelve months fit in a row, no swiping. Months after today's can't
 // be picked; nor can years before the caller's `firstYear`. The caller
 // fills the summary (In / Out / Total and the $ / R$ switch) and makes the
 // bar sticky where it wants it. The month or year between the arrows is a
@@ -79,7 +81,9 @@ const BAR_COLORS = {
 } as const;
 
 const MONTH = [
-  'flex w-13 shrink-0 flex-col items-center gap-1 rounded-2xl px-2 pt-2 pb-1.5 xl:w-auto',
+  'flex w-13 shrink-0 flex-col items-center gap-1 rounded-2xl px-2 pt-2 pb-1.5',
+  // From sm the twelve share the row: narrower padding until md leaves room.
+  'sm:w-auto sm:px-1 md:px-2',
   'transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-40',
   // Inset, so the strip's overflow doesn't clip it.
   'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-mint',
@@ -244,40 +248,6 @@ const useHeardMonth = (currency: Currency) => {
 };
 
 /**
- * Scrolls the strip so its selected month sits in the middle; with every
- * month showing (from `xl` up) there is nothing to scroll.
- *
- * @param strip - The months' strip, once mounted.
- * @param behavior - `instant` to jump there, `auto` to follow the strip's
- *   own smooth scrolling (kept off when the user asks for less motion).
- */
-export const centreSelected = (strip: HTMLElement | null, behavior: ScrollBehavior) => {
-  const selected = strip?.querySelector<HTMLElement>('[aria-current="true"]');
-  if (!strip || !selected) return;
-  const left = selected.offsetLeft - (strip.clientWidth - selected.offsetWidth) / 2;
-  strip.scrollTo({ left, behavior });
-};
-
-/**
- * Keeps the selected month in view on the swiped strip: it is there from the
- * first paint, and glides to a month picked later.
- *
- * @param period - The selected month.
- * @returns The ref for the strip.
- */
-const useSelectedInView = (period: Period) => {
-  const stripRef = useRef<HTMLDivElement | null>(null);
-  const mountedRef = useRef(false);
-
-  useLayoutEffect(() => {
-    centreSelected(stripRef.current, mountedRef.current ? 'auto' : 'instant');
-    mountedRef.current = true;
-  }, [period.year, period.month]);
-
-  return stripRef;
-};
-
-/**
  * Renders the period bar.
  *
  * @param props - The selected month, its label, the year's months, their
@@ -289,7 +259,7 @@ export function PeriodBar({
 }: PeriodBarProps) {
   const translator = useI18n();
   const today = useToday();
-  const stripRef = useSelectedInView(period);
+  const { attachStrip, stripStyle, onStripScroll } = useStripScroll(period);
   const heardMonth = useHeardMonth(currency);
   const heights = barHeights(months ?? []);
   const figures = new Map(months?.map((entry) => [entry.month, entry]));
@@ -300,10 +270,12 @@ export function PeriodBar({
       aria-label={translator.text('periodBar', 'label')}
       className={[
         'flex flex-col gap-3 border-b border-line py-3',
-        'xl:flex-row xl:items-center xl:gap-8 xl:rounded-card xl:border xl:bg-card xl:p-5',
+        // From sm, a card whose twelve months fit in a row; from xl, one line (mockup 30).
+        'sm:gap-4 sm:rounded-card sm:border sm:bg-card sm:p-4',
+        'xl:flex-row xl:items-center xl:gap-8 xl:p-5',
       ].join(' ')}
     >
-      <div className="flex items-center justify-between px-3 xl:hidden">
+      <div className="flex items-center justify-between px-3 sm:px-0 xl:hidden">
         <Arrows
           back={reachable(stepMonth(period, -1), firstYear, today)}
           forward={isFuture(nextMonth, today) ? undefined : nextMonth}
@@ -326,14 +298,20 @@ export function PeriodBar({
         </Arrows>
       </div>
       <div
-        ref={stripRef}
+        ref={attachStrip}
         role="group"
         aria-label={translator.text('periodBar', 'months', { year: period.year })}
         className={[
-          'relative flex gap-1.5 overflow-x-auto px-3 [scrollbar-width:none]',
-          'motion-safe:scroll-smooth',
-          'xl:grid xl:flex-1 xl:grid-cols-12 xl:overflow-visible xl:px-0',
+          // The padding keeps the selected tile clear of the scroller's clip.
+          'relative flex gap-1.5 overflow-x-auto px-3 py-1 [scrollbar-width:none]',
+          'motion-safe:scroll-smooth [mask-image:var(--strip-fade)] [mask-repeat:no-repeat]',
+          // The fade's helper adds a solid layer for the card rail's scrollbar; none here.
+          '[mask-size:100%_100%,0_0]',
+          'sm:grid sm:grid-cols-12 sm:gap-1 sm:overflow-visible sm:px-0 sm:py-0',
+          'md:gap-1.5 xl:flex-1',
         ].join(' ')}
+        style={stripStyle}
+        onScroll={onStripScroll}
       >
         {Array.from({ length: 12 }, (_, index) => {
           const shown = { year: period.year, month: index + 1 };
@@ -352,7 +330,7 @@ export function PeriodBar({
           );
         })}
       </div>
-      {summary !== undefined && <div className={`mx-3 xl:mx-0 ${SUMMARY}`}>{summary}</div>}
+      {summary !== undefined && <div className={`mx-3 sm:mx-0 ${SUMMARY}`}>{summary}</div>}
     </section>
   );
 }

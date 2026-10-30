@@ -181,7 +181,8 @@ describe('insert', () => {
     const payment = await record({
       categoryId: food, subcategoryId: groceries, description: 'Market', createdByUserId: userId,
     });
-    const transfer = await record({ kind: 'transfer_sent', effect: 'transfer' });
+    // A transfer to someone else is a movement; a pair's `transfer` is insertTransfer's (OQ-222).
+    const transfer = await record({ kind: 'transfer_sent', effect: 'movement' });
     const bill = await record({
       kind: 'credit_card_bill_payment', effect: 'bill_payment', creditCardId: card,
     });
@@ -211,7 +212,7 @@ describe('insert', () => {
       source: 'manual',
     });
     expect(payment.createdAt).toBeInstanceOf(Date);
-    expect(transfer.effect).toBe('transfer');
+    expect(transfer).toMatchObject({ effect: 'movement', transferId: null, pair: null });
     expect(bill).toMatchObject({ effect: 'bill_payment', creditCardId: card });
     expect(buy).toMatchObject({
       effect: 'investment_trade',
@@ -226,10 +227,10 @@ describe('insert', () => {
   it('keeps the stored effect when the mapping says otherwise', scenario(async ({
     record, ledger, householdId,
   }) => {
-    const stored = await record({ kind: 'deposit', effect: 'transfer' });
+    const stored = await record({ kind: 'deposit', effect: 'bill_payment' });
 
     expect(findKind('deposit')?.effect).toBe('movement');
-    expect((await ledger.findById(householdId, stored.id))?.effect).toBe('transfer');
+    expect((await ledger.findById(householdId, stored.id))?.effect).toBe('bill_payment');
   }));
 
   it('reports a reference that is gone', scenario(async ({ ledger }) => {
@@ -589,7 +590,7 @@ describe('monthlySums', () => {
       { date: '2026-10-01', amount: 100 },
       { date: '2026-10-20', amount: 200 },
       {
-        kind: 'deposit', effect: 'transfer', date: '2026-10-21', amount: 5,
+        kind: 'deposit', effect: 'bill_payment', date: '2026-10-21', amount: 5,
       },
       { date: '2026-11-02', amount: 7 },
       { date: '2026-12-01', amount: 9 },
@@ -601,13 +602,28 @@ describe('monthlySums', () => {
     expect(sums).toHaveLength(3);
     expect(sums).toEqual(expect.arrayContaining([
       {
-        month: '2026-10', currency: 'BRL', kind: 'pix_payment', effect: 'movement', total: 300,
+        month: '2026-10',
+        currency: 'BRL',
+        kind: 'pix_payment',
+        effect: 'movement',
+        pairInView: false,
+        total: 300,
       },
       {
-        month: '2026-10', currency: 'BRL', kind: 'deposit', effect: 'transfer', total: 5,
+        month: '2026-10',
+        currency: 'BRL',
+        kind: 'deposit',
+        effect: 'bill_payment',
+        pairInView: false,
+        total: 5,
       },
       {
-        month: '2026-11', currency: 'BRL', kind: 'pix_payment', effect: 'movement', total: 7,
+        month: '2026-11',
+        currency: 'BRL',
+        kind: 'pix_payment',
+        effect: 'movement',
+        pairInView: false,
+        total: 7,
       },
     ]));
   }));
@@ -616,6 +632,183 @@ describe('monthlySums', () => {
     await record();
 
     expect(await ledger.monthlySums([], '2026-01-01', '2026-12-31')).toEqual([]);
+  }));
+});
+
+describe('transfers between own accounts (OQ-222)', () => {
+  /**
+   * Records a transfer of 500 from checking to savings.
+   *
+   * @param ledger - The accessor.
+   * @param from - Where it leaves.
+   * @param to - Where it arrives.
+   * @returns What the Accessor answered.
+   */
+  const transfer = (ledger: Transactions, from: string, to: string) => ledger.insertTransfer({
+    sent: {
+      accountId: from,
+      kind: 'transfer_sent',
+      effect: 'transfer',
+      date: '2026-10-08',
+      amount: 500,
+      currency: 'BRL',
+      description: 'Savings',
+    },
+    received: {
+      accountId: to,
+      kind: 'transfer_received',
+      effect: 'transfer',
+      date: '2026-10-08',
+      amount: 480,
+      currency: 'BRL',
+      description: 'Savings',
+    },
+  });
+
+  it('records both sides, linked, each reading the other', scenario(async ({
+    ledger, householdId, checking, savings,
+  }) => {
+    const result = await transfer(ledger, checking, savings);
+    if (!result.ok) throw new Error(result.reason);
+    const { sent, received } = result;
+
+    expect(sent.transferId).not.toBeNull();
+    expect(received.transferId).toBe(sent.transferId);
+    expect(sent.pair).toEqual({
+      id: received.id, accountId: savings, amount: 480, currency: 'BRL',
+    });
+    expect(received.pair).toEqual({
+      id: sent.id, accountId: checking, amount: 500, currency: 'BRL',
+    });
+    expect((await ledger.findById(householdId, received.id))?.pair?.id).toBe(sent.id);
+  }));
+
+  it('reads no pair on any other row', scenario(async ({ record }) => {
+    const row = await record();
+    expect(row.transferId).toBeNull();
+    expect(row.pair).toBeNull();
+  }));
+
+  it('writes nothing when a reference is gone', scenario(async ({ ledger, checking }) => {
+    expect(await transfer(ledger, checking, UNKNOWN_ID)).toEqual({
+      ok: false, reason: 'reference_not_found',
+    });
+  }));
+
+  it('passes on any other error', scenario(async ({ ledger, checking, savings }) => {
+    await expect(ledger.insertTransfer({
+      sent: {
+        accountId: checking,
+        kind: 'transfer_sent',
+        effect: 'transfer',
+        date: '2026-10-08',
+        amount: -1,
+        currency: 'BRL',
+      },
+      received: {
+        accountId: savings,
+        kind: 'transfer_received',
+        effect: 'transfer',
+        date: '2026-10-08',
+        amount: 1,
+        currency: 'BRL',
+      },
+    })).rejects.toThrow();
+  }));
+
+  it('flags a side whose other side is among the Accounts read', scenario(async ({
+    ledger, checking, savings,
+  }) => {
+    await transfer(ledger, checking, savings);
+
+    const both = await ledger.monthlySums([checking, savings], '2026-10-01', '2026-10-31');
+    const one = await ledger.monthlySums([checking], '2026-10-01', '2026-10-31');
+
+    expect(both.map((sum) => [sum.kind, sum.pairInView]))
+      .toEqual(expect.arrayContaining([['transfer_sent', true], ['transfer_received', true]]));
+    expect(one).toEqual([{
+      month: '2026-10',
+      currency: 'BRL',
+      kind: 'transfer_sent',
+      effect: 'transfer',
+      pairInView: false,
+      total: 500,
+    }]);
+  }));
+});
+
+describe('listTrades (OQ-222)', () => {
+  it('reads a Holding\'s trades oldest first on date, then time written', scenario(async ({
+    record, ledger, holding,
+  }) => {
+    const trade = (date: string) => ({
+      kind: 'investment_buy',
+      effect: 'investment_trade' as const,
+      holdingId: holding,
+      date,
+      trade: { quantityDelta: 1, costBasisDelta: 100 },
+    });
+    const later = await record(trade('2026-10-09'));
+    const first = await record(trade('2026-10-01'));
+    const sameDay = await record(trade('2026-10-09'));
+    await record({ kind: 'investment_dividend', holdingId: holding, date: '2026-10-02' });
+
+    expect((await ledger.listTrades(holding)).map((row) => row.id))
+      .toEqual([first.id, later.id, sameDay.id]);
+  }));
+});
+
+describe('claimedSums', () => {
+  it('sums a Budget\'s claims by month, currency and kind from a day on', scenario(async ({
+    record, ledger, checking, savings, food, groceries, transport,
+  }) => {
+    await recordAll(record, [
+      { categoryId: food, date: '2026-10-01', amount: 100 },
+      {
+        categoryId: food, subcategoryId: groceries, date: '2026-10-20', amount: 200,
+      },
+      {
+        kind: 'pix_receipt', categoryId: food, date: '2026-10-21', amount: 5,
+      },
+      { categoryId: food, date: '2026-09-30', amount: 9 },
+      { categoryId: transport, date: '2026-10-03', amount: 11 },
+      {
+        accountId: savings, categoryId: food, date: '2026-10-02', amount: 1,
+      },
+    ]);
+
+    const sums = await ledger.claimedSums(
+      [checking],
+      { categoryIds: [food], subcategoryIds: [] },
+      '2026-10-01',
+    );
+
+    expect(sums).toHaveLength(2);
+    expect(sums).toEqual(expect.arrayContaining([
+      {
+        month: '2026-10', currency: 'BRL', kind: 'pix_payment', total: 300,
+      },
+      {
+        month: '2026-10', currency: 'BRL', kind: 'pix_receipt', total: 5,
+      },
+    ]));
+  }));
+
+  it('matches a claimed Subcategory alone; nothing for no Accounts', scenario(async ({
+    record, ledger, checking, food, groceries,
+  }) => {
+    await recordAll(record, [
+      {
+        categoryId: food, subcategoryId: groceries, date: '2026-10-20', amount: 200,
+      },
+      { categoryId: food, date: '2026-10-21', amount: 5 },
+    ]);
+    const claims = { categoryIds: [], subcategoryIds: [groceries] };
+
+    expect(await ledger.claimedSums([checking], claims, '2026-10-01')).toEqual([{
+      month: '2026-10', currency: 'BRL', kind: 'pix_payment', total: 200,
+    }]);
+    expect(await ledger.claimedSums([], claims, '2026-10-01')).toEqual([]);
   }));
 });
 

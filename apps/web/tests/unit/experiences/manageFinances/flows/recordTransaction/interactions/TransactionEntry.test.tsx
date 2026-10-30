@@ -3,10 +3,13 @@ import {
   describe, expect, it, vi,
 } from 'vitest';
 import {
-  AmountField, CategoryFields, DetailFields, NO_CATEGORY, TargetFields, categoryChoicesOf,
+  AmountField, CategoryFields, DetailFields, NO_CATEGORY, OwnTransferSwitch, ReceivedAmountField,
+  TargetFields, categoryChoicesOf,
 } from '../../../../../../../src/experiences/manageFinances/flows/recordTransaction/interactions/TransactionEntry';
 import { renderInLocale } from '../../../../../../support/renderInLocale';
-import { ACCOUNTS, CATEGORIES, formOf } from '../fixtures';
+import {
+  ACCOUNTS, CATEGORIES, CHASE, accountOf, formOf,
+} from '../fixtures';
 
 // Transaction Entry (BDT: Interaction → unit): the amount, the targets, the
 // date and description, the category — rendered from the form, each change
@@ -95,7 +98,7 @@ describe('AmountField', () => {
 });
 
 describe('TargetFields', () => {
-  const handlers = { onAccount: vi.fn(), onCard: vi.fn() };
+  const handlers = { onAccount: vi.fn(), onCard: vi.fn(), onToAccount: vi.fn() };
 
   it('offers the open, non-card-only accounts with their currency, for money out', () => {
     renderInLocale(
@@ -136,6 +139,7 @@ describe('TargetFields', () => {
         accounts={ACCOUNTS}
         onAccount={onAccount}
         onCard={vi.fn()}
+        onToAccount={vi.fn()}
       />,
     );
 
@@ -153,6 +157,7 @@ describe('TargetFields', () => {
         cardError="Choose a card."
         onAccount={vi.fn()}
         onCard={onCard}
+        onToAccount={vi.fn()}
       />,
     );
 
@@ -207,6 +212,82 @@ describe('TargetFields', () => {
     );
 
     expect(container.textContent).toBe('');
+  });
+});
+
+describe('a transfer between own accounts (OQ-222)', () => {
+  const SAVINGS = accountOf('savings', { name: 'Poupança' });
+  const MINE = [...ACCOUNTS, SAVINGS];
+  const own = formOf({
+    kind: 'transfer_sent', ownTransfer: true, accountId: 'itau', toAccountId: 'savings',
+  });
+
+  it('asks From and To, emitting the account it reaches', () => {
+    const onToAccount = vi.fn();
+    renderInLocale(
+      <TargetFields
+        form={own}
+        accounts={MINE}
+        toAccountError="Choose the account it goes to."
+        onAccount={vi.fn()}
+        onCard={vi.fn()}
+        onToAccount={onToAccount}
+      />,
+    );
+    expect(screen.getByRole('group', { name: 'From' })).toBeDefined();
+    const to = screen.getByRole('group', { name: 'To' });
+    expect([...to.querySelectorAll('input')].map((radio) => radio.value))
+      .toEqual(['chase', 'savings']);
+    expect(screen.getByText('Choose the account it goes to.')).toBeDefined();
+    fireEvent.click(to.querySelector('input[value="chase"]')!);
+    expect(onToAccount).toHaveBeenCalledWith('chase');
+  });
+
+  it('shows an edit\'s From and To locked', () => {
+    renderInLocale(
+      <TargetFields
+        form={own}
+        accounts={MINE}
+        locked
+        onAccount={vi.fn()}
+        onCard={vi.fn()}
+        onToAccount={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole('radio')).toBeNull();
+    expect(screen.getByText('From')).toBeDefined();
+    expect(screen.getByText('Poupança')).toBeDefined();
+  });
+
+  it('says what each answer to "Between your accounts?" means, and emits it', () => {
+    const onChange = vi.fn();
+    const { rerenderInLocale } = renderInLocale(
+      <OwnTransferSwitch on={false} onChange={onChange} />,
+    );
+    expect(screen.getByText('Money from or to someone else — counted as income or expense.'))
+      .toBeDefined();
+    fireEvent.click(screen.getByRole('switch', { name: /Between your accounts\?/ }));
+    expect(onChange).toHaveBeenCalledWith(true);
+
+    rerenderInLocale(<OwnTransferSwitch on locked onChange={onChange} />);
+    expect(screen.getByText(/not counted as income or expense/)).toBeDefined();
+    expect(screen.getByRole<HTMLInputElement>('switch').disabled).toBe(true);
+  });
+
+  it('asks what arrived in the other account\'s currency', () => {
+    const onChange = vi.fn();
+    renderInLocale(
+      <ReceivedAmountField
+        account={CHASE}
+        value={950}
+        error="Enter the amount received."
+        onChange={onChange}
+      />,
+    );
+    expect(screen.getByText('Amount received')).toBeDefined();
+    expect(screen.getByText('Enter the amount received.')).toBeDefined();
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: '12' } });
+    expect(onChange).toHaveBeenCalledWith(12);
   });
 });
 

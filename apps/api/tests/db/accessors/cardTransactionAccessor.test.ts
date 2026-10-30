@@ -488,3 +488,75 @@ describe('monthlySums', () => {
     expect(await ledger.monthlySums([], '2026-01-01', '2026-12-31')).toEqual([]);
   }));
 });
+
+describe('claimedSums', () => {
+  it('sums a Budget\'s claims by month, currency and kind from a day on', scenario(async ({
+    record, ledger, visa, master, food, groceries, transport,
+  }) => {
+    await recordAll(record, [
+      { categoryId: food, date: '2026-10-01', amount: 100 },
+      {
+        categoryId: food, subcategoryId: groceries, date: '2026-10-20', amount: 200,
+      },
+      {
+        kind: 'refund', categoryId: food, date: '2026-10-21', amount: 5,
+      },
+      { categoryId: food, date: '2027-02-02', amount: 7 },
+      { categoryId: food, date: '2026-09-30', amount: 9 },
+      { categoryId: transport, date: '2026-10-03', amount: 11 },
+      { date: '2026-10-04', amount: 13 },
+      {
+        creditCardId: master, categoryId: food, date: '2026-10-02', amount: 1,
+      },
+    ]);
+
+    const sums = await ledger.claimedSums(
+      [visa],
+      { categoryIds: [food], subcategoryIds: [] },
+      '2026-10-01',
+    );
+
+    expect(sums).toHaveLength(3);
+    expect(sums).toEqual(expect.arrayContaining([
+      {
+        month: '2026-10', currency: 'BRL', kind: 'charge', total: 300,
+      },
+      {
+        month: '2026-10', currency: 'BRL', kind: 'refund', total: 5,
+      },
+      {
+        month: '2027-02', currency: 'BRL', kind: 'charge', total: 7,
+      },
+    ]));
+  }));
+
+  it('matches a claimed Subcategory alone, not its siblings', scenario(async ({
+    record, ledger, visa, food, groceries,
+  }) => {
+    await recordAll(record, [
+      {
+        categoryId: food, subcategoryId: groceries, date: '2026-10-20', amount: 200,
+      },
+      { categoryId: food, date: '2026-10-21', amount: 5 },
+    ]);
+
+    expect(await ledger.claimedSums(
+      [visa],
+      { categoryIds: [], subcategoryIds: [groceries] },
+      '2026-10-01',
+    )).toEqual([{
+      month: '2026-10', currency: 'BRL', kind: 'charge', total: 200,
+    }]);
+  }));
+
+  it('answers nothing for no cards or no claims', scenario(async ({
+    record, ledger, visa, food,
+  }) => {
+    await record({ categoryId: food, date: '2026-10-20' });
+    const none = { categoryIds: [], subcategoryIds: [] };
+
+    expect(await ledger.claimedSums([], { categoryIds: [food], subcategoryIds: [] }, '2026-01-01'))
+      .toEqual([]);
+    expect(await ledger.claimedSums([visa], none, '2026-01-01')).toEqual([]);
+  }));
+});

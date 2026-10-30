@@ -26,7 +26,8 @@ import useSummaryCurrency from './useSummaryCurrency';
 // It renders two regions for the Experience's page grid: `overview-bar` and
 // `overview-rails`. On a phone they stack over the ledger (mockup 34); from
 // `xl` the bar spans the page and the rails sit beside the ledger (mockup 30).
-// It never calls the backend.
+// Each carries its name in `data-region`, for the page to style (the phone's
+// sticky bar). It never calls the backend.
 
 /** The month's report, as the Experience's query holds it. */
 export type MonthOverviewRead = | { readonly status: 'loading' }
@@ -97,7 +98,7 @@ export function MonthOverviewFlow({
   const report = overview.status === 'loaded' ? overview.report : undefined;
   return (
     <>
-      <div className="min-w-0 [grid-area:overview-bar]">
+      <div data-region="overview-bar" className="min-w-0 [grid-area:overview-bar]">
         <PeriodBar
           period={period}
           periodLabel={label}
@@ -116,7 +117,10 @@ export function MonthOverviewFlow({
           )}
         />
       </div>
-      <div className="flex min-w-0 flex-col gap-6 [grid-area:overview-rails]">
+      <div
+        data-region="overview-rails"
+        className="flex min-w-0 flex-col gap-6 [grid-area:overview-rails]"
+      >
         {overview.status === 'failed' ? (
           <FailedMonth period={label} onRetry={onRetry} />
         ) : (

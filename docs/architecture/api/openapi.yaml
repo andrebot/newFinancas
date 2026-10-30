@@ -3212,9 +3212,16 @@ components:
         `ticker` (+ `quantity`, optional for fixed-term — 1 unit) and, for a
         fixed-term type, `rate`, `dueDate` and `interestPayment`; sell and
         redemption take `holdingId` + `quantity`; dividend, interest and tax
-        take `holdingId`. A field the kind has no use for is a 422.
+        take `holdingId`. A field the kind has no use for is a 422. A
+        `transfer_sent` with `toAccountId` is a transfer between the
+        household's own accounts (OQ-222): `accountId` is where it leaves,
+        `amount` in that account's currency; both sides are recorded and kept
+        out of In/Out, and it takes no category. Any other transfer is to or
+        from someone else and counts as money in or out.
       properties:
-        accountId: { type: string, format: uuid, description: "Every kind but charge/refund — for a bill payment, the paying account" }
+        accountId: { type: string, format: uuid, description: "Every kind but charge/refund — for a bill payment, the paying account; for a transfer between own accounts, where it leaves" }
+        toAccountId: { type: string, format: uuid, description: "transfer_sent only — makes it a transfer between the household's own accounts (OQ-222): the account it reaches, another one the caller may edit, open and not credit-card-only" }
+        receivedAmount: { $ref: "#/components/schemas/PositiveMoney", description: "With toAccountId only, required when the two accounts' currencies differ (no automatic conversion): what reached `toAccountId`, in its currency. Refused when they match — the same amount arrives." }
         creditCardId: { type: string, format: uuid, description: "charge/refund: the card; a bill payment: the card it pays (FR-3.7) — on any account the caller may edit, open and in the payment's currency (OQ-219)" }
         kind: { type: string, description: "Reference data (`@financas/reference`, OQ-98), e.g. withdrawal, pix_payment, transfer_sent, credit_card_bill_payment, charge, investment_buy — FR-3.1" }
         date: { type: string, format: date }
@@ -3268,8 +3275,7 @@ components:
     InterestPayment:
       type: string
       enum: [at_maturity, monthly, semiannual]
-      default: at_maturity
-      description: When a fixed-term contract pays interest (FR-11.2, OQ-201) — part of the contract, entered on the buy; InvestmentProductEngine builds the schedule from it.
+      description: When a fixed-term contract pays interest (FR-11.2, OQ-201) — part of the contract, entered on the buy; InvestmentProductEngine builds the schedule from it. A fixed-term buy that leaves it out pays at maturity. No schema default (OQ-222) — a default here makes request validation add the field to every create, and a kind with no use for it is a 422.
 
     TransactionUpdateRequest:
       type: object
@@ -3287,6 +3293,7 @@ components:
         subcategoryId: { type: [string, "null"], format: uuid }
         description: { type: [string, "null"] }
         quantity: { $ref: "#/components/schemas/Quantity", description: "Buy, sell, redemption only" }
+        receivedAmount: { $ref: "#/components/schemas/PositiveMoney", description: "A transfer between own accounts across currencies only (OQ-222) — what reached the receiving account. Editing either side edits both: `amount` is always the amount sent, and date and description apply to both; a pair takes no category." }
         rate:
           type: object
           description: Fixed-term buy only — recomputes the schedule
@@ -3304,7 +3311,7 @@ components:
         id: { type: string, format: uuid }
         accountId: { type: string, format: uuid }
         kind: { type: string }
-        effect: { type: string, enum: [movement, transfer, bill_payment, investment_trade], description: "Persisted via EFFECT_BY_KIND, not recomputed — see 02-data-model.md" }
+        effect: { type: string, enum: [movement, transfer, bill_payment, investment_trade], description: "Persisted via EFFECT_BY_KIND, not recomputed — see 02-data-model.md. A transfer's is `transfer` only between the household's own accounts, `movement` to or from someone else (OQ-222)" }
         date: { type: string, format: date }
         amount: { $ref: "#/components/schemas/Money" }
         currency: { $ref: "#/components/schemas/Currency" }
@@ -3324,6 +3331,18 @@ components:
             - type: "null"
           description: Buy, sell, redemption — the units traded (positive)
         creditCardId: { type: [string, "null"], format: uuid, description: "Bill payment only — the one bridge between the two ledgers" }
+        transfer:
+          type: [object, "null"]
+          description: >-
+            A transfer between the household's own accounts only (OQ-222) — its
+            other side. Null for every other row, a transfer to or from
+            someone else included. The other side's fields are null when the
+            caller can't see its account.
+          required: [accountId, amount, currency]
+          properties:
+            accountId: { type: [string, "null"], format: uuid }
+            amount: { oneOf: [{ $ref: "#/components/schemas/Money" }, { type: "null" }] }
+            currency: { oneOf: [{ $ref: "#/components/schemas/Currency" }, { type: "null" }] }
         createdByUserId: { type: [string, "null"], format: uuid, description: "Who recorded it — null for schedule posts and after the recorder's account is deleted (OQ-201, FR-1.17)" }
         source:
           type: string

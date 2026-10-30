@@ -1,5 +1,5 @@
 import {
-  and, asc, desc, eq, gte, inArray, lte,
+  and, asc, desc, eq, gte, inArray, isNull, lte, ne, or,
 } from 'drizzle-orm';
 import type { Database } from '../db/database';
 import { valuationSnapshots } from '../db/schema';
@@ -245,15 +245,25 @@ const createValuationSnapshotAccessor = (db: Database) => ({
    *
    * @param holdingIds - The Holdings.
    * @param date - The date, `YYYY-MM-DD`.
+   * @param exceptTransactionId - A trade whose own snapshot is left out — an
+   *   edit reads the value before it.
    * @returns At most one snapshot per Holding.
    */
-  latestAsOf: async (holdingIds: readonly string[], date: string): Promise<ValuationSnapshot[]> => {
+  latestAsOf: async (
+    holdingIds: readonly string[],
+    date: string,
+    exceptTransactionId?: string,
+  ): Promise<ValuationSnapshot[]> => {
     if (holdingIds.length === 0) return [];
     const rows = await db.selectDistinctOn([valuationSnapshots.holdingId], snapshotColumns)
       .from(valuationSnapshots)
       .where(and(
         inArray(valuationSnapshots.holdingId, [...holdingIds]),
         lte(valuationSnapshots.asOfDate, date),
+        exceptTransactionId === undefined ? undefined : or(
+          isNull(valuationSnapshots.accountTransactionId),
+          ne(valuationSnapshots.accountTransactionId, exceptTransactionId),
+        ),
       ))
       .orderBy(asc(valuationSnapshots.holdingId), ...newestFirst);
     return rows.map(toSnapshot);

@@ -67,6 +67,10 @@ sequenceDiagram
     participant CA as CategoryAccessor
     participant UW as UnitOfWorkUtility
     participant BA as BudgetAccessor
+    participant AA as AccountAccessor
+    participant CCA as CreditCardAccessor
+    participant ATA as AccountTransactionAccessor
+    participant CTA as CardTransactionAccessor
     participant LOG as LoggingUtility
 
     User->>API: PATCH /households/:householdId/budgets/:budgetId {name?, targetAmount?, targets?: [...]}
@@ -102,6 +106,12 @@ sequenceDiagram
             opt targets sent
                 AM->>BA: replaceTargets(householdId, budgetId, targets once each)
                 Note over BA: dropped claims released, new ones claimed (OQ-166)
+                AM->>AA: list(householdId, owner, {visibility})
+                AM->>CCA: listByAccounts(accountIds)
+                AM->>ATA: claimedSums(accountIds, new claims, first of this month)
+                AM->>CTA: claimedSums(cardIds, new claims, first of this month)
+                AM->>BA: restateSpend(budget, this month, spends)
+                Note over BA: this month on is restated for the new claims,<br/>past periods stay as history (OQ-166, PR #145)
             end
             alt the Budget deleted meanwhile
                 AM-->>API: 404 budget.not_found (rolled back)
@@ -124,7 +134,8 @@ sequenceDiagram
     <ul>
       <li>Historical actual-vs-target reporting never gets silently rewritten by a later edit &mdash; the immutable snapshot lives one layer down, not enforced here.</li>
       <li><strong>Corrected (OQ-176):</strong> <code>update</code> and <code>replaceTargets</code> used to be drawn as two separate writes, so a 409 on the targets left the new name and amount saved. They now share one transaction through <code>UnitOfWorkUtility</code>: a refusal keeps none of the edit.</li>
-      <li>See FR-4.7, FR-4.9, OQ-166, OQ-176.</li>
+      <li><strong>Corrected (PR #145):</strong> new targets restate the spend from this month on, from the transactions already in the Budget&#39;s scope, so a Category added mid-month counts the month&#39;s earlier spends in it and one dropped stops counting. Past periods are history and keep their spend.</li>
+      <li>See FR-4.5, FR-4.7, FR-4.9, OQ-166, OQ-176.</li>
     </ul>
   </div>
   <script>

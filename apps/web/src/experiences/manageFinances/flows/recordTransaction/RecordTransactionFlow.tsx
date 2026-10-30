@@ -13,8 +13,9 @@ import {
 import { recordText } from './recordText';
 import { problemText, type CheckedField } from './transactionChecks';
 import {
-  currencyOf, groupOf, isBuy, isTrade, namesHolding, withAccount, withAllocations, withCard,
-  withCategory, withGroup, withHolding, withKind,
+  currencyOf, groupOf, isBuy, isOwnTransfer, isTrade, namesHolding, receivingAccountOf,
+  withAccount, withAllocations, withCard, withCategory, withGroup, withHolding, withKind,
+  withOwnTransfer, withToAccount,
 } from './transactionForm';
 import useRecordTransaction, {
   type RecordTransactionController, type RecordTransactionRequests,
@@ -24,7 +25,7 @@ import { HoldingSelection } from './interactions/HoldingSelection';
 import { InvestmentBuyEntry } from './interactions/InvestmentBuyEntry';
 import { KindSelection } from './interactions/KindSelection';
 import {
-  AmountField, CategoryFields, DetailFields, TargetFields,
+  AmountField, CategoryFields, DetailFields, OwnTransferSwitch, ReceivedAmountField, TargetFields,
 } from './interactions/TransactionEntry';
 
 // The Record Transaction Flow (FL15, mockups 31, 32, 35; FR-3.1, FR-3.2,
@@ -37,7 +38,9 @@ import {
 // account's Holdings, a Holding's split and schedule, the record and the save
 // — and, once the drawer closes after a success, refreshes the ledger and the
 // Month Overview (EBD: no Flow talks to a sibling). A success is toasted; a
-// failure shows in the drawer's banner. It never calls the backend.
+// failure shows in the drawer's banner. A transfer asks whether it is between
+// the user's own accounts (OQ-222): then it goes From → To, with no category,
+// and what arrived when the currencies differ. It never calls the backend.
 
 /** What the Flow asks of the Experience. */
 export interface RecordTransactionFlowProps extends RecordTransactionRequests {
@@ -54,7 +57,7 @@ export interface RecordTransactionFlowProps extends RecordTransactionRequests {
 /** The fields a kind or group change clears: every refusal goes. */
 const EVERY_FIELD: readonly CheckedField[] = [
   'account', 'card', 'amount', 'date', 'holding', 'quantity', 'assetType', 'ticker', 'rateValue',
-  'dueDate', 'allocations',
+  'dueDate', 'allocations', 'toAccount', 'receivedAmount',
 ];
 
 /** What every section works with: the controller and the accounts. */
@@ -236,6 +239,30 @@ function CategorySection({ controller, categories }: {
 }
 
 /**
+ * Renders what a transfer between own accounts brought to an account in
+ * another currency, when it did (OQ-222).
+ *
+ * @param props - The controller and the accounts.
+ * @returns The field, or nothing.
+ */
+function ReceivedSection({ controller, accounts }: SectionProps) {
+  const translator = useI18n();
+  const { state, change } = controller;
+  const { form } = state;
+  const account = receivingAccountOf(form, accounts);
+  if (account === undefined) return null;
+  return (
+    <ReceivedAmountField
+      account={account}
+      value={form.receivedAmount}
+      error={refusalOf(controller, 'receivedAmount', translator)}
+      disabled={state.original !== undefined && !editableNow(state).amountAndDate}
+      onChange={(receivedAmount) => change({ ...form, receivedAmount }, ['receivedAmount'])}
+    />
+  );
+}
+
+/**
  * Renders the kind, the amount and the target — the drawer's top, every kind's.
  *
  * @param props - The controller and the accounts.
@@ -252,9 +279,20 @@ function EntryTop({ controller, accounts }: SectionProps) {
       <KindSelection
         kind={form.kind}
         locked={editing}
+        kindsHidden={isOwnTransfer(form)}
         onGroupChange={(group) => change(withGroup(form, group, accounts), EVERY_FIELD)}
         onKindChange={(kind) => change(withKind(form, kind, accounts), EVERY_FIELD)}
       />
+      {groupOf(form.kind) === 'transfer' && (
+        <OwnTransferSwitch
+          on={form.ownTransfer}
+          locked={editing}
+          onChange={(on) => change(
+            withOwnTransfer(form, on, accounts),
+            ['toAccount', 'receivedAmount'],
+          )}
+        />
+      )}
       <AmountField
         form={form}
         currency={currencyOf(form, accounts)}
@@ -267,13 +305,19 @@ function EntryTop({ controller, accounts }: SectionProps) {
         accounts={accounts}
         accountError={refusalOf(controller, 'account', translator)}
         cardError={refusalOf(controller, 'card', translator)}
+        toAccountError={refusalOf(controller, 'toAccount', translator)}
         locked={editing}
         onAccount={(account) => change(
           withAccount(form, account, accounts),
-          ['account', 'holding', 'quantity', 'assetType'],
+          ['account', 'holding', 'quantity', 'assetType', 'receivedAmount'],
         )}
         onCard={(cardId) => change(withCard(form, cardId, accounts), ['card', 'account'])}
+        onToAccount={(toAccountId) => change(
+          withToAccount(form, toAccountId),
+          ['toAccount', 'receivedAmount'],
+        )}
       />
+      <ReceivedSection controller={controller} accounts={accounts} />
     </>
   );
 }
@@ -383,7 +427,7 @@ export function RecordTransactionFlow(props: RecordTransactionFlowProps) {
             lockedName={lockedHoldingNameOf(transaction)}
           />
         )}
-        {!investment && categorySection}
+        {!investment && !isOwnTransfer(form) && categorySection}
         <DetailSection controller={controller} />
         {investment && categorySection}
         <SplitSection controller={controller} goals={goals} />

@@ -1,5 +1,5 @@
 import type { Account, Category, LedgerItem } from '@financas/api-types';
-import { Fragment } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { Amount } from '../../../../kit/amount/Amount';
 import { Button } from '../../../../kit/button/Button';
 import { Card } from '../../../../kit/card/Card';
@@ -47,6 +47,8 @@ export interface BrowseTransactionsFlowProps extends BrowseTransactionsRequests,
   readonly onEdit: (item: LedgerItem) => void;
   /** Where the month headers stick; the kit's default sits under the App Shell's header. */
   readonly stickyTop?: string | undefined;
+  /** The Experience's Filter button, beside the heading — a phone's, as mockup 34 has it. */
+  readonly filterAction?: ReactNode;
 }
 
 /**
@@ -69,14 +71,17 @@ export function DayTotals({ totals }: { readonly totals: readonly DayTotal[] }) 
 }
 
 /**
- * Renders the ledger's heading, Clear filters once filtered, and the Holding chip.
+ * Renders the ledger's heading, Clear filters once filtered, the Experience's
+ * Filter button if given, and the Holding chip.
  *
  * @param props - The Flow's props.
  * @returns The header.
  */
 function LedgerHeader({
-  filters, onFiltersChange, holdingName,
-}: Pick<BrowseTransactionsFlowProps, 'filters' | 'onFiltersChange' | 'holdingName'>) {
+  filters, onFiltersChange, holdingName, filterAction,
+}: Pick<
+  BrowseTransactionsFlowProps, 'filters' | 'onFiltersChange' | 'holdingName' | 'filterAction'
+>) {
   const translator = useI18n();
   const filtered = activeFilterCount(filters) > 0;
   return (
@@ -89,11 +94,14 @@ function LedgerHeader({
             {browseText(translator, 'order')}
           </span>
         </h2>
-        {filtered && (
-          <Button variant="ghost" size="sm" onClick={() => onFiltersChange(NO_FILTERS)}>
-            {browseText(translator, 'clearFilters')}
-          </Button>
-        )}
+        <div className="flex items-center gap-1">
+          {filtered && (
+            <Button variant="ghost" size="sm" onClick={() => onFiltersChange(NO_FILTERS)}>
+              {browseText(translator, 'clearFilters')}
+            </Button>
+          )}
+          {filterAction}
+        </div>
       </div>
       {filters.holdingId !== undefined && (
         <Button

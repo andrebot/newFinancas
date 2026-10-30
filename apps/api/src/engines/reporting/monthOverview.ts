@@ -1,7 +1,7 @@
 import { findKind, type TransactionEffect } from '@financas/reference';
 import type { Account, AccountAccessor } from '../../accessors/accountAccessor';
 import type {
-  AccountTransactionAccessor, MonthKindTotal,
+  AccountTransactionAccessor, MonthKindSum, MonthKindTotal,
 } from '../../accessors/accountTransactionAccessor';
 import type { Budget, BudgetAccessor, BudgetPeriodOf } from '../../accessors/budgetAccessor';
 import { monthEnd, monthKey, type CalendarMonth } from '../../accessors/calendarMonth';
@@ -19,9 +19,12 @@ import yearMonths from './months';
 // ReportingEngine — the Month Overview (FR-6.11, FR-6.6, FR-4.3, FR-8.7,
 // OQ-201): a month's money in and out per currency with the year's strip, the
 // month-end balances, the Budgets and the Goals, all as the viewer sees them.
-// In and out follow each kind's direction; own-account transfers and bill
-// payments are left out by their stored effect (FR-3.6), never by kind, so
-// nothing counts twice. Card charges and refunds and investment trades count.
+// In and out follow each kind's direction; transfers between the viewer's
+// own accounts and bill payments are left out by their stored effect (FR-3.6),
+// never by kind, so nothing counts twice. A transfer to or from someone else
+// counts, and so does a side whose other side the viewer can't see — for
+// them the money came from, or went, outside (OQ-222). Card charges and
+// refunds and investment trades count.
 // Past months read as they were: an Account archived later still shows its
 // balance for a month it was open (OQ-206).
 
@@ -91,6 +94,18 @@ export interface MonthOverview {
 }
 
 const LEFT_OUT: ReadonlySet<TransactionEffect> = new Set(['transfer', 'bill_payment']);
+
+/**
+ * Whether a month's sum is money that only moved inside what the viewer sees:
+ * a bill payment, or a transfer whose other side is among their Accounts
+ * (OQ-222).
+ *
+ * @param sum - The sum, with its stored effect and whether its pair is in view.
+ * @returns `true` when it is left out of In/Out.
+ */
+export const movedInside = (sum: MonthKindSum): boolean => (
+  sum.effect === 'transfer' ? sum.pairInView : LEFT_OUT.has(sum.effect)
+);
 const NOTHING: InOut = { in: 0, out: 0 };
 
 /**
@@ -120,8 +135,8 @@ export const cashFlowOf = (rows: readonly MonthKindTotal[]): Map<string, InOut> 
 );
 
 /**
- * Reads the year's money in and out of the viewer's Accounts and cards, own
- * transfers and bill payments left out by their stored effect.
+ * Reads the year's money in and out of the viewer's Accounts and cards,
+ * transfers between them and bill payments left out (`movedInside`).
  *
  * @param deps - The ledgers' monthly sums.
  * @param accounts - The viewer's Accounts.
@@ -140,7 +155,7 @@ const yearSums = async (
     deps.accountMonthlySums(accounts.map((account) => account.id), from, to),
     deps.cardMonthlySums(cards.map((card) => card.id), from, to),
   ]);
-  return [...accountSums.filter((sum) => !LEFT_OUT.has(sum.effect)), ...cardSums];
+  return [...accountSums.filter((sum) => !movedInside(sum)), ...cardSums];
 };
 
 /**
@@ -193,8 +208,22 @@ export const openAtMonthEnd = (account: Account, month: CalendarMonth): boolean 
 );
 
 /**
+ * Tells whether a card was issued by a month's end — in the app's time zone
+ * (OQ-104). One with no history by then still owes nothing (OQ-222).
+ *
+ * @param card - The card.
+ * @param month - The month.
+ * @returns `true` when it belongs on that month's Balance rail.
+ */
+export const issuedByMonthEnd = (card: CreditCard, month: CalendarMonth): boolean => (
+  calendarDate(card.createdAt, calendar.timeZone) <= monthEnd(month)
+);
+
+/**
  * Reads the balance of each Account open at the month's end and its cards'
- * outstanding then (F10, D16); one with no history by then is left out.
+ * outstanding then (F10, D16). An Account with no history by then is left
+ * out, its cards with it; a card with none owes nothing yet — 0 once issued
+ * by then (OQ-222), a card's history starting only with its first charge.
  *
  * @param deps - The balance reads.
  * @param accounts - The viewer's Accounts, in display order.
@@ -218,16 +247,22 @@ const balancesOf = async (
     ...accountRows.map((row) => [row.accountId, row.endingBalance] as const),
     ...cardRows.map((row) => [row.creditCardId, row.endingOutstandingBalance] as const),
   ]);
-  return open.flatMap((account) => [
-    { id: account.id, creditCardId: null },
-    ...openCards.filter((card) => card.accountId === account.id)
-      .map((card) => ({ id: card.id, creditCardId: card.id })),
-  ].flatMap(({ id, creditCardId }) => {
-    const amount = ending.get(id);
-    return amount === undefined ? [] : [{
+  return open.flatMap((account) => {
+    const balance = ending.get(account.id);
+    // An Account with no history by then is left out, and its cards with it.
+    if (balance === undefined) return [];
+    /** Shapes one of this Account's figures: its own, or a card's. */
+    const row = (creditCardId: string | null, amount: number) => ({
       accountId: account.id, creditCardId, currency: account.currency, amount,
-    }];
-  }));
+    });
+    return [
+      row(null, balance),
+      ...openCards.filter((card) => card.accountId === account.id).flatMap((card) => {
+        const owed = ending.get(card.id) ?? (issuedByMonthEnd(card, month) ? 0 : undefined);
+        return owed === undefined ? [] : [row(card.id, owed)];
+      }),
+    ];
+  });
 };
 
 /**

@@ -606,3 +606,42 @@ describe('BudgetAccessor.accrueIfClaimed', () => {
     ]);
   }));
 });
+
+describe('BudgetAccessor.restateSpend', () => {
+  it('rewrites the spend from a month on, keeping earlier months', test(async (setup) => {
+    const car = await setup.create({}, [{ categoryId: setup.transport }]);
+    await setup.accrue({ date: '2026-01-10', amount: 400 });
+    await setup.accrue({ date: '2026-02-10', amount: 500 });
+    await setup.accrue({ date: '2026-03-10', amount: 600 });
+    const owner = { id: car, householdId: setup.home, currency: 'BRL' };
+
+    await setup.budgets.restateSpend(owner, { year: 2026, month: 2 }, [
+      { month: { year: 2026, month: 2 }, amount: 900 },
+      { month: { year: 2026, month: 5 }, amount: -50 },
+    ]);
+
+    expect(await setup.periods(car)).toEqual([
+      ['2026-1', 50_000, 400],
+      ['2026-2', 50_000, 900],
+      ['2026-3', 50_000, 0],
+      ['2026-5', 50_000, -50],
+    ]);
+  }));
+
+  it('opens a month with the target in effect, not before the first', test(async (setup) => {
+    const car = await setup.create({}, [{ categoryId: setup.transport }]);
+    await setup.budgets.update(setup.home, car, { targetAmount: 70_000 }, MARCH);
+    const owner = { id: car, householdId: setup.home, currency: 'BRL' };
+
+    await setup.budgets.restateSpend(owner, { year: 2025, month: 12 }, [
+      { month: { year: 2025, month: 12 }, amount: 100 },
+      { month: { year: 2026, month: 4 }, amount: 200 },
+    ]);
+
+    expect(await setup.periods(car)).toEqual([
+      ['2026-1', 50_000, 0],
+      ['2026-3', 70_000, 0],
+      ['2026-4', 70_000, 200],
+    ]);
+  }));
+});

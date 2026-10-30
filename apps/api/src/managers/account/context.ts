@@ -1,6 +1,8 @@
 import { actorLabel, createLogger, type Logger } from '@financas/logging';
 import type { AccountAccessor } from '../../accessors/accountAccessor';
+import type { AccountTransactionAccessor } from '../../accessors/accountTransactionAccessor';
 import type { BudgetAccessor } from '../../accessors/budgetAccessor';
+import type { CardTransactionAccessor } from '../../accessors/cardTransactionAccessor';
 import type { CategoryAccessor } from '../../accessors/categoryAccessor';
 import type { CreditCardAccessor } from '../../accessors/creditCardAccessor';
 import type { GoalAccessor } from '../../accessors/goalAccessor';
@@ -28,6 +30,10 @@ export interface AccountStores {
   readonly creditCards: CreditCardAccessor;
   readonly budgets: BudgetAccessor;
   readonly goals: GoalAccessor;
+  /** The ledgers' sums a Budget's spend is restated from (OQ-166), and a
+   *  Holding's trades its values are restated from (OQ-222). */
+  readonly accountTransactions: Pick<AccountTransactionAccessor, 'claimedSums' | 'listTrades'>;
+  readonly cardTransactions: Pick<CardTransactionAccessor, 'claimedSums'>;
 }
 
 /** The components AccountManager calls, and the clock. */

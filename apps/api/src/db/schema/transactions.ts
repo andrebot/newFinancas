@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
 import {
-  check, date, index, pgTable, text, uuid,
+  check, date, index, pgTable, text, uniqueIndex, uuid,
 } from 'drizzle-orm/pg-core';
 import { accounts, creditCards } from './accounts';
 import { categories, subcategories } from './categories';
@@ -18,7 +18,8 @@ export const accountTransactions = pgTable('account_transactions', {
   id: id(),
   accountId: uuid('account_id').notNull().references(() => accounts.id, CASCADE),
   kind: text('kind').notNull(),
-  // Persisted from EFFECT_BY_KIND so history keeps the effect in force at the time.
+  // Persisted from EFFECT_BY_KIND so history keeps the effect in force at the time —
+  // a transfer's is `transfer` only between the household's own accounts (OQ-222).
   effect: text('effect').notNull(),
   date: date('date').notNull(),
   amount: integerAmount('amount').notNull(),
@@ -34,6 +35,10 @@ export const accountTransactions = pgTable('account_transactions', {
   // exactly them (OQ-171); null for every other kind.
   quantityDelta: integerAmount('quantity_delta'),
   costBasisDelta: integerAmount('cost_basis_delta'),
+  // A transfer between the household's own accounts: both sides share it, so
+  // they move, edit and delete together (OQ-222). Null for every other row —
+  // a transfer to or from someone else included.
+  transferId: uuid('transfer_id'),
   // Who recorded it (OQ-111); null for schedule posts and once FR-1.17 anonymizes it.
   createdByUserId: uuid('created_by_user_id').references(() => users.id),
   source: text('source').notNull().default('manual'),
@@ -56,6 +61,15 @@ export const accountTransactions = pgTable('account_transactions', {
     table.id.desc().nullsFirst(),
   ),
   index('account_transactions_holding_idx').on(table.holdingId),
+  index('account_transactions_transfer_idx').on(table.transferId),
+  // A pair is one sent and one received side, and only a pair is a `transfer`
+  // (OQ-222) — a transfer to or from someone else is a `movement`.
+  uniqueIndex('account_transactions_transfer_side_key').on(table.transferId, table.kind)
+    .where(sql`${table.transferId} IS NOT NULL`),
+  check(
+    'account_transactions_transfer_pair_check',
+    sql`(${table.transferId} IS NOT NULL) = (${table.effect} = 'transfer')`,
+  ),
 ]);
 
 export const cardTransactions = pgTable('card_transactions', {

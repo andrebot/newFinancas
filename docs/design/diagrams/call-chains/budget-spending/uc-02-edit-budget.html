@@ -135,7 +135,7 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain:</strong> <code>AccountManager</code> ① <code>BudgetAccessor.findById(...)</code> (sync — the Budget&#39;s visibility and owner feed the check; later <code>update</code>, <code>replaceTargets</code> and the read back) → ② <code>AuthorizationUtility.authorize(data.edit)</code> (sync) → ③ <code>ValidationUtility.checkFields(...)</code> (sync) → ④ <code>CategoryAccessor.list(...)</code> (sync, only when targets are sent) → ⑤ <code>LoggingUtility</code> (async).</p>
+    <p><strong>Chain:</strong> <code>AccountManager</code> ① <code>BudgetAccessor.findById(...)</code> (sync — the Budget&#39;s visibility and owner feed the check; later <code>update</code>, <code>replaceTargets</code> and the read back) → ② <code>AuthorizationUtility.authorize(data.edit)</code> (sync) → ③ <code>ValidationUtility.checkFields(...)</code> (sync) → ④ <code>CategoryAccessor.list(...)</code> (sync, only when targets are sent) → ⑤–⑧ the scope&#39;s Accounts and cards and the ledgers&#39; <code>claimedSums</code>, then <code>BudgetAccessor.restateSpend</code> (sync, only when targets are sent — OQ-166) → ⑨ <code>LoggingUtility</code> (async).</p>
     <p><strong>No smell:</strong> the same components as Create (UC-1) — Edit and Create differ in Accessor method, not in which components are involved.</p>
     <p><code>UnitOfWorkUtility.inTransaction</code> wraps the BudgetAccessor writes in one transaction (OQ-176) &mdash; not drawn on the shared layout.</p>
   </div>
@@ -150,7 +150,7 @@
       svg.style.width = containerRect.width + 'px';
       svg.style.height = containerRect.height + 'px';
 
-      var edges = [{"from": "mgr-account", "to": "acc-budget", "type": "sync", "order": 1}, {"from": "mgr-account", "to": "util-authz", "type": "sync", "order": 2}, {"from": "mgr-account", "to": "util-validation", "type": "sync", "order": 3}, {"from": "mgr-account", "to": "acc-category", "type": "sync", "order": 4}, {"from": "mgr-account", "to": "util-logging", "type": "async", "order": 5}];
+      var edges = [{"from": "mgr-account", "to": "acc-budget", "type": "sync", "order": 1}, {"from": "mgr-account", "to": "util-authz", "type": "sync", "order": 2}, {"from": "mgr-account", "to": "util-validation", "type": "sync", "order": 3}, {"from": "mgr-account", "to": "acc-category", "type": "sync", "order": 4}, {"from": "mgr-account", "to": "acc-account", "type": "sync", "order": 5}, {"from": "mgr-account", "to": "acc-creditcard", "type": "sync", "order": 6}, {"from": "mgr-account", "to": "acc-accounttxn", "type": "sync", "order": 7}, {"from": "mgr-account", "to": "acc-cardtxn", "type": "sync", "order": 8}, {"from": "mgr-account", "to": "util-logging", "type": "async", "order": 9}];
 
       var activeIds = {};
       edges.forEach(function (e) { activeIds[e.from] = true; activeIds[e.to] = true; });

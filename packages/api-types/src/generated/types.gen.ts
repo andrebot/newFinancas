@@ -542,14 +542,22 @@ export type InvestmentScheduleEntry = {
 };
 
 /**
- * One request for every kind (FR-3.1/OQ-39); which fields apply follows the kind (OQ-201). A card kind (charge/refund) takes `creditCardId` alone; every other kind takes `accountId`, and a bill payment also its `creditCardId`. A buy takes `assetType` + `ticker` (+ `quantity`, optional for fixed-term — 1 unit) and, for a fixed-term type, `rate`, `dueDate` and `interestPayment`; sell and redemption take `holdingId` + `quantity`; dividend, interest and tax take `holdingId`. A field the kind has no use for is a 422.
+ * One request for every kind (FR-3.1/OQ-39); which fields apply follows the kind (OQ-201). A card kind (charge/refund) takes `creditCardId` alone; every other kind takes `accountId`, and a bill payment also its `creditCardId`. A buy takes `assetType` + `ticker` (+ `quantity`, optional for fixed-term — 1 unit) and, for a fixed-term type, `rate`, `dueDate` and `interestPayment`; sell and redemption take `holdingId` + `quantity`; dividend, interest and tax take `holdingId`. A field the kind has no use for is a 422. A `transfer_sent` with `toAccountId` is a transfer between the household's own accounts (OQ-222): `accountId` is where it leaves, `amount` in that account's currency; both sides are recorded and kept out of In/Out, and it takes no category. Any other transfer is to or from someone else and counts as money in or out.
  *
  */
 export type TransactionCreateRequest = {
     /**
-     * Every kind but charge/refund — for a bill payment, the paying account
+     * Every kind but charge/refund — for a bill payment, the paying account; for a transfer between own accounts, where it leaves
      */
     accountId?: string;
+    /**
+     * transfer_sent only — makes it a transfer between the household's own accounts (OQ-222): the account it reaches, another one the caller may edit, open and not credit-card-only
+     */
+    toAccountId?: string;
+    /**
+     * With toAccountId only, required when the two accounts' currencies differ (no automatic conversion): what reached `toAccountId`, in its currency. Refused when they match — the same amount arrives.
+     */
+    receivedAmount?: PositiveMoney;
     /**
      * charge/refund: the card; a bill payment: the card it pays (FR-3.7) — on any account the caller may edit, open and in the payment's currency (OQ-219)
      */
@@ -619,7 +627,7 @@ export type TransactionCreateRequest = {
 };
 
 /**
- * When a fixed-term contract pays interest (FR-11.2, OQ-201) — part of the contract, entered on the buy; InvestmentProductEngine builds the schedule from it.
+ * When a fixed-term contract pays interest (FR-11.2, OQ-201) — part of the contract, entered on the buy; InvestmentProductEngine builds the schedule from it. A fixed-term buy that leaves it out pays at maturity. No schema default (OQ-222) — a default here makes request validation add the field to every create, and a kind with no use for it is a 422.
  */
 export type InterestPayment = 'at_maturity' | 'monthly' | 'semiannual';
 
@@ -637,6 +645,10 @@ export type TransactionUpdateRequest = {
      * Buy, sell, redemption only
      */
     quantity?: Quantity;
+    /**
+     * A transfer between own accounts across currencies only (OQ-222) — what reached the receiving account. Editing either side edits both: `amount` is always the amount sent, and date and description apply to both; a pair takes no category.
+     */
+    receivedAmount?: PositiveMoney;
     /**
      * Fixed-term buy only — recomputes the schedule
      */
@@ -667,7 +679,7 @@ export type AccountTransaction = {
     accountId?: string;
     kind?: string;
     /**
-     * Persisted via EFFECT_BY_KIND, not recomputed — see 02-data-model.md
+     * Persisted via EFFECT_BY_KIND, not recomputed — see 02-data-model.md. A transfer's is `transfer` only between the household's own accounts, `movement` to or from someone else (OQ-222)
      */
     effect?: 'movement' | 'transfer' | 'bill_payment' | 'investment_trade';
     date?: string;
@@ -695,6 +707,14 @@ export type AccountTransaction = {
      * Bill payment only — the one bridge between the two ledgers
      */
     creditCardId?: string | null;
+    /**
+     * A transfer between the household's own accounts only (OQ-222) — its other side. Null for every other row, a transfer to or from someone else included. The other side's fields are null when the caller can't see its account.
+     */
+    transfer?: {
+        accountId: string | null;
+        amount: Money | null;
+        currency: Currency | null;
+    } | null;
     /**
      * Who recorded it — null for schedule posts and after the recorder's account is deleted (OQ-201, FR-1.17)
      */

@@ -99,6 +99,20 @@
       "when": 1793112584992,
       "tag": "0013_goal_allocation_versions",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1793396330189,
+      "tag": "0014_transfer_pairs",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1793400113004,
+      "tag": "0015_transfer_pairs_and_trade_values",
+      "breakpoints": true
     }
   ]
 }

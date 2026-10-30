@@ -202,3 +202,44 @@ describe('rowAccessOf', () => {
     expect(rowAccessOf(row, lookup, { selfUserId: 'you', role: 'Member' })).toBe('none');
   });
 });
+
+describe('a transfer between own accounts (OQ-222)', () => {
+  const owner = { selfUserId: 'me', role: 'Owner' };
+  const english = createTranslator('en-US');
+  const sent = accountRowOf({
+    kind: 'transfer_sent',
+    effect: 'transfer',
+    accountId: 'itau',
+    categoryId: null,
+    transfer: { accountId: 'chase', amount: 900, currency: 'USD' },
+  });
+  const received = accountRowOf({
+    kind: 'transfer_received',
+    effect: 'transfer',
+    accountId: 'chase',
+    categoryId: null,
+    transfer: { accountId: 'itau', amount: 5_000, currency: 'BRL' },
+  });
+
+  it('names its route on either side', () => {
+    expect(sourceOf(sent, LOOKUP, english)).toBe('Itaú Conta → Main Checking');
+    expect(sourceOf(received, LOOKUP, english)).toBe('Itaú Conta → Main Checking');
+  });
+
+  it('names its own account blank while the list doesn\'t have it yet', () => {
+    const fresh = { ...sent, accountId: 'new' } as never;
+    expect(sourceOf(fresh, LOOKUP, english)).toBe(' → Main Checking');
+  });
+
+  it('names an account the user can\'t see as another account', () => {
+    const hidden = { ...received, transfer: { accountId: null, amount: null, currency: null } };
+    expect(sourceOf(hidden, LOOKUP, english)).toBe('another account → Main Checking');
+    expect(rowAccessOf(hidden, LOOKUP, owner)).toBe('none');
+  });
+
+  it('offers Edit and Delete only with both accounts manageable and open', () => {
+    expect(rowAccessOf(sent, LOOKUP, owner)).toBe('manage');
+    const toArchived = { ...sent, transfer: { accountId: 'old', amount: 1, currency: 'BRL' } };
+    expect(rowAccessOf(toArchived as never, LOOKUP, owner)).toBe('archived');
+  });
+});

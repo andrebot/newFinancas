@@ -101,8 +101,8 @@ sequenceDiagram
         API-->>EXP: error code
         EXP-->>FLOW: outcome: failed(code) — a form's in its banner, typing kept, a card action's toasted
     else ok
-        API-->>EXP: done
-        EXP->>API: GET …/categories?includeArchived=true (fetched again)
+        API-->>EXP: done — the Categories tag invalidated (PR #145)
+        EXP->>API: GET …/categories?includeArchived=true (the tag's refetch, awaited)
         alt list fetched
             API-->>EXP: categories
             EXP-->>FLOW: outcome: ok, categories refreshed — form / confirm closes
@@ -120,7 +120,7 @@ sequenceDiagram
     </pre>
   </div>
   <div class="notes">
-<ul><li>Colour stored as a token, resolved per theme (OQ-85).</li><li>The Experience answers after the list is fetched again, so the Flow never patches it (OQ-193).</li><li>A subcategory's add is the category's own atomic PATCH — unlisted ones untouched (OQ-173).</li></ul>
+<ul><li>Colour stored as a token, resolved per theme (OQ-85).</li><li>The Experience answers after the list is read again — the refetch its Categories tag starts (PR #145) — so the Flow never patches it (OQ-193).</li><li>A subcategory's add is the category's own atomic PATCH — unlisted ones untouched (OQ-173).</li></ul>
   </div>
   <script>
     mermaid.initialize({

@@ -160,3 +160,31 @@ describe('isClear and problemText', () => {
       .toBe('Only 0.00012345 held.');
   });
 });
+
+describe('problemsOf — a transfer between own accounts (OQ-222)', () => {
+  const own = formOf({
+    kind: 'transfer_sent', ownTransfer: true, accountId: 'itau', amount: 5_000,
+  });
+
+  it('asks where it goes, and what arrived across currencies', () => {
+    expect(problemsOf(own, { holdings: [], receivesOtherCurrency: true })).toEqual({
+      toAccount: { code: 'toAccount' }, receivedAmount: { code: 'receivedAmount' },
+    });
+    expect(problemsOf({ ...own, toAccountId: 'chase', receivedAmount: 0 }, {
+      holdings: [], receivesOtherCurrency: true,
+    })).toEqual({ receivedAmount: { code: 'receivedAmount' } });
+  });
+
+  it('asks nothing received within one currency', () => {
+    expect(problemsOf({ ...own, toAccountId: 'savings' }, NONE)).toEqual({});
+  });
+
+  it('checks what arrived on an edit too, while amounts may change', () => {
+    const edit = { holdings: [], editable: OPEN, receivesOtherCurrency: true };
+    expect(problemsOf({ ...own, toAccountId: 'chase' }, edit))
+      .toEqual({ receivedAmount: { code: 'receivedAmount' } });
+    expect(problemsOf({ ...own, toAccountId: 'chase' }, {
+      ...edit, editable: { ...OPEN, amountAndDate: false },
+    })).toEqual({});
+  });
+});

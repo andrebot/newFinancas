@@ -4,13 +4,15 @@ import type { Chip } from '../../../../../kit/chipGroup/ChipGroup';
 import { DateInput } from '../../../../../kit/dateInput/DateInput';
 import { LockedField } from '../../../../../kit/field/LockedField';
 import { MoneyInput } from '../../../../../kit/moneyInput/MoneyInput';
+import { Switch } from '../../../../../kit/switch/Switch';
 import { TextField } from '../../../../../kit/textField/TextField';
 import { useI18n } from '../../../../../utilities/I18nProvider';
 import type { Translator } from '../../../../../utilities/i18n';
 import { cardName } from '../../../../cardNames';
 import {
   accountChoicesOf, cardEntriesOf, cardEntryOf, directionOf, groupOf, isBillPayment, isBuy,
-  isCardKind, isTrade, namesCard, type CardEntry, type TransactionForm,
+  isCardKind, isOwnTransfer, isTrade, namesCard, toAccountChoicesOf, type CardEntry,
+  type TransactionForm,
 } from '../transactionForm';
 import { ChoiceField } from '../../../../../kit/choiceField/ChoiceField';
 import { recordText } from '../recordText';
@@ -19,8 +21,10 @@ import { recordText } from '../recordText';
 // every kind has — the amount as the hero, signed and in the target's
 // currency (FR-2.2), the target (an account, a card, or a card and the
 // account paying its bill), the date and description, and the category with
-// its subcategory, optional for every kind. On an edit the target is shown,
-// never changed (D6). Each part renders and emits; the Flow holds the form.
+// its subcategory, optional for every kind. A transfer asks whether it is
+// between the user's own accounts (OQ-222): then it goes From one To another,
+// with what arrived when the currencies differ. On an edit the target is
+// shown, never changed (D6). Each part renders and emits; the Flow holds the form.
 
 /** The value that stands for "no category" among the chips. */
 export const NO_CATEGORY = 'none';
@@ -99,10 +103,13 @@ export interface TargetFieldsProps {
   readonly accounts: readonly Account[];
   readonly accountError?: string | undefined;
   readonly cardError?: string | undefined;
+  readonly toAccountError?: string | undefined;
   /** An edit: the targets are shown, not picked (OQ-201 D6). */
   readonly locked?: boolean | undefined;
   readonly onAccount: (accountId: string) => void;
   readonly onCard: (creditCardId: string) => void;
+  /** A transfer between own accounts: the account it reaches is picked. */
+  readonly onToAccount: (accountId: string) => void;
 }
 
 /**
@@ -117,13 +124,16 @@ export const cardNameOf = (entry: CardEntry, translator: Translator) => (
 );
 
 /**
- * Picks the account's caption key: the paying account of a bill payment, the
- * account an investment kind sits in, or where cash goes from or to.
+ * Picks the account's caption key: where a transfer between own accounts
+ * leaves, the paying account of a bill payment, the account an investment kind
+ * sits in, or where cash goes from or to.
  *
- * @param kind - The kind's code.
+ * @param form - The form, for its kind and whether it is between own accounts.
  * @returns The `recordTransaction` key.
  */
-const accountLabelOf = (kind: string) => {
+const accountLabelOf = (form: TransactionForm) => {
+  const { kind } = form;
+  if (isOwnTransfer(form)) return 'field.from';
   if (isBillPayment(kind)) return 'field.payer';
   if (groupOf(kind) === 'investment') return 'field.account';
   return `field.account.${directionOf(kind)}`;
@@ -139,6 +149,9 @@ function LockedTargets({ form, accounts }: Pick<TargetFieldsProps, 'form' | 'acc
   const translator = useI18n();
   const card = cardEntryOf(accounts, form.creditCardId);
   const account = accounts.find((candidate) => candidate.id === form.accountId);
+  const toAccount = isOwnTransfer(form)
+    ? accounts.find((candidate) => candidate.id === form.toAccountId)
+    : undefined;
   return (
     <>
       {namesCard(form.kind) && card && (
@@ -149,9 +162,12 @@ function LockedTargets({ form, accounts }: Pick<TargetFieldsProps, 'form' | 'acc
       )}
       {account && (
         <LockedField
-          label={recordText(translator, accountLabelOf(form.kind))}
+          label={recordText(translator, accountLabelOf(form))}
           value={account.name}
         />
+      )}
+      {toAccount && (
+        <LockedField label={recordText(translator, 'field.to')} value={toAccount.name} />
       )}
     </>
   );
@@ -166,7 +182,7 @@ function LockedTargets({ form, accounts }: Pick<TargetFieldsProps, 'form' | 'acc
  * @returns The target fields.
  */
 export function TargetFields({
-  form, accounts, accountError, cardError, locked, onAccount, onCard,
+  form, accounts, accountError, cardError, toAccountError, locked, onAccount, onCard, onToAccount,
 }: TargetFieldsProps) {
   const translator = useI18n();
   if (locked) return <LockedTargets form={form} accounts={accounts} />;
@@ -187,7 +203,7 @@ export function TargetFields({
       )}
       {!isCardKind(form.kind) && (
         <ChoiceField
-          label={recordText(translator, accountLabelOf(form.kind))}
+          label={recordText(translator, accountLabelOf(form))}
           options={accountChoices.map((account) => ({
             value: account.id, label: account.name, tag: account.currency,
           }))}
@@ -196,7 +212,83 @@ export function TargetFields({
           onChange={onAccount}
         />
       )}
+      {isOwnTransfer(form) && (
+        <ChoiceField
+          label={recordText(translator, 'field.to')}
+          options={toAccountChoicesOf(form, accounts).map((account) => ({
+            value: account.id, label: account.name, tag: account.currency,
+          }))}
+          value={form.toAccountId}
+          error={toAccountError}
+          onChange={onToAccount}
+        />
+      )}
     </>
+  );
+}
+
+/** OwnTransferSwitch's props. */
+export interface OwnTransferSwitchProps {
+  readonly on: boolean;
+  /** An edit: whether it is between own accounts is shown, not changed. */
+  readonly locked?: boolean | undefined;
+  readonly onChange: (on: boolean) => void;
+}
+
+/**
+ * Renders "Between your accounts?" on a transfer (OQ-222), with what each
+ * answer means for the month's In / Out.
+ *
+ * @param props - Whether it is on, whether locked, and the handler.
+ * @returns The switch.
+ */
+export function OwnTransferSwitch({ on, locked, onChange }: OwnTransferSwitchProps) {
+  const translator = useI18n();
+  return (
+    <Switch
+      checked={on}
+      label={recordText(translator, 'ownTransfer.label')}
+      description={recordText(translator, on ? 'ownTransfer.on' : 'ownTransfer.off')}
+      disabled={locked}
+      onChange={onChange}
+    />
+  );
+}
+
+/** ReceivedAmountField's props. */
+export interface ReceivedAmountFieldProps {
+  /** The account it reached, in another currency than the one it left. */
+  readonly account: Account;
+  readonly value: number | null;
+  readonly error?: string | undefined;
+  readonly disabled?: boolean | undefined;
+  readonly onChange: (amount: number | null) => void;
+}
+
+/**
+ * Renders what a transfer between own accounts brought to an account in
+ * another currency — typed, never converted (FR-2.2, OQ-222).
+ *
+ * @param props - The account it reached, the amount, the error, the lock and the handler.
+ * @returns The amount field.
+ */
+export function ReceivedAmountField({
+  account, value, error, disabled, onChange,
+}: ReceivedAmountFieldProps) {
+  const translator = useI18n();
+  return (
+    <MoneyInput
+      label={recordText(translator, 'field.receivedAmount')}
+      hint={recordText(translator, 'receivedAmount.hint', {
+        currency: account.currency, account: account.name,
+      })}
+      error={error}
+      currency={account.currency}
+      direction="in"
+      value={value}
+      disabled={disabled}
+      onChange={onChange}
+    />
   );
 }
 

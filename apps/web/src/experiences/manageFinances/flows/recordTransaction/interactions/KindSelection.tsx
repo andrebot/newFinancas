@@ -24,6 +24,8 @@ export interface KindSelectionProps {
   readonly onKindChange: (kind: string) => void;
   /** An edit: the kind is shown, not picked. */
   readonly locked?: boolean | undefined;
+  /** A transfer between own accounts has one kind: only the groups are offered (OQ-222). */
+  readonly kindsHidden?: boolean | undefined;
 }
 
 /**
@@ -33,7 +35,7 @@ export interface KindSelectionProps {
  * @returns The kind selection.
  */
 export function KindSelection({
-  kind, onGroupChange, onKindChange, locked,
+  kind, onGroupChange, onKindChange, locked, kindsHidden,
 }: KindSelectionProps) {
   const translator = useI18n();
   const nameOf = (code: string) => kindName(translator, code);
@@ -56,6 +58,7 @@ export function KindSelection({
         value={group}
         onChange={onGroupChange}
       />
+      {!kindsHidden && (
       <ChipRadios
         label={recordText(translator, 'field.kind')}
         options={kindsOfGroup(group).map(({ code }) => ({
@@ -66,6 +69,7 @@ export function KindSelection({
         value={kind}
         onChange={onKindChange}
       />
+      )}
     </div>
   );
 }

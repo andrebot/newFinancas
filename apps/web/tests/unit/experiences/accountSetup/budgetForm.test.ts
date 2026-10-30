@@ -57,15 +57,14 @@ const BUDGETS: BudgetsView = { status: 'loaded', budgets: [budget('fun'), budget
 const CATEGORIES: CategoriesView = { status: 'loaded', categories: [FOOD] };
 
 describe('initialFieldsOf', () => {
-  it('opens a create empty, in BRL, shared — or personal for an actor who can\'t share', () => {
-    expect(initialFieldsOf(undefined, false)).toEqual({
+  it('opens a create empty, in BRL, personal — sharing is a choice (OQ-222)', () => {
+    expect(initialFieldsOf(undefined)).toEqual({
       name: '',
       currency: 'BRL',
-      visibility: 'shared',
+      visibility: 'personal',
       target: null,
       held: { categoryIds: [], subcategoryIds: [] },
     });
-    expect(initialFieldsOf(undefined, true).visibility).toBe('personal');
   });
 
   it('opens an edit with the budget\'s fields and what it holds', () => {
@@ -76,7 +75,7 @@ describe('initialFieldsOf', () => {
       visibility: 'personal',
       targets: [{ subcategoryId: 'Streaming' }],
     });
-    expect(initialFieldsOf(fun, true)).toEqual({
+    expect(initialFieldsOf(fun)).toEqual({
       name: 'Fun Money',
       currency: 'USD',
       visibility: 'personal',

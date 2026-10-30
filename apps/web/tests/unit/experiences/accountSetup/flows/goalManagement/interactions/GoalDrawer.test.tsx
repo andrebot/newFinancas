@@ -96,15 +96,14 @@ describe('objectionsOf', () => {
 });
 
 describe('initialFieldsOf', () => {
-  it('opens a create empty, in BRL, shared — or personal for an actor who can\'t share', () => {
-    expect(initialFieldsOf(undefined, false)).toEqual({
-      name: '', currency: 'BRL', visibility: 'shared', target: null, dueDate: '',
+  it('opens a create empty, in BRL, personal — sharing is a choice (OQ-222)', () => {
+    expect(initialFieldsOf(undefined)).toEqual({
+      name: '', currency: 'BRL', visibility: 'personal', target: null, dueDate: '',
     });
-    expect(initialFieldsOf(undefined, true).visibility).toBe('personal');
   });
 
   it('opens an edit with the goal\'s fields', () => {
-    expect(initialFieldsOf(goal(), false)).toEqual({
+    expect(initialFieldsOf(goal())).toEqual({
       name: 'Trip to Japan',
       currency: 'USD',
       visibility: 'personal',
@@ -124,7 +123,8 @@ describe('adding a goal', () => {
     expect(screen.getByRole('radiogroup', { name: 'Visibility' })).toBeTruthy();
     expect(screen.queryByRole('alert')).toBeNull();
     expect(screen.getByRole<HTMLInputElement>('radio', { name: 'BRL' }).checked).toBe(true);
-    expect(screen.getByRole<HTMLInputElement>('radio', { name: 'Shared' }).checked).toBe(true);
+    // Personal by default — sharing is a choice (OQ-222).
+    expect(screen.getByRole<HTMLInputElement>('radio', { name: 'Personal' }).checked).toBe(true);
     expect(screen.getByText(translator.text('goalManagement', 'fundNote'))).toBeTruthy();
     expect(screen.queryByText(translator.text('goalManagement', 'lockedNote'))).toBeNull();
   });
