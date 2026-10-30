@@ -50,6 +50,12 @@ describe('MonthRails', () => {
     });
   });
 
+  it('scrolls the balances and the budgets, and wraps the goals (PR #145)', () => {
+    renderInLocale(<MonthRails period="September/2026" content={CONTENT} />);
+    expect(screen.getAllByRole('region').map((rail) => rail.getAttribute('aria-label')))
+      .toEqual(['Balances', 'Budgets']);
+  });
+
   it('draws a card per balance, a card\'s outstanding captioned', () => {
     renderInLocale(<MonthRails period="September/2026" content={CONTENT} />);
     const balances = screen.getByRole('region', { name: 'Balances' });

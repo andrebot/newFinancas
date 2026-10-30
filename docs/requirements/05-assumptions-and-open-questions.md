@@ -6542,6 +6542,12 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
   trade doesn't move the later snapshots; a market value typed in fixes it.
   Market prices moving over time come from typed-in market values (OQ-56,
   `AccountManager`); their screen is for a later version.
+- **The Goals rail wraps instead of scrolling** (stakeholder request): the
+  kit's card rail takes `wrap`, which lays its cards out in rows that wrap
+  downwards — no scroll region, arrows or fade (amends OQ-212 for that
+  rail). The Month Rails' Goals use it, so on the Transactions page (and
+  the Dashboard, which shares them) every Goal shows at once. The Balance
+  and Budget rails still scroll.
 - **The Transactions page kept a deleted Budget** (stakeholder report): the
   Month Overview didn't know Account Setup's writes. Fixed with shared cache
   tags for accounts, budgets, categories and goals — see OQ-124's amendment.

@@ -313,6 +313,31 @@ describe('CardRail', () => {
     expect(placeholder?.className).toMatch(/rounded-2xl.*shrink-0/);
   });
 
+  it('wraps its cards onto new rows, with nothing to scroll (OQ-222)', () => {
+    renderInLocale(
+      <CardRail title="Goals" period="September/2026" wrap>
+        <article>Trip</article>
+        <article>Car</article>
+      </CardRail>,
+    );
+
+    expect(screen.getByRole('heading', { level: 2 }).textContent).toBe('GoalsSeptember/2026');
+    const cards = screen.getByText('Trip').parentElement!;
+    expect(cards.className).toContain('flex-wrap');
+    expect(cards.textContent).toBe('TripCar');
+    expect(screen.queryByRole('region')).toBeNull();
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  it('wraps its placeholders too while loading', () => {
+    renderInLocale(<CardRail title="Goals" wrap loading placeholderClassName="h-22 w-68" />);
+
+    const status = screen.getByRole('status', { name: 'Loading Goals' });
+    expect(status.className).toContain('flex-wrap');
+    expect(status.className).not.toContain('overflow-hidden');
+    expect(status.children).toHaveLength(cardRail.placeholderCards);
+  });
+
   it('names its parts in pt-BR', () => {
     renderInLocale(
       <CardRail title="Saldos"><article>Conta</article></CardRail>,

@@ -134,6 +134,8 @@ export function MonthRails({ period, content }: MonthRailsProps) {
         periodFromXl
         loading={loading}
         placeholderClassName={RAIL_CARD_PLACEHOLDERS.ring}
+        // The Goals wrap downwards rather than scroll (stakeholder, PR #145).
+        wrap
       >
         {content && cardsOr(content.goals.map((goal) => (
           <GoalRailCard

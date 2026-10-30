@@ -56,6 +56,11 @@ export const Fits: Story = {
   args: { children: balanceCards(2) },
 };
 
+/** Wrapping onto new rows instead of scrolling, as the Goals rail does. */
+export const Wrapping: Story = {
+  args: { wrap: true },
+};
+
 /** Placeholder cards while the balances load. */
 export const Loading: Story = {
   args: { loading: true, placeholderClassName: 'h-23 w-49' },
