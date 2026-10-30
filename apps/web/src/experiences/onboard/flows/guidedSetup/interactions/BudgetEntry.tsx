@@ -109,7 +109,7 @@ export function BudgetEntry({
   onCreate, onEdit, onCancelEdit, onBack, onFinish, onDiscard, onKeepEditing,
 }: BudgetEntryProps) {
   const translator = useI18n();
-  const [initial] = useState(() => initialFieldsOf(budget, personalOnly));
+  const [initial] = useState(() => initialFieldsOf(budget));
   const [name, setName] = useState(initial.name);
   const [currency, setCurrency] = useState(initial.currency);
   const [visibility, setVisibility] = useState(initial.visibility);

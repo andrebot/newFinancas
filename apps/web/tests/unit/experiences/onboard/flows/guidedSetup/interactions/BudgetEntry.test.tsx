@@ -146,10 +146,10 @@ describe('isUnsaved', () => {
 });
 
 describe('a new budget', () => {
-  it('opens empty, BRL and shared, without the edit header', () => {
+  it('opens empty, BRL and personal, without the edit header (OQ-222)', () => {
     renderEntry();
     expect(screen.getByRole('radio', { name: 'BRL' })).toHaveProperty('checked', true);
-    expect(screen.getByRole('radio', { name: 'Shared' })).toHaveProperty('checked', true);
+    expect(screen.getByRole('radio', { name: 'Personal' })).toHaveProperty('checked', true);
     expect(screen.queryByText(/^Editing/)).toBeNull();
     expect(screen.queryByRole('alert')).toBeNull();
   });
@@ -243,6 +243,7 @@ describe('a new budget', () => {
 
   it('names the budget a category already lives in, and won’t tick it', () => {
     renderEntry({ budgets: [FUN] });
+    fireEvent.click(screen.getByRole('radio', { name: 'Shared' }));
     expect(screen.getByText('in Fun Money')).toBeTruthy();
     expect(screen.getByRole<HTMLInputElement>('checkbox', { name: /^Dining/ }).disabled).toBe(true);
   });

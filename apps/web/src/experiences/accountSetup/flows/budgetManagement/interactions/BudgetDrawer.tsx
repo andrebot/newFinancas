@@ -216,7 +216,7 @@ export function BudgetDrawer({
   deleteBusy, onOpenDelete, onDelete, onCloseDelete, onSubmit, onCancel,
 }: BudgetDrawerProps) {
   const translator = useI18n();
-  const [initial] = useState(() => initialFieldsOf(budget, personalOnly));
+  const [initial] = useState(() => initialFieldsOf(budget));
   const { held } = initial;
   const [name, setName] = useState(initial.name);
   const [currency, setCurrency] = useState(initial.currency);

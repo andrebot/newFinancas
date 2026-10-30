@@ -6573,6 +6573,11 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
   - **Ledger:** a pair's rows read "Checking → Savings" on both sides
     ("another account" for one the user can't see); Edit and Delete need
     both accounts manageable and open.
+- **A new Budget or Goal starts personal** (stakeholder request): the
+  create forms — Account Setup's budget and goal drawers and Onboard's
+  budget step — open on Personal for everyone; sharing is a choice. A
+  Viewer still can't pick Shared. (They opened on Shared for anyone who
+  could share; accounts keep their own default.)
 - **The Goals rail wraps instead of scrolling** (stakeholder request): the
   kit's card rail takes `wrap`, which lays its cards out in rows that wrap
   downwards — no scroll region, arrows or fade (amends OQ-212 for that

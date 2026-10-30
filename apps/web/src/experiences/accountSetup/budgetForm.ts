@@ -70,16 +70,12 @@ export interface InitialFields {
 
 /**
  * Builds the form's starting fields: the budget's on an edit; on a create, an
- * empty form in BRL, shared unless the actor can't share (mockup 42).
+ * empty form in BRL, personal — sharing is a choice (OQ-222, stakeholder).
  *
  * @param budget - The budget an edit is about, if any.
- * @param personalOnly - The actor can't share (a Viewer).
  * @returns The fields the form opens with.
  */
-export const initialFieldsOf = (
-  budget: Budget | undefined,
-  personalOnly: boolean,
-): InitialFields => (budget
+export const initialFieldsOf = (budget: Budget | undefined): InitialFields => (budget
   ? {
     name: budget.name,
     currency: budget.currency,
@@ -90,7 +86,7 @@ export const initialFieldsOf = (
   : {
     name: '',
     currency: 'BRL',
-    visibility: personalOnly ? 'personal' : 'shared',
+    visibility: 'personal',
     target: null,
     held: NO_PICKS,
   });
