@@ -3604,6 +3604,7 @@ components:
     MonthOverviewReport:
       type: object
       description: FR-6.11 / FR-6.6 / FR-4.3 / FR-8.5
+      required: [reportType, summary, yearStrip, balances, budgets, goals]
       properties:
         reportType:
           type: string
@@ -3614,6 +3615,7 @@ components:
           description: Per currency, never summed
           items:
             type: object
+            required: [currency, in, out, net]
             properties:
               currency:
                 $ref: '#/components/schemas/Currency'
@@ -3627,6 +3629,7 @@ components:
           type: array
           items:
             type: object
+            required: [month, currency, in, out]
             properties:
               month:
                 type: string
@@ -3643,6 +3646,7 @@ components:
           description: Each visible, unarchived Account's balance at the month's end, and each of its cards' outstanding balance at the month's end (OQ-201)
           items:
             type: object
+            required: [accountId, creditCardId, currency, amount]
             properties:
               accountId:
                 type: string
@@ -3659,6 +3663,7 @@ components:
           description: The visible Budgets active that month, over-budget first; one with no period opened that month shows the target in effect then (OQ-166) and zero spend (OQ-201)
           items:
             type: object
+            required: [budgetId, name, currency, visibility, targetAmount, spendAmount]
             properties:
               budgetId: { type: string, format: uuid }
               name: { type: string }

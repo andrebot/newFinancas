@@ -919,52 +919,52 @@ export type MoneyByCurrency = {
  * FR-6.11 / FR-6.6 / FR-4.3 / FR-8.5
  */
 export type MonthOverviewReport = {
-    reportType?: 'month-overview';
+    reportType: 'month-overview';
     /**
      * Per currency, never summed
      */
-    summary?: Array<{
-        currency?: Currency;
-        in?: Money;
-        out?: Money;
-        net?: Money;
+    summary: Array<{
+        currency: Currency;
+        in: Money;
+        out: Money;
+        net: Money;
     }>;
-    yearStrip?: Array<{
+    yearStrip: Array<{
         /**
          * YYYY-MM, as every other month in the reports (OQ-201)
          */
-        month?: string;
-        currency?: Currency;
-        in?: Money;
-        out?: Money;
+        month: string;
+        currency: Currency;
+        in: Money;
+        out: Money;
     }>;
     /**
      * Each visible, unarchived Account's balance at the month's end, and each of its cards' outstanding balance at the month's end (OQ-201)
      */
-    balances?: Array<{
-        accountId?: string;
-        creditCardId?: string | null;
-        currency?: Currency;
-        amount?: Money;
+    balances: Array<{
+        accountId: string;
+        creditCardId: string | null;
+        currency: Currency;
+        amount: Money;
     }>;
     /**
      * The visible Budgets active that month, over-budget first; one with no period opened that month shows the target in effect then (OQ-166) and zero spend (OQ-201)
      */
-    budgets?: Array<{
-        budgetId?: string;
-        name?: string;
-        currency?: Currency;
-        visibility?: 'personal' | 'shared';
-        targetAmount?: Money;
+    budgets: Array<{
+        budgetId: string;
+        name: string;
+        currency: Currency;
+        visibility: 'personal' | 'shared';
+        targetAmount: Money;
         /**
          * Money out − money in across its claimed categories (OQ-201)
          */
-        spendAmount?: Money;
+        spendAmount: Money;
     }>;
     /**
      * Progress at the month's end (FR-8.7), per currency as always; the frontend shows the Goal's own currency and notes when others fund it (OQ-201 — the exchange rate stays on the Goals page)
      */
-    goals?: Array<GoalWithProgress>;
+    goals: Array<GoalWithProgress>;
 };
 
 /**
@@ -3112,24 +3112,24 @@ export type GetDashboardResponses = {
          * Each visible, unarchived Account's balance at the month's end, and each of its cards' outstanding balance at the month's end (OQ-201)
          */
         balances?: Array<{
-            accountId?: string;
-            creditCardId?: string | null;
-            currency?: Currency;
-            amount?: Money;
+            accountId: string;
+            creditCardId: string | null;
+            currency: Currency;
+            amount: Money;
         }>;
         /**
          * The visible Budgets active that month, over-budget first; one with no period opened that month shows the target in effect then (OQ-166) and zero spend (OQ-201)
          */
         budgets?: Array<{
-            budgetId?: string;
-            name?: string;
-            currency?: Currency;
-            visibility?: 'personal' | 'shared';
-            targetAmount?: Money;
+            budgetId: string;
+            name: string;
+            currency: Currency;
+            visibility: 'personal' | 'shared';
+            targetAmount: Money;
             /**
              * Money out − money in across its claimed categories (OQ-201)
              */
-            spendAmount?: Money;
+            spendAmount: Money;
         }>;
         /**
          * Progress at the month's end (FR-8.7), per currency as always; the frontend shows the Goal's own currency and notes when others fund it (OQ-201 — the exchange rate stays on the Goals page)

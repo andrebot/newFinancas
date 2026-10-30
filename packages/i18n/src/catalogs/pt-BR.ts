@@ -839,6 +839,23 @@ const ptBR = {
     months: 'Meses de {year}',
     figures: '{year}: entradas {in}, saídas {out}',
   },
+  monthRails: {
+    period: '{month}/{year}',
+    balances: 'Saldos',
+    'balances.empty': 'Nenhuma conta para mostrar',
+    budgets: 'Orçamentos',
+    'budgets.empty': 'Nenhum orçamento neste mês',
+    goals: 'Metas',
+    'goals.empty': 'Nenhuma meta ainda',
+  },
+  monthOverview: {
+    currency: 'Moeda do resumo',
+    in: 'Entradas',
+    out: 'Saídas',
+    total: 'Total',
+    failed: 'Não foi possível carregar {period}.',
+    retry: 'Tentar de novo',
+  },
   groupedList: {
     loading: 'Carregando',
     loadingMore: 'Carregando mais',

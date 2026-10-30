@@ -824,6 +824,23 @@ const enUS: Catalog = {
     months: 'Months of {year}',
     figures: '{year}: in {in}, out {out}',
   },
+  monthRails: {
+    period: '{month}/{year}',
+    balances: 'Balances',
+    'balances.empty': 'No accounts to show',
+    budgets: 'Budgets',
+    'budgets.empty': 'No budgets this month',
+    goals: 'Goals',
+    'goals.empty': 'No goals yet',
+  },
+  monthOverview: {
+    currency: 'Summary currency',
+    in: 'In',
+    out: 'Out',
+    total: 'Total',
+    failed: "Couldn't load {period}.",
+    retry: 'Try again',
+  },
   groupedList: {
     loading: 'Loading',
     loadingMore: 'Loading more',

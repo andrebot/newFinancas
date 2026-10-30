@@ -61,30 +61,36 @@
 sequenceDiagram
     actor User
     participant PB as Period Bar
-    participant CS as Currency Switch
+    participant CS as Period Summary<br/>($ / R$ switch)
     participant RL as Balance / Budget /<br/>Goal Rails
     participant FLOW as Month Overview<br/>Flow
     participant EXP as Manage Finances<br/>Experience
     participant API as Backend API
-    FLOW->>EXP: request overview(year, month = today)
-    EXP->>API: GET /households/:householdId/reports/month-overview
+    EXP->>API: GET /households/:householdId/reports/month-overview?year=&month= (today's month)
     API-->>EXP: summary per currency, year strip, balances, budgets, goals
-    EXP-->>FLOW: state
-    FLOW-->>PB: render year + 12 months (mini in/out bars)
-    FLOW-->>RL: render rails labelled 'Month/Year'
+    EXP-->>FLOW: period, report (loading / failed / loaded), accounts
+    FLOW-->>PB: render year + 12 months in the switch's currency
+    FLOW-->>CS: render In / Out / Total (R$ the first time, then the remembered pick)
+    FLOW-->>RL: render rails labelled 'Month/Year' (placeholders while loading)
     alt pick another month or year
         User->>PB: select
         PB->>FLOW: emit periodChanged
-        FLOW->>EXP: request overview(year, month)
-        EXP->>API: GET /households/:householdId/reports/month-overview
+        FLOW->>EXP: periodChanged(year, month)
+        EXP->>API: GET /households/:householdId/reports/month-overview?year=&month=
     else switch currency
         User->>CS: $ or R$
-        CS->>FLOW: emit currencyChanged (local — no request)
+        CS->>FLOW: emit currencyChanged (local — remembered in this browser, no request)
+    else the month fails
+        EXP-->>FLOW: failed
+        FLOW-->>RL: banner "Couldn't load Month/Year" + Try again, in the rails' place
+        User->>FLOW: Try again
+        FLOW->>EXP: retry
+        EXP->>API: GET /households/:householdId/reports/month-overview?year=&month=
     end
     </pre>
   </div>
   <div class="notes">
-<ul><li>FormattingUtility formats every amount in its own currency; nothing is summed across currencies.</li><li>OQ-201: a Goal funded in other currencies shows its own currency's progress and a note pointing to Goals (the exchange rate lives there); a card shows its outstanding at the month's end.</li></ul>
+<ul><li>FormattingUtility formats every amount in its own currency; nothing is summed across currencies.</li><li>OQ-201: a Goal funded in other currencies shows its own currency's progress and a note pointing to Goals (the exchange rate lives there); a card shows its outstanding at the month's end.</li><li>OQ-221: the Experience holds the month (its query's argument) and refetches it after a record, edit or delete; the Flow keeps only the $ / R$ switch. Its two regions (bar, rails) are placed by the Experience's page grid around Browse's ledger. A failed month never shows the previous month's figures.</li></ul>
   </div>
   <script>
     mermaid.initialize({

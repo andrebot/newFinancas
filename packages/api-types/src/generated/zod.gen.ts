@@ -831,34 +831,34 @@ export const zMoneyByCurrency = z.object({
  * FR-6.11 / FR-6.6 / FR-4.3 / FR-8.5
  */
 export const zMonthOverviewReport = z.object({
-    reportType: z.enum(['month-overview']).optional(),
+    reportType: z.enum(['month-overview']),
     summary: z.array(z.object({
-        currency: zCurrency.optional(),
-        in: zMoney.optional(),
-        out: zMoney.optional(),
-        net: zMoney.optional()
-    })).optional(),
+        currency: zCurrency,
+        in: zMoney,
+        out: zMoney,
+        net: zMoney
+    })),
     yearStrip: z.array(z.object({
-        month: z.string().regex(/^[0-9]{4}-(0[1-9]|1[0-2])$/).optional(),
-        currency: zCurrency.optional(),
-        in: zMoney.optional(),
-        out: zMoney.optional()
-    })).optional(),
+        month: z.string().regex(/^[0-9]{4}-(0[1-9]|1[0-2])$/),
+        currency: zCurrency,
+        in: zMoney,
+        out: zMoney
+    })),
     balances: z.array(z.object({
-        accountId: z.uuid().optional(),
-        creditCardId: z.uuid().nullish(),
-        currency: zCurrency.optional(),
-        amount: zMoney.optional()
-    })).optional(),
+        accountId: z.uuid(),
+        creditCardId: z.uuid().nullable(),
+        currency: zCurrency,
+        amount: zMoney
+    })),
     budgets: z.array(z.object({
-        budgetId: z.uuid().optional(),
-        name: z.string().optional(),
-        currency: zCurrency.optional(),
-        visibility: z.enum(['personal', 'shared']).optional(),
-        targetAmount: zMoney.optional(),
-        spendAmount: zMoney.optional()
-    })).optional(),
-    goals: z.array(zGoalWithProgress).optional()
+        budgetId: z.uuid(),
+        name: z.string(),
+        currency: zCurrency,
+        visibility: z.enum(['personal', 'shared']),
+        targetAmount: zMoney,
+        spendAmount: zMoney
+    })),
+    goals: z.array(zGoalWithProgress)
 });
 
 /**
@@ -1717,18 +1717,18 @@ export const zGetDashboardResponse = z.object({
     })).optional(),
     payouts: zPayoutsReport.optional(),
     balances: z.array(z.object({
-        accountId: z.uuid().optional(),
-        creditCardId: z.uuid().nullish(),
-        currency: zCurrency.optional(),
-        amount: zMoney.optional()
+        accountId: z.uuid(),
+        creditCardId: z.uuid().nullable(),
+        currency: zCurrency,
+        amount: zMoney
     })).optional(),
     budgets: z.array(z.object({
-        budgetId: z.uuid().optional(),
-        name: z.string().optional(),
-        currency: zCurrency.optional(),
-        visibility: z.enum(['personal', 'shared']).optional(),
-        targetAmount: zMoney.optional(),
-        spendAmount: zMoney.optional()
+        budgetId: z.uuid(),
+        name: z.string(),
+        currency: zCurrency,
+        visibility: z.enum(['personal', 'shared']),
+        targetAmount: zMoney,
+        spendAmount: zMoney
     })).optional(),
     goals: z.array(zGoalWithProgress).optional()
 });

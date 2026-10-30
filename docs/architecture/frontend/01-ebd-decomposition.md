@@ -132,6 +132,8 @@ Diagram: `docs/design/diagrams/ebd-tiers/app-shell.html`; sequence:
 
 **OQ-220 (task 117):** Browse's applied filters and pages are the Experience's — an RTK Query infinite query keyed by the filters, refetched whole after a record, edit or delete, so the figures stay right and the scroll stays put — and the page header's Filter button opens the Flow's drawer. The Flow keeps the drawer's draft (applied by Show once its range is sound), the open row and its delete; its controller is `useBrowseTransactions`. A Holding filter comes from "See in Transactions" and shows as a removable chip; the drawer never picks one. Kind, group and card names are shared by both Flows from `experiences/manageFinances/transactionNames.ts`, and the "may manage" rule from `experiences/ownership.ts`.
 
+**OQ-221 (task 118):** Month Overview's month is the Experience's — its RTK Query argument, refetched after every write — and the Flow keeps only the $ / R$ switch, remembered in the browser (R$ the first time). The Flow renders two regions, `overview-bar` and `overview-rails`, that the Experience's page grid places around Browse's ledger. The Balance, Budget and Goal rails and the balance cards are shared with the Dashboard from `experiences/interactions/MonthRails.tsx` and `experiences/balanceCards.ts`; the summary (In / Out / Total and the switch) is the Flow's *Period Summary*.
+
 | Flow | Interactions | Sequence |
 |---|---|---|
 | Record Transaction | Kind Group & Kind Selection, Transaction Entry, Holding Selection, Investment Buy Entry, Goal Allocation Entry | `docs/design/diagrams/ebd-sequences/manage-finances-record-transaction.html` |

@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import type { Currency } from '@financas/api-types';
-import { money } from '../../../../../config/constants';
+import { accounts, money } from '../../../../../config/constants';
 import { InlineBanner } from '../../../../../kit/alert/InlineBanner';
 import { LockedField } from '../../../../../kit/field/LockedField';
 import { Icon, type IconName } from '../../../../../kit/icons/Icon';
@@ -32,12 +32,7 @@ import { WizardNavigation } from './WizardNavigation';
 // the banner.
 
 /** Each type's tile icon (mockup 11). */
-const TYPE_ICONS: Readonly<Record<AccountType, IconName>> = {
-  checking: 'account-balance-outline',
-  savings: 'savings-outline',
-  credit_card_only: 'credit-card-outline',
-  investment: 'trending-up',
-};
+const TYPE_ICONS: Readonly<Record<AccountType, IconName>> = accounts.typeIcons;
 
 const TYPES = Object.keys(TYPE_ICONS) as AccountType[];
 
