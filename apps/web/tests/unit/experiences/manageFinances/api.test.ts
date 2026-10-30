@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ledgerPathOf, manageFinancesApi, writeTagsOf,
 } from '../../../../src/experiences/manageFinances/api';
+import { goalsApi } from '../../../../src/api/goalsApi';
 import { setupApi } from '../../../../src/api/setupApi';
 import { envelope, jsonResponse } from '../../api/fakes';
 import { fakeFetch, sent, settle } from '../experienceFakes';
@@ -38,9 +39,8 @@ describe('ledgerPathOf', () => {
 });
 
 describe('writeTagsOf', () => {
-  it('makes the ledger, the month, the Goals and the balances stale after a write', () => {
-    expect(writeTagsOf(undefined))
-      .toEqual(['Ledger', 'MonthOverview', 'GoalProgress', 'Accounts']);
+  it('makes the ledger, the month, the balances and the Goals stale after a write', () => {
+    expect(writeTagsOf(undefined)).toEqual(['Ledger', 'MonthOverview', 'Accounts', 'Goals']);
   });
 
   it('does so too when the row is already gone', () => {
@@ -98,9 +98,6 @@ describe('the reads', () => {
   });
 
   it.each([
-    ['listGoalsWithProgress', 'GET /households/doe/goal-progress', {
-      householdId: 'doe', status: 'completed',
-    }],
     ['listHoldings', 'GET /households/doe/accounts/inv/holdings', {
       householdId: 'doe', accountId: 'inv',
     }],
@@ -116,9 +113,6 @@ describe('the reads', () => {
   });
 
   it.each([
-    ['listGoalsWithProgress', 'GET /households/doe/goal-progress', {
-      householdId: 'doe', status: 'active',
-    }],
     ['listHoldings', 'GET /households/doe/accounts/inv/holdings', {
       householdId: 'doe', accountId: 'inv',
     }],
@@ -176,11 +170,15 @@ describe('the month overview', () => {
     ['an account edit', (store: ReturnType<typeof fakeStore>['store']) => store.dispatch(
       setupApi.endpoints.editAccount.initiate({ householdId: 'doe', accountId: 'chk', name: 'X' }),
     )],
+    ['a goal completed', (store: ReturnType<typeof fakeStore>['store']) => store.dispatch(
+      goalsApi.endpoints.completeGoal.initiate({ householdId: 'doe', goalId: 'trip' }),
+    )],
   ])('is read again after %s in Account Setup (PR #145)', async (_write, write) => {
     const fetchFn = fakeFetch({
       'GET /households/doe/reports/month-overview': () => jsonResponse(200, { budgets: [] }),
       'DELETE /households/doe/budgets/fun': () => jsonResponse(204),
       'PATCH /households/doe/accounts/chk': () => jsonResponse(200, { id: 'chk' }),
+      'POST /households/doe/goals/trip/complete': () => jsonResponse(204),
     });
     const { store } = fakeStore({ refreshToken: 'r-0', fetchFn });
     const month = store.dispatch(manageFinancesApi.endpoints.getMonthOverview.initiate({
@@ -193,5 +191,27 @@ describe('the month overview', () => {
       .filter(({ route }) => route.startsWith('GET /api/v1/households/doe/reports'));
     expect(reads).toHaveLength(2);
     month.unsubscribe();
+  });
+});
+
+describe('the goals\' progress', () => {
+  it('is read again after a transaction write (a buy\'s split moves it, PR #145)', async () => {
+    const fetchFn = fakeFetch({
+      'GET /households/doe/goal-progress': () => jsonResponse(200, { data: [] }),
+      'DELETE /households/doe/transactions/t-1': () => jsonResponse(204),
+    });
+    const { store } = fakeStore({ refreshToken: 'r-0', fetchFn });
+    const progress = store.dispatch(goalsApi.endpoints.listGoalProgress.initiate({
+      householdId: 'doe', status: 'active',
+    }));
+    await progress;
+    await store.dispatch(manageFinancesApi.endpoints.deleteTransaction.initiate({
+      householdId: 'doe', transactionId: 't-1',
+    }));
+    await settle();
+    const reads = (await sent(fetchFn))
+      .filter(({ route }) => route.startsWith('GET /api/v1/households/doe/goal-progress'));
+    expect(reads).toHaveLength(2);
+    progress.unsubscribe();
   });
 });

@@ -15,7 +15,7 @@ import type { RequestOutcome } from '../../utilities/requestOutcome';
 import {
   useListGoalsQuery, useListGoalProgressQuery, useCreateGoalMutation, useEditGoalMutation,
   useDeleteGoalMutation, useCompleteGoalMutation, useReopenGoalMutation,
-} from './api';
+} from '../../api/goalsApi';
 import { AccountManagementFlow } from './flows/accountManagement/AccountManagementFlow';
 import { BudgetManagementFlow } from './flows/budgetManagement/BudgetManagementFlow';
 import { CategoryManagementFlow } from './flows/categoryManagement/CategoryManagementFlow';
@@ -121,8 +121,9 @@ export const progressStatusOf = (query: ListQueryState<GoalWithProgress>): Progr
 /**
  * Holds the goals the caller can see — both statuses, each joined to its
  * progress — and builds the Goal Management Flow's requests (FL14). After a
- * success, or a failure that says a goal is gone (404), it fetches the
- * definitions and the progress again and answers only then.
+ * success, or a failure that says a goal is gone (404), it waits for the
+ * definitions and the progress to be read again — the refetch the `Goals`
+ * tag started, which these join (PR #145) — and answers only then.
  *
  * @param householdId - The household.
  * @returns The goals' view and the Flow's requests.

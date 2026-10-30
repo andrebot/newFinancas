@@ -1,6 +1,6 @@
 import type {
-  GetReportResponse, GoalWithProgress, HoldingAllocation, HoldingAllocations, InvestmentHolding,
-  InvestmentScheduleEntry, ListGoalProgressResponse, ListHoldingsResponse,
+  GetReportResponse, HoldingAllocation, HoldingAllocations, InvestmentHolding,
+  InvestmentScheduleEntry, ListHoldingsResponse,
   ListScheduleEntriesResponse, MonthOverviewReport, TransactionCreateRequest, TransactionPage,
   TransactionUpdateRequest,
 } from '@financas/api-types';
@@ -53,14 +53,8 @@ export interface SaveInput extends TransactionTarget {
   readonly changes: TransactionUpdateRequest;
 }
 
-/** Which of a household's Goals to read the progress of. */
-export interface GoalProgressInput {
-  readonly householdId: string;
-  readonly status: 'active' | 'completed';
-}
-
 /** The Experience's own caches, which a transaction write makes stale. */
-const WRITE_TAGS = ['Ledger', 'MonthOverview', 'GoalProgress'] as const;
+const WRITE_TAGS = ['Ledger', 'MonthOverview'] as const;
 
 /** The code of a delete whose row is already gone: the ledger is stale too. */
 const GONE = 'transaction.not_found';
@@ -96,14 +90,15 @@ export const ledgerPathOf = ({ householdId, query }: LedgerInput, cursor: string
 
 /**
  * Names the caches a write makes stale: all of them once it went through, or
- * when it says its row is gone; none when it failed otherwise. The accounts
- * too, whose balances it moved (Account Setup shows them, PR #145).
+ * when it says its row is gone; none when it failed otherwise. The shared
+ * accounts and goals too: it moved a balance, and a buy's split moves a
+ * goal's funding (Account Setup shows both, PR #145).
  *
  * @param error - The write's failure, if any.
  * @returns The tags to invalidate.
  */
 export const writeTagsOf = (error: unknown) => changedTags(
-  [...WRITE_TAGS, 'Accounts'],
+  [...WRITE_TAGS, 'Accounts', 'Goals'],
   error,
   GONE,
 );
@@ -126,16 +121,9 @@ export const manageFinancesApi = backendApi.enhanceEndpoints({
         `${householdPath(householdId)}/reports/month-overview?year=${year}&month=${month}`
       ),
       transformResponse: (response: GetReportResponse) => response as MonthOverviewReport,
-      // Its balances and budgets come from the household's setup data, so a
-      // write in Account Setup makes it stale too (PR #145).
-      providesTags: ['MonthOverview', 'Accounts', 'Budgets'],
-    }),
-    listGoalsWithProgress: build.query<readonly GoalWithProgress[], GoalProgressInput>({
-      query: ({ householdId, status }) => (
-        `${householdPath(householdId)}/goal-progress?status=${status}`
-      ),
-      transformResponse: (response: ListGoalProgressResponse) => response.data ?? [],
-      providesTags: ['GoalProgress'],
+      // Its balances, budgets and goals come from the household's setup data,
+      // so a write in Account Setup makes it stale too (PR #145).
+      providesTags: ['MonthOverview', 'Accounts', 'Budgets', 'Goals'],
     }),
     listHoldings: build.query<readonly InvestmentHolding[], {
       readonly householdId: string;
@@ -177,7 +165,6 @@ export const manageFinancesApi = backendApi.enhanceEndpoints({
 export const {
   useListTransactionsInfiniteQuery,
   useGetMonthOverviewQuery,
-  useListGoalsWithProgressQuery,
   useLazyListHoldingsQuery,
   useGetHoldingQuery,
   useLazyGetHoldingQuery,

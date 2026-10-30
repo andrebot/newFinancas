@@ -948,7 +948,7 @@ else complete / reopen / delete (from the edit drawer)
 end
 alt 404 goal.not_found (deleted meanwhile)
     API-->>EXP: error code
-    EXP->>API: GET …/goals + each …/goal-progress that loaded (fetched again — the goal is gone)
+    EXP->>API: GET …/goals + each …/goal-progress that loaded (the Goals tag's refetch, awaited — the goal is gone)
     EXP-->>FLOW: outcome: failed — the drawer closes
     Note over FLOW: toast "{name} was deleted by someone else…"
 else other failure
@@ -956,7 +956,8 @@ else other failure
     EXP-->>FLOW: outcome: failed — a form's in its banner, typing kept — a step's toasted, confirm kept
 else ok
     API-->>EXP: goal (or 204)
-    EXP->>API: GET …/goals + each …/goal-progress that loaded (fetched again — one that never loaded waits for Retry)
+    EXP->>API: GET …/goals + each …/goal-progress that loaded (the Goals tag's refetch, awaited — one that never loaded waits for Retry)
+    Note over EXP: the Goals tag also marks the Month Overview's Goals rail and the Record drawer's split stale (PR #145)
     opt a refetch fails
         EXP-->>FLOW: last good goals and funding kept, marked stale — "may be out of date" banner + retry
     end
@@ -1024,7 +1025,7 @@ alt 4xx (e.g. goal.allocation_exceeds_100, transaction.kind_not_allowed_for_targ
     EXP-->>FLOW: state: error — I18nUtility renders it in the drawer's banner
 else 201 / 200
     API-->>EXP: the transaction
-    EXP-->>FLOW: done → toast, close — the ledger, the month, the Goals' progress and the accounts' balances invalidated (cache tags), so Browse + Month Overview refetch
+    EXP-->>FLOW: done → toast, close — the ledger, the month, the accounts' balances and the goals invalidated (cache tags), so Browse + Month Overview refetch
 end
 """, ["No recurring option (OQ-55).", "The Experience, not this Flow, refreshes the sibling Flows on completion — by invalidating their cache tags (OQ-222).", "OQ-201: the Holding is picked, never typed, for every investment kind but a buy, a category is offered for every kind, a transfer is one side, recorded on its own account.", "OQ-219: any open account but a credit-card-only one pays a card's bill, in the card's currency. Accounts, cards and categories are chips up to 10, a select beyond."]),
     ("manage-finances-browse-transactions", "Manage Finances — Browse Transactions", f"{R('GET /households/:householdId/transactions?…&cursor=')}, {R('GET …/holdings/:holdingId')}, {R('DELETE /households/:householdId/transactions/:id')}.",

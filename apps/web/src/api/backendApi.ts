@@ -8,14 +8,14 @@ import { apiBaseQuery } from './baseQuery';
 // Experiences may import endpoints — ESLint stops Flows, Interactions, the kit
 // and Utilities from reaching the backend. The App Shell (S1) adds the reducer
 // and middleware to the store and gives it the `ApiEnvironment`.
-// The household's setup data — its accounts, budgets and categories — is
+// The household's setup data — its accounts, budgets, categories and goals — is
 // shown by more than one Experience, so its tags are declared here and owned
 // by none: the setup reads provide them, the writes that change the data
 // invalidate them, and any other read built on that data provides them too,
 // so a write on one page refreshes every page showing it (PR #145).
 
 /** The tags of the household data several Experiences show. */
-export const SHARED_TAGS = ['Accounts', 'Budgets', 'Categories'] as const;
+export const SHARED_TAGS = ['Accounts', 'Budgets', 'Categories', 'Goals'] as const;
 
 /** One of the shared tags. */
 export type SharedTag = (typeof SHARED_TAGS)[number];

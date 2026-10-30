@@ -1953,6 +1953,25 @@ OQ-118). Delete User's cascade is `M1D` (task 136, slice 5).
   deleted in Account Setup stayed on the Transactions page until a reload.
   The hosts still wait for the list before answering their Flow (OQ-193);
   that refetch joins the read the tag started, so nothing is fetched twice.
+- **Goals join them (PR #145).** The goal endpoints moved from Account
+  Setup's `api.ts` to a shared `api/goalsApi.ts`, so Account Setup and
+  Manage Finances read one `goal-progress` cache (Manage Finances had its own
+  copy). Both goal reads provide `Goals` — a progress read only once it
+  loaded, so a failed one still waits for Retry (OQ-195); the goal writes
+  invalidate it (also on `goal.not_found`); a transaction write invalidates
+  it instead of Manage Finances' own `GoalProgress` tag (a buy's split moves
+  the funding); the Month Overview provides it (its Goals rail).
+- **Credit cards need no tag of their own:** a card is part of its account
+  (OQ-175 — the accounts list carries each card and its outstanding, card
+  changes ride the account edit), so `Accounts` covers card writes, and
+  charges, refunds and bill payments are transaction writes. A card read of
+  its own (a statement) would provide `Accounts` or bring its own tag.
+- **The rule for what comes next:** a read built on household data
+  provides that data's tags; a write invalidates the tags of everything it
+  changes, on whatever page it happens. So the Investments work (Edit
+  Holding's split and market values) invalidates `Goals` and `Accounts`, and
+  its Holdings reads share a `Holdings` tag with the Record drawer's Holdings
+  reads (which have none today).
 
 ## Refined (resolved, with a follow-up still open)
 
@@ -6462,8 +6481,10 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
   page that page.
 - **The drawer mounts once the Goals a split names are read** (both statuses,
   `goal-progress`, each with its own-currency progress in whole percent); a
-  failed read opens it with no Goals to add. Its own endpoint
-  (`listGoalsWithProgress`), as Account Setup's isn't a shared read.
+  failed read opens it with no Goals to add. It reads them through the
+  shared `listGoalProgress` (`api/goalsApi.ts`), one cache with Account
+  Setup's (PR #145 — it first had its own endpoint, a second cache of the
+  same read that writes on either page left stale).
 - **Mockup 34's phone layout**: the page header is kept for screen readers
   only; the period bar sticks under the App Shell's header and the ledger's
   month headers stick under the bar — its height measured by a new
@@ -6505,7 +6526,7 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
   report): fixed in AccountManager — see OQ-166's amendment.
 - **The Transactions page kept a deleted Budget** (stakeholder report): the
   Month Overview didn't know Account Setup's writes. Fixed with shared cache
-  tags — see OQ-124's amendment.
+  tags for accounts, budgets, categories and goals — see OQ-124's amendment.
 - Tests added for the race, the failed refetch, the switch, the time zone of
   a card's issue (April in UTC, March in São Paulo) and an edit's body (the
   old default also turned every PATCH into a terms edit).

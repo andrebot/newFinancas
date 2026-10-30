@@ -1,5 +1,6 @@
 import { useState, type CSSProperties } from 'react';
 import type { Account, Category, MyHousehold } from '@financas/api-types';
+import { useListGoalProgressQuery } from '../../api/goalsApi';
 import { useListAccountsQuery, useListCategoriesQuery } from '../../api/setupApi';
 import { useHouseholds } from '../../api/identityApi';
 import { monthOverview } from '../../config/constants';
@@ -14,7 +15,7 @@ import type { ShellHousehold } from '../../shell/shellConfig';
 import { useI18n } from '../../utilities/I18nProvider';
 import { safeStorage } from '../../utilities/safeStorage';
 import useChildHeight from '../../utilities/useChildHeight';
-import { useListGoalsWithProgressQuery } from './api';
+
 import { BrowseTransactionsFlow } from './flows/browseTransactions/BrowseTransactionsFlow';
 import { activeFilterCount } from './flows/browseTransactions/ledgerFilters';
 import { MonthOverviewFlow } from './flows/monthOverview/MonthOverviewFlow';
@@ -133,8 +134,8 @@ function OpenRecordDrawer({
   readonly transaction: EditedTransaction | undefined;
   readonly requests: RecordDrawer['requests'];
 }) {
-  const active = useListGoalsWithProgressQuery({ householdId, status: 'active' });
-  const completed = useListGoalsWithProgressQuery({ householdId, status: 'completed' });
+  const active = useListGoalProgressQuery({ householdId, status: 'active' });
+  const completed = useListGoalProgressQuery({ householdId, status: 'completed' });
   if (active.isLoading || completed.isLoading) return null;
   return (
     <RecordTransactionFlow
