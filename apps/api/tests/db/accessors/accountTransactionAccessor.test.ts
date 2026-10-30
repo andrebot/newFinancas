@@ -601,13 +601,28 @@ describe('monthlySums', () => {
     expect(sums).toHaveLength(3);
     expect(sums).toEqual(expect.arrayContaining([
       {
-        month: '2026-10', currency: 'BRL', kind: 'pix_payment', effect: 'movement', total: 300,
+        month: '2026-10',
+        currency: 'BRL',
+        kind: 'pix_payment',
+        effect: 'movement',
+        pairInView: false,
+        total: 300,
       },
       {
-        month: '2026-10', currency: 'BRL', kind: 'deposit', effect: 'transfer', total: 5,
+        month: '2026-10',
+        currency: 'BRL',
+        kind: 'deposit',
+        effect: 'transfer',
+        pairInView: false,
+        total: 5,
       },
       {
-        month: '2026-11', currency: 'BRL', kind: 'pix_payment', effect: 'movement', total: 7,
+        month: '2026-11',
+        currency: 'BRL',
+        kind: 'pix_payment',
+        effect: 'movement',
+        pairInView: false,
+        total: 7,
       },
     ]));
   }));
@@ -616,6 +631,108 @@ describe('monthlySums', () => {
     await record();
 
     expect(await ledger.monthlySums([], '2026-01-01', '2026-12-31')).toEqual([]);
+  }));
+});
+
+describe('transfers between own accounts (OQ-222)', () => {
+  /**
+   * Records a transfer of 500 from checking to savings.
+   *
+   * @param ledger - The accessor.
+   * @param from - Where it leaves.
+   * @param to - Where it arrives.
+   * @returns What the Accessor answered.
+   */
+  const transfer = (ledger: Transactions, from: string, to: string) => ledger.insertTransfer({
+    sent: {
+      accountId: from,
+      kind: 'transfer_sent',
+      effect: 'transfer',
+      date: '2026-10-08',
+      amount: 500,
+      currency: 'BRL',
+      description: 'Savings',
+    },
+    received: {
+      accountId: to,
+      kind: 'transfer_received',
+      effect: 'transfer',
+      date: '2026-10-08',
+      amount: 480,
+      currency: 'BRL',
+      description: 'Savings',
+    },
+  });
+
+  it('records both sides, linked, each reading the other', scenario(async ({
+    ledger, householdId, checking, savings,
+  }) => {
+    const result = await transfer(ledger, checking, savings);
+    if (!result.ok) throw new Error(result.reason);
+    const { sent, received } = result;
+
+    expect(sent.transferId).toBe(sent.id);
+    expect(received.transferId).toBe(sent.id);
+    expect(sent.pair).toEqual({
+      id: received.id, accountId: savings, amount: 480, currency: 'BRL',
+    });
+    expect(received.pair).toEqual({
+      id: sent.id, accountId: checking, amount: 500, currency: 'BRL',
+    });
+    expect((await ledger.findById(householdId, received.id))?.pair?.id).toBe(sent.id);
+  }));
+
+  it('reads no pair on any other row', scenario(async ({ record }) => {
+    const row = await record();
+    expect(row.transferId).toBeNull();
+    expect(row.pair).toBeNull();
+  }));
+
+  it('writes nothing when a reference is gone', scenario(async ({ ledger, checking }) => {
+    expect(await transfer(ledger, checking, UNKNOWN_ID)).toEqual({
+      ok: false, reason: 'reference_not_found',
+    });
+  }));
+
+  it('passes on any other error', scenario(async ({ ledger, checking, savings }) => {
+    await expect(ledger.insertTransfer({
+      sent: {
+        accountId: checking,
+        kind: 'transfer_sent',
+        effect: 'transfer',
+        date: '2026-10-08',
+        amount: -1,
+        currency: 'BRL',
+      },
+      received: {
+        accountId: savings,
+        kind: 'transfer_received',
+        effect: 'transfer',
+        date: '2026-10-08',
+        amount: 1,
+        currency: 'BRL',
+      },
+    })).rejects.toThrow();
+  }));
+
+  it('flags a side whose other side is among the Accounts read', scenario(async ({
+    ledger, checking, savings,
+  }) => {
+    await transfer(ledger, checking, savings);
+
+    const both = await ledger.monthlySums([checking, savings], '2026-10-01', '2026-10-31');
+    const one = await ledger.monthlySums([checking], '2026-10-01', '2026-10-31');
+
+    expect(both.map((sum) => [sum.kind, sum.pairInView]))
+      .toEqual(expect.arrayContaining([['transfer_sent', true], ['transfer_received', true]]));
+    expect(one).toEqual([{
+      month: '2026-10',
+      currency: 'BRL',
+      kind: 'transfer_sent',
+      effect: 'transfer',
+      pairInView: false,
+      total: 500,
+    }]);
   }));
 });
 

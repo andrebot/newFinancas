@@ -482,8 +482,10 @@ while it hasn't, an edit recomputes the schedule through the Engine and
 `applySchedule`. Deleting the buy that created a Holding deletes the
 Holding (its snapshots, schedule and Goal split go with it) when
 `countForHolding` finds nothing else, and refuses otherwise (409
-`transaction.holding_in_use`). Transfers are two unlinked entries, each
-edited and deleted on its own. A bill payment is decided on both its payer
+`transaction.holding_in_use`). A transfer between own accounts is a linked
+pair (OQ-222): recorded with `insertTransfer`, and either side's edit or
+delete changes both — the caller must be able to edit both accounts; a
+transfer recorded alone is to or from someone else, stored as `movement`. A bill payment is decided on both its payer
 and its card's Account (OQ-219): editing or deleting it moves the card's
 balance, so that Account must still be editable (404 `credit_card.not_found`)
 and open (409 `credit_card.account_archived`), as on record. A row whose own Account — a card row's

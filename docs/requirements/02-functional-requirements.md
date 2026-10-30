@@ -244,11 +244,15 @@ vice versa; only a Credit Card Bill Payment (FR-3.7) bridges the two.
   manually or by a system trigger (Open Banking sync, FR-11.3's scheduled
   cash events). The Record Transaction entry point (FR-3.1) has no
   "make this recurring" option.
-- **FR-3.6** A transfer between two accounts is represented so it does not
-  double-count as income/expense in reports. **It is two separate entries
-  (OQ-201):** a *transfer sent* on the account the money left and a
-  *transfer received* on the account it reached, each in its own account's
-  currency, not linked to each other.
+- **FR-3.6** A transfer between two of the household's own accounts is
+  represented so it does not double-count as income/expense in reports.
+  **It is two linked entries (OQ-222, superseding OQ-201's unlinked
+  ones):** a *transfer sent* on the account the money left and a *transfer
+  received* on the account it reached, each in its own account's currency
+  and amount, recorded, edited and deleted as one. The user says so with
+  "Between your accounts?" and picks From and To. **A transfer to or from
+  someone else** (a salary by TED, a payment to a landlord) is the default:
+  one entry that counts as money in or out.
 - **FR-3.7** A **Credit Card Bill Payment** is an Account Transaction that
   additionally links to a specific Credit Card (FR-2.7). Recording one
   debits the paying account (per FR-3.1) and reduces that Credit Card's

@@ -66,6 +66,7 @@ describe('transaction routes', () => {
       holding: { ticker: 'PETR4', assetType: 'stock' },
       quantity: 2,
       creditCardId: null,
+      transfer: null,
       createdByUserId: ANA_ID,
       source: 'manual',
       createdAt: ISO,
@@ -116,6 +117,26 @@ describe('transaction routes', () => {
     expect(page.items.map((item) => [item.id, item.ledger]))
       .toEqual([[ROW.id, 'account'], [CARD_ROW.id, 'card']]);
     expect(page.nextCursor).toBeNull();
+  });
+
+  it('shows a transfer between own accounts with its other side (OQ-222)', async () => {
+    const { app, transaction } = setup();
+    transaction.getTransaction.mockResolvedValueOnce({
+      ledger: 'account',
+      transaction: {
+        ...ROW,
+        kind: 'transfer_sent',
+        effect: 'transfer',
+        transferId: ROW.id,
+        pair: {
+          id: 'pair', accountId: 'savings', amount: 480, currency: 'BRL',
+        },
+      },
+    });
+    const response = await send(app, 'GET', ITEM);
+    expect((await response.json() as { transfer: unknown }).transfer).toEqual({
+      accountId: 'savings', amount: 480, currency: 'BRL',
+    });
   });
 
   it('answers one row by id', async () => {

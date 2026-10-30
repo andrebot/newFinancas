@@ -506,11 +506,13 @@ export const zInterestPayment = z.enum([
 ]);
 
 /**
- * One request for every kind (FR-3.1/OQ-39); which fields apply follows the kind (OQ-201). A card kind (charge/refund) takes `creditCardId` alone; every other kind takes `accountId`, and a bill payment also its `creditCardId`. A buy takes `assetType` + `ticker` (+ `quantity`, optional for fixed-term — 1 unit) and, for a fixed-term type, `rate`, `dueDate` and `interestPayment`; sell and redemption take `holdingId` + `quantity`; dividend, interest and tax take `holdingId`. A field the kind has no use for is a 422.
+ * One request for every kind (FR-3.1/OQ-39); which fields apply follows the kind (OQ-201). A card kind (charge/refund) takes `creditCardId` alone; every other kind takes `accountId`, and a bill payment also its `creditCardId`. A buy takes `assetType` + `ticker` (+ `quantity`, optional for fixed-term — 1 unit) and, for a fixed-term type, `rate`, `dueDate` and `interestPayment`; sell and redemption take `holdingId` + `quantity`; dividend, interest and tax take `holdingId`. A field the kind has no use for is a 422. A `transfer_sent` with `toAccountId` is a transfer between the household's own accounts (OQ-222): `accountId` is where it leaves, `amount` in that account's currency; both sides are recorded and kept out of In/Out, and it takes no category. Any other transfer is to or from someone else and counts as money in or out.
  *
  */
 export const zTransactionCreateRequest = z.object({
     accountId: z.uuid().optional(),
+    toAccountId: z.uuid().optional(),
+    receivedAmount: zPositiveMoney.optional(),
     creditCardId: z.uuid().optional(),
     kind: z.string(),
     date: z.iso.date(),
@@ -554,6 +556,7 @@ export const zTransactionUpdateRequest = z.object({
     subcategoryId: z.uuid().nullish(),
     description: z.string().nullish(),
     quantity: zQuantity.optional(),
+    receivedAmount: zPositiveMoney.optional(),
     rate: z.object({
         type: z.enum([
             'fixed',
@@ -593,6 +596,11 @@ export const zAccountTransaction = z.object({
     }).nullish(),
     quantity: zQuantity.nullish(),
     creditCardId: z.uuid().nullish(),
+    transfer: z.object({
+        accountId: z.uuid().nullable(),
+        amount: zMoney.nullable(),
+        currency: zCurrency.nullable()
+    }).nullish(),
     createdByUserId: z.uuid().nullish(),
     source: z.enum(['manual', 'schedule']).optional(),
     createdAt: z.iso.datetime().optional(),

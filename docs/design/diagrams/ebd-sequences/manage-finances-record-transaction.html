@@ -126,7 +126,7 @@ sequenceDiagram
     </pre>
   </div>
   <div class="notes">
-<ul><li>No recurring option (OQ-55).</li><li>The Experience, not this Flow, refreshes the sibling Flows on completion — by invalidating their cache tags (OQ-222).</li><li>OQ-201: the Holding is picked, never typed, for every investment kind but a buy, a category is offered for every kind, a transfer is one side, recorded on its own account.</li><li>OQ-219: any open account but a credit-card-only one pays a card's bill, in the card's currency. Accounts, cards and categories are chips up to 10, a select beyond.</li></ul>
+<ul><li>No recurring option (OQ-55).</li><li>The Experience, not this Flow, refreshes the sibling Flows on completion — by invalidating their cache tags (OQ-222).</li><li>OQ-201: the Holding is picked, never typed, for every investment kind but a buy, a category is offered for every kind but a transfer between own accounts. OQ-222: a transfer is to or from someone else unless "Between your accounts?" is on — then From → To, both sides recorded and edited as one, with the amount received across currencies.</li><li>OQ-219: any open account but a credit-card-only one pays a card's bill, in the card's currency. Accounts, cards and categories are chips up to 10, a select beyond.</li></ul>
   </div>
   <script>
     mermaid.initialize({

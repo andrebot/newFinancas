@@ -161,6 +161,7 @@ sequenceDiagram
   </div>
   <div class="notes">
     <ul>
+      <li><strong>OQ-222:</strong> either side of a transfer between own accounts edits both as one &mdash; <code>amount</code> is what was sent, <code>receivedAmount</code> what arrived across currencies, no category; the caller must be able to edit both accounts (403 otherwise).</li>
       <li><strong>Reverse-then-reapply, all inside one transaction</strong> &mdash; the same complexity flagged in <code>02-data-model.md</code>&#39;s Transactions domain, now traced call-by-call. If the edit only changes the <code>date</code> to a different month, the reverse/reapply pair is what actually drives the backdated-balance cascade documented in the Accounts domain (shift every subsequent month&#39;s opening/ending balance by one delta).</li>
       <li><code>CardTransactionAccessor.update</code> path (not shown, same shape) applies when the target was a Card Transaction instead of an Account Transaction.</li>
       <li><strong>Oct 2026 review:</strong> the automatic snapshot follows the edit (the value before the trade, its own snapshot left out, &plusmn; the new amount &mdash; OQ-222); the Holding is re-archived or un-archived to match the new quantity (OQ-72, OQ-80).</li>

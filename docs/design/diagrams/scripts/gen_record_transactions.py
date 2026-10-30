@@ -88,7 +88,18 @@ sequenceDiagram
         else fixed-term buy: dueDate not after date, a spread on a rate not CDI/Selic,<br/>or a rate missing its type or value (OQ-207)
             TM-->>API: ValidationError (OQ-205 &mdash; the Engine is never called)
             API-->>User: 422 validation.failed {dueDate | rate.spread | rate.type | rate.value}
-        else effect = movement or transfer
+        else a transfer_sent with toAccountId &mdash; between own accounts (OQ-222)
+            TM->>AA: findById(toAccountId) &mdash; authorized and gated like the From account
+            alt the same account, a receivedAmount missing across currencies or given within one
+                TM-->>API: ValidationError
+                API-->>User: 422 validation.failed {toAccountId | receivedAmount}
+            else both accounts take it
+                TM->>ATA: insertTransfer({sent, received}) &mdash; both effect = transfer, linked by transfer_id
+                TM->>AA: applyMovement(fromAccountId, &minus;amount)
+                TM->>AA: applyMovement(toAccountId, +receivedAmount or amount)
+                Note over TM: no category, no Budget accrual &mdash; neither spending nor income
+            end
+        else effect = movement or transfer (one alone is to or from someone else: stored as movement)
             opt names a Holding (a dividend, interest or tax)
                 alt that Holding is archived by its user (FR-5.8)
                     TM-->>API: Conflict
@@ -210,7 +221,7 @@ sequenceDiagram
       <li><strong>Re-buying a zeroed Holding (OQ-171):</strong> a market-priced buy reopens the system-archived Holding of its ticker. Its old Goal split is worth 0 at quantity 0, so the buy's re-weighting (OQ-168) drops every old share &mdash; the new buy's split is the only one left; undoing the zeroing sell instead restores the old split intact.</li>
       <li><strong>Goal allocation can be bundled here (OQ-54, added after the API coverage audit):</strong> one call in, no separate <code>PATCH /households/:householdId/holdings/{holdingId}</code> follow-up required &mdash; same 100%-cap rejection as that endpoint's own allocation edit (FR-8.3), just reachable from this pipeline too. Direction of control is unchanged (OQ-48): still written from the Holding's side, never the Goal's.</li>
       <li><strong>The buy's split is the purchase's (OQ-168):</strong> buying into a Holding that already funds Goals re-weights its whole split by value &mdash; its value before the buy, the latest snapshot (amended in OQ-222) &mdash; so every Goal keeps exactly its money (900 at Retirement 60% / Trip 20%, plus 100 for Car 100% &rarr; 54% / 18% / 10%). One replace-all write, so a refusal never leaves half a split behind.</li>
-      <li><strong>Slice 3 readiness (OQ-201):</strong> every trade moves the account&#39;s cash (a buy debits it, a sell or redemption credits it); sell, redemption, dividend, interest and tax name their Holding by <code>holdingId</code>; a credit-card-only account takes no Account Transaction &mdash; another account pays its cards&#39; bills (OQ-219); any kind may carry a category and money in reduces the claiming Budget&#39;s spend; the trade&#39;s deltas and the recorder are stored with the transaction. Transfers are two unlinked entries &mdash; each is an ordinary <code>transfer</code>-effect movement.</li>
+      <li><strong>Slice 3 readiness (OQ-201):</strong> every trade moves the account&#39;s cash (a buy debits it, a sell or redemption credits it); sell, redemption, dividend, interest and tax name their Holding by <code>holdingId</code>; a credit-card-only account takes no Account Transaction &mdash; another account pays its cards&#39; bills (OQ-219); any kind may carry a category and money in reduces the claiming Budget&#39;s spend; the trade&#39;s deltas and the recorder are stored with the transaction. A transfer recorded alone is to or from someone else and is stored as <code>movement</code>, so it counts; one between the household&#39;s own accounts (<code>toAccountId</code>) records both sides, linked, with <code>effect = transfer</code> (OQ-222, reversing D2).</li>
       <li><strong>Bill payments (OQ-219):</strong> any open Account but a credit-card-only one pays a card in its currency. The payer&#39;s gates come first, then the card&#39;s own Account: one the actor may edit (404 <code>credit_card.not_found</code>), open (409 <code>credit_card.account_archived</code>) and in the payment&#39;s currency.</li>
       <li>All writes share one database transaction (<code>UnitOfWorkUtility</code>) &mdash; any refusal rolls every one back.</li>
       <li>See FR-3.1, FR-3.6&ndash;3.9, FR-5.2, FR-5.8, FR-8.2, FR-8.3, FR-11.1&ndash;11.3, OQ-16, OQ-39, OQ-48, OQ-50, OQ-51, OQ-54, OQ-56, OQ-72, OQ-76, OQ-79, OQ-83, OQ-201.</li>
@@ -324,6 +335,7 @@ sequenceDiagram
 """,
     notes="""
     <ul>
+      <li><strong>OQ-222:</strong> either side of a transfer between own accounts edits both as one &mdash; <code>amount</code> is what was sent, <code>receivedAmount</code> what arrived across currencies, no category; the caller must be able to edit both accounts (403 otherwise).</li>
       <li><strong>Reverse-then-reapply, all inside one transaction</strong> &mdash; the same complexity flagged in <code>02-data-model.md</code>&#39;s Transactions domain, now traced call-by-call. If the edit only changes the <code>date</code> to a different month, the reverse/reapply pair is what actually drives the backdated-balance cascade documented in the Accounts domain (shift every subsequent month&#39;s opening/ending balance by one delta).</li>
       <li><code>CardTransactionAccessor.update</code> path (not shown, same shape) applies when the target was a Card Transaction instead of an Account Transaction.</li>
       <li><strong>Oct 2026 review:</strong> the automatic snapshot follows the edit (the value before the trade, its own snapshot left out, &plusmn; the new amount &mdash; OQ-222); the Holding is re-archived or un-archived to match the new quantity (OQ-72, OQ-80).</li>
@@ -419,6 +431,7 @@ sequenceDiagram
 """,
     notes="""
     <ul>
+      <li><strong>OQ-222:</strong> deleting either side of a transfer between own accounts deletes both, moving both accounts back, in the same unit of work; the caller must be able to edit both accounts (403 otherwise).</li>
       <li>A deleted, backdated transaction runs the balance cascade in reverse across every subsequent month, same mechanic as Edit (UC-02) minus the reapply half.</li>
       <li><strong>OQ-201:</strong> a trade&#39;s cash leg is reversed too. Deleting the buy that created a Holding deletes the Holding (its Goal split, snapshots and schedule with it) when no other transaction references it, and is refused otherwise; a fixed-term buy whose schedule has posted can&#39;t be deleted. A deleted transaction the schedule posted isn&#39;t posted again &mdash; its entry stays marked.</li>
       <li><strong>OQ-219:</strong> a bill payment&#39;s card may sit on another Account than its payer, so editing or deleting it decides on both: the card&#39;s Account must still be one the actor may edit (404 <code>credit_card.not_found</code>) and open (409 <code>credit_card.account_archived</code>).</li>

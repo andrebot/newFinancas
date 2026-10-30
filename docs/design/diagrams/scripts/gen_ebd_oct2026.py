@@ -70,7 +70,7 @@ EXPERIENCES = [
       ("Browse Transactions", ["Filter Panel", "Ledger (lazy, grouped by month/day)", "Expanded Row", "Delete Confirm"], "browse-transactions"),
       ("Month Overview", ["Period Bar", "Currency Switch", "Balance Rail", "Budget Rail", "Goal Rail"], "month-overview")],
      [], ["ValidationUtility", "AlertUtility", "ThemeUtility", "I18nUtility", "FormattingUtility"],
-     "Transaction Correction Flow removed — editing reuses Record Transaction's entry Interactions from an expanded ledger row, kind and target shown read-only (OQ-201). Month Overview stays here (Q4): same page, same period state. Transfers are two separate entries (OQ-201)."),
+     "Transaction Correction Flow removed — editing reuses Record Transaction's entry Interactions from an expanded ledger row, kind and target shown read-only (OQ-201). Month Overview stays here (Q4): same page, same period state. A transfer is to or from someone else by default; \"Between your accounts?\" turns it into From → To, recorded as a linked pair kept out of In/Out (OQ-222)."),
     ("Track Investments", "track-investments", "Follow and maintain investments",
      [("Portfolio Overview", ["Net Worth Cards", "Payout This Month", "Payout Holding Selector", "Payout Chart", "Allocation Cards", "Coming Due"], "portfolio-overview"),
       ("Holding Maintenance", ["Account Picker", "Holdings Table", "Goal Allocation Editor", "Market Value Entry", "Value History Editor"], "holding-maintenance"),
@@ -1027,7 +1027,7 @@ else 201 / 200
     API-->>EXP: the transaction
     EXP-->>FLOW: done → toast, close — the ledger, the month, the accounts' balances and the goals invalidated (cache tags), so Browse + Month Overview refetch
 end
-""", ["No recurring option (OQ-55).", "The Experience, not this Flow, refreshes the sibling Flows on completion — by invalidating their cache tags (OQ-222).", "OQ-201: the Holding is picked, never typed, for every investment kind but a buy, a category is offered for every kind, a transfer is one side, recorded on its own account.", "OQ-219: any open account but a credit-card-only one pays a card's bill, in the card's currency. Accounts, cards and categories are chips up to 10, a select beyond."]),
+""", ["No recurring option (OQ-55).", "The Experience, not this Flow, refreshes the sibling Flows on completion — by invalidating their cache tags (OQ-222).", "OQ-201: the Holding is picked, never typed, for every investment kind but a buy, a category is offered for every kind but a transfer between own accounts. OQ-222: a transfer is to or from someone else unless \"Between your accounts?\" is on — then From → To, both sides recorded and edited as one, with the amount received across currencies.", "OQ-219: any open account but a credit-card-only one pays a card's bill, in the card's currency. Accounts, cards and categories are chips up to 10, a select beyond."]),
     ("manage-finances-browse-transactions", "Manage Finances — Browse Transactions", f"{R('GET /households/:householdId/transactions?…&cursor=')}, {R('GET …/holdings/:holdingId')}, {R('DELETE /households/:householdId/transactions/:id')}.",
      [("FP", "Filter Panel"), ("LG", "Ledger"), ("XR", "Expanded Row"), ("DC", "Delete Confirm"), FLOW("Browse Transactions"), EXP("Manage Finances"), API],
      """

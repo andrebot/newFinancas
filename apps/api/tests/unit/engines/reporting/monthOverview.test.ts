@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  budgetStatusOf, cashFlowOf, flowsOf, monthOverview, openAtMonthEnd, overBudgetFirst,
-  type BudgetStatus,
+  budgetStatusOf, cashFlowOf, flowsOf, monthOverview, movedInside, openAtMonthEnd,
+  overBudgetFirst, type BudgetStatus,
 } from '../../../../src/engines/reporting/monthOverview';
 import {
   aBudget, aCard, aGoal, anAccount, aPeriod, fakeDeps, HOUSEHOLD_ID, NOW, VIEWER,
@@ -32,6 +32,28 @@ const aSum = (kind: string, total: number, month = '2026-03', currency = 'BRL') 
  */
 const aStatus = (name: string, targetAmount: number, spendAmount: number): BudgetStatus => ({
   budgetId: name, name, currency: 'BRL', visibility: 'shared', targetAmount, spendAmount,
+});
+
+describe('movedInside (OQ-222)', () => {
+  const sum = { month: '2026-03', currency: 'BRL', total: 100 };
+
+  it('leaves out a transfer whose other side the viewer sees, and a bill payment', () => {
+    expect(movedInside({
+      ...sum, kind: 'transfer_sent', effect: 'transfer', pairInView: true,
+    })).toBe(true);
+    expect(movedInside({
+      ...sum, kind: 'credit_card_bill_payment', effect: 'bill_payment', pairInView: false,
+    })).toBe(true);
+  });
+
+  it('counts a transfer whose other side is out of view, and money to or from others', () => {
+    expect(movedInside({
+      ...sum, kind: 'transfer_received', effect: 'transfer', pairInView: false,
+    })).toBe(false);
+    expect(movedInside({
+      ...sum, kind: 'transfer_received', effect: 'movement', pairInView: false,
+    })).toBe(false);
+  });
 });
 
 describe('cashFlowOf', () => {
@@ -150,12 +172,13 @@ describe('monthOverview', () => {
     ]);
     deps.listCreditCards.mockResolvedValue([aCard('visa', 'checking')]);
     deps.accountMonthlySums.mockResolvedValue([
-      { ...aSum('deposit', 1_000), effect: 'movement' },
-      { ...aSum('transfer_received', 400), effect: 'transfer' },
-      { ...aSum('deposit', 99), effect: 'transfer' },
-      { ...aSum('credit_card_bill_payment', 800), effect: 'bill_payment' },
-      { ...aSum('investment_buy', 300), effect: 'investment_trade' },
-      { ...aSum('investment_sell', 200), effect: 'investment_trade' },
+      { ...aSum('deposit', 1_000), effect: 'movement', pairInView: false },
+      // Between two of the viewer's Accounts: left out (OQ-222).
+      { ...aSum('transfer_received', 400), effect: 'transfer', pairInView: true },
+      { ...aSum('deposit', 99), effect: 'transfer', pairInView: true },
+      { ...aSum('credit_card_bill_payment', 800), effect: 'bill_payment', pairInView: false },
+      { ...aSum('investment_buy', 300), effect: 'investment_trade', pairInView: false },
+      { ...aSum('investment_sell', 200), effect: 'investment_trade', pairInView: false },
     ]);
     deps.cardMonthlySums.mockResolvedValue([aSum('charge', 250), aSum('refund', 50)]);
 

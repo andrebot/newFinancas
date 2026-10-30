@@ -6,7 +6,8 @@ import {
   firstError, isoDate, required, type FieldError,
 } from '../../../../utilities/validation';
 import {
-  isBuy, isCardKind, isFixedTermBuy, isTrade, namesCard, namesHolding, type TransactionForm,
+  isBuy, isCardKind, isFixedTermBuy, isOwnTransfer, isTrade, namesCard, namesHolding,
+  type TransactionForm,
 } from './transactionForm';
 import type { Editable } from './transactionRequest';
 import { recordText } from './recordText';
@@ -23,7 +24,8 @@ const UNIT = 10 ** KIND_SCALE.quantity;
 
 /** A field the checks can refuse. */
 export type CheckedField = 'account' | 'card' | 'amount' | 'date' | 'holding' | 'quantity'
-  | 'assetType' | 'ticker' | 'rateValue' | 'dueDate' | 'allocations';
+  | 'assetType' | 'ticker' | 'rateValue' | 'dueDate' | 'allocations' | 'toAccount'
+  | 'receivedAmount';
 
 /** One refusal: a shared field rule's, or one of the drawer's own (`recordTransaction.error.*`). */
 export type Problem = { readonly rule: FieldError }
@@ -38,6 +40,8 @@ export interface CheckContext {
   readonly holdings: readonly InvestmentHolding[];
   /** On an edit, what may change; a new transaction checks everything. */
   readonly editable?: Editable | undefined;
+  /** A transfer between own accounts reaches another currency: what arrived is asked (OQ-222). */
+  readonly receivesOtherCurrency?: boolean | undefined;
 }
 
 /** A date's rule: required, and a real calendar date. */
@@ -196,6 +200,24 @@ const entry = (field: CheckedField, problem: Problem | undefined): Problems => (
  * @param form - The form.
  * @returns Their refusals.
  */
+/**
+ * Checks what a transfer between own accounts needs besides an account (OQ-222):
+ * where it goes, and what arrived when that is another currency.
+ *
+ * @param form - The form.
+ * @param receivesOtherCurrency - Whether the account it reaches has another currency.
+ * @returns The problems; none for any other form.
+ */
+const ownTransferProblemsOf = (form: TransactionForm, receivesOtherCurrency: boolean): Problems => {
+  if (!isOwnTransfer(form)) return {};
+  const missingReceived = receivesOtherCurrency
+    && (form.receivedAmount === null || form.receivedAmount < 1);
+  return {
+    ...entry('toAccount', form.toAccountId === undefined ? own('toAccount') : undefined),
+    ...entry('receivedAmount', missingReceived ? own('receivedAmount') : undefined),
+  };
+};
+
 const valueProblemsOf = (form: TransactionForm): Problems => ({
   ...entry('amount', form.amount === null || form.amount < 1 ? own('amount') : undefined),
   ...entry('date', ruled(DATE_RULE(form.date))),
@@ -211,8 +233,10 @@ const valueProblemsOf = (form: TransactionForm): Problems => ({
 const newProblemsOf = (
   form: TransactionForm,
   holdings: readonly InvestmentHolding[],
+  receivesOtherCurrency: boolean,
 ): Problems => ({
   ...targetProblemsOf(form),
+  ...ownTransferProblemsOf(form, receivesOtherCurrency),
   ...assetProblemsOf(form),
   ...valueProblemsOf(form),
   ...entry('quantity', quantityProblemOf(form, holdings)),
@@ -232,8 +256,10 @@ const editProblemsOf = (
   form: TransactionForm,
   holdings: readonly InvestmentHolding[],
   editable: Editable,
+  receivesOtherCurrency: boolean,
 ): Problems => ({
   ...(editable.amountAndDate ? valueProblemsOf(form) : {}),
+  ...(editable.amountAndDate ? ownTransferProblemsOf(form, receivesOtherCurrency) : {}),
   ...(editable.quantity ? entry('quantity', editedQuantityProblemOf(form, holdings)) : {}),
   ...(editable.terms ? termProblemsOf(form) : {}),
 });
@@ -247,8 +273,8 @@ const editProblemsOf = (
  */
 export const problemsOf = (form: TransactionForm, context: CheckContext): Problems => (
   context.editable
-    ? editProblemsOf(form, context.holdings, context.editable)
-    : newProblemsOf(form, context.holdings)
+    ? editProblemsOf(form, context.holdings, context.editable, !!context.receivesOtherCurrency)
+    : newProblemsOf(form, context.holdings, !!context.receivesOtherCurrency)
 );
 
 /**

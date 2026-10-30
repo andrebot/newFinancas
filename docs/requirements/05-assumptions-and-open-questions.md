@@ -5314,7 +5314,9 @@ fixes and doc drift they bring, is `docs/planning/04-slice-3-readiness.md`.
 - **Transfers stay two separate entries** (D2): `transfer_sent` on one
   account and `transfer_received` on the other, unlinked, each in its own
   currency; `effect = transfer` keeps both out of In/Out (FR-3.6). A
-  paired single entry was weighed and declined.
+  paired single entry was weighed and declined. *(Reversed in OQ-222: a
+  transfer between own accounts is now a linked pair; one recorded alone
+  is to or from someone else and counts.)*
 - **Every kind may take a category, and money coming in reduces spend**
   (D4): a Budget's spend is out − in per claimed category (a refund or a
   categorized receipt lowers it). A categorized bill payment would count
@@ -6542,6 +6544,35 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
   trade doesn't move the later snapshots; a market value typed in fixes it.
   Market prices moving over time come from typed-in market values (OQ-56,
   `AccountManager`); their screen is for a later version.
+- **Transfers between own accounts are a linked pair; any other transfer
+  counts** (stakeholder report: a salary recorded as "Transfer received"
+  never reached October's In — unlinked transfers were all assumed to be
+  between own accounts, and no Brazilian reads "transferência" that way).
+  **Confirmed with the stakeholder:** a transfer is to or from someone else
+  by default and counts as money in or out; the drawer asks "Between your
+  accounts?", and when on, the user picks From and To. Reverses OQ-201 D2.
+  - **Across currencies, two amounts:** what left From, and — when To's
+    currency differs — `receivedAmount`, typed, never converted (FR-2.2).
+    Within one currency the same amount arrives; a `receivedAmount` is
+    then refused.
+  - **One transfer, edited and deleted as one:** either side's edit
+    changes both (date, description, `amount` = what was sent,
+    `receivedAmount`); either side's delete removes both. From and To
+    never change (D6): delete and record again. A pair takes no category
+    — it is neither spending nor income — and the caller must be able to
+    edit both accounts (`auth.forbidden` otherwise, since they see the
+    row they asked for).
+  - **Stored:** `transfer_id` links the sides (migration 0014); both keep
+    `effect = transfer`; an external transfer is stored as `movement`.
+    Existing transfers became external (`movement`), so they count.
+  - **Reports:** a `transfer` row is left out of In/Out only when its
+    other side is also among the viewer's accounts. A member who sees one
+    side only (Ben's personal account to the shared one, seen by Ana)
+    counts it — for them the money came from outside. The other side's
+    account, amount and currency are hidden from them in the ledger.
+  - **Ledger:** a pair's rows read "Checking → Savings" on both sides
+    ("another account" for one the user can't see); Edit and Delete need
+    both accounts manageable and open.
 - **The Goals rail wraps instead of scrolling** (stakeholder request): the
   kit's card rail takes `wrap`, which lays its cards out in rows that wrap
   downwards — no scroll region, arrows or fade (amends OQ-212 for that

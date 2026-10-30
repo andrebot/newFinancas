@@ -60,11 +60,34 @@ export interface AccountTransaction {
   readonly trade: TradeDeltas | null;
   /** Bill payment only — the one bridge between the ledgers (FR-3.7). */
   readonly creditCardId: string | null;
+  /** A transfer between the household's own accounts: what both sides share (OQ-222). */
+  readonly transferId: string | null;
+  /** That transfer's other side: its row and its Account. */
+  readonly pair: TransferSide | null;
   /** Null for schedule posts and once FR-1.17 anonymizes it. */
   readonly createdByUserId: string | null;
   readonly source: TransactionSource;
   readonly createdAt: Date;
 }
+
+/**
+ * One side of a transfer between the household's own accounts (OQ-222). This
+ * Accessor reads every field; the Manager nulls the Account, amount and
+ * currency for a caller who can't see that Account.
+ */
+export interface TransferSide {
+  readonly id: string;
+  readonly accountId: string | null;
+  /** Positive minor units, in its own Account's currency. */
+  readonly amount: number | null;
+  readonly currency: string | null;
+}
+
+export type InsertTransferResult = | {
+  readonly ok: true; readonly sent: AccountTransaction; readonly received: AccountTransaction;
+}
+  /** An Account, category or recorder it names was deleted meanwhile (a race, OQ-203). */
+  | { readonly ok: false; readonly reason: 'reference_not_found' };
 
 /** A transaction to record, as the Manager decided it. */
 export interface NewAccountTransaction {
@@ -83,6 +106,12 @@ export interface NewAccountTransaction {
   readonly source?: TransactionSource;
   /** `null` for a scheduled post, which has no user behind it (VBD §3.2a). */
   readonly createdByUserId?: string | null;
+}
+
+/** A transfer between the household's own accounts: its two sides (OQ-222). */
+export interface NewTransfer {
+  readonly sent: NewAccountTransaction;
+  readonly received: NewAccountTransaction;
 }
 
 export type InsertAccountTransactionResult = | {
@@ -133,6 +162,12 @@ export interface AccountTransactionFilter {
 /** One month's sum of one kind and stored effect in one currency, for ReportingEngine. */
 export interface MonthKindSum extends MonthKindTotal {
   readonly effect: TransactionEffect;
+  /**
+   * Whether these rows are transfers whose other side is also in the Accounts
+   * read — only then is a transfer between them, for ReportingEngine to leave
+   * out (OQ-222). False for every other row.
+   */
+  readonly pairInView: boolean;
 }
 
 /** A Holding's cost basis on a date: the sum of its trades' deltas by then (OQ-206). */
@@ -153,10 +188,37 @@ const holdingField = (column: AnyColumn) => sql<string | null>`(
   SELECT ${column} FROM ${investmentHoldings}
   WHERE ${investmentHoldings.id} = ${accountTransactions.holdingId})`;
 
+/**
+ * The row's own transfer columns, named with their table: a write's RETURNING
+ * leaves columns unqualified, which inside a subquery over the same table
+ * would name the other side's.
+ */
+const OWN_TRANSFER = sql.raw('"account_transactions"."transfer_id"');
+const OWN_ID = sql.raw('"account_transactions"."id"');
+
+/**
+ * The condition picking a row's other side, `pair`, in a subquery (OQ-222).
+ */
+const OTHER_SIDE = sql`pair.transfer_id = ${OWN_TRANSFER} AND pair.id <> ${OWN_ID}`;
+
+/**
+ * One column of a transfer's other side, read alongside the row.
+ *
+ * @param column - The other side's column, e.g. `account_id`.
+ * @returns The subquery, `null` for a row that isn't one side of a pair.
+ */
+const pairField = (column: string) => sql<string | null>`(
+  SELECT pair.${sql.identifier(column)} FROM ${accountTransactions} AS pair WHERE ${OTHER_SIDE})`;
+
 const rowColumns = {
   ...getTableColumns(accountTransactions),
   holdingTicker: holdingField(investmentHoldings.ticker),
   holdingAssetType: holdingField(investmentHoldings.assetType),
+  pairId: pairField('id'),
+  pairAccountId: pairField('account_id'),
+  // bigint comes back as text from a subquery; the amount is minor units.
+  pairAmount: pairField('amount').mapWith(Number),
+  pairCurrency: pairField('currency'),
 };
 
 const categoryKeys = categoryForeignKeys(accountTransactions);
@@ -164,6 +226,10 @@ const categoryKeys = categoryForeignKeys(accountTransactions);
 type Row = typeof accountTransactions.$inferSelect & {
   readonly holdingTicker: string | null;
   readonly holdingAssetType: string | null;
+  readonly pairId: string | null;
+  readonly pairAccountId: string | null;
+  readonly pairAmount: number | null;
+  readonly pairCurrency: string | null;
 };
 
 const monthOfDate = monthOf(accountTransactions.date);
@@ -177,10 +243,16 @@ const sumOfAmounts = sumOf(accountTransactions.amount);
  */
 const toTransaction = (row: Row): AccountTransaction => {
   const {
-    quantityDelta, costBasisDelta, holdingTicker, holdingAssetType, ...rest
+    quantityDelta, costBasisDelta, holdingTicker, holdingAssetType, ...pairAndRest
   } = row;
+  const {
+    pairId, pairAccountId, pairAmount, pairCurrency, ...rest
+  } = pairAndRest;
   return {
     ...rest,
+    pair: pairId === null ? null : {
+      id: pairId, accountId: pairAccountId, amount: pairAmount, currency: pairCurrency,
+    },
     effect: rest.effect as TransactionEffect,
     source: rest.source as TransactionSource,
     holding: holdingAssetType === null
@@ -305,6 +377,39 @@ const createAccountTransactionAccessor = (db: Database) => ({
       const [row] = await db.insert(accountTransactions).values(columnsToInsert(transaction))
         .returning(rowColumns);
       return { ok: true, transaction: toTransaction(row!) };
+    } catch (error) {
+      if (isVanishedReference(error, categoryKeys)) {
+        return { ok: false, reason: 'reference_not_found' };
+      }
+      throw error;
+    }
+  },
+
+  /**
+   * Records both sides of a transfer between the household's own accounts,
+   * linked by one id — the sent side's (OQ-222). All or nothing.
+   *
+   * @param transfer - Its sent and received sides, as the Manager decided them.
+   * @returns Both recorded sides, or why nothing was written.
+   */
+  insertTransfer: async (transfer: NewTransfer): Promise<InsertTransferResult> => {
+    try {
+      return await db.transaction(async (tx) => {
+        const [sent] = await tx.insert(accountTransactions)
+          .values(columnsToInsert(transfer.sent)).returning({ id: accountTransactions.id });
+        const transferId = sent!.id;
+        await tx.update(accountTransactions).set({ transferId })
+          .where(eq(accountTransactions.id, transferId));
+        await tx.insert(accountTransactions)
+          .values({ ...columnsToInsert(transfer.received), transferId });
+        const rows = (await tx.select(rowColumns).from(accountTransactions)
+          .where(eq(accountTransactions.transferId, transferId))).map(toTransaction);
+        return {
+          ok: true as const,
+          sent: rows.find((row) => row.id === transferId)!,
+          received: rows.find((row) => row.id !== transferId)!,
+        };
+      });
     } catch (error) {
       if (isVanishedReference(error, categoryKeys)) {
         return { ok: false, reason: 'reference_not_found' };
@@ -483,24 +588,34 @@ const createAccountTransactionAccessor = (db: Database) => ({
     to: string,
   ): Promise<MonthKindSum[]> => {
     if (accountIds.length === 0) return [];
-    const rows = await db.select({
-      month: monthOfDate,
+    const inView = sql.join(accountIds.map((accountId) => sql`${accountId}`), sql`, `);
+    const pairInView = sql<boolean>`EXISTS (
+      SELECT 1 FROM ${accountTransactions} AS pair
+      WHERE ${OTHER_SIDE} AND pair.account_id IN (${inView}))`;
+    // Each row's flag first: Postgres can't group by a subquery over ungrouped columns.
+    const flagged = db.select({
+      month: monthOfDate.as('month'),
       currency: accountTransactions.currency,
       kind: accountTransactions.kind,
       effect: accountTransactions.effect,
-      total: sumOfAmounts,
+      pairInView: pairInView.as('pair_in_view'),
+      amount: accountTransactions.amount,
     }).from(accountTransactions)
       .where(and(
         inArray(accountTransactions.accountId, [...accountIds]),
         gte(accountTransactions.date, from),
         lte(accountTransactions.date, to),
       ))
-      .groupBy(
-        monthOfDate,
-        accountTransactions.currency,
-        accountTransactions.kind,
-        accountTransactions.effect,
-      );
+      .as('flagged');
+    const rows = await db.select({
+      month: flagged.month,
+      currency: flagged.currency,
+      kind: flagged.kind,
+      effect: flagged.effect,
+      pairInView: flagged.pairInView,
+      total: sumOf(flagged.amount),
+    }).from(flagged)
+      .groupBy(flagged.month, flagged.currency, flagged.kind, flagged.effect, flagged.pairInView);
     return rows.map((row) => ({ ...row, effect: row.effect as TransactionEffect }));
   },
 

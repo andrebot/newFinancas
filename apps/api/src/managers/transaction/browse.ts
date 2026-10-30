@@ -296,6 +296,29 @@ const checkCardView = async (
   );
 };
 
+/**
+ * A transfer's other side as the caller may see it (OQ-222): kept when its
+ * Account is one they see, otherwise reduced to its id — where the money came
+ * from or went stays private.
+ *
+ * @param transaction - The row.
+ * @param visibleAccountIds - The Accounts the caller sees.
+ * @returns The row, its other side hidden when need be.
+ */
+export const withVisiblePair = (
+  transaction: AccountTransaction,
+  visibleAccountIds: ReadonlySet<string>,
+): AccountTransaction => {
+  const { pair } = transaction;
+  if (pair === null || visibleAccountIds.has(pair.accountId!)) return transaction;
+  return {
+    ...transaction,
+    pair: {
+      id: pair.id, accountId: null, amount: null, currency: null,
+    },
+  };
+};
+
 /** Builds the Browse & Filter use cases. */
 const createBrowse = (deps: TransactionDeps) => ({
   /**
@@ -342,7 +365,12 @@ const createBrowse = (deps: TransactionDeps) => ({
         limit + 1,
       ),
     ]);
-    const items = mergePages(accountPage, cardPage, limit);
+    const visible = new Set(scopeAccountIds);
+    const items = mergePages(
+      accountPage.map((transaction) => withVisiblePair(transaction, visible)),
+      cardPage,
+      limit,
+    );
     const nextCursor = encodePositions(
       resumeOf(accountPage, items, 'account', positions.account),
       resumeOf(cardPage, items, 'card', positions.card),
@@ -375,7 +403,10 @@ const createBrowse = (deps: TransactionDeps) => ({
     const account = await deps.accountTransactions.findById(householdId, transactionId);
     if (account) {
       await checkAccountView(deps, context, householdId, account.accountId);
-      return { ledger: 'account', transaction: account };
+      if (account.pair === null) return { ledger: 'account', transaction: account };
+      const visible = await deps.accounts.list(householdId, context.actor.userId);
+      const seen = new Set(visible.map((each) => each.id));
+      return { ledger: 'account', transaction: withVisiblePair(account, seen) };
     }
     const card = await deps.cardTransactions.findById(householdId, transactionId);
     if (!card) throw transactionNotFound();

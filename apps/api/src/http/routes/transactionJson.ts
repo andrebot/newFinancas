@@ -31,6 +31,10 @@ export const toAccountTransactionJson = (row: AccountTransaction) => ({
   holding: row.holding,
   quantity: quantityOf(row),
   creditCardId: row.creditCardId,
+  // A transfer between own accounts: its other side, as the caller may see it (OQ-222).
+  transfer: row.pair === null
+    ? null
+    : { accountId: row.pair.accountId, amount: row.pair.amount, currency: row.pair.currency },
   createdByUserId: row.createdByUserId,
   source: row.source,
   createdAt: row.createdAt.toISOString(),

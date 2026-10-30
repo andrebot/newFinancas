@@ -26,7 +26,10 @@ const KIND_FIELDS: Record<string, KindFields> = {
   boleto_payment: { required: ['accountId'], optional: COMMON_OPTIONAL },
   pix_payment: { required: ['accountId'], optional: COMMON_OPTIONAL },
   pix_receipt: { required: ['accountId'], optional: COMMON_OPTIONAL },
-  transfer_sent: { required: ['accountId'], optional: COMMON_OPTIONAL },
+  // `toAccountId` makes it a transfer between the household's own accounts (OQ-222).
+  transfer_sent: {
+    required: ['accountId'], optional: [...COMMON_OPTIONAL, 'toAccountId', 'receivedAmount'],
+  },
   transfer_received: { required: ['accountId'], optional: COMMON_OPTIONAL },
   credit_card_bill_payment: {
     required: ['accountId', 'creditCardId'], optional: COMMON_OPTIONAL,
@@ -84,6 +87,10 @@ export const fieldsForKind = (kind: TransactionKind, assetType?: string): KindFi
 /** A create request, as far as per-kind validation reads it — the route checked its shape. */
 export interface CreateRequestFields {
   readonly assetType?: string | undefined;
+  readonly toAccountId?: string | undefined;
+  readonly receivedAmount?: number | undefined;
+  readonly categoryId?: string | undefined;
+  readonly subcategoryId?: string | undefined;
   readonly date?: string | undefined;
   readonly dueDate?: string | null | undefined;
   readonly rate?: {
@@ -92,6 +99,23 @@ export interface CreateRequestFields {
     readonly spread?: number | null | undefined;
   } | null | undefined;
 }
+
+/**
+ * A transfer's own-accounts fields (OQ-222): `receivedAmount` only with a
+ * `toAccountId`, and a transfer between own accounts takes no category — it is
+ * neither spending nor income.
+ *
+ * @param request - The request, as the route validated it.
+ * @returns The problems, as unknown keys.
+ */
+export const ownTransferProblems = (request: CreateRequestFields): FieldDetail[] => {
+  const unknown: readonly (keyof CreateRequestFields)[] = request.toAccountId === undefined
+    ? ['receivedAmount']
+    : ['categoryId', 'subcategoryId'];
+  return unknown.filter((field) => request[field] !== undefined).map((field) => ({
+    field, code: 'object.unknown_keys', params: { keys: [field] },
+  }));
+};
 
 /**
  * The field problems of a create request for its kind (OQ-201): each missing
@@ -169,6 +193,9 @@ export const createProblems = (
   request: CreateRequestFields,
   kind: TransactionKind,
 ): FieldDetail[] => {
+  if (kind.code === 'transfer_sent') {
+    return [...createFieldProblems(request, kind), ...ownTransferProblems(request)];
+  }
   if (kind.code !== 'investment_buy' || !isFixedTerm(request.assetType ?? '')) {
     return createFieldProblems(request, kind);
   }

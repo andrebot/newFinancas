@@ -3,7 +3,7 @@ import type { Account } from '../../accessors/accountAccessor';
 import type { AccountTransaction, TradeDeltas } from '../../accessors/accountTransactionAccessor';
 import type { CardTransaction } from '../../accessors/cardTransactionAccessor';
 import type { InvestmentHolding } from '../../accessors/investmentHoldingAccessor';
-import { accessToOwned, requireAccess } from '../access';
+import { accessToOwned, forbidden, requireAccess } from '../access';
 import type { SignedInContext } from '../requestContext';
 import {
   type TransactionDeps, type TransactionStores,
@@ -63,6 +63,7 @@ const loadAccountRow = async (
   context: SignedInContext,
   householdId: string,
   transaction: AccountTransaction,
+  notVisible: typeof transactionNotFound = transactionNotFound,
 ): Promise<EditableRow> => {
   const account = await deps.accounts.findById(householdId, transaction.accountId);
   await requireAccess(
@@ -70,7 +71,7 @@ const loadAccountRow = async (
     context.actor.userId,
     householdId,
     accessToOwned(account, 'data.edit'),
-    transactionNotFound,
+    notVisible,
   );
   if (!account) throw transactionNotFound();
   if (account.archivedAt !== null) throw accountArchived();
@@ -121,6 +122,33 @@ export const loadEditable = async (
   const cardRow = await deps.cardTransactions.findById(householdId, transactionId);
   if (!cardRow) throw transactionNotFound();
   return loadCardRow(deps, context, householdId, cardRow);
+};
+
+/**
+ * Loads the other side of a transfer between own accounts (OQ-222): the pair
+ * edits and deletes as one, so the caller must be able to edit both Accounts
+ * — one they can't see is `auth.forbidden`, not a not-found, since they see
+ * the row they asked for.
+ *
+ * @param deps - The tier below.
+ * @param context - The signed-in request.
+ * @param householdId - The household.
+ * @param row - The side asked for.
+ * @returns The other side, or `undefined` for a row that isn't one side of a pair.
+ * @throws {DomainError} `auth.forbidden`; `account.archived`; `transaction.not_found`
+ *   when the other side went meanwhile.
+ */
+export const loadPairSide = async (
+  deps: TransactionDeps,
+  context: SignedInContext,
+  householdId: string,
+  row: EditableRow,
+): Promise<EditableRow | undefined> => {
+  const pair = row.ledger === 'account' ? (row.transaction as AccountTransaction).pair : null;
+  if (pair === null) return undefined;
+  const other = await deps.accountTransactions.findById(householdId, pair.id);
+  if (!other) throw transactionNotFound();
+  return loadAccountRow(deps, context, householdId, other, forbidden);
 };
 
 /** Whether a fixed-term buy's schedule has posted — its terms are locked (OQ-201 D8). */

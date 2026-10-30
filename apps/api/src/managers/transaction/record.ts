@@ -16,6 +16,7 @@ import { distinctItems } from '../../utilities/validation';
 import { accessToOwned, requireAccess } from '../access';
 import { canSeeGoal, growsCompletedGoal, hiddenShares } from '../goalSplit';
 import type { SignedInContext } from '../requestContext';
+import inSequence from '../sequence';
 import { requireNoProblems } from '../validation';
 import { reweightSplit } from './allocations';
 import {
@@ -72,6 +73,10 @@ export interface TransactionCreate {
     readonly percentage: number;
   }[] | undefined;
   readonly incentivised?: boolean | undefined;
+  /** transfer_sent only — the account a transfer between own accounts reaches (OQ-222). */
+  readonly toAccountId?: string | undefined;
+  /** With `toAccountId`, across currencies — what reached it, in its currency. */
+  readonly receivedAmount?: number | undefined;
   /** Internal only — a scheduled post's provenance (VBD §3.2a); the route never sets it. */
   readonly source?: TransactionSource | undefined;
 }
@@ -281,6 +286,18 @@ const writeCard = async (
   return inserted.transaction;
 };
 
+/**
+ * The effect an Account-ledger row stores (OQ-222): a transfer recorded on its
+ * own is to or from someone else — money that came in or went out — so it
+ * stores `movement`; only a pair between own accounts stores `transfer`.
+ *
+ * @param kind - The kind.
+ * @returns The effect to store.
+ */
+export const storedEffectOf = (kind: TransactionKind): NewAccountTransaction['effect'] => (
+  kind.effect === 'transfer' ? 'movement' : kind.effect!
+);
+
 /** The row an Account-ledger cash or transfer kind writes. */
 const accountRowOf = (
   target: LoadedTarget,
@@ -290,7 +307,7 @@ const accountRowOf = (
 ) => ({
   accountId: target.account.id,
   kind: kind.code,
-  effect: kind.effect!,
+  effect: storedEffectOf(kind),
   date: request.date,
   amount: request.amount,
   currency: request.currency,
@@ -900,6 +917,108 @@ export const recordScheduled = async (
   });
 };
 
+/** The kind each side of a transfer between own accounts records. */
+const RECEIVED = findKind('transfer_received')!;
+
+/** One side of a transfer between own accounts, as the Accessor takes it. */
+const transferSideOf = (
+  target: LoadedTarget,
+  kind: TransactionKind,
+  values: Pick<TransactionCreate, 'amount' | 'date' | 'description'>,
+  userId: string,
+): NewAccountTransaction => ({
+  accountId: target.account.id,
+  kind: kind.code,
+  effect: 'transfer',
+  date: values.date,
+  amount: values.amount,
+  currency: target.account.currency,
+  ...(values.description !== undefined && { description: values.description }),
+  createdByUserId: userId,
+});
+
+/**
+ * What reaches the receiving account (OQ-222): the amount sent when the two
+ * share a currency, otherwise the `receivedAmount` given — no automatic
+ * conversion (FR-2.2).
+ *
+ * @param from - Where it leaves.
+ * @param to - Where it arrives.
+ * @param request - The create request.
+ * @returns The amount received, in `to`'s currency.
+ * @throws {DomainError} `validation.failed` on `toAccountId` (the same
+ *   account) or `receivedAmount` (missing across currencies, given within one).
+ */
+export const receivedAmountOf = (
+  from: Account,
+  to: Account,
+  request: Pick<TransactionCreate, 'amount' | 'receivedAmount'>,
+): number => {
+  if (from.id === to.id) {
+    throw validationFailed([{ field: 'toAccountId', code: 'field.invalid' }]);
+  }
+  if (from.currency === to.currency) {
+    if (request.receivedAmount !== undefined) {
+      throw validationFailed([{ field: 'receivedAmount', code: 'field.invalid' }]);
+    }
+    return request.amount;
+  }
+  if (request.receivedAmount === undefined) {
+    throw validationFailed([{ field: 'receivedAmount', code: 'field.required' }]);
+  }
+  return request.receivedAmount;
+};
+
+/**
+ * Records a transfer between the household's own accounts (OQ-222): both
+ * sides, linked, each moving its own account in its own currency, with
+ * `effect = transfer` so neither counts as money in or out. The caller must be
+ * able to edit both accounts, and both must take a transfer.
+ *
+ * @param deps - The tier below.
+ * @param context - The signed-in request.
+ * @param householdId - The household.
+ * @param request - A transfer_sent with its `toAccountId`.
+ * @param kind - transfer_sent.
+ * @returns The sent side.
+ * @throws {DomainError} either account's load and target gates;
+ *   `validation.failed`; `transaction.changed` on a race (OQ-203).
+ */
+const recordOwnTransfer = async (
+  deps: TransactionDeps,
+  context: SignedInContext,
+  householdId: string,
+  request: TransactionCreate,
+  kind: TransactionKind,
+): Promise<AccountTransaction> => {
+  const from = await loadTarget(deps, context, householdId, request, kind);
+  const to = await loadTarget(deps, context, householdId, {
+    ...request, accountId: request.toAccountId,
+  }, RECEIVED);
+  const received = receivedAmountOf(from.account, to.account, request);
+  checkTarget(kind, from, request.currency);
+  checkTarget(RECEIVED, to, to.account.currency);
+  const { userId } = context.actor;
+  return deps.inTransaction<AccountTransaction>(async (stores) => {
+    const inserted = await stores.accountTransactions.insertTransfer({
+      sent: transferSideOf(from, kind, request, userId),
+      received: transferSideOf(to, RECEIVED, { ...request, amount: received }, userId),
+    });
+    if (!inserted.ok) throw transactionChanged();
+    const sides = [
+      [from, kind, inserted.sent], [to, RECEIVED, inserted.received],
+    ] as const;
+    await inSequence(sides, async ([target, sideKind, row]) => {
+      const moved = await stores.accounts.applyMovement(
+        target.account.id,
+        accountMovementOf(sideKind, row),
+      );
+      if (!moved.ok) throw transactionChanged();
+    });
+    return inserted.sent;
+  });
+};
+
 /** Builds the Record Transaction use case. */
 const createRecord = (deps: TransactionDeps) => ({
   /**
@@ -924,15 +1043,16 @@ const createRecord = (deps: TransactionDeps) => ({
     const kind = findKind(request.kind);
     if (!kind) throw validationFailed([{ field: 'kind', code: 'field.invalid_option' }]);
     requireNoProblems(createProblems(request, kind));
-    const target = await loadTarget(deps, context, householdId, request, kind);
-    const transaction = await recordCore(
-      deps,
-      householdId,
-      target,
-      kind,
-      request,
-      context.actor.userId,
-    );
+    const transaction = request.toAccountId === undefined
+      ? await recordCore(
+        deps,
+        householdId,
+        await loadTarget(deps, context, householdId, request, kind),
+        kind,
+        request,
+        context.actor.userId,
+      )
+      : await recordOwnTransfer(deps, context, householdId, request, kind);
     requestLogger(context).audit('RecordTransaction', {
       entityType: kind.target === 'card' ? 'CardTransaction' : 'AccountTransaction',
       entityId: transaction.id,

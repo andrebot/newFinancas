@@ -18,7 +18,8 @@ export const accountTransactions = pgTable('account_transactions', {
   id: id(),
   accountId: uuid('account_id').notNull().references(() => accounts.id, CASCADE),
   kind: text('kind').notNull(),
-  // Persisted from EFFECT_BY_KIND so history keeps the effect in force at the time.
+  // Persisted from EFFECT_BY_KIND so history keeps the effect in force at the time —
+  // a transfer's is `transfer` only between the household's own accounts (OQ-222).
   effect: text('effect').notNull(),
   date: date('date').notNull(),
   amount: integerAmount('amount').notNull(),
@@ -34,6 +35,10 @@ export const accountTransactions = pgTable('account_transactions', {
   // exactly them (OQ-171); null for every other kind.
   quantityDelta: integerAmount('quantity_delta'),
   costBasisDelta: integerAmount('cost_basis_delta'),
+  // A transfer between the household's own accounts: both sides share it, so
+  // they move, edit and delete together (OQ-222). Null for every other row —
+  // a transfer to or from someone else included.
+  transferId: uuid('transfer_id'),
   // Who recorded it (OQ-111); null for schedule posts and once FR-1.17 anonymizes it.
   createdByUserId: uuid('created_by_user_id').references(() => users.id),
   source: text('source').notNull().default('manual'),
@@ -56,6 +61,7 @@ export const accountTransactions = pgTable('account_transactions', {
     table.id.desc().nullsFirst(),
   ),
   index('account_transactions_holding_idx').on(table.holdingId),
+  index('account_transactions_transfer_idx').on(table.transferId),
 ]);
 
 export const cardTransactions = pgTable('card_transactions', {

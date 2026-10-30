@@ -110,6 +110,8 @@ export const ROW: AccountTransaction = {
   holding: null,
   trade: null,
   creditCardId: null,
+  transferId: null,
+  pair: null,
   source: 'manual',
   createdByUserId: ANA_ID,
   createdAt: NOW,
@@ -170,7 +172,7 @@ export const GOAL: Goal = {
 
 export const fakeDeps = () => {
   const accounts = {
-    findById: vi.fn(async (): Promise<Account | undefined> => ACCOUNT),
+    findById: vi.fn(async (..._call: string[]): Promise<Account | undefined> => ACCOUNT),
     list: vi.fn(async (): Promise<Account[]> => [ACCOUNT]),
     applyMovement: vi.fn(async () => ({ ok: true })),
   };
@@ -181,7 +183,7 @@ export const fakeDeps = () => {
         transaction: { ...ROW, ...(row as object) },
       }),
     ),
-    findById: vi.fn(async (): Promise<AccountTransaction | undefined> => ROW),
+    findById: vi.fn(async (..._call: string[]): Promise<AccountTransaction | undefined> => ROW),
     update: vi.fn(
       async (
         _id: string,
@@ -195,6 +197,17 @@ export const fakeDeps = () => {
         transaction: { ...ROW, ...changes },
       }),
     ),
+    // Both sides of a transfer between own accounts, linked (OQ-222).
+    insertTransfer: vi.fn(async (
+      transfer: { sent: object; received: object },
+    ): Promise<
+      | { ok: true; sent: AccountTransaction; received: AccountTransaction }
+      | { ok: false; reason: string }
+    > => ({
+      ok: true,
+      sent: { ...ROW, ...transfer.sent },
+      received: { ...ROW, id: 'received', ...transfer.received },
+    })),
     delete: vi.fn(async (): Promise<'deleted' | 'stale'> => 'deleted'),
     list: vi.fn(async (): Promise<AccountTransaction[]> => []),
     dayTotals: vi.fn(async (): Promise<DayKindTotal[]> => []),
