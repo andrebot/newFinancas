@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
 import {
-  check, date, index, pgTable, text, uuid,
+  check, date, index, pgTable, text, uniqueIndex, uuid,
 } from 'drizzle-orm/pg-core';
 import { accounts, creditCards } from './accounts';
 import { categories, subcategories } from './categories';
@@ -62,6 +62,14 @@ export const accountTransactions = pgTable('account_transactions', {
   ),
   index('account_transactions_holding_idx').on(table.holdingId),
   index('account_transactions_transfer_idx').on(table.transferId),
+  // A pair is one sent and one received side, and only a pair is a `transfer`
+  // (OQ-222) — a transfer to or from someone else is a `movement`.
+  uniqueIndex('account_transactions_transfer_side_key').on(table.transferId, table.kind)
+    .where(sql`${table.transferId} IS NOT NULL`),
+  check(
+    'account_transactions_transfer_pair_check',
+    sql`(${table.transferId} IS NOT NULL) = (${table.effect} = 'transfer')`,
+  ),
 ]);
 
 export const cardTransactions = pgTable('card_transactions', {

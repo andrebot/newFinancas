@@ -86,7 +86,7 @@ export interface TransferSide {
 export type InsertTransferResult = | {
   readonly ok: true; readonly sent: AccountTransaction; readonly received: AccountTransaction;
 }
-  /** An Account, category or recorder it names was deleted meanwhile (a race, OQ-203). */
+  /** An Account or recorder it names was deleted meanwhile (a race, OQ-203). */
   | { readonly ok: false; readonly reason: 'reference_not_found' };
 
 /** A transaction to record, as the Manager decided it. */
@@ -387,7 +387,7 @@ const createAccountTransactionAccessor = (db: Database) => ({
 
   /**
    * Records both sides of a transfer between the household's own accounts,
-   * linked by one id — the sent side's (OQ-222). All or nothing.
+   * linked by one id the database draws (OQ-222). All or nothing.
    *
    * @param transfer - Its sent and received sides, as the Manager decided them.
    * @returns Both recorded sides, or why nothing was written.
@@ -395,19 +395,21 @@ const createAccountTransactionAccessor = (db: Database) => ({
   insertTransfer: async (transfer: NewTransfer): Promise<InsertTransferResult> => {
     try {
       return await db.transaction(async (tx) => {
+        // Both sides carry the pair's id from their first write: a side is never
+        // a `transfer` without one (the effect check, migration 0015).
         const [sent] = await tx.insert(accountTransactions)
-          .values(columnsToInsert(transfer.sent)).returning({ id: accountTransactions.id });
-        const transferId = sent!.id;
-        await tx.update(accountTransactions).set({ transferId })
-          .where(eq(accountTransactions.id, transferId));
-        await tx.insert(accountTransactions)
-          .values({ ...columnsToInsert(transfer.received), transferId });
+          .values({ ...columnsToInsert(transfer.sent), transferId: sql`uuidv7()` })
+          .returning(rowColumns);
+        const { transferId } = sent!;
+        const [received] = await tx.insert(accountTransactions)
+          .values({ ...columnsToInsert(transfer.received), transferId })
+          .returning({ id: accountTransactions.id });
         const rows = (await tx.select(rowColumns).from(accountTransactions)
-          .where(eq(accountTransactions.transferId, transferId))).map(toTransaction);
+          .where(eq(accountTransactions.transferId, transferId!))).map(toTransaction);
         return {
           ok: true as const,
-          sent: rows.find((row) => row.id === transferId)!,
-          received: rows.find((row) => row.id !== transferId)!,
+          sent: rows.find((row) => row.id === sent!.id)!,
+          received: rows.find((row) => row.id === received!.id)!,
         };
       });
     } catch (error) {
@@ -477,6 +479,26 @@ const createAccountTransactionAccessor = (db: Database) => ({
    * @param exceptId - The transaction not to count.
    * @returns How many others reference it.
    */
+  /**
+   * A Holding's trades — buys, sells and redemptions — oldest first on (date,
+   * time written, id), the order its value moves in (OQ-222).
+   *
+   * @param holdingId - The Holding.
+   * @returns Its trades.
+   */
+  listTrades: async (holdingId: string): Promise<AccountTransaction[]> => (
+    await db.select(rowColumns).from(accountTransactions)
+      .where(and(
+        eq(accountTransactions.holdingId, holdingId),
+        isNotNull(accountTransactions.quantityDelta),
+      ))
+      .orderBy(
+        asc(accountTransactions.date),
+        asc(accountTransactions.createdAt),
+        asc(accountTransactions.id),
+      )
+  ).map(toTransaction),
+
   countForHolding: (holdingId: string, exceptId: string): Promise<number> => db.$count(
     accountTransactions,
     and(eq(accountTransactions.holdingId, holdingId), ne(accountTransactions.id, exceptId)),

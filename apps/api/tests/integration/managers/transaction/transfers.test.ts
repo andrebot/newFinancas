@@ -357,6 +357,28 @@ describe('editing a transfer between own accounts (OQ-222)', () => {
       .rejects.toMatchObject({ domainError: { code: 'validation.failed' } });
   });
 
+  it('writes nothing when what is sent is what is stored', async () => {
+    const fake = fakeWith();
+    const edited = await createEdit(fake.deps).editTransaction(context, HOUSEHOLD_ID, SENT.id, {
+      date: SENT.date, amount: SENT.amount, description: SENT.description,
+    });
+    expect(edited.transaction).toBe(SENT);
+    expect(fake.inTransaction).not.toHaveBeenCalled();
+  });
+
+  it('writes both sides in their accounts\' order, whichever is asked for', async () => {
+    const fake = fakeWith();
+    await createEdit(fake.deps)
+      .editTransaction(context, HOUSEHOLD_ID, RECEIVED.id, { amount: 6_000 });
+    await createDelete(fake.deps).deleteTransaction(context, HOUSEHOLD_ID, SENT.id);
+    // CHECKING (…a2) sorts before SAVINGS (…a3): its side always goes first.
+    const updated = fake.accountTransactions.update.mock.calls.map(([id]) => id);
+    const deleted = fake.accountTransactions.delete.mock.calls
+      .map((call) => (call as unknown[])[0]);
+    expect(updated).toEqual([SENT.id, RECEIVED.id]);
+    expect(deleted).toEqual([SENT.id, RECEIVED.id]);
+  });
+
   it('reads the row back unaudited when nothing is sent', async () => {
     const fake = fakeWith();
     const edited = await createEdit(fake.deps).editTransaction(context, HOUSEHOLD_ID, SENT.id, {});

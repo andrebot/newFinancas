@@ -195,12 +195,6 @@ const entry = (field: CheckedField, problem: Problem | undefined): Problems => (
 );
 
 /**
- * Checks the amount and the date: more than zero, a real calendar date.
- *
- * @param form - The form.
- * @returns Their refusals.
- */
-/**
  * Checks what a transfer between own accounts needs besides an account (OQ-222):
  * where it goes, and what arrived when that is another currency.
  *
@@ -218,6 +212,12 @@ const ownTransferProblemsOf = (form: TransactionForm, receivesOtherCurrency: boo
   };
 };
 
+/**
+ * Checks the amount and the date: more than zero, a real calendar date.
+ *
+ * @param form - The form.
+ * @returns Their refusals.
+ */
 const valueProblemsOf = (form: TransactionForm): Problems => ({
   ...entry('amount', form.amount === null || form.amount < 1 ? own('amount') : undefined),
   ...entry('date', ruled(DATE_RULE(form.date))),

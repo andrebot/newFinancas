@@ -1,3 +1,5 @@
+import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 import type { PGlite } from '@electric-sql/pglite';
 import {
   afterAll, beforeAll, describe, expect, it,
@@ -132,6 +134,94 @@ describe('migrated schema', () => {
       expect(await errorCodeOf(connection, insert, [account, 8540])).toBeUndefined();
       expect(await errorCodeOf(connection, insert, [account, -8540])).toBe(CHECK_VIOLATION);
       expect(await errorCodeOf(connection, insert, [account, 0])).toBe(CHECK_VIOLATION);
+    });
+  });
+
+  it('keeps a pair one sent and one received side, only it a `transfer` (OQ-222)', async () => {
+    await asAppRole(database, async (connection) => {
+      const household = await insertHousehold(connection);
+      const account = await insertId(
+        connection,
+        `INSERT INTO accounts
+           (household_id, name, type, currency, visibility, starting_balance_date)
+         VALUES ($1, 'A', 'checking', 'BRL', 'shared', '2026-01-01') RETURNING id`,
+        [household],
+      );
+      const pair = '0199c5a0-0000-7000-8000-0000000000aa';
+      const side = `INSERT INTO account_transactions
+                      (account_id, kind, effect, date, amount, currency, transfer_id)
+                    VALUES ($1, $2, $3, '2026-10-08', 100, 'BRL', $4)`;
+
+      expect(await errorCodeOf(connection, side, [account, 'transfer_sent', 'transfer', pair]))
+        .toBeUndefined();
+      expect(await errorCodeOf(connection, side, [account, 'transfer_received', 'transfer', pair]))
+        .toBeUndefined();
+      expect(await errorCodeOf(connection, side, [account, 'transfer_sent', 'transfer', pair]))
+        .toBe(UNIQUE_VIOLATION);
+      expect(await errorCodeOf(connection, side, [account, 'transfer_sent', 'transfer', null]))
+        .toBe(CHECK_VIOLATION);
+      expect(await errorCodeOf(connection, side, [account, 'transfer_sent', 'movement', pair]))
+        .toBe(CHECK_VIOLATION);
+      expect(await errorCodeOf(connection, side, [account, 'transfer_sent', 'movement', null]))
+        .toBeUndefined();
+    });
+  });
+
+  it('restates trade values as the money moves them (migration 0015, OQ-222)', async () => {
+    await asAppRole(database, async (connection) => {
+      const household = await insertHousehold(connection);
+      const account = await insertId(
+        connection,
+        `INSERT INTO accounts
+           (household_id, name, type, currency, visibility, starting_balance_date)
+         VALUES ($1, 'A', 'investment', 'BRL', 'shared', '2026-01-01') RETURNING id`,
+        [household],
+      );
+      const holding = await insertId(
+        connection,
+        `INSERT INTO investment_holdings (account_id, asset_type, ticker, quantity, cost_basis)
+         VALUES ($1, 'stock', 'PETR4', 0, 0) RETURNING id`,
+        [account],
+      );
+      /** Records a trade with its old, unit-price snapshot. */
+      const trade = async (kind: string, date: string, amount: number, units: number) => {
+        const id = await insertId(
+          connection,
+          `INSERT INTO account_transactions (account_id, kind, effect, date, amount, currency,
+             holding_id, quantity_delta, cost_basis_delta)
+           VALUES ($1, $2, 'investment_trade', $3, $4, 'BRL', $5, $6, 0) RETURNING id`,
+          [account, kind, date, amount, holding, units],
+        );
+        await connection.query(
+          `INSERT INTO valuation_snapshots (holding_id, valuation, as_of_date, source,
+             account_transaction_id) VALUES ($1, 0, $2, 'transaction', $3)`,
+          [holding, date, id],
+        );
+        return id;
+      };
+      const first = await trade('investment_buy', '2026-10-01', 60_000, 2_000_000_000);
+      const second = await trade('investment_buy', '2026-10-02', 30_000, 1_000_000_000);
+      await connection.query(
+        `INSERT INTO valuation_snapshots (holding_id, valuation, as_of_date, source)
+         VALUES ($1, 100000, '2026-10-03', 'manual')`,
+        [holding],
+      );
+      const sold = await trade('investment_sell', '2026-10-04', 40_000, -1_000_000_000);
+      const out = await trade('investment_sell', '2026-10-05', 1_000, -2_000_000_000);
+
+      const name = '0015_transfer_pairs_and_trade_values.sql';
+      const file = new URL(`../../drizzle/${name}`, import.meta.url);
+      const migration = await readFile(fileURLToPath(file), 'utf8');
+      await connection.query(migration.split('--> statement-breakpoint').at(-1)!);
+
+      const { rows } = await connection.query<{ id: string; valuation: number }>(
+        'SELECT account_transaction_id AS id, valuation FROM valuation_snapshots WHERE source = $1',
+        ['transaction'],
+      );
+      const values = Object.fromEntries(rows.map((row) => [row.id, Number(row.valuation)]));
+      expect(values).toEqual({
+        [first]: 60_000, [second]: 90_000, [sold]: 60_000, [out]: 0,
+      });
     });
   });
 

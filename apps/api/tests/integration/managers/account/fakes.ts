@@ -219,6 +219,8 @@ export const fakeDeps = () => {
   // The ledgers' sums a Budget's spend is restated from (OQ-166).
   const accountTransactions = {
     claimedSums: vi.fn(async (..._call: unknown[]): Promise<object[]> => []),
+    // A Holding's trades, its values restated from (OQ-222): none unless a test says so.
+    listTrades: vi.fn(async (..._call: unknown[]): Promise<object[]> => []),
   };
   const cardTransactions = {
     claimedSums: vi.fn(async (..._call: unknown[]): Promise<object[]> => []),

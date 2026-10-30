@@ -67,6 +67,7 @@ sequenceDiagram
     participant AA as AccountAccessor
     participant VU as ValidationUtility
     participant VSA as ValuationSnapshotAccessor
+    participant ATA as AccountTransactionAccessor
     participant LOG as LoggingUtility
 
     User->>API: DELETE /households/:householdId/holdings/:holdingId/valuation-snapshots/:snapshotId 
@@ -97,6 +98,10 @@ sequenceDiagram
                     AM-->>API: 409 snapshot.automatic_not_editable
                 else written
                     VSA-->>AM: done
+                    AM->>ATA: listTrades(holdingId)
+                    AM->>VSA: list(holdingId)
+                    Note over AM: restate the trades&#39; values from the history &mdash; a typed value<br/>sets the value, every later trade moves it (OQ-222)
+                    AM->>VSA: updateAutomatic(each trade whose value moved)
                     AM-->>LOG: audit DeleteMarketValue
                     API-->>User: 204 No Content
                 end
@@ -105,7 +110,7 @@ sequenceDiagram
     </pre>
   </div>
   <div class="notes">
-<ul><li>If it was the latest, the previous snapshot becomes the current value.</li><li><strong>As built (OQ-178):</strong> access is the Holding&#39;s Account&#39;s (<code>data.edit</code> for all three writes); an archived Holding takes no new value; a date after today is refused on the field (<code>date.max</code>), as everywhere else (OQ-165).</li><li>Net worth and goal progress read &ldquo;latest snapshot at or before month end&rdquo; on demand &mdash; nothing to recompute here.</li><li>See FR-5.2, OQ-51, OQ-56, OQ-83, OQ-178.</li></ul>
+<ul><li>If it was the latest, the previous snapshot becomes the current value.</li><li><strong>As built (OQ-178):</strong> access is the Holding&#39;s Account&#39;s (<code>data.edit</code> for all three writes); an archived Holding takes no new value; a date after today is refused on the field (<code>date.max</code>), as everywhere else (OQ-165).</li><li>Net worth and goal progress read &ldquo;latest snapshot at or before month end&rdquo; on demand. A typed value moves every later trade&#39;s value, so the Holding&#39;s automatic snapshots are restated from its history (OQ-222, PR #145 review).</li><li>See FR-5.2, OQ-51, OQ-56, OQ-83, OQ-178.</li></ul>
   </div>
   <script>
     mermaid.initialize({

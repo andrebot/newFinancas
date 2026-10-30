@@ -182,10 +182,12 @@ sequenceDiagram
             IHA-->>TM: {quantity, costBasis}
             Note over IHA: refused below zero: insufficient_quantity / cost_basis_below_zero
             opt market-priced assetType (OQ-51)
-                TM->>VSA: latestAsOf([holdingId], date)
-                VSA-->>TM: the value before the trade (or none: 0)
-                TM->>VSA: insertAutomatic(holdingId, transactionId, valuation, date)
-                Note over VSA: valuation = the value before + a buy&#39;s amount, or &minus; a sell&#39;s,<br/>never below 0, 0 once sold out &mdash; the money, not the units (OQ-222)<br/>source = transaction &mdash; changes only with its transaction (OQ-56)
+                TM->>VSA: insertAutomatic(holdingId, transactionId, date)
+                TM->>ATA: listTrades(holdingId)
+                TM->>VSA: list(holdingId)
+                Note over TM: restate the Holding&#39;s history in order: a typed value sets it, a buy adds<br/>its amount, a sell takes its amount off (never below 0), sold out is 0 &mdash; the money,<br/>not the units (OQ-222, holdingValues.ts)
+                TM->>VSA: updateAutomatic(each trade whose value or date moved)
+                Note over VSA: source = transaction &mdash; changes only with its transaction (OQ-56)
             end
             alt quantity = 0 (full sell or redemption)
                 TM->>IHA: archive(holdingId, by = system)

@@ -537,7 +537,9 @@ Backs `AccountManager`'s `InvestmentHoldingAccessor`,
   match-by-ticker-and-accumulate the way FR-5.1 originally described.
 - **`valuation_snapshots`** — `id` (PK), `holding_id` (FK, not null),
   `valuation` (the *total* dollar figure, not a per-unit price — FR-5.2:
-  "current valuation is simply its latest snapshot"), `as_of_date`,
+  "current valuation is simply its latest snapshot"; a trade's is the
+  Holding's money right after it, restated from the whole history on every
+  change — OQ-222), `as_of_date`,
   **`source`** (`manual` | `transaction`, Oct 2026 — OQ-56),
   **`account_transaction_id`** (FK → `account_transactions`, nullable,
   unique, `ON DELETE CASCADE` — set for `transaction` snapshots so they
@@ -782,8 +784,10 @@ history.
 - **A transfer between own accounts is a linked pair (OQ-222, reversing
   OQ-201 D2)** — `transfer_sent` on one account, `transfer_received` on
   the other, each in its own currency and amount (no conversion), both
-  carrying the same nullable **`transfer_id`** (the sent row's id, indexed,
-  migration 0014) and `effect = transfer`. They are recorded, edited and
+  carrying the same nullable **`transfer_id`** (drawn by the database,
+  indexed, migration 0014) and `effect = transfer`. Migration 0015 makes it
+  an invariant: `transfer_id` is set exactly when the effect is `transfer`,
+  and unique per (`transfer_id`, `kind`). They are recorded, edited and
   deleted together. `ReportingEngine` leaves a `transfer` row out of
   income/expense only when its other side is also among the viewer's
   accounts — otherwise, for that viewer, the money came from or went

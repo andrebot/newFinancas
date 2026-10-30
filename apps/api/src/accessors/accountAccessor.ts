@@ -394,9 +394,12 @@ const createAccountAccessor = (db: Database) => ({
     accountId: string,
     movement: Movement,
   ): Promise<ApplyMovementResult> => db.transaction(async (tx) => {
+    // NO KEY UPDATE: a write that already inserted a row pointing here holds a
+    // key-share lock, which a plain FOR UPDATE would wait on — two concurrent
+    // writes would deadlock (PR #145 review). Balance writes still queue.
     const [account] = await tx.select({
       currency: accounts.currency, startingBalanceDate: accounts.startingBalanceDate,
-    }).from(accounts).where(eq(accounts.id, accountId)).for('update');
+    }).from(accounts).where(eq(accounts.id, accountId)).for('no key update');
     if (!account) return { ok: false, reason: 'account_not_found' };
     if (account.currency !== movement.currency) {
       return { ok: false, reason: 'currency_mismatch', accountCurrency: account.currency };

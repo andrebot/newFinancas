@@ -12,13 +12,15 @@ import type { InterestPayment } from '../../db/schema/values';
 import type { ContractTerms } from '../../engines/investmentProduct';
 import { validationFailed } from '../../utilities/domainError';
 import type { SignedInContext } from '../requestContext';
+import inSequence from '../sequence';
 import { requireNoProblems } from '../validation';
+import { inLockOrder } from './lockOrder';
 import { requestLogger, type TransactionDeps, type TransactionStores } from './context';
 import {
   accountMovementOf, accrueBudget, budgetAccrualOf, cardMovementOf, engineRateOf, holdingRateOf,
   type EffectValues, type RequestRate,
-  valueAfterTrade, valueBefore,
 } from './effects';
+import { restateHoldingValues } from '../holdingValues';
 import { fixedTermProblems } from './kindRules';
 import {
   categoryNotFound, holdingArchived, indexRateMissing, scheduleStarted, subcategoryMismatch,
@@ -267,40 +269,6 @@ const scheduleInputsChanged = (row: EditableRow, merged: MergedValues): boolean 
     || merged.amount !== transaction.amount;
 };
 
-/**
- * A market-priced trade's automatic snapshot follows its edit: the Holding's
- * value before the trade (its own snapshot left out), moved by the new amount
- * (FR-5.2, PR #145).
- *
- * A fixed-term Holding has none (OQ-51).
- *
- * @param stores - The Accessors over one transaction.
- * @param row - The trade as stored.
- * @param kind - Its kind; the direction moves the value.
- * @param holding - The Holding, after the edit.
- * @param merged - Its values after the edit.
- * @param heldAfter - The units held once the edit is applied.
- */
-const refreshSnapshot = async (
-  stores: TransactionStores,
-  row: EditableRow,
-  kind: TransactionKind,
-  holding: InvestmentHolding,
-  merged: MergedValues,
-  heldAfter: number,
-): Promise<void> => {
-  const transaction = row.transaction as AccountTransaction;
-  if (isFixedTerm(holding.assetType)) return;
-  const changed = merged.amount !== transaction.amount || merged.quantity !== row.storedQuantity
-    || merged.date !== transaction.date;
-  if (!changed) return;
-  const before = await valueBefore(stores, holding.id, merged.date, transaction.id);
-  await stores.valuations.updateAutomatic(transaction.id, {
-    valuation: valueAfterTrade(before, kind.direction, merged.amount, heldAfter),
-    asOfDate: merged.date,
-  });
-};
-
 /** The checks a trade's edit passes before it writes — the fresh state decides. */
 const checkTradeEdit = async (
   stores: TransactionStores,
@@ -352,14 +320,11 @@ const applyTradeEdit = async ({
   const applied = await stores.holdings.applyTrade(current.id, trade);
   if (!applied.ok) throw tradeRefusal(applied.reason);
   if (applied.quantity === 0) await stores.holdings.archive(current.id, 'system');
-  if (kind.code === 'investment_buy' && isFixedTerm(current.assetType)) {
-    // A started schedule refuses re-application — so it runs only when the
-    // edit changes what it is computed from (OQ-201 D8).
-    if (scheduleInputsChanged(row, merged)) {
-      await applyTermsEdit(stores, deps, householdId, current, merged);
-    }
-  } else {
-    await refreshSnapshot(stores, row, kind, current, merged, applied.quantity);
+  // A started schedule refuses re-application — so it runs only when the
+  // edit changes what it is computed from (OQ-201 D8).
+  if (kind.code === 'investment_buy' && isFixedTerm(current.assetType)
+    && scheduleInputsChanged(row, merged)) {
+    await applyTermsEdit(stores, deps, householdId, current, merged);
   }
   return trade;
 };
@@ -462,6 +427,8 @@ const applyEdit = async (
   await reapplyEffects(stores, row, kind, merged);
   const updated = await guardedUpdate(stores, row, kind, merged, trade);
   if (updated.status !== 'updated') throw transactionChanged();
+  // The trade's new amount or date moves its value and every later one (OQ-222).
+  if (trade !== undefined) await restateHoldingValues(stores, holding!.id);
   return { ledger: row.ledger, transaction: updated.transaction };
 };
 
@@ -560,8 +527,29 @@ export const pairValuesOf = (
 };
 
 /**
+ * Tells whether an edit changes either side of a pair — one that doesn't is
+ * read back, neither written nor audited, as a single row's is.
+ *
+ * @param sides - The two sides as stored.
+ * @param values - Their values after the edit.
+ * @returns `true` when a date, amount or description moves.
+ */
+export const pairChanged = (
+  sides: PairSides,
+  values: { readonly sent: MergedValues; readonly received: MergedValues },
+): boolean => [
+  [sides.sent, values.sent], [sides.received, values.received],
+].some(([side, after]) => {
+  const before = (side as EditableRow).transaction;
+  const next = after as MergedValues;
+  return before.date !== next.date || before.amount !== next.amount
+    || before.description !== next.description;
+});
+
+/**
  * Edits both sides of a transfer between own accounts as one (OQ-222): each is
- * reversed, reapplied and guarded-updated, in one transaction.
+ * reversed, reapplied and guarded-updated, in one transaction — in their
+ * Accounts' order, so two edits of opposite pairs never wait on each other.
  *
  * @param deps - The tier below.
  * @param householdId - The household.
@@ -583,27 +571,22 @@ const editPair = async (
     ? { sent: row, received: other }
     : { sent: other, received: row };
   const values = pairValuesOf(sides, update);
-  if (Object.keys(update).length === 0) return { ledger: row.ledger, transaction: row.transaction };
+  if (!pairChanged(sides, values)) return { ledger: row.ledger, transaction: row.transaction };
+  const steps = inLockOrder([
+    { side: sides.sent, values: values.sent },
+    { side: sides.received, values: values.received },
+  ]);
   return deps.inTransaction<EditedTransaction>(async (stores) => {
-    const sent = await applyEdit(
+    const edited = await inSequence(steps, (step) => applyEdit(
       stores,
       deps,
       householdId,
-      sides.sent,
-      findKind('transfer_sent')!,
+      step.side,
+      findKind(step.side.transaction.kind)!,
       undefined,
-      values.sent,
-    );
-    const received = await applyEdit(
-      stores,
-      deps,
-      householdId,
-      sides.received,
-      findKind('transfer_received')!,
-      undefined,
-      values.received,
-    );
-    return row === sides.sent ? sent : received;
+      step.values,
+    ));
+    return edited[steps.findIndex((step) => step.side === row)]!;
   });
 };
 

@@ -9,6 +9,9 @@ import { validationFailed } from '../../utilities/domainError';
 import type { SignedInContext } from '../requestContext';
 import { requestLogger, type TransactionDeps, type TransactionStores } from './context';
 import { holdingInUse, scheduleStarted, transactionChanged } from './errors';
+import { restateHoldingValues } from '../holdingValues';
+import inSequence from '../sequence';
+import { inLockOrder } from './lockOrder';
 import {
   assetTypeOf, loadEditable, loadPairSide, reverseAccountEffects, reverseCardEffects,
   scheduleLocked, tradeHoldingOf, type EditableRow, type RestoredPosition,
@@ -125,6 +128,9 @@ const applyDelete = async (
   await guardedDelete(stores, row);
   if (restored !== undefined && row.ledger === 'account') {
     await undoTrade(stores, householdId, row, restored);
+    // Its money leaves every later value too (OQ-222); a Holding deleted with
+    // it has no history left to restate.
+    await restateHoldingValues(stores, (row.transaction as AccountTransaction).holdingId!);
   }
 };
 
@@ -168,11 +174,16 @@ const createDelete = (deps: TransactionDeps) => ({
     await checkDeletable(deps, householdId, row, kind);
     // A transfer between own accounts goes as one: both sides (OQ-222).
     const pair = await loadPairSide(deps, context, householdId, row);
+    // Both sides in their Accounts' order, so opposite pairs never wait on each other.
+    const sides = inLockOrder([row, ...(pair === undefined ? [] : [pair])]
+      .map((side) => ({ side })));
     await deps.inTransaction<void>(async (stores) => {
-      await applyDelete(stores, householdId, row, kind);
-      if (pair !== undefined) {
-        await applyDelete(stores, householdId, pair, findKind(pair.transaction.kind)!);
-      }
+      await inSequence(sides, ({ side }) => applyDelete(
+        stores,
+        householdId,
+        side,
+        findKind(side.transaction.kind)!,
+      ));
     });
     requestLogger(context).audit('DeleteTransaction', {
       entityType: row.ledger === 'card' ? 'CardTransaction' : 'AccountTransaction',

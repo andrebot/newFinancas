@@ -181,7 +181,8 @@ describe('insert', () => {
     const payment = await record({
       categoryId: food, subcategoryId: groceries, description: 'Market', createdByUserId: userId,
     });
-    const transfer = await record({ kind: 'transfer_sent', effect: 'transfer' });
+    // A transfer to someone else is a movement; a pair's `transfer` is insertTransfer's (OQ-222).
+    const transfer = await record({ kind: 'transfer_sent', effect: 'movement' });
     const bill = await record({
       kind: 'credit_card_bill_payment', effect: 'bill_payment', creditCardId: card,
     });
@@ -211,7 +212,7 @@ describe('insert', () => {
       source: 'manual',
     });
     expect(payment.createdAt).toBeInstanceOf(Date);
-    expect(transfer.effect).toBe('transfer');
+    expect(transfer).toMatchObject({ effect: 'movement', transferId: null, pair: null });
     expect(bill).toMatchObject({ effect: 'bill_payment', creditCardId: card });
     expect(buy).toMatchObject({
       effect: 'investment_trade',
@@ -226,10 +227,10 @@ describe('insert', () => {
   it('keeps the stored effect when the mapping says otherwise', scenario(async ({
     record, ledger, householdId,
   }) => {
-    const stored = await record({ kind: 'deposit', effect: 'transfer' });
+    const stored = await record({ kind: 'deposit', effect: 'bill_payment' });
 
     expect(findKind('deposit')?.effect).toBe('movement');
-    expect((await ledger.findById(householdId, stored.id))?.effect).toBe('transfer');
+    expect((await ledger.findById(householdId, stored.id))?.effect).toBe('bill_payment');
   }));
 
   it('reports a reference that is gone', scenario(async ({ ledger }) => {
@@ -589,7 +590,7 @@ describe('monthlySums', () => {
       { date: '2026-10-01', amount: 100 },
       { date: '2026-10-20', amount: 200 },
       {
-        kind: 'deposit', effect: 'transfer', date: '2026-10-21', amount: 5,
+        kind: 'deposit', effect: 'bill_payment', date: '2026-10-21', amount: 5,
       },
       { date: '2026-11-02', amount: 7 },
       { date: '2026-12-01', amount: 9 },
@@ -612,7 +613,7 @@ describe('monthlySums', () => {
         month: '2026-10',
         currency: 'BRL',
         kind: 'deposit',
-        effect: 'transfer',
+        effect: 'bill_payment',
         pairInView: false,
         total: 5,
       },
@@ -671,8 +672,8 @@ describe('transfers between own accounts (OQ-222)', () => {
     if (!result.ok) throw new Error(result.reason);
     const { sent, received } = result;
 
-    expect(sent.transferId).toBe(sent.id);
-    expect(received.transferId).toBe(sent.id);
+    expect(sent.transferId).not.toBeNull();
+    expect(received.transferId).toBe(sent.transferId);
     expect(sent.pair).toEqual({
       id: received.id, accountId: savings, amount: 480, currency: 'BRL',
     });
@@ -733,6 +734,27 @@ describe('transfers between own accounts (OQ-222)', () => {
       pairInView: false,
       total: 500,
     }]);
+  }));
+});
+
+describe('listTrades (OQ-222)', () => {
+  it('reads a Holding\'s trades oldest first on date, then time written', scenario(async ({
+    record, ledger, holding,
+  }) => {
+    const trade = (date: string) => ({
+      kind: 'investment_buy',
+      effect: 'investment_trade' as const,
+      holdingId: holding,
+      date,
+      trade: { quantityDelta: 1, costBasisDelta: 100 },
+    });
+    const later = await record(trade('2026-10-09'));
+    const first = await record(trade('2026-10-01'));
+    const sameDay = await record(trade('2026-10-09'));
+    await record({ kind: 'investment_dividend', holdingId: holding, date: '2026-10-02' });
+
+    expect((await ledger.listTrades(holding)).map((row) => row.id))
+      .toEqual([first.id, later.id, sameDay.id]);
   }));
 });
 

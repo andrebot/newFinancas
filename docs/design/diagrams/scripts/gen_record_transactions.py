@@ -148,10 +148,12 @@ sequenceDiagram
             IHA-->>TM: {quantity, costBasis}
             Note over IHA: refused below zero: insufficient_quantity / cost_basis_below_zero
             opt market-priced assetType (OQ-51)
-                TM->>VSA: latestAsOf([holdingId], date)
-                VSA-->>TM: the value before the trade (or none: 0)
-                TM->>VSA: insertAutomatic(holdingId, transactionId, valuation, date)
-                Note over VSA: valuation = the value before + a buy&#39;s amount, or &minus; a sell&#39;s,<br/>never below 0, 0 once sold out &mdash; the money, not the units (OQ-222)<br/>source = transaction &mdash; changes only with its transaction (OQ-56)
+                TM->>VSA: insertAutomatic(holdingId, transactionId, date)
+                TM->>ATA: listTrades(holdingId)
+                TM->>VSA: list(holdingId)
+                Note over TM: restate the Holding&#39;s history in order: a typed value sets it, a buy adds<br/>its amount, a sell takes its amount off (never below 0), sold out is 0 &mdash; the money,<br/>not the units (OQ-222, holdingValues.ts)
+                TM->>VSA: updateAutomatic(each trade whose value or date moved)
+                Note over VSA: source = transaction &mdash; changes only with its transaction (OQ-56)
             end
             alt quantity = 0 (full sell or redemption)
                 TM->>IHA: archive(holdingId, by = system)
@@ -335,6 +337,7 @@ sequenceDiagram
 """,
     notes="""
     <ul>
+      <li><strong>PR #145 review:</strong> a trade&#39;s change restates its Holding&#39;s automatic snapshots from the whole history (<code>listTrades</code>, <code>list</code>, then <code>updateAutomatic</code> where a value or date moved), so later trades&#39; values follow it; a pair&#39;s two sides are written in Account-id order.</li>
       <li><strong>OQ-222:</strong> either side of a transfer between own accounts edits both as one &mdash; <code>amount</code> is what was sent, <code>receivedAmount</code> what arrived across currencies, no category; the caller must be able to edit both accounts (403 otherwise).</li>
       <li><strong>Reverse-then-reapply, all inside one transaction</strong> &mdash; the same complexity flagged in <code>02-data-model.md</code>&#39;s Transactions domain, now traced call-by-call. If the edit only changes the <code>date</code> to a different month, the reverse/reapply pair is what actually drives the backdated-balance cascade documented in the Accounts domain (shift every subsequent month&#39;s opening/ending balance by one delta).</li>
       <li><code>CardTransactionAccessor.update</code> path (not shown, same shape) applies when the target was a Card Transaction instead of an Account Transaction.</li>
@@ -431,6 +434,7 @@ sequenceDiagram
 """,
     notes="""
     <ul>
+      <li><strong>PR #145 review:</strong> a trade&#39;s change restates its Holding&#39;s automatic snapshots from the whole history (<code>listTrades</code>, <code>list</code>, then <code>updateAutomatic</code> where a value or date moved), so later trades&#39; values follow it; a pair&#39;s two sides are written in Account-id order.</li>
       <li><strong>OQ-222:</strong> deleting either side of a transfer between own accounts deletes both, moving both accounts back, in the same unit of work; the caller must be able to edit both accounts (403 otherwise).</li>
       <li>A deleted, backdated transaction runs the balance cascade in reverse across every subsequent month, same mechanic as Edit (UC-02) minus the reapply half.</li>
       <li><strong>OQ-201:</strong> a trade&#39;s cash leg is reversed too. Deleting the buy that created a Holding deletes the Holding (its Goal split, snapshots and schedule with it) when no other transaction references it, and is refused otherwise; a fixed-term buy whose schedule has posted can&#39;t be deleted. A deleted transaction the schedule posted isn&#39;t posted again &mdash; its entry stays marked.</li>

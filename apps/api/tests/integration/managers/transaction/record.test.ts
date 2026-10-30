@@ -3,7 +3,7 @@ import type { SignedInContext } from '../../../../src/managers/requestContext';
 import createRecord, { type TransactionCreate } from '../../../../src/managers/transaction/record';
 import {
   ACCOUNT, ANA_ID, CARD, CARD_ROW, CHECKING, FIXED_HOLDING, GOAL, HOUSEHOLD_ID, MARKET_HOLDING,
-  NOW, ROW, fakeDeps,
+  NOW, ROW, fakeDeps, snapshotOf, tradeOf,
 } from './fakes';
 
 // Record Transaction (CUC-1, FR-3): the Manager decides which side effect a kind
@@ -459,29 +459,32 @@ describe('recordTransaction', () => {
         quantityDelta: 2,
         costBasisDelta: 2_000,
       });
-      // Nothing before it: the Holding is worth what was paid — never a unit price.
-      expect(fake.valuations.latestAsOf)
-        .toHaveBeenCalledWith([MARKET_HOLDING.id], '2026-10-13', undefined);
+      // Written, then restated from the whole history (OQ-222).
       expect(fake.valuations.insertAutomatic).toHaveBeenCalledWith({
         holdingId: MARKET_HOLDING.id,
         accountTransactionId: expect.any(String),
-        valuation: 2_000,
+        valuation: 0,
         asOfDate: '2026-10-13',
       });
+      expect(fake.accountTransactions.listTrades).toHaveBeenCalledWith(MARKET_HOLDING.id);
     });
 
-    it('adds a buy to the value before it, whatever the units (PR #145)', async () => {
+    it('values the buy at the money it holds, whatever the units (OQ-222)', async () => {
       const fake = fakeDeps();
-      // R$ 600,00 for 20 units, stored × 10⁸, into a Holding worth R$ 300,00.
-      fake.valuations.latestAsOf.mockResolvedValueOnce([{ valuation: 30_000 }]);
+      // R$ 600,00 for 20 units, stored × 10⁸, after a market value of R$ 300,00.
+      fake.accountTransactions.listTrades.mockResolvedValue([
+        tradeOf('buy', 'investment_buy', 60_000, 2_000_000_000, '2026-10-13'),
+      ]);
+      fake.valuations.list.mockResolvedValue([
+        snapshotOf(30_000, '2026-10-01'), snapshotOf(0, '2026-10-13', 'buy'),
+      ]);
       await recordOf(fake).recordTransaction(
         context,
         HOUSEHOLD_ID,
         buyRequest({ amount: 60_000, quantity: 2_000_000_000 }),
       );
-      expect(fake.valuations.insertAutomatic).toHaveBeenCalledWith(
-        expect.objectContaining({ valuation: 90_000 }),
-      );
+      expect(fake.valuations.updateAutomatic)
+        .toHaveBeenCalledExactlyOnceWith('buy', { valuation: 90_000, asOfDate: '2026-10-13' });
     });
 
     it(
@@ -735,19 +738,22 @@ describe('recordTransaction', () => {
 
         date: '2026-10-13',
       });
-      // R$ 100,00 before, R$ 50,00 out: the money left is R$ 50,00 (PR #145).
-      expect(fake.valuations.insertAutomatic).toHaveBeenCalledWith(
-        expect.objectContaining({ valuation: 5_000 }),
-      );
+      // Its value is restated from the Holding's history (OQ-222).
+      expect(fake.accountTransactions.listTrades).toHaveBeenCalledWith(MARKET_HOLDING.id);
     });
 
-    it('never values a sell below zero', async () => {
+    it('takes the sale\'s money off the value before it', async () => {
       const fake = fakeDeps();
-      fake.valuations.latestAsOf.mockResolvedValueOnce([{ valuation: 3_000 }]);
+      fake.accountTransactions.listTrades.mockResolvedValue([
+        tradeOf('buy', 'investment_buy', 10_000, 10, '2026-10-01'),
+        tradeOf('sell', 'investment_sell', 5_000, -4, '2026-10-13'),
+      ]);
+      fake.valuations.list.mockResolvedValue([
+        snapshotOf(10_000, '2026-10-01', 'buy'), snapshotOf(0, '2026-10-13', 'sell'),
+      ]);
       await recordOf(fake).recordTransaction(context, HOUSEHOLD_ID, sellRequest());
-      expect(fake.valuations.insertAutomatic).toHaveBeenCalledWith(
-        expect.objectContaining({ valuation: 0 }),
-      );
+      expect(fake.valuations.updateAutomatic)
+        .toHaveBeenCalledExactlyOnceWith('sell', { valuation: 5_000, asOfDate: '2026-10-13' });
     });
 
     it('auto-archives a zeroed position as system (OQ-171)', async () => {

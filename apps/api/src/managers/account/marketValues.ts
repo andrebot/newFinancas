@@ -3,6 +3,7 @@ import type {
   DateRange, ManualRefusal, Valuation, ValuationSnapshot,
 } from '../../accessors/valuationSnapshotAccessor';
 import { dateWithin } from '../../utilities/validation';
+import { restateHoldingValues } from '../holdingValues';
 import type { SignedInContext } from '../requestContext';
 import requireValidFields from '../validation';
 import { requestLogger, todayOf, type AccountDeps } from './context';
@@ -12,7 +13,10 @@ import { loadHolding, requireOpenHolding, type HoldingIds } from './holdingAcces
 // A market-priced Holding's manual market values (track-investments/uc-05..07,
 // FR-5.2, OQ-56): Valuation Snapshots the user records, corrects or deletes. A
 // fixed-term Holding is valued by its contract, never by a snapshot (OQ-51);
-// an automatic snapshot changes only with its transaction.
+// an automatic snapshot changes only with its transaction. A typed value sets
+// the Holding's value from its date, so every change restates the trades'
+// values after it (OQ-222) — from the whole history, so a later write corrects
+// whatever a concurrent one left.
 
 /** A market value as the route validated it. */
 export interface MarketValueInput {
@@ -133,6 +137,7 @@ const createMarketValues = (deps: AccountDeps) => ({
     const snapshot = await deps.valuations.insertManual(holdingId, {
       valuation: input.value, asOfDate: input.asOf,
     });
+    await restateHoldingValues(deps, holdingId);
     requestLogger(context).audit('RecordMarketValue', {
       entityType: 'ValuationSnapshot', entityId: snapshot.id, householdId,
     });
@@ -170,6 +175,7 @@ const createMarketValues = (deps: AccountDeps) => ({
     }
     const result = await deps.valuations.updateManual(holdingId, snapshotId, changes);
     if (typeof result === 'string') throw snapshotRefused(result);
+    await restateHoldingValues(deps, holdingId);
     requestLogger(context).audit('EditMarketValue', {
       entityType: 'ValuationSnapshot', entityId: snapshotId, householdId,
     });
@@ -197,6 +203,7 @@ const createMarketValues = (deps: AccountDeps) => ({
     await requireMaintainable(deps, context, { householdId, holdingId }, undefined);
     const result = await deps.valuations.deleteManual(holdingId, snapshotId);
     if (result !== 'deleted') throw snapshotRefused(result);
+    await restateHoldingValues(deps, holdingId);
     requestLogger(context).audit('DeleteMarketValue', {
       entityType: 'ValuationSnapshot', entityId: snapshotId, householdId,
     });

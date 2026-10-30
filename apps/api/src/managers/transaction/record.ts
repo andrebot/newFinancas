@@ -21,8 +21,9 @@ import { requireNoProblems } from '../validation';
 import { reweightSplit } from './allocations';
 import {
   accountMovementOf, accrueBudget, budgetAccrualOf, cardMovementOf, engineRateOf, holdingRateOf,
-  valueAfterTrade, valueBefore,
+  valueBefore,
 } from './effects';
+import { restateHoldingValues } from '../holdingValues';
 import {
   requestLogger, todayOf, type TransactionDeps, type TransactionStores,
 } from './context';
@@ -34,6 +35,7 @@ import {
   transactionChanged, tradeRefusal,
 } from './errors';
 import { createProblems } from './kindRules';
+import { accountsInLockOrder } from './lockOrder';
 import requirePaidCard from './paidCard';
 
 // Record Transaction (CUC-1, FR-3): the household's cash-flow events — one of
@@ -640,32 +642,27 @@ const tradeRowOf = (
 });
 
 /**
- * A market-priced trade's automatic snapshot: the Holding's value before it,
- * moved by the trade's amount (FR-5.2, PR #145). Written after the split,
- * which reads the value before the trade.
+ * A market-priced trade's automatic snapshot (FR-5.2, OQ-222): written, then
+ * the Holding's values restated from its whole history, so this trade's value
+ * and every later one's follow it — a backdated trade included. Written after
+ * the split, which reads the value before the trade.
  *
  * @param stores - The Accessors over one transaction.
  * @param holdingId - The Holding.
  * @param transactionId - The trade.
- * @param kind - The trade's kind; its direction moves the value.
- * @param request - The trade's amount and date.
- * @param heldAfter - The units held after the trade.
+ * @param date - The trade's date.
  */
 const insertTradeSnapshot = async (
   stores: TransactionStores,
   holdingId: string,
   transactionId: string,
-  kind: TransactionKind,
-  request: Pick<TransactionCreate, 'amount' | 'date'>,
-  heldAfter: number,
+  date: string,
 ): Promise<void> => {
-  const before = await valueBefore(stores, holdingId, request.date);
+  // Its value comes from the restating below, as every other trade's does.
   await stores.valuations.insertAutomatic({
-    holdingId,
-    accountTransactionId: transactionId,
-    valuation: valueAfterTrade(before, kind.direction, request.amount, heldAfter),
-    asOfDate: request.date,
+    holdingId, accountTransactionId: transactionId, valuation: 0, asOfDate: date,
   });
+  await restateHoldingValues(stores, holdingId);
 };
 
 /**
@@ -713,14 +710,7 @@ const writeBuy = async (
   // A scheduled post never records a buy, so this branch's userId is never null.
   await writeBuyAllocations(stores, deps, householdId, target.role, userId!, holding, request);
   if (!isFixedTerm(request.assetType!)) {
-    await insertTradeSnapshot(
-      stores,
-      holding.id,
-      inserted.transaction.id,
-      kind,
-      request,
-      traded.quantity,
-    );
+    await insertTradeSnapshot(stores, holding.id, inserted.transaction.id, request.date);
   }
   await accrueBudget(stores, recordAccrualOf(target, kind, request));
   return inserted.transaction;
@@ -805,14 +795,7 @@ const writeSellOrRedemption = async (
   if (!traded.ok) throw tradeRefusal(traded.reason);
   if (traded.quantity === 0) await stores.holdings.archive(holding.id, 'system');
   if (!isFixedTerm(holding.assetType)) {
-    await insertTradeSnapshot(
-      stores,
-      holding.id,
-      inserted.transaction.id,
-      kind,
-      request,
-      traded.quantity,
-    );
+    await insertTradeSnapshot(stores, holding.id, inserted.transaction.id, request.date);
   }
   // A scheduled post carries no split — the Holding's current one stands (OQ-206).
   await writeTradeSplit(stores, deps, householdId, target.role, userId!, holding, request);
@@ -1005,13 +988,14 @@ const recordOwnTransfer = async (
       received: transferSideOf(to, RECEIVED, { ...request, amount: received }, userId),
     });
     if (!inserted.ok) throw transactionChanged();
-    const sides = [
-      [from, kind, inserted.sent], [to, RECEIVED, inserted.received],
-    ] as const;
-    await inSequence(sides, async ([target, sideKind, row]) => {
+    const sides = accountsInLockOrder([
+      { account: from.account, kind, row: inserted.sent },
+      { account: to.account, kind: RECEIVED, row: inserted.received },
+    ]);
+    await inSequence(sides, async (side) => {
       const moved = await stores.accounts.applyMovement(
-        target.account.id,
-        accountMovementOf(sideKind, row),
+        side.account.id,
+        accountMovementOf(side.kind, side.row),
       );
       if (!moved.ok) throw transactionChanged();
     });

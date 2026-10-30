@@ -114,6 +114,8 @@ describe('AccountManager — record a market value (uc-05, FR-5.2, OQ-56)', () =
     );
 
     expect(recorded).toEqual(SNAPSHOT);
+    // A typed value moves every later trade's value (OQ-222).
+    expect(deps.accountTransactions.listTrades).toHaveBeenCalledWith(HOLDING_ID);
     expect(authorization.authorize).toHaveBeenCalledWith(
       ANA_ID,
       HOUSEHOLD_ID,
@@ -181,6 +183,7 @@ describe('AccountManager — edit a market value (uc-06, OQ-56)', () => {
     expect(valuations.updateManual).toHaveBeenCalledWith(HOLDING_ID, SNAPSHOT_ID, {
       valuation: 330000, asOfDate: '2026-10-02',
     });
+    expect(deps.accountTransactions.listTrades).toHaveBeenCalledWith(HOLDING_ID);
     expectAudited(logs.events, audit('EditMarketValue'));
   });
 
@@ -258,6 +261,7 @@ describe('AccountManager — delete a market value (uc-07, OQ-56)', () => {
       .deleteMarketValue(CONTEXT, HOUSEHOLD_ID, HOLDING_ID, SNAPSHOT_ID);
 
     expect(valuations.deleteManual).toHaveBeenCalledWith(HOLDING_ID, SNAPSHOT_ID);
+    expect(deps.accountTransactions.listTrades).toHaveBeenCalledWith(HOLDING_ID);
     expectAudited(logs.events, audit('DeleteMarketValue'));
   });
 

@@ -32,7 +32,7 @@ import useRecordDrawer, { type RecordDrawer } from './useRecordDrawer';
 // or a row's edit. It is the only tier here that calls the backend: it holds
 // the month and its report, the applied filters and the ledger's pages, and
 // the open drawer, and answers the Flows' reads and writes. A write
-// invalidates the ledger, the month and the Goals' progress by their cache
+// invalidates the ledger, the month, the balances and the goals by their cache
 // tags, so neither Flow refreshes the other (EBD: no Flow talks to a
 // sibling). The accounts and categories are read once for all three Flows,
 // archived ones included. The page is keyed on the household, so a switch

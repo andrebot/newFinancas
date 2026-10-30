@@ -5,7 +5,7 @@ import {
 import type { Account } from '../../../../src/accessors/accountAccessor';
 import {
   accountMovementOf, accrueBudget, budgetAccrualOf, cardMovementOf, engineRateOf, holdingRateOf,
-  valueAfterTrade, valueBefore,
+  valueBefore,
 } from '../../../../src/managers/transaction/effects';
 import type { TransactionStores } from '../../../../src/managers/transaction/context';
 
@@ -137,21 +137,6 @@ describe('rate builders (OQ-205)', () => {
 
       rateSpread: 1.5,
     });
-  });
-});
-
-describe('valueAfterTrade (PR #145)', () => {
-  it('adds what a buy paid to the value before it', () => {
-    expect(valueAfterTrade(30_000, 'out', 60_000, 3_000_000_000)).toBe(90_000);
-  });
-
-  it('takes off what a sell brought in, never below zero', () => {
-    expect(valueAfterTrade(90_000, 'in', 50_000, 1)).toBe(40_000);
-    expect(valueAfterTrade(30_000, 'in', 50_000, 1)).toBe(0);
-  });
-
-  it('values a sold-out position at zero', () => {
-    expect(valueAfterTrade(90_000, 'in', 10_000, 0)).toBe(0);
   });
 });
 

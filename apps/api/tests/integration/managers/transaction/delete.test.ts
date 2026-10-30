@@ -5,6 +5,7 @@ import {
   ACCOUNT, ANA_ID, BUY_ROW, CARD_ROW, FIXED_HOLDING, HOUSEHOLD_ID, MARKET_HOLDING, NOW, ROW,
   SELL_ROW,
   fakeDeps,
+  snapshotOf, tradeOf,
 } from './fakes';
 
 // Delete Transaction (CUC-3, FR-3.2/OQ-201 D7): every stored effect is undone
@@ -157,6 +158,20 @@ describe('deleteTransaction', () => {
       await deleteOf(fake).deleteTransaction(context, HOUSEHOLD_ID, BUY_ROW.id);
       expect(fake.holdings.delete).toHaveBeenCalledWith(MARKET_HOLDING.id);
       expect(fake.holdings.archive).not.toHaveBeenCalled();
+    });
+
+    it('restates the later values its money leaves (OQ-222)', async () => {
+      const fake = fakeDeps();
+      fake.accountTransactions.findById.mockResolvedValue(BUY_ROW);
+      fake.holdings.applyTrade.mockResolvedValue({ ok: true, quantity: 1, costBasis: 5_000 });
+      // After the delete only B's 50 is left: its 150 drops to 50.
+      fake.accountTransactions.listTrades.mockResolvedValue([
+        tradeOf('b', 'investment_buy', 5_000, 1, '2026-10-02'),
+      ]);
+      fake.valuations.list.mockResolvedValue([snapshotOf(15_000, '2026-10-02', 'b')]);
+      await deleteOf(fake).deleteTransaction(context, HOUSEHOLD_ID, BUY_ROW.id);
+      expect(fake.valuations.updateAutomatic)
+        .toHaveBeenCalledExactlyOnceWith('b', { valuation: 5_000, asOfDate: '2026-10-02' });
     });
 
     it('deletes the row before settling a zeroed Holding (OQ-207)', async () => {

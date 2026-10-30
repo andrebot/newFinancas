@@ -6467,8 +6467,9 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
 - **Writes refresh by cache tags** (`experiences/manageFinances/api.ts`): a
   record, edit or delete that went through — or a delete answered 404
   `transaction.not_found`, the row deleted elsewhere (OQ-220's note) —
-  invalidates `Ledger`, `MonthOverview` and `GoalProgress`; any other refusal
-  nothing. Every loaded ledger page and the month are fetched again; closing
+  invalidates `Ledger` and `MonthOverview`, and the shared `Accounts` and
+  `Goals` (OQ-124's amendment — `GoalProgress` was replaced); any other
+  refusal nothing. Every loaded ledger page and the month are fetched again; closing
   the drawer only unmounts it.
 - **The page shows once the accounts and categories are in** — all three
   Flows read them; a skeleton until then, one retry for both. So Month
@@ -6540,8 +6541,20 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
   edit leaving its own out) plus what a buy paid, or less what a sell
   brought in — never below zero, zero once sold out. A buy into a funded
   Holding re-weights the split by that same value before (amends OQ-168's
-  "existing quantity × this buy's unit price"). Known gap: a backdated
-  trade doesn't move the later snapshots; a market value typed in fixes it.
+  "existing quantity × this buy's unit price").
+  **PR #145 review:** a single trade's snapshot computed from "the value
+  before it" went wrong once later trades existed — a trade backdated,
+  moved past a later one (counted twice), re-priced or deleted left every
+  later value stale, and the next buy's split read it. Now every write that
+  can move a Holding's value — a trade recorded, edited or deleted, a market
+  value typed in, edited or deleted — restates all its automatic snapshots
+  from its whole history (`managers/holdingValues.ts`, shared by
+  TransactionManager and AccountManager): in order of date, then time
+  written, a typed value sets the value, a buy adds its amount, a sell or
+  redemption takes its amount off (never below zero), a position sold out
+  is worth nothing. Migration 0015 restates the snapshots written before
+  (unit prices, about 0) the same way in SQL — there a value dipping below
+  zero mid-way is floored once, not at each step.
   Market prices moving over time come from typed-in market values (OQ-56,
   `AccountManager`); their screen is for a later version.
 - **Transfers between own accounts are a linked pair; any other transfer
@@ -6573,6 +6586,19 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
   - **Ledger:** a pair's rows read "Checking → Savings" on both sides
     ("another account" for one the user can't see); Edit and Delete need
     both accounts manageable and open.
+- **PR #145 review, the rest:**
+  - **Locks:** an Account's, card's or Holding's balance write locked its row
+    `FOR UPDATE`, which waits on the key-share lock a concurrent write takes
+    by inserting a row that points to it — two writes on one Account could
+    deadlock. They now lock `FOR NO KEY UPDATE` (balance writes still queue,
+    key shares don't block them), and a transfer pair's two Accounts are
+    written in Account-id order, so opposite pairs never wait on each other.
+  - **Pair invariants in the database (migration 0015):** `transfer_id` is
+    set exactly when the effect is `transfer`, and unique per (`transfer_id`,
+    `kind`) — one sent and one received side. The pair's id is drawn by the
+    database on the first insert, no longer the sent row's own id.
+  - **An unchanged pair edit** is read back, neither written nor audited,
+    as a single row's is.
 - **A new Budget or Goal starts personal** (stakeholder request): the
   create forms — Account Setup's budget and goal drawers and Onboard's
   budget step — open on Personal for everyone; sharing is a choice. A

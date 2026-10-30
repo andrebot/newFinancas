@@ -161,6 +161,7 @@ sequenceDiagram
   </div>
   <div class="notes">
     <ul>
+      <li><strong>PR #145 review:</strong> a trade&#39;s change restates its Holding&#39;s automatic snapshots from the whole history (<code>listTrades</code>, <code>list</code>, then <code>updateAutomatic</code> where a value or date moved), so later trades&#39; values follow it; a pair&#39;s two sides are written in Account-id order.</li>
       <li><strong>OQ-222:</strong> either side of a transfer between own accounts edits both as one &mdash; <code>amount</code> is what was sent, <code>receivedAmount</code> what arrived across currencies, no category; the caller must be able to edit both accounts (403 otherwise).</li>
       <li><strong>Reverse-then-reapply, all inside one transaction</strong> &mdash; the same complexity flagged in <code>02-data-model.md</code>&#39;s Transactions domain, now traced call-by-call. If the edit only changes the <code>date</code> to a different month, the reverse/reapply pair is what actually drives the backdated-balance cascade documented in the Accounts domain (shift every subsequent month&#39;s opening/ending balance by one delta).</li>
       <li><code>CardTransactionAccessor.update</code> path (not shown, same shape) applies when the target was a Card Transaction instead of an Account Transaction.</li>

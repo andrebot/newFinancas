@@ -195,7 +195,9 @@ const entryInputColumns = {
 const lockHolding = async (db: Database, holdingId: string) => {
   const [row] = await db.select({
     quantity: investmentHoldings.quantity, costBasis: investmentHoldings.costBasis,
-  }).from(investmentHoldings).where(eq(investmentHoldings.id, holdingId)).for('update');
+  // NO KEY UPDATE: the trade's row already points here (key share) — see
+  // AccountAccessor.applyMovement.
+  }).from(investmentHoldings).where(eq(investmentHoldings.id, holdingId)).for('no key update');
   return row;
 };
 
