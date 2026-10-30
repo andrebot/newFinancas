@@ -16,7 +16,8 @@ import {
 // arrows, the twelve months in a row, the caller's summary on the right.
 // Below `xl` it is mockup 34's: the month between two arrows that step a
 // month at a time, across years, over a swiped strip that keeps the
-// selected month in view, the summary under it. Months after today's can't
+// selected month in view, the summary under it; from `md` that stack is a
+// card whose twelve months fit in a row, no swiping. Months after today's can't
 // be picked; nor can years before the caller's `firstYear`. The caller
 // fills the summary (In / Out / Total and the $ / R$ switch) and makes the
 // bar sticky where it wants it. The month or year between the arrows is a
@@ -79,7 +80,7 @@ const BAR_COLORS = {
 } as const;
 
 const MONTH = [
-  'flex w-13 shrink-0 flex-col items-center gap-1 rounded-2xl px-2 pt-2 pb-1.5 xl:w-auto',
+  'flex w-13 shrink-0 flex-col items-center gap-1 rounded-2xl px-2 pt-2 pb-1.5 md:w-auto',
   'transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-40',
   // Inset, so the strip's overflow doesn't clip it.
   'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-mint',
@@ -300,10 +301,12 @@ export function PeriodBar({
       aria-label={translator.text('periodBar', 'label')}
       className={[
         'flex flex-col gap-3 border-b border-line py-3',
-        'xl:flex-row xl:items-center xl:gap-8 xl:rounded-card xl:border xl:bg-card xl:p-5',
+        // From md, a card whose twelve months fit in a row; from xl, one line (mockup 30).
+        'md:gap-4 md:rounded-card md:border md:bg-card md:p-4',
+        'xl:flex-row xl:items-center xl:gap-8 xl:p-5',
       ].join(' ')}
     >
-      <div className="flex items-center justify-between px-3 xl:hidden">
+      <div className="flex items-center justify-between px-3 md:px-0 xl:hidden">
         <Arrows
           back={reachable(stepMonth(period, -1), firstYear, today)}
           forward={isFuture(nextMonth, today) ? undefined : nextMonth}
@@ -330,9 +333,10 @@ export function PeriodBar({
         role="group"
         aria-label={translator.text('periodBar', 'months', { year: period.year })}
         className={[
-          'relative flex gap-1.5 overflow-x-auto px-3 [scrollbar-width:none]',
+          // The padding keeps the selected tile clear of the scroller's clip.
+          'relative flex gap-1.5 overflow-x-auto px-3 py-1 [scrollbar-width:none]',
           'motion-safe:scroll-smooth',
-          'xl:grid xl:flex-1 xl:grid-cols-12 xl:overflow-visible xl:px-0',
+          'md:grid md:grid-cols-12 md:overflow-visible md:px-0 md:py-0 xl:flex-1',
         ].join(' ')}
       >
         {Array.from({ length: 12 }, (_, index) => {
@@ -352,7 +356,7 @@ export function PeriodBar({
           );
         })}
       </div>
-      {summary !== undefined && <div className={`mx-3 xl:mx-0 ${SUMMARY}`}>{summary}</div>}
+      {summary !== undefined && <div className={`mx-3 md:mx-0 ${SUMMARY}`}>{summary}</div>}
     </section>
   );
 }

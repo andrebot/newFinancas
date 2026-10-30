@@ -6454,6 +6454,13 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
 - **A card is listed only under its Account:** an Account with no history by
   the month's end is left out with its cards — the 0-outstanding rule below
   had let a card show without one.
+- **The period bar between `md` and `xl`** (stakeholder report: cramped
+  below 1280 px): mockup 34's stack was used at every width under `xl`, its
+  strip a scroller exactly a tile high, so the selected month's tile was
+  clipped against the month above and the summary below. From `md` the bar
+  is now a card (as from `xl`) whose twelve months fit in a row, no swiping,
+  with more room between its parts; on a phone the strip keeps a little
+  padding so the selected tile is never clipped (K40, amends OQ-216).
 - Tests added for the race, the failed refetch, the switch, the time zone of
   a card's issue (April in UTC, March in São Paulo) and an edit's body (the
   old default also turned every PATCH into a terms edit).
