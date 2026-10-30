@@ -1,8 +1,8 @@
-import { useEffect, useId } from 'react';
+import { useEffect } from 'react';
 import { useI18n } from '../../utilities/I18nProvider';
 import useToday from '../../utilities/useToday';
 import { DateInput } from '../dateInput/DateInput';
-import FOCUS_RING from '../focusRing';
+import { ChipRadios } from '../chipGroup/ChipGroup';
 import {
   choosePreset, editDate, refreshPreset,
   type DateRangePreset, type DateRangeSide, type DateRangeValue, type RelativePreset,
@@ -37,14 +37,6 @@ export interface DateRangePickerProps {
   readonly className?: string | undefined;
 }
 
-const CHIP = [
-  'inline-flex h-8 cursor-pointer items-center rounded-xl border border-line px-3.5',
-  'type-body-sm text-ink transition-colors duration-150 hover:border-mint/40',
-  'has-checked:border-mint/60 has-checked:bg-mintdeep has-checked:font-semibold',
-  'has-checked:text-mint',
-  FOCUS_RING,
-].join(' ');
-
 /**
  * Renders the preset chips and the From / To dates. It holds no state: the
  * caller passes the value and gets the next one through `onChange`.
@@ -57,7 +49,6 @@ export function DateRangePicker({
 }: DateRangePickerProps) {
   const translator = useI18n();
   const today = useToday();
-  const id = useId();
   const offered: readonly DateRangePreset[] = [...presets, 'custom'];
   const edit = (side: DateRangeSide) => (date: string) => onChange(editDate(value, side, date));
 
@@ -75,22 +66,14 @@ export function DateRangePicker({
       </legend>
       {/* The fieldset's legend names the chips and dates together; a name on
           the group too would be read twice. */}
-      <div role="radiogroup" className="flex flex-wrap gap-2">
-        {offered.map((preset) => (
-          <label key={preset} htmlFor={`${id}-${preset}`} className={CHIP}>
-            <input
-              id={`${id}-${preset}`}
-              type="radio"
-              className="sr-only"
-              name={id}
-              value={preset}
-              checked={preset === value.preset}
-              onChange={() => onChange(choosePreset(value, preset, today))}
-            />
-            {translator.text('dateRangePicker', `preset.${preset}`)}
-          </label>
-        ))}
-      </div>
+      <ChipRadios
+        options={offered.map((preset) => ({
+          value: preset,
+          label: translator.text('dateRangePicker', `preset.${preset}`),
+        }))}
+        value={value.preset}
+        onChange={(preset) => onChange(choosePreset(value, preset, today))}
+      />
       <div className="grid grid-cols-2 gap-3">
         <DateInput
           label={translator.text('dateRangePicker', 'from')}

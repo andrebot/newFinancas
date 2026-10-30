@@ -1602,14 +1602,16 @@ paths:
         No recurring option (FR-3.5 removed, OQ-55). Investment kinds are
         rejected on credit-card-only accounts (422
         `transaction.investment_not_allowed_on_account`, OQ-76), and so are
-        cash kinds — such an account takes only bill payments to its cards
+        cash kinds and bill payments — another account pays its cards' bills (OQ-219)
         (`transaction.kind_not_allowed_for_target`, OQ-201); a full
         sell/redemption auto-archives the Holding (OQ-72).
         **OQ-201:** every investment kind moves the account's cash (buy −,
         sell/redemption/dividend/interest +, tax −); sell, redemption,
         dividend, interest and tax name their Holding by `holdingId`, only a
         buy by `assetType` + `ticker`; a bill payment carries `accountId`
-        (the paying account) and `creditCardId`; any kind may carry a
+        (the paying account — any open account the caller may edit but a
+        credit-card-only one) and `creditCardId` (a card on any account the
+        caller may edit, open and in the payment's currency — OQ-219); any kind may carry a
         category — money in reduces the claiming Budget's spend. See
         docs/design/diagrams/sequences/record-transactions/uc-01-record-transaction.html.
       requestBody:
@@ -3209,7 +3211,7 @@ components:
         take `holdingId`. A field the kind has no use for is a 422.
       properties:
         accountId: { type: string, format: uuid, description: "Every kind but charge/refund — for a bill payment, the paying account" }
-        creditCardId: { type: string, format: uuid, description: "charge/refund: the card; a bill payment: the card it pays (FR-3.7)" }
+        creditCardId: { type: string, format: uuid, description: "charge/refund: the card; a bill payment: the card it pays (FR-3.7) — on any account the caller may edit, open and in the payment's currency (OQ-219)" }
         kind: { type: string, description: "Reference data (`@financas/reference`, OQ-98), e.g. withdrawal, pix_payment, transfer_sent, credit_card_bill_payment, charge, investment_buy — FR-3.1" }
         date: { type: string, format: date }
         amount: { $ref: "#/components/schemas/PositiveMoney" }

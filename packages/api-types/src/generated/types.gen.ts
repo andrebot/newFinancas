@@ -551,7 +551,7 @@ export type TransactionCreateRequest = {
      */
     accountId?: string;
     /**
-     * charge/refund: the card; a bill payment: the card it pays (FR-3.7)
+     * charge/refund: the card; a bill payment: the card it pays (FR-3.7) — on any account the caller may edit, open and in the payment's currency (OQ-219)
      */
     creditCardId?: string;
     /**

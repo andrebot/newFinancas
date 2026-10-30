@@ -6120,6 +6120,77 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
 
 **Task 115 (`K47`) is complete.**
 
+### OQ-219: Record Transaction (task FL15)
+**Confirmed with the stakeholder (Oct 2026):**
+- **Any account pays a card's bill — supersedes OQ-207's "the card sits on
+  its Account" and corrects OQ-201 D5.** A bill payment's paying account is
+  any open account the caller may edit except a credit-card-only one; its card
+  may sit on any account the caller may edit, open and in the payment's
+  currency (`transaction.currency_mismatch` names the card account's).
+  `TransactionManager` decides access on the card's account as a charge does
+  (`credit_card.not_found` when the caller can't edit it). A credit-card-only
+  account now takes **no** Account Transaction (`isKindAllowed`): its cards
+  take charges and refunds, and another account pays their bills — its
+  balance stays its starting balance, as D5 meant. Edit and delete still
+  decide on the paying account, where the row lives. The drawer asks for the
+  card first, then the payers in its currency.
+- **A purchase abroad is recorded as billed:** a card's charges stay in its
+  account's currency — the amount on the statement (no FX, FR-2.2). Weighed
+  and rejected: a charge in its own currency (per-currency outstanding — its
+  own decision round, not v1).
+- **A buy offers the fixed-term types of its account currency's market** —
+  Brazil's on a BRL account, the US's on a USD one; market-priced types on
+  both; all of them before an account is chosen. An asset type the new
+  account doesn't offer is dropped.
+- **Editing a fixed-term buy reads its schedule first** (`GET
+  …/holdings/:id/schedule-entries`): once an entry has posted (D8) the
+  amount, date, units and terms show locked, with a note; Save waits on the
+  read. A failed read leaves them open — the server still refuses with 409
+  `transaction.schedule_started`.
+- **Chips up to 10, a select beyond** (`recordTransaction.chipListLimit`,
+  OQ-138): accounts, cards, categories and subcategories.
+
+**Design decisions:**
+- **The kit's chip group** (`kit/chipGroup/ChipGroup.tsx`): the mockups' `opt`
+  chips as a native-radio group — `ChipRadios` alone, `ChipGroup` with its
+  caption (and a note after it), hint or error; nothing chosen is allowed;
+  an error marks the first chip `aria-invalid` for the refused-submit focus.
+  The date range picker's presets moved onto it.
+- **One Flow, its controller apart:** `RecordTransactionFlow` renders the
+  drawer; `useRecordTransaction` holds the state and runs the reads and the
+  write; the rules are pure — `transactionForm.ts` (kind shape from the
+  reference data, targets, transitions), `transactionRequest.ts` (the create
+  request with only the kind's fields, the edit's form and changes),
+  `transactionChecks.ts`, `recordTransactionState.ts`. The Flow's contract
+  for X6: `transaction?` (a `LedgerItem` + a trade's Holding), `accounts`,
+  `categories`, `goals` (with progress and `completed`), `onLoadHoldings`,
+  `onLoadSplit`, `onLoadSchedule`, `onRecord`, `onSave`, `onClose` — the
+  Experience refreshes the ledger and Month Overview once it closes.
+- **A sell's or redemption's split is its Holding's, pre-filled** once read
+  (OQ-206) and sent **only once changed** — left alone, the server keeps it.
+  A failed read offers Try again, the editor hidden meanwhile. A redemption
+  starts at the whole position. An edit never shows the split (D6).
+- **Switching kind keeps amount, date, description and category;** the
+  Holding and units only where the new kind takes them, the split only from
+  the same source (a buy's purchase vs. a Holding's), the targets fitted — a
+  lone candidate is picked.
+- **"Uncategorized" and "None" chips** clear the category and subcategory —
+  a radio can't be unchosen. An edit keeps its archived category or
+  subcategory on offer (F10).
+- **Order:** mockup 31's for cash, transfer and card kinds (category before
+  the date and description), mockups 32 and 35's for investment kinds (after
+  them, then the split). The Cash group opens first, its first kind chosen;
+  `TRANSACTION_KINDS` now lists Deposit before Withdrawal, as mockup 31 does.
+- **An edit with nothing changed just closes;** an edit sends only what
+  changed and may change, `null` clearing an optional field. A sell's edit
+  doesn't check the units held client-side (the server does —
+  `holding.insufficient_quantity`).
+- A card chip reads "{network} •••• {last4}" with its account's name as the
+  tag. New catalog sections `recordTransaction` and `assetTypes`
+  (pt-BR names the buy "Aplicação").
+
+**Task 116 (`FL15`) is complete.**
+
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
 *(None currently — OQ-29, the last item here, was resolved during data

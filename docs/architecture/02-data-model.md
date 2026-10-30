@@ -750,8 +750,8 @@ history.
   condition no `CHECK` can express without a trigger.
 - **Kind validity narrowed by target** — investment kinds for any
   account except `credit_card_only` (OQ-76, Oct 2026); a `credit_card_only`
-  account takes no cash kinds either — only bill payments to its cards
-  (OQ-201); a Credit Card target only offers
+  account takes no cash kinds either — nor bill payments: another account
+  pays its cards' bills (OQ-201, OQ-219); a Credit Card target only offers
   charge/refund (FR-3.1) → **application-level** — another cross-table
   condition (needs `accounts.type`), and deliberately *not* a hardcoded
   `CHECK (kind IN (...))` either, since FR-3.1 explicitly wants `kind`

@@ -197,23 +197,90 @@ describe('recordTransaction', () => {
       });
     });
 
-    it('refuses a bill payment whose card is not on its Account (OQ-207)', async () => {
-      const fake = fakeDeps();
-      fake.accounts.findById.mockResolvedValue(CHECKING);
-      // A card that exists but sits on another Account — the scoped lookup must
-      // treat it as absent, so no household can pay someone else's bill.
-      fake.creditCards.findById.mockResolvedValue({ ...CARD, accountId: ACCOUNT.id });
-      await expect(recordOf(fake).recordTransaction(
-        context,
-        HOUSEHOLD_ID,
-        cashRequest({
-          kind: 'credit_card_bill_payment',
+    describe('a bill payment paid from another Account (OQ-219)', () => {
+      const CARD_ONLY = {
+        ...ACCOUNT, id: '0199c5a0-0000-7000-8000-0000000000a3', type: 'credit_card_only' as const,
+      };
+      const billRequest = () => cashRequest({
+        kind: 'credit_card_bill_payment', accountId: CHECKING.id, creditCardId: CARD.id,
+      });
 
-          accountId: CHECKING.id,
-          creditCardId: CARD.id,
-        }),
-      ))
-        .rejects.toMatchObject({ domainError: { code: 'credit_card.not_found' } });
+      /**
+       * Programs the Account lookups in the order the Manager makes them: the
+       * payer, then the Account the card sits on.
+       *
+       * @param cardAccount - The card's Account, as the lookup answers it.
+       * @param payer - The paying Account; Checking by default.
+       * @returns The fake.
+       */
+      const payingFrom = (
+        cardAccount: typeof CARD_ONLY | undefined,
+        payer: typeof CHECKING | typeof CARD_ONLY = CHECKING,
+      ) => {
+        const fake = fakeDeps();
+        fake.creditCards.findById.mockResolvedValue({ ...CARD, accountId: CARD_ONLY.id });
+        fake.accounts.findById.mockResolvedValueOnce(payer).mockResolvedValueOnce(cardAccount);
+        return fake;
+      };
+
+      it('pays a card on a credit-card-only Account from Checking', async () => {
+        const fake = payingFrom(CARD_ONLY);
+        await recordOf(fake).recordTransaction(context, HOUSEHOLD_ID, billRequest());
+        expect(fake.accounts.applyMovement).toHaveBeenCalledWith(
+          CHECKING.id,
+          expect.objectContaining({ amount: -5_000 }),
+        );
+        expect(fake.creditCards.applyMovement).toHaveBeenCalledWith(
+          CARD.id,
+          expect.objectContaining({ amount: -5_000 }),
+        );
+      });
+
+      it('decides on the card\'s Account too: one not editable is not found', async () => {
+        const fake = payingFrom(CARD_ONLY);
+        fake.authorization.authorize
+          .mockResolvedValueOnce({ outcome: 'allowed', role: 'Owner' })
+          .mockResolvedValueOnce({ outcome: 'not_visible' });
+        await expect(recordOf(fake).recordTransaction(context, HOUSEHOLD_ID, billRequest()))
+          .rejects.toMatchObject({ domainError: { code: 'credit_card.not_found' } });
+        expect(fake.accountTransactions.insert).not.toHaveBeenCalled();
+      });
+
+      it('refuses a card whose Account is gone', async () => {
+        const fake = payingFrom(undefined);
+        await expect(recordOf(fake).recordTransaction(context, HOUSEHOLD_ID, billRequest()))
+          .rejects.toMatchObject({ domainError: { code: 'credit_card.not_found' } });
+      });
+
+      it('refuses a card whose Account is archived', async () => {
+        const fake = payingFrom({ ...CARD_ONLY, archivedAt: NOW });
+        await expect(recordOf(fake).recordTransaction(context, HOUSEHOLD_ID, billRequest()))
+          .rejects.toMatchObject({ domainError: { code: 'account.archived' } });
+      });
+
+      it('refuses a card in another currency than the payment', async () => {
+        const fake = payingFrom({ ...CARD_ONLY, currency: 'USD' });
+        await expect(recordOf(fake).recordTransaction(context, HOUSEHOLD_ID, billRequest()))
+          .rejects.toMatchObject({
+            domainError: {
+              code: 'transaction.currency_mismatch', params: { accountCurrency: 'USD' },
+            },
+          });
+      });
+
+      it('refuses a credit-card-only Account as the payer', async () => {
+        const fake = payingFrom(CARD_ONLY, CARD_ONLY);
+        await expect(recordOf(fake).recordTransaction(
+          context,
+          HOUSEHOLD_ID,
+          cashRequest({
+            kind: 'credit_card_bill_payment', accountId: CARD_ONLY.id, creditCardId: CARD.id,
+          }),
+        ))
+          .rejects.toMatchObject({
+            domainError: { code: 'transaction.kind_not_allowed_for_target' },
+          });
+      });
     });
 
     it(
@@ -281,7 +348,7 @@ describe('recordTransaction', () => {
         });
     });
 
-    it('lets a credit-card-only Account take only bill payments (OQ-201 D5)', async () => {
+    it('refuses a cash kind on a credit-card-only Account (OQ-201 D5)', async () => {
       const fake = fakeDeps();
       fake.accounts.findById.mockResolvedValue({ ...ACCOUNT, type: 'credit_card_only' });
       await expect(recordOf(fake).recordTransaction(context, HOUSEHOLD_ID, cashRequest()))

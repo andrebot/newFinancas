@@ -967,43 +967,58 @@ opt the tab is hidden — Back or a link, the Flow stays mounted (OQ-197)
     FLOW-->>GF: the open drawer closes — kept, unseen, while its request is out
 end
 """, ["Allocations are never edited here — always from the Holding (OQ-48).", "FX never leaves the browser (FR-9): the rate lives in the Flow's state, keyed by pair, and every card needing it reads it.", "Definitions and progress are two reads (OQ-177); the definitions show alone when progress fails (OQ-195). A completed Goal can still be edited."]),
-    ("manage-finances-record-transaction", "Manage Finances — Record Transaction", f"{R('POST /households/:householdId/transactions')}; edit reuses it with {R('PATCH /households/:householdId/transactions/:id')}.",
+    ("manage-finances-record-transaction", "Manage Finances — Record Transaction", f"{R('POST /households/:householdId/transactions')}; edit reuses it with {R('PATCH /households/:householdId/transactions/:id')}. Reads: {R('GET …/accounts/:accountId/holdings')}, {R('GET …/holdings/:holdingId/allocations')}, {R('GET …/holdings/:holdingId/schedule-entries')}.",
      [("KS", "Kind Group &<br/>Kind Selection"), ("TE", "Transaction Entry"), ("HS", "Holding Selection"), ("IB", "Investment Buy Entry"), ("GA", "Goal Allocation Entry"), FLOW("Record Transaction"), EXP("Manage Finances"), API],
      """
 alt record
     User->>KS: group (Cash / Transfer / Credit card / Investment), then kind
-    KS->>FLOW: emit kindSelected
+    KS->>FLOW: emit kindSelected — amount, date, description and category carry over
 else edit (from a ledger row, via the Experience)
-    EXP-->>FLOW: state: the transaction, pre-filled
+    EXP-->>FLOW: state: the row (+ a trade's Holding, for its terms)
     FLOW-->>KS: kind and target read-only (OQ-201)
+    opt a fixed-term buy
+        FLOW->>EXP: request schedule(holdingId)
+        EXP->>API: GET …/holdings/:holdingId/schedule-entries
+        API-->>EXP: entries
+        EXP-->>FLOW: state: an entry posted? → amount, date, units and terms locked (D8)
+    end
 end
+FLOW-->>TE: render the target — a card for charge/refund, a card then its payer (open, not credit-card-only, in the card's currency — OQ-219) for a bill payment, else an open account that isn't credit-card-only
+User->>TE: amount (currency from the target), date, description, category + subcategory (optional, every kind)
+TE->>FLOW: emit fields
 alt investment buy
-    FLOW-->>IB: render asset type, ticker, quantity (optional for fixed-term), rate + due date + interest payment (fixed-term), incentivised (debenture)
+    FLOW-->>IB: render ticker, asset type (fixed-term ones of the account currency's market — OQ-219), units (optional for fixed-term), rate + spread (CDI/Selic) + due date + interest payment (fixed-term), incentivised (debenture)
     User->>IB: fill in
     IB->>FLOW: emit tradeFields
     opt assign to goals
         User->>GA: goal rows with whole %
-        GA->>FLOW: emit allocations (Flow keeps the total ≤ 100)
+        GA->>FLOW: emit allocations (the submit blocks one over 100% or under 1%)
     end
-else sell, redemption, dividend, interest or tax
-    FLOW-->>HS: render the chosen account's Holdings (from the Experience)
-    User->>HS: pick one (+ quantity for a sell or redemption)
+else sell, redemption, dividend, interest or tax (a new one)
+    FLOW->>EXP: request holdings(accountId)
+    EXP->>API: GET …/accounts/:accountId/holdings
+    API-->>EXP: Holdings
+    EXP-->>FLOW: state: Holdings (or failed → Try again)
+    FLOW-->>HS: render the open ones
+    User->>HS: pick one (+ units for a sell or redemption — a redemption starts at the whole position)
     HS->>FLOW: emit holdingSelected (holdingId, quantity?)
-else any other kind
-    FLOW-->>TE: render fields for the kind (account narrows by kind, a credit-card-only account offers only bill payments)
+    opt sell or redemption
+        FLOW->>EXP: request split(holdingId)
+        EXP->>API: GET …/holdings/:holdingId/allocations
+        API-->>EXP: the visible shares
+        EXP-->>FLOW: state: split → pre-filled in GA (OQ-206), sent only once changed
+    end
 end
-User->>TE: amount (currency from account), date, category, description
-TE->>FLOW: emit fields
-FLOW->>EXP: request record(transaction) or save(id, changes)
+FLOW->>EXP: request record(transaction) or save(id, changes) — an edit with no change just closes
 EXP->>API: POST /households/:householdId/transactions (or PATCH …/transactions/:id)
-alt 4xx (e.g. goal.allocation_exceeds_100, transaction.investment_not_allowed_on_account, transaction.schedule_started)
+alt 4xx (e.g. goal.allocation_exceeds_100, transaction.kind_not_allowed_for_target, transaction.schedule_started)
     API-->>EXP: error code + params
-    EXP-->>FLOW: state: error — I18nUtility renders it
-else 201
-    API-->>EXP: transactionId
-    EXP-->>FLOW: complete → Experience refreshes Browse + Month Overview
+    EXP-->>FLOW: state: error — I18nUtility renders it in the drawer's banner
+else 201 / 200
+    API-->>EXP: the transaction
+    EXP-->>FLOW: done → toast, close → Experience refreshes Browse + Month Overview
 end
-""", ["No recurring option (OQ-55).", "The Experience, not this Flow, refreshes the sibling Flows on completion.", "OQ-201: the Holding is picked, never typed, for every investment kind but a buy; a category is offered for every kind; a transfer is one side, recorded on its own account."]),
+""", ["No recurring option (OQ-55).", "The Experience, not this Flow, refreshes the sibling Flows on completion.", "OQ-201: the Holding is picked, never typed, for every investment kind but a buy, a category is offered for every kind, a transfer is one side, recorded on its own account.", "OQ-219: any open account but a credit-card-only one pays a card's bill, in the card's currency. Accounts, cards and categories are chips up to 10, a select beyond."]),
     ("manage-finances-browse-transactions", "Manage Finances — Browse Transactions", f"{R('GET /households/:householdId/transactions?…&cursor=')}, {R('DELETE /households/:householdId/transactions/:id')}.",
      [("FP", "Filter Panel"), ("LG", "Ledger"), ("XR", "Expanded Row"), ("DC", "Delete Confirm"), FLOW("Browse Transactions"), EXP("Manage Finances"), API],
      """

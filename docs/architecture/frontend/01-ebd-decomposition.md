@@ -128,6 +128,8 @@ Diagram: `docs/design/diagrams/ebd-tiers/app-shell.html`; sequence:
 
 **OQ-201 (slice 3 readiness):** *Holding Selection* is new — sell, redemption, dividend, interest and tax pick the account's Holding (the Experience fetches the Holdings), only a buy types asset type and ticker; a fixed-term buy also takes when interest is paid. Editing shows kind and target read-only and offers only what may change. A transfer is one side, recorded on its own account. Month Overview's Goal Rail shows a mixed-currency Goal in its own currency with a note pointing to Goals (the exchange rate stays there, FR-9); the Balance Rail shows a card's outstanding at the month's end. The ledger's month headers carry the month's count; the "Import" button is not built (Open Banking, v2).
 
+**OQ-219 (task 116):** a bill payment picks the card, then its payer — any open account but a credit-card-only one, in the card's currency; a buy offers the fixed-term types of its account currency's market; an edited fixed-term buy's schedule is read through the Experience and locks the amount, date, units and terms once started; a sell's or redemption's Holding split is read through the Experience, pre-filled, and sent only once changed. The Flow's controller (`useRecordTransaction`) holds its state; its reads and writes are the Experience's callbacks.
+
 | Flow | Interactions | Sequence |
 |---|---|---|
 | Record Transaction | Kind Group & Kind Selection, Transaction Entry, Holding Selection, Investment Buy Entry, Goal Allocation Entry | `docs/design/diagrams/ebd-sequences/manage-finances-record-transaction.html` |

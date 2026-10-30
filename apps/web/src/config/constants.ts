@@ -236,6 +236,49 @@ export const goals = {
   rateBaseOrder: ['USD', 'BRL'],
 } as const;
 
+/** Record Transaction (FL15, mockups 31, 32, 35; OQ-219). */
+export const recordTransaction = {
+  /**
+   * The most accounts, cards, categories or subcategories drawn as chips;
+   * a longer list is a select (K11, OQ-138).
+   */
+  chipListLimit: 10,
+  /** The amount's currency while no target is chosen yet. */
+  placeholderCurrency: 'BRL',
+  /** Each kind group's tile icon (mockup 31). */
+  groupIcons: {
+    cash: 'payments-outline',
+    transfer: 'swap-horiz',
+    credit_card: 'credit-card-outline',
+    investment: 'trending-up',
+  },
+  /** Each kind's chip icon (mockups 31, 32). */
+  kindIcons: {
+    deposit: 'south-west',
+    withdrawal: 'north-east',
+    boleto_payment: 'barcode',
+    pix_payment: 'bolt',
+    pix_receipt: 'bolt',
+    transfer_sent: 'north-east',
+    transfer_received: 'south-west',
+    credit_card_bill_payment: 'receipt-long-outline',
+    charge: 'add-shopping-cart',
+    refund: 'undo',
+    investment_buy: 'add-shopping-cart',
+    investment_sell: 'sell-outline',
+    investment_redemption: 'undo',
+    investment_dividend: 'payments-outline',
+    investment_interest: 'percent',
+    investment_tax: 'receipt-long-outline',
+  },
+  /**
+   * The asset type picker's groups (mockup 32): the market-priced types listed
+   * under "Equity & funds"; the fixed-term ones under "Fixed income"; the
+   * rest under "Other".
+   */
+  equityAssetTypes: ['stock', 'fii', 'fund', 'mutual_fund'],
+} as const;
+
 /** Manage Profile (X3). */
 export const profile = {
   /**

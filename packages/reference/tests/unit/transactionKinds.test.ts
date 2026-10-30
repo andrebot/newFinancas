@@ -56,12 +56,8 @@ describe('kind/target rules (FR-3.1, OQ-76)', () => {
     expect(kindsFor({ target: 'account', accountType: 'checking' })).toHaveLength(14);
   });
 
-  it('offers only bill payments on a credit_card_only account (OQ-201 D5)', () => {
-    const offered = codes(kindsFor({ target: 'account', accountType: 'credit_card_only' }));
-
-    expect(offered).not.toContain('investment_buy');
-    expect(offered).not.toContain('withdrawal');
-    expect(offered).toEqual(['credit_card_bill_payment']);
+  it('offers nothing on a credit_card_only account — another pays its bills (OQ-219)', () => {
+    expect(kindsFor({ target: 'account', accountType: 'credit_card_only' })).toEqual([]);
   });
 
   it('never allows a card kind on an account, or an account kind on a card', () => {

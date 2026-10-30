@@ -387,8 +387,9 @@ before now:
 TransactionManager.record(input)
  ├─ AuthorizationUtility.canWrite(actor, accountId)?
  ├─ refuse: archived Account (OQ-169); kind not allowed for the target — a
- │    card takes charge/refund, a credit_card_only Account only bill payments
- │    to its cards (OQ-201), no investment kind on it (OQ-76); a new
+ │    card takes charge/refund, a credit_card_only Account none — another
+ │    Account pays its cards' bills (OQ-219), no investment kind on it (OQ-76);
+ │    a bill payment's card open and in its currency (OQ-219); a new
  │    archived Category (OQ-201)
  ├─ if input targets a Credit Card directly (Card Transaction: charge/refund):
  │    1. CreditCardAccessor.applyMovement(cardId, {±amount, currency, date})  [+charge, −refund — OQ-170]

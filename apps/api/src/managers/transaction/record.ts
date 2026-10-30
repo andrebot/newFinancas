@@ -116,10 +116,37 @@ const loadCardTarget = async (
 };
 
 /**
+ * Loads the card a bill payment pays (OQ-219): any open Account the caller may
+ * edit pays a card in its own currency, so the card's Account — often a
+ * credit-card-only one — is decided on as a charge's is, and must be open and
+ * in the payment's currency, as the payer is: paying the bill moves its balance.
+ *
+ * @param deps - The tier below.
+ * @param context - The signed-in request.
+ * @param householdId - The household.
+ * @param creditCardId - The card paid.
+ * @param currency - The payment's currency.
+ * @returns The card.
+ * @throws {DomainError} `credit_card.not_found`; `auth.forbidden`; `account.archived`;\
+ *   `transaction.currency_mismatch`.
+ */
+const loadPaidCard = async (
+  deps: TransactionDeps,
+  context: SignedInContext,
+  householdId: string,
+  creditCardId: string,
+  currency: string,
+): Promise<CreditCard> => {
+  const { account, card } = await loadCardTarget(deps, context, householdId, creditCardId);
+  if (account.archivedAt !== null) throw accountArchived();
+  if (account.currency !== currency) throw currencyMismatch(account.currency);
+  return card!;
+};
+
+/**
  * Loads the target a transaction is recorded against — its Account (and card),
- * deciding access on it. A bill payment's card must be this household's and sit
- * on that very Account: the movement lands on it, so a foreign id would move
- * someone else's balance.
+ * deciding access on it. A bill payment's card may sit on any Account of the
+ * household the caller may edit (OQ-219), checked on its own.
  *
  * @param deps - The tier below.
  * @param context - The signed-in request.
@@ -128,7 +155,8 @@ const loadCardTarget = async (
  * @param kind - Its kind, already looked up.
  * @returns The target and the caller's role.
  * @throws {DomainError} `household.not_found` / `account.not_found` /\
- *   `credit_card.not_found`; `auth.forbidden`.
+ *   `credit_card.not_found`; `auth.forbidden`; a paid card's `account.archived` /\
+ *   `transaction.currency_mismatch`.
  */
 const loadTarget = async (
   deps: TransactionDeps,
@@ -150,17 +178,22 @@ const loadTarget = async (
   );
   if (!account) throw accountNotFound();
   if (kind.code === 'credit_card_bill_payment') {
-    const card = await deps.creditCards.findById(householdId, request.creditCardId!);
-    if (!card || card.accountId !== account.id) throw creditCardNotFound();
+    const card = await loadPaidCard(
+      deps,
+      context,
+      householdId,
+      request.creditCardId!,
+      request.currency,
+    );
     return { account, card, role };
   }
   return { account, role };
 };
 
 /**
- * The target gates a kind must pass (FR-3.1/OQ-76/OQ-201 D5): the kind fits the
- * target's type — investments and cash kinds alike are refused on a
- * `credit_card_only` Account except bill payments — the Account is open, and
+ * The target gates a kind must pass (FR-3.1/OQ-76/OQ-201 D5, OQ-219): the kind
+ * fits the target's type — a `credit_card_only` Account takes no Account
+ * Transaction, investments named as such — the Account is open, and
  * the amount is in its currency (FR-2.2).
  *
  * @param kind - The kind.
