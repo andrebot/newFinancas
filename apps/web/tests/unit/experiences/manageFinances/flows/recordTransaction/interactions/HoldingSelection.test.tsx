@@ -42,6 +42,8 @@ const renderSelection = (over: Partial<HoldingSelectionProps> = {}) => {
 describe('holdingMetaOf and rateTextOf', () => {
   it('describes a market Holding by its units and a contract by its rate and due date', () => {
     expect(holdingMetaOf(STOCK, translator, formatter)).toBe('Stock · 300 units');
+    expect(holdingMetaOf({ ...STOCK, quantity: 12_345 }, translator, formatter))
+      .toBe('Stock · 0.00012345 units');
     expect(holdingMetaOf({ ...STOCK, quantity: 100_000_000 }, translator, formatter))
       .toBe('Stock · 1 unit');
     expect(holdingMetaOf(CDB, translator, formatter)).toBe('CDB · 110.00% of CDI · due 03/15/2028');
@@ -51,6 +53,8 @@ describe('holdingMetaOf and rateTextOf', () => {
     expect(holdingMetaOf({ rate: null }, translator, formatter)).toBe('Other · 0 units');
     expect(holdingMetaOf({ ...CDB, dueDate: null }, translator, formatter)).toContain('due —');
     expect(rateTextOf({}, translator, formatter)).toBe('0.00% a year');
+    expect(rateTextOf({ type: 'selic', value: 1_000_000, spread: 5_000 }, translator, formatter))
+      .toBe('100.00% of Selic + 0.50%');
     expect(holdingMetaOf({ rate: { type: 'cdi' } }, translator, formatter)).toBe('Other · 0 units');
   });
 });

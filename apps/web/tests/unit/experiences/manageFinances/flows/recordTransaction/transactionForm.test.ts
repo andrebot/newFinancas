@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   accountChoicesOf, assetTypesFor, cardEntriesOf, cardEntryOf, currencyOf, directionOf, groupOf,
   isBillPayment, isBuy, isCardKind, isDebentureBuy, isFixedTermBuy, isTrade, kindsOfGroup,
-  namesCard, namesHolding, newFormOf, takesSpread, withAccount, withAllocations, withCard,
-  withCategory, withFittedTargets, withGroup, withHolding, withHoldingSplit, withKind,
+  namesCard, namesHolding, newFormOf, takesHoldingSplit, takesSpread, withAccount, withAllocations,
+  withCard, withCategory, withFittedTargets, withGroup, withHolding, withHoldingSplit, withKind,
 } from '../../../../../../src/experiences/manageFinances/flows/recordTransaction/transactionForm';
 import {
   ACCOUNTS, CDB, ITAU, NUBANK_CARD_ONLY, STOCK, accountOf, formOf,
@@ -42,6 +42,8 @@ describe('kind shape (FR-3.1, OQ-201)', () => {
       .map(isTrade)).toEqual([true, true, true, false]);
     expect(['investment_buy', 'investment_sell', 'investment_tax', 'deposit'].map(namesHolding))
       .toEqual([false, true, true, false]);
+    expect(['investment_buy', 'investment_sell', 'investment_redemption', 'investment_dividend']
+      .map(takesHoldingSplit)).toEqual([false, true, true, false]);
   });
 
   it('reads the direction and which rates take a spread (OQ-205)', () => {
@@ -61,6 +63,16 @@ describe('targets (OQ-201 D5, OQ-219)', () => {
       .toEqual([['visa1', 'itau'], ['nu1', 'nucard']]);
     expect(cardEntryOf(ACCOUNTS, 'nu1')?.account).toBe(NUBANK_CARD_ONLY);
     expect(cardEntryOf(ACCOUNTS, undefined)).toBeUndefined();
+  });
+
+  it('still finds a card on an archived account, for an edit', () => {
+    const archived = accountOf('gone', {
+      archivedAt: 'x', currency: 'USD', cards: [{ ...ITAU.cards[0]!, id: 'gonecard' }],
+    });
+    const charge = formOf({ kind: 'charge', creditCardId: 'gonecard' });
+
+    expect(cardEntryOf([...ACCOUNTS, archived], 'gonecard')?.account).toBe(archived);
+    expect(currencyOf(charge, [...ACCOUNTS, archived])).toBe('USD');
   });
 
   it('offers open accounts that are not credit-card-only', () => {

@@ -6131,9 +6131,13 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
   (`credit_card.not_found` when the caller can't edit it). A credit-card-only
   account now takes **no** Account Transaction (`isKindAllowed`): its cards
   take charges and refunds, and another account pays their bills — its
-  balance stays its starting balance, as D5 meant. Edit and delete still
-  decide on the paying account, where the row lives. The drawer asks for the
-  card first, then the payers in its currency.
+  balance stays its starting balance, as D5 meant. **Edit and delete decide
+  on both accounts** (PR #142 review): they move the card's balance too, so
+  the card's account must still be one the caller may edit
+  (`credit_card.not_found`) and open — a new 409
+  `credit_card.account_archived`, which recording answers too. The payer's
+  own gates are checked before the card's. The drawer asks for the card
+  first, then the payers in its currency.
 - **A purchase abroad is recorded as billed:** a card's charges stay in its
   account's currency — the amount on the statement (no FX, FR-2.2). Weighed
   and rejected: a charge in its own currency (per-currency outstanding — its
@@ -6147,8 +6151,9 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
   amount, date, units and terms show locked, with a note; Save waits on the
   read. A failed read leaves them open — the server still refuses with 409
   `transaction.schedule_started`.
-- **Chips up to 10, a select beyond** (`recordTransaction.chipListLimit`,
-  OQ-138): accounts, cards, categories and subcategories.
+- **Chips up to 10, a select beyond** (`choiceField.chipListLimit`,
+  OQ-138): accounts, cards, categories and subcategories — the kit's
+  `ChoiceField` (`kit/choiceField/`, with stories), a generic picker.
 
 **Design decisions:**
 - **The kit's chip group** (`kit/chipGroup/ChipGroup.tsx`): the mockups' `opt`
@@ -6188,6 +6193,23 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
 - A card chip reads "{network} •••• {last4}" with its account's name as the
   tag. New catalog sections `recordTransaction` and `assetTypes`
   (pt-BR names the buy "Aplicação").
+
+**PR #142 review fixes:**
+- A split read is forgotten once the form drops its rows (another kind,
+  account or Holding), so coming back to the same Holding reads it again —
+  before, the editor showed an empty "loaded" split that one added Goal
+  would have sent as the whole split.
+- Units show all 8 decimals (`{…, number, ::.########}`): "Only 0.00012345
+  held.", not "Only 0 held."
+- An edit finds its card on an archived account too (its card and currency
+  show); a contract's rate shows its spread ("100% of Selic + 0.05%").
+- An edit can't clear stored units (the update has no null for them): an
+  emptied units field is refused, a fixed-term buy's included.
+- Esc, the scrim and ✕ don't close the drawer while the request is out.
+- **Left to X6 (task 119):** open an edit of a buy with its Holding (its
+  terms are read off it — without it, a valid fixed-term buy is refused),
+  and mount the drawer once its accounts and the edited row are loaded: the
+  Flow reads them once, when it opens.
 
 **Task 116 (`FL15`) is complete.**
 

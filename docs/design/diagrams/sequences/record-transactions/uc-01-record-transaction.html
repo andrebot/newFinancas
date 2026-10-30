@@ -76,7 +76,7 @@ sequenceDiagram
 
     User->>API: POST /households/:householdId/transactions {accountId | creditCardId, kind, date, amount, currency, categoryId?, description, holdingId? | assetType + ticker?, quantity?, rate?, dueDate?, interestPayment?, incentivised?, allocations?}
     API->>TM: record(actor, input)
-    Note over TM: loads the target (Account or card + its Account &mdash; a bill payment's card may sit on any Account<br/>the actor may edit, open and in the payment's currency, OQ-219) and, if given, the Category &mdash;<br/>an archived Account or a newly used archived Category is refused (OQ-169, OQ-201)
+    Note over TM: loads the target (Account or card + its Account &mdash; a bill payment's card may sit on any Account<br/>the actor may edit, open and in the payment's currency, checked after the payer, OQ-219) and, if given, the Category &mdash;<br/>an archived Account or a newly used archived Category is refused (OQ-169, OQ-201)
     TM->>AZ: canWrite(actor, targetId)?
     alt not authorized
         AZ-->>TM: denied
@@ -132,10 +132,24 @@ sequenceDiagram
             TM->>AA: applyMovement(accountId, {amount, currency, date})
             AA-->>TM: new balance
         else effect = bill_payment
-            TM->>AA: applyMovement(accountId, {-amount, currency, date})
-            AA-->>TM: account debited (OQ-15)
-            TM->>CCA: applyMovement(cardId, {-amount, currency, date})
-            CCA-->>TM: outstanding balance reduced
+            Note over TM: the payer's gates passed &mdash; now the card's own Account (OQ-219)
+            TM->>AZ: canWrite(actor, the card's accountId)?
+            alt the actor may not edit the card's Account
+                AZ-->>TM: not visible
+                TM-->>API: NotFound
+                API-->>User: 404 credit_card.not_found
+            else the card's Account is archived
+                TM-->>API: Conflict
+                API-->>User: 409 credit_card.account_archived
+            else the card's Account is in another currency
+                TM-->>API: ValidationError
+                API-->>User: 422 transaction.currency_mismatch {accountCurrency}
+            else allowed
+                TM->>AA: applyMovement(accountId, {-amount, currency, date})
+                AA-->>TM: account debited (OQ-15)
+                TM->>CCA: applyMovement(cardId, {-amount, currency, date})
+                CCA-->>TM: outstanding balance reduced
+            end
         else effect = investment_trade
             Note over TM: quantityDelta and costBasisDelta computed here (FR-3.8):<br/>a buy adds what was paid, a sell or redemption removes its average cost (OQ-171),<br/>a sell or redemption names its Holding by holdingId (OQ-201)
             TM->>AA: applyMovement(accountId, {&minus;amount for a buy, +amount for a sell or redemption, currency, date})
@@ -230,6 +244,7 @@ sequenceDiagram
       <li><strong>Goal allocation can be bundled here (OQ-54, added after the API coverage audit):</strong> one call in, no separate <code>PATCH /households/:householdId/holdings/{holdingId}</code> follow-up required &mdash; same 100%-cap rejection as that endpoint's own allocation edit (FR-8.3), just reachable from this pipeline too. Direction of control is unchanged (OQ-48): still written from the Holding's side, never the Goal's.</li>
       <li><strong>The buy's split is the purchase's (OQ-168):</strong> buying into a Holding that already funds Goals re-weights its whole split by value at this buy's unit price, so every Goal keeps exactly its money (900 at Retirement 60% / Trip 20%, plus 100 for Car 100% &rarr; 54% / 18% / 10%). One replace-all write, so a refusal never leaves half a split behind.</li>
       <li><strong>Slice 3 readiness (OQ-201):</strong> every trade moves the account&#39;s cash (a buy debits it, a sell or redemption credits it); sell, redemption, dividend, interest and tax name their Holding by <code>holdingId</code>; a credit-card-only account takes no Account Transaction &mdash; another account pays its cards&#39; bills (OQ-219); any kind may carry a category and money in reduces the claiming Budget&#39;s spend; the trade&#39;s deltas and the recorder are stored with the transaction. Transfers are two unlinked entries &mdash; each is an ordinary <code>transfer</code>-effect movement.</li>
+      <li><strong>Bill payments (OQ-219):</strong> any open Account but a credit-card-only one pays a card in its currency. The payer&#39;s gates come first, then the card&#39;s own Account: one the actor may edit (404 <code>credit_card.not_found</code>), open (409 <code>credit_card.account_archived</code>) and in the payment&#39;s currency.</li>
       <li>All writes share one database transaction (<code>UnitOfWorkUtility</code>) &mdash; any refusal rolls every one back.</li>
       <li>See FR-3.1, FR-3.6&ndash;3.9, FR-5.2, FR-5.8, FR-8.2, FR-8.3, FR-11.1&ndash;11.3, OQ-16, OQ-39, OQ-48, OQ-50, OQ-51, OQ-54, OQ-56, OQ-72, OQ-76, OQ-79, OQ-83, OQ-201.</li>
     </ul>

@@ -389,7 +389,9 @@ TransactionManager.record(input)
  ├─ refuse: archived Account (OQ-169); kind not allowed for the target — a
  │    card takes charge/refund, a credit_card_only Account none — another
  │    Account pays its cards' bills (OQ-219), no investment kind on it (OQ-76);
- │    a bill payment's card open and in its currency (OQ-219); a new
+ │    a bill payment's card — checked after the payer — on an Account the
+ │    caller may edit, open (`credit_card.account_archived`) and in its
+ │    currency (OQ-219); a new
  │    archived Category (OQ-201)
  ├─ if input targets a Credit Card directly (Card Transaction: charge/refund):
  │    1. CreditCardAccessor.applyMovement(cardId, {±amount, currency, date})  [+charge, −refund — OQ-170]
@@ -481,7 +483,10 @@ while it hasn't, an edit recomputes the schedule through the Engine and
 Holding (its snapshots, schedule and Goal split go with it) when
 `countForHolding` finds nothing else, and refuses otherwise (409
 `transaction.holding_in_use`). Transfers are two unlinked entries, each
-edited and deleted on its own.
+edited and deleted on its own. A bill payment is decided on both its payer
+and its card's Account (OQ-219): editing or deleting it moves the card's
+balance, so that Account must still be editable (404 `credit_card.not_found`)
+and open (409 `credit_card.account_archived`), as on record.
 
 ### 3.2 Open Banking sync: infrastructure entry point, Accessors do the rest
 

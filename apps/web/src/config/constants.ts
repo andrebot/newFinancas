@@ -236,13 +236,14 @@ export const goals = {
   rateBaseOrder: ['USD', 'BRL'],
 } as const;
 
+/** The kit's chips-or-select picker (OQ-219). */
+export const choiceField = {
+  /** The most choices drawn as chips; a longer list is a select (K11, OQ-138). */
+  chipListLimit: 10,
+} as const;
+
 /** Record Transaction (FL15, mockups 31, 32, 35; OQ-219). */
 export const recordTransaction = {
-  /**
-   * The most accounts, cards, categories or subcategories drawn as chips;
-   * a longer list is a select (K11, OQ-138).
-   */
-  chipListLimit: 10,
   /** The amount's currency while no target is chosen yet. */
   placeholderCurrency: 'BRL',
   /** Each kind group's tile icon (mockup 31). */

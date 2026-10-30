@@ -8,10 +8,10 @@ import { TextField } from '../../../../../kit/textField/TextField';
 import { useI18n } from '../../../../../utilities/I18nProvider';
 import type { Translator } from '../../../../../utilities/i18n';
 import {
-  accountChoicesOf, cardEntriesOf, directionOf, groupOf, isBillPayment, isBuy, isCardKind, isTrade,
-  namesCard, type CardEntry, type TransactionForm,
+  accountChoicesOf, cardEntriesOf, cardEntryOf, directionOf, groupOf, isBillPayment, isBuy,
+  isCardKind, isTrade, namesCard, type CardEntry, type TransactionForm,
 } from '../transactionForm';
-import { ChoiceField } from './ChoiceField';
+import { ChoiceField } from '../../../../../kit/choiceField/ChoiceField';
 import { recordText } from '../recordText';
 
 // Transaction Entry (FL15, mockup 31; FR-3.1, FR-3.4, OQ-201, OQ-219): what
@@ -138,7 +138,7 @@ const accountLabelOf = (kind: string) => {
  */
 function LockedTargets({ form, accounts }: Pick<TargetFieldsProps, 'form' | 'accounts'>) {
   const translator = useI18n();
-  const card = cardEntriesOf(accounts).find((entry) => entry.card.id === form.creditCardId);
+  const card = cardEntryOf(accounts, form.creditCardId);
   const account = accounts.find((candidate) => candidate.id === form.accountId);
   return (
     <>

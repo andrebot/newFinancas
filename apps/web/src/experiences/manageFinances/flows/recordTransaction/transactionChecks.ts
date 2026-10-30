@@ -122,6 +122,22 @@ const quantityProblemOf = (
 };
 
 /**
+ * Checks an edited trade's units: stored units can be changed, never cleared —
+ * the edit has no way to send none, so a fixed-term buy's optional units are
+ * required here too.
+ *
+ * @param form - The form.
+ * @param holdings - The account's Holdings.
+ * @returns The refusal, if any; none for a kind without units.
+ */
+const editedQuantityProblemOf = (
+  form: TransactionForm,
+  holdings: readonly InvestmentHolding[],
+): Problem | undefined => (
+  isTrade(form.kind) && form.quantity === null ? own('quantity') : quantityProblemOf(form, holdings)
+);
+
+/**
  * Checks a fixed-term contract: a rate, and a due date after the buy's date
  * (OQ-205).
  *
@@ -218,7 +234,7 @@ const editProblemsOf = (
   editable: Editable,
 ): Problems => ({
   ...(editable.amountAndDate ? valueProblemsOf(form) : {}),
-  ...(editable.quantity ? entry('quantity', quantityProblemOf(form, holdings)) : {}),
+  ...(editable.quantity ? entry('quantity', editedQuantityProblemOf(form, holdings)) : {}),
   ...(editable.terms ? termProblemsOf(form) : {}),
 });
 

@@ -14,6 +14,7 @@ import {
 
 const FAILURE = { code: 'network.unavailable' };
 const SELL = formOf({ kind: 'investment_sell', accountId: 'itau' });
+const SPLIT_READ = { holdingId: 'h1', load: { status: 'loaded', data: null } } as const;
 const CDB_BUY = formOf({ kind: 'investment_buy', assetType: 'cdb', holdingId: 'cdb1' });
 
 describe('openedWith', () => {
@@ -38,6 +39,27 @@ describe('formChanged', () => {
     expect(formChanged(state, CDB_BUY, ['amount'])).toMatchObject({
       form: CDB_BUY, problems: { holding: { code: 'holding' } },
     });
+  });
+
+  it('keeps a split read while the form holds its Holding\'s rows', () => {
+    const onHolding = { ...SELL, holdingId: 'h1' };
+    const state = { ...openedWith(onHolding, false), split: SPLIT_READ };
+    const quantity = { ...onHolding, quantity: 5 };
+    const redemption = { ...onHolding, kind: 'investment_redemption' };
+
+    expect(formChanged(state, quantity, []).split).toBe(SPLIT_READ);
+    expect(formChanged(state, redemption, []).split).toBe(SPLIT_READ);
+  });
+
+  it('forgets a split read once its rows are dropped, so the round-trip reads again', () => {
+    const onHolding = { ...SELL, holdingId: 'h1' };
+    const state = { ...openedWith(onHolding, false), split: SPLIT_READ };
+    const dividend = formChanged(state, { ...onHolding, kind: 'investment_dividend' }, []);
+    const otherHolding = formChanged(state, { ...onHolding, holdingId: 'h2' }, []);
+
+    expect(dividend.split).toBeUndefined();
+    expect(otherHolding.split).toBeUndefined();
+    expect(splitToLoad(formChanged(dividend, onHolding, []), true)).toBe('h1');
   });
 });
 

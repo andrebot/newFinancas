@@ -343,10 +343,16 @@ export function RecordTransactionFlow(props: RecordTransactionFlowProps) {
   const mode = state.original ? 'edit' : 'record';
   const investment = groupOf(form.kind) === 'investment';
   const categorySection = <CategorySection controller={controller} categories={categories} />;
+
+  /** Closes the drawer on Esc, the scrim or the ✕ — not while the request is out. */
+  const close = () => {
+    if (!state.out) onClose();
+  };
+
   return (
     <Drawer
       open
-      onClose={onClose}
+      onClose={close}
       caption={recordText(translator, `${mode}.caption`)}
       title={recordText(translator, `${mode}.title`)}
       footer={(

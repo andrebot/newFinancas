@@ -131,6 +131,18 @@ describe('problemsOf — an edit', () => {
   });
 });
 
+describe('problemsOf — an edit\'s units', () => {
+  it('refuses clearing a fixed-term buy\'s units, optional only when it is new', () => {
+    const cdb = formOf({
+      kind: 'investment_buy', assetType: 'cdb', quantity: null, ticker: 'CDB',
+    });
+
+    expect(problemsOf(cdb, { holdings: [CDB], editable: OPEN }).quantity)
+      .toEqual({ code: 'quantity' });
+    expect(problemsOf(cdb, NONE).quantity).toBeUndefined();
+  });
+});
+
 describe('isClear and problemText', () => {
   const translator = createTranslator('en-US');
 
@@ -144,5 +156,7 @@ describe('isClear and problemText', () => {
     expect(problemText({ rule: { code: 'field.required' } }, translator)).toBe('Required.');
     expect(problemText({ code: 'quantityHeld', params: { held: 300 } }, translator))
       .toBe('Only 300 held.');
+    expect(problemText({ code: 'quantityHeld', params: { held: 0.00012345 } }, translator))
+      .toBe('Only 0.00012345 held.');
   });
 });

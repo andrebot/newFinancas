@@ -5,7 +5,7 @@ import type { AllocationGoal, AllocationRow } from '../../../../kit/allocationEd
 import type { RequestFailure } from '../../../../utilities/requestOutcome';
 import type { Problems } from './transactionChecks';
 import { editableOf, type Editable } from './transactionRequest';
-import { isFixedTermBuy, type TransactionForm } from './transactionForm';
+import { isFixedTermBuy, takesHoldingSplit, type TransactionForm } from './transactionForm';
 
 // The Record Transaction Flow's state (FL15; OQ-201, OQ-206): the form, and
 // on an edit the form it opened with; what the Flow asked the Experience to
@@ -72,7 +72,21 @@ export const openedWith = (form: TransactionForm, editing: boolean): RecordTrans
 });
 
 /**
- * Applies a change to the form; the refusals of the fields it touched clear.
+ * Keeps a split read only while the form still holds its rows: the same
+ * Holding, on a kind pre-filled from it. Once the rows are dropped — another
+ * kind, account or Holding — it is read again when they come back.
+ *
+ * @param split - The split read, if any.
+ * @param form - The changed form.
+ * @returns The read, or nothing.
+ */
+const splitKept = (split: RecordTransactionState['split'], form: TransactionForm) => (
+  split?.holdingId === form.holdingId && takesHoldingSplit(form.kind) ? split : undefined
+);
+
+/**
+ * Applies a change to the form; the refusals of the fields it touched clear,
+ * and a split read whose rows it dropped is forgotten.
  *
  * @param state - The current state.
  * @param form - The changed form.
@@ -86,6 +100,7 @@ export const formChanged = (
 ): RecordTransactionState => ({
   ...state,
   form,
+  split: splitKept(state.split, form),
   problems: Object.fromEntries(
     Object.entries(state.problems).filter(([field]) => !cleared.includes(field as keyof Problems)),
   ),

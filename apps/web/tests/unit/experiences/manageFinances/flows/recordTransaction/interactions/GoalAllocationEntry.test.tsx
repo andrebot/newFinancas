@@ -77,4 +77,12 @@ describe('GoalAllocationEntry', () => {
 
     expect(view.container.textContent).toBe('');
   });
+
+  it('still offers Try again after a failed read when no Goal could take a share', () => {
+    renderEntry({
+      rows: [], goals: [], source: 'holding', load: { status: 'failed', error: { code: 'x' } },
+    });
+
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeDefined();
+  });
 });

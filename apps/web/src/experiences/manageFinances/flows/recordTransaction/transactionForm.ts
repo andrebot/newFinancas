@@ -205,15 +205,19 @@ export const cardEntriesOf = (accounts: readonly Account[]): CardEntry[] => (
 );
 
 /**
- * Finds a card with its account.
+ * Finds a card with its account — an archived account's too, so an edit of
+ * its transactions still shows the card and its currency.
  *
  * @param accounts - The accounts the user can see.
  * @param creditCardId - The card, if one is chosen.
  * @returns It, or nothing.
  */
-export const cardEntryOf = (accounts: readonly Account[], creditCardId: string | undefined) => (
-  cardEntriesOf(accounts).find((entry) => entry.card.id === creditCardId)
-);
+export const cardEntryOf = (
+  accounts: readonly Account[],
+  creditCardId: string | undefined,
+): CardEntry | undefined => accounts.flatMap((account) => account.cards
+  .filter((card) => card.id === creditCardId)
+  .map((card) => ({ card, account })))[0];
 
 /**
  * Lists the accounts a form's kind may be recorded on: open, not
@@ -300,6 +304,15 @@ const splitSourceOf = (code: string) => {
   if (!isTrade(code)) return undefined;
   return isBuy(code) ? 'purchase' : 'holding';
 };
+
+/**
+ * Tells whether a kind's split is pre-filled from its Holding: a sell's or a
+ * redemption's (OQ-206).
+ *
+ * @param code - The kind's code.
+ * @returns Whether it is.
+ */
+export const takesHoldingSplit = (code: string) => splitSourceOf(code) === 'holding';
 
 /**
  * Keeps a lone choice chosen: with exactly one candidate, it is picked; a

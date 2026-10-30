@@ -64,6 +64,7 @@ describe('ChipGroup', () => {
     );
 
     expect(screen.getByRole('group', { name: 'Categoria · opcional' })).toBeDefined();
+    expect(screen.getByRole('radiogroup', { name: 'Categoria · opcional' })).toBeDefined();
     expect(screen.getByText('Categoria').className).toContain('text-muted');
   });
 

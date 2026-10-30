@@ -81,6 +81,9 @@ sequenceDiagram
         AZ-->>TM: denied
         TM-->>API: Forbidden
         API-->>User: 403 auth.forbidden
+    else a bill payment whose card's Account the actor may no longer edit, or is archived (OQ-219)
+        TM-->>API: NotFound or Conflict
+        API-->>User: 404 credit_card.not_found or 409 credit_card.account_archived
     else a fixed-term buy whose schedule has posted
         TM-->>API: Conflict
         API-->>User: 409 transaction.schedule_started (OQ-201)
@@ -136,6 +139,7 @@ sequenceDiagram
     <ul>
       <li>A deleted, backdated transaction runs the balance cascade in reverse across every subsequent month, same mechanic as Edit (UC-02) minus the reapply half.</li>
       <li><strong>OQ-201:</strong> a trade&#39;s cash leg is reversed too. Deleting the buy that created a Holding deletes the Holding (its Goal split, snapshots and schedule with it) when no other transaction references it, and is refused otherwise; a fixed-term buy whose schedule has posted can&#39;t be deleted. A deleted transaction the schedule posted isn&#39;t posted again &mdash; its entry stays marked.</li>
+      <li><strong>OQ-219:</strong> a bill payment&#39;s card may sit on another Account than its payer, so editing or deleting it decides on both: the card&#39;s Account must still be one the actor may edit (404 <code>credit_card.not_found</code>) and open (409 <code>credit_card.account_archived</code>).</li>
       <li>See FR-3.2, OQ-201.</li>
     </ul>
   </div>

@@ -42,7 +42,7 @@ sequenceDiagram
 
     User->>API: POST /households/:householdId/transactions {accountId | creditCardId, kind, date, amount, currency, categoryId?, description, holdingId? | assetType + ticker?, quantity?, rate?, dueDate?, interestPayment?, incentivised?, allocations?}
     API->>TM: record(actor, input)
-    Note over TM: loads the target (Account or card + its Account &mdash; a bill payment's card may sit on any Account<br/>the actor may edit, open and in the payment's currency, OQ-219) and, if given, the Category &mdash;<br/>an archived Account or a newly used archived Category is refused (OQ-169, OQ-201)
+    Note over TM: loads the target (Account or card + its Account &mdash; a bill payment's card may sit on any Account<br/>the actor may edit, open and in the payment's currency, checked after the payer, OQ-219) and, if given, the Category &mdash;<br/>an archived Account or a newly used archived Category is refused (OQ-169, OQ-201)
     TM->>AZ: canWrite(actor, targetId)?
     alt not authorized
         AZ-->>TM: denied
@@ -98,10 +98,24 @@ sequenceDiagram
             TM->>AA: applyMovement(accountId, {amount, currency, date})
             AA-->>TM: new balance
         else effect = bill_payment
-            TM->>AA: applyMovement(accountId, {-amount, currency, date})
-            AA-->>TM: account debited (OQ-15)
-            TM->>CCA: applyMovement(cardId, {-amount, currency, date})
-            CCA-->>TM: outstanding balance reduced
+            Note over TM: the payer's gates passed &mdash; now the card's own Account (OQ-219)
+            TM->>AZ: canWrite(actor, the card's accountId)?
+            alt the actor may not edit the card's Account
+                AZ-->>TM: not visible
+                TM-->>API: NotFound
+                API-->>User: 404 credit_card.not_found
+            else the card's Account is archived
+                TM-->>API: Conflict
+                API-->>User: 409 credit_card.account_archived
+            else the card's Account is in another currency
+                TM-->>API: ValidationError
+                API-->>User: 422 transaction.currency_mismatch {accountCurrency}
+            else allowed
+                TM->>AA: applyMovement(accountId, {-amount, currency, date})
+                AA-->>TM: account debited (OQ-15)
+                TM->>CCA: applyMovement(cardId, {-amount, currency, date})
+                CCA-->>TM: outstanding balance reduced
+            end
         else effect = investment_trade
             Note over TM: quantityDelta and costBasisDelta computed here (FR-3.8):<br/>a buy adds what was paid, a sell or redemption removes its average cost (OQ-171),<br/>a sell or redemption names its Holding by holdingId (OQ-201)
             TM->>AA: applyMovement(accountId, {&minus;amount for a buy, +amount for a sell or redemption, currency, date})
@@ -195,6 +209,7 @@ sequenceDiagram
       <li><strong>Goal allocation can be bundled here (OQ-54, added after the API coverage audit):</strong> one call in, no separate <code>PATCH /households/:householdId/holdings/{holdingId}</code> follow-up required &mdash; same 100%-cap rejection as that endpoint's own allocation edit (FR-8.3), just reachable from this pipeline too. Direction of control is unchanged (OQ-48): still written from the Holding's side, never the Goal's.</li>
       <li><strong>The buy's split is the purchase's (OQ-168):</strong> buying into a Holding that already funds Goals re-weights its whole split by value at this buy's unit price, so every Goal keeps exactly its money (900 at Retirement 60% / Trip 20%, plus 100 for Car 100% &rarr; 54% / 18% / 10%). One replace-all write, so a refusal never leaves half a split behind.</li>
       <li><strong>Slice 3 readiness (OQ-201):</strong> every trade moves the account&#39;s cash (a buy debits it, a sell or redemption credits it); sell, redemption, dividend, interest and tax name their Holding by <code>holdingId</code>; a credit-card-only account takes no Account Transaction &mdash; another account pays its cards&#39; bills (OQ-219); any kind may carry a category and money in reduces the claiming Budget&#39;s spend; the trade&#39;s deltas and the recorder are stored with the transaction. Transfers are two unlinked entries &mdash; each is an ordinary <code>transfer</code>-effect movement.</li>
+      <li><strong>Bill payments (OQ-219):</strong> any open Account but a credit-card-only one pays a card in its currency. The payer&#39;s gates come first, then the card&#39;s own Account: one the actor may edit (404 <code>credit_card.not_found</code>), open (409 <code>credit_card.account_archived</code>) and in the payment&#39;s currency.</li>
       <li>All writes share one database transaction (<code>UnitOfWorkUtility</code>) &mdash; any refusal rolls every one back.</li>
       <li>See FR-3.1, FR-3.6&ndash;3.9, FR-5.2, FR-5.8, FR-8.2, FR-8.3, FR-11.1&ndash;11.3, OQ-16, OQ-39, OQ-48, OQ-50, OQ-51, OQ-54, OQ-56, OQ-72, OQ-76, OQ-79, OQ-83, OQ-201.</li>
     </ul>
@@ -229,6 +244,9 @@ sequenceDiagram
         AZ-->>TM: denied
         TM-->>API: Forbidden
         API-->>User: 403 auth.forbidden
+    else a bill payment whose card's Account the actor may no longer edit, or is archived (OQ-219)
+        TM-->>API: NotFound or Conflict
+        API-->>User: 404 credit_card.not_found or 409 credit_card.account_archived
     else a fixed-term buy whose schedule has posted, and amount, date or terms change
         TM-->>API: Conflict
         API-->>User: 409 transaction.schedule_started (OQ-201 &mdash; description and category still edit)
@@ -305,6 +323,7 @@ sequenceDiagram
       <li><code>CardTransactionAccessor.update</code> path (not shown, same shape) applies when the target was a Card Transaction instead of an Account Transaction.</li>
       <li><strong>Oct 2026 review:</strong> the automatic snapshot follows the edit; the Holding is re-archived or un-archived to match the new quantity (OQ-72, OQ-80).</li>
       <li><strong>OQ-201:</strong> the trade&#39;s cash leg is undone and redone with it; a buy or sell may change its quantity, a fixed-term buy its rate, due date, interest payment and debenture flag &mdash; and its schedule is recomputed while no entry has posted. Once one has, its amount, date and terms are locked (409). The Budget accrual is undone and redone with its sign (money in subtracts). Transactions the schedule posted edit like any other.</li>
+      <li><strong>OQ-219:</strong> a bill payment&#39;s card may sit on another Account than its payer, so editing or deleting it decides on both: the card&#39;s Account must still be one the actor may edit (404 <code>credit_card.not_found</code>) and open (409 <code>credit_card.account_archived</code>).</li>
       <li>See FR-3.2, FR-5.8, OQ-201.</li>
     </ul>
 """,
@@ -337,6 +356,9 @@ sequenceDiagram
         AZ-->>TM: denied
         TM-->>API: Forbidden
         API-->>User: 403 auth.forbidden
+    else a bill payment whose card's Account the actor may no longer edit, or is archived (OQ-219)
+        TM-->>API: NotFound or Conflict
+        API-->>User: 404 credit_card.not_found or 409 credit_card.account_archived
     else a fixed-term buy whose schedule has posted
         TM-->>API: Conflict
         API-->>User: 409 transaction.schedule_started (OQ-201)
@@ -391,6 +413,7 @@ sequenceDiagram
     <ul>
       <li>A deleted, backdated transaction runs the balance cascade in reverse across every subsequent month, same mechanic as Edit (UC-02) minus the reapply half.</li>
       <li><strong>OQ-201:</strong> a trade&#39;s cash leg is reversed too. Deleting the buy that created a Holding deletes the Holding (its Goal split, snapshots and schedule with it) when no other transaction references it, and is refused otherwise; a fixed-term buy whose schedule has posted can&#39;t be deleted. A deleted transaction the schedule posted isn&#39;t posted again &mdash; its entry stays marked.</li>
+      <li><strong>OQ-219:</strong> a bill payment&#39;s card may sit on another Account than its payer, so editing or deleting it decides on both: the card&#39;s Account must still be one the actor may edit (404 <code>credit_card.not_found</code>) and open (409 <code>credit_card.account_archived</code>).</li>
       <li>See FR-3.2, OQ-201.</li>
     </ul>
 """,

@@ -61,16 +61,30 @@ function SplitBody({
 }
 
 /**
+ * Tells whether the split section has nothing to show: no Goal could take a
+ * share, and no read is under way or offering Try again.
+ *
+ * @param body - The rows, the Goals and the read.
+ * @returns Whether to leave the section out.
+ */
+const isEmptySplit = ({
+  goals, rows, load,
+}: Pick<GoalAllocationEntryProps, 'goals' | 'rows' | 'load'>) => {
+  const reading = load?.status === 'loading' || load?.status === 'failed';
+  return goals.length === 0 && rows.length === 0 && !reading;
+};
+
+/**
  * Renders the split under its heading and note, with its refusal below.
  *
  * @param props - Where the split comes from, its rows, the Goals, the read,
  *   the errors and the handlers.
- * @returns The section, or nothing when no Goal could take a share.
+ * @returns The section, or nothing when no Goal could take a share — unless
+ *   the split is being read, or its read failed and offers Try again.
  */
 export function GoalAllocationEntry({ source, error, ...body }: GoalAllocationEntryProps) {
   const translator = useI18n();
-  const { goals, rows, load } = body;
-  if (goals.length === 0 && rows.length === 0 && load?.status !== 'loading') return null;
+  if (isEmptySplit(body)) return null;
   return (
     <section className="flex flex-col gap-3">
       <div>

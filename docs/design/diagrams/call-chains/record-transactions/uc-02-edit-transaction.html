@@ -135,7 +135,7 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain:</strong> <code>TransactionManager</code> ① <code>AuthorizationUtility</code> → ② <code>ValidationUtility</code> (values change, never identity — OQ-201) + <code>CategoryAccessor</code> → ③ read + update the ledger record → ④ reverse/re-apply the balance movement (a trade's cash leg too, OQ-201) → ⑤ <code>InvestmentHoldingAccessor.applyTrade</code> (quantity and cost-basis deltas) then <code>unarchiveIfSystemArchived</code> if quantity is no longer 0 (OQ-80); a fixed-term buy whose schedule hasn't started: <code>InvestmentProductEngine.schedule</code> + <code>applySchedule</code> (a started one keeps its terms — 409) → ⑥ <code>ValuationSnapshotAccessor.updateAutomatic</code> → ⑦ <code>BudgetAccessor</code> re-accrual, signed → ⑧ <code>LoggingUtility</code> (async).</p>
+    <p><strong>Chain:</strong> <code>TransactionManager</code> ① <code>AuthorizationUtility</code> (a bill payment's card's Account too, which must be open — OQ-219) → ② <code>ValidationUtility</code> (values change, never identity — OQ-201) + <code>CategoryAccessor</code> → ③ read + update the ledger record → ④ reverse/re-apply the balance movement (a trade's cash leg too, OQ-201) → ⑤ <code>InvestmentHoldingAccessor.applyTrade</code> (quantity and cost-basis deltas) then <code>unarchiveIfSystemArchived</code> if quantity is no longer 0 (OQ-80); a fixed-term buy whose schedule hasn't started: <code>InvestmentProductEngine.schedule</code> + <code>applySchedule</code> (a started one keeps its terms — 409) → ⑥ <code>ValuationSnapshotAccessor.updateAutomatic</code> → ⑦ <code>BudgetAccessor</code> re-accrual, signed → ⑧ <code>LoggingUtility</code> (async).</p>
   </div>
 
   <script>

@@ -252,10 +252,10 @@ describe('recordTransaction', () => {
           .rejects.toMatchObject({ domainError: { code: 'credit_card.not_found' } });
       });
 
-      it('refuses a card whose Account is archived', async () => {
+      it('refuses a card whose Account is archived, naming the card\'s Account', async () => {
         const fake = payingFrom({ ...CARD_ONLY, archivedAt: NOW });
         await expect(recordOf(fake).recordTransaction(context, HOUSEHOLD_ID, billRequest()))
-          .rejects.toMatchObject({ domainError: { code: 'account.archived' } });
+          .rejects.toMatchObject({ domainError: { code: 'credit_card.account_archived' } });
       });
 
       it('refuses a card in another currency than the payment', async () => {
@@ -280,6 +280,21 @@ describe('recordTransaction', () => {
           .rejects.toMatchObject({
             domainError: { code: 'transaction.kind_not_allowed_for_target' },
           });
+      });
+
+      it('checks the payer before the card: a credit-card-only payer of a USD card', async () => {
+        const fake = payingFrom({ ...CARD_ONLY, currency: 'USD' }, CARD_ONLY);
+        await expect(recordOf(fake).recordTransaction(
+          context,
+          HOUSEHOLD_ID,
+          cashRequest({
+            kind: 'credit_card_bill_payment', accountId: CARD_ONLY.id, creditCardId: CARD.id,
+          }),
+        ))
+          .rejects.toMatchObject({
+            domainError: { code: 'transaction.kind_not_allowed_for_target' },
+          });
+        expect(fake.creditCards.findById).not.toHaveBeenCalled();
       });
     });
 

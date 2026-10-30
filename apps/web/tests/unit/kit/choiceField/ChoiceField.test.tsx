@@ -2,11 +2,11 @@ import { fireEvent, screen } from '@testing-library/react';
 import {
   describe, expect, it, vi,
 } from 'vitest';
-import { ChoiceField } from '../../../../../../../src/experiences/manageFinances/flows/recordTransaction/interactions/ChoiceField';
-import { renderInLocale } from '../../../../../../support/renderInLocale';
+import { ChoiceField } from '../../../../src/kit/choiceField/ChoiceField';
+import { renderInLocale } from '../../../support/renderInLocale';
 
-// One pick out of a list (BDT: Interaction → unit): chips while short, the
-// select past the limit; the real kit.
+// The kit's chips-or-select picker (BDT: kit → unit): chips while short, the
+// select past the limit.
 
 const optionsOf = (count: number) => Array.from({ length: count }, (_, index) => ({
   value: `v${index}`, label: `Option ${index}`, tag: 'BRL', icon: 'home-outline' as const,

@@ -425,6 +425,8 @@ describe('recording a new transaction', () => {
     await press('amount');
     await press('Record Transaction');
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Cancel' }).disabled).toBe(true);
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
+    expect(onClose).not.toHaveBeenCalled();
     await press('Record Transaction');
     expect(onRecord).toHaveBeenCalledOnce();
     await act(async () => answer.settle({ ok: false, error: { code: 'account.archived' } }));
@@ -445,12 +447,13 @@ describe('recording a new transaction', () => {
     expect(onRecord).not.toHaveBeenCalled();
   });
 
-  it('closes on Cancel', async () => {
+  it('closes on Cancel, and on Escape while nothing is out', async () => {
     const { onClose } = renderFlow();
 
     await press('Cancel');
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
 
-    expect(onClose).toHaveBeenCalledOnce();
+    expect(onClose).toHaveBeenCalledTimes(2);
   });
 });
 

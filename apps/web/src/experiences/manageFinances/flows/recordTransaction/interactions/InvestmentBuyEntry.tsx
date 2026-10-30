@@ -18,7 +18,7 @@ import {
   assetTypesFor, INTEREST_PAYMENTS, isDebentureBuy, isFixedTermBuy, RATE_TYPES, takesSpread,
   type ContractTerms, type TransactionForm,
 } from '../transactionForm';
-import { assetTypeName, recordText } from '../recordText';
+import { assetTypeName, rateText, recordText } from '../recordText';
 
 // Investment Buy Entry (FL15, mockup 32; FR-5.1, FR-11.1, OQ-50, OQ-201,
 // OQ-205, OQ-219): what a buy names — its asset type (the fixed-term ones of
@@ -93,8 +93,8 @@ export const termsSummaryOf = (
   translator: Translator,
   formatter: Formatter,
 ) => recordText(translator, 'terms.summary', {
-  rate: recordText(translator, `rate.${terms.rateType}`, {
-    rate: formatter.rate(terms.rateValue ?? 0),
+  rate: rateText(translator, formatter, {
+    type: terms.rateType, value: terms.rateValue, spread: terms.spread,
   }),
   dueDate: terms.dueDate ? formatter.date(terms.dueDate) : '—',
   interestPayment: recordText(translator, `interestPayment.${terms.interestPayment}`),

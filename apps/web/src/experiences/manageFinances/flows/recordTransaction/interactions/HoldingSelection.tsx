@@ -16,7 +16,7 @@ import type { Translator } from '../../../../../utilities/i18n';
 import useFormatter from '../../../../../utilities/useFormatter';
 import type { Load } from '../recordTransactionState';
 import { isTrade } from '../transactionForm';
-import { assetTypeName, recordText } from '../recordText';
+import { assetTypeName, rateText, recordText } from '../recordText';
 
 /** One unit of a Holding, in the × 10⁸ fixed point quantities travel in (OQ-189). */
 const UNIT = 10 ** KIND_SCALE.quantity;
@@ -50,7 +50,8 @@ export interface HoldingSelectionProps {
 }
 
 /**
- * Writes a fixed-term rate the way the contract quotes it: "110% of CDI".
+ * Writes a fixed-term rate the way the contract quotes it: "110% of CDI",
+ * its spread on top.
  *
  * @param rate - The Holding's rate.
  * @param translator - The texts.
@@ -61,9 +62,7 @@ export const rateTextOf = (
   rate: NonNullable<InvestmentHolding['rate']>,
   translator: Translator,
   formatter: Formatter,
-) => recordText(translator, `rate.${rate.type ?? 'fixed'}`, {
-  rate: formatter.rate(rate.value ?? 0),
-});
+) => rateText(translator, formatter, rate);
 
 /**
  * Describes a Holding: its asset type and units, or a fixed-term contract's

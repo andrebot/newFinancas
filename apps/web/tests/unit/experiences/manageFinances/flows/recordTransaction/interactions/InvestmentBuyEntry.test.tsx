@@ -69,6 +69,8 @@ describe('termsSummaryOf', () => {
       .toBe('110.00% of CDI · due 03/15/2028 · At maturity');
     expect(termsSummaryOf(EMPTY_TERMS, translator, formatter))
       .toBe('0.00% a year · due — · At maturity');
+    expect(termsSummaryOf({ ...CDB_FORM.terms, spread: 5_000 }, translator, formatter))
+      .toBe('110.00% of CDI + 0.50% · due 03/15/2028 · At maturity');
   });
 });
 

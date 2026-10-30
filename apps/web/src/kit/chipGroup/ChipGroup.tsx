@@ -29,8 +29,10 @@ export interface ChipRadiosProps<Value extends string> {
   /** The chosen value; nothing is chosen while it is undefined. */
   readonly value: Value | undefined;
   readonly onChange: (value: Value) => void;
-  /** The group's accessible name, when no legend names it. */
+  /** The group's accessible name, when nothing on screen names it. */
   readonly label?: string | undefined;
+  /** The id of the caption naming the group, e.g. its fieldset's legend. */
+  readonly labelledBy?: string | undefined;
   /** The id of the message (hint or error) describing the chips. */
   readonly describedBy?: string | undefined;
   /** Marks the first chip invalid, so a refused submit can focus it. */
@@ -40,7 +42,7 @@ export interface ChipRadiosProps<Value extends string> {
 /** The chip group's props: the chips with their caption and message. */
 export interface ChipGroupProps<Value extends string> extends Omit<
   ChipRadiosProps<Value>,
-  'label' | 'describedBy' | 'invalid'
+  'label' | 'labelledBy' | 'describedBy' | 'invalid'
 > {
   /** The caption above the chips, already translated. */
   readonly label: string;
@@ -70,16 +72,21 @@ export const CHIP = [
  * invalid, the first chip carries `aria-invalid` so a refused submit can focus it.
  *
  * @param props - The chips, the chosen value, the change handler, the group's
- *   name, its message's id and whether it is invalid.
+ *   name or its caption's id, its message's id and whether it is invalid.
  * @returns The radio group.
  */
 export function ChipRadios<Value extends string>({
-  options, value, onChange, label, describedBy, invalid,
+  options, value, onChange, label, labelledBy, describedBy, invalid,
 }: ChipRadiosProps<Value>) {
   const name = useId();
 
   return (
-    <div role="radiogroup" aria-label={label} className="flex flex-wrap gap-2">
+    <div
+      role="radiogroup"
+      aria-label={label}
+      aria-labelledby={labelledBy}
+      className="flex flex-wrap gap-2"
+    >
       {options.map((option, index) => (
         <label key={option.value} htmlFor={`${name}-${option.value}`} className={CHIP}>
           <input
@@ -119,11 +126,16 @@ export function ChipRadios<Value extends string>({
 export function ChipGroup<Value extends string>({
   label, note, labelHidden, hint, error, className, ...radios
 }: ChipGroupProps<Value>) {
-  const messageId = messageIdOf(useId());
+  const id = useId();
+  const messageId = messageIdOf(id);
+  const legendId = `${id}-legend`;
 
   return (
     <fieldset className={['flex min-w-0 flex-col gap-2', className].filter(Boolean).join(' ')}>
-      <legend className={labelHidden ? 'sr-only' : 'mb-2 type-caption font-semibold text-muted'}>
+      <legend
+        id={legendId}
+        className={labelHidden ? 'sr-only' : 'mb-2 type-caption font-semibold text-muted'}
+      >
         {label}
         {note && (
         <>
@@ -134,6 +146,7 @@ export function ChipGroup<Value extends string>({
       </legend>
       <ChipRadios
         {...radios}
+        labelledBy={legendId}
         describedBy={hint || error ? messageId : undefined}
         invalid={error !== undefined}
       />

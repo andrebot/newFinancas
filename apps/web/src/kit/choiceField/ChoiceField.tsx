@@ -1,13 +1,13 @@
-import { recordTransaction as settings } from '../../../../../config/constants';
-import { ChipGroup, type Chip } from '../../../../../kit/chipGroup/ChipGroup';
-import { Icon } from '../../../../../kit/icons/Icon';
-import { Select } from '../../../../../kit/select/Select';
-import { Tag } from '../../../../../kit/tag/Tag';
+import { choiceField as settings } from '../../config/constants';
+import { ChipGroup, type Chip } from '../chipGroup/ChipGroup';
+import { Icon } from '../icons/Icon';
+import { Select } from '../select/Select';
+import { Tag } from '../tag/Tag';
 
-// One pick out of the drawer's lists — the accounts, the cards, the
-// categories and their subcategories (FL15; OQ-138, OQ-219): the mockups'
-// chips while the list is short, the select (K11) once it passes
-// `recordTransaction.chipListLimit`, with the same names, icons and tags.
+// One pick out of a list of named choices — e.g. the Record Transaction
+// drawer's accounts, cards and categories (OQ-138, OQ-219): chips while the
+// list is short, the select (K11) once it passes `choiceField.chipListLimit`,
+// with the same names, icons and tags.
 
 /** ChoiceField's props. */
 export interface ChoiceFieldProps<Value extends string> {
