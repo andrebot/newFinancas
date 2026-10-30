@@ -95,7 +95,7 @@ sequenceDiagram
         EXP-->>FLOW: outcome: failed — banner names the target and its budget, picker shows it taken
     else 404 budget.not_found (deleted meanwhile)
         API-->>EXP: error code
-        EXP->>API: GET …/budgets (fetched again — the budget is gone)
+        EXP->>API: GET …/budgets (the Budgets tag's refetch, awaited — the budget is gone)
         EXP-->>FLOW: outcome: failed — an edit's drawer closes, a delete's confirm stays
         Note over FLOW: toast "{name} was deleted by someone else…" (edit) / the error (delete)
     else 422 validation.failed (a category archived meanwhile)
@@ -107,7 +107,8 @@ sequenceDiagram
         EXP-->>FLOW: outcome: failed — a form's in its banner, typing kept, a delete's toasted
     else ok
         API-->>EXP: budget (or 204 — its claims are free again)
-        EXP->>API: GET …/budgets (fetched again)
+        EXP->>API: GET …/budgets (the Budgets tag's refetch, awaited)
+        Note over EXP: the Budgets tag also marks the Month Overview stale, so the Transactions page reads it again (PR #145)
         EXP-->>FLOW: outcome: ok, budgets refreshed — the drawer closes
         Note over FLOW: toast "{name} created / updated / deleted."
     end
@@ -118,7 +119,7 @@ sequenceDiagram
     </pre>
   </div>
   <div class="notes">
-<ul><li>Setup page shows no spend progress (stakeholder) — the list carries definitions only (OQ-176).</li><li>Claims are shared state other members change, so the budgets are the Experience's and fetched again after each write, and after a failure that says they moved (OQ-194).</li><li>Currency and visibility can't change after creation: the edit form shows them locked.</li></ul>
+<ul><li>Setup page shows no spend progress (stakeholder) — the list carries definitions only (OQ-176).</li><li>Claims are shared state other members change, so the budgets are the Experience's and read again after each write (its Budgets tag, which other pages showing budgets share — PR #145), and after a failure that says they moved (OQ-194).</li><li>Currency and visibility can't change after creation: the edit form shows them locked.</li></ul>
   </div>
   <script>
     mermaid.initialize({

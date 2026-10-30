@@ -425,3 +425,83 @@ describe('deleteBudget', () => {
     });
   });
 });
+
+describe('the shared tags (PR #145)', () => {
+  /** Every route a read or write below answers. */
+  const ROUTES = {
+    'GET /households/doe/accounts': () => jsonResponse(200, { data: [] }),
+    'PATCH /households/doe/accounts/chk': () => jsonResponse(200, ACCOUNT),
+    'GET /households/doe/categories': () => jsonResponse(200, { data: [] }),
+    'POST /households/doe/categories/cat/archive': () => jsonResponse(204),
+    'GET /households/doe/budgets': () => jsonResponse(200, { data: [] }),
+    'DELETE /households/doe/budgets/fun': () => jsonResponse(204),
+    'DELETE /households/doe/budgets/gone': () => jsonResponse(404, envelope('budget.not_found')),
+    'PATCH /households/doe/budgets/fun': () => jsonResponse(
+      409,
+      envelope('budget.target_already_claimed'),
+    ),
+  };
+
+  /**
+   * Reads the three lists, then counts each list's reads after a write.
+   *
+   * @param write - Sends the write on the store.
+   * @returns The reads of each list, once the store settles.
+   */
+  const readsAfter = async (
+    write: (store: ReturnType<typeof fakeStore>['store']) => PromiseLike<unknown>,
+  ) => {
+    const fetchFn = fakeFetch(ROUTES);
+    const { store } = fakeStore({ refreshToken: 'r-0', fetchFn });
+    const lists = [
+      store.dispatch(setupApi.endpoints.listAccounts.initiate('doe')),
+      store.dispatch(setupApi.endpoints.listCategories.initiate('doe')),
+      store.dispatch(setupApi.endpoints.listBudgets.initiate('doe')),
+    ];
+    await Promise.all(lists);
+    await write(store);
+    await settle();
+    /**
+     * Counts one list's reads.
+     *
+     * @param path - The list's path.
+     * @returns How many were sent.
+     */
+    const reads = async (path: string) => (await sent(fetchFn))
+      .filter(({ route }) => route.startsWith(`GET /api/v1/households/doe/${path}`)).length;
+    const counts = {
+      accounts: await reads('accounts'),
+      categories: await reads('categories'),
+      budgets: await reads('budgets'),
+    };
+    lists.forEach((list) => list.unsubscribe());
+    return counts;
+  };
+
+  it('reads the accounts again after an account edit', async () => {
+    expect(await readsAfter((store) => store.dispatch(setupApi.endpoints.editAccount.initiate({
+      householdId: 'doe', accountId: 'chk', name: 'Main',
+    })))).toEqual({ accounts: 2, categories: 1, budgets: 1 });
+  });
+
+  it('reads the categories again after a category write', async () => {
+    expect(await readsAfter((store) => store.dispatch(
+      setupApi.endpoints.archiveCategory.initiate({ householdId: 'doe', categoryId: 'cat' }),
+    ))).toEqual({ accounts: 1, categories: 2, budgets: 1 });
+  });
+
+  it('reads the budgets again after a budget write, or one already gone', async () => {
+    expect(await readsAfter((store) => store.dispatch(
+      setupApi.endpoints.deleteBudget.initiate({ householdId: 'doe', budgetId: 'fun' }),
+    ))).toEqual({ accounts: 1, categories: 1, budgets: 2 });
+    expect(await readsAfter((store) => store.dispatch(
+      setupApi.endpoints.deleteBudget.initiate({ householdId: 'doe', budgetId: 'gone' }),
+    ))).toEqual({ accounts: 1, categories: 1, budgets: 2 });
+  });
+
+  it('reads nothing again after a write that failed', async () => {
+    expect(await readsAfter((store) => store.dispatch(setupApi.endpoints.editBudget.initiate({
+      householdId: 'doe', budgetId: 'fun', name: 'Fun',
+    })))).toEqual({ accounts: 1, categories: 1, budgets: 1 });
+  });
+});

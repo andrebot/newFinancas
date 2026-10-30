@@ -2,7 +2,7 @@ import { configureStore } from '@reduxjs/toolkit';
 import {
   describe, expect, it, vi,
 } from 'vitest';
-import backendApi from '../../../src/api/backendApi';
+import backendApi, { changedTags } from '../../../src/api/backendApi';
 import type { ApiEnvironment } from '../../../src/api/baseQuery';
 import { createTokenStore } from '../../../src/api/tokens';
 import { envelope, jsonResponse, memoryStorage } from './fakes';
@@ -68,5 +68,26 @@ describe('backendApi', () => {
       status: 404, code: 'route.not_found', correlationId: 'server-cid',
     });
     expect(result.error).not.toHaveProperty('message');
+  });
+});
+
+describe('changedTags', () => {
+  it('names the data once a write went through', () => {
+    expect(changedTags(['Budgets'], undefined)).toEqual(['Budgets']);
+  });
+
+  it('names it too when the write says its target is gone, if that refreshes', () => {
+    expect(changedTags(['Budgets'], { code: 'budget.not_found' }, 'budget.not_found'))
+      .toEqual(['Budgets']);
+    expect(changedTags(['Categories'], { code: 'category.not_found' })).toEqual([]);
+  });
+
+  it.each([
+    ['another refusal', { code: 'budget.target_already_claimed' }],
+    ['an exception', { message: 'boom' }],
+    ['a bare value', 'boom'],
+    ['null', null],
+  ])('names nothing after %s', (_name, error) => {
+    expect(changedTags(['Budgets'], error, 'budget.not_found')).toEqual([]);
   });
 });

@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   ledgerPathOf, manageFinancesApi, writeTagsOf,
 } from '../../../../src/experiences/manageFinances/api';
+import { setupApi } from '../../../../src/api/setupApi';
 import { envelope, jsonResponse } from '../../api/fakes';
-import { fakeFetch } from '../experienceFakes';
+import { fakeFetch, sent, settle } from '../experienceFakes';
 import { fakeStore } from '../../shell/shellFakes';
 
 // The Manage Finances Experience's own endpoints (BDT: unit): the ledger's
@@ -37,12 +38,13 @@ describe('ledgerPathOf', () => {
 });
 
 describe('writeTagsOf', () => {
-  it('makes the ledger, the month and the Goals stale after a write', () => {
-    expect(writeTagsOf(undefined)).toEqual(['Ledger', 'MonthOverview', 'GoalProgress']);
+  it('makes the ledger, the month, the Goals and the balances stale after a write', () => {
+    expect(writeTagsOf(undefined))
+      .toEqual(['Ledger', 'MonthOverview', 'GoalProgress', 'Accounts']);
   });
 
   it('does so too when the row is already gone', () => {
-    expect(writeTagsOf({ code: 'transaction.not_found' })).toHaveLength(3);
+    expect(writeTagsOf({ code: 'transaction.not_found' })).toHaveLength(4);
   });
 
   it.each([
@@ -163,5 +165,33 @@ describe('the reads', () => {
     }));
     expect((await running).error).toEqual(expect.objectContaining({ code: 'holding.not_found' }));
     running.unsubscribe();
+  });
+});
+
+describe('the month overview', () => {
+  it.each([
+    ['a budget delete', (store: ReturnType<typeof fakeStore>['store']) => store.dispatch(
+      setupApi.endpoints.deleteBudget.initiate({ householdId: 'doe', budgetId: 'fun' }),
+    )],
+    ['an account edit', (store: ReturnType<typeof fakeStore>['store']) => store.dispatch(
+      setupApi.endpoints.editAccount.initiate({ householdId: 'doe', accountId: 'chk', name: 'X' }),
+    )],
+  ])('is read again after %s in Account Setup (PR #145)', async (_write, write) => {
+    const fetchFn = fakeFetch({
+      'GET /households/doe/reports/month-overview': () => jsonResponse(200, { budgets: [] }),
+      'DELETE /households/doe/budgets/fun': () => jsonResponse(204),
+      'PATCH /households/doe/accounts/chk': () => jsonResponse(200, { id: 'chk' }),
+    });
+    const { store } = fakeStore({ refreshToken: 'r-0', fetchFn });
+    const month = store.dispatch(manageFinancesApi.endpoints.getMonthOverview.initiate({
+      householdId: 'doe', year: 2026, month: 10,
+    }));
+    await month;
+    await write(store);
+    await settle();
+    const reads = (await sent(fetchFn))
+      .filter(({ route }) => route.startsWith('GET /api/v1/households/doe/reports'));
+    expect(reads).toHaveLength(2);
+    month.unsubscribe();
   });
 });

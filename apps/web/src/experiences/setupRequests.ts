@@ -106,10 +106,11 @@ export const listViewOf = <Field extends string, Item>(
 
 /**
  * Holds the household's category list — the Experience's, shared by its
- * Flows — and builds the Category Management Flow's requests (FL12). After a
- * successful write it fetches the list again and answers only then, so the
- * Flow's spinner stops on a list that already holds the change — or, if that
- * fetch fails, on the list beside its failure and a retry.
+ * Flows — and builds the Category Management Flow's requests (FL12). A
+ * successful write invalidates the list's tag (`setupApi.ts`), so every page
+ * showing it reads it again; this waits for that read and answers only then,
+ * so the Flow's spinner stops on a list that already holds the change — or,
+ * if that read fails, on the list beside its failure and a retry.
  *
  * @param householdId - The household.
  * @returns The list and the Flow's requests.
@@ -123,8 +124,9 @@ export const useCategories = (householdId: string): Omit<CategoryManagementFlowP
   const [archiveSubcategory] = useArchiveSubcategoryMutation();
 
   /**
-   * Answers a write: on a success, once the list is fetched again. The write
-   * went through either way, so it stays ok; a failed fetch shows in the
+   * Answers a write: on a success, once the list is read again. The refetch
+   * joins the read the tag already started, so the list is fetched once. The
+   * write went through either way, so it stays ok; a failed read shows in the
    * list's view instead.
    *
    * @param result - What the write's trigger resolved to.
@@ -183,8 +185,11 @@ export const listsToRefresh = (outcome: RequestOutcome) => {
 /**
  * Holds the budgets the caller can see — the Experience's, since their claims
  * are shared state other members change — and builds the Budget Management
- * Flow's requests (FL13). After a write it fetches what moved again and
- * answers only then, so the picker already shows what is free.
+ * Flow's requests (FL13). After a write it waits for what moved to be read
+ * again and answers only then, so the picker already shows what is free. A
+ * write that went through (or found the budget gone) has invalidated the
+ * budgets' tag, so its refetch joins that read; a refusal that says the
+ * lists moved invalidates nothing, so its refetch is the only one.
  *
  * @param householdId - The household.
  * @returns The budgets' view and the Flow's requests.

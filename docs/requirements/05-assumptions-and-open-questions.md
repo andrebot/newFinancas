@@ -1939,6 +1939,20 @@ OQ-118). Delete User's cascade is `M1D` (task 136, slice 5).
   clears the shared refresh token, but other tabs noticed only when their
   access token next failed (≤ 15 minutes). The shell now listens to the
   `storage` event, which ends them at once.
+- **Amended (PR #145, stakeholder report): shared data has shared tags.**
+  The household's accounts, budgets and categories are shown by more than
+  one Experience, so their tags (`Accounts`, `Budgets`, `Categories`) are
+  declared on `backendApi` itself and owned by none. The setup reads provide
+  them, the setup writes that went through invalidate them (a budget write
+  also on `budget.not_found`), a transaction write invalidates `Accounts`
+  (it moved a balance), and any read built on that data provides its tags
+  too: the Month Overview provides `Accounts` and `Budgets`. So a write on
+  one page refreshes every page showing the data, and the writer never names
+  its readers. This replaces `setupApi.ts`'s "nothing else reads them, so
+  only the host refetches" (OQ-193/OQ-194), which X6 made untrue — a budget
+  deleted in Account Setup stayed on the Transactions page until a reload.
+  The hosts still wait for the list before answering their Flow (OQ-193);
+  that refetch joins the read the tag started, so nothing is fetched twice.
 
 ## Refined (resolved, with a follow-up still open)
 
@@ -6489,6 +6503,9 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
   the month arrows already step a month at a time.
 - **A new Budget missed the month's spend recorded before it** (stakeholder
   report): fixed in AccountManager — see OQ-166's amendment.
+- **The Transactions page kept a deleted Budget** (stakeholder report): the
+  Month Overview didn't know Account Setup's writes. Fixed with shared cache
+  tags — see OQ-124's amendment.
 - Tests added for the race, the failed refetch, the switch, the time zone of
   a card's issue (April in UTC, March in São Paulo) and an edit's body (the
   old default also turned every PATCH into a terms edit).

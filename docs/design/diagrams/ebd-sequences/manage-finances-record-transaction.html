@@ -121,7 +121,7 @@ sequenceDiagram
         EXP-->>FLOW: state: error — I18nUtility renders it in the drawer's banner
     else 201 / 200
         API-->>EXP: the transaction
-        EXP-->>FLOW: done → toast, close — the ledger, the month and the Goals' progress invalidated (cache tags), so Browse + Month Overview refetch
+        EXP-->>FLOW: done → toast, close — the ledger, the month, the Goals' progress and the accounts' balances invalidated (cache tags), so Browse + Month Overview refetch
     end
     </pre>
   </div>
