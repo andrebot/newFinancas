@@ -6461,6 +6461,15 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
   is now a card (as from `xl`) whose twelve months fit in a row, no swiping,
   with more room between its parts; on a phone the strip keeps a little
   padding so the selected tile is never clipped (K40, amends OQ-216).
+- **The month strip below `md`** (stakeholder report: under ~740 px the
+  months overflowed behind a hidden scrollbar, reachable by mouse only with
+  shift+wheel). The card with its twelve months in a row now starts at `sm`
+  (640 px), the tiles a little narrower until `md`. Below `sm` the strip
+  still swipes, and now fades the side with more months to scroll to (the
+  card rail's fade, OQ-212), and a plain mouse wheel over it scrolls it
+  sideways until it reaches that end, when the wheel scrolls the page again
+  (`kit/periodBar/stripScroll.ts`). No visible scrollbar or extra arrows:
+  the month arrows already step a month at a time.
 - Tests added for the race, the failed refetch, the switch, the time zone of
   a card's issue (April in UTC, March in São Paulo) and an edit's body (the
   old default also turned every PATCH into a terms edit).

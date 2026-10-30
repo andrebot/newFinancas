@@ -6,7 +6,9 @@ import { PeriodBar, type PeriodBarProps } from '../../../src/kit/periodBar/Perio
 import type { Period, PeriodMonth } from '../../../src/kit/periodBar/periodBar';
 
 // The period bar (K40, OQ-216): mockup 30's card from `xl` up, mockup 34's
-// month stepper and swiped strip below it — narrow the viewport to see it.
+// month stepper below it — narrow the viewport to see it. Below `sm` the
+// months become a swiped strip: faded where more months hide, and a mouse
+// wheel over it scrolls it sideways.
 // It holds no state, so the story keeps the selected month; months after
 // today's are disabled. The summary is the caller's: here a stand-in for
 // Month Overview's In / Out / Total.
