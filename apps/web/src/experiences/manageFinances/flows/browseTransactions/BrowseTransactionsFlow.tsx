@@ -37,7 +37,7 @@ export interface BrowseTransactionsFlowProps extends BrowseTransactionsRequests,
   readonly ledger: LoadedLedger;
   /** Asks for the next page — near the end, and from "Try again". */
   readonly onReachedEnd: () => void;
-  /** The filtered Holding's name, for its chip. */
+  /** The filtered Holding's name, for its chip; "Holding" alone until it is known. */
   readonly holdingName?: string | undefined;
   /** The accounts the user can see, archived ones included, with their cards. */
   readonly accounts: readonly Account[];
@@ -101,10 +101,14 @@ function LedgerHeader({
           size="sm"
           className="self-start"
           trailingIcon="close"
-          aria-label={browseText(translator, 'holding.remove', { name: holdingName ?? '' })}
+          aria-label={holdingName
+            ? browseText(translator, 'holding.remove', { name: holdingName })
+            : browseText(translator, 'holding.removeUnnamed')}
           onClick={() => onFiltersChange({ ...filters, holdingId: undefined })}
         >
-          {browseText(translator, 'holding', { name: holdingName ?? '' })}
+          {holdingName
+            ? browseText(translator, 'holding', { name: holdingName })
+            : browseText(translator, 'holding.unnamed')}
         </Button>
       )}
     </div>

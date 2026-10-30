@@ -55,15 +55,16 @@ export interface BrowseTransactionsController {
 type Update = (update: (state: BrowseState) => BrowseState) => void;
 
 /**
- * Starts the draft from the applied filters whenever the drawer opens. It
- * adjusts while rendering, as React advises for state that follows a prop.
+ * Starts the draft from the applied filters whenever the drawer opens — on
+ * the first render too, when the Flow mounts with it open. It adjusts while
+ * rendering, as React advises for state that follows a prop.
  *
  * @param filterOpen - Whether the drawer is open.
  * @param filters - The applied filters.
  * @param update - The state's setter.
  */
 function useDraftOnOpen(filterOpen: boolean, filters: LedgerFilters, update: Update) {
-  const [wasOpen, setWasOpen] = useState(filterOpen);
+  const [wasOpen, setWasOpen] = useState(false);
   if (filterOpen === wasOpen) return;
   setWasOpen(filterOpen);
   if (filterOpen) update((state) => draftOpened(state, filters));

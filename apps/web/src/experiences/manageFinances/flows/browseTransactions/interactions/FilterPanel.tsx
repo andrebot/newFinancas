@@ -9,7 +9,6 @@ import { MultiChoiceField } from '../../../../../kit/choiceField/MultiChoiceFiel
 import { DateRangePicker } from '../../../../../kit/dateRangePicker/DateRangePicker';
 import type { RelativePreset } from '../../../../../kit/dateRangePicker/dateRangePresets';
 import { Drawer } from '../../../../../kit/drawer/Drawer';
-import { Icon } from '../../../../../kit/icons/Icon';
 import { useI18n } from '../../../../../utilities/I18nProvider';
 import type { Translator } from '../../../../../utilities/i18n';
 import {
@@ -150,10 +149,110 @@ interface KindGroupProps {
   readonly onChange: (kinds: readonly string[]) => void;
 }
 
+/** What a group's header shows besides its toggle. */
+interface GroupActionsProps {
+  readonly name: string;
+  readonly codes: readonly string[];
+  readonly chosen: readonly string[];
+  readonly onChange: (chosen: readonly string[]) => void;
+}
+
 /**
- * Renders one kind group: its header with the count and Select all or Clear,
- * and its kinds as chips — folded behind the header until opened, when it
- * starts folded and nothing in it is ticked.
+ * Renders an open group's count and its Select all — or Clear once all are ticked.
+ *
+ * @param props - The group's name, kinds, ticked kinds and handler.
+ * @returns The count and the button.
+ */
+function GroupActions({
+  name, codes, chosen, onChange,
+}: GroupActionsProps) {
+  const translator = useI18n();
+  const all = chosen.length === codes.length;
+  return (
+    <>
+      {chosen.length > 0 && (
+        <span className="type-caption text-mint">
+          {browseText(translator, 'filter.kindCount', { count: chosen.length })}
+        </span>
+      )}
+      <Button
+        variant="ghost"
+        size="sm"
+        className="ml-auto"
+        aria-label={browseText(
+          translator,
+          all ? 'filter.clearIn' : 'filter.selectAllIn',
+          { group: name },
+        )}
+        onClick={() => onChange(all ? [] : codes)}
+      >
+        {browseText(translator, all ? 'filter.clear' : 'filter.selectAll')}
+      </Button>
+    </>
+  );
+}
+
+/** How a group looks folded and open: a pill alone, or a bordered box. */
+const GROUP_LOOKS = {
+  folded: {
+    box: 'contents', header: 'contents', variant: 'secondary', chevron: 'expand-more',
+  },
+  open: {
+    box: 'flex w-full flex-col gap-2 rounded-2xl border border-line p-3',
+    header: 'flex items-center gap-2',
+    variant: 'ghost',
+    chevron: 'expand-less',
+  },
+} as const;
+
+/** A group toggle's props. */
+interface GroupToggleProps {
+  readonly id: string;
+  readonly group: KindGroup;
+  readonly name: string;
+  readonly unfolded: boolean;
+  /** How many kinds the group has, said while folded. */
+  readonly count: number;
+  readonly onToggle: () => void;
+}
+
+/**
+ * Renders a group's fold toggle: its name, and its kind count while folded.
+ *
+ * @param props - The ids, the group, its name, whether it is open, its count and the handler.
+ * @returns The toggle.
+ */
+function GroupToggle({
+  id, group, name, unfolded, count, onToggle,
+}: GroupToggleProps) {
+  const translator = useI18n();
+  const look = GROUP_LOOKS[unfolded ? 'open' : 'folded'];
+  return (
+    <Button
+      id={`${id}-toggle`}
+      variant={look.variant}
+      size="sm"
+      leadingIcon={settings.groupIcons[group]}
+      trailingIcon={look.chevron}
+      aria-expanded={unfolded}
+      aria-controls={unfolded ? `${id}-kinds` : undefined}
+      onClick={onToggle}
+    >
+      {name}
+      {!unfolded && (
+        <span className="font-normal text-muted">
+          {browseText(translator, 'filter.groupKinds', { count })}
+        </span>
+      )}
+    </Button>
+  );
+}
+
+/**
+ * Renders one kind group: a toggle that folds and unfolds it, and while open
+ * its count, Select all or Clear, and its kinds as chips. It starts folded
+ * unless it is one of mockup 33's open groups or holds a ticked kind. The
+ * toggle stays the same element either way, so focus stays on it.
  *
  * @param props - The group, the ticked kinds and the handler.
  * @returns The group.
@@ -165,57 +264,33 @@ function KindGroupFilter({ group, kinds, onChange }: KindGroupProps) {
   const chosen = chosenInGroup(kinds, group);
   const [unfolded, setUnfolded] = useState(OPEN_GROUPS.includes(group) || chosen.length > 0);
   const name = groupName(translator, group);
-  const all = chosen.length === codes.length;
+  const look = GROUP_LOOKS[unfolded ? 'open' : 'folded'];
   const change = (next: readonly string[]) => onChange(withGroupKinds(kinds, group, next));
-  if (!unfolded) {
-    return (
-      <Button
-        variant="secondary"
-        size="sm"
-        leadingIcon={settings.groupIcons[group]}
-        trailingIcon="expand-more"
-        aria-expanded={false}
-        onClick={() => setUnfolded(true)}
-      >
-        {name}
-        <span className="font-normal text-muted">
-          {browseText(translator, 'filter.groupKinds', { count: codes.length })}
-        </span>
-      </Button>
-    );
-  }
   return (
-    <div className="flex w-full flex-col gap-2 rounded-2xl border border-line p-3">
-      <div className="flex items-center gap-2">
-        <Icon name={settings.groupIcons[group]} className="size-4.5 text-muted" />
-        <span id={`${id}-name`} className="font-semibold">{name}</span>
-        {chosen.length > 0 && (
-          <span className="type-caption text-mint">
-            {browseText(translator, 'filter.kindCount', { count: chosen.length })}
-          </span>
-        )}
-        <Button
-          variant="ghost"
-          size="sm"
-          className="ml-auto"
-          aria-label={browseText(
-            translator,
-            all ? 'filter.clearIn' : 'filter.selectAllIn',
-            { group: name },
-          )}
-          onClick={() => change(all ? [] : codes)}
-        >
-          {browseText(translator, all ? 'filter.clear' : 'filter.selectAll')}
-        </Button>
+    <div className={look.box}>
+      <div className={look.header}>
+        <GroupToggle
+          id={id}
+          group={group}
+          name={name}
+          unfolded={unfolded}
+          count={codes.length}
+          onToggle={() => setUnfolded(!unfolded)}
+        />
+        {unfolded && <GroupActions name={name} codes={codes} chosen={chosen} onChange={change} />}
       </div>
-      <ChipChecks
-        labelledBy={`${id}-name`}
-        options={codes.map((code) => ({
-          value: code, label: kindName(translator, code), icon: kindIcon(code),
-        }))}
-        value={chosen}
-        onChange={change}
-      />
+      {unfolded && (
+        <div id={`${id}-kinds`}>
+          <ChipChecks
+            labelledBy={`${id}-toggle`}
+            options={codes.map((code) => ({
+              value: code, label: kindName(translator, code), icon: kindIcon(code),
+            }))}
+            value={chosen}
+            onChange={change}
+          />
+        </div>
+      )}
     </div>
   );
 }

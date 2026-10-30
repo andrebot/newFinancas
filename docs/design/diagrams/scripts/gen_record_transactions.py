@@ -244,6 +244,9 @@ sequenceDiagram
         AZ-->>TM: denied
         TM-->>API: Forbidden
         API-->>User: 403 auth.forbidden
+    else its Account (a card row's: its card's) is archived &mdash; history is frozen (FR-2.4, OQ-220)
+        TM-->>API: Conflict
+        API-->>User: 409 account.archived
     else a bill payment whose card's Account the actor may no longer edit, or is archived (OQ-219)
         TM-->>API: NotFound or Conflict
         API-->>User: 404 credit_card.not_found or 409 credit_card.account_archived
@@ -356,6 +359,9 @@ sequenceDiagram
         AZ-->>TM: denied
         TM-->>API: Forbidden
         API-->>User: 403 auth.forbidden
+    else its Account (a card row's: its card's) is archived &mdash; history is frozen (FR-2.4, OQ-220)
+        TM-->>API: Conflict
+        API-->>User: 409 account.archived
     else a bill payment whose card's Account the actor may no longer edit, or is archived (OQ-219)
         TM-->>API: NotFound or Conflict
         API-->>User: 404 credit_card.not_found or 409 credit_card.account_archived

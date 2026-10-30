@@ -80,7 +80,7 @@ describe('LedgerRow', () => {
   it('notes an archived account instead of the actions', () => {
     renderRow({ expanded: true, access: 'archived' });
 
-    expect(screen.getByText('Its account is archived — unarchive it to change this.'))
+    expect(screen.getByText("Its account is archived, so this transaction can't be changed."))
       .toBeDefined();
     expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull();
   });

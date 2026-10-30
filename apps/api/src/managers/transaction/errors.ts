@@ -63,8 +63,8 @@ export const transactionNotFound = (): DomainError => createDomainError({
 });
 
 /**
- * Recording or editing against an archived Account: archiving is one-way
- * (FR-2.4, OQ-169).
+ * Recording, editing or deleting against an archived Account: archiving is
+ * one-way and freezes its history (FR-2.4, OQ-169, OQ-220).
  *
  * @returns `account.archived`.
  */

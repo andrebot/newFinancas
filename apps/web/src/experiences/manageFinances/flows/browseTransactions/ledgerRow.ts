@@ -87,15 +87,37 @@ const tickerOf = (item: LedgerItem) => (
 );
 
 /**
- * Writes a row's title: its description, else its kind's name — a trade's with its ticker.
+ * Names a row's kind, when the reference data knows it.
+ *
+ * @param item - The row.
+ * @param translator - The texts.
+ * @returns The kind's name; nothing for a missing or unknown kind.
+ */
+export const kindNameOf = (item: LedgerItem, translator: Translator) => (
+  item.kind && findKind(item.kind) ? kindName(translator, item.kind) : undefined
+);
+
+/**
+ * Tells whether a row has a description of its own.
+ *
+ * @param item - The row.
+ * @returns `true` when its description has text.
+ */
+const isDescribed = (item: LedgerItem) => Boolean(item.description?.trim());
+
+/**
+ * Writes a row's title: its description, else its kind's name — a trade's
+ * with its ticker — else "Transaction".
  *
  * @param item - The row.
  * @param translator - The texts.
  * @returns The title.
  */
 export const rowTitleOf = (item: LedgerItem, translator: Translator) => {
-  if (item.description?.trim()) return item.description;
-  const kind = kindName(translator, item.kind ?? '');
+  const { description } = item;
+  if (description?.trim()) return description;
+  const kind = kindNameOf(item, translator);
+  if (!kind) return browseText(translator, 'title.unknown');
   const ticker = tickerOf(item);
   return ticker ? browseText(translator, 'title.trade', { kind, ticker }) : kind;
 };
@@ -114,23 +136,38 @@ const cardNameOf = (lookup: LedgerLookup, creditCardId: string, translator: Tran
 };
 
 /**
+ * Names an account row's source: its account, or a bill payment's payer and
+ * card — the payer alone when the user can't see the card.
+ *
+ * @param item - The account row.
+ * @param lookup - The accounts and cards.
+ * @param translator - The texts.
+ * @returns The source's name; empty when the user can't see the account.
+ */
+const accountSourceOf = (
+  item: LedgerItem & { readonly ledger: 'account' },
+  lookup: LedgerLookup,
+  translator: Translator,
+) => {
+  const payer = lookup.accounts.get(item.accountId ?? '')?.name ?? '';
+  const card = item.creditCardId ? cardNameOf(lookup, item.creditCardId, translator) : '';
+  return card ? browseText(translator, 'source.billPayment', { payer, card }) : payer;
+};
+
+/**
  * Names where a row's money moved: its account, its card, or a bill payment's
- * payer and card.
+ * payer and card — the payer alone when the user can't see the card.
  *
  * @param item - The row.
  * @param lookup - The accounts and cards.
  * @param translator - The texts.
  * @returns The source's name; empty when the user can't see it.
  */
-export const sourceOf = (item: LedgerItem, lookup: LedgerLookup, translator: Translator) => {
-  const creditCardId = item.creditCardId ?? '';
-  if (item.ledger === 'card') return cardNameOf(lookup, creditCardId, translator);
-  const payer = lookup.accounts.get(item.accountId ?? '')?.name ?? '';
-  if (!creditCardId) return payer;
-  return browseText(translator, 'source.billPayment', {
-    payer, card: cardNameOf(lookup, creditCardId, translator),
-  });
-};
+export const sourceOf = (item: LedgerItem, lookup: LedgerLookup, translator: Translator) => (
+  item.ledger === 'card'
+    ? cardNameOf(lookup, item.creditCardId ?? '', translator)
+    : accountSourceOf(item, lookup, translator)
+);
 
 /**
  * Names a row's category, with its subcategory when it has one.
@@ -152,18 +189,22 @@ export const categoryNameOf = (item: LedgerItem, lookup: LedgerLookup, translato
 
 /**
  * Writes a row's meta line: source · category · kind — a trade's ticker in
- * the category's place; what's missing is left out.
+ * the category's place; what's missing is left out, and so are the kind and
+ * ticker when the title already says them (a row with no description).
  *
  * @param item - The row.
  * @param lookup - The accounts, cards and categories.
  * @param translator - The texts.
  * @returns The meta line.
  */
-export const rowMetaOf = (item: LedgerItem, lookup: LedgerLookup, translator: Translator) => [
-  sourceOf(item, lookup, translator),
-  tickerOf(item) ?? categoryNameOf(item, lookup, translator),
-  kindName(translator, item.kind ?? ''),
-].filter(Boolean).join(' · ');
+export const rowMetaOf = (item: LedgerItem, lookup: LedgerLookup, translator: Translator) => {
+  const described = isDescribed(item);
+  return [
+    sourceOf(item, lookup, translator),
+    (described ? tickerOf(item) : undefined) ?? categoryNameOf(item, lookup, translator),
+    described ? kindNameOf(item, translator) : undefined,
+  ].filter(Boolean).join(' · ');
+};
 
 /**
  * Picks a row's icon.
@@ -222,7 +263,7 @@ export const rowDetailsOf = (
   translator: Translator,
   formatter: Formatter,
 ): KeyValueItem[] => [
-  { label: browseText(translator, 'detail.kind'), value: kindName(translator, item.kind ?? '') },
+  { label: browseText(translator, 'detail.kind'), value: kindNameOf(item, translator) },
   {
     label: browseText(translator, 'detail.date'),
     value: formatter.date(item.date ?? '', 'numeric'),

@@ -48,9 +48,15 @@ describe('rowTitleOf', () => {
   it("is the description, else the kind's name — a trade's with its ticker", () => {
     expect(rowTitleOf(cardRowOf(), translator)).toBe('Netflix');
     expect(rowTitleOf(cardRowOf({ description: '  ' }), translator)).toBe('Charge');
-    expect(rowTitleOf(omit(cardRowOf(), 'description', 'kind'), translator))
-      .toBe('kind.');
     expect(rowTitleOf(TRADE, translator)).toBe('Buy · BBAS3');
+  });
+
+  it('is "Transaction" for a row with neither a description nor a known kind', () => {
+    expect(rowTitleOf(omit(cardRowOf(), 'description', 'kind'), translator)).toBe('Transaction');
+    expect(rowTitleOf(accountRowOf({ description: '', kind: 'mystery' }), translator))
+      .toBe('Transaction');
+    expect(rowTitleOf(omit(cardRowOf({ description: 'x' }), 'description'), translator))
+      .toBe('Charge');
   });
 });
 
@@ -58,14 +64,14 @@ describe('sourceOf', () => {
   it('names the card, the account, or the bill payment\'s payer and card', () => {
     expect(sourceOf(cardRowOf(), LOOKUP, translator)).toBe('Visa •••• 1111');
     expect(sourceOf(accountRowOf(), LOOKUP, translator)).toBe('Itaú Conta');
-    expect(sourceOf(BILL_PAYMENT, LOOKUP, translator)).toBe('Main Checking → Visa •••• 1111');
+    expect(sourceOf(BILL_PAYMENT, LOOKUP, translator)).toBe('Itaú Conta → Visa •••• 2222');
   });
 
   it("leaves out what the user can't see", () => {
     expect(sourceOf(omit(cardRowOf(), 'creditCardId'), LOOKUP, translator)).toBe('');
     expect(sourceOf(omit(accountRowOf(), 'accountId'), LOOKUP, translator)).toBe('');
     expect(sourceOf({ ...BILL_PAYMENT, creditCardId: 'gone' }, LOOKUP, translator))
-      .toBe('Main Checking → ');
+      .toBe('Itaú Conta');
   });
 });
 
@@ -94,11 +100,20 @@ describe('rowMetaOf', () => {
 
   it('leaves out a kind it has no name for', () => {
     expect(rowMetaOf(omit(cardRowOf(), 'kind'), LOOKUP, translator))
-      .toBe('Visa •••• 1111 · Housing · kind.');
+      .toBe('Visa •••• 1111 · Housing');
+    expect(rowMetaOf(accountRowOf({ kind: 'mystery' }), LOOKUP, translator))
+      .toBe('Itaú Conta · Groceries');
   });
 
-  it("puts a trade's ticker in the category's place", () => {
-    expect(rowMetaOf(TRADE, LOOKUP, translator)).toBe('Itaú Conta · BBAS3 · Buy');
+  it("puts a described trade's ticker in the category's place", () => {
+    expect(rowMetaOf({ ...TRADE, description: 'Dividends' }, LOOKUP, translator))
+      .toBe('Itaú Conta · BBAS3 · Buy');
+  });
+
+  it('leaves out the kind and ticker the title already says', () => {
+    expect(rowMetaOf(TRADE, LOOKUP, translator)).toBe('Itaú Conta · Groceries');
+    expect(rowMetaOf(cardRowOf({ description: '' }), LOOKUP, translator))
+      .toBe('Visa •••• 1111 · Housing');
   });
 });
 
@@ -126,7 +141,7 @@ describe('rowDetailsOf', () => {
     expect(rowDetailsOf(cardRowOf(), LOOKUP, translator, formatter)[2])
       .toEqual({ label: 'Card', value: 'Visa •••• 1111' });
     expect(rowDetailsOf(BILL_PAYMENT, LOOKUP, translator, formatter)[2])
-      .toEqual({ label: 'Payment', value: 'Main Checking → Visa •••• 1111' });
+      .toEqual({ label: 'Payment', value: 'Itaú Conta → Visa •••• 2222' });
   });
 
   it("adds a trade's Holding and units — none when unknown", () => {
@@ -145,7 +160,7 @@ describe('rowDetailsOf', () => {
       translator,
       createFormatter('en-US'),
     );
-    expect(details[0]?.value).toBe('kind.');
+    expect(details[0]?.value).toBeUndefined();
   });
 });
 

@@ -246,10 +246,11 @@ describe('the header', () => {
     expect(onFiltersChange).toHaveBeenCalledWith({ ...filters, holdingId: undefined });
   });
 
-  it('names a Holding chip it has no name for plainly', () => {
+  it('calls a Holding it has no name for "Holding"', () => {
     renderFlow({ filters: holdingFilters('bbas3') });
 
-    expect(screen.getByRole('button', { name: 'Stop filtering by' })).toBeDefined();
+    const chip = screen.getByRole('button', { name: 'Stop filtering by this Holding' });
+    expect(chip.textContent).toBe('Holding');
   });
 });
 
@@ -346,8 +347,15 @@ describe('the filters', () => {
     expect(screen.getByTestId('filters').getAttribute('data-errors')).toBe('true');
   });
 
+  it('starts the draft from the applied filters when it mounts with the drawer open', () => {
+    renderFlow({ filterOpen: true, filters: holdingFilters('bbas3') });
+
+    expect(draft()).toEqual(holdingFilters('bbas3'));
+  });
+
   it('empties the draft with Clear all, and closes through the Experience', () => {
     const { onFilterClose } = renderFlow({ filterOpen: true, filters: holdingFilters('bbas3') });
+    expect(draft()).toEqual(holdingFilters('bbas3'));
 
     fireEvent.click(screen.getByText('clear all'));
     expect(draft()).toEqual(NO_FILTERS);

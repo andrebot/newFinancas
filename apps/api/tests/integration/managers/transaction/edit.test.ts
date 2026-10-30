@@ -49,6 +49,27 @@ describe('editTransaction', () => {
       .rejects.toMatchObject({ domainError: { code: 'transaction.not_found' } });
   });
 
+  describe('a row on an archived Account (FR-2.4, OQ-220)', () => {
+    it('refuses an account row: archiving freezes its history', async () => {
+      const fake = fakeDeps();
+      fake.accounts.findById.mockResolvedValue({ ...ACCOUNT, archivedAt: NOW });
+      await expect(editOf(fake).editTransaction(context, HOUSEHOLD_ID, ROW.id, { amount: 7_000 }))
+        .rejects.toMatchObject({ domainError: { code: 'account.archived' } });
+      expect(fake.accounts.applyMovement).not.toHaveBeenCalled();
+      expect(fake.accountTransactions.update).not.toHaveBeenCalled();
+    });
+
+    it("refuses a card row whose card's Account is archived", async () => {
+      const fake = fakeDeps();
+      fake.accountTransactions.findById.mockResolvedValue(undefined);
+      fake.accounts.findById.mockResolvedValue({ ...ACCOUNT, archivedAt: NOW });
+      await expect(editOf(fake).editTransaction(context, HOUSEHOLD_ID, CARD_ROW.id, {
+        amount: 7_000,
+      })).rejects.toMatchObject({ domainError: { code: 'account.archived' } });
+      expect(fake.creditCards.applyMovement).not.toHaveBeenCalled();
+    });
+  });
+
   describe('cash rows (FR-3.2)', () => {
     it('reverses the stored movement, reapplies the new one and guarded-updates', async () => {
       const fake = fakeDeps();

@@ -103,6 +103,24 @@ describe('FilterPanel', () => {
     expect(screen.getByRole('checkbox', { name: 'Transfer sent' })).toBeDefined();
   });
 
+  it('folds and unfolds a group with one toggle that keeps the focus', () => {
+    renderPanel();
+
+    const toggle = screen.getByRole('button', { name: /Transfer.*2 kinds/ });
+    toggle.focus();
+    fireEvent.click(toggle);
+    expect(document.activeElement).toBe(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    const kinds = document.getElementById(toggle.getAttribute('aria-controls') ?? '');
+    expect(within(kinds!).getByRole('group', { name: 'Transfer' })).toBeDefined();
+
+    fireEvent.click(toggle);
+    expect(document.activeElement).toBe(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(toggle.getAttribute('aria-controls')).toBeNull();
+    expect(screen.queryByRole('checkbox', { name: 'Transfer sent' })).toBeNull();
+  });
+
   it("ticks a kind, selects a group's all, and clears it", () => {
     const { onDraftChange } = renderPanel({ draft: { ...NO_FILTERS, kinds: ['charge'] } });
 

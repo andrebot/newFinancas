@@ -6235,17 +6235,26 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
   and, for a trade, Holding and units; "Posted automatically" tags a
   schedule's post. The source is the account, the card ("Visa •••• 1111"),
   or a bill payment's "payer → card", captioned Account, Card or Payment.
-- **A row on an archived account hides Edit and Delete** behind a note:
-  "Its account is archived — unarchive it to change this." (the server
-  answers 409 `account.archived`). A bill payment counts its card's account
-  too (OQ-219).
+- **An archived account's history is frozen** (PR #143 review — FR-2.4
+  now says so). Edit and Delete refuse a row whose account — a card row's
+  card's account — is archived, with 409 `account.archived` (in
+  `reversal.ts`'s shared load, so both use cases refuse alike); before, only
+  a new transaction was refused, and the contract listed the code for edits
+  the server never sent. The UI hides Edit and Delete on such a row behind
+  a note: "Its account is archived, so this transaction can't be changed."
+  (archiving is one-way, so nothing can undo it). A bill payment counts its
+  card's account too (OQ-219).
 - **One rule for the meta line: source · category · kind**, a trade's ticker
   in the category's place, what is missing left out — not the mockups'
-  per-kind mix.
+  per-kind mix. A row with no description is titled by its kind, so its meta
+  line drops the kind (and a trade's ticker, which shows the category
+  instead) rather than say it twice. A bill payment whose card the user
+  can't see names its payer alone.
 - **The filter offers archived accounts, cards and categories** after the
   open ones, tagged "Archived", so older rows stay reachable.
 - **A row with no description is titled by its kind** — a trade's with its
-  ticker ("Buy · BBAS3").
+  ticker ("Buy · BBAS3"); one whose kind the reference data doesn't know is
+  "Transaction", and its kind is left out of the meta line and details.
 
 **Design decisions:**
 - **Edit and Delete show only where the user may manage every account the
@@ -6266,9 +6275,12 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
   (at most 6 a group).
 - **The kind filter by group (mockup 33):** each group has its count and
   Select all — Clear once all are ticked; Transfer and Investment start
-  folded unless one of their kinds is ticked.
+  folded unless one of their kinds is ticked. One toggle folds and unfolds a
+  group (`aria-expanded`), the same element either way, so focus stays on
+  it (PR #143 review).
 - **The drawer's draft restarts from the applied filters each time it
-  opens;** Show refuses an unsound range (malformed, or To before From) and
+  opens** — on the Flow's first render too, when it mounts with the drawer
+  open (PR #143 review); Show refuses an unsound range (malformed, or To before From) and
   shows why; Clear all empties the draft only until Show.
 - **The page header's Filter button is the Experience's** (mockup 30), with
   the count of filters in use (`activeFilterCount`; accounts and cards count
@@ -6276,13 +6288,22 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
   heading reads "Filtered transactions", with Clear filters.
 - **Pages read as one list** (`ledgerPages.ts`): a row seen on an earlier
   page isn't drawn twice; a day's totals are R$ first.
+- **A filter on an account or card the Flow wasn't handed is dropped** at
+  the next tick in its picker (the chips keep only the values they list).
+  Accepted: the Experience hands the Flow every account the user can see,
+  archived ones included, so only a vanished one goes.
+- **A Holding chip with no name yet reads "Holding"** ("Stop filtering by
+  this Holding").
 - **A delete is asked in the row** (K26, coral); a failure stays in the
   confirm's banner; a success is toasted ("Transaction deleted.") and closes
   the row. Rows, day totals and the month count go with the refetch.
 - A `browseTransactions` catalog section in both locales.
 - **Left to X6 (task 119):** the infinite query and its tag, the Filter
   button and its badge, the Holding's name for the chip, and `stickyTop` on
-  phones (under the period bar).
+  phones (under the period bar). A delete answered 404
+  `transaction.not_found` (deleted elsewhere) changes nothing, so nothing
+  refetches: X6 should invalidate the ledger on that code too, or the stale
+  row stays with its error.
 
 **Task 117 (`FL16`) is complete.**
 

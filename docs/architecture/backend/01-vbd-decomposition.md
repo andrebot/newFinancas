@@ -486,7 +486,9 @@ Holding (its snapshots, schedule and Goal split go with it) when
 edited and deleted on its own. A bill payment is decided on both its payer
 and its card's Account (OQ-219): editing or deleting it moves the card's
 balance, so that Account must still be editable (404 `credit_card.not_found`)
-and open (409 `credit_card.account_archived`), as on record.
+and open (409 `credit_card.account_archived`), as on record. A row whose own Account — a card row's
+card's Account — is archived is refused with 409 `account.archived`: archiving
+freezes the history (FR-2.4, OQ-220).
 
 ### 3.2 Open Banking sync: infrastructure entry point, Accessors do the rest
 
