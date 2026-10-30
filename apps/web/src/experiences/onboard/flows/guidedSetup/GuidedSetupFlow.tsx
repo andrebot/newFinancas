@@ -17,7 +17,7 @@ import type {
   BudgetEdit, NewBudget,
 } from '../../../accountSetup/flows/budgetManagement/budgetManagementState';
 import { alertOf, coverChipsOf, jointViewOf } from '../../../accountSetup/budgetForm';
-import { mayManageOwned, mayShareOwned } from '../../../accountSetup/ownership';
+import { mayManageOwned, mayShareOwned } from '../../../ownership';
 import type { BudgetsView, CategoriesView } from '../../../accountSetup/sharedLists';
 import {
   accountFormToggled, afterAccountCreate, afterAccountsLoad, afterBudgetWrite, budgetFormOpened,

@@ -8,7 +8,7 @@ import { useAlerts } from '../../../../utilities/AlertProvider';
 import { useI18n } from '../../../../utilities/I18nProvider';
 import type { Translator } from '../../../../utilities/i18n';
 import type { RequestFailure, RequestOutcome } from '../../../../utilities/requestOutcome';
-import { mayCreateOwned, mayManageOwned, mayShareOwned } from '../../ownership';
+import { mayCreateOwned, mayManageOwned, mayShareOwned } from '../../../ownership';
 import type { CategoriesView } from '../../sharedLists';
 import {
   afterAction, budgetIn, deleteConfirmCancelled, deleteConfirmOpened, drawerClosed, drawerOpened,

@@ -12,7 +12,7 @@ import {
   accountMovementOf, accrueBudget, budgetAccrualOf, cardMovementOf,
 } from './effects';
 import {
-  tradeRefusal, holdingNotFound, transactionChanged, transactionNotFound,
+  accountArchived, tradeRefusal, holdingNotFound, transactionChanged, transactionNotFound,
 } from './errors';
 import requirePaidCard from './paidCard';
 
@@ -53,9 +53,10 @@ export const assetTypeOf = (row: EditableRow): string | undefined => (
 );
 
 /**
- * The Account-ledger half of the load: a bill payment's card's Account is
- * decided on too, and must be open — editing or deleting the payment moves the
- * card's balance (OQ-219).
+ * The Account-ledger half of the load: its Account must be open — archiving is
+ * one-way and freezes its history (FR-2.4, OQ-220) — and a bill payment's
+ * card's Account is decided on too, and must be open: editing or deleting the
+ * payment moves the card's balance (OQ-219).
  */
 const loadAccountRow = async (
   deps: TransactionDeps,
@@ -72,6 +73,7 @@ const loadAccountRow = async (
     transactionNotFound,
   );
   if (!account) throw transactionNotFound();
+  if (account.archivedAt !== null) throw accountArchived();
   if (transaction.creditCardId) {
     await requirePaidCard(deps, context, householdId, transaction.creditCardId);
   }
@@ -84,7 +86,7 @@ const loadAccountRow = async (
   };
 };
 
-/** The card-ledger half of the load. */
+/** The card-ledger half of the load: the card's Account must be open (FR-2.4, OQ-220). */
 const loadCardRow = async (
   deps: TransactionDeps,
   context: SignedInContext,
@@ -101,6 +103,7 @@ const loadCardRow = async (
     transactionNotFound,
   );
   if (!card || !account) throw transactionNotFound();
+  if (account.archivedAt !== null) throw accountArchived();
   return {
     ledger: 'card', transaction, account, creditCardId: transaction.creditCardId,
   };

@@ -92,6 +92,23 @@ describe('deleteTransaction', () => {
     );
   });
 
+  it('refuses a row on an archived Account: its history is frozen (FR-2.4, OQ-220)', async () => {
+    const fake = fakeDeps();
+    fake.accounts.findById.mockResolvedValue({ ...ACCOUNT, archivedAt: NOW });
+    await expect(deleteOf(fake).deleteTransaction(context, HOUSEHOLD_ID, ROW.id))
+      .rejects.toMatchObject({ domainError: { code: 'account.archived' } });
+    expect(fake.accountTransactions.delete).not.toHaveBeenCalled();
+  });
+
+  it("refuses a card row whose card's Account is archived (OQ-220)", async () => {
+    const fake = fakeDeps();
+    fake.accountTransactions.findById.mockResolvedValue(undefined);
+    fake.accounts.findById.mockResolvedValue({ ...ACCOUNT, archivedAt: NOW });
+    await expect(deleteOf(fake).deleteTransaction(context, HOUSEHOLD_ID, CARD_ROW.id))
+      .rejects.toMatchObject({ domainError: { code: 'account.archived' } });
+    expect(fake.cardTransactions.delete).not.toHaveBeenCalled();
+  });
+
   it('refuses a bill payment whose card\'s Account is archived (OQ-219)', async () => {
     const fake = fakeDeps();
     fake.accountTransactions.findById.mockResolvedValue({

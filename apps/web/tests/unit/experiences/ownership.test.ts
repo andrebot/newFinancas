@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   mayCreateOwned, mayManageOwned, mayShareOwned,
-} from '../../../../src/experiences/accountSetup/ownership';
+} from '../../../src/experiences/ownership';
 
 // Who may create, share and manage a Budget or a Goal (BDT: Utility-like pure
 // rule, unit; nothing mocked) — OQ-176, OQ-177, OQ-111.

@@ -6213,6 +6213,100 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
 
 **Task 116 (`FL15`) is complete.**
 
+### OQ-220: Browse Transactions (task FL16)
+**Confirmed with the stakeholder (Oct 2026):**
+- **The drawer's button reads "Show transactions", with no count.** Mockup
+  33's "Show 9 transactions" would need a total the contract doesn't give
+  (`monthCounts` covers only a page's months), and a request per edit.
+- **A Holding filter is a removable chip, not a drawer picker.** It comes
+  from a Holding's "See in Transactions" (FR-3.12, OQ-61) and shows above the
+  ledger as "Holding · BBAS3 ✕"; Clear all drops it too. Weighed and rejected:
+  a Holding section in the drawer (every account's Holdings read up front).
+- **Refreshing is RTK Query's, not the Flow's** — this supersedes the
+  sequence's "request page(filters, cursor)". The Experience serves the
+  ledger from an infinite query keyed by the applied filters; a record, edit
+  or delete invalidates its tag and every loaded page is fetched again, so
+  day totals and month counts stay the server's and the scroll stays put.
+  The Flow gets the pages, `hasMore` and `status` as props and emits
+  `onReachedEnd`, `onFiltersChange` and `onDelete` (an outcome back). The
+  applied filters are the Experience's; the Flow keeps the drawer's draft,
+  the open row (one at a time) and its delete.
+- **An expanded row lists kind, date, its source, category › subcategory**
+  and, for a trade, Holding and units; "Posted automatically" tags a
+  schedule's post. The source is the account, the card ("Visa •••• 1111"),
+  or a bill payment's "payer → card", captioned Account, Card or Payment.
+- **An archived account's history is frozen** (PR #143 review — FR-2.4
+  now says so). Edit and Delete refuse a row whose account — a card row's
+  card's account — is archived, with 409 `account.archived` (in
+  `reversal.ts`'s shared load, so both use cases refuse alike); before, only
+  a new transaction was refused, and the contract listed the code for edits
+  the server never sent. The UI hides Edit and Delete on such a row behind
+  a note: "Its account is archived, so this transaction can't be changed."
+  (archiving is one-way, so nothing can undo it). A bill payment counts its
+  card's account too (OQ-219).
+- **One rule for the meta line: source · category · kind**, a trade's ticker
+  in the category's place, what is missing left out — not the mockups'
+  per-kind mix. A row with no description is titled by its kind, so its meta
+  line drops the kind (and a trade's ticker, which shows the category
+  instead) rather than say it twice. A bill payment whose card the user
+  can't see names its payer alone.
+- **The filter offers archived accounts, cards and categories** after the
+  open ones, tagged "Archived", so older rows stay reachable.
+- **A row with no description is titled by its kind** — a trade's with its
+  ticker ("Buy · BBAS3"); one whose kind the reference data doesn't know is
+  "Transaction", and its kind is left out of the meta line and details.
+
+**Design decisions:**
+- **Edit and Delete show only where the user may manage every account the
+  row touches** — its own (a card's), and a bill payment's card's account —
+  by the shared `mayManageOwned` (OQ-111), the server's `accessToOwned(…,
+  'data.edit')`. The rule moved from `experiences/accountSetup/ownership.ts`
+  to `experiences/ownership.ts`, read by three Experiences now.
+- **Names both Flows share leave Record Transaction's section:** kinds,
+  groups and "{network} •••• {last4}" now live in a `transactions` catalog
+  section, read through `experiences/manageFinances/transactionNames.ts`;
+  their icons in `config/constants.ts → transactionKinds`. Neither Flow reads
+  the other's texts.
+- **The kit's multi-pick chips:** `ChipChecks` / `ChipCheckGroup`
+  (`kit/chipGroup/ChipChecks.tsx`) are native checkboxes in ChipGroup's
+  chips, the mockup's check before a chosen one; `MultiChoiceField`
+  (`kit/choiceField/`) draws them up to `choiceField.chipListLimit`, the
+  multi-select (K12) beyond — with stories. The kinds stay chips by group
+  (at most 6 a group).
+- **The kind filter by group (mockup 33):** each group has its count and
+  Select all — Clear once all are ticked; Transfer and Investment start
+  folded unless one of their kinds is ticked. One toggle folds and unfolds a
+  group (`aria-expanded`), the same element either way, so focus stays on
+  it (PR #143 review).
+- **The drawer's draft restarts from the applied filters each time it
+  opens** — on the Flow's first render too, when it mounts with the drawer
+  open (PR #143 review); Show refuses an unsound range (malformed, or To before From) and
+  shows why; Clear all empties the draft only until Show.
+- **The page header's Filter button is the Experience's** (mockup 30), with
+  the count of filters in use (`activeFilterCount`; accounts and cards count
+  once); the Flow's drawer opens on `filterOpen`. Once filtered, the ledger's
+  heading reads "Filtered transactions", with Clear filters.
+- **Pages read as one list** (`ledgerPages.ts`): a row seen on an earlier
+  page isn't drawn twice; a day's totals are R$ first.
+- **A filter on an account or card the Flow wasn't handed is dropped** at
+  the next tick in its picker (the chips keep only the values they list).
+  Accepted: the Experience hands the Flow every account the user can see,
+  archived ones included, so only a vanished one goes.
+- **A Holding chip with no name yet reads "Holding"** ("Stop filtering by
+  this Holding").
+- **A delete is asked in the row** (K26, coral); a failure stays in the
+  confirm's banner; a success is toasted ("Transaction deleted.") and closes
+  the row. Rows, day totals and the month count go with the refetch.
+- A `browseTransactions` catalog section in both locales.
+- **Left to X6 (task 119):** the infinite query and its tag, the Filter
+  button and its badge, the Holding's name for the chip, and `stickyTop` on
+  phones (under the period bar). A delete answered 404
+  `transaction.not_found` (deleted elsewhere) changes nothing, so nothing
+  refetches: X6 should invalidate the ledger on that code too, or the stale
+  row stays with its error.
+
+**Task 117 (`FL16`) is complete.**
+
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
 *(None currently — OQ-29, the last item here, was resolved during data

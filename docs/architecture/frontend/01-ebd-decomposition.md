@@ -130,6 +130,8 @@ Diagram: `docs/design/diagrams/ebd-tiers/app-shell.html`; sequence:
 
 **OQ-219 (task 116):** a bill payment picks the card, then its payer — any open account but a credit-card-only one, in the card's currency; a buy offers the fixed-term types of its account currency's market; an edited fixed-term buy's schedule is read through the Experience and locks the amount, date, units and terms once started; a sell's or redemption's Holding split is read through the Experience, pre-filled, and sent only once changed. The Flow's controller (`useRecordTransaction`) holds its state; its reads and writes are the Experience's callbacks.
 
+**OQ-220 (task 117):** Browse's applied filters and pages are the Experience's — an RTK Query infinite query keyed by the filters, refetched whole after a record, edit or delete, so the figures stay right and the scroll stays put — and the page header's Filter button opens the Flow's drawer. The Flow keeps the drawer's draft (applied by Show once its range is sound), the open row and its delete; its controller is `useBrowseTransactions`. A Holding filter comes from "See in Transactions" and shows as a removable chip; the drawer never picks one. Kind, group and card names are shared by both Flows from `experiences/manageFinances/transactionNames.ts`, and the "may manage" rule from `experiences/ownership.ts`.
+
 | Flow | Interactions | Sequence |
 |---|---|---|
 | Record Transaction | Kind Group & Kind Selection, Transaction Entry, Holding Selection, Investment Buy Entry, Goal Allocation Entry | `docs/design/diagrams/ebd-sequences/manage-finances-record-transaction.html` |

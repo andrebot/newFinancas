@@ -1,10 +1,11 @@
 import { KIND_GROUPS, type KindGroup } from '@financas/reference';
-import { recordTransaction as settings } from '../../../../../config/constants';
+import { transactionKinds as settings } from '../../../../../config/constants';
 import { ChipRadios } from '../../../../../kit/chipGroup/ChipGroup';
 import { LockedField } from '../../../../../kit/field/LockedField';
 import { SegmentedControl } from '../../../../../kit/segmentedControl/SegmentedControl';
 import { useI18n } from '../../../../../utilities/I18nProvider';
 import { groupOf, kindsOfGroup } from '../transactionForm';
+import { groupName, kindIcon, kindName } from '../../../transactionNames';
 import { recordText } from '../recordText';
 
 // Kind Group & Kind Selection (FL15, mockup 31; FR-3.1): the four groups as
@@ -35,10 +36,10 @@ export function KindSelection({
   kind, onGroupChange, onKindChange, locked,
 }: KindSelectionProps) {
   const translator = useI18n();
-  const kindName = (code: string) => recordText(translator, `kind.${code}`);
+  const nameOf = (code: string) => kindName(translator, code);
   if (locked) {
     return (
-      <LockedField label={recordText(translator, 'field.kind')} value={kindName(kind)} />
+      <LockedField label={recordText(translator, 'field.kind')} value={nameOf(kind)} />
     );
   }
   const group = groupOf(kind);
@@ -50,7 +51,7 @@ export function KindSelection({
         options={KIND_GROUPS.map((value) => ({
           value,
           icon: settings.groupIcons[value],
-          label: recordText(translator, `group.${value}`),
+          label: groupName(translator, value),
         }))}
         value={group}
         onChange={onGroupChange}
@@ -59,8 +60,8 @@ export function KindSelection({
         label={recordText(translator, 'field.kind')}
         options={kindsOfGroup(group).map(({ code }) => ({
           value: code,
-          icon: settings.kindIcons[code as keyof typeof settings.kindIcons],
-          label: kindName(code),
+          icon: kindIcon(code),
+          label: nameOf(code),
         }))}
         value={kind}
         onChange={onKindChange}

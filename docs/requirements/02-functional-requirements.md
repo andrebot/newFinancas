@@ -137,7 +137,8 @@ and carry the document's current default assumption.
 - **FR-2.4** A user can archive/close an account without deleting its
   transaction history. **One-way — an archived account cannot be
   reactivated** (see OQ-34), and it **takes no new transactions**
-  (OQ-169), consistent with the Category/Subcategory
+  (OQ-169) — nor are its existing ones (its cards' included) edited or
+  deleted: its history is frozen (OQ-220) — consistent with the Category/Subcategory
   archive pattern (FR-10.3). If the account has an active Open Banking
   connection (FR-2.5), archiving it **automatically disconnects** the
   sync (FR-2.6) — an archived account never keeps pulling in new

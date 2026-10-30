@@ -7,6 +7,7 @@ import { MoneyInput } from '../../../../../kit/moneyInput/MoneyInput';
 import { TextField } from '../../../../../kit/textField/TextField';
 import { useI18n } from '../../../../../utilities/I18nProvider';
 import type { Translator } from '../../../../../utilities/i18n';
+import { cardName } from '../../../transactionNames';
 import {
   accountChoicesOf, cardEntriesOf, cardEntryOf, directionOf, groupOf, isBillPayment, isBuy,
   isCardKind, isTrade, namesCard, type CardEntry, type TransactionForm,
@@ -111,10 +112,8 @@ export interface TargetFieldsProps {
  * @param translator - The texts.
  * @returns The card's name.
  */
-export const cardNameOf = (entry: CardEntry, translator: Translator) => recordText(
-  translator,
-  'card.label',
-  { network: translator.text('cardNetworks', entry.card.network), last4: entry.card.last4 },
+export const cardNameOf = (entry: CardEntry, translator: Translator) => (
+  cardName(translator, entry.card)
 );
 
 /**

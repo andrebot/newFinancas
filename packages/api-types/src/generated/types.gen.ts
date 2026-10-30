@@ -2993,7 +2993,7 @@ export type DeleteTransactionErrors = {
      */
     404: Error;
     /**
-     * `transaction.schedule_started`, `credit_card.account_archived` (a bill payment whose card's Account is archived — OQ-219), `transaction.holding_in_use` (the buy created a Holding other transactions still reference — params: `count`), `holding.insufficient_quantity` (undoing the buy would take the Holding below zero).
+     * `transaction.schedule_started`, `account.archived` (the row's Account — a card row's card's — is archived: its history is frozen, OQ-220), `credit_card.account_archived` (a bill payment whose card's Account is archived — OQ-219), `transaction.holding_in_use` (the buy created a Holding other transactions still reference — params: `count`), `holding.insufficient_quantity` (undoing the buy would take the Holding below zero).
      */
     409: Error;
 };
@@ -3057,7 +3057,7 @@ export type EditTransactionErrors = {
      */
     404: Error;
     /**
-     * `transaction.schedule_started` (a fixed-term buy whose schedule has posted keeps its amount, date and terms), `account.archived`, `credit_card.account_archived` (a bill payment whose card's Account is archived — OQ-219), `holding.insufficient_quantity`, `holding.cost_basis_below_zero`.
+     * `transaction.schedule_started` (a fixed-term buy whose schedule has posted keeps its amount, date and terms), `account.archived` (the row's Account — a card row's card's — is archived: its history is frozen, OQ-220), `credit_card.account_archived` (a bill payment whose card's Account is archived — OQ-219), `holding.insufficient_quantity`, `holding.cost_basis_below_zero`.
      */
     409: Error;
     /**

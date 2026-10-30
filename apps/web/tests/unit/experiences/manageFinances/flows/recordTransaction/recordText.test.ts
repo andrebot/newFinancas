@@ -11,7 +11,7 @@ describe('recordText', () => {
   it('writes a key built from a code, with its params', () => {
     const translator = createTranslator('pt-BR');
 
-    expect(recordText(translator, 'kind.pix_payment')).toBe('Pix enviado');
+    expect(recordText(translator, 'field.kind')).toBe('Tipo');
     expect(recordText(translator, 'rate.cdi', { rate: '110%' })).toBe('110% do CDI');
   });
 });

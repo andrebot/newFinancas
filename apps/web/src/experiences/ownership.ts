@@ -1,9 +1,10 @@
-// Who may create, share and manage a household's owned items — a Budget or a
-// Goal (OQ-176, OQ-177): the same rule for both, so Budget and Goal
-// Management read it here rather than from each other (EBD: no sideways
-// calls). A personal item is its owner's alone, whatever their role; a shared
-// one follows the permission table — an Owner or Admin, or the Member who
-// created it (OQ-111). The server checks again; this only decides what shows.
+// Who may create, share and manage a household's owned items — a Budget, a
+// Goal, or an Account's transactions (OQ-176, OQ-177, OQ-220): the same rule
+// everywhere, so the Flows of every Experience read it here rather than from
+// each other (EBD: no sideways calls). A personal item is its owner's alone,
+// whatever their role; a shared one follows the permission table — an Owner
+// or Admin, or the Member who created it (OQ-111). The server checks again;
+// this only decides what shows.
 
 /** What an owned item carries that the rule reads. */
 export interface OwnedItem {
