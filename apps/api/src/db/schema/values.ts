@@ -1,3 +1,5 @@
+import { ASSET_TYPES } from '@financas/reference';
+
 // Closed value sets, stored as text + CHECK (OQ-95). Extensible reference data
 // (transaction kinds, asset types, card networks, index codes, notification
 // types, …) is plain text validated in code instead (02-data-model.md).
@@ -18,6 +20,14 @@ export const RATE_TYPES = ['fixed', 'cdi', 'ipca', 'igpm', 'selic'] as const;
 export const SPREAD_RATE_TYPES = ['cdi', 'selic'] as const;
 /** When a fixed-term contract pays interest (FR-11.2, OQ-201). */
 export const INTEREST_PAYMENTS = ['at_maturity', 'monthly', 'semiannual'] as const;
+/**
+ * The fixed-term asset types, which must carry their contract terms (OQ-224) —
+ * the one CHECK on asset types, taken from the reference list so a new
+ * fixed-term type fails `check:schema` until its migration is generated.
+ */
+export const FIXED_TERM_ASSET_TYPES: readonly string[] = ASSET_TYPES
+  .filter((type) => type.pricing === 'fixed_term')
+  .map((type) => type.code);
 export const ARCHIVED_BY = ['system', 'user'] as const;
 export const SNAPSHOT_SOURCES = ['manual', 'transaction'] as const;
 export const TRANSACTION_EFFECTS = [

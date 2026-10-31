@@ -39,7 +39,8 @@ const NO_PROJECTION = {
 /**
  * The contract terms the Engine projects from (OQ-205): the Holding's own rate
  * and due date, its buy's date and amount. A fixed-term row always carries its
- * terms — TransactionManager sets them when it opens the Holding.
+ * terms — TransactionManager sets them when it opens the Holding, and the
+ * schema refuses one without them (OQ-224).
  *
  * @param holding - The fixed-term Holding.
  * @param buy - The buy that opened it.

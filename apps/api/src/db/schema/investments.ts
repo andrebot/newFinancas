@@ -8,7 +8,8 @@ import {
 } from './columns';
 import { households, users } from './identity';
 import {
-  ARCHIVED_BY, INTEREST_PAYMENTS, RATE_TYPES, SPREAD_RATE_TYPES, VISIBILITIES,
+  ARCHIVED_BY, FIXED_TERM_ASSET_TYPES, INTEREST_PAYMENTS, RATE_TYPES, SPREAD_RATE_TYPES,
+  VISIBILITIES,
 } from './values';
 
 // Investments & Goals (02-data-model.md) — InvestmentHoldingAccessor,
@@ -56,6 +57,12 @@ export const investmentHoldings = pgTable('investment_holdings', {
   check(
     'investment_holdings_due_date_pair_check',
     sql`(${table.rateType} IS NULL) = (${table.dueDate} IS NULL)`,
+  ),
+  // A fixed-term Holding always carries its terms (OQ-224): the pair checks
+  // above then require the rest of them.
+  check(
+    'investment_holdings_fixed_term_terms_check',
+    sql`NOT (${isOneOf(table.assetType, FIXED_TERM_ASSET_TYPES)}) OR ${table.rateType} IS NOT NULL`,
   ),
   check('investment_holdings_archived_by_check', isOneOf(table.archivedBy, ARCHIVED_BY)),
   check(
