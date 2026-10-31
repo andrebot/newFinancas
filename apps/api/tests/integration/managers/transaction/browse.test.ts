@@ -4,7 +4,7 @@ import type { CardTransaction } from '../../../../src/accessors/cardTransactionA
 import type { SignedInContext } from '../../../../src/managers/requestContext';
 import createBrowse from '../../../../src/managers/transaction/browse';
 import {
-  ACCOUNT, ANA_ID, CARD_ROW, HOUSEHOLD_ID, MARKET_HOLDING, ROW, fakeDeps,
+  ACCOUNT, ANA_ID, CARD, CARD_ROW, CHECKING, HOUSEHOLD_ID, MARKET_HOLDING, ROW, fakeDeps,
 } from './fakes';
 
 // Browse & Filter (CUC-4, FR-3.12): both ledgers as one newest-first list —
@@ -123,8 +123,20 @@ describe('listTransactions', () => {
         from: '2026-01-01',
         to: '2026-12-31',
         holdingId: 'h1',
-
+        creditCardIds: ['cc1'],
       }),
+      undefined,
+      11,
+    );
+  });
+
+  it('passes a picked Account through to the Account ledger (review B4)', async () => {
+    const fake = fakeDeps();
+    await browseOf(fake).listTransactions(context, HOUSEHOLD_ID, {
+      accountIds: [ACCOUNT.id],
+    }, undefined, 10);
+    expect(fake.accountTransactions.list).toHaveBeenCalledWith(
+      expect.objectContaining({ accountIds: [ACCOUNT.id] }),
       undefined,
       11,
     );
@@ -250,6 +262,149 @@ describe('listTransactions', () => {
     );
   });
 
+  describe('the card picker over two visible cards (OQ-204, review B4)', () => {
+    const OTHER_CARD = { ...CARD, id: 'card-2', last4: '9876' };
+
+    /**
+     * A fake whose visible Accounts carry both cards; a pick by Account names `picked`.
+     *
+     * @param picked - The cards the picked Accounts carry.
+     * @returns The fake.
+     */
+    const twoCards = (picked: (typeof CARD)[]) => {
+      const fake = fakeDeps();
+      fake.creditCards.listByAccounts.mockResolvedValueOnce([CARD, OTHER_CARD])
+        .mockResolvedValueOnce(picked);
+      return fake;
+    };
+
+    it('takes every visible card when nothing is picked', async () => {
+      const fake = twoCards([]);
+      await browseOf(fake).listTransactions(context, HOUSEHOLD_ID, {}, undefined, 10);
+      expect(fake.cardTransactions.list).toHaveBeenCalledWith(
+        expect.objectContaining({ creditCardIds: [CARD.id, OTHER_CARD.id] }),
+        undefined,
+        11,
+      );
+    });
+
+    it('takes only the picked Account\'s card', async () => {
+      const fake = twoCards([OTHER_CARD]);
+      await browseOf(fake).listTransactions(context, HOUSEHOLD_ID, {
+        accountIds: [CHECKING.id],
+      }, undefined, 10);
+      expect(fake.creditCards.listByAccounts).toHaveBeenLastCalledWith([CHECKING.id]);
+      expect(fake.cardTransactions.list).toHaveBeenCalledWith(
+        expect.objectContaining({ creditCardIds: [OTHER_CARD.id] }),
+        undefined,
+        11,
+      );
+    });
+
+    it('takes only the picked card, never one the caller can\'t see', async () => {
+      const fake = twoCards([]);
+      await browseOf(fake).listTransactions(context, HOUSEHOLD_ID, {
+        creditCardIds: [OTHER_CARD.id, 'hidden-card'],
+      }, undefined, 10);
+      expect(fake.creditCards.listByAccounts).toHaveBeenCalledTimes(1);
+      expect(fake.cardTransactions.list).toHaveBeenCalledWith(
+        expect.objectContaining({ creditCardIds: [OTHER_CARD.id] }),
+        undefined,
+        11,
+      );
+    });
+  });
+
+  describe('paging (review B5)', () => {
+    it('hands each ledger its half of the token on the next page', async () => {
+      const fake = fakeDeps();
+      fake.accountTransactions.list.mockResolvedValueOnce([
+        accountRow('a2', '2026-10-13'), accountRow('a1', '2026-10-12'),
+      ]);
+      fake.cardTransactions.list.mockResolvedValueOnce([
+        cardRow('c2', '2026-10-14'), cardRow('c1', '2026-10-11'),
+      ]);
+      const first = await browseOf(fake).listTransactions(context, HOUSEHOLD_ID, {}, undefined, 2);
+      expect(first.nextCursor).toBe('tx2.2026-10-13:a2|2026-10-14:c2');
+      await browseOf(fake).listTransactions(context, HOUSEHOLD_ID, {}, first.nextCursor!, 2);
+      expect(fake.accountTransactions.list).toHaveBeenLastCalledWith(
+        expect.anything(),
+        { date: '2026-10-13', id: 'a2' },
+        3,
+      );
+      expect(fake.cardTransactions.list).toHaveBeenLastCalledWith(
+        expect.anything(),
+        { date: '2026-10-14', id: 'c2' },
+        3,
+      );
+    });
+
+    it('asks a finished ledger nothing more, and it adds nothing', async () => {
+      const fake = fakeDeps();
+      fake.accountTransactions.list.mockResolvedValue([accountRow('a1', '2026-10-12')]);
+      const accountDone = await browseOf(fake).listTransactions(
+        context,
+        HOUSEHOLD_ID,
+        {},
+        'tx2.-|2026-10-14:c2',
+        5,
+      );
+      expect(fake.accountTransactions.list).not.toHaveBeenCalled();
+      expect(accountDone.items).toEqual([]);
+
+      fake.cardTransactions.list.mockClear();
+      const cardDone = await browseOf(fake).listTransactions(
+        context,
+        HOUSEHOLD_ID,
+        {},
+        'tx2.2026-10-13:a2|-',
+        5,
+      );
+      expect(fake.cardTransactions.list).not.toHaveBeenCalled();
+      expect(cardDone.items.map(({ transaction }) => transaction.id)).toEqual(['a1']);
+    });
+
+    it.each([
+      ['a half with no separator', 'tx2.2026-10-13|'],
+      ['a date with a prefix', 'tx2.x2026-10-13:a1|'],
+      ['a date with a suffix', 'tx2.2026-10-13x:a1|'],
+      ['an empty id', 'tx2.2026-10-13:|'],
+    ])('refuses a half-token that is %s', async (_label, cursor) => {
+      const fake = fakeDeps();
+      await expect(browseOf(fake).listTransactions(context, HOUSEHOLD_ID, {}, cursor, 10))
+        .rejects.toMatchObject({
+          domainError: { code: 'validation.failed', details: [{ field: 'cursor' }] },
+        });
+      expect(fake.accountTransactions.list).not.toHaveBeenCalled();
+    });
+
+    it('nets each day and currency apart, and counts the page\'s months', async () => {
+      const fake = fakeDeps();
+      fake.accountTransactions.list.mockResolvedValue([
+        accountRow('a2', '2026-10-13'), accountRow('a1', '2026-09-30'),
+      ]);
+      fake.accountTransactions.dayTotals.mockResolvedValue([
+        {
+          date: '2026-10-13', currency: 'BRL', kind: 'withdrawal', total: 1_000,
+        },
+        {
+          date: '2026-10-13', currency: 'USD', kind: 'deposit', total: 300,
+        },
+        {
+          date: '2026-09-30', currency: 'BRL', kind: 'deposit', total: 200,
+        },
+      ]);
+      const page = await browseOf(fake).listTransactions(context, HOUSEHOLD_ID, {}, undefined, 10);
+      expect(page.dayTotals).toEqual([
+        { date: '2026-10-13', currency: 'BRL', net: -1_000 },
+        { date: '2026-10-13', currency: 'USD', net: 300 },
+        { date: '2026-09-30', currency: 'BRL', net: 200 },
+      ]);
+      expect(fake.accountTransactions.monthCounts)
+        .toHaveBeenCalledWith(expect.anything(), ['2026-10', '2026-09']);
+    });
+  });
+
   it('nets the page days by direction and sums months over the whole set (FR-3.12)', async () => {
     const fake = fakeDeps();
     fake.accountTransactions.list.mockResolvedValue([accountRow('a1', '2026-10-13')]);
@@ -295,6 +450,17 @@ describe('getTransaction', () => {
     const fake = fakeDeps();
     const row = await browseOf(fake).getTransaction(context, HOUSEHOLD_ID, ROW.id);
     expect(row.ledger).toBe('account');
+  });
+
+  it('keeps a transfer\'s other side when the caller sees its Account (review B5)', async () => {
+    const fake = fakeDeps();
+    const pair = {
+      id: 'side-2', accountId: CHECKING.id, amount: 5_000, currency: 'BRL',
+    };
+    fake.accountTransactions.findById.mockResolvedValue({ ...ROW, pair });
+    fake.accounts.list.mockResolvedValue([ACCOUNT, CHECKING]);
+    const row = await browseOf(fake).getTransaction(context, HOUSEHOLD_ID, ROW.id);
+    expect(row).toEqual({ ledger: 'account', transaction: { ...ROW, pair } });
   });
 
   it('answers a card row through its Account', async () => {
