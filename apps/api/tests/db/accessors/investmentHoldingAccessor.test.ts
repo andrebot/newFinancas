@@ -26,6 +26,14 @@ afterAll(async () => {
 const UNKNOWN_ID = '00000000-0000-7000-8000-000000000000';
 const TODAY = '2026-10-17';
 
+/** The contract terms every fixed-term Holding carries (OQ-224). */
+const FIXED_TERMS = {
+  ticker: null,
+  rate: { rateType: 'cdi', rateValue: 1_100_000, rateSpread: null },
+  interestPayment: 'at_maturity',
+  dueDate: '2027-10-15',
+} as const;
+
 /** The terms `updateTerms` guards on, straight from a read Holding. */
 const termsOf = (holding: InvestmentHolding): ExpectedHoldingTerms => ({
   rateType: holding.rateType,
@@ -499,7 +507,7 @@ describe('unarchiveIfSystemArchived', () => {
 
 describe('applySchedule', () => {
   it('stores the schedule, each entry unposted', scenario(async ({ accessor, open }) => {
-    const holdingId = await open({ assetType: 'cdb', ticker: null });
+    const holdingId = await open({ ...FIXED_TERMS, assetType: 'cdb' });
 
     expect(await accessor.applySchedule(holdingId, cdbSchedule('2027-10-17')))
       .toEqual({ ok: true });
@@ -521,7 +529,7 @@ describe('applySchedule', () => {
   it('replaces the whole schedule while none of it has posted', scenario(async ({
     accessor, open,
   }) => {
-    const holdingId = await open({ assetType: 'cdb', ticker: null });
+    const holdingId = await open({ ...FIXED_TERMS, assetType: 'cdb' });
     await accessor.applySchedule(holdingId, cdbSchedule('2027-10-17'));
 
     expect(await accessor.applySchedule(holdingId, [
@@ -533,7 +541,7 @@ describe('applySchedule', () => {
   }));
 
   it('clears the schedule when given none', scenario(async ({ accessor, open }) => {
-    const holdingId = await open({ assetType: 'cdb', ticker: null });
+    const holdingId = await open({ ...FIXED_TERMS, assetType: 'cdb' });
     await accessor.applySchedule(holdingId, cdbSchedule('2027-10-17'));
 
     expect(await accessor.applySchedule(holdingId, [])).toEqual({ ok: true });
@@ -543,7 +551,7 @@ describe('applySchedule', () => {
   it('refuses once an entry has posted, keeping the schedule (OQ-171)', scenario(async ({
     accessor, open,
   }) => {
-    const holdingId = await open({ assetType: 'tesouro_direto', ticker: null });
+    const holdingId = await open({ ...FIXED_TERMS, assetType: 'tesouro_direto' });
     await accessor.applySchedule(holdingId, [
       { kind: 'interest_payment', amount: 3_000, date: '2026-07-01' },
       { kind: 'redemption', amount: 100_000, date: '2029-01-01' },
@@ -564,8 +572,8 @@ describe('applySchedule', () => {
 
 describe('listSchedule', () => {
   it('lists each Holding\'s entries by date', scenario(async ({ accessor, open }) => {
-    const first = await open({ assetType: 'cdb', ticker: null });
-    const second = await open({ assetType: 'lci', ticker: null });
+    const first = await open({ ...FIXED_TERMS, assetType: 'cdb' });
+    const second = await open({ ...FIXED_TERMS, assetType: 'lci' });
     await accessor.applySchedule(first, [
       { kind: 'redemption', amount: 100_000, date: '2028-01-01' },
       { kind: 'interest_payment', amount: 2_000, date: '2027-01-01' },
@@ -589,7 +597,7 @@ describe('findDueScheduleEntries', () => {
   it('lists unposted entries due by today, oldest first, with their Account', scenario(async ({
     accessor, investment, open,
   }) => {
-    const holdingId = await open({ assetType: 'tesouro_direto', ticker: null });
+    const holdingId = await open({ ...FIXED_TERMS, assetType: 'tesouro_direto' });
     await accessor.applySchedule(holdingId, [
       { kind: 'interest_payment', amount: 3_000, date: '2026-04-01' },
       { kind: 'interest_payment', amount: 3_000, date: TODAY },
@@ -610,7 +618,7 @@ describe('findDueScheduleEntries', () => {
 
 describe('markEntryPosted', () => {
   it('marks an entry once', scenario(async ({ accessor, open }) => {
-    const holdingId = await open({ assetType: 'cdb', ticker: null });
+    const holdingId = await open({ ...FIXED_TERMS, assetType: 'cdb' });
     await accessor.applySchedule(holdingId, cdbSchedule(TODAY));
     const [entry] = await accessor.listSchedule([holdingId]);
 

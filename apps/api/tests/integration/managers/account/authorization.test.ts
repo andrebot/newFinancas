@@ -1,14 +1,12 @@
-import { captureLogs } from '@financas/logging';
-import type { Mock } from 'vitest';
-import {
-  describe, expect, it, onTestFinished,
-} from 'vitest';
-import { isDomainError } from '../../../../src/utilities/domainError';
+import { describe, expect, it } from 'vitest';
 import { createAccountManager } from '../../../../src/managers/account';
 import {
   ACCOUNT, ANA_ID, BEA_ID, BUDGET, CARD, CATEGORY, CONTEXT, fakeDeps, GOAL, HOLDING,
   HOUSEHOLD_ID, RATE, SNAPSHOT, SUBCATEGORY, TODAY,
 } from './fakes';
+import {
+  answerNothing, refusedLogging, runPastAccess, touchedBeyondAccess, type MockGroups,
+} from '../seam';
 
 // The seam between AccountManager and AuthorizationUtility, across every use
 // case (I2): each asks for its own action on the facts of the data it acts on,
@@ -23,6 +21,7 @@ const EVENT_HANDLERS = ['seedDefaultCategories', 'notifyMaturedHolding'];
 
 type Manager = ReturnType<typeof createAccountManager>;
 type Visibility = 'personal' | 'shared';
+type Fakes = ReturnType<typeof fakeDeps>;
 
 /** A use case as the matrix runs it. */
 interface GuardedUseCase {
@@ -246,67 +245,31 @@ const beasData = (visibility: Visibility) => {
  */
 const missingData = () => {
   const fakes = fakeDeps();
-  [fakes.accounts, fakes.creditCards, fakes.budgets, fakes.goals, fakes.holdings, fakes.indexRates]
-    .forEach((accessor) => (accessor.findById as Mock).mockResolvedValue(undefined));
+  answerNothing([
+    fakes.accounts, fakes.creditCards, fakes.budgets, fakes.goals, fakes.holdings, fakes.indexRates,
+  ]);
   return fakes;
 };
 
 /**
- * Every mocked call made to the tier below other than the access check and the
- * reads a use case decides it on — what a refused use case must not reach.
+ * The mocks of the tier below, by group — what `touchedBeyondAccess` looks at.
  *
  * @param fakes - The mocks from `fakeDeps`.
- * @param reads - The reads the use case may make, as `group.name`.
- * @returns The names of the other mocks that were called.
+ * @returns Them, by group.
  */
-const touchedBeyondAccess = (
-  fakes: ReturnType<typeof fakeDeps>,
-  reads: readonly string[],
-): string[] => {
-  const groups = {
-    categories: fakes.categories,
-    accounts: fakes.accounts,
-    creditCards: fakes.creditCards,
-    budgets: fakes.budgets,
-    goals: fakes.goals,
-    holdings: fakes.holdings,
-    valuations: fakes.valuations,
-    indexRates: fakes.indexRates,
-    households: fakes.households,
-    notifications: fakes.notifications,
-    unitOfWork: { inTransaction: fakes.inTransaction },
-  };
-  return Object.entries(groups).flatMap(([group, mocks]) => Object.entries(mocks)
-    .filter(([, mock]) => (mock as Mock).mock.calls.length > 0)
-    .map(([name]) => `${group}.${name}`)
-    .filter((called) => !reads.includes(called)));
-};
-
-/**
- * Runs a use case to its end, letting through only the API errors its own
- * rules answer with after an allowed check — a broken row still fails.
- *
- * @param run - The use case, ready to run.
- * @returns Once it has answered.
- */
-const runPastAccess = async (run: () => Promise<unknown>): Promise<void> => {
-  await run().catch((error: unknown) => {
-    if (!isDomainError(error)) throw error;
-  });
-};
-
-/**
- * Runs a use case the caller is refused, capturing what it logs.
- *
- * @param run - The use case, ready to run.
- * @param answer - The API error it must answer with.
- * @returns What it logged.
- */
-const refusedLogging = async (run: () => Promise<unknown>, answer: object): Promise<unknown[]> => {
-  const logs = captureLogs(onTestFinished);
-  await expect(run()).rejects.toMatchObject({ domainError: answer });
-  return logs.events;
-};
+const belowOf = (fakes: Fakes): MockGroups => ({
+  categories: fakes.categories,
+  accounts: fakes.accounts,
+  creditCards: fakes.creditCards,
+  budgets: fakes.budgets,
+  goals: fakes.goals,
+  holdings: fakes.holdings,
+  valuations: fakes.valuations,
+  indexRates: fakes.indexRates,
+  households: fakes.households,
+  notifications: fakes.notifications,
+  unitOfWork: { inTransaction: fakes.inTransaction },
+});
 
 describe('AccountManager ↔ AuthorizationUtility seam (I2, OQ-111)', () => {
   it('covers every use case AccountManager has', () => {
@@ -338,7 +301,7 @@ describe('AccountManager ↔ AuthorizationUtility seam (I2, OQ-111)', () => {
 
     expect(fakes.authorization.authorize)
       .toHaveBeenCalledWith(ANA_ID, HOUSEHOLD_ID, sharedData('data.view')());
-    expect(touchedBeyondAccess(fakes, reads)).toEqual([]);
+    expect(touchedBeyondAccess(belowOf(fakes), reads)).toEqual([]);
     expect(events).toEqual([]);
   });
 
@@ -361,7 +324,7 @@ describe('AccountManager ↔ AuthorizationUtility seam (I2, OQ-111)', () => {
         answer(hidden),
       );
 
-      expect(touchedBeyondAccess(fakes, reads)).toEqual([]);
+      expect(touchedBeyondAccess(belowOf(fakes), reads)).toEqual([]);
       expect(events).toEqual([]);
     });
   });

@@ -1,20 +1,18 @@
-import { captureLogs } from '@financas/logging';
 import type { Mock } from 'vitest';
-import {
-  describe, expect, it, onTestFinished,
-} from 'vitest';
+import { describe, expect, it } from 'vitest';
 import type { Account } from '../../../../src/accessors/accountAccessor';
 import type { AccountTransaction } from '../../../../src/accessors/accountTransactionAccessor';
 import type { CardTransaction } from '../../../../src/accessors/cardTransactionAccessor';
-import type { Role } from '../../../../src/db/schema/values';
 import type { SignedInContext } from '../../../../src/managers/requestContext';
 import { createTransactionManager } from '../../../../src/managers/transaction';
 import type { TransactionCreate } from '../../../../src/managers/transaction/record';
-import { decide, type AccessRequest } from '../../../../src/utilities/authorization';
-import { isDomainError } from '../../../../src/utilities/domainError';
+import type { AccessRequest } from '../../../../src/utilities/authorization';
 import {
   ANA_ID, CARD, CARD_ROW, CHECKING, HOUSEHOLD_ID, ROW, fakeDeps,
 } from './fakes';
+import {
+  answerNothing, refusedLogging, runPastAccess, touchedBeyondAccess, withRole, type MockGroups,
+} from '../seam';
 
 // The seam between TransactionManager and AuthorizationUtility, across every
 // use case (I3, OQ-223): recording asks to create on the Account it lands on;
@@ -328,85 +326,31 @@ const withAccounts = (fakes: Fakes, accounts: readonly Account[]): Fakes => {
  */
 const missingData = () => {
   const fakes = fakeDeps();
-  [fakes.accounts, fakes.creditCards, fakes.accountTransactions, fakes.cardTransactions]
-    .forEach((accessor) => (accessor.findById as Mock).mockResolvedValue(undefined));
+  answerNothing([
+    fakes.accounts, fakes.creditCards, fakes.accountTransactions, fakes.cardTransactions,
+  ]);
   return fakes;
 };
 
 /**
- * Every mocked call made to the tier below other than the access check and the
- * reads a use case decides it on — what a refused use case must not reach.
+ * The mocks of the tier below, by group — what `touchedBeyondAccess` looks at.
  *
  * @param fakes - The mocks from `fakeDeps`.
- * @param reads - The reads the use case may make, as `group.name`.
- * @returns The names of the other mocks that were called.
+ * @returns Them, by group.
  */
-const touchedBeyondAccess = (fakes: Fakes, reads: readonly string[]): string[] => {
-  const groups = {
-    accounts: fakes.accounts,
-    accountTransactions: fakes.accountTransactions,
-    cardTransactions: fakes.cardTransactions,
-    creditCards: fakes.creditCards,
-    categories: fakes.categories,
-    budgets: fakes.budgets,
-    goals: fakes.goals,
-    holdings: fakes.holdings,
-    valuations: fakes.valuations,
-    investmentProducts: fakes.investmentProducts,
-    unitOfWork: { inTransaction: fakes.inTransaction },
-  };
-  return Object.entries(groups).flatMap(([group, mocks]) => Object.entries(mocks)
-    .filter(([, mock]) => (mock as Mock).mock.calls.length > 0)
-    .map(([name]) => `${group}.${name}`)
-    .filter((called) => !reads.includes(called)));
-};
-
-/**
- * Runs a use case to its end, letting through only the API errors its own
- * rules answer with after an allowed check — a broken row still fails.
- *
- * @param run - The use case, ready to run.
- * @returns Once it has answered.
- */
-const runPastAccess = async (run: () => Promise<unknown>): Promise<void> => {
-  await run().catch((error: unknown) => {
-    if (!isDomainError(error)) throw error;
-  });
-};
-
-/**
- * Runs a use case the caller is refused, capturing what it logs.
- *
- * @param run - The use case, ready to run.
- * @param answer - The API error it must answer with.
- * @returns What it logged.
- */
-const refusedLogging = async (run: () => Promise<unknown>, answer: object): Promise<unknown[]> => {
-  const logs = captureLogs(onTestFinished);
-  await expect(run()).rejects.toMatchObject({ domainError: answer });
-  return logs.events;
-};
-
-/**
- * Programs the access check to answer as the real policy would for a caller
- * holding a role — the table under test in AuthorizationUtility's own suite,
- * run here to show what the requests the Manager sends come to.
- *
- * @param fakes - The mocks from `fakeDeps`.
- * @param role - Ana's household role.
- * @returns The same mocks.
- */
-const withRole = (fakes: Fakes, role: Role): Fakes => {
-  fakes.authorization.authorize.mockImplementation((async (
-    actorId: string,
-    _householdId: string,
-    request: AccessRequest,
-  ) => {
-    const decision = decide(role, actorId, request);
-    return decision === 'allowed' ? { outcome: 'allowed', role } : { outcome: decision };
-  }) as never);
-  return fakes;
-};
+const belowOf = (fakes: Fakes): MockGroups => ({
+  accounts: fakes.accounts,
+  accountTransactions: fakes.accountTransactions,
+  cardTransactions: fakes.cardTransactions,
+  creditCards: fakes.creditCards,
+  categories: fakes.categories,
+  budgets: fakes.budgets,
+  goals: fakes.goals,
+  holdings: fakes.holdings,
+  valuations: fakes.valuations,
+  investmentProducts: fakes.investmentProducts,
+  unitOfWork: { inTransaction: fakes.inTransaction },
+});
 
 describe('TransactionManager ↔ AuthorizationUtility seam (I3, OQ-223)', () => {
   it('covers every use case TransactionManager has', () => {
@@ -440,7 +384,7 @@ describe('TransactionManager ↔ AuthorizationUtility seam (I3, OQ-223)', () => 
     const events = await refusedLogging(() => run(manager), NOT_FOUND);
 
     expect(fakes.authorization.authorize).toHaveBeenCalledWith(ANA_ID, HOUSEHOLD_ID, MEMBER_ONLY);
-    expect(touchedBeyondAccess(fakes, [...reads, ...READS.row])).toEqual([]);
+    expect(touchedBeyondAccess(belowOf(fakes), [...reads, ...READS.row])).toEqual([]);
     expect(events).toEqual([]);
   });
 
@@ -473,7 +417,7 @@ describe('TransactionManager ↔ AuthorizationUtility seam (I3, OQ-223)', () => 
         answer(hidden),
       );
 
-      expect(touchedBeyondAccess(fakes, reads)).toEqual([]);
+      expect(touchedBeyondAccess(belowOf(fakes), reads)).toEqual([]);
       expect(events).toEqual([]);
     });
   });
@@ -516,7 +460,7 @@ describe('TransactionManager ↔ AuthorizationUtility seam (I3, OQ-223)', () => 
 
       await createTransactionManager(fakes.deps).recordTransaction(CONTEXT, HOUSEHOLD_ID, request);
 
-      expect(touchedBeyondAccess(fakes, [])).toContain(write);
+      expect(touchedBeyondAccess(belowOf(fakes), [])).toContain(write);
     });
 
     it('refuses a Viewer recording', async () => {

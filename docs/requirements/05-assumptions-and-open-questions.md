@@ -6710,17 +6710,31 @@ Manager agreeing with FR-1.7 / FR-2.3 / OQ-111 / OQ-117 everywhere:
 - **Data that isn't there asks only the membership check** — a Goal, an
   Account, a Holding or a Holding's Account — so a non-member still gets
   `household.not_found`, a member the data's own 404.
-- A refusal reads only what decides access: no Engine, no further read, no
-  log.
+- A refusal reads only what decides access, each read once: no Engine, no
+  further read. (The Manager has no logger, so there is no log to check.)
+- **`forbidden` can't happen here:** every request is `data.view`, which
+  every role holds, so the matrix runs only `not_member` and `not_visible`.
 
 **The BDT plan's "an Engine failure for one holding returns the others with
 that projection marked unavailable" is amended to OQ-205:** the one degraded
 answer is `project` → `index_missing`, which leaves only that Holding
-unprojected (now asserted on a list, too). A thrown `project` — it throws
-only for a type that isn't fixed-term, which the Manager never sends — is a
-bug and fails the read (500). Weighed and rejected: catching per Holding,
-which would need a new `projectionUnavailable` reason in the contract and the
-UI for a case that can't happen.
+unprojected (now asserted on a list, too). A thrown `project` is a bug and
+fails the read (500), asserted on a list and on one Holding. It throws for a
+type that isn't fixed-term, which the Manager never sends, or for a
+fixed-term row missing its terms — which the schema now refuses (migration
+0016, PR #147 review): `investment_holdings_fixed_term_terms_check` requires
+`rate_type` on every fixed-term asset type, and the pair checks the rest.
+It is the one CHECK naming asset types (otherwise an in-code list,
+02-data-model): its list is taken from `@financas/reference`, so a new
+fixed-term type fails `check:schema` until its migration is generated.
+Weighed and rejected: catching per Holding, which would need a new
+`projectionUnavailable` reason in the contract and the UI for a case the
+schema now rules out; and only rewording the claim, which would leave one
+bad row failing a whole Account's list.
+
+The seam suites' matrix helpers (I2–I4) now live in
+`tests/integration/managers/seam.ts`; `touchedBeyondAccess` counts calls,
+so a refused use case reading the same thing twice is caught too.
 
 The Dashboard, inbox and audit export (task 139) and the investments reports
 (task 133) join the matrix with their use cases.

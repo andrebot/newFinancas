@@ -1,12 +1,11 @@
-import { captureLogs } from '@financas/logging';
-import type { Mock } from 'vitest';
-import {
-  describe, expect, it, onTestFinished,
-} from 'vitest';
+import { describe, expect, it } from 'vitest';
 import type { Role } from '../../../../src/db/schema/values';
 import { createInsightsManager } from '../../../../src/managers/insights';
 import type { SignedInContext } from '../../../../src/managers/requestContext';
-import { decide, type AccessRequest } from '../../../../src/utilities/authorization';
+import type { AccessRequest } from '../../../../src/utilities/authorization';
+import {
+  answerNothing, touchedBeyondAccess, withRole, type MockGroups,
+} from '../seam';
 import {
   ACCOUNT, ANA_ID, GOAL, HOLDING, HOUSEHOLD_ID, fakeDeps,
 } from './fakes';
@@ -16,13 +15,14 @@ import {
 // check — every member reads them, each narrowed to what its viewer sees; one
 // Goal asks to view it, an Account's Holdings and one Holding ask to view the
 // Account. A refused caller stops the use case before anything but the reads
-// that decide access — no Engine, no further read, no log. Data that isn't
-// there asks only the membership check.
+// that decide access — no Engine, no further read (the Manager has no logger).
+// Data that isn't there asks only the membership check. Every request is
+// `data.view`, which every role holds, so `forbidden` never comes back: the
+// refusals are `not_member` and `not_visible`.
 
 const BEA_ID = '0199c5a0-0000-7000-8000-000000000002';
 
 const NOT_FOUND = { code: 'household.not_found' };
-const FORBIDDEN = { code: 'auth.forbidden' };
 
 const ROLES: readonly Role[] = ['Owner', 'Admin', 'Member', 'Viewer'];
 
@@ -47,6 +47,8 @@ interface GuardedUseCase {
   readonly reads: readonly string[];
   /** Its own 404 for data the caller may not see; none when it loads no such data. */
   readonly hidden: string | null;
+  /** Its last call below, as `group.name` — made only once the caller is let through. */
+  readonly reached: string;
   readonly run: (manager: Manager) => Promise<unknown>;
 }
 
@@ -69,6 +71,7 @@ const GUARDED: readonly GuardedUseCase[] = [
     request: () => MEMBER_ONLY,
     reads: [],
     hidden: null,
+    reached: 'reporting.monthOverview',
     run: (manager) => manager.report(CONTEXT, HOUSEHOLD_ID, 'month-overview'),
   },
   {
@@ -77,6 +80,7 @@ const GUARDED: readonly GuardedUseCase[] = [
     request: () => MEMBER_ONLY,
     reads: [],
     hidden: null,
+    reached: 'reporting.goalProgress',
     run: (manager) => manager.goalProgressList(CONTEXT, HOUSEHOLD_ID, 'active'),
   },
   {
@@ -85,6 +89,7 @@ const GUARDED: readonly GuardedUseCase[] = [
     request: viewOf,
     reads: ['goals.findById'],
     hidden: 'goal.not_found',
+    reached: 'reporting.goalProgress',
     run: (manager) => manager.goalProgressFor(CONTEXT, HOUSEHOLD_ID, GOAL.id),
   },
   {
@@ -93,6 +98,7 @@ const GUARDED: readonly GuardedUseCase[] = [
     request: viewOf,
     reads: ['accounts.findById'],
     hidden: 'account.not_found',
+    reached: 'investmentProducts.project',
     run: (manager) => manager.listHoldings(CONTEXT, HOUSEHOLD_ID, ACCOUNT.id, false),
   },
   {
@@ -101,12 +107,16 @@ const GUARDED: readonly GuardedUseCase[] = [
     request: viewOf,
     reads: ['holdings.findById', 'accounts.findById'],
     hidden: 'holding.not_found',
+    reached: 'investmentProducts.project',
     run: (manager) => manager.getHolding(CONTEXT, HOUSEHOLD_ID, HOLDING.id),
   },
 ];
 
 /** The use cases that load data, which may be someone else's personal data or not there. */
 const LOADING = GUARDED.filter(({ hidden }) => hidden !== null);
+
+/** The use cases every member runs, on no data of their own. */
+const MEMBERS_ONLY = GUARDED.filter(({ hidden }) => hidden === null);
 
 /**
  * Mocked dependencies whose Goal and Account — and so the Holding in it —
@@ -130,66 +140,36 @@ const ownedData = (visibility: Visibility, owner: string = BEA_ID) => {
  */
 const missingData = () => {
   const fakes = fakeDeps();
-  [fakes.goals, fakes.accounts, fakes.holdings]
-    .forEach((accessor) => (accessor.findById as Mock).mockResolvedValue(undefined));
+  answerNothing([fakes.goals, fakes.accounts, fakes.holdings]);
   return fakes;
 };
 
 /**
- * Every mocked call made to the tier below other than the access check and the
- * reads a use case decides it on — what a refused use case must not reach.
+ * The mocks of the tier below, by group — what `touchedBeyondAccess` looks at.
  *
  * @param fakes - The mocks from `fakeDeps`.
- * @param reads - The reads the use case may make, as `group.name`.
- * @returns The names of the other mocks that were called.
+ * @returns Them, by group.
  */
-const touchedBeyondAccess = (fakes: Fakes, reads: readonly string[]): string[] => {
-  const groups = {
-    reporting: fakes.reporting,
-    investmentProducts: fakes.investmentProducts,
-    goals: fakes.goals,
-    accounts: fakes.accounts,
-    holdings: fakes.holdings,
-    accountTransactions: fakes.accountTransactions,
-  };
-  return Object.entries(groups).flatMap(([group, mocks]) => Object.entries(mocks)
-    .filter(([, mock]) => (mock as Mock).mock.calls.length > 0)
-    .map(([name]) => `${group}.${name}`)
-    .filter((called) => !reads.includes(called)));
-};
+const belowOf = (fakes: Fakes): MockGroups => ({
+  reporting: fakes.reporting,
+  investmentProducts: fakes.investmentProducts,
+  goals: fakes.goals,
+  accounts: fakes.accounts,
+  holdings: fakes.holdings,
+  accountTransactions: fakes.accountTransactions,
+});
 
 /**
- * Runs a use case the caller is refused, capturing what it logs.
- *
- * @param run - The use case, ready to run.
- * @param answer - The API error it must answer with.
- * @returns What it logged.
- */
-const refusedLogging = async (run: () => Promise<unknown>, answer: object): Promise<unknown[]> => {
-  const logs = captureLogs(onTestFinished);
-  await expect(run()).rejects.toMatchObject({ domainError: answer });
-  return logs.events;
-};
-
-/**
- * Programs the access check to answer as the real policy would for a caller
- * holding a role — the table under test in AuthorizationUtility's own suite,
- * run here to show what the requests the Manager sends come to.
+ * Whether a use case went past its access check to its last call below.
  *
  * @param fakes - The mocks from `fakeDeps`.
- * @param role - Ana's household role.
- * @returns The same mocks.
+ * @param reached - That call, as `group.name`.
+ * @returns How many times it was made.
  */
-const withRole = (fakes: Fakes, role: Role): Fakes => {
-  fakes.authorization.authorize.mockImplementation((async (
-    actorId: string,
-    _householdId: string,
-    request: AccessRequest,
-  ) => {
-    const decision = decide(role, actorId, request);
-    return decision === 'allowed' ? { outcome: 'allowed', role } : { outcome: decision };
-  }) as never);
-  return fakes;
+const callsTo = (fakes: Fakes, reached: string): number => {
+  const [group, name] = reached.split('.') as [string, string];
+  const mocks = belowOf(fakes)[group] as Record<string, { mock: { calls: unknown[] } }>;
+  return mocks[name]!.mock.calls.length;
 };
 
 describe('InsightsManager ↔ AuthorizationUtility seam (I4)', () => {
@@ -199,8 +179,17 @@ describe('InsightsManager ↔ AuthorizationUtility seam (I4)', () => {
     expect(GUARDED.map(({ useCase }) => useCase).sort()).toEqual(useCases.sort());
   });
 
+  it.each(MEMBERS_ONLY)('$name asks once for the membership check', async ({ run }) => {
+    const fakes = ownedData('personal');
+
+    await run(createInsightsManager(fakes.deps));
+
+    expect(fakes.authorization.authorize).toHaveBeenCalledOnce();
+    expect(fakes.authorization.authorize).toHaveBeenCalledWith(ANA_ID, HOUSEHOLD_ID, MEMBER_ONLY);
+  });
+
   describe.each(['personal', 'shared'] as const)('on Bea\'s %s data', (visibility) => {
-    it.each(GUARDED)('$name asks once for its own access', async ({ request, run }) => {
+    it.each(LOADING)('$name asks once for its own access', async ({ request, run }) => {
       const fakes = ownedData(visibility);
 
       await run(createInsightsManager(fakes.deps));
@@ -216,11 +205,10 @@ describe('InsightsManager ↔ AuthorizationUtility seam (I4)', () => {
     const fakes = missingData();
     fakes.authorization.authorize.mockResolvedValueOnce({ outcome: 'not_member' });
 
-    const events = await refusedLogging(() => run(createInsightsManager(fakes.deps)), NOT_FOUND);
-
+    await expect(run(createInsightsManager(fakes.deps)))
+      .rejects.toMatchObject({ domainError: NOT_FOUND });
     expect(fakes.authorization.authorize).toHaveBeenCalledWith(ANA_ID, HOUSEHOLD_ID, MEMBER_ONLY);
-    expect(touchedBeyondAccess(fakes, reads)).toEqual([]);
-    expect(events).toEqual([]);
+    expect(touchedBeyondAccess(belowOf(fakes), reads)).toEqual([]);
   });
 
   it.each(LOADING)('$name answers a member its own not-found for data that isn\'t there', async ({
@@ -241,16 +229,16 @@ describe('InsightsManager ↔ AuthorizationUtility seam (I4)', () => {
     await expect(createInsightsManager(fakes.deps).getHolding(CONTEXT, HOUSEHOLD_ID, HOLDING.id))
       .rejects.toMatchObject({ domainError: { code: 'holding.not_found' } });
     expect(fakes.authorization.authorize).toHaveBeenCalledWith(ANA_ID, HOUSEHOLD_ID, MEMBER_ONLY);
-    expect(touchedBeyondAccess(fakes, ['holdings.findById', 'accounts.findById'])).toEqual([]);
+    expect(touchedBeyondAccess(belowOf(fakes), ['holdings.findById', 'accounts.findById']))
+      .toEqual([]);
   });
 
   describe.each([
     ['a non-member', 'not_member', GUARDED, () => NOT_FOUND],
-    ['a member without the role', 'forbidden', GUARDED, () => FORBIDDEN],
     ['someone else\'s personal data', 'not_visible', LOADING,
       (hidden: string | null) => ({ code: hidden })],
   ] as const)('refusing %s', (_who, outcome, useCases, answer) => {
-    it.each(useCases)('$name answers after only its access reads, logging nothing', async ({
+    it.each(useCases)('$name answers after only its access reads', async ({
       run,
       reads,
       hidden,
@@ -258,21 +246,21 @@ describe('InsightsManager ↔ AuthorizationUtility seam (I4)', () => {
       const fakes = ownedData('personal');
       fakes.authorization.authorize.mockResolvedValueOnce({ outcome });
 
-      const events = await refusedLogging(
-        () => run(createInsightsManager(fakes.deps)),
-        answer(hidden),
-      );
-
-      expect(touchedBeyondAccess(fakes, reads)).toEqual([]);
-      expect(events).toEqual([]);
+      await expect(run(createInsightsManager(fakes.deps)))
+        .rejects.toMatchObject({ domainError: answer(hidden) });
+      expect(touchedBeyondAccess(belowOf(fakes), reads)).toEqual([]);
     });
   });
 
   describe('under the real policy (FR-1.7, FR-2.3/4.2/8.1, OQ-111)', () => {
-    it.each(ROLES)('lets a %s read everything on Bea\'s shared data', async (role) => {
-      const manager = createInsightsManager(withRole(ownedData('shared'), role).deps);
+    describe.each(ROLES)('lets a %s read Bea\'s shared data', (role) => {
+      it.each(GUARDED)('$name reaching its data', async ({ run, reached }) => {
+        const fakes = withRole(ownedData('shared'), role);
 
-      await Promise.all(GUARDED.map(({ run }) => run(manager)));
+        await run(createInsightsManager(fakes.deps));
+
+        expect(callsTo(fakes, reached)).toBe(1);
+      });
     });
 
     describe.each(ROLES)('as %s', (role) => {
@@ -285,14 +273,16 @@ describe('InsightsManager ↔ AuthorizationUtility seam (I4)', () => {
 
         await expect(run(createInsightsManager(fakes.deps)))
           .rejects.toMatchObject({ domainError: { code: hidden } });
-        expect(touchedBeyondAccess(fakes, reads)).toEqual([]);
+        expect(touchedBeyondAccess(belowOf(fakes), reads)).toEqual([]);
       });
     });
 
-    it.each(LOADING)('lets a Viewer $name on her own personal data', async ({ run }) => {
-      const manager = createInsightsManager(withRole(ownedData('personal', ANA_ID), 'Viewer').deps);
+    it.each(LOADING)('lets a Viewer $name on her own personal data', async ({ run, reached }) => {
+      const fakes = withRole(ownedData('personal', ANA_ID), 'Viewer');
 
-      await run(manager);
+      await run(createInsightsManager(fakes.deps));
+
+      expect(callsTo(fakes, reached)).toBe(1);
     });
   });
 

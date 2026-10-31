@@ -514,7 +514,10 @@ Backs `AccountManager`'s `InvestmentHoldingAccessor`,
   schedule when the buy is edited), **`due_date`** (date, nullable —
   fixed-term types only, the contract's maturity date as typed, OQ-205;
   a CHECK keeps `interest_payment` and `due_date` set exactly when the
-  rate is), `archived_at` (nullable, one-way
+  rate is; another requires the rate on every fixed-term type — the one
+  CHECK naming asset types, its list taken from `@financas/reference` so
+  a new fixed-term type fails `check:schema` until it is migrated,
+  OQ-224), `archived_at` (nullable, one-way
   for user archives, FR-5.8/OQ-43), **`archived_by`** (`system` |
   `user`, nullable — a `system` archive is undone automatically if its
   zeroing transaction is edited/deleted, OQ-80), **`matured_notified_at`**

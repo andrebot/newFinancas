@@ -848,7 +848,14 @@ describe('findBuys', () => {
     db, record, ledger, householdId, holding, checking,
   }) => {
     const other = await idOf(db.insert(investmentHoldings).values({
-      accountId: checking, assetType: 'cdb', quantity: 0, costBasis: 0,
+      accountId: checking,
+      assetType: 'cdb',
+      quantity: 0,
+      costBasis: 0,
+      rateType: 'cdi',
+      rateValue: 1_100_000,
+      interestPayment: 'at_maturity',
+      dueDate: '2027-10-15',
     }).returning({ id: investmentHoldings.id }));
     const trade = { quantityDelta: 1, costBasisDelta: 100 };
     const later = await record({
