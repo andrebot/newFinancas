@@ -50,6 +50,12 @@ test('an Owner creates a goal, edits it, completes, reopens and deletes it', asy
   await create.getByLabel(text('goalManagement', 'field.name')).fill('Trip');
   await pick(create, text('goalManagement', 'field.currency'), 'USD');
   await create.getByLabel(text('goalManagement', 'field.target')).pressSequentially('500000');
+  // A new Goal starts personal (PR #145).
+  await pick(
+    create,
+    text('goalManagement', 'field.visibility'),
+    text('goalManagement', 'visibility.shared'),
+  );
   await create.getByLabel(text('goalManagement', 'field.dueDate'))
     .pressSequentially(`0615${dueYear}`);
   await create.getByRole('button', { name: text('goalManagement', 'create.submit') }).click();

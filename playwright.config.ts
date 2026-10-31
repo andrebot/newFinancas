@@ -7,6 +7,12 @@ try {
   // No .env: rely on the real environment.
 }
 
+// The API's calendar (apps/api config `calendar.timeZone`): the runner and the
+// browser take "today" and each month from it, as the API does — on a UTC
+// runner, a journey run near midnight would otherwise land a day apart.
+const TIME_ZONE = 'America/Sao_Paulo';
+process.env.TZ = TIME_ZONE;
+
 const API_URL = 'http://localhost:3000';
 const WEB_URL = 'http://localhost:5173';
 
@@ -31,6 +37,7 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     // Journeys find elements by their en-US catalog text (tests/e2e/support/text.ts).
     locale: 'en-US',
+    timezoneId: TIME_ZONE,
     ...(chromiumPath ? { launchOptions: { executablePath: chromiumPath } } : {}),
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],

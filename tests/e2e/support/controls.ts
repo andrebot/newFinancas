@@ -37,6 +37,20 @@ export const pick = (scope: Locator, label: string, option: string): Promise<voi
 );
 
 /**
+ * Types a date into a kit date input as an en-US user does: month, day, year,
+ * the mask adding the slashes.
+ *
+ * @param field - The date input.
+ * @param date - The date, as `YYYY-MM-DD`.
+ * @returns Resolves once it is typed.
+ */
+export const typeDate = async (field: Locator, date: string): Promise<void> => {
+  const [year, month, day] = date.split('-');
+  await field.clear();
+  await field.pressSequentially(`${month}${day}${year}`);
+};
+
+/**
  * Finds a card that opens its item: a button holding the item's name as one
  * exact text, among the rest of the card's text (its tags, its amounts). The
  * name is matched whole, so `Trip` never finds `Japan Trip`.

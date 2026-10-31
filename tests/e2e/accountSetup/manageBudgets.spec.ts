@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { createBudget, listBudgets, seededCategories } from '../support/accountApi';
-import { cardNamed } from '../support/controls';
+import { cardNamed, pick } from '../support/controls';
 import { createHousehold, registerUser } from '../support/identityApi';
 import { signInThroughUi } from '../support/signIn';
 import text from '../support/text';
@@ -22,6 +22,12 @@ test('an Owner creates a budget, edits it and deletes it', async ({ page, reques
   const create = page.getByRole('dialog', { name: text('budgetManagement', 'create.title') });
   await create.getByLabel(text('budgetManagement', 'field.name')).fill('Living');
   await create.getByLabel(text('budgetManagement', 'field.target')).pressSequentially('150000');
+  // A new Budget starts personal (PR #145).
+  await pick(
+    create,
+    text('budgetManagement', 'field.visibility'),
+    text('budgetManagement', 'visibility.shared'),
+  );
   await create.getByText('Groceries', { exact: true }).click();
   await create.getByRole('button', { name: text('budgetManagement', 'create.submit') }).click();
   await expect(page.getByText(text('budgetManagement', 'create.done', { name: 'Living' })))
@@ -73,6 +79,12 @@ test('a category claimed by another budget while the form is open is refused', {
   const create = page.getByRole('dialog', { name: text('budgetManagement', 'create.title') });
   await create.getByLabel(text('budgetManagement', 'field.name')).fill('Food');
   await create.getByLabel(text('budgetManagement', 'field.target')).pressSequentially('80000');
+  // Shared, so it shares the constraint's scope with the other one (a new Budget starts personal).
+  await pick(
+    create,
+    text('budgetManagement', 'field.visibility'),
+    text('budgetManagement', 'visibility.shared'),
+  );
   await create.getByText('Groceries', { exact: true }).click();
 
   // A second request claims Groceries before this form is sent — from any

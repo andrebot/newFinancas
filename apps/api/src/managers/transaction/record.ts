@@ -46,6 +46,9 @@ import requirePaidCard from './paidCard';
 // applies and what its parameters are; each Accessor executes one validated
 // write, all in one transaction (OQ-175).
 
+/** One Holding unit in the contract's 1e-8 quantity units — a fixed-term buy's default (D11). */
+const ONE_UNIT = 100_000_000;
+
 /** A recorded transaction, as the route validated it (the contract's create request). */
 export interface TransactionCreate {
   readonly accountId?: string | undefined;
@@ -694,7 +697,7 @@ const writeBuy = async (
   request: TransactionCreate,
 ): Promise<AccountTransaction> => {
   const holding = await resolveBuyHolding(stores, deps, householdId, target, request);
-  const quantity = request.quantity ?? 1;
+  const quantity = request.quantity ?? ONE_UNIT;
   const trade: TradeDeltas = { quantityDelta: quantity, costBasisDelta: request.amount };
   const inserted = await stores.accountTransactions.insert(
     tradeRowOf(target, 'investment_buy', request, holding.id, trade, userId),

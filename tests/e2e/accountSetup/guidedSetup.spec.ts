@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { listAccounts, listBudgets, seededCategories } from '../support/accountApi';
+import { pick } from '../support/controls';
 import { createHousehold, registerUser } from '../support/identityApi';
 import { signInThroughUi } from '../support/signIn';
 import text from '../support/text';
@@ -25,6 +26,12 @@ test('an Owner who dropped off resumes Guided Setup and sets a budget', async ({
 
   await page.getByLabel(text('budgetManagement', 'field.name')).fill('Food');
   await page.getByLabel(text('budgetManagement', 'field.target')).pressSequentially('120000');
+  // A new Budget starts personal (PR #145).
+  await pick(
+    page.locator('main'),
+    text('budgetManagement', 'field.visibility'),
+    text('budgetManagement', 'visibility.shared'),
+  );
   await page.getByRole('group', { name: text('budgetManagement', 'covers.label') })
     .getByText('Groceries', { exact: true }).click();
   await page.getByRole('button', { name: text('guidedSetup', 'budget.create') }).click();

@@ -1,9 +1,12 @@
 import { expect, test } from '@playwright/test';
 import { categoryShapes, defaultCategoryShapes } from './support/accountApi';
+import {
+  accountNamed, getAccount, isoDay, recordTransaction,
+} from './support/financeApi';
 import { createHousehold, registerUser, signInThroughApi } from './support/identityApi';
 
 // Smoke (BDT plan): is the system fundamentally wired — not business rules.
-// Run on every PR. The plan's transaction check joins once transactions exist.
+// Run on every PR.
 
 test('web app sends a signed-out visitor to Sign In', { tag: '@smoke' }, async ({ page }) => {
   await page.goto('/');
@@ -91,4 +94,23 @@ test('a new household holds the default Categories in its creator\'s language', 
   // the household's 201 (I5): wait for it.
   await expect.poll(() => categoryShapes(request, user, household.id))
     .toEqual(defaultCategoryShapes('pt-BR'));
+});
+
+test('recording a transaction moves its account\'s balance', { tag: '@smoke' }, async ({
+  request,
+}) => {
+  const user = await registerUser(request, { firstName: 'Sam', lastName: 'Smoke' });
+  const household = await createHousehold(request, user, 'Smoke Ledger');
+  const account = await accountNamed(request, user, household.id, 'Main Checking');
+
+  await recordTransaction(request, user, household.id, {
+    kind: 'withdrawal',
+    accountId: account.id,
+    date: isoDay(new Date()),
+    amount: 12_345,
+    currency: 'BRL',
+  });
+
+  expect(await getAccount(request, user, household.id, account.id))
+    .toMatchObject({ currentBalance: account.currentBalance - 12_345 });
 });
