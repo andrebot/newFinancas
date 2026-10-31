@@ -4,7 +4,7 @@ The gate at the end of slice 3 (day-to-day finances: record, browse, filter
 and edit transactions; the month overview — tasks 99–122), run by the method
 in `13-slice-review.md` (OQ-164). Work happens on the `review/slice-3`
 branch, cut from `main` after PR #148 (`I9`).
-**Status: phase 1 fixed and verified — backend 94.0%, web 93.5%; its PR next. See "Where it stands" at the end.**
+**Status: phase 1 merged (PR #149); phase 2 fixed and verified on `review/slice-3-e2e`, its PR next. See "Where it stands" at the end.**
 
 ## Scope
 
@@ -246,20 +246,81 @@ left: a Budget edit or create answering `budget.not_found` should still
 refresh the list (`setupApi.ts:201,207`) — the edit now has its test (killed
 by hand); the create can't answer that code (defensive).
 
+## Phase 2 — the Playwright suite
+
+The slice's journeys (`tests/e2e/finances/`): 6 tests, four tagged `@core`
+(#5 up to the Month Overview, #6 up to the schedule, #7, #11 in two halves)
+and two Full E2E (Browse & Filter with paging, Month Overview per period);
+plus smoke #4 in `smoke.spec.ts`. Together they cover the five
+record-transactions use cases (`sequences/record-transactions` uc-01–05) and
+the three Flows (FL15–FL17, in X6). Preconditions are arranged through the
+API, the browser does only the journey, and every write's end state is read
+back through the API (Browse, a read, ends on the page).
+
+**Runs (2026-10-31, local, 16 workers):** the slice and smoke 3× — 51/51 in
+13 s; 10× — 170/170 in 37 s; the whole suite 3× — 126/126 in 40 s. No flaky
+journey, no race. (The "Token refresh got no answer" warnings are the
+Authenticate journey's reload mid-refresh, OQ-162 — expected.)
+
+**CI cadence holds.** `ci.yml` runs `@smoke` on every PR and `@core` after
+merge on `main`; `nightly.yml` runs everything at 06:00 UTC and on demand.
+The BDT plan's slice-3 lists are written (the `I9` paragraph: smoke #4; core
+#5, #6, #7, #11 as F14 split them; Browse and Month Overview per period Full
+E2E).
+
+| # | Finding | Severity | Proposed fix |
+|---|---|---|---|
+| E1 | **Goal progress has no journey.** Slice 3 built it — `M4`'s `goal-progress` (task 104), ReportingEngine's Goal progress (task 102), the Goals tab's progress (FL14 left its banner) and the Month Overview's Goals rail (FL17) — and the buy drawer's Goal split (FL15, K47) writes what it reads. No journey crosses that seam on real Postgres: the plan's F14 split assigned none, and the I8 Goal journey still says its progress "waits for M4". Half of goals uc-06 (View Goals) is unproven end to end, against the Full E2E policy. | Medium | A Full E2E journey in `finances/`: a BRL Goal arranged through the API; a CDB bought in the browser with the whole split to it; the Goals rail shows its progress, and `goal-progress` agrees (the fixed-term value from its cost basis, OQ-206). Correct the I8 journey's comment. |
+| E2 | **Core #6 never checks the amount typed.** The CDB's R$ 10.000,00 is typed in the browser, but the Holding is matched on its terms and quantity only — a drawer that sent another amount, or none in minor units, would pass. | Low | Assert the Holding's `costBasis` (1,000,000), and the second, API-recorded buy's (500,000). |
+
+**Not findings.**
+- **Browse checks how many rows the filter leaves, not which** (slice 2's
+  E1 pattern). Here the count identifies them: the 25 rows split 9/8/8 over
+  the months and only the five Groceries rows carry a Category, so no plausible wrong
+  filter leaves exactly five.
+- **Month Overview per period compares the Balances rail with the API's
+  figure**, not a figure of its own: the seam is the page showing what the
+  API says; the backward walk itself is core #7's and
+  `tests/db/accessors/accountAccessor.test.ts`'s.
+- **Core #11 doesn't check a sell's proceeds or that the deleted row is
+  gone.** Its claim is the archive round trip (OQ-80); the position coming
+  back proves the reversal, and the proceeds are the Manager suites' (B6).
+
+### Phase 2 — fixes (2026-10-31)
+
+E1–E2 fixed, tests and comments only, no app code:
+- **E1:** `finances/goalProgress.spec.ts`, Full E2E: a BRL Goal (R$ 100.000,00)
+  arranged through the API (`createGoal` in `support/accountApi.ts`); a CDB
+  of R$ 10.000,00 bought in the browser with its whole split to it. The
+  Goals rail shows "R$ 90.000,00 to go", `goal-progress` lists the Goal
+  funded by `CDB Casa` at 100% with a R$ 10.000,00 contribution
+  (`goalProgress` in `support/financeApi.ts`), and the Goals tab shows "10% ·
+  R$ 90.000,00 to go". The I8 Goal journey's comment points to it.
+- **E2:** core #6 checks both Holdings' `costBasis` (1,000,000 typed in the
+  browser; 500,000 recorded through the API).
+
+Each new check was run against the wrong outcome it guards: a 50% split
+fails the rail line; with that line removed, the API line; with both removed,
+the Goals tab line; R$ 9.000,00 typed in #6 fails the Holding line. Then the
+files were restored, the slice and the Goal journey 10× — 190/190 — and the
+whole suite once — 43/43.
+
+**For phase 3.** The Goals rail wraps (PR #145), so `CardRail`'s wrapping
+body has no named region, unlike the Balances and Budgets rails: the journey
+finds it by its heading. Whether the wrapping rail's `<section>` should be
+named by its heading (`aria-labelledby`) is phase 3's to decide.
+
 ## Where it stands (2026-10-31)
 
-Branch `review/slice-3`, not pushed. Phase 1 is fixed in full and verified —
-backend 94.0%, web 93.5%, no gap left.
+Phase 1 merged (PR #149). Phase 2 on `review/slice-3-e2e`, from `main`.
 
-1. **Done:** D1 (OQ-226) end to end — `archiveAccount`'s 409
-   `account.holdings_open`, both catalogs, the contract and its page, FR-2.4,
-   the uc-03 sequence and call chain, the Account Management Flow's message;
-   backend B1–B19; web V1–V10.
-2. **Next:** open phase 1's PR (both steps verified: backend 94.0%, web 93.5%).
-3. **Then phase 2** (the Playwright suite) and **phase 3** (code and
-   architecture — it also decides `monthOverview.ts`'s dead `'transfer'` in
-   `LEFT_OUT`), each with its own PR; then R3 is ticked and slice 4 starts at
-   task 123.
+1. **Done:** phase 1 (D1, B1–B19, V1–V10); phase 2 (E1–E2), fixed and
+   verified.
+2. **Next:** phase 2's PR.
+3. **Then phase 3** (code and architecture — it also decides
+   `monthOverview.ts`'s dead `'transfer'` in `LEFT_OUT` and the wrapping
+   rail's unnamed section), with its own PR;
+   then R3 is ticked and slice 4 starts at task 123.
 4. **Tooling notes:** the pre-commit `pnpm check` lints `.stryker-tmp/`, so
    commit only while no Stryker run is going (or after removing a leftover
    sandbox); don't hand-run tests during a web run (the memory watchdog stops

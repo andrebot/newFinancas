@@ -55,6 +55,8 @@ test('a CDB bought in the browser gets its own Holding and schedule, and no snap
     assetType: 'cdb',
     ticker: 'CDB Banco Azul',
     quantity: UNIT,
+    // R$ 10.000,00 as typed, in centavos.
+    costBasis: 1_000_000,
     rate: { type: 'fixed', value: 125_000 },
     dueDate: isoDay(due),
     interestPayment: 'monthly',
@@ -86,8 +88,10 @@ test('a CDB bought in the browser gets its own Holding and schedule, and no snap
     interestPayment: 'monthly',
   });
   const holdings = await listHoldings(request, owner, household.id, account.id);
-  expect(holdings.map(({ ticker, quantity }) => ({ ticker, quantity }))).toEqual([
-    { ticker: 'CDB Banco Azul', quantity: UNIT },
-    { ticker: 'CDB Banco Azul', quantity: UNIT },
-  ]);
+  expect(holdings.map(({ ticker, quantity, costBasis }) => ({ ticker, quantity, costBasis })))
+    .toEqual(expect.arrayContaining([
+      { ticker: 'CDB Banco Azul', quantity: UNIT, costBasis: 1_000_000 },
+      { ticker: 'CDB Banco Azul', quantity: UNIT, costBasis: 500_000 },
+    ]));
+  expect(holdings).toHaveLength(2);
 });

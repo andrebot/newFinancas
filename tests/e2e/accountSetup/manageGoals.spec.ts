@@ -6,8 +6,8 @@ import { signInThroughUi } from '../support/signIn';
 import text from '../support/text';
 
 // I8 — Goal Management (FL14, in X5) against the real API: a Goal created,
-// edited, marked completed, reopened and deleted (Full E2E). Its progress
-// waits for M4 (OQ-195): the definitions show alone, under a banner.
+// edited, marked completed, reopened and deleted (Full E2E). Its progress,
+// funded by a Holding's split, is the finances seam's (`finances/goalProgress.spec.ts`).
 
 /**
  * Opens a goal's edit drawer from its card and takes one of the drawer's
