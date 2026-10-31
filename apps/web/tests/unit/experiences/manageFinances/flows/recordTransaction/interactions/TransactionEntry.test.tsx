@@ -199,6 +199,23 @@ describe('TargetFields', () => {
     expect(screen.getByText('Visa •••• 2222')).toBeDefined();
     expect(screen.getByText('Paid from')).toBeDefined();
     expect(screen.getByText('Itaú Conta')).toBeDefined();
+    expect(screen.getByText('Card')).toBeDefined();
+  });
+
+  it('names a locked transfer\'s destination (review V8)', () => {
+    renderInLocale(
+      <TargetFields
+        form={formOf({
+          kind: 'transfer_sent', ownTransfer: true, accountId: 'itau', toAccountId: 'chase',
+        })}
+        accounts={ACCOUNTS}
+        locked
+        {...handlers}
+      />,
+    );
+
+    expect(screen.getByText('To')).toBeDefined();
+    expect(screen.getByText('Main Checking')).toBeDefined();
   });
 
   it('shows nothing locked for targets it can\'t find', () => {

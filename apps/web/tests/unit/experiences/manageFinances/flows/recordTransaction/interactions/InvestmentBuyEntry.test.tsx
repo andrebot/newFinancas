@@ -101,6 +101,13 @@ describe('InvestmentBuyEntry', () => {
     expect(screen.getByText('Choose an asset type.')).toBeDefined();
   });
 
+  it('shows the asset type chosen, and leaves a new buy\'s units open (review V5)', () => {
+    renderEntry({ form: { ...CDB_FORM, assetType: 'cdb' } });
+
+    expect(screen.getByRole('combobox', { name: 'Asset type' }).textContent).toContain('CDB');
+    expect(screen.getByLabelText<HTMLInputElement>('Quantity').disabled).toBe(false);
+  });
+
   it('asks a fixed-term buy for its contract, its units optional', () => {
     const props = renderEntry({
       form: CDB_FORM,
@@ -124,6 +131,40 @@ describe('InvestmentBuyEntry', () => {
     expect(props.onTerms)
       .toHaveBeenLastCalledWith({ ...CDB_FORM.terms, interestPayment: 'monthly' });
     expect(screen.queryByRole('switch')).toBeNull();
+  });
+
+  it.each([
+    ['ipca', 'Spread above IPCA · %', '-2', -20_000],
+    ['igpm', 'Spread above IGP-M · %', '-2', -20_000],
+    ['cdi', 'Rate · % of CDI', '-120', 1_200_000],
+    ['selic', 'Rate · % of Selic', '-120', 1_200_000],
+    ['fixed', 'Rate · % a year', '-12', 120_000],
+  ] as const)('takes a minus sign only on a spread above an index — %s (review V2)', (
+    rateType,
+    label,
+    typed,
+    rateValue,
+  ) => {
+    const props = renderEntry({ form: { ...CDB_FORM, terms: { ...CDB_FORM.terms, rateType } } });
+
+    fireEvent.change(screen.getByLabelText(label), { target: { value: typed } });
+
+    expect(props.onTerms).toHaveBeenLastCalledWith({ ...CDB_FORM.terms, rateType, rateValue });
+  });
+
+  it('names the rate and interest choices for assistive tech (review V8)', () => {
+    renderEntry({ form: CDB_FORM });
+
+    expect(screen.getByRole('radiogroup', { name: 'Rate' })).toBeDefined();
+    expect(screen.getByRole('radiogroup', { name: 'Interest paid' })).toBeDefined();
+  });
+
+  it('captions a locked asset and contract (review V8)', () => {
+    renderEntry({ form: CDB_FORM, editable: { quantity: false, terms: false } });
+
+    // The section's heading and the locked field's caption.
+    expect(screen.getAllByText('Asset')).toHaveLength(2);
+    expect(screen.getByText('Contract')).toBeDefined();
   });
 
   it('takes no spread on a fixed rate', () => {

@@ -9,6 +9,14 @@ import { renderInLocale } from '../../../../../../support/renderInLocale';
 // and the group's kinds, emits picks; the real kit and catalog.
 
 describe('KindSelection', () => {
+  it('names the groups for assistive tech (review V8)', () => {
+    renderInLocale(
+      <KindSelection kind="pix_payment" onGroupChange={vi.fn()} onKindChange={vi.fn()} />,
+    );
+
+    expect(screen.getByRole('radiogroup', { name: 'Transaction kind group' })).toBeDefined();
+  });
+
   it('draws the four groups and the chosen group\'s kinds', () => {
     renderInLocale(
       <KindSelection

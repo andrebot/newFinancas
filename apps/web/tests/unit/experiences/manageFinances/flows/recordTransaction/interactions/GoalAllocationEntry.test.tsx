@@ -1,4 +1,4 @@
-import { fireEvent, screen } from '@testing-library/react';
+import { cleanup, fireEvent, screen } from '@testing-library/react';
 import {
   describe, expect, it, vi,
 } from 'vitest';
@@ -45,6 +45,12 @@ describe('GoalAllocationEntry', () => {
       .toHaveBeenCalledWith([...ROWS, { goalId: 'laptop', name: 'Laptop', percent: null }]);
   });
 
+  it('shows no refusal while there is none (review V10)', () => {
+    renderEntry();
+
+    expect(document.querySelector('.text-coral')).toBeNull();
+  });
+
   it('notes a Holding\'s split as it stands', () => {
     renderEntry({ source: 'holding', load: { status: 'loaded', data: null } });
 
@@ -84,5 +90,20 @@ describe('GoalAllocationEntry', () => {
     });
 
     expect(screen.getByRole('button', { name: 'Try again' })).toBeDefined();
+  });
+
+  it('holds the placeholder in place of the rows while the split is read (review V5)', () => {
+    renderEntry({ source: 'holding', load: { status: 'loading' } });
+
+    expect(screen.queryByRole('textbox')).toBeNull();
+  });
+
+  it('shows the split with rows and no Goal left, or Goals and no rows (review V5)', () => {
+    renderEntry({ goals: [] });
+    expect(screen.getByRole('textbox', { name: 'Percentage for House' })).toBeDefined();
+    cleanup();
+
+    renderEntry({ rows: [] });
+    expect(screen.getByRole('button', { name: /Add goal/ })).toBeDefined();
   });
 });

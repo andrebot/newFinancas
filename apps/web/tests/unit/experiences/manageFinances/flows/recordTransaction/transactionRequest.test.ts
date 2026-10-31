@@ -443,3 +443,31 @@ describe('a transfer between own accounts (OQ-222)', () => {
     expect(changesOf(within, { ...within, amount: 6_000 }, OPEN)).toEqual({ amount: 6_000 });
   });
 });
+
+describe('at the edges (review V5)', () => {
+  it('sends no Holding on a kind that names none', () => {
+    const request = createRequestOf(formOf({
+      kind: 'deposit', accountId: 'itau', amount: 1, holdingId: 'stale', quantity: 1,
+    }), 'BRL');
+    expect(request).not.toHaveProperty('holdingId');
+    expect(request).not.toHaveProperty('quantity');
+  });
+
+  it('opens a card row on its card, with no units or ticker', () => {
+    const card = {
+      ...accountRowOf({ kind: 'charge' }),
+      ledger: 'card',
+      creditCardId: 'nu1',
+      accountId: undefined,
+    } as never;
+    expect(editFormOf(card, undefined)).toMatchObject({
+      kind: 'charge', creditCardId: 'nu1', quantity: null, ticker: '',
+    });
+  });
+
+  it('opens with no split, untouched', () => {
+    expect(editFormOf(accountRowOf(), undefined)).toMatchObject({
+      allocations: [], allocationsEdited: false,
+    });
+  });
+});
