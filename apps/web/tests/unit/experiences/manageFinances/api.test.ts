@@ -194,6 +194,44 @@ describe('the month overview', () => {
   });
 });
 
+describe('a transaction write (review V3)', () => {
+  it.each([
+    ['a record', (store: ReturnType<typeof fakeStore>['store']) => store.dispatch(
+      manageFinancesApi.endpoints.recordTransaction.initiate({
+        householdId: 'doe', request: { kind: 'deposit' } as never,
+      }),
+    )],
+    ['a save', (store: ReturnType<typeof fakeStore>['store']) => store.dispatch(
+      manageFinancesApi.endpoints.saveTransaction.initiate({
+        householdId: 'doe', transactionId: 't-1', changes: { amount: 1 },
+      }),
+    )],
+    ['a delete', (store: ReturnType<typeof fakeStore>['store']) => store.dispatch(
+      manageFinancesApi.endpoints.deleteTransaction.initiate({
+        householdId: 'doe', transactionId: 't-1',
+      }),
+    )],
+  ])('reads the month again after %s', async (_write, write) => {
+    const fetchFn = fakeFetch({
+      'GET /households/doe/reports/month-overview': () => jsonResponse(200, { budgets: [] }),
+      'POST /households/doe/transactions': () => jsonResponse(201, {}),
+      'PATCH /households/doe/transactions/t-1': () => jsonResponse(200, {}),
+      'DELETE /households/doe/transactions/t-1': () => jsonResponse(204),
+    });
+    const { store } = fakeStore({ refreshToken: 'r-0', fetchFn });
+    const month = store.dispatch(manageFinancesApi.endpoints.getMonthOverview.initiate({
+      householdId: 'doe', year: 2026, month: 10,
+    }));
+    await month;
+    await write(store);
+    await settle();
+    const reads = (await sent(fetchFn))
+      .filter(({ route }) => route.startsWith('GET /api/v1/households/doe/reports'));
+    expect(reads).toHaveLength(2);
+    month.unsubscribe();
+  });
+});
+
 describe('the goals\' progress', () => {
   it('is read again after a transaction write (a buy\'s split moves it, PR #145)', async () => {
     const fetchFn = fakeFetch({

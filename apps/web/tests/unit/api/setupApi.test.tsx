@@ -440,6 +440,13 @@ describe('the shared tags (PR #145)', () => {
       409,
       envelope('budget.target_already_claimed'),
     ),
+    'POST /households/doe/accounts': () => jsonResponse(201, ACCOUNT),
+    'POST /households/doe/accounts/chk/archive': () => jsonResponse(204),
+    'POST /households/doe/categories': () => jsonResponse(201, {}),
+    'PATCH /households/doe/categories/cat': () => jsonResponse(200, {}),
+    'POST /households/doe/categories/cat/subcategories/sub/archive': () => jsonResponse(204),
+    'POST /households/doe/budgets': () => jsonResponse(201, {}),
+    'PATCH /households/doe/budgets/ok': () => jsonResponse(200, {}),
   };
 
   /**
@@ -497,6 +504,37 @@ describe('the shared tags (PR #145)', () => {
     expect(await readsAfter((store) => store.dispatch(
       setupApi.endpoints.deleteBudget.initiate({ householdId: 'doe', budgetId: 'gone' }),
     ))).toEqual({ accounts: 1, categories: 1, budgets: 2 });
+  });
+
+  const { endpoints } = setupApi;
+  const target = { householdId: 'doe' };
+  it.each([
+    ['createAccount', () => endpoints.createAccount.initiate({
+      ...target, name: 'New', type: 'checking', currency: 'BRL', visibility: 'shared', cards: [],
+    } as never), { accounts: 2, categories: 1, budgets: 1 }],
+    ['archiveAccount', () => endpoints.archiveAccount.initiate({ ...target, accountId: 'chk' }),
+      { accounts: 2, categories: 1, budgets: 1 }],
+    ['createCategory', () => endpoints.createCategory.initiate({
+      ...target, name: 'Food', icon: 'cart', color: 'mint',
+    } as never), { accounts: 1, categories: 2, budgets: 1 }],
+    ['editCategory', () => endpoints.editCategory.initiate({
+      ...target, categoryId: 'cat', name: 'Food',
+    }), { accounts: 1, categories: 2, budgets: 1 }],
+    ['archiveSubcategory', () => endpoints.archiveSubcategory.initiate({
+      ...target, categoryId: 'cat', subcategoryId: 'sub',
+    }), { accounts: 1, categories: 2, budgets: 1 }],
+    ['createBudget', () => endpoints.createBudget.initiate({
+      ...target, name: 'Fun',
+    } as never), { accounts: 1, categories: 1, budgets: 2 }],
+    ['editBudget', () => endpoints.editBudget.initiate({
+      ...target, budgetId: 'ok', name: 'Fun',
+    }), { accounts: 1, categories: 1, budgets: 2 }],
+  ])('reads its list again after %s (review V3)', async (_name, write, expected) => {
+    // Each write is its own thunk type; the store takes any of them.
+    const sendWrite = (store: ReturnType<typeof fakeStore>['store']) => (
+      store.dispatch(write() as never) as unknown as PromiseLike<unknown>
+    );
+    expect(await readsAfter(sendWrite)).toEqual(expected);
   });
 
   it('reads nothing again after a write that failed', async () => {

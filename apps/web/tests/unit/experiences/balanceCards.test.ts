@@ -68,6 +68,21 @@ describe('balanceCardsOf', () => {
     }]);
   });
 
+  it('sums only the cards of a credit-card-only account, never its own figure (review V9)', () => {
+    const nubank = accountOf('nubank', {
+      type: 'credit_card_only', cards: [cardOf('master', 'nubank')],
+    });
+    const [card] = balanceCardsOf([
+      {
+        accountId: 'nubank', creditCardId: null, currency: 'BRL', amount: 700,
+      },
+      {
+        accountId: 'nubank', creditCardId: 'master', currency: 'BRL', amount: 45000,
+      },
+    ], [nubank], translator);
+    expect(card).toMatchObject({ amount: 45000 });
+  });
+
   it('shows a credit-card-only account with no cards as owing nothing', () => {
     const empty = accountOf('empty', { type: 'credit_card_only' });
     const [card] = balanceCardsOf([
