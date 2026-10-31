@@ -6,8 +6,8 @@ import {
 import { createFormatter } from '../../../../../../src/utilities/formatting';
 import { createTranslator } from '../../../../../../src/utilities/i18n';
 import {
-  ACCOUNTS, BILL_PAYMENT, CATEGORIES, ITAU, LOOKUP, OLD, accountOf, accountRowOf, cardOf,
-  cardRowOf, omit,
+  ACCOUNTS, BILL_PAYMENT, CATEGORIES, ITAU, LOOKUP, NUBANK_CARD_ONLY, OLD, accountOf,
+  accountRowOf, cardOf, cardRowOf, omit,
 } from './fixtures';
 
 // What a ledger row shows and offers (BDT: Flow rules, unit — pure, the real catalog).
@@ -213,11 +213,14 @@ describe('rowAccessOf', () => {
     expect(rowAccessOf(row, lookup, { selfUserId: 'you', role: 'Owner' })).toBe('none');
   });
 
-  it("asks only to record on a bill payment's card account (OQ-223)", () => {
+  it("decides a bill payment's card account on its recorder too (OQ-223)", () => {
     const member = { selfUserId: 'me', role: 'Member' };
-    const mine = { ...BILL_PAYMENT, createdByUserId: 'me' };
-    expect(rowAccessOf(mine, LOOKUP, member)).toBe('manage');
-    expect(rowAccessOf(mine, LOOKUP, { selfUserId: 'me', role: 'Viewer' })).toBe('none');
+    expect(rowAccessOf({ ...BILL_PAYMENT, createdByUserId: 'me' }, LOOKUP, member)).toBe('manage');
+    // Their own Account gone personal doesn't hand over someone else's payment of a shared card.
+    const mixed = ledgerLookupOf([
+      { ...ITAU, visibility: 'personal', ownerUserId: 'me' }, NUBANK_CARD_ONLY,
+    ], CATEGORIES);
+    expect(rowAccessOf({ ...BILL_PAYMENT, createdByUserId: 'you' }, mixed, member)).toBe('none');
   });
 });
 

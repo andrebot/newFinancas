@@ -20,7 +20,9 @@ import {
 // use case (I3, OQ-223): recording asks to create on the Account it lands on;
 // an edit or delete asks on the row's recorder when its Account is shared and
 // on the Account's owner when it is personal; a bill payment's card and a
-// transfer's other side ask to record there too. A refused caller stops the use
+// transfer's other side ask to record there when recorded, and what the row
+// asked when edited or deleted — so making one Account personal never hands
+// over a row on the other. A refused caller stops the use
 // case before anything but the reads that decide access — no write, no
 // transaction, no log. A row that isn't there asks only the membership check.
 
@@ -221,14 +223,14 @@ const GUARDED: readonly GuardedUseCase[] = [
       {
         ...common,
         name: `${verb} a bill payment`,
-        requests: [caios(action), beas('data.create')],
+        requests: [caios(action), caios(action)],
         secondHidden: 'credit_card.not_found',
         run: run(BILL.id),
       },
       {
         ...common,
         name: `${verb} a transfer between own accounts`,
-        requests: [caios(action), beas('data.create')],
+        requests: [caios(action), caios(action)],
         secondHidden: 'auth.forbidden',
         run: run(SENT.id),
       },
@@ -300,6 +302,22 @@ const beasData = (
   (fakes.cardTransactions.findById as Mock).mockImplementation(
     async (_householdId: string, id: string) => (id === charge.id ? charge : undefined),
   );
+  return fakes;
+};
+
+/**
+ * Reprograms the Accounts the mocks find — for Accounts of mixed visibility or
+ * owner.
+ *
+ * @param fakes - The mocks from `beasData`.
+ * @param accounts - The Accounts there are, each found by its id.
+ * @returns The same mocks.
+ */
+const withAccounts = (fakes: Fakes, accounts: readonly Account[]): Fakes => {
+  fakes.accounts.findById.mockImplementation(async (_householdId: string, id: string) => (
+    accounts.find((account) => account.id === id)
+  ));
+  fakes.accounts.list.mockResolvedValue([...accounts]);
   return fakes;
 };
 
@@ -541,6 +559,61 @@ describe('TransactionManager ↔ AuthorizationUtility seam (I3, OQ-223)', () => 
       await (allowed ? expect(edit).resolves.toBeDefined() : expect(edit).rejects.toMatchObject({
         domainError: FORBIDDEN,
       }));
+    });
+
+    it('refuses a Viewer recording into a shared Account from her personal one', async () => {
+      const fakes = withAccounts(withRole(beasData('shared'), 'Viewer'), [
+        { ...CHECKING, visibility: 'personal', ownerUserId: ANA_ID },
+        { ...SAVINGS, ownerUserId: BEA_ID },
+      ]);
+
+      await expect(createTransactionManager(fakes.deps)
+        .recordTransaction(CONTEXT, HOUSEHOLD_ID, TRANSFER))
+        .rejects.toMatchObject({ domainError: FORBIDDEN });
+      // Her own Account passed; the shared one refused.
+      expect(fakes.authorization.authorize).toHaveBeenCalledTimes(2);
+      expect(fakes.inTransaction).not.toHaveBeenCalled();
+    });
+
+    it.each(BY_ID_WRITES)('refuses their creator who would $name Caio recorded', async ({
+      run,
+    }) => {
+      const fakes = withAccounts(withRole(beasData('shared'), 'Member'), [
+        { ...CHECKING, ownerUserId: ANA_ID },
+        { ...SAVINGS, ownerUserId: ANA_ID },
+      ]);
+
+      await expect(run(createTransactionManager(fakes.deps)))
+        .rejects.toMatchObject({ domainError: FORBIDDEN });
+      expect(fakes.inTransaction).not.toHaveBeenCalled();
+    });
+
+    it.each(['Owner', 'Admin'] as const)('lets an %s change what anyone recorded', async (role) => {
+      await Promise.all(BY_ID_WRITES.map(async ({ run }) => {
+        const fakes = withRole(beasData('shared'), role);
+
+        await run(createTransactionManager(fakes.deps));
+
+        expect(fakes.inTransaction).toHaveBeenCalled();
+      }));
+    });
+
+    it.each([
+      ['the other side of Caio\'s transfer', RECEIVED.id],
+      ['Caio\'s payment of the shared card', BILL.id],
+    ])('never hands a Member %s by her own Account going personal', async (_what, id) => {
+      // Savings went personal — hers; checking, and its card, stay shared.
+      const fakes = withAccounts(withRole(beasData('shared'), 'Member'), [
+        { ...CHECKING, ownerUserId: BEA_ID },
+        { ...SAVINGS, visibility: 'personal', ownerUserId: ANA_ID },
+      ]);
+      const manager = createTransactionManager(fakes.deps);
+
+      await expect(manager.editTransaction(CONTEXT, HOUSEHOLD_ID, id, EDIT))
+        .rejects.toMatchObject({ domainError: FORBIDDEN });
+      await expect(manager.deleteTransaction(CONTEXT, HOUSEHOLD_ID, id))
+        .rejects.toMatchObject({ domainError: FORBIDDEN });
+      expect(fakes.inTransaction).not.toHaveBeenCalled();
     });
 
     it('keeps a personal Account its owner\'s: Ana\'s old entry there isn\'t hers', async () => {

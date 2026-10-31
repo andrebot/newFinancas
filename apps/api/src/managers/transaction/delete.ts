@@ -173,7 +173,7 @@ const createDelete = (deps: TransactionDeps) => ({
     if (!kind) throw validationFailed([{ field: 'kind', code: 'field.invalid_option' }]);
     await checkDeletable(deps, householdId, row, kind);
     // A transfer between own accounts goes as one: both sides (OQ-222).
-    const pair = await loadPairSide(deps, context, householdId, row);
+    const pair = await loadPairSide(deps, context, householdId, row, 'data.delete');
     // Both sides in their Accounts' order, so opposite pairs never wait on each other.
     const sides = inLockOrder([row, ...(pair === undefined ? [] : [pair])]
       .map((side) => ({ side })));

@@ -618,7 +618,7 @@ const createEdit = (deps: TransactionDeps) => ({
     const row = await loadEditable(deps, context, householdId, transactionId, 'data.edit');
     const kind = findKind(row.transaction.kind);
     if (!kind) throw validationFailed([{ field: 'kind', code: 'field.invalid_option' }]);
-    const pair = await loadPairSide(deps, context, householdId, row);
+    const pair = await loadPairSide(deps, context, householdId, row, 'data.edit');
     const edited = pair === undefined
       ? await editOne(deps, householdId, row, kind, update)
       : await editPair(deps, householdId, row, pair, update);

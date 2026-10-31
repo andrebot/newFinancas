@@ -50,21 +50,6 @@ export const mayManageOwned = (item: OwnedItem, selfUserId: string, role: string
 };
 
 /**
- * Tells whether the actor may record on an Account (FR-1.7, OQ-223): a personal
- * one only its owner; a shared one anyone but a Viewer, whoever created it.
- *
- * @param account - The Account's visibility and owner.
- * @param selfUserId - The signed-in user's id.
- * @param role - Their role in the household.
- * @returns Whether money may be recorded there.
- */
-export const mayRecordOn = (account: OwnedItem, selfUserId: string, role: string | undefined) => {
-  if (!role) return false;
-  if (account.visibility === 'personal') return account.ownerUserId === selfUserId;
-  return role !== 'Viewer';
-};
-
-/**
  * Tells whether the actor may edit and delete a transaction (OQ-223): on a
  * personal Account only its owner, whoever recorded it; on a shared one an
  * Owner/Admin, or the Member who recorded it — a schedule post, recorded by no

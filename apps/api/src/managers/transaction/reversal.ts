@@ -77,14 +77,14 @@ export const accessToRecorded = (recorder: string | null, action: DataAction): R
 /**
  * The Account-ledger half of the load: its Account must be open — archiving is
  * one-way and freezes its history (FR-2.4, OQ-220) — and a bill payment's
- * card's Account is decided on too, and must be open: editing or deleting the
- * payment moves the card's balance (OQ-219).
+ * card's Account is decided on too, with the same request, and must be open:
+ * editing or deleting the payment moves the card's balance (OQ-219, OQ-223).
  *
  * @param deps - The tier below.
  * @param context - The signed-in request.
  * @param householdId - The household.
  * @param transaction - The row.
- * @param access - The access it asks for on its Account.
+ * @param access - The access it asks for on its Account (and a paid card's).
  * @param notVisible - The not-found for an Account the caller may not see.
  * @returns The row with its effects' context.
  * @throws {DomainError} `household.not_found` / `notVisible()`; `auth.forbidden`;
@@ -109,7 +109,7 @@ const loadAccountRow = async (
   if (!account) throw transactionNotFound();
   if (account.archivedAt !== null) throw accountArchived();
   if (transaction.creditCardId) {
-    await requirePaidCard(deps, context, householdId, transaction.creditCardId);
+    await requirePaidCard(deps, context, householdId, transaction.creditCardId, access);
   }
   return {
     ledger: 'account',
@@ -120,7 +120,19 @@ const loadAccountRow = async (
   };
 };
 
-/** The card-ledger half of the load: the card's Account must be open (FR-2.4, OQ-220). */
+/**
+ * The card-ledger half of the load: access is decided on the card's Account
+ * and the row's recorder, and that Account must be open (FR-2.4, OQ-220).
+ *
+ * @param deps - The tier below.
+ * @param context - The signed-in request.
+ * @param householdId - The household.
+ * @param transaction - The card row.
+ * @param action - `data.edit` or `data.delete`.
+ * @returns The row with its effects' context.
+ * @throws {DomainError} `household.not_found` / `transaction.not_found`;
+ *   `auth.forbidden`; `account.archived`.
+ */
 const loadCardRow = async (
   deps: TransactionDeps,
   context: SignedInContext,
@@ -178,15 +190,17 @@ export const loadEditable = async (
 
 /**
  * Loads the other side of a transfer between own accounts (OQ-222): the pair
- * edits and deletes as one, so the caller must be able to record on the other
- * Account too — the money lands there, whoever created it (OQ-223) — and one
- * they can't see is `auth.forbidden`, not a not-found, since they see the row
- * they asked for.
+ * edits and deletes as one, so the other side is decided on as the row was —
+ * its recorder's on a shared Account, its owner's on a personal one (OQ-223):
+ * making one's own side personal never hands over the other — and one they
+ * can't see is `auth.forbidden`, not a not-found, since they see the row they
+ * asked for.
  *
  * @param deps - The tier below.
  * @param context - The signed-in request.
  * @param householdId - The household.
  * @param row - The side asked for.
+ * @param action - `data.edit` or `data.delete`.
  * @returns The other side, or `undefined` for a row that isn't one side of a pair.
  * @throws {DomainError} `auth.forbidden`; `account.archived`; `transaction.not_found`
  *   when the other side went meanwhile.
@@ -196,12 +210,13 @@ export const loadPairSide = async (
   context: SignedInContext,
   householdId: string,
   row: EditableRow,
+  action: DataAction,
 ): Promise<EditableRow | undefined> => {
   const pair = row.ledger === 'account' ? (row.transaction as AccountTransaction).pair : null;
   if (pair === null) return undefined;
   const other = await deps.accountTransactions.findById(householdId, pair.id);
   if (!other) throw transactionNotFound();
-  const access: RowAccess = (account) => accessToOwned(account, 'data.create');
+  const access = accessToRecorded(row.transaction.createdByUserId, action);
   return loadAccountRow(deps, context, householdId, other, access, forbidden);
 };
 

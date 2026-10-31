@@ -77,7 +77,15 @@ sequenceDiagram
     API->>TM: edit(actor, transactionId, input)
     TM->>ATA: findById(householdId, transactionId) (else the card ledger)
     ATA-->>TM: the stored transaction &mdash; kind, target, trade deltas, recorder
-    TM->>AZ: canWrite(actor, transactionId)? &mdash; on a shared Account its recorder's, on a personal one its owner's (OQ-223)
+    alt the transaction isn't there
+        TM->>AZ: authorize(actor, householdId, memberOnly)
+        TM-->>API: NotFound
+        API-->>User: 404 household.not_found to a non-member, else 404 transaction.not_found (OQ-117, OQ-223)
+    end
+    TM->>AZ: canWrite(actor, transactionId)? &mdash; data.edit: on a shared Account its recorder's, on a personal one its owner's (OQ-223)
+    opt a bill payment's card's Account, or a transfer's other side
+        TM->>AZ: canWrite(actor, that Account)? &mdash; the same request, so an Account gone personal never hands over the other (OQ-223)
+    end
     alt not authorized
         AZ-->>TM: denied
         TM-->>API: Forbidden
@@ -85,7 +93,7 @@ sequenceDiagram
     else its Account (a card row's: its card's) is archived &mdash; history is frozen (FR-2.4, OQ-220)
         TM-->>API: Conflict
         API-->>User: 409 account.archived
-    else a bill payment whose card's Account the actor may no longer edit, or is archived (OQ-219)
+    else a bill payment whose card's Account the actor may not change the payment on, or is archived (OQ-219, OQ-223)
         TM-->>API: NotFound or Conflict
         API-->>User: 404 credit_card.not_found or 409 credit_card.account_archived
     else a fixed-term buy whose schedule has posted, and amount, date or terms change
@@ -162,7 +170,7 @@ sequenceDiagram
   <div class="notes">
     <ul>
       <li><strong>PR #145 review:</strong> a trade&#39;s change restates its Holding&#39;s automatic snapshots from the whole history (<code>listTrades</code>, <code>list</code>, then <code>updateAutomatic</code> where a value or date moved), so later trades&#39; values follow it; a pair&#39;s two sides are written in Account-id order.</li>
-      <li><strong>OQ-222:</strong> either side of a transfer between own accounts edits both as one &mdash; <code>amount</code> is what was sent, <code>receivedAmount</code> what arrived across currencies, no category; the caller must be able to edit both accounts (403 otherwise).</li>
+      <li><strong>OQ-222:</strong> either side of a transfer between own accounts edits both as one &mdash; <code>amount</code> is what was sent, <code>receivedAmount</code> what arrived across currencies, no category; the caller must be able to change the row on both accounts &mdash; its recorder on a shared one, the owner on a personal one (403 otherwise, OQ-223).</li>
       <li><strong>Reverse-then-reapply, all inside one transaction</strong> &mdash; the same complexity flagged in <code>02-data-model.md</code>&#39;s Transactions domain, now traced call-by-call. If the edit only changes the <code>date</code> to a different month, the reverse/reapply pair is what actually drives the backdated-balance cascade documented in the Accounts domain (shift every subsequent month&#39;s opening/ending balance by one delta).</li>
       <li><code>CardTransactionAccessor.update</code> path (not shown, same shape) applies when the target was a Card Transaction instead of an Account Transaction.</li>
       <li><strong>Oct 2026 review:</strong> the automatic snapshot follows the edit (the value before the trade, its own snapshot left out, &plusmn; the new amount &mdash; OQ-222); the Holding is re-archived or un-archived to match the new quantity (OQ-72, OQ-80).</li>
