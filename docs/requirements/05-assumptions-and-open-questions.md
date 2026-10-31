@@ -6727,6 +6727,59 @@ The Dashboard, inbox and audit export (task 139) and the investments reports
 
 **Task 121 (`I4`) is complete.**
 
+### OQ-225: The finances seam, end to end (task I9)
+**Design decisions** (I9 raised no blocking questions; it follows I8's
+method, OQ-200): each journey sets up its household through the API, does
+only the journey in the browser, and checks the end state through the API
+(`tests/e2e/support/financeApi.ts`). The journeys are in `tests/e2e/finances/`:
+- **Smoke #4** (`smoke.spec.ts`, API only like smoke #1–3): a withdrawal
+  recorded today lowers its account's `currentBalance` by its amount.
+- **Core #5 `@core`, up to the Month Overview** (OQ-201 F14): an expense on
+  Groceries recorded in the browser shows on the Budget rail as spent and on
+  the Balances rail. The `month-overview` report agrees: the Budget's
+  `spendAmount` and the account's month-end balance. The Dashboard's half
+  joins with I11.
+- **Core #7 `@core`:** an expense moved three months back in the browser
+  shifts every month's ending balance from the landing month to the one
+  before the month it left by its amount; that month itself ends the same.
+  **An account opens today** (OQ-169's anchor is its creation day), so every
+  backdated row walks the history *backward*. The forward cascade (a movement
+  after the anchor) needs an older account, which E2E can't arrange through
+  the API; `tests/db/accessors/accountAccessor.test.ts` covers it against
+  the real database.
+- **Core #11 `@core`:** a whole ITSA4 position sold in the browser archives
+  its Holding (`system`), and deleting that sell in the ledger restores it,
+  position and all. **For the user-archived half,** a user can archive only
+  a matured Holding (FR-5.8), can't trade on one they archived
+  (`holding.archived`), and a redemption closes a position whole (OQ-171).
+  So the journey deletes a *partial sell* of a matured CDB the user then
+  archived: the position comes back and the Holding stays archived (`user`).
+- **Core #6 `@core`, up to the schedule** (F14): a fixed-rate CDB with
+  monthly interest is recorded in the browser. It gets its own Holding of
+  one unit, a computed schedule (monthly interest and a redemption on the
+  due date, none posted) and no Valuation Snapshot (OQ-51). A second buy of
+  the same CDB is a second Holding (OQ-50). The projection on the Holdings
+  view joins with I10.
+- **Full E2E, untagged:** Browse & Filter — 25 rows over three months, past
+  the API's first page of 20 by scrolling, then filtered to one Category;
+  Month Overview per period — the period bar moves the summary and the
+  Balances rail to the month picked, and the ledger keeps every row.
+- **`support/controls.ts` gains `typeDate`** (the en-US date mask, month
+  first); `support/money.ts` writes a BRL figure as the cards show it.
+
+**Two defects found:**
+- **A fixed-term buy left without a quantity recorded 1e-8 units, not one
+  unit** (D11). `record.ts` defaulted to a raw `1` on a quantity counted
+  in 1e-8 units (OQ-86); it now defaults to `100_000_000`, with a Manager
+  test for it. No call, route, error code or step changed, so no diagram
+  is redrawn.
+- **The I8 journeys still expected new Budgets and Goals to start shared.**
+  PR #145 made them start personal, so four journeys failed, core #9 among
+  them: a personal Budget doesn't share the shared one's constraint scope.
+  The journeys now choose Shared, as a user would.
+
+**Task 122 (`I9`) is complete.**
+
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
 *(None currently — OQ-29, the last item here, was resolved during data

@@ -1314,6 +1314,22 @@ describe('recordTransaction', () => {
       });
     });
 
+    it('records a fixed-term buy without quantity as one whole unit (D11)', async () => {
+      const fake = fakeDeps();
+      await recordOf(fake).recordTransaction(context, HOUSEHOLD_ID, buyRequest({
+        assetType: 'cdb',
+        ticker: 'CDB1',
+        amount: 50_000,
+        quantity: undefined,
+        rate: { type: 'fixed', value: 125_000 },
+        dueDate: '2026-12-01',
+        interestPayment: 'at_maturity',
+      }));
+      // Quantities count 1e-8 units: one unit is 100,000,000, never 1.
+      expect(fake.accountTransactions.insert.mock.calls[0]![0])
+        .toMatchObject({ trade: { quantityDelta: 100_000_000 } });
+    });
+
     it('defaults a fixed-term buy without interest payment to at maturity (OQ-205)', async () => {
       const fake = fakeDeps();
       await recordOf(fake).recordTransaction(context, HOUSEHOLD_ID, buyRequest({
