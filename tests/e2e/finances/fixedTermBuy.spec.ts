@@ -60,11 +60,16 @@ test('a CDB bought in the browser gets its own Holding and schedule, and no snap
     interestPayment: 'monthly',
   });
   const schedule = await scheduleEntries(request, owner, household.id, holding!.id!);
-  // Monthly interest up to the due date, where the contract redeems.
+  // Monthly interest up to the due date, where the contract redeems — on the
+  // next business day when the due date isn't one (Brazil's calendar, which
+  // the Engine's own suite covers): within a week of it, whatever today is.
   expect(schedule.filter((entry) => entry.kind === 'interest_payment').length)
     .toBeGreaterThanOrEqual(11);
-  expect(schedule.filter((entry) => entry.kind === 'redemption'))
-    .toEqual([expect.objectContaining({ date: isoDay(due), postedAt: null })]);
+  const redemptions = schedule.filter((entry) => entry.kind === 'redemption');
+  expect(redemptions).toEqual([expect.objectContaining({ postedAt: null })]);
+  const weekAfter = new Date(due.getFullYear(), due.getMonth(), due.getDate() + 7);
+  const redeemed = redemptions[0]?.date ?? '';
+  expect(redeemed >= isoDay(due) && redeemed < isoDay(weekAfter), redeemed).toBe(true);
   expect(await valuationSnapshots(request, owner, household.id, holding!.id!)).toEqual([]);
 
   // The same CDB bought again is its own contract: a second Holding.

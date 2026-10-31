@@ -6757,7 +6757,9 @@ only the journey in the browser, and checks the end state through the API
   shifts every month's ending balance from the landing month to the one
   before the month it left by its amount; that month itself ends the same.
   **An account opens today** (OQ-169's anchor is its creation day), so every
-  backdated row walks the history *backward*. The forward cascade (a movement
+  backdated row walks the history *backward* — the journey spans the four
+  months before this one, so every row is dated before today even on the
+  1st (a row on the anchor day itself would walk forward). The forward cascade (a movement
   after the anchor) needs an older account, which E2E can't arrange through
   the API; `tests/db/accessors/accountAccessor.test.ts` covers it against
   the real database.
@@ -6771,13 +6773,17 @@ only the journey in the browser, and checks the end state through the API
 - **Core #6 `@core`, up to the schedule** (F14): a fixed-rate CDB with
   monthly interest is recorded in the browser. It gets its own Holding of
   one unit, a computed schedule (monthly interest and a redemption on the
-  due date, none posted) and no Valuation Snapshot (OQ-51). A second buy of
+  due date's next business day — within a week of it, since a due date a
+  year out may fall on a weekend or a holiday — none posted) and no Valuation Snapshot (OQ-51). A second buy of
   the same CDB is a second Holding (OQ-50). The projection on the Holdings
   view joins with I10.
 - **Full E2E, untagged:** Browse & Filter — 25 rows over three months, past
   the API's first page of 20 by scrolling, then filtered to one Category;
   Month Overview per period — the period bar moves the summary and the
   Balances rail to the month picked, and the ledger keeps every row.
+- **The runner and the browser keep the API's calendar**
+  (`playwright.config.ts`: `TZ` and `timezoneId` America/Sao_Paulo), so
+  "today" and each month are the API's on a UTC CI runner too.
 - **`support/controls.ts` gains `typeDate`** (the en-US date mask, month
   first); `support/money.ts` writes a BRL figure as the cards show it.
 

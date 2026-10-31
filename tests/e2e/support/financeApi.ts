@@ -1,7 +1,7 @@
 import type { APIRequestContext } from '@playwright/test';
 import type {
   Account, AccountMonthBalance, AccountTransaction, InvestmentHolding, InvestmentScheduleEntry,
-  MonthOverviewReport, TransactionCreateRequest, TransactionUpdateRequest, ValuationSnapshot,
+  MonthOverviewReport, TransactionCreateRequest, ValuationSnapshot,
 } from '@financas/api-types';
 import { listAccounts } from './accountApi';
 import { send, type TestUser } from './identityApi';
@@ -17,7 +17,8 @@ export const UNIT = 100_000_000;
 type Member = Pick<TestUser, 'accessToken'>;
 
 /**
- * A date as the API takes it, in the browser's own calendar — the local day,
+ * A date as the API takes it, in the browser's own calendar — the local day
+ * (pinned to the API's time zone in playwright.config.ts),
  * never UTC's, so a journey run near midnight lands where the page does.
  *
  * @param date - The date.
@@ -110,53 +111,6 @@ export const recordTransaction = (
   `/households/${householdId}/transactions`,
   { data: transaction, accessToken: member.accessToken },
 );
-
-/**
- * Edits a transaction through the API.
- *
- * @param request - Playwright's API client.
- * @param member - A member who may edit it.
- * @param householdId - The household.
- * @param transactionId - The transaction.
- * @param changes - The values that change.
- * @returns The edited transaction.
- */
-export const editTransaction = (
-  request: APIRequestContext,
-  member: Member,
-  householdId: string,
-  transactionId: string,
-  changes: TransactionUpdateRequest,
-): Promise<AccountTransaction> => send<AccountTransaction>(
-  request,
-  'PATCH',
-  `/households/${householdId}/transactions/${transactionId}`,
-  { data: changes, accessToken: member.accessToken },
-);
-
-/**
- * Lists an Account's transactions — the first page of the ledger it filters.
- *
- * @param request - Playwright's API client.
- * @param member - A member who sees it.
- * @param householdId - The household.
- * @param accountId - The Account.
- * @returns Its newest transactions, up to the API's page.
- */
-export const listAccountTransactions = async (
-  request: APIRequestContext,
-  member: Member,
-  householdId: string,
-  accountId: string,
-): Promise<readonly AccountTransaction[]> => {
-  const page = await send<{ data?: AccountTransaction[] }>(
-    request,
-    'GET',
-    `/households/${householdId}/transactions?accountIds=${accountId}&limit=100`,
-    { accessToken: member.accessToken },
-  );
-  return page.data ?? [];
-};
 
 /**
  * Reads an Account's balance history, month by month.

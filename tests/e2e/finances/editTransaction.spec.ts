@@ -13,20 +13,21 @@ import text from '../support/text';
 // up to the one it left by the same amount, not just the landing month's.
 // An account opens today (OQ-169), so the edit runs the backward walk; the
 // forward cascade, after the anchor, needs an older account than E2E can
-// arrange through the API.
+// arrange through the API. The journey spans past months only, so every row
+// is dated before today — on the 1st, this month has no such day.
 
-/** The months the journey spans: three back to this one. */
-const MONTHS = [-3, -2, -1, 0] as const;
+/** The months the journey spans: four back to last month. */
+const MONTHS = [-4, -3, -2, -1] as const;
 
 /**
- * The 10th of a month some months away — a day already past in each of them.
+ * The 10th of a month some months back — a day before today in each of them.
  *
- * @param offset - How many months away.
+ * @param offset - How many months away: negative.
  * @returns That day, as `YYYY-MM-DD`.
  */
 const tenthOf = (offset: number): string => {
   const start = monthStart(offset);
-  return isoDay(new Date(start.getFullYear(), start.getMonth(), offset === 0 ? 1 : 10));
+  return isoDay(new Date(start.getFullYear(), start.getMonth(), 10));
 };
 
 test('an expense moved three months back shifts every balance it passes over', {
@@ -46,11 +47,11 @@ test('an expense moved three months back shifts every balance it passes over', {
   // One small expense a month, so every month in the span has a balance row.
   await Promise.all([
     ...MONTHS.map((offset) => spend(tenthOf(offset), 1_000, `Bus pass ${offset}`)),
-    spend(tenthOf(0), 10_000, 'Rent'),
+    spend(tenthOf(-1), 10_000, 'Rent'),
   ]);
-  const range = { from: isoMonth(monthStart(-3)), to: isoMonth(monthStart(0)) };
+  const range = { from: isoMonth(monthStart(-4)), to: isoMonth(monthStart(-1)) };
   const before = await accountBalances(request, owner, household.id, account.id, range);
-  const landing = new Date(monthStart(-3).getFullYear(), monthStart(-3).getMonth(), 15);
+  const landing = new Date(monthStart(-4).getFullYear(), monthStart(-4).getMonth(), 15);
   await signInThroughUi(page, owner);
   await page.goto('/transactions');
 
@@ -66,7 +67,7 @@ test('an expense moved three months back shifts every balance it passes over', {
   expect(after.map(({ year, month }) => [year, month]))
     .toEqual(before.map(({ year, month }) => [year, month]));
   // Every month from the landing one to the last before the one it left ends
-  // 100,00 lower; this month ends the same. The account opened today, so its
+  // 100,00 lower; the month it left ends the same. The account opened today, so its
   // balance now is the anchor and these movements walk backward (OQ-169).
   expect(after.map((row) => row.endingBalance)).toEqual(before.map((row, index) => (
     row.endingBalance - (index < MONTHS.length - 1 ? 10_000 : 0)
