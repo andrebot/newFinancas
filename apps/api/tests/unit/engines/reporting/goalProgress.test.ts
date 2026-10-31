@@ -45,6 +45,8 @@ describe('goalProgress (FR-8.5, FR-8.7)', () => {
     });
     expect(deps.findHoldings).toHaveBeenCalledWith(HOUSEHOLD_ID, ['petr4']);
     expect(deps.latestSnapshots).toHaveBeenCalledWith(['petr4'], DATE);
+    // A market-priced Holding is never valued at its cost basis (review B17).
+    expect(deps.costBasisAsOf).toHaveBeenCalledWith([], DATE);
   });
 
   it('reads the Goal split in effect on the day (OQ-206)', async () => {

@@ -258,6 +258,14 @@ describe('MultiSelect', () => {
     elsewhere.remove();
   });
 
+  it('shows no note beside Done without one (review V10)', async () => {
+    renderHolder();
+    await togglePanel();
+
+    const done = screen.getByRole('button', { name: 'Done' });
+    expect(done.parentElement!.children).toHaveLength(1);
+  });
+
   it('shows the note beside Done', async () => {
     renderHolder({ note: 'The 5 largest keep their colour.' });
     await togglePanel();

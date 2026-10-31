@@ -2,9 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { SignedInContext } from '../../../../src/managers/requestContext';
 import createEdit from '../../../../src/managers/transaction/edit';
 import {
-  ACCOUNT, ANA_ID, BUY_ROW, CARD_ROW, CHECKING, FIXED_HOLDING, HOUSEHOLD_ID, MARKET_HOLDING, NOW,
-  ROW, SELL_ROW, fakeDeps,
-  snapshotOf, tradeOf,
+  ACCOUNT, ANA_ID, BUY_ROW, CARD, CARD_ROW, CATEGORY, CHECKING, FIXED_HOLDING, HOUSEHOLD_ID,
+  MARKET_HOLDING, NOW, ROW, SELL_ROW, fakeDeps, snapshotOf, tradeOf,
 } from './fakes';
 
 // Edit Transaction (CUC-2, OQ-201 D6/D8): values only — kind and target never
@@ -116,8 +115,8 @@ describe('editTransaction', () => {
             code: 'validation.failed',
             details: [{
               field: 'quantity',
-
               code: 'object.unknown_keys',
+              params: { keys: ['quantity'] },
             }],
           },
         });
@@ -174,6 +173,19 @@ describe('editTransaction', () => {
         subcategoryId: 's9',
       }))
         .rejects.toMatchObject({ domainError: { code: 'transaction.subcategory_mismatch' } });
+    });
+
+    it('sets a Category\'s second Subcategory (review B7)', async () => {
+      const fake = fakeDeps();
+      await editOf(fake).editTransaction(context, HOUSEHOLD_ID, ROW.id, {
+        categoryId: CATEGORY.id,
+        subcategoryId: 's2',
+      });
+      expect(fake.accountTransactions.update).toHaveBeenCalledWith(
+        ROW.id,
+        expect.anything(),
+        expect.objectContaining({ categoryId: CATEGORY.id, subcategoryId: 's2' }),
+      );
     });
 
     it('drops the Subcategory when the Category is cleared (OQ-201)', async () => {
@@ -574,6 +586,49 @@ describe('editTransaction', () => {
       expect(fake.holdings.archive).toHaveBeenCalledWith(MARKET_HOLDING.id, 'system');
     });
 
+    it('reapplies an edited buy as a buy — position and basis go back in (review B2)', async () => {
+      const fake = fakeDeps();
+      fake.accountTransactions.findById.mockResolvedValue(BUY_ROW);
+      // Undoing the buy's +2 units / +2000 leaves 8 units / 8000.
+      fake.holdings.applyTrade.mockResolvedValueOnce({ ok: true, quantity: 8, costBasis: 8_000 })
+        .mockResolvedValueOnce({ ok: true, quantity: 11, costBasis: 11_000 });
+      await editOf(fake).editTransaction(context, HOUSEHOLD_ID, BUY_ROW.id, {
+        quantity: 3, amount: 3_000,
+      });
+      expect(fake.holdings.applyTrade).toHaveBeenNthCalledWith(1, MARKET_HOLDING.id, {
+        quantityDelta: -2, costBasisDelta: -2_000,
+      });
+      expect(fake.holdings.applyTrade).toHaveBeenNthCalledWith(2, MARKET_HOLDING.id, {
+        quantityDelta: 3, costBasisDelta: 3_000,
+      });
+      expect(fake.accountTransactions.update).toHaveBeenCalledWith(
+        BUY_ROW.id,
+        expect.anything(),
+        expect.objectContaining({ trade: { quantityDelta: 3, costBasisDelta: 3_000 } }),
+      );
+    });
+
+    it('leaves the Holding open when an edited sell keeps position (review B3)', async () => {
+      const fake = fakeDeps();
+      fake.accountTransactions.findById.mockResolvedValue(SELL_ROW);
+      fake.holdings.applyTrade.mockResolvedValueOnce({ ok: true, quantity: 10, costBasis: 5_000 })
+        .mockResolvedValueOnce({ ok: true, quantity: 8, costBasis: 4_000 });
+      await editOf(fake).editTransaction(context, HOUSEHOLD_ID, SELL_ROW.id, { quantity: 2 });
+      expect(fake.holdings.archive).not.toHaveBeenCalled();
+    });
+
+    it('edits the sell that sold the Holding out — a system archive (B11)', async () => {
+      const fake = fakeDeps();
+      fake.accountTransactions.findById.mockResolvedValue(SELL_ROW);
+      fake.holdings.findById.mockResolvedValue({
+        ...MARKET_HOLDING, quantity: 0, costBasis: 0, archivedAt: NOW, archivedBy: 'system',
+      });
+      fake.holdings.applyTrade.mockResolvedValueOnce({ ok: true, quantity: 3, costBasis: 1_500 })
+        .mockResolvedValueOnce({ ok: true, quantity: 0, costBasis: 0 });
+      await editOf(fake).editTransaction(context, HOUSEHOLD_ID, SELL_ROW.id, { amount: 4_000 });
+      expect(fake.accountTransactions.update).toHaveBeenCalled();
+    });
+
     it('refuses a trade whose Holding vanished', async () => {
       const fake = fakeDeps();
       fake.accountTransactions.findById.mockResolvedValue(SELL_ROW);
@@ -586,6 +641,65 @@ describe('editTransaction', () => {
       ))
         .rejects.toMatchObject({ domainError: { code: 'holding.not_found' } });
     });
+  });
+
+  describe('a fixed-term Holding\'s redemption (review B10)', () => {
+    // The CDB's maturity post: the whole unit out at its full basis.
+    const redemptionRow = {
+      ...BUY_ROW,
+      id: 't8',
+      kind: 'investment_redemption',
+      amount: 52_000,
+      holdingId: FIXED_HOLDING.id,
+      holding: { ticker: 'CDB1', assetType: 'cdb' },
+      trade: { quantityDelta: -1, costBasisDelta: -50_000 },
+    };
+
+    /**
+     * A fake holding the redemption, its CDB's schedule started.
+     *
+     * @returns The fake.
+     */
+    const redeemed = () => {
+      const fake = fakeDeps();
+      fake.accountTransactions.findById.mockResolvedValue(redemptionRow);
+      fake.holdings.findById.mockResolvedValue({
+        ...FIXED_HOLDING, quantity: 0, costBasis: 0, archivedAt: NOW, archivedBy: 'system',
+      });
+      fake.holdings.listSchedule.mockResolvedValue([{ postedAt: NOW }]);
+      fake.holdings.applyTrade.mockResolvedValueOnce({ ok: true, quantity: 1, costBasis: 50_000 })
+        .mockResolvedValueOnce({ ok: true, quantity: 0, costBasis: 0 });
+      return fake;
+    };
+
+    it('edits its amount although the buy\'s schedule has started', async () => {
+      const fake = redeemed();
+      await editOf(fake).editTransaction(context, HOUSEHOLD_ID, redemptionRow.id, {
+        amount: 52_500,
+      });
+      expect(fake.accountTransactions.update).toHaveBeenCalled();
+      expect(fake.investmentProducts.schedule).not.toHaveBeenCalled();
+      expect(fake.holdings.updateTerms).not.toHaveBeenCalled();
+    });
+
+    it('takes none of the buy\'s terms', async () => {
+      const fake = redeemed();
+      await expect(editOf(fake).editTransaction(context, HOUSEHOLD_ID, redemptionRow.id, {
+        dueDate: '2027-01-15',
+      })).rejects.toMatchObject({
+        domainError: { code: 'validation.failed', details: [{ field: 'dueDate' }] },
+      });
+    });
+  });
+
+  it('never touches a schedule when a market buy is edited (review B10)', async () => {
+    const fake = fakeDeps();
+    fake.accountTransactions.findById.mockResolvedValue(BUY_ROW);
+    fake.holdings.applyTrade.mockResolvedValueOnce({ ok: true, quantity: 8, costBasis: 8_000 })
+      .mockResolvedValueOnce({ ok: true, quantity: 10, costBasis: 10_500 });
+    await editOf(fake).editTransaction(context, HOUSEHOLD_ID, BUY_ROW.id, { amount: 2_500 });
+    expect(fake.investmentProducts.schedule).not.toHaveBeenCalled();
+    expect(fake.holdings.listSchedule).not.toHaveBeenCalled();
   });
 
   describe('fixed-term buys (OQ-201 D8)', () => {
@@ -683,6 +797,78 @@ describe('editTransaction', () => {
       );
       expect(fake.holdings.applySchedule).not.toHaveBeenCalled();
       expect(fake.investmentProducts.schedule).not.toHaveBeenCalled();
+    });
+
+    it('re-categorises a locked buy — the Category is no term (OQ-201 D8, review B7)', async () => {
+      const fake = fakeDeps();
+      fake.accountTransactions.findById.mockResolvedValue(buyRow);
+      fake.holdings.findById.mockResolvedValue(FIXED_HOLDING);
+      fake.holdings.listSchedule.mockResolvedValue([{ postedAt: NOW }]);
+      await editOf(fake).editTransaction(context, HOUSEHOLD_ID, buyRow.id, {
+        categoryId: CATEGORY.id, subcategoryId: 's1',
+      });
+      expect(fake.accountTransactions.update).toHaveBeenCalledWith(
+        buyRow.id,
+        expect.anything(),
+        expect.objectContaining({ categoryId: CATEGORY.id, subcategoryId: 's1' }),
+      );
+    });
+
+    it('schedules from the Holding\'s terms where the edit leaves them (review B9)', async () => {
+      const fake = fakeDeps();
+      fake.accountTransactions.findById.mockResolvedValue(buyRow);
+      const debenture = {
+        ...FIXED_HOLDING, assetType: 'debenture' as const, incentivised: true, rateSpread: null,
+      };
+      fake.holdings.findById.mockResolvedValue(debenture);
+      await editOf(fake).editTransaction(context, HOUSEHOLD_ID, buyRow.id, {
+        dueDate: '2027-01-15',
+      });
+      expect(fake.investmentProducts.schedule).toHaveBeenCalledExactlyOnceWith(HOUSEHOLD_ID, {
+        assetType: 'debenture',
+        incentivised: true,
+        date: buyRow.date,
+        amount: buyRow.amount,
+        dueDate: '2027-01-15',
+        rate: { type: 'ipca', value: 2.5 },
+        interestPayment: 'semiannual',
+      });
+    });
+
+    it('schedules from the edit\'s new rate (review B9)', async () => {
+      const fake = fakeDeps();
+      fake.accountTransactions.findById.mockResolvedValue(buyRow);
+      fake.holdings.findById.mockResolvedValue(FIXED_HOLDING);
+      await editOf(fake).editTransaction(context, HOUSEHOLD_ID, buyRow.id, {
+        rate: { type: 'cdi', value: 11_000, spread: 50 },
+      });
+      expect(fake.investmentProducts.schedule).toHaveBeenCalledWith(
+        HOUSEHOLD_ID,
+        expect.objectContaining({ rate: { type: 'cdi', value: 11_000, spread: 50 } }),
+      );
+    });
+
+    it('recomputes the schedule when only the buy\'s date moves (OQ-205, review B10)', async () => {
+      const fake = fakeDeps();
+      fake.accountTransactions.findById.mockResolvedValue(buyRow);
+      fake.holdings.findById.mockResolvedValue(FIXED_HOLDING);
+      await editOf(fake).editTransaction(context, HOUSEHOLD_ID, buyRow.id, { date: '2026-10-14' });
+      expect(fake.investmentProducts.schedule).toHaveBeenCalledWith(
+        HOUSEHOLD_ID,
+        expect.objectContaining({ date: '2026-10-14' }),
+      );
+    });
+
+    it('keeps a schedule with no posted entry editable (OQ-201 D8, review B10)', async () => {
+      const fake = fakeDeps();
+      fake.accountTransactions.findById.mockResolvedValue(buyRow);
+      fake.holdings.findById.mockResolvedValue(FIXED_HOLDING);
+      fake.holdings.listSchedule.mockResolvedValue([{ postedAt: null }, { postedAt: null }]);
+      await editOf(fake).editTransaction(context, HOUSEHOLD_ID, buyRow.id, {
+        dueDate: '2027-01-15',
+      });
+      expect(fake.holdings.listSchedule).toHaveBeenCalledWith([FIXED_HOLDING.id]);
+      expect(fake.holdings.updateTerms).toHaveBeenCalled();
     });
 
     it('writes new terms and recomputes the schedule while unlocked (OQ-205)', async () => {
@@ -957,6 +1143,75 @@ describe('editTransaction', () => {
       fake.holdings.applyTrade.mockResolvedValue({ ok: true, quantity: 12, costBasis: 6_000 });
       await editOf(fake).editTransaction(context, HOUSEHOLD_ID, SELL_ROW.id, { amount: 4_000 });
       expect(fake.holdings.unarchiveIfSystemArchived).toHaveBeenCalledWith(MARKET_HOLDING.id);
+    });
+
+    it('leaves a system archive alone when the undo restores nothing (review B15)', async () => {
+      const fake = fakeDeps();
+      fake.accountTransactions.findById.mockResolvedValue(BUY_ROW);
+      // The buy was the whole position: undoing it leaves zero.
+      fake.holdings.applyTrade.mockResolvedValueOnce({ ok: true, quantity: 0, costBasis: 0 })
+        .mockResolvedValueOnce({ ok: true, quantity: 3, costBasis: 3_000 });
+      await editOf(fake).editTransaction(context, HOUSEHOLD_ID, BUY_ROW.id, {
+        quantity: 3, amount: 3_000,
+      });
+      expect(fake.holdings.unarchiveIfSystemArchived).not.toHaveBeenCalled();
+    });
+
+    it('is transaction.changed when the reversal\'s Account move loses a race (B15)', async () => {
+      const fake = fakeDeps();
+      fake.accounts.applyMovement.mockResolvedValueOnce({ ok: false });
+      await expect(editOf(fake).editTransaction(context, HOUSEHOLD_ID, ROW.id, { amount: 7_000 }))
+        .rejects.toMatchObject({ domainError: { code: 'transaction.changed' } });
+    });
+
+    it('is transaction.changed when the reversal\'s card move loses a race (B15)', async () => {
+      const fake = fakeDeps();
+      fake.accountTransactions.findById.mockResolvedValue(undefined);
+      fake.creditCards.applyMovement.mockResolvedValueOnce({ ok: false });
+      await expect(editOf(fake).editTransaction(
+        context,
+        HOUSEHOLD_ID,
+        CARD_ROW.id,
+        { amount: 6_000 },
+      ))
+        .rejects.toMatchObject({ domainError: { code: 'transaction.changed' } });
+    });
+
+    it('is transaction.changed when a bill\'s card loses the reversal race (B15)', async () => {
+      const fake = fakeDeps();
+      const billRow = {
+        ...ROW,
+        id: 't-bill',
+        kind: 'credit_card_bill_payment' as const,
+        effect: 'bill_payment' as const,
+        accountId: CHECKING.id,
+        creditCardId: CARD.id,
+      };
+      fake.accountTransactions.findById.mockResolvedValue(billRow);
+      fake.creditCards.applyMovement.mockResolvedValueOnce({ ok: false });
+      await expect(editOf(fake).editTransaction(
+        context,
+        HOUSEHOLD_ID,
+        billRow.id,
+        { amount: 7_000 },
+      ))
+        .rejects.toMatchObject({ domainError: { code: 'transaction.changed' } });
+    });
+
+    it('guards a card edit on the values it read (OQ-203, review B15)', async () => {
+      const fake = fakeDeps();
+      fake.accountTransactions.findById.mockResolvedValue(undefined);
+      await editOf(fake).editTransaction(context, HOUSEHOLD_ID, CARD_ROW.id, { amount: 6_000 });
+      expect(fake.cardTransactions.update).toHaveBeenCalledWith(
+        CARD_ROW.id,
+        {
+          date: CARD_ROW.date,
+          amount: CARD_ROW.amount,
+          categoryId: CARD_ROW.categoryId,
+          subcategoryId: CARD_ROW.subcategoryId,
+        },
+        expect.objectContaining({ amount: 6_000 }),
+      );
     });
 
     it('edits a bill payment whose card is gone — cash leg and accrual only (OQ-207)', async () => {

@@ -284,6 +284,18 @@ describe('the page', () => {
     expect(screen.queryByTestId('record')).toBeNull();
   });
 
+  it('dates the month view from this household\'s creation (review V9)', async () => {
+    const older = { ...DOE, id: 'older', createdAt: '2020-01-01T00:00:00Z' };
+    await renderExperience({ 'GET /households': () => jsonResponse(200, { data: [older, DOE] }) });
+    expect(shownBy('month'))
+      .toEqual(expect.objectContaining({ householdCreatedAt: DOE.createdAt }));
+  });
+
+  it('reads no Holding without a Holding filter (review V9)', async () => {
+    const { fetchFn } = await renderExperience();
+    expect(calls(fetchFn).filter((route) => route.includes('/holdings/'))).toEqual([]);
+  });
+
   it('shows a skeleton while the user loads', async () => {
     const hold = deferred();
     await renderExperience({ 'GET /users/me': () => hold.promise });
@@ -432,6 +444,15 @@ describe('the Holding filter', () => {
 });
 
 describe('the filter drawer', () => {
+  it('draws the phone\'s Filter as an icon, the header\'s with its label (review V9)', async () => {
+    await renderExperience();
+    const phone = screen.getByTestId('phone-filter').querySelector('button')!;
+    expect(phone.querySelector('.sr-only')?.textContent).toBe('Filter');
+    const header = screen.getAllByRole('button', { name: /^Filter/ })
+      .find((button) => !screen.getByTestId('phone-filter').contains(button))!;
+    expect(header.querySelector('.sr-only')).toBeNull();
+  });
+
   it('opens from the header and the phone’s button, counting the filters in use', async () => {
     await renderExperience();
     await press('filterKinds');
@@ -560,6 +581,28 @@ describe('the record drawer', () => {
     expect(shownBy('record')).toEqual(expect.objectContaining({ goals: [] }));
   });
 
+  it('waits for both Goal reads, the completed ones too (review V9)', async () => {
+    const hold = deferred();
+    await renderExperience({
+      'GET /households/doe/goal-progress': (request) => (
+        new URL(request.url).searchParams.get('status') === 'completed'
+          ? hold.promise
+          : jsonResponse(200, { data: [] })
+      ),
+    });
+    await click('Record Transaction');
+    await settle();
+    expect(screen.queryByTestId('record')).toBeNull();
+    await settleWith(hold, jsonResponse(200, { data: [] }));
+    await settle();
+    expect(screen.getByTestId('record')).toBeDefined();
+  });
+
+  it('names the phone\'s floating Record button like the header\'s (review V8)', async () => {
+    await renderExperience();
+    expect(screen.getAllByRole('button', { name: 'Record Transaction' })).toHaveLength(2);
+  });
+
   it('records, refreshing the page, and saves an edit', async () => {
     const { fetchFn } = await renderExperience({
       'POST /households/doe/transactions': () => jsonResponse(201, PLAIN),
@@ -658,6 +701,17 @@ describe('an edit', () => {
     await press('close');
     await settleWith(hold, jsonResponse(500, envelope('internal.unexpected')));
     expect(screen.queryByText("Couldn't open this transaction. Try again.")).toBeNull();
+    expect(screen.queryByTestId('record')).toBeNull();
+  });
+
+  it('opens nothing for a Holding read landing after a close (review V5)', async () => {
+    const hold = deferred();
+    await renderExperience({ 'GET /households/doe/holdings/h-1': () => hold.promise });
+    await click('Record Transaction');
+    await settle();
+    await press('editBuy');
+    await press('close');
+    await settleWith(hold, jsonResponse(200, { id: 'h-1', ticker: 'CDB' }));
     expect(screen.queryByTestId('record')).toBeNull();
   });
 

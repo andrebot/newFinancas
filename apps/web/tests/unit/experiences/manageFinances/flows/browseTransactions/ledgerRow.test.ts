@@ -115,6 +115,13 @@ describe('rowMetaOf', () => {
     expect(rowMetaOf(cardRowOf({ description: '' }), LOOKUP, translator))
       .toBe('Visa •••• 1111 · Housing');
   });
+
+  it('treats a blank description, or none, as no description (review V4)', () => {
+    expect(rowMetaOf(cardRowOf({ description: '  ' }), LOOKUP, translator))
+      .toBe('Visa •••• 1111 · Housing');
+    expect(rowMetaOf(omit(cardRowOf(), 'description'), LOOKUP, translator))
+      .toBe('Visa •••• 1111 · Housing');
+  });
 });
 
 describe('rowIconOf', () => {
@@ -151,6 +158,11 @@ describe('rowDetailsOf', () => {
     ]);
     expect(rowDetailsOf(omit(TRADE, 'quantity'), LOOKUP, translator, formatter)[5])
       .toEqual({ label: 'Units', value: undefined, numeric: true });
+  });
+
+  it('lists no Holding on a cash row (review V4)', () => {
+    expect(rowDetailsOf(accountRowOf(), LOOKUP, translator, formatter).map(({ label }) => label))
+      .toEqual(['Kind', 'Date', 'Account', 'Category']);
   });
 
   it('reads a row with no kind or date', () => {

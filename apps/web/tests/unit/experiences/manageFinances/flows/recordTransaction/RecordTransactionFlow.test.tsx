@@ -1,4 +1,6 @@
-import { act, fireEvent, screen } from '@testing-library/react';
+import {
+  act, cleanup, fireEvent, screen,
+} from '@testing-library/react';
 import { TRANSACTION_KINDS } from '@financas/reference';
 import type {
   HoldingAllocation, InvestmentHolding, InvestmentScheduleEntry,
@@ -23,7 +25,7 @@ import { createAlertQueue, type AlertQueue } from '../../../../../../src/utiliti
 import type { DataOutcome, RequestOutcome } from '../../../../../../src/utilities/requestOutcome';
 import { renderInLocale } from '../../../../../support/renderInLocale';
 import {
-  ACCOUNTS, CATEGORIES, CDB, GOALS, STOCK, accountRowOf,
+  ACCOUNTS, CATEGORIES, CDB, GOALS, STOCK, accountOf, accountRowOf,
 } from './fixtures';
 
 // The Record Transaction Flow (BDT: Flow, unit). Its Interactions are stubbed
@@ -82,6 +84,7 @@ vi.mock('../../../../../../src/experiences/manageFinances/flows/recordTransactio
       data-disabled={String(Boolean(disabled))}
     >
       <button type="button" onClick={() => onChange(5_000)}>amount</button>
+      <input aria-label="amount box" aria-invalid={error ? true : undefined} readOnly />
     </div>
   ),
   /**
@@ -103,6 +106,7 @@ vi.mock('../../../../../../src/experiences/manageFinances/flows/recordTransactio
       <button type="button" onClick={() => onAccount('itau')}>account itau</button>
       <button type="button" onClick={() => onCard('nu1')}>card nu1</button>
       <button type="button" onClick={() => onToAccount('chase')}>to chase</button>
+      <button type="button" onClick={() => onToAccount('poupanca')}>to poupanca</button>
     </div>
   ),
   /**
@@ -123,11 +127,12 @@ vi.mock('../../../../../../src/experiences/manageFinances/flows/recordTransactio
    * @returns The stub.
    */
   ReceivedAmountField: ({
-    account, value, error, onChange,
+    account, value, error, disabled, onChange,
   }: ReceivedAmountFieldProps) => (
     <div
       data-testid="received"
       data-account={account.id}
+      data-disabled={String(Boolean(disabled))}
       data-value={data(value)}
       data-error={error ?? ''}
     >
@@ -219,6 +224,9 @@ vi.mock('../../../../../../src/experiences/manageFinances/flows/recordTransactio
     >
       <button type="button" onClick={() => onAsset({ assetType: 'stock', ticker: 'BBAS3' })}>
         asset
+      </button>
+      <button type="button" onClick={() => onAsset({ assetType: 'cdb', ticker: 'CDB X' })}>
+        asset cdb
       </button>
       <button type="button" onClick={() => onQuantity(100_000_000)}>buy quantity</button>
       <button
@@ -809,6 +817,7 @@ describe('a transfer between own accounts (OQ-222)', () => {
     });
     expect(attr('own', 'locked')).toBe('true');
     expect(attr('received', 'value')).toBe('900');
+    expect(attr('received', 'disabled')).toBe('false');
 
     await press('received');
     await press('Save changes');
@@ -858,6 +867,7 @@ describe('editing a fixed-term buy (D8)', () => {
 
     expect(screen.queryByText(/has started paying out/)).toBeNull();
     expect(attr('amount', 'disabled')).toBe('false');
+    expect(attr('details', 'disabled')).toBe('false');
     expect(JSON.parse(attr('buy', 'editable')!)).toMatchObject({ quantity: true, terms: true });
   });
 
@@ -871,5 +881,309 @@ describe('editing a fixed-term buy (D8)', () => {
 
     expect(onSave).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+describe('which refusals a change clears (review V1)', () => {
+  /**
+   * The buy's refusals, by field.
+   *
+   * @returns The errors the buy stub was handed.
+   */
+  const buyErrors = () => JSON.parse(attr('buy', 'errors')!) as Record<string, string | undefined>;
+
+  it('clears every refusal on a kind change', async () => {
+    renderFlow();
+    await press('clear date');
+    await press('Record Transaction');
+    expect(attr('amount', 'error')).not.toBe('');
+    expect(attr('targets', 'account-error')).not.toBe('');
+    expect(attr('details', 'error')).not.toBe('');
+
+    await press('kind withdrawal');
+    expect(attr('amount', 'error')).toBe('');
+    expect(attr('targets', 'account-error')).toBe('');
+    expect(attr('details', 'error')).toBe('');
+  });
+
+  it('clears a card, a Holding, its units and a split\'s refusals on a kind change', async () => {
+    renderFlow();
+    await press('kind charge');
+    await press('Record Transaction');
+    expect(attr('targets', 'card-error')).not.toBe('');
+    await press('kind refund');
+    expect(attr('targets', 'card-error')).toBe('');
+
+    await press('kind investment_sell');
+    await press('Record Transaction');
+    expect(attr('holding', 'error')).not.toBe('');
+    expect(attr('holding', 'quantity-error')).not.toBe('');
+    await press('kind investment_redemption');
+    expect(attr('holding', 'error')).toBe('');
+    expect(attr('holding', 'quantity-error')).toBe('');
+  });
+
+  it('clears the buy\'s refusals, and the split\'s, on a kind change', async () => {
+    renderFlow();
+    await press('group investment');
+    await press('asset cdb');
+    await press('overfull split');
+    await press('Record Transaction');
+    expect(buyErrors()).toMatchObject({
+      rateValue: expect.any(String), dueDate: expect.any(String),
+    });
+    expect(attr('split', 'error')).not.toBe('');
+    await press('kind deposit');
+    await press('group investment');
+    expect(buyErrors()).toEqual({});
+    expect(attr('split', 'error')).toBe('');
+  });
+
+  it('clears the asset\'s refusals on a kind change', async () => {
+    renderFlow();
+    await press('kind investment_buy');
+    await press('Record Transaction');
+    expect(buyErrors()).toMatchObject({
+      assetType: expect.any(String), ticker: expect.any(String),
+    });
+    await press('kind investment_sell');
+    await press('kind investment_buy');
+    expect(buyErrors()).toEqual({});
+  });
+
+  it('clears what arrived and where it went on a kind change', async () => {
+    renderFlow();
+    await press('kind transfer_sent');
+    await press('between accounts');
+    await press('Record Transaction');
+    expect(attr('targets', 'to-error')).not.toBe('');
+    await press('kind deposit');
+    expect(attr('targets', 'to-error')).toBe('');
+  });
+
+  it('shows each buy refusal under its own field', async () => {
+    renderFlow();
+    await press('group investment');
+    await press('Record Transaction');
+    expect(buyErrors()).toMatchObject({ assetType: expect.any(String) });
+    await press('asset');
+    await press('Record Transaction');
+    expect(buyErrors()).toMatchObject({ quantity: expect.any(String) });
+    await press('buy quantity');
+    expect(buyErrors().quantity).toBeUndefined();
+  });
+
+  it('clears the asset\'s refusals on a new asset, the terms\' on new terms', async () => {
+    renderFlow();
+    await press('group investment');
+    await press('Record Transaction');
+    expect(buyErrors()).toMatchObject({
+      assetType: expect.any(String), ticker: expect.any(String),
+    });
+    await press('asset cdb');
+    expect(buyErrors().assetType).toBeUndefined();
+    expect(buyErrors().ticker).toBeUndefined();
+
+    await press('Record Transaction');
+    expect(buyErrors()).toMatchObject({
+      rateValue: expect.any(String), dueDate: expect.any(String),
+    });
+    await press('terms');
+    expect(buyErrors().rateValue).toBeUndefined();
+    expect(buyErrors().dueDate).toBeUndefined();
+  });
+
+  it('clears the term\'s due date with the buy\'s date', async () => {
+    renderFlow();
+    await press('group investment');
+    await press('asset cdb');
+    await press('Record Transaction');
+    expect(buyErrors().dueDate).toBeDefined();
+    await press('date');
+    expect(buyErrors().dueDate).toBeUndefined();
+  });
+
+  it('clears the Holding\'s refusals on a Holding, the units\' on units', async () => {
+    renderFlow();
+    await press('kind investment_sell');
+    await press('account itau');
+    await press('Record Transaction');
+    expect(attr('holding', 'error')).not.toBe('');
+    expect(attr('holding', 'quantity-error')).not.toBe('');
+    await press('holding bbas3');
+    expect(attr('holding', 'error')).toBe('');
+    expect(attr('holding', 'quantity-error')).toBe('');
+
+    await press('Record Transaction');
+    expect(attr('holding', 'quantity-error')).not.toBe('');
+    await press('quantity');
+    expect(attr('holding', 'quantity-error')).toBe('');
+  });
+
+  it('clears the account\'s, Holding\'s, units\' and asset\'s refusals on an account', async () => {
+    renderFlow();
+    await press('kind investment_sell');
+    await press('Record Transaction');
+    await press('account itau');
+    expect(attr('targets', 'account-error')).toBe('');
+    expect(attr('holding', 'error')).toBe('');
+    expect(attr('holding', 'quantity-error')).toBe('');
+    expect(attr('amount', 'error')).not.toBe('');
+
+    await press('kind investment_buy');
+    await press('Record Transaction');
+    expect(buyErrors().assetType).toBeDefined();
+    await press('account itau');
+    expect(buyErrors().assetType).toBeUndefined();
+  });
+
+  it('clears a bill payment\'s card and payer refusals on a card', async () => {
+    renderFlow();
+    await press('kind credit_card_bill_payment');
+    await press('Record Transaction');
+    expect(attr('targets', 'card-error')).not.toBe('');
+    expect(attr('targets', 'account-error')).not.toBe('');
+    await press('card nu1');
+    expect(attr('targets', 'card-error')).toBe('');
+    expect(attr('targets', 'account-error')).toBe('');
+  });
+
+  it('clears where it went and what arrived on the destination or the amount', async () => {
+    renderFlow();
+    await press('kind transfer_sent');
+    await press('between accounts');
+    await press('account itau');
+    await press('amount');
+    await press('Record Transaction');
+    await press('to chase');
+    expect(attr('targets', 'to-error')).toBe('');
+    await press('Record Transaction');
+    expect(attr('received', 'error')).not.toBe('');
+    await press('received');
+    expect(attr('received', 'error')).toBe('');
+  });
+
+  it('clears what arrived on a new destination or a new sending account', async () => {
+    /**
+     * A transfer to another currency, refused for what arrived.
+     */
+    const refusedReceived = async () => {
+      renderFlow();
+      await press('kind transfer_sent');
+      await press('between accounts');
+      await press('account itau');
+      await press('amount');
+      await press('to chase');
+      await press('Record Transaction');
+      expect(attr('received', 'error')).not.toBe('');
+    };
+    await refusedReceived();
+    await press('to chase');
+    expect(attr('received', 'error')).toBe('');
+    cleanup();
+
+    await refusedReceived();
+    await press('account itau');
+    expect(attr('received', 'error')).toBe('');
+  });
+
+  it('clears where it went on turning the switch', async () => {
+    renderFlow();
+    await press('kind transfer_sent');
+    await press('between accounts');
+    await press('account itau');
+    await press('Record Transaction');
+    expect(attr('targets', 'to-error')).not.toBe('');
+    await press('between accounts');
+    expect(attr('targets', 'to-error')).toBe('');
+  });
+
+  it('clears the date\'s refusal on a date', async () => {
+    renderFlow();
+    await press('clear date');
+    await press('Record Transaction');
+    expect(attr('details', 'error')).not.toBe('');
+    await press('date');
+    expect(attr('details', 'error')).toBe('');
+  });
+});
+
+describe('the form\'s state (review V5)', () => {
+  it('shows the Holdings read as loading while it is out', async () => {
+    const answer = deferred<DataOutcome<readonly InvestmentHolding[]>>();
+    renderFlow({}, (requests) => requests.onLoadHoldings.mockReturnValue(answer.promise));
+    await press('kind investment_sell');
+    await press('account itau');
+    expect(attr('holding', 'status')).toBe('loading');
+    await act(async () => answer.settle({ ok: true, data: [STOCK] }));
+    expect(attr('holding', 'status')).toBe('loaded');
+  });
+
+  it('shows the split read loading, ignoring one for a Holding no longer picked', async () => {
+    const first = deferred<DataOutcome<readonly HoldingAllocation[]>>();
+    const second = deferred<DataOutcome<readonly HoldingAllocation[]>>();
+    renderFlow({}, (requests) => {
+      requests.onLoadSplit.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
+    });
+    await press('kind investment_sell');
+    await press('account itau');
+    await press('holding bbas3');
+    expect(attr('split', 'load')).toBe('loading');
+    await press('holding cdb1');
+    await act(async () => first.settle({ ok: true, data: [{ goalId: 'house', percentage: 40 }] }));
+    expect(attr('split', 'load')).toBe('loading');
+    expect(attr('split', 'rows')).toBe('[]');
+  });
+
+  it('reads no split for a cash event on a Holding', async () => {
+    const { onLoadSplit } = renderFlow();
+    await press('kind investment_dividend');
+    await press('account itau');
+    await press('holding bbas3');
+    expect(onLoadSplit).not.toHaveBeenCalled();
+  });
+
+  it('asks nothing received between two accounts in one currency', async () => {
+    const poupanca = accountOf('poupanca', { name: 'Poupança', type: 'savings' });
+    const { onRecord } = renderFlow({ accounts: [...ACCOUNTS, poupanca] });
+    await press('kind transfer_sent');
+    await press('between accounts');
+    await press('account itau');
+    await press('amount');
+    await press('to poupanca');
+    await press('Record Transaction');
+    expect(onRecord).toHaveBeenCalledWith(expect.objectContaining({ toAccountId: 'poupanca' }));
+  });
+
+  it('keeps the split\'s refusals quiet until a submit is refused', async () => {
+    renderFlow();
+    await press('group investment');
+    expect(attr('split', 'show-errors')).toBe('false');
+  });
+
+  it('marks the category picker for investments only', async () => {
+    renderFlow();
+    expect(attr('category', 'investment')).toBe('false');
+  });
+
+  it('leaves what arrived open on a new transfer and on an edit', async () => {
+    renderFlow();
+    await press('kind transfer_sent');
+    await press('between accounts');
+    await press('account itau');
+    await press('to chase');
+    expect(attr('received', 'disabled')).toBe('false');
+  });
+});
+
+describe('focus after a refused submit (review V6)', () => {
+  it('moves to the first field marked invalid', async () => {
+    renderFlow();
+    // The drawer places its own first focus a frame after it opens.
+    await act(async () => new Promise((resolve) => {
+      requestAnimationFrame(() => resolve(undefined));
+    }));
+    await press('Record Transaction');
+    expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'amount box' }));
   });
 });

@@ -139,7 +139,10 @@ and carry the document's current default assumption.
   reactivated** (see OQ-34), and it **takes no new transactions**
   (OQ-169) — nor are its existing ones (its cards' included) edited or
   deleted: its history is frozen (OQ-220) — consistent with the Category/Subcategory
-  archive pattern (FR-10.3). If the account has an active Open Banking
+  archive pattern (FR-10.3). **An account still holding an open
+  investment can't be archived** — sell or redeem it first, so a
+  fixed-term Holding's schedule never posts into a closed account
+  (OQ-226). If the account has an active Open Banking
   connection (FR-2.5), archiving it **automatically disconnects** the
   sync (FR-2.6) — an archived account never keeps pulling in new
   transactions (see OQ-36).

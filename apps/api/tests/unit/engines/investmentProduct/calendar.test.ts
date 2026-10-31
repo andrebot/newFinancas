@@ -38,6 +38,14 @@ describe('easterSunday', () => {
     [2025, '2025-04-20'],
     [2026, '2026-04-05'],
     [2038, '2038-04-25'],
+    // The years the formula's rarer branches decide (review B18): a negative
+    // epact before its modulo, the 451 correction, and the next century.
+    [2014, '2014-04-20'],
+    [2033, '2033-04-17'],
+    [2049, '2049-04-18'],
+    [2076, '2076-04-19'],
+    [2100, '2100-03-28'],
+    [2106, '2106-04-18'],
   ])('%i is %s', (year, expected) => {
     expect(easterSunday(year)).toBe(expected);
   });

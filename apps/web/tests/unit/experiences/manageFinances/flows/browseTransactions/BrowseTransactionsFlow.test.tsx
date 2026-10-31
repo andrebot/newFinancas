@@ -206,6 +206,19 @@ describe('the ledger', () => {
     expect(screen.getByText('Nothing matches these filters')).toBeDefined();
   });
 
+  it('writes each day band\'s totals (review V4)', () => {
+    renderFlow();
+
+    expect(document.body.textContent).toMatch(/Sep 12−R\$\s39,90·−\$45\.99/);
+  });
+
+  it('shows an open row no failure before a delete fails (review V4)', () => {
+    renderFlow();
+    fireEvent.click(screen.getByText('toggle c1'));
+
+    expect(rowData('c1', 'failure')).toBe('');
+  });
+
   it('asks for the next page again after one failed', () => {
     const { onReachedEnd } = renderFlow({
       ledger: { pages: [PAGE], hasMore: true, status: 'error' },
@@ -223,6 +236,14 @@ describe('DayTotals', () => {
     );
 
     expect(document.body.textContent).toMatch(/−R\$\s39,90·\+\$3,200\.00/);
+  });
+});
+
+describe('DayTotals alone (review V10)', () => {
+  it('puts no dot before a single currency', () => {
+    renderInLocale(<DayTotals totals={[{ currency: 'BRL', net: -3_990 }]} />);
+
+    expect(document.body.textContent).not.toContain('·');
   });
 });
 
@@ -244,6 +265,12 @@ describe('the header', () => {
     expect(chip.textContent).toBe('Holding · BBAS3');
     fireEvent.click(chip);
     expect(onFiltersChange).toHaveBeenCalledWith({ ...filters, holdingId: undefined });
+  });
+
+  it('shows no Holding chip without a Holding filter (review V4)', () => {
+    renderFlow({ holdingName: 'BBAS3' });
+
+    expect(screen.queryByRole('button', { name: /Stop filtering by/ })).toBeNull();
   });
 
   it('calls a Holding it has no name for "Holding"', () => {
@@ -298,6 +325,7 @@ describe('the delete', () => {
     fireEvent.click(screen.getByText('confirm c1'));
     expect(onDelete).toHaveBeenCalledWith(ROWS[0]);
     expect(rowData('c1', 'deleting')).toBe('true');
+    expect(rowData('t1', 'deleting')).toBe('false');
     await act(async () => answer({ ok: true }));
 
     expect(toasts()).toEqual(['Transaction deleted.']);
@@ -316,7 +344,8 @@ describe('the delete', () => {
     await act(async () => fireEvent.click(screen.getByText('confirm c1')));
 
     expect(rowData('c1', 'confirming')).toBe('true');
-    expect(rowData('c1', 'failure')).not.toBe('');
+    expect(rowData('c1', 'failure'))
+      .toBe('2 other transactions still reference this holding.');
     expect(rowData('t1', 'failure')).toBe('');
     expect(toasts()).toEqual([]);
     fireEvent.click(screen.getByText('cancel c1'));

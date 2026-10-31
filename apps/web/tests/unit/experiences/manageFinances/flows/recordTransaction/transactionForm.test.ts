@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  accountChoicesOf, assetTypesFor, cardEntriesOf, cardEntryOf, currencyOf, directionOf, groupOf,
+  INTEREST_PAYMENTS, RATE_TYPES, accountChoicesOf, assetTypesFor,
+  cardEntriesOf, cardEntryOf, currencyOf, directionOf, groupOf,
   isBillPayment, isBuy, isCardKind, isDebentureBuy, isFixedTermBuy, isTrade, kindsOfGroup,
   isOwnTransfer, namesCard, namesHolding, newFormOf, receivingAccountOf, takesHoldingSplit,
   takesSpread, toAccountChoicesOf, withAccount, withAllocations, withCard, withCategory,
@@ -404,5 +405,42 @@ describe('a transfer between own accounts (OQ-222)', () => {
       ownTransfer: false, toAccountId: undefined,
     });
     expect(withKind(on, 'transfer_received', MINE).ownTransfer).toBe(true);
+  });
+});
+
+describe('the form at its edges (review V5)', () => {
+  it('offers the rate types and interest payments in mockup 32\'s order', () => {
+    expect(RATE_TYPES).toEqual(['fixed', 'cdi', 'ipca', 'igpm', 'selic']);
+    expect(INTEREST_PAYMENTS).toEqual(['at_maturity', 'monthly', 'semiannual']);
+  });
+
+  it('asks what arrived from the account sending, whatever its place in the list', () => {
+    const form = formOf({
+      kind: 'transfer_sent', ownTransfer: true, accountId: ITAU.id, toAccountId: CHASE.id,
+    });
+    expect(receivingAccountOf(form, [CHASE, ITAU])).toBe(CHASE);
+  });
+
+  it('pre-fills only a sell\'s and a redemption\'s split from its Holding', () => {
+    expect(takesHoldingSplit('investment_sell')).toBe(true);
+    expect(takesHoldingSplit('investment_redemption')).toBe(true);
+    expect(takesHoldingSplit('investment_buy')).toBe(false);
+    expect(takesHoldingSplit('deposit')).toBe(false);
+  });
+
+  it('drops an account no longer offered', () => {
+    const fitted = withFittedTargets(formOf({ kind: 'deposit', accountId: 'gone' }), ACCOUNTS);
+    expect(fitted.accountId).not.toBe('gone');
+  });
+
+  it('keeps the form as it is on its own group', () => {
+    const form = formOf({ kind: 'investment_sell', accountId: ITAU.id });
+    expect(withGroup(form, 'investment', ACCOUNTS)).toBe(form);
+  });
+
+  it('drops a buy\'s asset type the new account\'s currency doesn\'t offer', () => {
+    expect(assetTypesFor('USD')).not.toContain('cdb');
+    const form = formOf({ kind: 'investment_buy', accountId: ITAU.id, assetType: 'cdb' });
+    expect(withAccount(form, CHASE.id, ACCOUNTS).assetType).toBeUndefined();
   });
 });

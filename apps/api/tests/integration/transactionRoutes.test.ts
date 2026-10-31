@@ -119,6 +119,52 @@ describe('transaction routes', () => {
     expect(page.nextCursor).toBeNull();
   });
 
+  it('hands the Manager every filter sent, and only those (review B4)', async () => {
+    const { app, transaction } = setup();
+    transaction.listTransactions.mockResolvedValueOnce({
+      items: [], nextCursor: null, dayTotals: [], monthCounts: [],
+    });
+    const holdingId = '0199c5a0-0000-7000-8000-0000000000d1';
+    const query = [
+      'kinds=withdrawal', 'kinds=deposit', 'accountIds=a1', 'creditCardIds=cc1',
+      'categoryIds=cat1', `holdingId=${holdingId}`, 'from=2026-10-01', 'to=2026-10-31',
+      'cursor=tx2.-|-', 'limit=5',
+    ].join('&');
+    expect((await send(app, 'GET', `${TRANSACTIONS}?${query}`)).status).toBe(200);
+    expect(transaction.listTransactions).toHaveBeenCalledWith(
+      expect.objectContaining({ actor: ACTOR }),
+      HOUSEHOLD_ID,
+      {
+        kinds: ['withdrawal', 'deposit'],
+        accountIds: ['a1'],
+        creditCardIds: ['cc1'],
+        categoryIds: ['cat1'],
+        holdingId,
+        from: '2026-10-01',
+        to: '2026-10-31',
+      },
+      'tx2.-|-',
+      5,
+    );
+  });
+
+  it('hands the Manager an empty filter when none is sent (review B4)', async () => {
+    const { app, transaction } = setup();
+    transaction.listTransactions.mockResolvedValueOnce({
+      items: [], nextCursor: null, dayTotals: [], monthCounts: [],
+    });
+    await send(app, 'GET', TRANSACTIONS);
+    expect(transaction.listTransactions).toHaveBeenCalledWith(
+      expect.anything(),
+      HOUSEHOLD_ID,
+      {},
+      undefined,
+      20,
+    );
+    // Absent, not an explicit `undefined` per field.
+    expect(transaction.listTransactions.mock.calls[0]![2]).toStrictEqual({});
+  });
+
   it('shows a transfer between own accounts with its other side (OQ-222)', async () => {
     const { app, transaction } = setup();
     transaction.getTransaction.mockResolvedValueOnce({

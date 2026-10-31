@@ -69,3 +69,38 @@ describe('MultiChoiceField', () => {
     expect(screen.getByRole('button', { name: /Category/ }).textContent).toContain('All');
   });
 });
+
+describe('MultiChoiceField\'s extras in the long list (review V9)', () => {
+  it('draws an icon and a tag only on the option that has them', () => {
+    const options = [
+      {
+        value: 'v0', label: 'Alpha', icon: 'home-outline' as const, tag: 'BRL',
+      },
+      { value: 'v1', label: 'Beta' },
+      ...optionsOf(10).map(({ value, label }) => ({ value: `x${value}`, label })),
+    ];
+    renderInLocale(
+      <MultiChoiceField
+        label="Pick"
+        options={options}
+        value={[]}
+        summary={summary}
+        onChange={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Pick/ }));
+    /**
+     * Finds one option's row in the open list.
+     *
+     * @param name - The option's label.
+     * @returns Its row.
+     */
+    const rowOf = (name: string) => (
+      screen.getByRole('checkbox', { name: new RegExp(name) }).closest('label')!
+    );
+    expect(rowOf('Alpha').querySelectorAll('svg').length)
+      .toBe(rowOf('Beta').querySelectorAll('svg').length + 1);
+    expect(rowOf('Alpha').textContent).toContain('BRL');
+    expect(rowOf('Beta').textContent).not.toContain('BRL');
+  });
+});

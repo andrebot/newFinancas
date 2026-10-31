@@ -19,7 +19,7 @@ import {
   requestLogger, todayOf, type AccountDeps, type AccountStores,
 } from './context';
 import {
-  accountArchived, accountNotFound, cardsNotAllowed, creditCardNotFound,
+  accountArchived, accountNotFound, cardsNotAllowed, creditCardNotFound, holdingsOpen,
 } from './errors';
 
 // Financial Accounts and their Credit Cards (financial-accounts/uc-01..03,
@@ -374,13 +374,15 @@ const createAccounts = (deps: AccountDeps) => ({
 
   /**
    * Archives an Account, one way; its history stays (uc-03, FR-2.4, OQ-34).
-   * Archiving it again changes nothing and isn't audited.
+   * Archiving it again changes nothing and isn't audited. An Account still
+   * holding position stays open: its Holdings would post into an Account that
+   * takes no transactions (OQ-226) — a sold-out one is already archived.
    *
    * @param context - The signed-in request.
    * @param householdId - The household.
    * @param accountId - The Account.
    * @throws {DomainError} `household.not_found` / `account.not_found`;
-   *   `auth.forbidden`.
+   *   `auth.forbidden`; `account.holdings_open`.
    */
   archiveAccount: async (
     context: SignedInContext,
@@ -389,6 +391,8 @@ const createAccounts = (deps: AccountDeps) => ({
   ): Promise<void> => {
     const account = await loadAccount(deps, context, { householdId, accountId }, 'data.delete');
     if (account.archivedAt) return;
+    const open = await deps.holdings.listByAccounts([accountId]);
+    if (open.length > 0) throw holdingsOpen(open.length);
     if (!(await deps.accounts.archive(householdId, accountId))) throw accountNotFound();
     requestLogger(context).audit('ArchiveAccount', {
       entityType: 'Account', entityId: accountId, householdId,

@@ -19,6 +19,8 @@ describe('who may do what (OQ-176, OQ-177)', () => {
     const mine = { visibility: 'personal', ownerUserId: 'jane' } as const;
     expect(mayManageOwned(mine, 'jane', 'Viewer')).toBe(true);
     expect(mayManageOwned(mine, 'ben', 'Owner')).toBe(false);
+    // Not before the role is known (review V9).
+    expect(mayManageOwned(mine, 'jane', undefined)).toBe(false);
   });
 
   it('lets an Owner or Admin manage a shared item, and a Member only their own', () => {

@@ -65,3 +65,11 @@ describe('the draft', () => {
     expect(draftChanged(opened, NO_FILTERS).draft).toBe(NO_FILTERS);
   });
 });
+
+describe('the initial state (review V4)', () => {
+  it('opens nothing, confirms nothing and shows no range error', () => {
+    expect(INITIAL_BROWSE_STATE).toEqual({
+      confirming: false, deleting: false, draft: NO_FILTERS, showRangeErrors: false,
+    });
+  });
+});

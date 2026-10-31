@@ -156,12 +156,13 @@ sequenceDiagram
 UCS.append(dict(
     filename="uc-03-archive-account.html",
     title="Archive Financial Account",
-    subtitle='<span class="route">POST /households/:householdId/accounts/:accountId/archive</span> &mdash; FR-2.4/OQ-34. One-way, no unarchive path. Auto-disconnects Open Banking sync if linked (OQ-36) &mdash; currently a no-op since that trigger is parked.',
+    subtitle='<span class="route">POST /households/:householdId/accounts/:accountId/archive</span> &mdash; FR-2.4/OQ-34. One-way, no unarchive path; refused while the Account holds an open Holding (OQ-226). Auto-disconnects Open Banking sync if linked (OQ-36) &mdash; currently a no-op since that trigger is parked.',
     mermaid="""
 sequenceDiagram
 """ + P_CORE + """
     participant AU as AuthorizationUtility
     participant AA as AccountAccessor
+    participant IHA as InvestmentHoldingAccessor
     participant OB as OpenBankingConnectionAccessor
     participant LOG as LoggingUtility
 
@@ -181,6 +182,13 @@ sequenceDiagram
         AM-->>API: done
         API-->>User: 204 No Content
     else allowed
+        AM->>IHA: listByAccounts([accountId])
+        IHA-->>AM: its open Holdings
+        alt any Holding still open (OQ-226)
+            Note over AM: a fixed-term schedule would post into a closed Account
+            AM-->>API: 409 account.holdings_open {count}
+            API-->>User: 409 Conflict
+        else none open
         AM->>AA: archive(householdId, accountId)
         Note over AA: sets archived_at, one-way &mdash; no unarchive endpoint exists (OQ-34)
         AA-->>AM: archived
@@ -192,12 +200,14 @@ sequenceDiagram
         AM-->>LOG: audit ArchiveAccount
         AM-->>API: archived
         API-->>User: 204 No Content
+        end
     end
 """,
     notes="""
     <ul>
       <li>An archived Account takes no new transactions (FR-2.4, OQ-169 &mdash; <code>TransactionManager</code>&#39;s check) and can&#39;t be edited (409 <code>account.archived</code>, OQ-175).</li>
-      <li>See FR-2.4, OQ-34, OQ-36.</li>
+      <li>An Account still holding position can&#39;t be archived (409 <code>account.holdings_open</code>, OQ-226): its Holdings would keep posting schedule entries into an Account that takes none. A sold-out Holding is already system-archived, so only an open position blocks.</li>
+      <li>See FR-2.4, OQ-34, OQ-36, OQ-226.</li>
     </ul>
 """,
 ))
@@ -241,10 +251,12 @@ write_chain(
     "Call Chain — Archive Financial Account",
     "Use case 3 of 3 in the Manage Financial Accounts set (CUC-3, FR-2.4). Lifecycle Transition (Account → archived), cascades Open Banking disconnect. As built in M2 part 2 (OQ-175).",
     E((1, "mgr-account", "acc-account"), (2, "mgr-account", "util-authz"),
-      (3, "mgr-account", "acc-obconn"), (4, "mgr-account", "util-logging", "a")),
+      (3, "mgr-account", "acc-holding"), (4, "mgr-account", "acc-obconn"),
+      (5, "mgr-account", "util-logging", "a")),
     [
-        "<strong>Chain:</strong> <code>AccountManager</code> ① <code>AccountAccessor.findById / archive(...)</code> (sync) → ② <code>AuthorizationUtility.authorize(data.delete)</code> (sync, between the read and the write) → ③ <code>OpenBankingConnectionAccessor.disconnect(...)</code> (sync, only if linked — parked component) → ④ <code>LoggingUtility</code> (async).",
+        "<strong>Chain:</strong> <code>AccountManager</code> ① <code>AccountAccessor.findById / archive(...)</code> (sync) → ② <code>AuthorizationUtility.authorize(data.delete)</code> (sync, between the read and the write) → ③ <code>InvestmentHoldingAccessor.listByAccounts([accountId])</code> (sync — any open Holding refuses, OQ-226) → ④ <code>OpenBankingConnectionAccessor.disconnect(...)</code> (sync, only if linked — parked component) → ⑤ <code>LoggingUtility</code> (async).",
         "<strong>Corrected (OQ-175):</strong> archiving is a data.delete on the Account, so it is authorized like any write; an already archived Account is left as it is.",
+        "<strong>Added (OQ-226):</strong> an Account still holding position stays open — Manager → Accessor, no new component, no smell.",
     ],
 )
 print(f"Rewrote 3 call chains in {FA}")

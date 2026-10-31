@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { SignedInContext } from '../../../../src/managers/requestContext';
 import createRecord, { type TransactionCreate } from '../../../../src/managers/transaction/record';
 import {
-  ACCOUNT, ANA_ID, CARD, CARD_ROW, CHECKING, FIXED_HOLDING, GOAL, HOUSEHOLD_ID, MARKET_HOLDING,
-  NOW, ROW, fakeDeps, snapshotOf, tradeOf,
+  ACCOUNT, ANA_ID, CARD, CARD_ROW, CATEGORY, CHECKING, FIXED_HOLDING, GOAL, HOUSEHOLD_ID,
+  MARKET_HOLDING, NOW, ROW, fakeDeps, snapshotOf, tradeOf,
 } from './fakes';
 
 // Record Transaction (CUC-1, FR-3): the Manager decides which side effect a kind
@@ -317,6 +317,19 @@ describe('recordTransaction', () => {
           .rejects.toMatchObject({ domainError: { code: 'transaction.changed' } });
       },
     );
+
+    it('takes a dividend on a sold-out, system-archived Holding (review B11)', async () => {
+      const fake = fakeDeps();
+      fake.holdings.findById.mockResolvedValue({
+        ...MARKET_HOLDING, quantity: 0, costBasis: 0, archivedAt: NOW, archivedBy: 'system',
+      });
+      await recordOf(fake).recordTransaction(context, HOUSEHOLD_ID, cashRequest({
+        kind: 'investment_dividend', holdingId: MARKET_HOLDING.id,
+      }));
+      expect(fake.accountTransactions.insert).toHaveBeenCalledWith(expect.objectContaining({
+        kind: 'investment_dividend', holdingId: MARKET_HOLDING.id,
+      }));
+    });
 
     it('refuses a cash event on a user-archived Holding (FR-5.8/OQ-171)', async () => {
       const fake = fakeDeps();
@@ -682,6 +695,56 @@ describe('recordTransaction', () => {
       expect(fake.valuations.insertAutomatic).not.toHaveBeenCalled();
     });
 
+    it('hands the Engine the buy\'s exact terms (review B9)', async () => {
+      const fake = fakeDeps();
+      await recordOf(fake).recordTransaction(context, HOUSEHOLD_ID, buyRequest({
+        assetType: 'cdb', ticker: 'CDB1', amount: 50_000, quantity: undefined, ...terms,
+      }));
+      expect(fake.investmentProducts.schedule).toHaveBeenCalledExactlyOnceWith(HOUSEHOLD_ID, {
+        assetType: 'cdb',
+        incentivised: null,
+        date: '2026-10-13',
+        amount: 50_000,
+        dueDate: '2026-12-01',
+        rate: { type: 'ipca', value: 250 },
+        interestPayment: 'semiannual',
+      });
+    });
+
+    it('pays at maturity when the buy names no interest payment (review B9)', async () => {
+      const fake = fakeDeps();
+      await recordOf(fake).recordTransaction(context, HOUSEHOLD_ID, buyRequest({
+        assetType: 'cdb',
+        ticker: 'CDB1',
+        amount: 50_000,
+        quantity: undefined,
+        rate: terms.rate,
+        dueDate: terms.dueDate,
+      }));
+      expect(fake.holdings.insert)
+        .toHaveBeenCalledWith(expect.objectContaining({ interestPayment: 'at_maturity' }));
+      expect(fake.investmentProducts.schedule).toHaveBeenCalledWith(
+        HOUSEHOLD_ID,
+        expect.objectContaining({ interestPayment: 'at_maturity' }),
+      );
+    });
+
+    it('schedules an incentivised debenture as incentivised (OQ-79, review B9)', async () => {
+      const fake = fakeDeps();
+      await recordOf(fake).recordTransaction(context, HOUSEHOLD_ID, buyRequest({
+        assetType: 'debenture',
+        ticker: 'DEB1',
+        amount: 50_000,
+        quantity: undefined,
+        ...terms,
+        incentivised: true,
+      }));
+      expect(fake.investmentProducts.schedule).toHaveBeenCalledWith(
+        HOUSEHOLD_ID,
+        expect.objectContaining({ incentivised: true }),
+      );
+    });
+
     it('refuses when the index has no recorded value (OQ-205)', async () => {
       const fake = fakeDeps();
       fake.investmentProducts.schedule.mockResolvedValue({
@@ -764,6 +827,21 @@ describe('recordTransaction', () => {
         amount: 10_000,
       }));
       expect(fake.holdings.archive).toHaveBeenCalledWith(MARKET_HOLDING.id, 'system');
+    });
+
+    it('leaves the Holding open when a sell keeps position (review B3)', async () => {
+      const fake = fakeDeps();
+      await recordOf(fake).recordTransaction(context, HOUSEHOLD_ID, sellRequest());
+      expect(fake.holdings.archive).not.toHaveBeenCalled();
+    });
+
+    it('refuses a sold-out Holding as sold out, not user-archived (B11)', async () => {
+      const fake = fakeDeps();
+      fake.holdings.findById.mockResolvedValue({
+        ...MARKET_HOLDING, quantity: 0, costBasis: 0, archivedAt: NOW, archivedBy: 'system',
+      });
+      await expect(recordOf(fake).recordTransaction(context, HOUSEHOLD_ID, sellRequest()))
+        .rejects.toMatchObject({ domainError: { code: 'holding.insufficient_quantity' } });
     });
 
     it('refuses a sell on an already-zeroed position', async () => {
@@ -1385,5 +1463,204 @@ describe('recordTransaction', () => {
       }));
       expect(fake.goals.replaceAllocations).toHaveBeenCalled();
     });
+  });
+});
+
+describe('the rows written (review B6, B7)', () => {
+  it('stores a charge with its Category and Subcategory, field for field', async () => {
+    const fake = fakeDeps();
+    await recordOf(fake).recordTransaction(context, HOUSEHOLD_ID, asRequest({
+      kind: 'charge',
+      date: '2026-10-13',
+      amount: 5_000,
+      currency: 'BRL',
+      creditCardId: CARD.id,
+      categoryId: CATEGORY.id,
+      subcategoryId: 's1',
+    }));
+    expect(fake.cardTransactions.insert).toHaveBeenCalledExactlyOnceWith({
+      creditCardId: CARD.id,
+      kind: 'charge',
+      date: '2026-10-13',
+      amount: 5_000,
+      currency: 'BRL',
+      categoryId: CATEGORY.id,
+      subcategoryId: 's1',
+      createdByUserId: ANA_ID,
+    });
+  });
+
+  it('stores a cash transaction with its Category, field for field', async () => {
+    const fake = fakeDeps();
+    await recordOf(fake).recordTransaction(context, HOUSEHOLD_ID, cashRequest({
+      categoryId: CATEGORY.id,
+    }));
+    expect(fake.accountTransactions.insert).toHaveBeenCalledExactlyOnceWith({
+      accountId: ACCOUNT.id,
+      kind: 'withdrawal',
+      effect: 'movement',
+      date: '2026-10-13',
+      amount: 5_000,
+      currency: 'BRL',
+      categoryId: CATEGORY.id,
+      createdByUserId: ANA_ID,
+    });
+  });
+
+  it('stores a buy with its kind, effect, Category and deltas, field for field', async () => {
+    const fake = fakeDeps();
+    await recordOf(fake).recordTransaction(context, HOUSEHOLD_ID, buyRequest({
+      categoryId: CATEGORY.id,
+    }));
+    expect(fake.accountTransactions.insert).toHaveBeenCalledExactlyOnceWith({
+      accountId: ACCOUNT.id,
+      kind: 'investment_buy',
+      effect: 'investment_trade',
+      date: '2026-10-13',
+      amount: 2_000,
+      currency: 'BRL',
+      categoryId: CATEGORY.id,
+      holdingId: MARKET_HOLDING.id,
+      trade: { quantityDelta: 2, costBasisDelta: 2_000 },
+      createdByUserId: ANA_ID,
+    });
+  });
+
+  it('accrues a Subcategory spend to the Budget that claims it', async () => {
+    const fake = fakeDeps();
+    await recordOf(fake).recordTransaction(context, HOUSEHOLD_ID, cashRequest({
+      categoryId: CATEGORY.id, subcategoryId: 's2',
+    }));
+    expect(fake.budgets.accrueIfClaimed).toHaveBeenCalledWith(expect.objectContaining({
+      categoryId: CATEGORY.id, subcategoryId: 's2', amount: 5_000,
+    }));
+  });
+
+  it('takes a Category\'s second Subcategory', async () => {
+    const fake = fakeDeps();
+    await recordOf(fake).recordTransaction(context, HOUSEHOLD_ID, cashRequest({
+      categoryId: CATEGORY.id, subcategoryId: 's2',
+    }));
+    expect(fake.accountTransactions.insert)
+      .toHaveBeenCalledWith(expect.objectContaining({ subcategoryId: 's2' }));
+  });
+
+  it('reads no Category for a transaction without one', async () => {
+    const fake = fakeDeps();
+    await recordOf(fake).recordTransaction(context, HOUSEHOLD_ID, cashRequest());
+    expect(fake.categories.findById).not.toHaveBeenCalled();
+  });
+});
+
+describe('the kinds no other test records (review B14)', () => {
+  it.each([
+    ['boleto_payment', {}, -5_000],
+    ['pix_payment', {}, -5_000],
+    ['pix_receipt', {}, 5_000],
+    ['investment_dividend', { holdingId: MARKET_HOLDING.id }, 5_000],
+    ['investment_tax', { holdingId: MARKET_HOLDING.id }, -5_000],
+  ])('records a %s and moves the balance its way', async (kind, extra, movement) => {
+    const fake = fakeDeps();
+    await recordOf(fake).recordTransaction(context, HOUSEHOLD_ID, cashRequest({ kind, ...extra }));
+    expect(fake.accountTransactions.insert)
+      .toHaveBeenCalledWith(expect.objectContaining({ kind, ...extra }));
+    expect(fake.accounts.applyMovement).toHaveBeenCalledWith(ACCOUNT.id, {
+      amount: movement, currency: 'BRL', date: '2026-10-13',
+    });
+  });
+});
+
+describe('Goal splits over more than one Goal (review B8)', () => {
+  const OTHER = { ...GOAL, id: 'goal-2', name: 'Trip' };
+
+  /**
+   * A stored share of the market Holding's split.
+   *
+   * @param goalId - Its Goal.
+   * @param percentage - Its whole percent.
+   * @returns The allocation as `listAllocations` reads it.
+   */
+  const stored = (goalId: string, percentage: number) => ({
+    goalId,
+    percentage,
+    id: `al-${goalId}`,
+    holdingId: MARKET_HOLDING.id,
+    validFrom: '2026-09-01',
+    createdAt: NOW,
+  });
+
+  it('refuses a buy split naming one visible and one hidden Goal', async () => {
+    const fake = fakeDeps();
+    fake.goals.findByIds.mockResolvedValue([GOAL]);
+    await expect(recordOf(fake).recordTransaction(context, HOUSEHOLD_ID, buyRequest({
+      allocations: [{ goalId: GOAL.id, percentage: 50 }, { goalId: 'hidden', percentage: 50 }],
+    }))).rejects.toMatchObject({ domainError: { code: 'goal.not_found' } });
+  });
+
+  it('refuses a buy split naming one open and one completed Goal', async () => {
+    const fake = fakeDeps();
+    fake.goals.findByIds.mockResolvedValue([GOAL, { ...OTHER, completedAt: NOW }]);
+    await expect(recordOf(fake).recordTransaction(context, HOUSEHOLD_ID, buyRequest({
+      allocations: [{ goalId: GOAL.id, percentage: 50 }, { goalId: OTHER.id, percentage: 50 }],
+    }))).rejects.toMatchObject({ domainError: { code: 'goal.completed' } });
+  });
+
+  it('names the repeated Goal of a buy split', async () => {
+    const fake = fakeDeps();
+    await expect(recordOf(fake).recordTransaction(context, HOUSEHOLD_ID, buyRequest({
+      allocations: [{ goalId: GOAL.id, percentage: 50 }, { goalId: GOAL.id, percentage: 50 }],
+    }))).rejects.toMatchObject({
+      domainError: {
+        code: 'validation.failed',
+        details: [{ field: 'allocations[1].goalId', code: 'array.duplicate' }],
+      },
+    });
+  });
+
+  it('names the repeated Goal of a sell split', async () => {
+    const fake = fakeDeps();
+    await expect(recordOf(fake).recordTransaction(context, HOUSEHOLD_ID, sellRequest({
+      allocations: [{ goalId: GOAL.id, percentage: 50 }, { goalId: GOAL.id, percentage: 50 }],
+    }))).rejects.toMatchObject({
+      domainError: {
+        code: 'validation.failed',
+        details: [{ field: 'allocations[1].goalId', code: 'array.duplicate' }],
+      },
+    });
+  });
+
+  it('refuses a sell split naming one visible and one hidden Goal', async () => {
+    const fake = fakeDeps();
+    fake.goals.findByIds.mockResolvedValue([GOAL]);
+    await expect(recordOf(fake).recordTransaction(context, HOUSEHOLD_ID, sellRequest({
+      allocations: [{ goalId: GOAL.id, percentage: 50 }, { goalId: 'hidden', percentage: 50 }],
+    }))).rejects.toMatchObject({ domainError: { code: 'goal.not_found' } });
+  });
+
+  it('reads the Holding\'s own split on a buy and a sell', async () => {
+    const fake = fakeDeps();
+    await recordOf(fake).recordTransaction(context, HOUSEHOLD_ID, buyRequest({
+      allocations: [{ goalId: GOAL.id, percentage: 100 }],
+    }));
+    expect(fake.goals.listAllocations).toHaveBeenLastCalledWith({ holdingId: MARKET_HOLDING.id });
+    fake.goals.listAllocations.mockClear();
+    await recordOf(fake).recordTransaction(context, HOUSEHOLD_ID, sellRequest({
+      allocations: [{ goalId: GOAL.id, percentage: 100 }],
+    }));
+    expect(fake.goals.listAllocations).toHaveBeenLastCalledWith({ holdingId: MARKET_HOLDING.id });
+  });
+
+  it('drops a visible Goal the sell\'s split leaves out — hidden ones carry over', async () => {
+    const fake = fakeDeps();
+    fake.goals.listAllocations.mockResolvedValue([stored(GOAL.id, 40), stored(OTHER.id, 60)]);
+    await recordOf(fake).recordTransaction(context, HOUSEHOLD_ID, sellRequest({
+      allocations: [{ goalId: OTHER.id, percentage: 100 }],
+    }));
+    expect(fake.goals.replaceAllocations).toHaveBeenCalledWith(
+      HOUSEHOLD_ID,
+      MARKET_HOLDING.id,
+      [{ goalId: OTHER.id, percentage: 100 }],
+      '2026-10-13',
+    );
   });
 });

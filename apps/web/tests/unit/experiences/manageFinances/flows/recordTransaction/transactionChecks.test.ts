@@ -188,3 +188,48 @@ describe('problemsOf — a transfer between own accounts (OQ-222)', () => {
     })).toEqual({});
   });
 });
+
+describe('problemsOf — at the edges (review V2)', () => {
+  it('refuses an amount of 0, passes 1 cent', () => {
+    const cash = formOf({ kind: 'deposit', accountId: 'itau' });
+    expect(problemsOf({ ...cash, amount: 0 }, NONE)).toEqual({ amount: { code: 'amount' } });
+    expect(problemsOf({ ...cash, amount: 1 }, NONE)).toEqual({});
+  });
+
+  it('refuses a new sell of 0 units, or none', () => {
+    const sell = formOf({
+      kind: 'investment_sell', accountId: 'itau', amount: 1, holdingId: STOCK.id,
+    });
+    expect(problemsOf({ ...sell, quantity: 0 }, { holdings: [STOCK] }).quantity)
+      .toEqual({ code: 'quantity' });
+    expect(problemsOf({ ...sell, quantity: null }, { holdings: [STOCK] }).quantity)
+      .toEqual({ code: 'quantity' });
+    expect(problemsOf({ ...sell, quantity: 1 }, { holdings: [STOCK] }).quantity).toBeUndefined();
+  });
+
+  it('passes an edited sell\'s units when they are there', () => {
+    const sell = formOf({
+      kind: 'investment_sell', amount: 1, holdingId: STOCK.id, quantity: 1,
+    });
+    expect(problemsOf(sell, { holdings: [STOCK], editable: OPEN })).toEqual({});
+  });
+
+  it('refuses a ticker of spaces', () => {
+    const buy = formOf({
+      kind: 'investment_buy', accountId: 'itau', amount: 1, assetType: 'stock', quantity: 1,
+    });
+    expect(problemsOf({ ...buy, ticker: '   ' }, NONE)).toEqual({ ticker: { code: 'ticker' } });
+  });
+
+  it('passes 1 cent received across currencies', () => {
+    const own = formOf({
+      kind: 'transfer_sent',
+      ownTransfer: true,
+      accountId: 'itau',
+      amount: 5_000,
+      toAccountId: 'chase',
+      receivedAmount: 1,
+    });
+    expect(problemsOf(own, { holdings: [], receivesOtherCurrency: true })).toEqual({});
+  });
+});

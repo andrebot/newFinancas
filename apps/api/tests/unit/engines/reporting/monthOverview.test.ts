@@ -89,6 +89,14 @@ describe('flowsOf (FR-6.11)', () => {
     ]);
   });
 
+  it('lists the currencies in order, whichever moved first (review B17)', () => {
+    const { summary } = flowsOf([
+      aSum('deposit', 70, '2026-03', 'USD'),
+      aSum('deposit', 1_000),
+    ], MARCH);
+    expect(summary.map(({ currency }) => currency)).toEqual(['BRL', 'USD']);
+  });
+
   it('strips January to December for every currency of the year, zero where nothing moved', () => {
     const { summary, yearStrip } = flowsOf([
       aSum('deposit', 5, '2026-02'),
@@ -159,6 +167,12 @@ describe('budgetStatusOf', () => {
     expect(budgetStatusOf(budget, aPeriod('groceries', { year: 2026, month: 1 }, 30_000, 9), MARCH))
       .toEqual([expect.objectContaining({ targetAmount: 30_000, spendAmount: 0 })]);
     expect(budgetStatusOf(budget, undefined, MARCH)).toEqual([]);
+  });
+
+  it('counts no spend from the same month a year earlier (review B17)', () => {
+    const lastYear = aPeriod('groceries', { year: 2025, month: 3 }, 30_000, 9_000);
+    expect(budgetStatusOf(aBudget(), lastYear, MARCH))
+      .toEqual([expect.objectContaining({ targetAmount: 30_000, spendAmount: 0 })]);
   });
 });
 

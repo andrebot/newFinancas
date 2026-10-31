@@ -45,7 +45,7 @@ const wired = () => {
     insights: insightsTier.deps,
   });
   return {
-    bus, onHandlerError, identity, identityTier, accountTier,
+    bus, onHandlerError, identity, identityTier, accountTier, transactionTier,
   };
 };
 
@@ -180,5 +180,32 @@ describe('I5 — holding.matured: the daily job → AccountManager (FR-5.8, uc-1
     expect(accountTier.notifications.notify).toHaveBeenCalledOnce();
     expect(accountTier.holdings.markMaturedNotified).not.toHaveBeenCalled();
     expect(onHandlerError).not.toHaveBeenCalled();
+  });
+});
+
+describe('I5 — transaction.import.requested: the daily job → TransactionManager (§3.2a)', () => {
+  // The daily job (N9) is not built yet: the test publishes what it will (review B16).
+  const DUE: BusMessage<'transaction.import.requested'>['payload'] = {
+    scheduleEntryId: '0199c5a0-0000-7000-8000-0000000000e1',
+    householdId: HOUSEHOLD.id,
+    accountId: '0199c5a0-0000-7000-8000-0000000000a1',
+    holdingId: '0199c5a0-0000-7000-8000-0000000000h1',
+    kind: 'investment_interest',
+    amount: 500,
+    date: '2026-10-13',
+  };
+
+  it('posts the due entry through TransactionManager', async () => {
+    const { bus, onHandlerError, transactionTier } = wired();
+
+    bus.publish('transaction.import.requested', DUE, CORRELATION_ID);
+    await bus.drain();
+
+    expect(onHandlerError).not.toHaveBeenCalled();
+    expect(transactionTier.holdings.markEntryPosted)
+      .toHaveBeenCalledExactlyOnceWith(DUE.scheduleEntryId);
+    expect(transactionTier.accountTransactions.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'investment_interest', source: 'schedule', amount: 500 }),
+    );
   });
 });

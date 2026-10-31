@@ -134,3 +134,21 @@ describe('ChipGroup', () => {
     expect(screen.getByRole('group').className).toContain('w-full');
   });
 });
+
+describe('ChipRadios\'s extras (review V9)', () => {
+  it('draws an icon and a tag only on the option that has them', () => {
+    render(<ChipRadios
+      options={[{
+        value: 'a', label: 'Alpha', icon: 'home-outline' as const, tag: 'BRL',
+      }, { value: 'b', label: 'Beta' }]}
+      value="a"
+      onChange={vi.fn()}
+    />);
+    const withExtras = screen.getByText('Alpha').closest('label')!;
+    const plain = screen.getByText('Beta').closest('label')!;
+    expect(withExtras.querySelector('svg')).not.toBeNull();
+    expect(withExtras.textContent).toContain('BRL');
+    expect(plain.querySelector('svg')).toBeNull();
+    expect(plain.textContent).toBe('Beta');
+  });
+});

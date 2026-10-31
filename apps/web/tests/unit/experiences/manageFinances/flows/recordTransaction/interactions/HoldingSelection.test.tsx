@@ -1,4 +1,4 @@
-import { fireEvent, screen } from '@testing-library/react';
+import { cleanup, fireEvent, screen } from '@testing-library/react';
 import {
   describe, expect, it, vi,
 } from 'vitest';
@@ -86,6 +86,32 @@ describe('HoldingSelection', () => {
     expect(screen.getByText('Of 300 held.')).toBeDefined();
   });
 
+  it('marks the chosen Holding chosen, and says its own units held (review V5)', () => {
+    renderSelection({ holdingId: 'cdb1' });
+
+    const [stock, cdb] = screen.getAllByRole<HTMLInputElement>('radio');
+    expect(stock!.checked).toBe(false);
+    expect(cdb!.checked).toBe(true);
+    expect(screen.getByText('Of 1 held.')).toBeDefined();
+  });
+
+  it('says nothing held before a Holding is chosen (review V5)', () => {
+    renderSelection();
+
+    expect(screen.queryByText(/held\./)).toBeNull();
+  });
+
+  it('marks no row invalid without a refusal, and only the first with one (review V8)', () => {
+    renderSelection();
+    expect(screen.getAllByRole('radio').map((row) => row.getAttribute('aria-invalid')))
+      .toEqual([null, null]);
+    cleanup();
+
+    renderSelection({ holdingError: 'Choose a Holding.' });
+    expect(screen.getAllByRole('radio').map((row) => row.getAttribute('aria-invalid')))
+      .toEqual(['true', null]);
+  });
+
   it('asks no units of a cash event', () => {
     renderSelection({ kind: 'investment_dividend' });
     expect(screen.queryByLabelText(/Quantity/)).toBeNull();
@@ -144,5 +170,13 @@ describe('HoldingSelection', () => {
     expect(screen.queryByRole('radio')).toBeNull();
     expect(screen.getByText('BBAS3')).toBeDefined();
     expect(screen.getByLabelText('Quantity sold')).toBeDefined();
+    // The section's heading and the locked field's caption.
+    expect(screen.getAllByText('Holding')).toHaveLength(2);
+  });
+
+  it('names the Holdings list for assistive tech (review V8)', () => {
+    renderSelection();
+
+    expect(screen.getByRole('radiogroup', { name: 'Holding' })).toBeDefined();
   });
 });

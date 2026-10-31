@@ -398,6 +398,19 @@ describe('archiving an account', () => {
     expect(toasts(queue)).toEqual([]);
   });
 
+  it('says how many open investments keep an Account from being archived (OQ-226)', async () => {
+    await renderFlow({
+      onArchive: vi.fn(async () => ({
+        ok: false as const, error: { code: 'account.holdings_open', params: { count: 2 } },
+      })),
+    });
+    await click('edit ccr');
+    await click('open archive');
+    await click('confirm archive');
+    expect(screen.getByTestId('edit').dataset.alert)
+      .toBe('This account still holds 2 open investments — sell or redeem them first.');
+  });
+
   it('sends nothing else while a request is out, so each answer lands on its own', async () => {
     const edit = pending<AccountActionOutcome>();
     const { requests, queue } = await renderFlow({ onEdit: edit.request });

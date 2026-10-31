@@ -387,6 +387,18 @@ describe('handOffFocus', () => {
     expect(document.activeElement).toBe(from);
   });
 
+  it('never takes focus from outside the arrows (review V6)', () => {
+    const [from, to] = twoButtons();
+    const outside = document.createElement('input');
+    document.body.append(outside);
+    outside.focus();
+
+    handOffFocus(true, from, to);
+
+    expect(document.activeElement).toBe(outside);
+    outside.remove();
+  });
+
   it('leaves focus that is elsewhere', () => {
     const [from, to] = twoButtons();
     to.focus();
