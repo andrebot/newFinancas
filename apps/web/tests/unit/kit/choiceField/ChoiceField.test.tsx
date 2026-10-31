@@ -66,3 +66,28 @@ describe('ChoiceField', () => {
     expect(screen.getByRole('combobox', { name: 'Category' })).toBeDefined();
   });
 });
+
+describe('ChoiceField\'s extras in the long list (review V9)', () => {
+  it('draws an icon and a tag only on the option that has them', () => {
+    const options = [
+      {
+        value: 'v0', label: 'Alpha', icon: 'home-outline' as const, tag: 'BRL',
+      },
+      { value: 'v1', label: 'Beta' },
+      ...optionsOf(10).map(({ value, label }) => ({ value: `x${value}`, label })),
+    ];
+    renderInLocale(<ChoiceField label="Pick" options={options} value="xv5" onChange={vi.fn()} />);
+    fireEvent.click(screen.getByRole('combobox', { name: 'Pick' }));
+    /**
+     * Finds one option's row in the open list.
+     *
+     * @param name - The option's label.
+     * @returns Its row.
+     */
+    const rowOf = (name: string) => screen.getByRole('option', { name: new RegExp(name) });
+    expect(rowOf('Alpha').querySelectorAll('svg').length)
+      .toBe(rowOf('Beta').querySelectorAll('svg').length + 1);
+    expect(rowOf('Alpha').textContent).toContain('BRL');
+    expect(rowOf('Beta').textContent).not.toContain('BRL');
+  });
+});

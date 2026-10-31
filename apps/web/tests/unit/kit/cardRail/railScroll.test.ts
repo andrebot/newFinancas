@@ -117,6 +117,35 @@ describe('pageTarget', () => {
   });
 });
 
+describe('pageTarget at its tolerances (review V7)', () => {
+  // A card counts as cut only past the 1px tolerance: on it, it is clear.
+  it('goes forward past a card that starts exactly on the tolerance', () => {
+    const cards = [{ start: 57, end: 600 }, { start: 612, end: 884 }];
+    expect(pageTarget(cards, { scrollLeft: 0, clientWidth: WIDTH }, INSET, 'forward')).toBe(556);
+  });
+
+  it('goes forward past a card that ends exactly on the tolerance', () => {
+    const cards = [{ start: 100, end: 485 }, { start: 497, end: 769 }];
+    expect(pageTarget(cards, { scrollLeft: 0, clientWidth: WIDTH }, INSET, 'forward')).toBe(441);
+  });
+
+  it('pages back from the card cut at the left inset, not before it', () => {
+    expect(pageTarget(CARDS, { scrollLeft: 300, clientWidth: WIDTH }, INSET, 'back')).toBe(228);
+  });
+
+  it('takes no card starting exactly on the tolerance as cut', () => {
+    expect(pageTarget(CARDS, { scrollLeft: 229, clientWidth: WIDTH }, INSET, 'back')).toBe(-56);
+  });
+
+  it('keeps both insets clear of the cut card on the way back', () => {
+    expect(pageTarget(CARDS, { scrollLeft: 700, clientWidth: 600 }, INSET, 'back')).toBe(512);
+  });
+
+  it('takes a card starting exactly where the cut card still shows whole', () => {
+    expect(pageTarget(CARDS, { scrollLeft: 700, clientWidth: 668 }, INSET, 'back')).toBe(228);
+  });
+});
+
 describe('cardSpans', () => {
   it('reads each card start and end from its offsets', () => {
     const rail = document.createElement('div');

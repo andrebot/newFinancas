@@ -145,6 +145,15 @@ describe('AllocationEditor', () => {
     expect(totalLine().textContent).toBe('90% allocated · 10% free');
   });
 
+  it('shows exactly 100% as full, not over (review V2)', () => {
+    renderEditor();
+
+    fireEvent.change(boxOf('Emergency Fund'), { target: { value: '40' } });
+
+    expect(totalLine().textContent).toBe('100% allocated · 0% free');
+    expect(totalLine().className).not.toContain('text-coral');
+  });
+
   it('lets the total pass 100% while typing, in coral', () => {
     renderEditor();
 

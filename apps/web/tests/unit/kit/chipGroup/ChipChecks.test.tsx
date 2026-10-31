@@ -76,3 +76,22 @@ describe('ChipCheckGroup', () => {
     expect(screen.getByText('Category').className).toContain('sr-only');
   });
 });
+
+describe('ChipChecks\'s extras (review V9)', () => {
+  it('draws an icon and a tag only on the option that has them', () => {
+    renderInLocale(<ChipChecks
+      options={[{
+        value: 'a', label: 'Alpha', icon: 'home-outline' as const, tag: 'BRL',
+      }, { value: 'b', label: 'Beta' }]}
+      value={[]}
+      onChange={vi.fn()}
+    />);
+    const withExtras = screen.getByText('Alpha').closest('label')!;
+    const plain = screen.getByText('Beta').closest('label')!;
+    // Each box draws its own check mark; the icon is one more.
+    expect(withExtras.querySelectorAll('svg').length)
+      .toBe(plain.querySelectorAll('svg').length + 1);
+    expect(withExtras.textContent).toContain('BRL');
+    expect(plain.textContent).toBe('Beta');
+  });
+});

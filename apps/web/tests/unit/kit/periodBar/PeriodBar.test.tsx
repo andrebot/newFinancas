@@ -144,6 +144,10 @@ describe('PeriodBar', () => {
     expect(screen.getByRole('region', { name: 'Period' })).toBeTruthy();
     const months = screen.getByRole('group', { name: 'Months of 2026' });
     expect(months.querySelectorAll('button')).toHaveLength(12);
+    // January to December, in order (review V9).
+    const buttons = months.querySelectorAll('button');
+    expect(buttons[0]!.textContent).toMatch(/^Jan 2026/);
+    expect(buttons[11]!.textContent).toMatch(/^Dec 2026/);
   });
 
   it('shows the year from `xl` and the formatted month below it', () => {
