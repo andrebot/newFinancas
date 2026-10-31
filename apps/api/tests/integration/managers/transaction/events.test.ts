@@ -112,10 +112,24 @@ describe('postScheduledEntry (VBD §3.2a)', () => {
       date: '2026-10-13',
     });
     expect(fake.holdings.archive).toHaveBeenCalledWith(MARKET_HOLDING.id, 'system');
+    // The trade row carries its schedule provenance and no user (review B6).
+    expect(fake.accountTransactions.insert).toHaveBeenCalledWith(expect.objectContaining({
+      kind: 'investment_redemption', source: 'schedule', createdByUserId: null,
+    }));
     // Sold out: the Holding is worth nothing, whatever it was worth before (PR #145).
     expect(fake.valuations.insertAutomatic).toHaveBeenCalledWith(
       expect.objectContaining({ valuation: 0, asOfDate: '2026-10-13' }),
     );
+  });
+
+  it('refuses a post onto an archived Account, left unposted (OQ-226, B13)', async () => {
+    // Defensive: an Account with an open Holding can't be archived (OQ-226).
+    const fake = fakeDeps();
+    fake.accounts.findById.mockResolvedValue({ ...ACCOUNT, archivedAt: NOW });
+    await expect(handlersOf(fake).postScheduledEntry(message()))
+      .rejects.toMatchObject({ domainError: { code: 'account.archived' } });
+    expect(fake.holdings.markEntryPosted).not.toHaveBeenCalled();
+    expect(fake.accountTransactions.insert).not.toHaveBeenCalled();
   });
 
   it('leaves a refused entry unposted for tomorrow — the error reaches the bus sink', async () => {

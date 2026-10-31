@@ -7,7 +7,7 @@ import createDelete from '../../../../src/managers/transaction/delete';
 import createEdit from '../../../../src/managers/transaction/edit';
 import createRecord, { type TransactionCreate } from '../../../../src/managers/transaction/record';
 import {
-  ACCOUNT, ANA_ID, CHECKING, HOUSEHOLD_ID, ROW, fakeDeps,
+  ACCOUNT, ANA_ID, CHECKING, HOUSEHOLD_ID, NOW, ROW, fakeDeps,
 } from './fakes';
 
 // Transfers between the household's own accounts (OQ-222): recorded as a
@@ -196,6 +196,22 @@ describe('recording a transfer (OQ-222)', () => {
       });
   });
 
+  it('refuses sending from an archived account (FR-2.4, review B12)', async () => {
+    const fake = fakeWith([{ ...CHECKING, archivedAt: NOW }, SAVINGS]);
+    await expect(createRecord(fake.deps).recordTransaction(context, HOUSEHOLD_ID, ownTransfer()))
+      .rejects.toMatchObject({ domainError: { code: 'account.archived' } });
+    expect(fake.accountTransactions.insertTransfer).not.toHaveBeenCalled();
+  });
+
+  it('refuses an amount not in the sending account\'s currency (FR-2.2, review B12)', async () => {
+    const fake = fakeWith();
+    await expect(createRecord(fake.deps).recordTransaction(
+      context,
+      HOUSEHOLD_ID,
+      ownTransfer({ currency: 'USD', toAccountId: DOLLARS.id, receivedAmount: 1_000 }),
+    )).rejects.toMatchObject({ domainError: { code: 'transaction.currency_mismatch' } });
+  });
+
   it('refuses an account that takes no transfer', async () => {
     const fake = fakeWith();
     await expect(createRecord(fake.deps).recordTransaction(
@@ -323,6 +339,21 @@ describe('editing a transfer between own accounts (OQ-222)', () => {
         amount: 980,
       }));
     expect(edited.transaction.id).toBe(SENT.id);
+  });
+
+  it('changes the amount received when edited from the receiving side (review B12)', async () => {
+    const received = {
+      ...RECEIVED, accountId: DOLLARS.id, amount: 950, currency: 'USD',
+    };
+    const fake = fakeWith(undefined, [SENT, received]);
+    await createEdit(fake.deps)
+      .editTransaction(context, HOUSEHOLD_ID, RECEIVED.id, { receivedAmount: 980 });
+    expect(fake.accountTransactions.update)
+      .toHaveBeenCalledWith(SENT.id, expect.anything(), expect.objectContaining({ amount: 5_000 }));
+    expect(fake.accountTransactions.update)
+      .toHaveBeenCalledWith(RECEIVED.id, expect.anything(), expect.objectContaining({
+        amount: 980,
+      }));
   });
 
   it('keeps the amount received when only the date changes', async () => {

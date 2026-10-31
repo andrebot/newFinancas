@@ -23,6 +23,29 @@ describe('fieldsForKind', () => {
       'creditCardId']);
   });
 
+  const COMMON = ['categoryId', 'subcategoryId', 'description'];
+  it.each([
+    ['charge', ['creditCardId'], COMMON],
+    ['refund', ['creditCardId'], COMMON],
+    ['withdrawal', ['accountId'], COMMON],
+    ['deposit', ['accountId'], COMMON],
+    ['boleto_payment', ['accountId'], COMMON],
+    ['pix_payment', ['accountId'], COMMON],
+    ['pix_receipt', ['accountId'], COMMON],
+    ['transfer_sent', ['accountId'], [...COMMON, 'toAccountId', 'receivedAmount']],
+    ['transfer_received', ['accountId'], COMMON],
+    ['credit_card_bill_payment', ['accountId', 'creditCardId'], COMMON],
+    ['investment_buy', ['accountId', 'assetType', 'ticker'],
+      [...COMMON, 'quantity', 'allocations']],
+    ['investment_sell', ['accountId', 'holdingId', 'quantity'], [...COMMON, 'allocations']],
+    ['investment_redemption', ['accountId', 'holdingId', 'quantity'], [...COMMON, 'allocations']],
+    ['investment_dividend', ['accountId', 'holdingId'], COMMON],
+    ['investment_interest', ['accountId', 'holdingId'], COMMON],
+    ['investment_tax', ['accountId', 'holdingId'], COMMON],
+  ])('gives %s exactly its fields (review B14)', (code, required, optional) => {
+    expect(fieldsForKind(findKind(code)!)).toEqual({ required, optional });
+  });
+
   it('makes a market-priced buy carry its quantity', () => {
     const fields = fieldsForKind(BUY, 'stock');
     expect(fields.required).toContain('quantity');
@@ -68,6 +91,24 @@ describe('createProblems', () => {
       field: 'holdingId',
       code: 'object.unknown_keys',
       params: { keys: ['holdingId'] },
+    }]);
+  });
+
+  it('refuses an asset type on a kind that is not a buy (review B14)', () => {
+    const problems = createProblems(asRequest({
+      ...base, accountId: 'a1', holdingId: 'h1', quantity: 1, assetType: 'stock',
+    }), SELL);
+    expect(problems).toEqual([{
+      field: 'assetType', code: 'object.unknown_keys', params: { keys: ['assetType'] },
+    }]);
+  });
+
+  it('refuses a Subcategory on a transfer between own accounts (OQ-222, review B14)', () => {
+    const problems = createProblems(asRequest({
+      ...base, accountId: 'a1', toAccountId: 'a2', subcategoryId: 's1',
+    }), findKind('transfer_sent')!);
+    expect(problems).toEqual([{
+      field: 'subcategoryId', code: 'object.unknown_keys', params: { keys: ['subcategoryId'] },
     }]);
   });
 

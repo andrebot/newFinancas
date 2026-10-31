@@ -206,6 +206,13 @@ export const snapshotOf = (
   createdAt: NOW,
 });
 
+/** The Category the tests name, with two Subcategories (review B7). */
+export const CATEGORY = {
+  id: 'c1',
+  archivedAt: null as Date | null,
+  subcategories: [{ id: 's1' }, { id: 's2' }],
+};
+
 /** A Goal the split tests name — shared by default. */
 export const GOAL: Goal = {
   id: '0199c5a0-0000-7000-8000-0000000000g1',
@@ -296,12 +303,12 @@ export const fakeDeps = () => {
     listByAccounts: vi.fn(async (): Promise<typeof CARD[]> => [CARD]),
     applyMovement: vi.fn(async () => ({ ok: true })),
   };
+  // Finders answer only the ids a test set up — an id the Manager made up, or
+  // none at all, finds nothing (review B7).
   const categories = {
-    findById: vi.fn(async (): Promise<unknown> => ({
-      id: 'c1',
-      archivedAt: null,
-      subcategories: [],
-    })),
+    findById: vi.fn(async (_householdId: string, id: string): Promise<unknown> => (
+      id === CATEGORY.id ? CATEGORY : undefined
+    )),
   };
   const budgets = {
     accrueIfClaimed: vi.fn(
@@ -319,7 +326,9 @@ export const fakeDeps = () => {
     reopenClosedAt: vi.fn(async () => true),
   };
   const holdings = {
-    findById: vi.fn(async (): Promise<InvestmentHolding | undefined> => MARKET_HOLDING),
+    findById: vi.fn(async (_householdId: string, id: string): Promise<
+      InvestmentHolding | undefined
+    > => [MARKET_HOLDING, FIXED_HOLDING].find((holding) => holding.id === id)),
     findByTicker: vi.fn(async (): Promise<InvestmentHolding | undefined> => MARKET_HOLDING),
     insert: vi.fn(
       async (row: unknown): Promise<{ ok: boolean; holding: typeof MARKET_HOLDING }> => ({

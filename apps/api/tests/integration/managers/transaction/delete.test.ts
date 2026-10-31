@@ -258,6 +258,7 @@ describe('deleteTransaction', () => {
       ]);
       await deleteOf(fake).deleteTransaction(context, HOUSEHOLD_ID, SELL_ROW.id);
       expect(fake.goals.deleteFrom).toHaveBeenCalledWith(MARKET_HOLDING.id, SELL_ROW.date);
+      expect(fake.goals.listAllocations).toHaveBeenCalledWith({ holdingId: MARKET_HOLDING.id });
       expect(fake.goals.reopenClosedAt).toHaveBeenCalledWith(MARKET_HOLDING.id, SELL_ROW.date);
     });
 
@@ -335,5 +336,25 @@ describe('deleteTransaction', () => {
     await deleteOf(fake).deleteTransaction(context, HOUSEHOLD_ID, ROW.id);
     expect(fake.budgets.accrueIfClaimed).toHaveBeenCalledTimes(1);
     expect(fake.budgets.accrueIfClaimed.mock.calls[0]?.[0]?.amount).toBe(-5_000);
+  });
+});
+
+describe('a fixed-term Holding\'s redemption (review B10)', () => {
+  it('deletes although the buy\'s schedule has started — only the buy is locked', async () => {
+    const fake = fakeDeps();
+    fake.accountTransactions.findById.mockResolvedValue({
+      ...BUY_ROW,
+      id: 't8',
+      kind: 'investment_redemption',
+      amount: 52_000,
+      holdingId: FIXED_HOLDING.id,
+      holding: { ticker: 'CDB1', assetType: 'cdb' },
+      trade: { quantityDelta: -1, costBasisDelta: -50_000 },
+    });
+    fake.holdings.findById.mockResolvedValue(FIXED_HOLDING);
+    fake.holdings.listSchedule.mockResolvedValue([{ postedAt: NOW }]);
+    fake.holdings.applyTrade.mockResolvedValue({ ok: true, quantity: 1, costBasis: 50_000 });
+    await deleteOf(fake).deleteTransaction(context, HOUSEHOLD_ID, 't8');
+    expect(fake.accountTransactions.delete).toHaveBeenCalled();
   });
 });
