@@ -231,6 +231,35 @@ describe('listHoldings (FR-5.3)', () => {
       .toHaveBeenNthCalledWith(2, HOME, expect.objectContaining({ amount: 500000 }));
   });
 
+  it('leaves the others projected when one Holding\'s index has no value (OQ-205)', async () => {
+    const tier = fakeDeps();
+    const second = { ...HOLDING, id: '0199c5a0-0000-7000-8000-0000000000b3' };
+    const secondBuy = { ...BUY, id: '0199c5a0-0000-7000-8000-0000000000e2', holdingId: second.id };
+    tier.holdings.listByAccounts.mockResolvedValue([HOLDING, second]);
+    tier.accountTransactions.findBuys.mockResolvedValue([BUY, secondBuy]);
+    tier.investmentProducts.project.mockResolvedValueOnce({
+      ok: false, reason: 'index_missing', indexCode: 'ipca',
+    });
+    const manager = createInsightsManager(tier.deps);
+
+    const [unprojected, projected] = await manager.listHoldings(
+      context,
+      HOME,
+      HOLDING.accountId,
+      false,
+    );
+
+    expect(unprojected).toMatchObject({
+      id: HOLDING.id,
+      expectedPayout: null,
+      expectedTaxes: null,
+      projectionUnavailable: { reason: 'index_missing', indexCode: 'ipca' },
+    });
+    expect(projected).toMatchObject({
+      id: second.id, expectedPayout: 1105000, projectionUnavailable: null,
+    });
+  });
+
   it('an Account that is not there answers account.not_found', async () => {
     const tier = fakeDeps();
     tier.accounts.findById.mockResolvedValue(undefined);

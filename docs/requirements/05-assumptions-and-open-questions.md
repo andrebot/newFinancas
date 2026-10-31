@@ -6693,6 +6693,40 @@ OQ-220).
 
 **Task 120 (`I3`) is complete.**
 
+### OQ-224: InsightsManager's permission seam (task I4)
+**Confirmed with the stakeholder (Oct 2026).** The seam suite
+(`tests/integration/managers/insights/authorization.test.ts`) ran every
+slice-3 use case's access request against the real permission table — the M4
+suites always answered "allowed, Owner" — and, unlike I3 (OQ-223), found the
+Manager agreeing with FR-1.7 / FR-2.3 / OQ-111 / OQ-117 everywhere:
+- **A report and the Goal list ask only the membership check** — every
+  member, a Viewer too, reads them; what each sees is narrowed below, from
+  the viewer it is handed (ReportingEngine) and the caller's id
+  (`GoalAccessor.list`).
+- **One Goal's progress asks `data.view` on the Goal; an Account's Holdings
+  and one Holding on the Account** — its own visibility and owner. On shared
+  data every role reads; another's personal data is the data's own 404 for
+  every role, Owner and Admin included.
+- **Data that isn't there asks only the membership check** — a Goal, an
+  Account, a Holding or a Holding's Account — so a non-member still gets
+  `household.not_found`, a member the data's own 404.
+- A refusal reads only what decides access: no Engine, no further read, no
+  log.
+
+**The BDT plan's "an Engine failure for one holding returns the others with
+that projection marked unavailable" is amended to OQ-205:** the one degraded
+answer is `project` → `index_missing`, which leaves only that Holding
+unprojected (now asserted on a list, too). A thrown `project` — it throws
+only for a type that isn't fixed-term, which the Manager never sends — is a
+bug and fails the read (500). Weighed and rejected: catching per Holding,
+which would need a new `projectionUnavailable` reason in the contract and the
+UI for a case that can't happen.
+
+The Dashboard, inbox and audit export (task 139) and the investments reports
+(task 133) join the matrix with their use cases.
+
+**Task 121 (`I4`) is complete.**
+
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
 *(None currently — OQ-29, the last item here, was resolved during data
