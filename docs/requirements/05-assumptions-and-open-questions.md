@@ -6191,6 +6191,9 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
   `credit_card.account_archived`, which recording answers too. The payer's
   own gates are checked before the card's. The drawer asks for the card
   first, then the payers in its currency.
+  *(Amended in OQ-223: recording asks `data.create` on the payer and the
+  card's account, so a Member pays a shared card whoever created its account;
+  an edit or delete asks the payment's recorder on a shared one.)*
 - **A purchase abroad is recorded as billed:** a card's charges stay in its
   account's currency — the amount on the statement (no FX, FR-2.2). Weighed
   and rejected: a charge in its own currency (per-currency outstanding — its
@@ -6315,6 +6318,8 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
   by the shared `mayManageOwned` (OQ-111), the server's `accessToOwned(…,
   'data.edit')`. The rule moved from `experiences/accountSetup/ownership.ts`
   to `experiences/ownership.ts`, read by three Experiences now.
+  *(Amended in OQ-223: by `mayManageRecorded` on every account it touches —
+  the row's recorder's on a shared one, mirroring the server.)*
 - **Names both Flows share leave Record Transaction's section:** kinds,
   groups and "{network} •••• {last4}" now live in a `transactions` catalog
   section, read through `experiences/manageFinances/transactionNames.ts`;
@@ -6633,6 +6638,60 @@ conventions OQ-201 (D12–D14) leaves to the Engine:
   outstanding (`issuedByMonthEnd`), as OQ-221's "each of its cards" says.
 
 **Task 119 (`X6`) is complete.**
+
+### OQ-223: TransactionManager's permission seam (task I3)
+**Confirmed with the stakeholder (Oct 2026).** The seam suite
+(`tests/integration/managers/transaction/authorization.test.ts`) ran every use
+case's access request against the real permission table for the first time —
+the M3 suites always answered "allowed, Owner" — and found three places where
+the Manager disagreed with FR-1.7 / OQ-111 / OQ-117:
+- **Recording is creating: `data.create` on the Account it lands on.** Record
+  asked `data.edit`, which on shared data only Owner/Admin and the Account's
+  creator hold — a Member could not record on a shared Account someone else
+  opened, against FR-1.7 ("Member — record transactions"). A Viewer is still
+  refused; a personal Account is still its owner's alone.
+- **An edit or delete is decided on who recorded the row.** On a shared
+  Account the request carries the row's `created_by_user_id` (OQ-201 F1) — a
+  Member edits and deletes their own entries, not another's, and a schedule
+  post (no recorder) is an Owner's or Admin's; on a personal Account it
+  carries the Account's owner, so an old entry someone else recorded there
+  before it went personal stays the owner's. Delete asks `data.delete` (it
+  asked `data.edit` — the same roles today, the right action for tomorrow).
+  The rule lives in `accessToRecorded` (`managers/transaction/reversal.ts`).
+- **The second Account** — a bill payment's card's Account and a transfer's
+  other side (OQ-219, OQ-222) — **asks `data.create` when recording** (the
+  money lands there, whoever created it) **and, on an edit or delete, the same
+  request as the row** (its recorder's on a shared Account, the owner's on a
+  personal one). *(Corrected by the PR #146 review:)* asking `data.create` on
+  an edit or delete too let a Member take over another's entry by making
+  their own Account personal — Y makes P, the other side of X's transfer from
+  shared A, personal; P's side is then Y's, and `data.create` on A passed, so
+  Y rewrote X's entry on A; a payer gone personal did the same to a shared
+  card's balance. With the row's request on both, X still changes their own
+  transfer into another's shared Account; once an Account goes personal,
+  only an Owner or Admin changes the pair. Weighed and rejected: `data.edit`
+  on that Account's owner (only Owner/Admin or its creator could pay a shared
+  card or transfer into a shared Account).
+- **A row that isn't there asks only the membership check** before
+  `transaction.not_found` — `getTransaction`, Edit and Delete threw it first,
+  so a non-member learned `transaction.not_found` instead of
+  `household.not_found` (OQ-117).
+
+The matrix asserts each use case's requests in order, on personal and shared
+Accounts; that a refusal at either check reads only what decides access and
+writes, transacts and logs nothing; and, through the real `decide`, the
+Member/Viewer/Owner/Admin outcomes above — the Accounts' creator refused
+another's rows, an Account gone personal handing over nothing, a Viewer
+refused a transfer into a shared Account. The scheduled-post handler is asserted to
+ask no one's access (`events.test.ts`). The record sequence diagrams now say
+`canRecord` for the create checks; edit and delete show the membership-only
+check for a missing row and the second Account's check.
+
+The web app follows (`experiences/ownership.ts`): the ledger offers Edit and
+Delete by `mayManageRecorded` on every account the row touches (amends
+OQ-220).
+
+**Task 120 (`I3`) is complete.**
 
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 

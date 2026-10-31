@@ -159,21 +159,21 @@ const createDelete = (deps: TransactionDeps) => ({
    * @param context - The signed-in request.
    * @param householdId - The household.
    * @param transactionId - The transaction on either ledger.
-   * @throws {DomainError} `transaction.not_found`; `auth.forbidden` /\\\n   *
-    * `household.not_found`; `transaction.schedule_started`;\\\n   *   `transaction.holding_in_use`;
-    * the trade's 409s; `transaction.changed`.
+   * @throws {DomainError} `household.not_found` / `transaction.not_found`;
+   *   `auth.forbidden`; `transaction.schedule_started`;
+   *   `transaction.holding_in_use`; the trade's 409s; `transaction.changed`.
    */
   deleteTransaction: async (
     context: SignedInContext,
     householdId: string,
     transactionId: string,
   ): Promise<void> => {
-    const row = await loadEditable(deps, context, householdId, transactionId);
+    const row = await loadEditable(deps, context, householdId, transactionId, 'data.delete');
     const kind = findKind(row.transaction.kind);
     if (!kind) throw validationFailed([{ field: 'kind', code: 'field.invalid_option' }]);
     await checkDeletable(deps, householdId, row, kind);
     // A transfer between own accounts goes as one: both sides (OQ-222).
-    const pair = await loadPairSide(deps, context, householdId, row);
+    const pair = await loadPairSide(deps, context, householdId, row, 'data.delete');
     // Both sides in their Accounts' order, so opposite pairs never wait on each other.
     const sides = inLockOrder([row, ...(pair === undefined ? [] : [pair])]
       .map((side) => ({ side })));

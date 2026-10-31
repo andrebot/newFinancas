@@ -409,7 +409,11 @@ const createBrowse = (deps: TransactionDeps) => ({
       return { ledger: 'account', transaction: withVisiblePair(account, seen) };
     }
     const card = await deps.cardTransactions.findById(householdId, transactionId);
-    if (!card) throw transactionNotFound();
+    if (!card) {
+      // Only the membership check, so a non-member still learns nothing (OQ-117).
+      await requireAccess(deps.authorization, context.actor.userId, householdId, memberOnly);
+      throw transactionNotFound();
+    }
     await checkCardView(deps, context, householdId, card);
     return { ledger: 'card', transaction: card };
   },

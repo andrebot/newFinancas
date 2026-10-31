@@ -42,8 +42,8 @@ sequenceDiagram
 
     User->>API: POST /households/:householdId/transactions {accountId | creditCardId, kind, date, amount, currency, categoryId?, description, holdingId? | assetType + ticker?, quantity?, rate?, dueDate?, interestPayment?, incentivised?, allocations?}
     API->>TM: record(actor, input)
-    Note over TM: loads the target (Account or card + its Account &mdash; a bill payment's card may sit on any Account<br/>the actor may edit, open and in the payment's currency, checked after the payer, OQ-219) and, if given, the Category &mdash;<br/>an archived Account or a newly used archived Category is refused (OQ-169, OQ-201)
-    TM->>AZ: canWrite(actor, targetId)?
+    Note over TM: loads the target (Account or card + its Account &mdash; a bill payment's card may sit on any Account<br/>the actor may record on, open and in the payment's currency, checked after the payer, OQ-219) and, if given, the Category &mdash;<br/>an archived Account or a newly used archived Category is refused (OQ-169, OQ-201)
+    TM->>AZ: canRecord(actor, targetId)? &mdash; creating on its Account: any Member on a shared one (OQ-223)
     alt not authorized
         AZ-->>TM: denied
         TM-->>API: Forbidden
@@ -110,8 +110,8 @@ sequenceDiagram
             AA-->>TM: new balance
         else effect = bill_payment
             Note over TM: the payer's gates passed &mdash; now the card's own Account (OQ-219)
-            TM->>AZ: canWrite(actor, the card's accountId)?
-            alt the actor may not edit the card's Account
+            TM->>AZ: canRecord(actor, the card's accountId)?
+            alt the actor may not record on the card's Account
                 AZ-->>TM: not visible
                 TM-->>API: NotFound
                 API-->>User: 404 credit_card.not_found
@@ -254,7 +254,15 @@ sequenceDiagram
     API->>TM: edit(actor, transactionId, input)
     TM->>ATA: findById(householdId, transactionId) (else the card ledger)
     ATA-->>TM: the stored transaction &mdash; kind, target, trade deltas, recorder
-    TM->>AZ: canWrite(actor, transactionId)?
+    alt the transaction isn't there
+        TM->>AZ: authorize(actor, householdId, memberOnly)
+        TM-->>API: NotFound
+        API-->>User: 404 household.not_found to a non-member, else 404 transaction.not_found (OQ-117, OQ-223)
+    end
+    TM->>AZ: canWrite(actor, transactionId)? &mdash; data.edit: on a shared Account its recorder's, on a personal one its owner's (OQ-223)
+    opt a bill payment's card's Account, or a transfer's other side
+        TM->>AZ: canWrite(actor, that Account)? &mdash; the same request, so an Account gone personal never hands over the other (OQ-223)
+    end
     alt not authorized
         AZ-->>TM: denied
         TM-->>API: Forbidden
@@ -262,7 +270,7 @@ sequenceDiagram
     else its Account (a card row's: its card's) is archived &mdash; history is frozen (FR-2.4, OQ-220)
         TM-->>API: Conflict
         API-->>User: 409 account.archived
-    else a bill payment whose card's Account the actor may no longer edit, or is archived (OQ-219)
+    else a bill payment whose card's Account the actor may not change the payment on, or is archived (OQ-219, OQ-223)
         TM-->>API: NotFound or Conflict
         API-->>User: 404 credit_card.not_found or 409 credit_card.account_archived
     else a fixed-term buy whose schedule has posted, and amount, date or terms change
@@ -338,7 +346,7 @@ sequenceDiagram
     notes="""
     <ul>
       <li><strong>PR #145 review:</strong> a trade&#39;s change restates its Holding&#39;s automatic snapshots from the whole history (<code>listTrades</code>, <code>list</code>, then <code>updateAutomatic</code> where a value or date moved), so later trades&#39; values follow it; a pair&#39;s two sides are written in Account-id order.</li>
-      <li><strong>OQ-222:</strong> either side of a transfer between own accounts edits both as one &mdash; <code>amount</code> is what was sent, <code>receivedAmount</code> what arrived across currencies, no category; the caller must be able to edit both accounts (403 otherwise).</li>
+      <li><strong>OQ-222:</strong> either side of a transfer between own accounts edits both as one &mdash; <code>amount</code> is what was sent, <code>receivedAmount</code> what arrived across currencies, no category; the caller must be able to change the row on both accounts &mdash; its recorder on a shared one, the owner on a personal one (403 otherwise, OQ-223).</li>
       <li><strong>Reverse-then-reapply, all inside one transaction</strong> &mdash; the same complexity flagged in <code>02-data-model.md</code>&#39;s Transactions domain, now traced call-by-call. If the edit only changes the <code>date</code> to a different month, the reverse/reapply pair is what actually drives the backdated-balance cascade documented in the Accounts domain (shift every subsequent month&#39;s opening/ending balance by one delta).</li>
       <li><code>CardTransactionAccessor.update</code> path (not shown, same shape) applies when the target was a Card Transaction instead of an Account Transaction.</li>
       <li><strong>Oct 2026 review:</strong> the automatic snapshot follows the edit (the value before the trade, its own snapshot left out, &plusmn; the new amount &mdash; OQ-222); the Holding is re-archived or un-archived to match the new quantity (OQ-72, OQ-80).</li>
@@ -371,7 +379,15 @@ sequenceDiagram
     API->>TM: delete(actor, transactionId)
     TM->>ATA: findById(householdId, transactionId) (else the card ledger)
     ATA-->>TM: the stored transaction
-    TM->>AZ: canWrite(actor, transactionId)?
+    alt the transaction isn't there
+        TM->>AZ: authorize(actor, householdId, memberOnly)
+        TM-->>API: NotFound
+        API-->>User: 404 household.not_found to a non-member, else 404 transaction.not_found (OQ-117, OQ-223)
+    end
+    TM->>AZ: canDelete(actor, transactionId)? &mdash; data.delete: on a shared Account its recorder's, on a personal one its owner's (OQ-223)
+    opt a bill payment's card's Account, or a transfer's other side
+        TM->>AZ: canDelete(actor, that Account)? &mdash; the same request (OQ-223)
+    end
     alt not authorized
         AZ-->>TM: denied
         TM-->>API: Forbidden
@@ -379,7 +395,7 @@ sequenceDiagram
     else its Account (a card row's: its card's) is archived &mdash; history is frozen (FR-2.4, OQ-220)
         TM-->>API: Conflict
         API-->>User: 409 account.archived
-    else a bill payment whose card's Account the actor may no longer edit, or is archived (OQ-219)
+    else a bill payment whose card's Account the actor may not change the payment on, or is archived (OQ-219, OQ-223)
         TM-->>API: NotFound or Conflict
         API-->>User: 404 credit_card.not_found or 409 credit_card.account_archived
     else a fixed-term buy whose schedule has posted
@@ -435,7 +451,7 @@ sequenceDiagram
     notes="""
     <ul>
       <li><strong>PR #145 review:</strong> a trade&#39;s change restates its Holding&#39;s automatic snapshots from the whole history (<code>listTrades</code>, <code>list</code>, then <code>updateAutomatic</code> where a value or date moved), so later trades&#39; values follow it; a pair&#39;s two sides are written in Account-id order.</li>
-      <li><strong>OQ-222:</strong> deleting either side of a transfer between own accounts deletes both, moving both accounts back, in the same unit of work; the caller must be able to edit both accounts (403 otherwise).</li>
+      <li><strong>OQ-222:</strong> deleting either side of a transfer between own accounts deletes both, moving both accounts back, in the same unit of work; the caller must be able to change the row on both accounts &mdash; its recorder on a shared one, the owner on a personal one (403 otherwise, OQ-223).</li>
       <li>A deleted, backdated transaction runs the balance cascade in reverse across every subsequent month, same mechanic as Edit (UC-02) minus the reapply half.</li>
       <li><strong>OQ-201:</strong> a trade&#39;s cash leg is reversed too. Deleting the buy that created a Holding deletes the Holding (its Goal split, snapshots and schedule with it) when no other transaction references it, and is refused otherwise; a fixed-term buy whose schedule has posted can&#39;t be deleted. A deleted transaction the schedule posted isn&#39;t posted again &mdash; its entry stays marked.</li>
       <li><strong>OQ-219:</strong> a bill payment&#39;s card may sit on another Account than its payer, so editing or deleting it decides on both: the card&#39;s Account must still be one the actor may edit (404 <code>credit_card.not_found</code>) and open (409 <code>credit_card.account_archived</code>).</li>

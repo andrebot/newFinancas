@@ -385,12 +385,12 @@ before now:
 
 ```
 TransactionManager.record(input)
- ├─ AuthorizationUtility.canWrite(actor, accountId)?
+ ├─ AuthorizationUtility.canRecord(actor, accountId)?  [data.create — any Member on a shared Account, OQ-223]
  ├─ refuse: archived Account (OQ-169); kind not allowed for the target — a
  │    card takes charge/refund, a credit_card_only Account none — another
  │    Account pays its cards' bills (OQ-219), no investment kind on it (OQ-76);
  │    a bill payment's card — checked after the payer — on an Account the
- │    caller may edit, open (`credit_card.account_archived`) and in its
+ │    caller may record on, open (`credit_card.account_archived`) and in its
  │    currency (OQ-219); a new
  │    archived Category (OQ-201)
  ├─ if input targets a Credit Card directly (Card Transaction: charge/refund):

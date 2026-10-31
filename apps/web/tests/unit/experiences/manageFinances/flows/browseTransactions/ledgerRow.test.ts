@@ -6,8 +6,8 @@ import {
 import { createFormatter } from '../../../../../../src/utilities/formatting';
 import { createTranslator } from '../../../../../../src/utilities/i18n';
 import {
-  ACCOUNTS, BILL_PAYMENT, CATEGORIES, ITAU, LOOKUP, OLD, accountOf, accountRowOf, cardOf,
-  cardRowOf, omit,
+  ACCOUNTS, BILL_PAYMENT, CATEGORIES, ITAU, LOOKUP, NUBANK_CARD_ONLY, OLD, accountOf,
+  accountRowOf, cardOf, cardRowOf, omit,
 } from './fixtures';
 
 // What a ledger row shows and offers (BDT: Flow rules, unit — pure, the real catalog).
@@ -194,12 +194,33 @@ describe('rowAccessOf', () => {
       .toBe('archived');
   });
 
-  it("lets a Member manage a shared account's rows only when they created it", () => {
-    const lookup = ledgerLookupOf([accountOf('mine', { ownerUserId: 'me' })], CATEGORIES);
-    const row = accountRowOf({ accountId: 'mine' });
+  it("lets a Member manage a shared account's rows only when they recorded them (OQ-223)", () => {
+    const lookup = ledgerLookupOf([accountOf('theirs', { ownerUserId: 'you' })], CATEGORIES);
+    const row = accountRowOf({ accountId: 'theirs', createdByUserId: 'me' });
 
     expect(rowAccessOf(row, lookup, { selfUserId: 'me', role: 'Member' })).toBe('manage');
+    // The account's creator doesn't manage what someone else recorded on it.
     expect(rowAccessOf(row, lookup, { selfUserId: 'you', role: 'Member' })).toBe('none');
+  });
+
+  it("keeps a personal account's rows its owner's, whoever recorded them (OQ-223)", () => {
+    const lookup = ledgerLookupOf([
+      accountOf('private', { ownerUserId: 'me', visibility: 'personal' }),
+    ], CATEGORIES);
+    const row = accountRowOf({ accountId: 'private', createdByUserId: 'you' });
+
+    expect(rowAccessOf(row, lookup, { selfUserId: 'me', role: 'Viewer' })).toBe('manage');
+    expect(rowAccessOf(row, lookup, { selfUserId: 'you', role: 'Owner' })).toBe('none');
+  });
+
+  it("decides a bill payment's card account on its recorder too (OQ-223)", () => {
+    const member = { selfUserId: 'me', role: 'Member' };
+    expect(rowAccessOf({ ...BILL_PAYMENT, createdByUserId: 'me' }, LOOKUP, member)).toBe('manage');
+    // Their own Account gone personal doesn't hand over someone else's payment of a shared card.
+    const mixed = ledgerLookupOf([
+      { ...ITAU, visibility: 'personal', ownerUserId: 'me' }, NUBANK_CARD_ONLY,
+    ], CATEGORIES);
+    expect(rowAccessOf({ ...BILL_PAYMENT, createdByUserId: 'you' }, mixed, member)).toBe('none');
   });
 });
 

@@ -117,7 +117,7 @@ const loadCardTarget = async (
     deps.authorization,
     context.actor.userId,
     householdId,
-    accessToOwned(account, 'data.edit'),
+    accessToOwned(account, 'data.create'),
     creditCardNotFound,
   );
   if (!card || !account) throw creditCardNotFound();
@@ -153,7 +153,8 @@ const checkTarget = (kind: TransactionKind, target: LoadedTarget, currency: stri
 
 /**
  * Loads the target a transaction is recorded against — its Account (and card),
- * deciding access on it. A bill payment's card may sit on any Account of the
+ * deciding access on it: recording is creating there, so a Member records on
+ * any shared Account (FR-1.7, OQ-223). A bill payment's card may sit on any Account of the
  * household the caller may edit (OQ-219): the payer's gates are checked first,
  * then the card's own Account.
  *
@@ -182,7 +183,7 @@ const loadTarget = async (
     deps.authorization,
     context.actor.userId,
     householdId,
-    accessToOwned(account, 'data.edit'),
+    accessToOwned(account, 'data.create'),
     accountNotFound,
   );
   if (!account) throw accountNotFound();
