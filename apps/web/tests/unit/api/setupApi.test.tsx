@@ -447,6 +447,7 @@ describe('the shared tags (PR #145)', () => {
     'POST /households/doe/categories/cat/subcategories/sub/archive': () => jsonResponse(204),
     'POST /households/doe/budgets': () => jsonResponse(201, {}),
     'PATCH /households/doe/budgets/ok': () => jsonResponse(200, {}),
+    'PATCH /households/doe/budgets/gone': () => jsonResponse(404, envelope('budget.not_found')),
   };
 
   /**
@@ -535,6 +536,12 @@ describe('the shared tags (PR #145)', () => {
       store.dispatch(write() as never) as unknown as PromiseLike<unknown>
     );
     expect(await readsAfter(sendWrite)).toEqual(expected);
+  });
+
+  it('reads the budgets again after an edit of one already gone (review V3)', async () => {
+    expect(await readsAfter((store) => store.dispatch(setupApi.endpoints.editBudget.initiate({
+      householdId: 'doe', budgetId: 'gone', name: 'Fun',
+    })))).toEqual({ accounts: 1, categories: 1, budgets: 2 });
   });
 
   it('reads nothing again after a write that failed', async () => {

@@ -4,7 +4,7 @@ The gate at the end of slice 3 (day-to-day finances: record, browse, filter
 and edit transactions; the month overview — tasks 99–122), run by the method
 in `13-slice-review.md` (OQ-164). Work happens on the `review/slice-3`
 branch, cut from `main` after PR #148 (`I9`).
-**Status: phase 1 — backend fixed and verified (94.0%); web fixed, second web run under way. See "Where it stands" at the end.**
+**Status: phase 1 fixed and verified — backend 94.0%, web 93.5%; its PR next. See "Where it stands" at the end.**
 
 ## Scope
 
@@ -231,19 +231,31 @@ preset classes and Clear (styling; off-list values filtered), `:188`,
 `AllocationEditor.tsx:251`, `Amount.tsx:75`, `ManageFinancesExperience.tsx:341,344`,
 `useLedger.ts:66`, `ownership.ts:70`, `balanceCards.ts:73`'s non-card-only
 halves, an empty tag pill (`ChoiceField`/`MultiChoiceField` `tag → true`),
-`AuthLayout.tsx:93,96` (demo data). Verified by a second `BASE=54c15d8` web
-run (below, once it ends).
+`AuthLayout.tsx:93,96` (demo data).
+
+**Second run (2026-10-31, `BASE=54c15d8`, no file failed):** 4,794 mutants,
+4,480 killed, 3 timed out, **311 survived — 93.5%** (from 89.2%); none new.
+Every survivor is a triaged non-gap or one listed above, plus a few narrower
+spans of the same kind: `transactionChecks.ts:95,208,222` and `x === null →
+false` (`null < 1` is still refused), `transactionForm.ts:360,381,453,465`
+(`includes(undefined)` is false, every group has kinds, the Flow has its own
+split source), `TransactionEntry.tsx:69`, `LedgerRow.tsx:166`,
+`ledgerRow.ts:275` (card rows carry no source or Holding), `ledgerPages.ts:38`
+and `ManageFinancesExperience.tsx:300` (defensive). It found two real ones
+left: a Budget edit or create answering `budget.not_found` should still
+refresh the list (`setupApi.ts:201,207`) — the edit now has its test (killed
+by hand); the create can't answer that code (defensive).
 
 ## Where it stands (2026-10-31)
 
-Branch `review/slice-3`, not pushed. Phase 1 is fixed in full — backend
-verified (94.0%, no gap left), web fixed and its second run under way.
+Branch `review/slice-3`, not pushed. Phase 1 is fixed in full and verified —
+backend 94.0%, web 93.5%, no gap left.
 
 1. **Done:** D1 (OQ-226) end to end — `archiveAccount`'s 409
    `account.holdings_open`, both catalogs, the contract and its page, FR-2.4,
    the uc-03 sequence and call chain, the Account Management Flow's message;
    backend B1–B19; web V1–V10.
-2. **Next:** read the second web run, record it here, then open phase 1's PR.
+2. **Next:** open phase 1's PR (both steps verified: backend 94.0%, web 93.5%).
 3. **Then phase 2** (the Playwright suite) and **phase 3** (code and
    architecture — it also decides `monthOverview.ts`'s dead `'transfer'` in
    `LEFT_OUT`), each with its own PR; then R3 is ticked and slice 4 starts at
