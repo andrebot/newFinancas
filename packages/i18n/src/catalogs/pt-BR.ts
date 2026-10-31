@@ -25,6 +25,7 @@ const ptBR = {
     'internal.unexpected': 'Algo deu errado. Tente novamente.',
     'network.unavailable': 'Não foi possível conectar. Verifique sua conexão e tente novamente.',
     'account.archived': 'Esta conta está arquivada e não pode ser alterada.',
+    'account.holdings_open': '{count, plural, one {Esta conta ainda tem um investimento aberto — venda ou resgate-o antes} other {Esta conta ainda tem # investimentos abertos — venda ou resgate-os antes}}.',
     'account.cards_not_allowed': 'Este tipo de conta não aceita cartões de crédito.',
     'account.not_found': 'Conta não encontrada.',
     'auth.forbidden': 'Você não tem permissão para fazer isso.',

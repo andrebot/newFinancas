@@ -6800,6 +6800,22 @@ only the journey in the browser, and checks the end state through the API
 
 **Task 122 (`I9`) is complete.**
 
+### OQ-226: Slice 3 review decisions (gate R3)
+**Confirmed with the stakeholder (Oct 2026)**, from the review in
+`docs/architecture/15-slice-3-review.md`:
+- **An Account with an open Holding can't be archived (D1, finding B13).**
+  Archiving looked only at the Account, so a CDB in an archived Account kept
+  its schedule: at maturity the post was refused (`account.archived`), left
+  unposted, and the daily job would retry it every day. `archiveAccount` now
+  answers 409 `account.holdings_open` while any Holding of the Account is not
+  archived — a sold-out one is already system-archived, so only a position
+  still held (or a fixed-term one not yet redeemed) blocks; close or redeem it
+  first. FR-2.4 says so. A buy racing the archive is not locked against: the
+  window is one request wide, and the buy's own check refuses an archived
+  Account. Weighed and rejected: posting onto the archived Account anyway
+  (archived Accounts take no transactions, FR-2.4); skipping the entry with an
+  error log (the money would silently never show up); keeping the retry.
+
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
 *(None currently — OQ-29, the last item here, was resolved during data

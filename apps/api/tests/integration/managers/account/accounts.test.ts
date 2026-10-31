@@ -6,7 +6,7 @@ import { createAccountManager } from '../../../../src/managers/account';
 import { expectAudited } from '../audit';
 import {
   ACCOUNT, accountBalance, ANA_ID, BEA_ID, CARD, cardBalance, CONTEXT, fakeDeps, HOUSEHOLD_ID,
-  TODAY,
+  HOLDING, TODAY,
 } from './fakes';
 
 const ACCOUNT_ID = ACCOUNT.id;
@@ -502,6 +502,20 @@ describe('AccountManager — Archive Account (financial-accounts/uc-03, FR-2.4)'
     });
     expect(accounts.archive).toHaveBeenCalledWith(HOUSEHOLD_ID, ACCOUNT_ID);
     expectAudited(logs.events, audit('ArchiveAccount', 'Account', ACCOUNT_ID));
+  });
+
+  it('refuses an Account still holding position, naming how many (OQ-226)', async () => {
+    const { deps, accounts, holdings } = fakeDeps();
+    holdings.listByAccounts.mockResolvedValueOnce([HOLDING, { ...HOLDING, id: 'h-2' }]);
+    const logs = captureLogs(onTestFinished);
+
+    await expect(createAccountManager(deps).archiveAccount(CONTEXT, HOUSEHOLD_ID, ACCOUNT_ID))
+      .rejects.toMatchObject({
+        domainError: { code: 'account.holdings_open', params: { count: 2 } },
+      });
+    expect(holdings.listByAccounts).toHaveBeenCalledWith([ACCOUNT_ID]);
+    expect(accounts.archive).not.toHaveBeenCalled();
+    expect(auditedActions(logs.events)).toEqual([]);
   });
 
   it('leaves an archived Account as it is, unaudited', async () => {

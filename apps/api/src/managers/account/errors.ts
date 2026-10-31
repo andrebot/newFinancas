@@ -65,6 +65,19 @@ export const accountArchived = (): DomainError => createDomainError({
 });
 
 /**
+ * An Account archived while it still holds position: its open Holdings would
+ * keep posting into an Account that takes no transactions (FR-2.4, OQ-226).
+ *
+ * @param count - How many of its Holdings are open.
+ * @returns `account.holdings_open`, naming the count.
+ */
+export const holdingsOpen = (count: number): DomainError => createDomainError({
+  code: 'account.holdings_open',
+  message: 'Close or redeem the account\'s holdings first',
+  params: { count },
+});
+
+/**
  * A card attached to an Account type that takes none (FR-2.7).
  *
  * @returns `account.cards_not_allowed`.

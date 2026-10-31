@@ -10,6 +10,7 @@ import type { ContentfulStatusCode } from 'hono/utils/http-status';
 /** The HTTP status each API error code is answered with. */
 const STATUS_OF: Readonly<Record<ErrorCode, ContentfulStatusCode>> = {
   'account.archived': 409,
+  'account.holdings_open': 409,
   'account.cards_not_allowed': 422,
   'account.not_found': 404,
   'auth.challenge_expired': 401,

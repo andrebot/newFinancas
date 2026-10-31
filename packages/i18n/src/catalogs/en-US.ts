@@ -10,6 +10,7 @@ const enUS: Catalog = {
     'internal.unexpected': 'Something went wrong. Please try again.',
     'network.unavailable': "Couldn't connect. Check your connection and try again.",
     'account.archived': "This account is archived and can't be changed.",
+    'account.holdings_open': '{count, plural, one {This account still holds an open investment — sell or redeem it first} other {This account still holds # open investments — sell or redeem them first}}.',
     'account.cards_not_allowed': "This account type can't have credit cards.",
     'account.not_found': 'Account not found.',
     'auth.forbidden': "You don't have permission to do that.",

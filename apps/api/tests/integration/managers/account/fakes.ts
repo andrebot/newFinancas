@@ -239,6 +239,8 @@ export const fakeDeps = () => {
   };
   const holdings = {
     findById: vi.fn(async (): Promise<typeof HOLDING | undefined> => HOLDING),
+    // The Account's open Holdings: none, so it may be archived (OQ-226).
+    listByAccounts: vi.fn(async (..._call: unknown[]): Promise<typeof HOLDING[]> => []),
     listSchedule: vi.fn(async (): Promise<object[]> => []),
     archive: vi.fn(async () => true),
     markMaturedNotified: vi.fn(async () => true),

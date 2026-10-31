@@ -135,8 +135,9 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain:</strong> <code>AccountManager</code> ① <code>AccountAccessor.findById / archive(...)</code> (sync) → ② <code>AuthorizationUtility.authorize(data.delete)</code> (sync, between the read and the write) → ③ <code>OpenBankingConnectionAccessor.disconnect(...)</code> (sync, only if linked — parked component) → ④ <code>LoggingUtility</code> (async).</p>
+    <p><strong>Chain:</strong> <code>AccountManager</code> ① <code>AccountAccessor.findById / archive(...)</code> (sync) → ② <code>AuthorizationUtility.authorize(data.delete)</code> (sync, between the read and the write) → ③ <code>InvestmentHoldingAccessor.listByAccounts([accountId])</code> (sync — any open Holding refuses, OQ-226) → ④ <code>OpenBankingConnectionAccessor.disconnect(...)</code> (sync, only if linked — parked component) → ⑤ <code>LoggingUtility</code> (async).</p>
     <p><strong>Corrected (OQ-175):</strong> archiving is a data.delete on the Account, so it is authorized like any write; an already archived Account is left as it is.</p>
+    <p><strong>Added (OQ-226):</strong> an Account still holding position stays open — Manager → Accessor, no new component, no smell.</p>
   </div>
 
   <script>
@@ -149,7 +150,7 @@
       svg.style.width = containerRect.width + 'px';
       svg.style.height = containerRect.height + 'px';
 
-      var edges = [{"from": "mgr-account", "to": "acc-account", "type": "sync", "order": 1}, {"from": "mgr-account", "to": "util-authz", "type": "sync", "order": 2}, {"from": "mgr-account", "to": "acc-obconn", "type": "sync", "order": 3}, {"from": "mgr-account", "to": "util-logging", "type": "async", "order": 4}];
+      var edges = [{"from": "mgr-account", "to": "acc-account", "type": "sync", "order": 1}, {"from": "mgr-account", "to": "util-authz", "type": "sync", "order": 2}, {"from": "mgr-account", "to": "acc-holding", "type": "sync", "order": 3}, {"from": "mgr-account", "to": "acc-obconn", "type": "sync", "order": 4}, {"from": "mgr-account", "to": "util-logging", "type": "async", "order": 5}];
 
       var activeIds = {};
       edges.forEach(function (e) { activeIds[e.from] = true; activeIds[e.to] = true; });

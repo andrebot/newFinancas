@@ -939,13 +939,19 @@ paths:
       summary: Archive a financial account
       description: >
         FR-2.4/OQ-34. One-way, no unarchive path; archiving it again
-        keeps the first time. Auto-disconnects Open Banking sync if
-        linked (OQ-36) — currently unreachable since that trigger is
-        parked.
+        keeps the first time. An Account still holding an open Holding
+        is refused (OQ-226): sell or redeem it first. Auto-disconnects
+        Open Banking sync if linked (OQ-36) — currently unreachable
+        since that trigger is parked.
       responses:
         "204": { description: No Content }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: '`account.holdings_open` — the Account still holds open Holdings (params: `count`, OQ-226).'
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
 
   /households/{householdId}/accounts/{accountId}/balances:
     parameters:
@@ -2493,7 +2499,7 @@ components:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
     Conflict:
-      description: "The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `credit_card.account_archived` (a bill payment on a card whose Account is archived — OQ-219), `budget.target_already_claimed` (params: the target and the claiming `budgetId` — OQ-176), `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `holding.archived` (OQ-178), `holding.not_matured` (OQ-178), `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107), `holding.insufficient_quantity`, `holding.cost_basis_below_zero` (OQ-171), `transaction.schedule_started`, `transaction.holding_in_use` (OQ-201), `transaction.changed` (the transaction, or something it names, changed by a concurrent request — reload and retry, OQ-203)."
+      description: "The request conflicts with the resource's current state. Codes: e.g. `goal.allocation_exceeds_100`, `goal.completed`, `account.archived` (an archived Account can't be edited — OQ-175), `account.holdings_open` (archiving an Account that still holds open Holdings — params: `count`, OQ-226), `credit_card.account_archived` (a bill payment on a card whose Account is archived — OQ-219), `budget.target_already_claimed` (params: the target and the claiming `budgetId` — OQ-176), `invitation.not_pending`, `snapshot.automatic_not_editable`, `holding.not_market_priced`, `holding.archived` (OQ-178), `holding.not_matured` (OQ-178), `index_rate.duplicate_day` (one value per index per day — OQ-172), `user.email_taken`, `household.changed` (membership changed by a concurrent request — retry, OQ-107), `holding.insufficient_quantity`, `holding.cost_basis_below_zero` (OQ-171), `transaction.schedule_started`, `transaction.holding_in_use` (OQ-201), `transaction.changed` (the transaction, or something it names, changed by a concurrent request — reload and retry, OQ-203)."
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }

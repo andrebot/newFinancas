@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Archive Financial Account</h1>
-  <p class="subtitle"><span class="route">POST /households/:householdId/accounts/:accountId/archive</span> &mdash; FR-2.4/OQ-34. One-way, no unarchive path. Auto-disconnects Open Banking sync if linked (OQ-36) &mdash; currently a no-op since that trigger is parked.</p>
+  <p class="subtitle"><span class="route">POST /households/:householdId/accounts/:accountId/archive</span> &mdash; FR-2.4/OQ-34. One-way, no unarchive path; refused while the Account holds an open Holding (OQ-226). Auto-disconnects Open Banking sync if linked (OQ-36) &mdash; currently a no-op since that trigger is parked.</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -64,6 +64,7 @@ sequenceDiagram
     participant AM as AccountManager
     participant AU as AuthorizationUtility
     participant AA as AccountAccessor
+    participant IHA as InvestmentHoldingAccessor
     participant OB as OpenBankingConnectionAccessor
     participant LOG as LoggingUtility
 
@@ -83,6 +84,13 @@ sequenceDiagram
         AM-->>API: done
         API-->>User: 204 No Content
     else allowed
+        AM->>IHA: listByAccounts([accountId])
+        IHA-->>AM: its open Holdings
+        alt any Holding still open (OQ-226)
+            Note over AM: a fixed-term schedule would post into a closed Account
+            AM-->>API: 409 account.holdings_open {count}
+            API-->>User: 409 Conflict
+        else none open
         AM->>AA: archive(householdId, accountId)
         Note over AA: sets archived_at, one-way &mdash; no unarchive endpoint exists (OQ-34)
         AA-->>AM: archived
@@ -94,13 +102,15 @@ sequenceDiagram
         AM-->>LOG: audit ArchiveAccount
         AM-->>API: archived
         API-->>User: 204 No Content
+        end
     end
     </pre>
   </div>
   <div class="notes">
     <ul>
       <li>An archived Account takes no new transactions (FR-2.4, OQ-169 &mdash; <code>TransactionManager</code>&#39;s check) and can&#39;t be edited (409 <code>account.archived</code>, OQ-175).</li>
-      <li>See FR-2.4, OQ-34, OQ-36.</li>
+      <li>An Account still holding position can&#39;t be archived (409 <code>account.holdings_open</code>, OQ-226): its Holdings would keep posting schedule entries into an Account that takes none. A sold-out Holding is already system-archived, so only an open position blocks.</li>
+      <li>See FR-2.4, OQ-34, OQ-36, OQ-226.</li>
     </ul>
   </div>
   <script>
