@@ -84,4 +84,8 @@ describe('the range check', () => {
     expect(reversed).toEqual({ to: { code: 'date.before_start' } });
     expect(isRangeClear(reversed)).toBe(false);
   });
+
+  it('refuses a range with only its From wrong (review V4)', () => {
+    expect(isRangeClear(rangeProblemsOf(range('2026-13-01', '')))).toBe(false);
+  });
 });

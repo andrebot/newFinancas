@@ -1,4 +1,6 @@
-import { fireEvent, screen, within } from '@testing-library/react';
+import {
+  fireEvent, screen, within, cleanup,
+} from '@testing-library/react';
 import type { Category } from '@financas/api-types';
 import {
   describe, expect, it, vi,
@@ -162,6 +164,41 @@ describe('FilterPanel', () => {
       .toContain('1 of 11 categories');
   });
 
+  it('names each long list\'s search (review V8)', () => {
+    const categories: readonly Category[] = Array.from({ length: 11 }, (_, index) => ({
+      ...CATEGORIES[1]!, id: `c${index}`, name: `Category ${index}`,
+    }));
+    const accounts = Array.from({ length: 11 }, (_, index) => ({
+      ...ACCOUNTS[0]!, id: `a${index}`, name: `Account ${index}`, cards: [],
+    }));
+    renderPanel({ categories, accounts });
+
+    fireEvent.click(screen.getByRole('button', { name: /Category/ }));
+    expect(screen.getByRole('searchbox', { name: 'Search categories' })).toBeDefined();
+    fireEvent.click(screen.getByRole('button', { name: /Account \/ Card/ }));
+    expect(screen.getByRole('searchbox', { name: 'Search accounts and cards' })).toBeDefined();
+  });
+
+  it('writes Select all, then Clear, on a group\'s button (review V8)', () => {
+    renderPanel();
+    expect(screen.getByRole('button', { name: 'Select all Cash kinds' }).textContent)
+      .toBe('Select all');
+    cleanup();
+    renderPanel({
+      draft: {
+        ...NO_FILTERS,
+        kinds: ['deposit', 'withdrawal', 'boleto_payment', 'pix_payment', 'pix_receipt'],
+      },
+    });
+    expect(screen.getByRole('button', { name: 'Clear Cash kinds' }).textContent).toBe('Clear');
+  });
+
+  it('counts no kind when none is ticked (review V10)', () => {
+    renderPanel();
+
+    expect(screen.queryByText(/selected/)).toBeNull();
+  });
+
   it('picks a date range, and shows its errors once Show was refused', () => {
     const reversed = {
       ...NO_FILTERS, range: { preset: 'custom' as const, from: '2026-02-01', to: '2026-01-01' },
@@ -172,6 +209,25 @@ describe('FilterPanel', () => {
     expect(screen.getByRole('textbox', { name: /To/ }).getAttribute('aria-invalid')).toBe('true');
     fireEvent.click(screen.getByRole('radio', { name: 'Any time' }));
     expect(lastDraft(onDraftChange).range).toEqual({ preset: 'anyTime', from: '', to: '' });
+  });
+
+  it('offers every range preset, then Custom (review V4)', () => {
+    renderPanel();
+
+    const range = screen.getByRole('group', { name: 'Date range' });
+    expect(within(range).getAllByRole('radio').map((radio) => radio.getAttribute('aria-label')
+      ?? radio.closest('label')?.textContent)).toEqual([
+      'Any time', 'This month', 'Last 30 days', 'Last 90 days', 'This year', 'Custom',
+    ]);
+  });
+
+  it('shows a malformed From once Show was refused (review V4)', () => {
+    renderPanel({
+      draft: { ...NO_FILTERS, range: { preset: 'custom', from: '2026-13-01', to: '' } },
+      showRangeErrors: true,
+    });
+
+    expect(screen.getByRole('textbox', { name: /From/ }).getAttribute('aria-invalid')).toBe('true');
   });
 
   it('keeps the range quiet until Show is refused', () => {

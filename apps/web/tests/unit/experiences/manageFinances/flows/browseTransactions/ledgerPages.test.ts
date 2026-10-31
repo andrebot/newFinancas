@@ -55,3 +55,16 @@ describe('ledgerViewOf', () => {
     expect(view.items).toEqual([]);
   });
 });
+
+describe('the day totals\' currencies (review V4)', () => {
+  it('puts R$ before $, whichever came first', () => {
+    const view = ledgerViewOf([pageOf([], {
+      dayTotals: [
+        { date: '2026-09-12', currency: 'USD', net: -4_599 },
+        { date: '2026-09-12', currency: 'BRL', net: -5_840 },
+      ],
+    })]);
+    expect(view.dayTotals.get('2026-09-12')?.map(({ currency }) => currency))
+      .toEqual(['BRL', 'USD']);
+  });
+});

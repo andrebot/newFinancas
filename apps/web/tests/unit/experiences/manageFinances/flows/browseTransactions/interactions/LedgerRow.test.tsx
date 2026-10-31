@@ -1,4 +1,4 @@
-import { fireEvent, screen } from '@testing-library/react';
+import { cleanup, fireEvent, screen } from '@testing-library/react';
 import {
   describe, expect, it, vi,
 } from 'vitest';
@@ -92,10 +92,31 @@ describe('LedgerRow', () => {
     expect(screen.queryByText(/archived/)).toBeNull();
   });
 
+  it('draws a row\'s Category disc, else its kind\'s glyph (review V4)', () => {
+    renderRow();
+    expect(document.querySelector('li [style]')).not.toBeNull();
+    cleanup();
+
+    renderRow({ item: cardRowOf({ categoryId: null }) });
+    expect(document.querySelector('li [style]')).toBeNull();
+  });
+
+  it('tags no row the user wrote (review V4)', () => {
+    renderRow({ expanded: true, item: accountRowOf({ source: 'manual' }) });
+
+    expect(screen.queryByText('Posted automatically')).toBeNull();
+  });
+
   it('tags a row the schedule posted', () => {
     renderRow({ expanded: true, item: accountRowOf({ source: 'schedule' }) });
 
     expect(screen.getByText('Posted automatically')).toBeDefined();
+  });
+
+  it('shows no failure banner while nothing failed (review V10)', () => {
+    renderRow({ expanded: true, confirming: true });
+
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 
   it('asks before deleting, in place of the actions, with the last failure', () => {
