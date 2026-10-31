@@ -3,8 +3,11 @@ import type { Account } from '../../accessors/accountAccessor';
 import type { AccountTransaction, TradeDeltas } from '../../accessors/accountTransactionAccessor';
 import type { CardTransaction } from '../../accessors/cardTransactionAccessor';
 import type { InvestmentHolding } from '../../accessors/investmentHoldingAccessor';
-import { accessToOwned, forbidden, requireAccess } from '../access';
+import {
+  accessToOwned, forbidden, memberOnly, requireAccess,
+} from '../access';
 import type { SignedInContext } from '../requestContext';
+import type { AccessRequest, DataAction } from '../../utilities/authorization';
 import {
   type TransactionDeps, type TransactionStores,
 } from './context';
@@ -52,17 +55,47 @@ export const assetTypeOf = (row: EditableRow): string | undefined => (
   row.ledger === 'account' ? (row.transaction as AccountTransaction).holding?.assetType : undefined
 );
 
+/** How an edit or delete asks for access on the row's Account, once loaded. */
+type RowAccess = (account: Account | undefined) => AccessRequest;
+
+/**
+ * The access an edit or delete of a recorded row asks for (OQ-111, OQ-223): on
+ * a shared Account the row belongs to who recorded it — a Member manages their
+ * own entries, not another's, and a schedule post (no recorder) is an Owner's
+ * or Admin's; a personal Account stays its owner's, whoever recorded on it.
+ *
+ * @param recorder - Who recorded the row; none for a schedule post.
+ * @param action - `data.edit` or `data.delete`.
+ * @returns The request, given the row's Account (if found).
+ */
+export const accessToRecorded = (recorder: string | null, action: DataAction): RowAccess => (
+  (account) => (account?.visibility === 'shared'
+    ? { action, visibility: 'shared', ownerUserId: recorder }
+    : accessToOwned(account, action))
+);
+
 /**
  * The Account-ledger half of the load: its Account must be open — archiving is
  * one-way and freezes its history (FR-2.4, OQ-220) — and a bill payment's
  * card's Account is decided on too, and must be open: editing or deleting the
  * payment moves the card's balance (OQ-219).
+ *
+ * @param deps - The tier below.
+ * @param context - The signed-in request.
+ * @param householdId - The household.
+ * @param transaction - The row.
+ * @param access - The access it asks for on its Account.
+ * @param notVisible - The not-found for an Account the caller may not see.
+ * @returns The row with its effects' context.
+ * @throws {DomainError} `household.not_found` / `notVisible()`; `auth.forbidden`;
+ *   `transaction.not_found`; `account.archived`; the paid card's refusals.
  */
 const loadAccountRow = async (
   deps: TransactionDeps,
   context: SignedInContext,
   householdId: string,
   transaction: AccountTransaction,
+  access: RowAccess,
   notVisible: typeof transactionNotFound = transactionNotFound,
 ): Promise<EditableRow> => {
   const account = await deps.accounts.findById(householdId, transaction.accountId);
@@ -70,7 +103,7 @@ const loadAccountRow = async (
     deps.authorization,
     context.actor.userId,
     householdId,
-    accessToOwned(account, 'data.edit'),
+    access(account),
     notVisible,
   );
   if (!account) throw transactionNotFound();
@@ -93,6 +126,7 @@ const loadCardRow = async (
   context: SignedInContext,
   householdId: string,
   transaction: CardTransaction,
+  action: DataAction,
 ): Promise<EditableRow> => {
   const card = await deps.creditCards.findById(householdId, transaction.creditCardId);
   const account = card && await deps.accounts.findById(householdId, card.accountId);
@@ -100,7 +134,7 @@ const loadCardRow = async (
     deps.authorization,
     context.actor.userId,
     householdId,
-    accessToOwned(account, 'data.edit'),
+    accessToRecorded(transaction.createdByUserId, action)(account),
     transactionNotFound,
   );
   if (!card || !account) throw transactionNotFound();
@@ -110,25 +144,44 @@ const loadCardRow = async (
   };
 };
 
-/** Loads a transaction from either ledger, deciding access on its Account. */
+/**
+ * Loads a transaction from either ledger, deciding access on its Account and
+ * its recorder. A row that isn't there asks only the membership check, so a
+ * non-member still learns nothing (OQ-117).
+ *
+ * @param deps - The tier below.
+ * @param context - The signed-in request.
+ * @param householdId - The household.
+ * @param transactionId - The row, on either ledger.
+ * @param action - `data.edit` or `data.delete`.
+ * @returns The row with its effects' context.
+ * @throws {DomainError} `household.not_found` / `transaction.not_found`;
+ *   `auth.forbidden`; `account.archived`; the paid card's refusals.
+ */
 export const loadEditable = async (
   deps: TransactionDeps,
   context: SignedInContext,
   householdId: string,
   transactionId: string,
+  action: DataAction,
 ): Promise<EditableRow> => {
   const accountRow = await deps.accountTransactions.findById(householdId, transactionId);
-  if (accountRow) return loadAccountRow(deps, context, householdId, accountRow);
+  if (accountRow) {
+    const access = accessToRecorded(accountRow.createdByUserId, action);
+    return loadAccountRow(deps, context, householdId, accountRow, access);
+  }
   const cardRow = await deps.cardTransactions.findById(householdId, transactionId);
-  if (!cardRow) throw transactionNotFound();
-  return loadCardRow(deps, context, householdId, cardRow);
+  if (cardRow) return loadCardRow(deps, context, householdId, cardRow, action);
+  await requireAccess(deps.authorization, context.actor.userId, householdId, memberOnly);
+  throw transactionNotFound();
 };
 
 /**
  * Loads the other side of a transfer between own accounts (OQ-222): the pair
- * edits and deletes as one, so the caller must be able to edit both Accounts
- * — one they can't see is `auth.forbidden`, not a not-found, since they see
- * the row they asked for.
+ * edits and deletes as one, so the caller must be able to record on the other
+ * Account too — the money lands there, whoever created it (OQ-223) — and one
+ * they can't see is `auth.forbidden`, not a not-found, since they see the row
+ * they asked for.
  *
  * @param deps - The tier below.
  * @param context - The signed-in request.
@@ -148,7 +201,8 @@ export const loadPairSide = async (
   if (pair === null) return undefined;
   const other = await deps.accountTransactions.findById(householdId, pair.id);
   if (!other) throw transactionNotFound();
-  return loadAccountRow(deps, context, householdId, other, forbidden);
+  const access: RowAccess = (account) => accessToOwned(account, 'data.create');
+  return loadAccountRow(deps, context, householdId, other, access, forbidden);
 };
 
 /** Whether a fixed-term buy's schedule has posted — its terms are locked (OQ-201 D8). */

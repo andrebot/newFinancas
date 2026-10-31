@@ -76,7 +76,7 @@ sequenceDiagram
     API->>TM: delete(actor, transactionId)
     TM->>ATA: findById(householdId, transactionId) (else the card ledger)
     ATA-->>TM: the stored transaction
-    TM->>AZ: canWrite(actor, transactionId)?
+    TM->>AZ: canWrite(actor, transactionId)? &mdash; on a shared Account its recorder's, on a personal one its owner's (OQ-223)
     alt not authorized
         AZ-->>TM: denied
         TM-->>API: Forbidden

@@ -194,12 +194,30 @@ describe('rowAccessOf', () => {
       .toBe('archived');
   });
 
-  it("lets a Member manage a shared account's rows only when they created it", () => {
-    const lookup = ledgerLookupOf([accountOf('mine', { ownerUserId: 'me' })], CATEGORIES);
-    const row = accountRowOf({ accountId: 'mine' });
+  it("lets a Member manage a shared account's rows only when they recorded them (OQ-223)", () => {
+    const lookup = ledgerLookupOf([accountOf('theirs', { ownerUserId: 'you' })], CATEGORIES);
+    const row = accountRowOf({ accountId: 'theirs', createdByUserId: 'me' });
 
     expect(rowAccessOf(row, lookup, { selfUserId: 'me', role: 'Member' })).toBe('manage');
+    // The account's creator doesn't manage what someone else recorded on it.
     expect(rowAccessOf(row, lookup, { selfUserId: 'you', role: 'Member' })).toBe('none');
+  });
+
+  it("keeps a personal account's rows its owner's, whoever recorded them (OQ-223)", () => {
+    const lookup = ledgerLookupOf([
+      accountOf('private', { ownerUserId: 'me', visibility: 'personal' }),
+    ], CATEGORIES);
+    const row = accountRowOf({ accountId: 'private', createdByUserId: 'you' });
+
+    expect(rowAccessOf(row, lookup, { selfUserId: 'me', role: 'Viewer' })).toBe('manage');
+    expect(rowAccessOf(row, lookup, { selfUserId: 'you', role: 'Owner' })).toBe('none');
+  });
+
+  it("asks only to record on a bill payment's card account (OQ-223)", () => {
+    const member = { selfUserId: 'me', role: 'Member' };
+    const mine = { ...BILL_PAYMENT, createdByUserId: 'me' };
+    expect(rowAccessOf(mine, LOOKUP, member)).toBe('manage');
+    expect(rowAccessOf(mine, LOOKUP, { selfUserId: 'me', role: 'Viewer' })).toBe('none');
   });
 });
 

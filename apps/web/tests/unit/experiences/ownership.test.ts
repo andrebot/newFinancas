@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  mayCreateOwned, mayManageOwned, mayShareOwned,
+  mayCreateOwned, mayManageOwned, mayManageRecorded, mayRecordOn, mayShareOwned,
 } from '../../../src/experiences/ownership';
 
 // Who may create, share and manage a Budget or a Goal (BDT: Utility-like pure
@@ -35,5 +35,34 @@ describe('who may do what (OQ-176, OQ-177)', () => {
     const orphan = { visibility: 'shared', ownerUserId: null } as const;
     expect(mayManageOwned(orphan, 'jane', 'Member')).toBe(false);
     expect(mayManageOwned(orphan, 'ben', 'Admin')).toBe(true);
+  });
+});
+
+describe('who may record and change transactions (OQ-223)', () => {
+  it('lets anyone but a Viewer record on a shared account, whoever created it', () => {
+    const shared = { visibility: 'shared', ownerUserId: 'jane' } as const;
+    expect(mayRecordOn(shared, 'ben', 'Member')).toBe(true);
+    expect(mayRecordOn(shared, 'ben', 'Viewer')).toBe(false);
+    expect(mayRecordOn(shared, 'ben', undefined)).toBe(false);
+  });
+
+  it('leaves recording on a personal account to its owner', () => {
+    const mine = { visibility: 'personal', ownerUserId: 'jane' } as const;
+    expect(mayRecordOn(mine, 'jane', 'Viewer')).toBe(true);
+    expect(mayRecordOn(mine, 'ben', 'Owner')).toBe(false);
+  });
+
+  it("gives a shared account's transaction to its recorder, a schedule post to Owner/Admin", () => {
+    const shared = { visibility: 'shared', ownerUserId: 'jane' } as const;
+    expect(mayManageRecorded(shared, 'ben', 'ben', 'Member')).toBe(true);
+    expect(mayManageRecorded(shared, 'ben', 'jane', 'Member')).toBe(false);
+    expect(mayManageRecorded(shared, null, 'jane', 'Member')).toBe(false);
+    expect(mayManageRecorded(shared, null, 'jane', 'Admin')).toBe(true);
+  });
+
+  it("keeps a personal account's transaction its owner's, whoever recorded it", () => {
+    const mine = { visibility: 'personal', ownerUserId: 'jane' } as const;
+    expect(mayManageRecorded(mine, 'ben', 'jane', 'Viewer')).toBe(true);
+    expect(mayManageRecorded(mine, 'ben', 'ben', 'Owner')).toBe(false);
   });
 });

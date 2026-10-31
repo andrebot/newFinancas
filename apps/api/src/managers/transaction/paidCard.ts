@@ -8,7 +8,8 @@ import { cardAccountArchived, creditCardNotFound } from './errors';
 // A bill payment's card (OQ-219): any open Account in the card's currency pays
 // it, so the card's own Account — often a credit-card-only one — is decided on
 // too, whenever the payment is recorded, edited or deleted: each moves the
-// card's balance. The payer is decided on by its caller.
+// card's balance. The caller must be able to record there — the money lands on
+// it, whoever created it (OQ-223). The payer is decided on by its caller.
 
 /** A paid card, with the Account it sits on. */
 export interface PaidCard {
@@ -17,7 +18,7 @@ export interface PaidCard {
 }
 
 /**
- * Loads the card a bill payment pays: the caller must be able to edit its
+ * Loads the card a bill payment pays: the caller must be able to record on its
  * Account, which must be open.
  *
  * @param deps - The tier below.
@@ -40,7 +41,7 @@ const requirePaidCard = async (
     deps.authorization,
     context.actor.userId,
     householdId,
-    accessToOwned(account, 'data.edit'),
+    accessToOwned(account, 'data.create'),
     creditCardNotFound,
   );
   if (!card || !account) throw creditCardNotFound();

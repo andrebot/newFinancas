@@ -605,8 +605,8 @@ const createEdit = (deps: TransactionDeps) => ({
    * @param transactionId - The transaction on either ledger.
    * @param update - The new values; left-out fields keep theirs.
    * @returns The edited transaction, on its ledger.
-   * @throws {DomainError} `transaction.not_found`; `auth.forbidden` /\\n
-   *   `household.not_found`; `validation.failed`; `category.not_found` /\\n
+   * @throws {DomainError} `household.not_found` / `transaction.not_found`;
+   *   `auth.forbidden`; `validation.failed`; `category.not_found` /
    *   `transaction.subcategory_mismatch`; the trade's 409s; `index_rate.missing`.
    */
   editTransaction: async (
@@ -615,7 +615,7 @@ const createEdit = (deps: TransactionDeps) => ({
     transactionId: string,
     update: TransactionEdit,
   ): Promise<EditedTransaction> => {
-    const row = await loadEditable(deps, context, householdId, transactionId);
+    const row = await loadEditable(deps, context, householdId, transactionId, 'data.edit');
     const kind = findKind(row.transaction.kind);
     if (!kind) throw validationFailed([{ field: 'kind', code: 'field.invalid_option' }]);
     const pair = await loadPairSide(deps, context, householdId, row);

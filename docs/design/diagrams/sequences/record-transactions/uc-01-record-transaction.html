@@ -76,8 +76,8 @@ sequenceDiagram
 
     User->>API: POST /households/:householdId/transactions {accountId | creditCardId, kind, date, amount, currency, categoryId?, description, holdingId? | assetType + ticker?, quantity?, rate?, dueDate?, interestPayment?, incentivised?, allocations?}
     API->>TM: record(actor, input)
-    Note over TM: loads the target (Account or card + its Account &mdash; a bill payment's card may sit on any Account<br/>the actor may edit, open and in the payment's currency, checked after the payer, OQ-219) and, if given, the Category &mdash;<br/>an archived Account or a newly used archived Category is refused (OQ-169, OQ-201)
-    TM->>AZ: canWrite(actor, targetId)?
+    Note over TM: loads the target (Account or card + its Account &mdash; a bill payment's card may sit on any Account<br/>the actor may record on, open and in the payment's currency, checked after the payer, OQ-219) and, if given, the Category &mdash;<br/>an archived Account or a newly used archived Category is refused (OQ-169, OQ-201)
+    TM->>AZ: canRecord(actor, targetId)? &mdash; creating on its Account: any Member on a shared one (OQ-223)
     alt not authorized
         AZ-->>TM: denied
         TM-->>API: Forbidden
@@ -144,8 +144,8 @@ sequenceDiagram
             AA-->>TM: new balance
         else effect = bill_payment
             Note over TM: the payer's gates passed &mdash; now the card's own Account (OQ-219)
-            TM->>AZ: canWrite(actor, the card's accountId)?
-            alt the actor may not edit the card's Account
+            TM->>AZ: canRecord(actor, the card's accountId)?
+            alt the actor may not record on the card's Account
                 AZ-->>TM: not visible
                 TM-->>API: NotFound
                 API-->>User: 404 credit_card.not_found

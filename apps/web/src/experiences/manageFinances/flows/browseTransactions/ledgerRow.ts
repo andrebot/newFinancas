@@ -5,7 +5,7 @@ import { findKind } from '@financas/reference';
 import type { KeyValueItem } from '../../../../kit/keyValueList/KeyValueList';
 import type { Formatter } from '../../../../utilities/formatting';
 import type { Translator } from '../../../../utilities/i18n';
-import { mayManageOwned } from '../../../ownership';
+import { mayManageRecorded, mayRecordOn } from '../../../ownership';
 import { cardName } from '../../../cardNames';
 import { kindIcon, kindName } from '../../transactionNames';
 import { browseText } from './browseText';
@@ -347,10 +347,11 @@ const touchedAccountsOf = (item: LedgerItem, lookup: LedgerLookup) => {
 };
 
 /**
- * Decides what the expanded row offers (OQ-111, OQ-220): Edit and Delete when
- * the user may manage every account the change touches and none is archived;
- * a note when one is archived; nothing when the user may not change it. The
- * server checks again.
+ * Decides what the expanded row offers (OQ-111, OQ-220, OQ-223): Edit and
+ * Delete when the user may manage the row on its own account — its recorder's
+ * on a shared one, the owner's on a personal one — and may record on every
+ * other account the change touches, and none is archived; a note when one is
+ * archived; nothing when the user may not change it. The server checks again.
  *
  * @param item - The row.
  * @param lookup - The accounts and cards.
@@ -359,9 +360,12 @@ const touchedAccountsOf = (item: LedgerItem, lookup: LedgerLookup) => {
  */
 export const rowAccessOf = (item: LedgerItem, lookup: LedgerLookup, viewer: Viewer): RowAccess => {
   const accounts = touchedAccountsOf(item, lookup);
-  const mayManage = accounts.every(
-    (account) => account !== undefined && mayManageOwned(account, viewer.selfUserId, viewer.role),
-  );
+  const [own, ...others] = accounts;
+  const mayManage = own !== undefined
+    && mayManageRecorded(own, item.createdByUserId, viewer.selfUserId, viewer.role)
+    && others.every(
+      (account) => account !== undefined && mayRecordOn(account, viewer.selfUserId, viewer.role),
+    );
   if (!mayManage) return 'none';
   return accounts.some((account) => account?.archivedAt) ? 'archived' : 'manage';
 };

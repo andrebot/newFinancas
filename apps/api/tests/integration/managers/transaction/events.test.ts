@@ -55,6 +55,13 @@ describe('postScheduledEntry (VBD §3.2a)', () => {
     expect(fake.holdings.applyTrade).not.toHaveBeenCalled();
   });
 
+  it('asks no one\'s access: the system posts it, no user is checked (I3)', async () => {
+    const fake = fakeDeps();
+    await handlersOf(fake).postScheduledEntry(message());
+    expect(fake.accountTransactions.insert).toHaveBeenCalledOnce();
+    expect(fake.authorization.authorize).not.toHaveBeenCalled();
+  });
+
   it('posts nothing on a second delivery of the same event (OQ-171)', async () => {
     const fake = fakeDeps();
     // The first delivery already marked the entry posted.
