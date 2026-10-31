@@ -231,6 +231,22 @@ describe('insert', () => {
   it('lets any other failure through', scenario(async ({ record }) => {
     await expect(record({ amount: 0 })).rejects.toThrow();
   }));
+
+  it('throws it from insert itself, never as a vanished reference (review B19)', scenario(async ({
+    ledger, visa,
+  }) => {
+    await expect(ledger.insert({
+      creditCardId: visa, kind: 'charge', date: '2026-10-08', amount: 0, currency: 'BRL',
+    })).rejects.toThrow();
+    await expect(ledger.insert({
+      creditCardId: visa,
+      kind: 'charge',
+      date: '2026-10-08',
+      amount: 1_000,
+      currency: 'BRL',
+      categoryId: UNKNOWN_ID,
+    })).rejects.toThrow();
+  }));
 });
 
 describe('findById', () => {
