@@ -260,6 +260,16 @@ describe('listHoldings (FR-5.3)', () => {
     });
   });
 
+  it('fails the whole read when the Engine throws — a bug, not degraded (OQ-224)', async () => {
+    const tier = fakeDeps();
+    const broken = new Error('not a fixed-term type');
+    tier.investmentProducts.project.mockRejectedValueOnce(broken);
+    const manager = createInsightsManager(tier.deps);
+
+    await expect(manager.listHoldings(context, HOME, HOLDING.accountId, false))
+      .rejects.toBe(broken);
+  });
+
   it('an Account that is not there answers account.not_found', async () => {
     const tier = fakeDeps();
     tier.accounts.findById.mockResolvedValue(undefined);
@@ -372,6 +382,15 @@ describe('getHolding (FR-5.4)', () => {
       expectedTaxes: null,
       projectionUnavailable: { reason: 'index_missing', indexCode: 'ipca' },
     });
+  });
+
+  it('fails the read when the Engine throws (OQ-224)', async () => {
+    const tier = fakeDeps();
+    const broken = new Error('not a fixed-term type');
+    tier.investmentProducts.project.mockRejectedValueOnce(broken);
+    const manager = createInsightsManager(tier.deps);
+
+    await expect(manager.getHolding(context, HOME, HOLDING.id)).rejects.toBe(broken);
   });
 
   it('a Holding that is not there answers holding.not_found', async () => {

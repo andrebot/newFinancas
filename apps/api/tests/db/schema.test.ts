@@ -167,6 +167,29 @@ describe('migrated schema', () => {
     });
   });
 
+  it('keeps a fixed-term Holding\'s contract terms on it (OQ-224)', async () => {
+    await asAppRole(database, async (connection) => {
+      const household = await insertHousehold(connection);
+      const account = await insertId(
+        connection,
+        `INSERT INTO accounts
+           (household_id, name, type, currency, visibility, starting_balance_date)
+         VALUES ($1, 'A', 'investment', 'BRL', 'shared', '2026-01-01') RETURNING id`,
+        [household],
+      );
+      const holding = `INSERT INTO investment_holdings (account_id, asset_type, quantity,
+                         cost_basis, rate_type, rate_value, interest_payment, due_date)
+                       VALUES ($1, $2, 0, 0, $3, $4, $5, $6)`;
+      const terms = ['cdi', 1_100_000, 'at_maturity', '2027-10-15'];
+      const none = [null, null, null, null];
+
+      expect(await errorCodeOf(connection, holding, [account, 'cdb', ...terms])).toBeUndefined();
+      expect(await errorCodeOf(connection, holding, [account, 'treasury', ...none]))
+        .toBe(CHECK_VIOLATION);
+      expect(await errorCodeOf(connection, holding, [account, 'stock', ...none])).toBeUndefined();
+    });
+  });
+
   it('restates trade values as the money moves them (migration 0015, OQ-222)', async () => {
     await asAppRole(database, async (connection) => {
       const household = await insertHousehold(connection);
