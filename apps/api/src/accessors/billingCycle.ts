@@ -1,4 +1,4 @@
-import { monthOf, type CalendarMonth } from './calendarMonth';
+import { monthOf, type CalendarMonth } from '../utilities/calendarMonth';
 
 // Credit Card billing cycles (FR-2.8/FR-2.10). A cycle is named by the month it
 // closes in (OQ-170). Pure helpers, no database.

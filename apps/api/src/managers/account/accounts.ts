@@ -1,7 +1,7 @@
 import type {
   Account, AccountChanges, AccountFilter, AccountMonthBalance,
 } from '../../accessors/accountAccessor';
-import type { MonthRange } from '../../accessors/calendarMonth';
+import type { MonthRange } from '../../utilities/calendarMonth';
 import type {
   CreditCard, CreditCardChanges, CreditCardMonthBalance, NewCreditCard,
 } from '../../accessors/creditCardAccessor';

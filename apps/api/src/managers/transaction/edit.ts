@@ -17,9 +17,9 @@ import { requireNoProblems } from '../validation';
 import { inLockOrder } from './lockOrder';
 import { requestLogger, type TransactionDeps, type TransactionStores } from './context';
 import {
-  accountMovementOf, accrueBudget, budgetAccrualOf, cardMovementOf, engineRateOf, holdingRateOf,
-  type EffectValues, type RequestRate,
+  accountMovementOf, accrueBudget, budgetAccrualOf, cardMovementOf, type EffectValues,
 } from './effects';
+import { engineRateOf, holdingRateOf, type RequestRate } from '../holdingRates';
 import { restateHoldingValues } from '../holdingValues';
 import { fixedTermProblems } from './kindRules';
 import {

@@ -4,8 +4,7 @@ import {
 } from 'vitest';
 import type { Account } from '../../../../src/accessors/accountAccessor';
 import {
-  accountMovementOf, accrueBudget, budgetAccrualOf, cardMovementOf, engineRateOf, holdingRateOf,
-  valueBefore,
+  accountMovementOf, accrueBudget, budgetAccrualOf, cardMovementOf, valueBefore,
 } from '../../../../src/managers/transaction/effects';
 import type { TransactionStores } from '../../../../src/managers/transaction/context';
 
@@ -112,31 +111,6 @@ describe('accrueBudget', () => {
     const stores = { budgets: { accrueIfClaimed } } as unknown as TransactionStores;
     await accrueBudget(stores, null);
     expect(accrueIfClaimed).not.toHaveBeenCalled();
-  });
-});
-
-describe('rate builders (OQ-205)', () => {
-  it('gives the Engine its rate and drops a missing spread', () => {
-    expect(engineRateOf({ type: 'ipca', value: 2.5 })).toEqual({ type: 'ipca', value: 2.5 });
-    expect(engineRateOf({ type: 'cdi', value: 90, spread: 1.5 })).toEqual({
-      type: 'cdi',
-      value: 90,
-      spread: 1.5,
-    });
-  });
-
-  it('stores the Holding terms with a null spread when none was given', () => {
-    expect(holdingRateOf({ type: 'ipca', value: 2.5 })).toEqual({
-      rateType: 'ipca',
-      rateValue: 2.5,
-      rateSpread: null,
-    });
-    expect(holdingRateOf({ type: 'cdi', value: 90, spread: 1.5 })).toEqual({
-      rateType: 'cdi',
-      rateValue: 90,
-
-      rateSpread: 1.5,
-    });
   });
 });
 

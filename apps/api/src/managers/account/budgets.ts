@@ -1,7 +1,7 @@
 import type {
   Budget, BudgetChanges, BudgetMonth, BudgetPeriod, BudgetTarget, TargetRejection,
 } from '../../accessors/budgetAccessor';
-import { monthKey, monthOf, type MonthRange } from '../../accessors/calendarMonth';
+import { monthKey, monthOf, type MonthRange } from '../../utilities/calendarMonth';
 import type { ClaimedCategories } from '../../accessors/ledgerQuery';
 import type { Category } from '../../accessors/categoryAccessor';
 import type { Visibility } from '../../db/schema/values';

@@ -1,7 +1,8 @@
 // Calendar months shared by the Accessors that keep one row per month
 // (Budget Periods, Account and Credit Card month balances), and by the reads
 // keyed by month — ReportingEngine's `YYYY-MM` keys and InsightsManager's
-// "as of the month's end" day (FR-8.7). Pure helpers, no database.
+// "as of the month's end" day (FR-8.7). Pure helpers, no database: a
+// Utility every tier uses (slice 3 review, A2).
 
 /** A calendar month in the app's time zone — the Manager works it out (OQ-104). */
 export interface CalendarMonth {

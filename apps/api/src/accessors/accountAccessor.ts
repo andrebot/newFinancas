@@ -6,7 +6,7 @@ import { accountMonthBalances, accounts } from '../db/schema';
 import type { AccountType, Visibility } from '../db/schema/values';
 import {
   monthOf, monthsBetween, type CalendarMonth, type MonthRange,
-} from './calendarMonth';
+} from '../utilities/calendarMonth';
 
 // AccountAccessor (A5, VBD): Financial Accounts and their month balances (FR-2,
 // FR-5.4/FR-6.6, 02-data-model.md). It applies data changes only. Who may see or

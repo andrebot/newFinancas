@@ -1,4 +1,4 @@
-import { monthEnd } from '../../accessors/calendarMonth';
+import { monthEnd } from '../../utilities/calendarMonth';
 import type { Goal, GoalStatus } from '../../accessors/goalAccessor';
 import type { GoalWithProgress, Viewer } from '../../engines/reporting';
 import { accessToOwned, memberOnly, requireAccess } from '../access';

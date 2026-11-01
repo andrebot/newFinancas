@@ -1,32 +1,11 @@
 import type { TransactionKind } from '@financas/reference';
 import type { Account, Movement } from '../../accessors/accountAccessor';
-import type { HoldingRate } from '../../accessors/investmentHoldingAccessor';
-import type { ContractRate } from '../../engines/investmentProduct';
 import { signedSpend } from '../budgetSpend';
 import type { TransactionStores } from './context';
 
 // The signed effects a transaction kind makes on its ledgers (OQ-201 D1/D4):
 // Record applies them, Edit reverses the stored ones and reapplies new ones,
 // Delete reverses them. One place decides the signs; each writer calls in.
-
-/** A rate as a request carries it — the route checked its shape. */
-export interface RequestRate {
-  readonly type?: string | undefined;
-  readonly value?: number | undefined;
-  readonly spread?: number | null | undefined;
-}
-
-/** The rate as the Engine takes it (OQ-205). */
-export const engineRateOf = (rate: RequestRate): ContractRate => ({
-  type: rate.type! as ContractRate['type'],
-  value: rate.value!,
-  ...(rate.spread != null && { spread: rate.spread }),
-});
-
-/** The Holding's terms as the row stores them (OQ-205). */
-export const holdingRateOf = (rate: RequestRate): HoldingRate => ({
-  rateType: rate.type!, rateValue: rate.value!, rateSpread: rate.spread ?? null,
-});
 
 /** A transaction's values as far as its effects read them. */
 export interface EffectValues {

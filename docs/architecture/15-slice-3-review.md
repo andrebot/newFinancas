@@ -4,7 +4,7 @@ The gate at the end of slice 3 (day-to-day finances: record, browse, filter
 and edit transactions; the month overview — tasks 99–122), run by the method
 in `13-slice-review.md` (OQ-164). Work happens on the `review/slice-3`
 branch, cut from `main` after PR #148 (`I9`).
-**Status: phase 1 merged (PR #149); phase 2 fixed and verified on `review/slice-3-e2e`, its PR next. See "Where it stands" at the end.**
+**Status: complete — phases 1–2 merged (PRs #149, #150); phase 3 fixed on `review/slice-3-code` (its PR closes R3). See "Where it stands" at the end.**
 
 ## Scope
 
@@ -310,19 +310,73 @@ body has no named region, unlike the Balances and Budgets rails: the journey
 finds it by its heading. Whether the wrapping rail's `<section>` should be
 named by its heading (`aria-labelledby`) is phase 3's to decide.
 
+## Phase 3 — code and architecture
+
+A Harmonic Design pass over slice 3's code (`54c15d8..main`, after PR #150):
+VBD call rules (backend), EBD tiers (web), BDT mock placement, and the plan
+against what's built. Runtime and type imports were extracted per layer and
+every cross-boundary edge read; a cycle search ran over both apps.
+
+**What holds.**
+- **Backend.** No Engine calls another Engine; ReportingEngine and
+  InvestmentProductEngine take their reads as injected functions (type
+  imports of the Accessors' row shapes only). No Accessor calls another:
+  `ledgerQuery.ts`, new with A7/A8, is pure SQL building both ledgers share,
+  like `calendarMonth`/`billingCycle` (slice 2). Routes import Managers as
+  types only. The use cases of TransactionManager share logic only through
+  its shared modules (`project/use-case-isolation`). No module-level cycle.
+- **Web.** Only Experiences call the backend (the ESLint rules hold). X6's
+  three Flows import no sibling; Month Overview's rails are the shared
+  `experiences/interactions/MonthRails` (the Dashboard's later, OQ-221).
+  Interactions read their own Flow's pure helpers (`transactionForm`,
+  `recordText`, `ledgerRow`), slice 2's accepted pattern. The cross-Experience
+  edges are slice 1–2's, decided (OQ-196). No module-level cycle.
+- **Tests.** The X6 Experience mocks its three Flows and `fetch`; each Flow
+  mocks only its Interactions; the backend has no module mocks (injected
+  fakes only).
+- **Plan.** Tasks 99–122 are ticked. The contract-routes test lists nothing of
+  slice 3 as unbuilt (dashboard, transactions report, notifications, audit
+  log are slice 5; Delete User task 136); every path X6 calls is served;
+  `investments-overview` and `payouts` answer 400 until X7 (OQ-208).
+
+| # | Finding (symptom → cause → where else to look) | Severity | Proposed fix |
+|---|---|---|---|
+| A1 | **InsightsManager imports TransactionManager's internals.** `managers/insights/holdings.ts` takes `engineRateOf` from `managers/transaction/effects.ts` at runtime. *Cause (VBD):* turning a rate into InvestmentProductEngine's contract rate is shared by two Managers, but it was left in one Manager's module. Shared Manager helpers live at `managers/*.ts` (`goalSplit`, `holdingValues`, `budgetSpend`). *Counterpart:* nothing stops `managers/<x>/` importing `managers/<y>/`; `project/use-case-isolation` guards only inside TransactionManager, so this recurs the way slice 1's A5 did. | Low | Move `engineRateOf` and `holdingRateOf` to `managers/holdingRates.ts`. Add ESLint `project/manager-isolation`: `managers/<x>/**` may not import another Manager's folder. |
+| A2 | **`calendarMonth` is a Utility filed under `accessors/`.** Slice 2 accepted it as a pure helper of the Accessors, though AccountManager already read it (`budgets.ts`, `accountViews.ts`). Slice 3 added ReportingEngine (`months.ts`, `monthOverview.ts`) and three more Manager modules (`budgetSpend.ts`, `insights/reports.ts`, `insights/goals.ts`) at runtime. *Cause:* month arithmetic is cross-cutting, with no storage of its own; where it lives says "Accessor". *Counterpart:* slice 2's A3 (`FieldDetail` in `http/`, moved to `utilities/`) — the same drift. `billingCycle` and `ledgerQuery` stay: only Accessors use them. | Low | Move it to `utilities/calendarMonth.ts`, beside `utilities/calendar.ts`. |
+| A3 | **The HTTP edge reads ReportingEngine's types.** `http/routes/insightsJson.ts` imports `Funding` and `GoalWithProgress` from `engines/reporting`: InsightsManager hands the Engine's shapes up without naming them, while it names its own (`ProjectedHolding`). *Counterpart:* the other routes import only Manager types (and `db/schema`'s value enums). | Low | InsightsManager re-exports the two types, and the route imports them from `managers/insights`. |
+| A4 | **Carry-over: `'transfer'` in `LEFT_OUT` is dead** (phase 1). `movedInside` decides a transfer by `pairInView` and never consults the set for one. | Low | `LEFT_OUT` goes: `sum.effect === 'transfer' ? sum.pairInView : sum.effect === 'bill_payment'`. |
+| A5 | **Note — the trade writing is one axis spread over two use-case files.** `record.ts` (1,053 lines) holds about 470 lines of buy/sell/redemption writing, and `edit.ts` its trade half. Phase 1's trade gaps (B2, B3, B9–B11, B15) were all there. The web keeps the same axis behind its own Interactions (`InvestmentBuyEntry`, `HoldingSelection`). The ESLint rule already allows a shared `trades.ts`. | Note | **Leave it** (recommended): the axis that changes most, new products, lands in `kindRules` (data) and InvestmentProductEngine, and slice 4 doesn't touch trade writing (FL19 maintains Holdings and values). Extract `trades.ts` when a slice next changes how trades are written. |
+
+**Carry-over — the wrapping rail's section (phase 2).** Not a finding. A
+scrolling rail's `region` exists so a keyboard can reach and scroll the track
+(WCAG 2.1.1). It isn't a landmark: no rail's `<section>` is named, and the
+wrapping rail has nothing to scroll. The Goals journey finding it by its
+heading is right.
+
+### Phase 3 — fixes (2026-10-31)
+
+Decisions (OQ-226): fix A1–A4; leave A5 as a note.
+
+- **A1:** `engineRateOf`, `holdingRateOf` and `RequestRate` move to
+  `managers/holdingRates.ts`, with their tests (`tests/unit/managers/holdingRates.test.ts`).
+  ESLint `project/manager-isolation` refuses any import of another Manager's
+  folder. It was checked by putting the old import back: it fails.
+- **A2:** `calendarMonth` moves to `utilities/calendarMonth.ts`, its test to
+  `tests/unit/utilities/`, and every importer goes with it.
+- **A3:** InsightsManager re-exports `Funding` and `GoalWithProgress`, and
+  `insightsJson.ts` imports only from `managers/insights`.
+- **A4:** `LEFT_OUT` is gone, and `movedInside` checks for `bill_payment`
+  directly. Its existing tests cover both branches.
+
+No call, route, error code or step changed, so no diagram is redrawn.
+
+## Closing (OQ-164)
+
+R3 is complete: phase 1 in PR #149, phase 2 in PR #150, phase 3 in this
+phase's PR. Nothing stays open as work: A5 waits for a slice that changes
+how trades are written. The next slice starts at task 123 (`N9`).
+
 ## Where it stands (2026-10-31)
 
-Phase 1 merged (PR #149). Phase 2 on `review/slice-3-e2e`, from `main`.
-
-1. **Done:** phase 1 (D1, B1–B19, V1–V10); phase 2 (E1–E2), fixed and
-   verified.
-2. **Next:** phase 2's PR.
-3. **Then phase 3** (code and architecture — it also decides
-   `monthOverview.ts`'s dead `'transfer'` in `LEFT_OUT` and the wrapping
-   rail's unnamed section), with its own PR;
-   then R3 is ticked and slice 4 starts at task 123.
-4. **Tooling notes:** the pre-commit `pnpm check` lints `.stryker-tmp/`, so
-   commit only while no Stryker run is going (or after removing a leftover
-   sandbox); don't hand-run tests during a web run (the memory watchdog stops
-   it — resume with `RESUME=1`); in zsh pass test paths as separate words — a
-   filter that finds no tests looks "killed".
+R3 complete once phase 3's PR merges: PRs #149, #150 and phase 3's. Next:
+slice 4, task 123 (`N9`, the local scheduler for `investmentsDaily`).

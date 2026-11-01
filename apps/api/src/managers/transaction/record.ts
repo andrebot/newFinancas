@@ -20,9 +20,9 @@ import inSequence from '../sequence';
 import { requireNoProblems } from '../validation';
 import { reweightSplit } from './allocations';
 import {
-  accountMovementOf, accrueBudget, budgetAccrualOf, cardMovementOf, engineRateOf, holdingRateOf,
-  valueBefore,
+  accountMovementOf, accrueBudget, budgetAccrualOf, cardMovementOf, valueBefore,
 } from './effects';
+import { engineRateOf, holdingRateOf } from '../holdingRates';
 import { restateHoldingValues } from '../holdingValues';
 import {
   requestLogger, todayOf, type TransactionDeps, type TransactionStores,

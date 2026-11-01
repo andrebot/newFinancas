@@ -1,4 +1,4 @@
-import { monthsBetween, type CalendarMonth } from '../../accessors/calendarMonth';
+import { monthsBetween, type CalendarMonth } from '../../utilities/calendarMonth';
 
 // ReportingEngine — the calendar months its reports span. The `YYYY-MM` key and
 // the month's last day are shared with InsightsManager, so they live with
