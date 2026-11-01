@@ -451,7 +451,7 @@ added) — 14 in total:
 - #11 (its user-archived half deletes a partial sell of a matured CDB);
 - #6 up to the schedule.
 
-Browse & Filter with paging and Month Overview per period are Full E2E journeys, untagged.
+Browse & Filter with paging, Month Overview per period and Goal progress (a CDB bought with its split to a Goal, on the Goals rail, the Goals tab and `goal-progress` — R3's E1) are Full E2E journeys, untagged.
 
 ### Full E2E — nightly / pre-release gate, the remaining coverage
 

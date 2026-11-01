@@ -162,6 +162,32 @@ export const createBudget = (
 });
 
 /**
+ * Creates a shared Goal through the API, due in three years — what any
+ * member's own Goal Management would send.
+ *
+ * @param request - Playwright's API client.
+ * @param member - A member who may create it.
+ * @param householdId - The household.
+ * @param goal - Its name, target (minor units) and currency.
+ * @returns The new Goal.
+ */
+export const createGoal = (
+  request: APIRequestContext,
+  member: Pick<TestUser, 'accessToken'>,
+  householdId: string,
+  goal: { readonly name: string; readonly targetAmount: number; readonly currency: 'BRL' | 'USD' },
+): Promise<Goal> => send<Goal>(request, 'POST', `/households/${householdId}/goals`, {
+  data: {
+    name: goal.name,
+    targetAmount: goal.targetAmount,
+    targetCurrency: goal.currency,
+    dueDate: `${new Date().getFullYear() + 3}-06-15`,
+    visibility: 'shared',
+  },
+  accessToken: member.accessToken,
+});
+
+/**
  * Sorts Category shapes by name, and each one's Subcategories, so two lists
  * compare whatever order the API or the definitions keep.
  *

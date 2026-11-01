@@ -1,7 +1,7 @@
 import type { APIRequestContext } from '@playwright/test';
 import type {
-  Account, AccountMonthBalance, AccountTransaction, InvestmentHolding, InvestmentScheduleEntry,
-  MonthOverviewReport, TransactionCreateRequest, ValuationSnapshot,
+  Account, AccountMonthBalance, AccountTransaction, GoalWithProgress, InvestmentHolding,
+  InvestmentScheduleEntry, MonthOverviewReport, TransactionCreateRequest, ValuationSnapshot,
 } from '@financas/api-types';
 import { listAccounts } from './accountApi';
 import { send, type TestUser } from './identityApi';
@@ -269,6 +269,28 @@ export const valuationSnapshots = async (
     request,
     'GET',
     `/households/${householdId}/holdings/${holdingId}/valuation-snapshots`,
+    { accessToken: member.accessToken },
+  );
+  return list.data ?? [];
+};
+
+/**
+ * Lists the household's active Goals, each with what funds it as of today.
+ *
+ * @param request - Playwright's API client.
+ * @param member - A member of the household.
+ * @param householdId - The household.
+ * @returns Each active Goal's progress.
+ */
+export const goalProgress = async (
+  request: APIRequestContext,
+  member: Member,
+  householdId: string,
+): Promise<readonly GoalWithProgress[]> => {
+  const list = await send<{ data?: GoalWithProgress[] }>(
+    request,
+    'GET',
+    `/households/${householdId}/goal-progress?status=active`,
     { accessToken: member.accessToken },
   );
   return list.data ?? [];
