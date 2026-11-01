@@ -1,4 +1,4 @@
-import type { CalendarMonth } from '../../accessors/calendarMonth';
+import type { CalendarMonth } from '../../utilities/calendarMonth';
 import type { Goal } from '../../accessors/goalAccessor';
 import auditLogCsv from './auditLogReport';
 import { goalProgress, visibleAccountIdsOf, type GoalWithProgress } from './goalProgress';

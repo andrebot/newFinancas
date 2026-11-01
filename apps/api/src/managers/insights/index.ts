@@ -1,4 +1,4 @@
-import type { GoalWithProgress, MonthOverview } from '../../engines/reporting';
+import type { Funding, GoalWithProgress, MonthOverview } from '../../engines/reporting';
 import { createGoals, type Goals } from './goals';
 import { createHoldings, type Holdings } from './holdings';
 import { createReports, type Reports } from './reports';
@@ -17,7 +17,7 @@ export type { InsightsDeps } from './context';
 export type { ProjectedHolding } from './holdings';
 export type { MonthAsked, ReportType, TaggedReport } from './reports';
 export type { Goals, Holdings, Reports };
-export type { GoalWithProgress, MonthOverview };
+export type { Funding, GoalWithProgress, MonthOverview };
 
 /**
  * Creates InsightsManager.

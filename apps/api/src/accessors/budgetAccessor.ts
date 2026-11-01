@@ -7,7 +7,7 @@ import {
   budgetPeriods, budgetTargets, budgets, categories, subcategories,
 } from '../db/schema';
 import type { Visibility } from '../db/schema/values';
-import { monthOf, type CalendarMonth, type MonthRange } from './calendarMonth';
+import { monthOf, type CalendarMonth, type MonthRange } from '../utilities/calendarMonth';
 
 // BudgetAccessor (A10, VBD): Budgets, their Category/Subcategory targets and their
 // monthly Budget Periods (FR-4, 02-data-model.md). It applies data changes only;

@@ -33,7 +33,7 @@ export type {
   Category, NewCategory, Subcategory,
 } from '../../accessors/categoryAccessor';
 export type { AccountFilter, AccountMonthBalance } from '../../accessors/accountAccessor';
-export type { MonthRange } from '../../accessors/calendarMonth';
+export type { MonthRange } from '../../utilities/calendarMonth';
 export type { Budget, BudgetPeriod, BudgetTarget } from '../../accessors/budgetAccessor';
 export type { CreditCardMonthBalance } from '../../accessors/creditCardAccessor';
 export type { AllocationShare, Goal, GoalStatus } from '../../accessors/goalAccessor';

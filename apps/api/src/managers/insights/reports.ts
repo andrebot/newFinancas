@@ -1,4 +1,4 @@
-import { monthOf } from '../../accessors/calendarMonth';
+import { monthOf } from '../../utilities/calendarMonth';
 import type { MonthOverview, Viewer } from '../../engines/reporting';
 import { memberOnly, requireAccess } from '../access';
 import type { SignedInContext } from '../requestContext';

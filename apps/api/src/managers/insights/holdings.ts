@@ -4,7 +4,7 @@ import type { InvestmentHolding } from '../../accessors/investmentHoldingAccesso
 import type { ContractTerms, IndexMissing } from '../../engines/investmentProduct';
 import { accessToOwned, requireAccess } from '../access';
 import type { SignedInContext } from '../requestContext';
-import { engineRateOf } from '../transaction/effects';
+import { engineRateOf } from '../holdingRates';
 import type { InsightsDeps } from './context';
 import { accountNotFound, holdingNotFound } from './errors';
 

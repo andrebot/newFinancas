@@ -1,6 +1,6 @@
 import { findKind, type Direction } from '@financas/reference';
 import type { MonthSpend } from '../accessors/budgetAccessor';
-import { monthOf } from '../accessors/calendarMonth';
+import { monthOf } from '../utilities/calendarMonth';
 import type { MonthKindTotal } from '../accessors/ledgerQuery';
 
 // A Budget's spend (FR-4.5, OQ-201 D4): money out minus money in across its

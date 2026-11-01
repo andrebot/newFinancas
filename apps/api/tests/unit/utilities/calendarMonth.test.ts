@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   monthEnd, monthKey, monthOf, monthOrdinal, monthsBetween,
-} from '../../../src/accessors/calendarMonth';
+} from '../../../src/utilities/calendarMonth';
 
 describe('monthOf', () => {
   it('reads the year and month of a calendar date', () => {

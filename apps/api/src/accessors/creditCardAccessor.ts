@@ -6,7 +6,7 @@ import { accounts, creditCardMonthBalances, creditCards } from '../db/schema';
 import cycleOf from './billingCycle';
 import {
   monthsBetween, type CalendarMonth, type MonthRange,
-} from './calendarMonth';
+} from '../utilities/calendarMonth';
 
 // CreditCardAccessor (A6, VBD): Credit Cards and their outstanding balance by
 // billing cycle (FR-2.7–FR-2.10, 02-data-model.md). It applies data changes only.

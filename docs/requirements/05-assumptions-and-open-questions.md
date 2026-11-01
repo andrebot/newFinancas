@@ -6815,6 +6815,21 @@ only the journey in the browser, and checks the end state through the API
   Account. Weighed and rejected: posting onto the archived Account anyway
   (archived Accounts take no transactions, FR-2.4); skipping the entry with an
   error log (the money would silently never show up); keeping the retry.
+- **Phase 3 (findings A1–A5): fix A1–A4, leave A5.**
+  - **A1:** what two Managers share lives at `managers/*.ts`. The rate
+    helpers move to `managers/holdingRates.ts`, and ESLint
+    `project/manager-isolation` refuses any import from another Manager's
+    folder.
+  - **A2:** `calendarMonth` is a Utility (`utilities/calendarMonth.ts`).
+    Accessors, Engines and Managers all use it.
+  - **A3:** routes see only Manager types; InsightsManager re-exports the
+    ReportingEngine shapes it returns.
+  - **A4:** the Month Overview's unused `'transfer'` entry goes.
+  - **A5:** trade writing stays inside `record.ts` and `edit.ts`; a shared
+    `trades.ts` is extracted when a slice next changes how trades are
+    written.
+  - **The wrapping rail's section stays unnamed**, like every rail's: only a
+    scrolling track needs a region.
 
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 

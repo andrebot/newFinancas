@@ -11,7 +11,7 @@ import createBudgetAccessor, {
   type NewBudget,
   type Spend,
 } from '../../../src/accessors/budgetAccessor';
-import type { MonthRange } from '../../../src/accessors/calendarMonth';
+import type { MonthRange } from '../../../src/utilities/calendarMonth';
 import type { Database } from '../../../src/db/database';
 import {
   budgetPeriods, categories, households, subcategories, users,

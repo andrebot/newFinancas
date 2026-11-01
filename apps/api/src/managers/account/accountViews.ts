@@ -1,6 +1,6 @@
 import type { Account } from '../../accessors/accountAccessor';
 import cycleOf from '../../accessors/billingCycle';
-import { monthOf, type CalendarMonth } from '../../accessors/calendarMonth';
+import { monthOf, type CalendarMonth } from '../../utilities/calendarMonth';
 import type { CreditCard } from '../../accessors/creditCardAccessor';
 import type { AccountStores } from './context';
 

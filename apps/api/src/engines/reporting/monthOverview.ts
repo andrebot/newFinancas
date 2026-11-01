@@ -1,10 +1,10 @@
-import { findKind, type TransactionEffect } from '@financas/reference';
+import { findKind } from '@financas/reference';
 import type { Account, AccountAccessor } from '../../accessors/accountAccessor';
 import type {
   AccountTransactionAccessor, MonthKindSum, MonthKindTotal,
 } from '../../accessors/accountTransactionAccessor';
 import type { Budget, BudgetAccessor, BudgetPeriodOf } from '../../accessors/budgetAccessor';
-import { monthEnd, monthKey, type CalendarMonth } from '../../accessors/calendarMonth';
+import { monthEnd, monthKey, type CalendarMonth } from '../../utilities/calendarMonth';
 import type { CardTransactionAccessor } from '../../accessors/cardTransactionAccessor';
 import type { CreditCard, CreditCardAccessor } from '../../accessors/creditCardAccessor';
 import type { GoalAccessor } from '../../accessors/goalAccessor';
@@ -93,8 +93,6 @@ export interface MonthOverview {
   readonly goals: readonly GoalWithProgress[];
 }
 
-const LEFT_OUT: ReadonlySet<TransactionEffect> = new Set(['transfer', 'bill_payment']);
-
 /**
  * Whether a month's sum is money that only moved inside what the viewer sees:
  * a bill payment, or a transfer whose other side is among their Accounts
@@ -104,7 +102,7 @@ const LEFT_OUT: ReadonlySet<TransactionEffect> = new Set(['transfer', 'bill_paym
  * @returns `true` when it is left out of In/Out.
  */
 export const movedInside = (sum: MonthKindSum): boolean => (
-  sum.effect === 'transfer' ? sum.pairInView : LEFT_OUT.has(sum.effect)
+  sum.effect === 'transfer' ? sum.pairInView : sum.effect === 'bill_payment'
 );
 const NOTHING: InOut = { in: 0, out: 0 };
 

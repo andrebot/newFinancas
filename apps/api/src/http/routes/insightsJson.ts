@@ -1,5 +1,4 @@
-import type { Funding, GoalWithProgress } from '../../engines/reporting';
-import type { ProjectedHolding } from '../../managers/insights';
+import type { Funding, GoalWithProgress, ProjectedHolding } from '../../managers/insights';
 import { toGoalJson } from './accountJson';
 
 // The JSON shapes InsightsManager's reads answer with (the contract's

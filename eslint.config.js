@@ -161,6 +161,26 @@ export default [
     },
   },
 
+  // VBD (slice 3 review, A1): a Manager never reaches into another Manager's
+  // folder. What two Managers share lives at `managers/*.ts` (`goalSplit`,
+  // `holdingValues`, `holdingRates`); a Manager's own `index.ts` is for
+  // `server.ts` and the routes.
+  ...['account', 'identity', 'insights', 'transaction'].map((manager) => ({
+    name: `project/manager-isolation/${manager}`,
+    files: [`apps/api/src/managers/${manager}/**`],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': ['error', {
+        patterns: [{
+          group: ['account', 'identity', 'insights', 'transaction']
+            .filter((other) => other !== manager)
+            .flatMap((other) => [`../${other}`, `../${other}/**`]),
+          message: 'A Manager never imports another Manager\'s modules: '
+            + 'move what both use to a shared managers/*.ts module.',
+        }],
+      }],
+    },
+  })),
+
   // Project rules (CLAUDE.md / NFR-MAINT-1, NFR-MAINT-2).
   {
     name: 'project/rules',
