@@ -31,7 +31,7 @@ ACTIVITIES = {
     "N6": ("Reference data + seeds", ["N5"]),
     "N7": ("API contract tooling", ["N2"]),
     "N8": ("i18n catalog package", ["N2"]),
-    "N9": ("Local scheduler for investmentsDaily", ["U6"]),
+    "N9": ("Local scheduler for investmentsDaily", ["U6", "A11"]),
     "N10": ("Security review (light)", ["I7"]),
     "N11": ("Accessibility audit", ["I7", "I8", "I9", "I10", "I11", "I12"]),
     "N12": ("Local operations (backup/restore)", ["N5"]),

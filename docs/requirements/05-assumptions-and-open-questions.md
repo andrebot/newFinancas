@@ -6831,6 +6831,65 @@ only the journey in the browser, and checks the end state through the API
   - **The wrapping rail's section stays unnamed**, like every rail's: only a
     scrolling track needs a region.
 
+### OQ-227: Local investmentsDaily scheduler (task N9)
+**Design decisions:**
+- **Infrastructure, not a fifth Manager.** `jobs/investmentsDaily.ts` reads
+  InvestmentHoldingAccessor and publishes the existing typed bus events (VBD
+  §3.2a, FR-11.3/5.8/6.5). It never calls a Manager or Engine, recomputes a
+  payout, decides recipients, authorizes, or writes a posted/notified marker.
+  No HTTP operation, screen, schema change or catalog key. The old scheduler
+  error-shape follow-up was already resolved by OQ-202: Managers refuse with
+  DomainError; subscriber failures use the bus's existing `failureDetails` log.
+- **Catch up at API start, then once per São Paulo date.** `dailyScheduler.ts`
+  checks `calendar.timeZone` (OQ-104) every `investmentsDaily.pollIntervalMs`
+  (one minute, `config/constants.ts`), not every elapsed 24 hours. One pending
+  attempt at a time. A busy lock or failed scan retries next tick; completion
+  remembers the date captured at start, even if the run crossed midnight.
+  Completion with deferred deliveries waits until next day or a manual run.
+  Restarting re-reads durable work, so downtime does not lose overdue entries.
+- **One PostgreSQL session lock spans reads, publishes and confirmations.**
+  `investmentsDailyLock.ts` pins its connection for the whole run. The API and
+  command share `investmentsDaily.lockKey`; a contender skips without scanning.
+  The connection unlocks/releases on completion or failure and is destroyed
+  when acquisition is uncertain or unlocking fails. Process death releases
+  its database session lock; no persistent "day finished" row is needed.
+  The lock excludes scheduler processes, not concurrent user transactions.
+- **Translate kinds; keep dates and amounts.** Schedule `interest_payment`,
+  `tax`, `redemption` become transaction `investment_interest`,
+  `investment_tax`, `investment_redemption`; the persisted id becomes
+  `scheduleEntryId`. An unknown persisted kind fails loudly, never guessed.
+- **An unconfirmed payment must not be overtaken by redemption.** Cash
+  entries are grouped by Holding, chronological, with redemption last on its
+  date. After each publish the trigger drains the bus and reads the posted
+  marker through existing `listSchedule`. A missing/unposted entry defers
+  the remainder of that Holding, while others continue. Otherwise OQ-207's
+  intentional "position already zero" close-out could discard an earlier
+  payment that failed before redemption. This confirms delivery without
+  changing OQ-102's fire-and-forget/error-isolation contract or introducing
+  a request/reply transport. OQ-171's transactional marker still owns cash
+  idempotency; the scheduler never marks in advance.
+- **Notices follow cash.** Matured candidates are read only after cash has
+  settled, so a successfully redeemed/archived position is no longer a
+  candidate. Publish each existing Holding payload (OQ-178), drain, then
+  re-read candidates to count attempted notices still unmarked. The Manager
+  still decides recipients and all-settled delivery (partial failures may
+  re-notify successful recipients on retry, as accepted in OQ-178). The bus
+  remains in memory: a crash can interrupt delivery, but the next run finds
+  unposted/unnotified work again. This is not an exactly-once message claim.
+- **`pnpm investments:run` uses the API's existing composition root.** Its
+  `--investments-daily` mode builds the same dependencies/subscriptions, runs
+  once, closes its pool/logger and starts neither HTTP nor a timer. Tested
+  command policy reports publications and deferrals separately: 0 on
+  completed or busy, 1 on unconfirmed work, a run failure or cleanup failure.
+  No duplicated Manager wiring or new coverage exclusion.
+- **BDT and plan.** Four infrastructure suites mock only their immediate
+  boundaries (Holding reads/bus/lock; job/clock; pg driver; job/cleanup/logs).
+  N9 gains its real A11 read prerequisite in the PD network. UC-04/UC-11
+  sequences and chains describe dispatch, confirmation and retry; the full
+  trigger journey and bell archive action stay in I6 (task 134).
+
+**Task 123 (`N9`) is complete.**
+
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
 *(None currently — OQ-29, the last item here, was resolved during data

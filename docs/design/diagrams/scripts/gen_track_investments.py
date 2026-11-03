@@ -322,11 +322,17 @@ sequenceDiagram
     participant ATA as AccountTransactionAccessor
     participant LOG as LoggingUtility
 
+    Note over CRON: API startup catch-up, then once per São Paulo day<br/>or pnpm investments:run — capture today once (OQ-227)
+    CRON->>CRON: acquire pinned PostgreSQL session lock
+    alt another run owns the lock
+        Note over CRON: skip without scanning, timer retries next minute
+    else acquired
     CRON->>IHA: findDueScheduleEntries(today)
     Note over IHA: reads the schedule (and coded taxes) InvestmentProductEngine<br/>computed at buy time &mdash; the Engine is NOT called again
-    IHA-->>CRON: [{entryId, holdingId, accountId, kind, amount, date}, ...]
-    loop for each due entry
-        CRON->>SB: publish("transaction.import.requested", {entryId, ...})
+    IHA-->>CRON: [{id, holdingId, householdId, accountId, kind, amount, date}, ...]
+    Note over CRON: group by Holding, chronological, redemption last on each date<br/>translate interest_payment/tax/redemption to investment_interest/tax/redemption
+    loop each Holding's ordered entries, stop that Holding at an unconfirmed entry
+        CRON->>SB: publish("transaction.import.requested", {scheduleEntryId: id, ...})
         SB-->>TM: subscribe("transaction.import.requested")
         TM->>IHA: markEntryPosted(entryId)
         alt already posted (a repeated delivery)
@@ -340,6 +346,17 @@ sequenceDiagram
         end
         TM-->>LOG: logActivity(correlationId, systemActor, "PostScheduledCashEvent")
         TM-->>LOG: recordAudit(systemActor, "Transaction", transactionId)
+        CRON->>SB: drain()
+        SB-->>CRON: handlers finished, failures isolated and logged by the bus
+        CRON->>IHA: listSchedule([holdingId])
+        IHA-->>CRON: entries with postedAt
+        alt entry missing or unposted
+            Note over CRON: defer this Holding, do not overtake with redemption<br/>other Holdings continue, retry next day or manual run
+        else entry confirmed posted
+            Note over CRON: next entry may advance, no marker written by trigger
+        end
+    end
+    Note over CRON: after cash, read/publish matured Holdings (UC-11)<br/>release session lock in finally, including scan errors<br/>a failed scan retries next minute, durable flags survive a restart
     end
 """,
     notes="""
@@ -378,6 +395,7 @@ sequenceDiagram
     participant NIA as NotificationInboxAccessor
     participant LOG as LoggingUtility
 
+    Note over CRON: same locked run, only after cash delivery and confirmation (UC-4)<br/>busy lock skips, scan failures log and retry next minute
     CRON->>IHA: findMaturedWithPosition(today)
     Note over IHA: fixed-term, redemption date < today, quantity > 0,<br/>not archived, not yet notified
     IHA-->>CRON: [{holdingId, accountId, householdId, ownerUserId, visibility, assetType, ticker, dueDate}, ...]
@@ -404,14 +422,19 @@ sequenceDiagram
             AM-->>LOG: warn "not marked" {holdingId, recipients, failed}
             Note over AM: not marked &mdash; tomorrow&#39;s run tries again
         end
+        CRON->>SB: drain()
+        SB-->>CRON: handlers finished, failures isolated by the bus
     end
+    CRON->>IHA: findMaturedWithPosition(today)
+    IHA-->>CRON: candidates still unmarked
+    Note over CRON: count only attempted notices still pending, report deferrals<br/>release session lock even on failure (OQ-227)
 """,
     notes="""
     <ul>
       <li><strong>Type + params, never text (OQ-82):</strong> the frontend renders &ldquo;Your CDB matured on 2026-10-01. Archive it?&rdquo; in the reader&#39;s language from <code>assetType</code>. <strong>OQ-178:</strong> the params carry <code>assetType</code> and <code>ticker</code> instead of a <code>holdingName</code> &mdash; a Holding has no name, and a label is the reader&#39;s language&#39;s to build.</li>
       <li><strong>Recipients are the Manager&#39;s (OQ-171):</strong> the event carries the Holding&#39;s Account owner and visibility; a shared Account&#39;s recipients are its household&#39;s members, read through <code>HouseholdAccessor</code> &mdash; the Accessor never reads memberships.</li>
       <li><strong>Synchronous on purpose:</strong> unlike invitations, the Manager waits for every delivery (all settled), because marking the Holding notified depends on them all. A partial failure re-notifies tomorrow, including those already told &mdash; accepted.</li>
-      <li>The publisher (<code>investmentsDaily</code>) is task N9; this subscription is built with M2 part 5.</li>
+      <li><strong>N9 (OQ-227):</strong> the publisher runs on startup, once per app calendar day, or with <code>pnpm investments:run</code>. It holds the same session lock as the cash stream, drains delivery, then re-reads matured candidates to count unconfirmed notices separately from publications. A scan failure retries next tick, a deferred delivery next day or manual run.</li>
       <li>Normally a redemption (UC-4) zeroes and auto-archives the Holding first; this catches the rest.</li>
       <li>See FR-5.8, FR-6.5, OQ-68, OQ-72, OQ-82, OQ-171, OQ-178; Manager review M6.</li>
     </ul>
@@ -608,6 +631,7 @@ write_chain(
       (4, "mgr-account", "eng-notify"), (5, "eng-notify", "acc-inbox"), (6, "mgr-account", "acc-holding"), (7, "mgr-account", "util-logging", "a")),
     [
         "<strong>Chain:</strong> <code>investmentsDaily</code> → ① <code>InvestmentHoldingAccessor.findMaturedWithPosition(today)</code> → <code>ServiceBusUtility.publish(\"holding.matured\")</code> (async) → ② <code>AccountManager.notifyMaturedHolding</code> subscribes → ③ a shared Account&#39;s recipients: <code>HouseholdAccessor.listMembers</code> (a personal one&#39;s is its owner, OQ-171) → ④ <code>NotificationEngine.notify(\"holding.matured\", {userId}, {holdingId, assetType, ticker, dueDate})</code> per recipient, all settled (sync — the Manager needs every outcome) → ⑤ in-app: <code>NotificationInboxAccessor.insert</code> → ⑥ <code>InvestmentHoldingAccessor.markMaturedNotified</code> only after every recipient was notified → ⑦ <code>LoggingUtility</code> (async).",
+        "<strong>N9 (OQ-227):</strong> startup/daily/manual entry, same PostgreSQL session lock as cash. Cash is drained and confirmed first, then each notice is published and drained. A final <code>findMaturedWithPosition(today)</code> counts attempted notices still unmarked; deferrals retry next day or manually, failed scans next minute.",
         "Same trigger shape as the scheduled cash events (§3.2a). <code>NotificationInboxAccessor</code> has two callers: the Engine writes, <code>InsightsManager</code> reads (View/Delete Notification) — a shared Accessor, not an Accessor→Accessor call.",
     ],
 )

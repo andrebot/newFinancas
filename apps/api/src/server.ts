@@ -31,6 +31,11 @@ import { createInvestmentProductEngine } from './engines/investmentProduct';
 import { createNotificationEngine } from './engines/notification';
 import { createReportingEngine } from './engines/reporting';
 import type { Database } from './db/database';
+import { createInvestmentsDaily } from './jobs/investmentsDaily';
+import { createInvestmentsDailyLock } from './jobs/investmentsDailyLock';
+import { reportInvestmentsDaily, runInvestmentsDailyCommand }
+  from './jobs/investmentsDailyCommand';
+import { startDailyScheduler, type DailySchedulerDeps } from './jobs/dailyScheduler';
 import { createManagers } from './managers';
 import type { AccountStores } from './managers/account';
 import type { TransactionStores } from './managers/transaction';
@@ -174,20 +179,45 @@ const {
   },
 });
 
-serve({
-  fetch: createApp({
-    identity, account, transaction, insights, verifyAccessToken: authentication.verifyAccessToken,
-  }).fetch,
-  port: env.port,
+const runInvestmentsDaily = createInvestmentsDaily({
+  holdings: insightStores.holdings,
+  bus,
+  withLock: createInvestmentsDailyLock(pool),
 });
-log.info('API started', { port: env.port });
 
-// Restore audit entries the sink could not store last time (OQ-110).
-const logDir = resolveLogDir(process.env, os.homedir());
-reconcileAudit({
-  listLogFiles: logFileLister(logDir, logging.apiFilePrefix, readdir),
-  readFile: (file) => readFile(file, 'utf8'),
-  insertMany: auditLog.insertMany,
-})
-  .then((restored) => log.info('Audit reconciled', { restored }))
-  .catch((error: unknown) => log.error('Audit reconciliation failed', { error: String(error) }));
+const dailyDeps: DailySchedulerDeps = {
+  run: runInvestmentsDaily,
+  now: () => new Date(),
+  onCompleted: (result) => reportInvestmentsDaily(result, log),
+  onError: (error: unknown) => log.error('investmentsDaily failed', failureDetails(error)),
+};
+
+// The command uses the same dependencies and subscriptions, without HTTP/timers.
+if (process.argv.includes('--investments-daily')) {
+  process.exitCode = await runInvestmentsDailyCommand({
+    ...dailyDeps,
+    close: async () => {
+      await pool.end();
+      logger.end();
+    },
+  });
+} else {
+  serve({
+    fetch: createApp({
+      identity, account, transaction, insights, verifyAccessToken: authentication.verifyAccessToken,
+    }).fetch,
+    port: env.port,
+  });
+  log.info('API started', { port: env.port });
+  startDailyScheduler(dailyDeps);
+
+  // Restore audit entries the sink could not store last time (OQ-110).
+  const logDir = resolveLogDir(process.env, os.homedir());
+  reconcileAudit({
+    listLogFiles: logFileLister(logDir, logging.apiFilePrefix, readdir),
+    readFile: (file) => readFile(file, 'utf8'),
+    insertMany: auditLog.insertMany,
+  })
+    .then((restored) => log.info('Audit reconciled', { restored }))
+    .catch((error: unknown) => log.error('Audit reconciliation failed', { error: String(error) }));
+}
