@@ -1,20 +1,28 @@
 import type { Pool, PoolClient } from 'pg';
 import { investmentsDaily } from '../config/constants';
 
-/** Exclusive execution for a job; undefined means another process owns it. */
-export type JobLock = <Result>(work: () => Promise<Result>) => Promise<Result | undefined>;
+/** Exclusive execution; work stops dispatch at checkpoints when the session is lost. */
+export type JobLock = <Result>(
+  work: (signal: AbortSignal) => Promise<Result>,
+) => Promise<Result | undefined>;
 
 /**
  * Unlocks before returning the pinned connection; uncertain locks destroy it.
  *
  * @param client - The dedicated driver connection.
  * @param acquired - Whether the session acquired the lock.
- * @param uncertain - Whether acquisition failed without an answer.
+ * @param discard - Whether acquisition or ownership is already uncertain.
+ * @param signal - Session loss may also happen while the unlock query is pending.
  * @returns Resolves once the connection is released.
  */
-const releaseLock = async (client: PoolClient, acquired: boolean, uncertain: boolean) => {
-  if (!acquired) {
-    client.release(uncertain);
+const releaseLock = async (
+  client: PoolClient,
+  acquired: boolean,
+  discard: boolean,
+  signal: AbortSignal,
+) => {
+  if (!acquired || discard) {
+    client.release(discard);
     return;
   }
   try {
@@ -23,7 +31,7 @@ const releaseLock = async (client: PoolClient, acquired: boolean, uncertain: boo
     client.release(true);
     throw error;
   }
-  client.release();
+  client.release(signal.aborted);
 };
 
 /**
@@ -37,6 +45,15 @@ export const createInvestmentsDailyLock = (
   pool: Pick<Pool, 'connect'>,
 ): JobLock => async (work) => {
   const client = await pool.connect();
+  const controller = new AbortController();
+  /**
+   * Contains the driver's out-of-band error and revokes further dispatch.
+   *
+   * @param error - The checked-out session's connection failure.
+   * @returns Nothing; the run reports it after active work has settled.
+   */
+  const onConnectionError = (error: Error): void => controller.abort(error);
+  client.on('error', onConnectionError);
   let acquired = false;
   let uncertain = true;
   try {
@@ -47,8 +64,19 @@ export const createInvestmentsDailyLock = (
     acquired = result.rows[0]!.acquired;
     uncertain = false;
     if (!acquired) return undefined;
-    return await work();
+    controller.signal.throwIfAborted();
+    return await work(controller.signal);
   } finally {
-    await releaseLock(client, acquired, uncertain);
+    try {
+      await releaseLock(
+        client,
+        acquired,
+        uncertain || controller.signal.aborted,
+        controller.signal,
+      );
+    } finally {
+      client.removeListener('error', onConnectionError);
+      controller.signal.throwIfAborted();
+    }
   }
 };

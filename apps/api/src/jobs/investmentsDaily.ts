@@ -89,21 +89,26 @@ const groupEntries = (entries: readonly DueScheduleEntry[]): DueScheduleEntry[][
  * @param deps - The read and bus boundary.
  * @param entries - One Holding's entries, chronologically ordered.
  * @param correlationId - This run's logging context.
+ * @param signal - Revoked when the pinned lock connection fails.
  * @returns Published count and whether this Holding must retry tomorrow.
  */
 const postHolding = async (
   deps: InvestmentsDailyDeps,
   entries: readonly DueScheduleEntry[],
   correlationId: CorrelationId,
+  signal: AbortSignal,
 ) => {
   let published = 0;
   for (const entry of entries) {
+    signal.throwIfAborted();
     deps.bus.publish('transaction.import.requested', transactionPayload(entry), correlationId);
     // eslint-disable-next-line no-await-in-loop -- cash events must not overtake each other
     await deps.bus.drain();
+    signal.throwIfAborted();
     published += 1;
     // eslint-disable-next-line no-await-in-loop -- confirm before any later redemption
     const schedule = await deps.holdings.listSchedule([entry.holdingId]);
+    signal.throwIfAborted();
     const confirmed = schedule.some((item) => item.id === entry.id && item.postedAt !== null);
     if (!confirmed) return { published, deferred: 1 };
   }
@@ -116,29 +121,37 @@ const postHolding = async (
  * @param deps - The trigger's immediate boundary.
  * @param today - The app calendar date, inclusive for cash, exclusive for maturity.
  * @param correlationId - This run's logging context.
+ * @param signal - Revoked when the pinned lock connection fails.
  * @returns Counts including any delivery left for the next daily run.
  */
 const dispatch = async (
   deps: InvestmentsDailyDeps,
   today: string,
   correlationId: CorrelationId,
+  signal: AbortSignal,
 ): Promise<InvestmentsDailyResult> => {
+  signal.throwIfAborted();
   const entries = await deps.holdings.findDueScheduleEntries(today);
+  signal.throwIfAborted();
   let cashEvents = 0;
   let deferredHoldings = 0;
   for (const group of groupEntries(entries)) {
     // eslint-disable-next-line no-await-in-loop -- serialize even Holdings sharing an Account
-    const result = await postHolding(deps, group, correlationId);
+    const result = await postHolding(deps, group, correlationId, signal);
     cashEvents += result.published;
     deferredHoldings += result.deferred;
   }
   const matured = await deps.holdings.findMaturedWithPosition(today);
+  signal.throwIfAborted();
   for (const holding of matured) {
+    signal.throwIfAborted();
     deps.bus.publish('holding.matured', holding, correlationId);
     // eslint-disable-next-line no-await-in-loop -- notification completion precedes lock release
     await deps.bus.drain();
+    signal.throwIfAborted();
   }
   const remaining = await deps.holdings.findMaturedWithPosition(today);
+  signal.throwIfAborted();
   const deferredNotices = matured.filter((holding) => (
     remaining.some((pending) => pending.holdingId === holding.holdingId)
   )).length;
@@ -155,5 +168,5 @@ const dispatch = async (
  * @returns The daily/manual invocation, skipped if another process owns the lock.
  */
 export const createInvestmentsDaily = (deps: InvestmentsDailyDeps): InvestmentsDailyRun => (
-  (today, correlationId) => deps.withLock(() => dispatch(deps, today, correlationId))
+  (today, correlationId) => deps.withLock((signal) => dispatch(deps, today, correlationId, signal))
 );

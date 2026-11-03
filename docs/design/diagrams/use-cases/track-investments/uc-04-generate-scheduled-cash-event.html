@@ -53,7 +53,7 @@
 flowchart LR
     subgraph BE["Backend (system trigger)"]
         direction TB
-        BE1["Startup, daily or manual trigger<br/>skip if another run is active"]
+        BE1["Startup, daily or manual trigger<br/>skip if another run is active<br/>stop new dispatch if exclusion is lost"]
         BE2["Find fixed-term holdings with cash events<br/>due by today (interest / redemption / tax)"]
         BE3["Order each holding by date,<br/>principal redemption last on its date"]
         BE4["For each: re-enter the Record Transaction<br/>pipeline (target = the holding's account,<br/>linked to the holding)"]

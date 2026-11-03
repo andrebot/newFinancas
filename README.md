@@ -46,8 +46,9 @@ and once per São Paulo calendar day, checking the date every minute. A
 PostgreSQL session lock prevents overlap with `investments:run`. The command
 reports published events separately from unconfirmed deliveries and exits 1
 for deferred work or a failed scan/cleanup; a busy lock is a logged skip (0).
-A failed scan retries next minute, an unconfirmed delivery next day (or the
-next manual run). Existing posted/notified markers prevent re-posting after
+A failed scan or lost lock connection retries next minute; loss cancels further
+dispatch, waits for active delivery and discards the dead client. An
+unconfirmed delivery retries next day (or the next manual run). Existing posted/notified markers prevent re-posting after
 a restart. No HTTP trigger is exposed. See OQ-227.
 
 ## Documentation

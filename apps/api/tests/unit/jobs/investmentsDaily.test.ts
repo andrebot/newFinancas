@@ -37,9 +37,13 @@ const EMPTY = {
  * Builds only the trigger's direct read, bus and exclusion boundary.
  *
  * @param entries - Due entries returned by the Accessor.
+ * @param signal - The execution lock's lifetime.
  * @returns The invocation and its boundary spies.
  */
-const setup = (entries: readonly DueScheduleEntry[] = []) => {
+const setup = (
+  entries: readonly DueScheduleEntry[] = [],
+  signal = new AbortController().signal,
+) => {
   const holdings = {
     findDueScheduleEntries: vi.fn().mockResolvedValue(entries),
     listSchedule: vi.fn().mockImplementation(async (ids: string[]) => entries
@@ -48,7 +52,7 @@ const setup = (entries: readonly DueScheduleEntry[] = []) => {
     findMaturedWithPosition: vi.fn().mockResolvedValue([]),
   };
   const bus = { publish: vi.fn(), drain: vi.fn().mockResolvedValue(undefined) };
-  const withLock = vi.fn<JobLock>(async (work) => work());
+  const withLock = vi.fn<JobLock>(async (work) => work(signal));
   return {
     run: createInvestmentsDaily({ holdings, bus, withLock: withLock as JobLock }),
     holdings,
@@ -58,6 +62,69 @@ const setup = (entries: readonly DueScheduleEntry[] = []) => {
 };
 
 describe('investmentsDaily infrastructure trigger', () => {
+  it('does not start a scan with a revoked lock', async () => {
+    const controller = new AbortController();
+    const error = new Error('lock already lost');
+    controller.abort(error);
+    const deps = setup([ENTRY], controller.signal);
+    await expect(deps.run(TODAY, CORRELATION_ID)).rejects.toBe(error);
+    expect(deps.holdings.findDueScheduleEntries).not.toHaveBeenCalled();
+    expect(deps.bus.publish).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['due', 0], ['cash-drain', 1], ['cash-confirm', 1],
+    ['matured', 1], ['notice-drain', 2], ['notice-confirm', 2],
+  ] as const)('stops further dispatch after lock loss at %s', async (stage, publishes) => {
+    const controller = new AbortController();
+    const error = new Error(`lock lost at ${stage}`);
+    const deps = setup([ENTRY], controller.signal);
+    const boundaries = {
+      due: deps.holdings.findDueScheduleEntries,
+      'cash-drain': deps.bus.drain,
+      'cash-confirm': deps.holdings.listSchedule,
+      matured: deps.holdings.findMaturedWithPosition,
+      'notice-drain': deps.bus.drain,
+      'notice-confirm': deps.holdings.findMaturedWithPosition,
+    };
+    // Replace the default maturity snapshot before installing the failure.
+    deps.holdings.findMaturedWithPosition.mockReset().mockResolvedValue([]);
+    if (stage === 'notice-drain' || stage === 'notice-confirm') {
+      deps.holdings.findMaturedWithPosition.mockResolvedValueOnce([MATURED]);
+    }
+    if (stage === 'notice-drain') deps.bus.drain.mockResolvedValueOnce(undefined);
+    boundaries[stage].mockImplementationOnce(async () => {
+      controller.abort(error);
+      return [];
+    });
+    await expect(deps.run(TODAY, CORRELATION_ID)).rejects.toBe(error);
+    expect(deps.bus.publish).toHaveBeenCalledTimes(publishes);
+  });
+
+  it('settles an already-published event before reporting the revoked lock', async () => {
+    const controller = new AbortController();
+    const error = new Error('lock lost while a subscriber runs');
+    const deps = setup([ENTRY, { ...ENTRY, id: 'next', kind: 'redemption' }], controller.signal);
+    let finish!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    deps.bus.publish.mockImplementationOnce(() => controller.abort(error));
+    deps.bus.drain.mockReturnValueOnce(pending);
+    const settled = vi.fn();
+    const running = deps.run(TODAY, CORRELATION_ID)
+      .then(() => 'completed', (failure: unknown) => failure).finally(settled);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(deps.bus.drain).toHaveBeenCalledTimes(1);
+    expect(settled).not.toHaveBeenCalled();
+    finish();
+    expect(await running).toBe(error);
+    expect(deps.bus.publish).toHaveBeenCalledTimes(1);
+    expect(deps.holdings.listSchedule).not.toHaveBeenCalled();
+    expect(deps.holdings.findMaturedWithPosition).not.toHaveBeenCalled();
+  });
+
   it('does nothing while another process owns the lock', async () => {
     const deps = setup([ENTRY]);
     deps.withLock.mockResolvedValueOnce(undefined);

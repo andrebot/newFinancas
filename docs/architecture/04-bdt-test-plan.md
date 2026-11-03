@@ -268,6 +268,11 @@ kind translations, chronological/redemption-last order, no overtaking an
 unconfirmed post, sibling progress, empty streams, busy lock, marker-based
 reruns, scan/delivery-confirmation failures, notice deferral, app-day rollover,
 overlapping timer ticks, stop while busy, exit status and cleanup failures.
+The pg fake is an EventEmitter as well as a query/release driver: connection
+errors during acquisition, active work and unlock revoke dispatch, wait for
+active work, discard the dead client and remove only the owned listener.
+Trigger tests revoke the lock at each read/drain boundary and assert no later
+publication, including settlement of a pending subscriber before failure.
 No Manager/Engine is mocked behind an Accessor or behind the bus. Full trigger
 journey #13 and the notification action remain I6 (task 134), not unit scope.
 

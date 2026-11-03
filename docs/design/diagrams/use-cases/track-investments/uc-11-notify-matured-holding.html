@@ -53,7 +53,7 @@
 flowchart LR
     subgraph BE["Backend (system trigger)"]
         direction TB
-        BE1["After the same run finishes cash events"]
+        BE1["After the same run finishes cash events<br/>stop new dispatch if exclusion is lost"]
         BE2["Find fixed-term holdings past their due<br/>date that still have a position"]
         BE3["Skip ones already notified"]
         BE4["Create an in-app notification for each<br/>holding's owner(s): 'past due — archive?'"]

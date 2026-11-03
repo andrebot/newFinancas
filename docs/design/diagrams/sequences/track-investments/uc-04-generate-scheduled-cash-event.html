@@ -76,6 +76,7 @@ sequenceDiagram
     IHA-->>CRON: [{id, holdingId, householdId, accountId, kind, amount, date}, ...]
     Note over CRON: group by Holding, chronological, redemption last on each date<br/>translate interest_payment/tax/redemption to investment_interest/tax/redemption
     loop each Holding's ordered entries, stop that Holding at an unconfirmed entry
+        CRON->>CRON: assert pinned session is still held
         CRON->>SB: publish("transaction.import.requested", {scheduleEntryId: id, ...})
         SB-->>TM: subscribe("transaction.import.requested")
         TM->>IHA: markEntryPosted(entryId)
@@ -92,6 +93,7 @@ sequenceDiagram
         TM-->>LOG: recordAudit(systemActor, "Transaction", transactionId)
         CRON->>SB: drain()
         SB-->>CRON: handlers finished, failures isolated and logged by the bus
+        CRON->>CRON: assert session after draining active delivery
         CRON->>IHA: listSchedule([holdingId])
         IHA-->>CRON: entries with postedAt
         alt entry missing or unposted
@@ -100,7 +102,7 @@ sequenceDiagram
             Note over CRON: next entry may advance, no marker written by trigger
         end
     end
-    Note over CRON: after cash, read/publish matured Holdings (UC-11)<br/>release session lock in finally, including scan errors<br/>a failed scan retries next minute, durable flags survive a restart
+    Note over CRON: after cash, read/publish matured Holdings (UC-11)<br/>release or discard pinned session in finally, including failures<br/>a client error revokes dispatch, active delivery settles before failure<br/>failed scans or lost sessions retry next minute, durable flags survive restart
     end
     </pre>
   </div>

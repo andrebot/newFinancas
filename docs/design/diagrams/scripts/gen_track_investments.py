@@ -332,6 +332,7 @@ sequenceDiagram
     IHA-->>CRON: [{id, holdingId, householdId, accountId, kind, amount, date}, ...]
     Note over CRON: group by Holding, chronological, redemption last on each date<br/>translate interest_payment/tax/redemption to investment_interest/tax/redemption
     loop each Holding's ordered entries, stop that Holding at an unconfirmed entry
+        CRON->>CRON: assert pinned session is still held
         CRON->>SB: publish("transaction.import.requested", {scheduleEntryId: id, ...})
         SB-->>TM: subscribe("transaction.import.requested")
         TM->>IHA: markEntryPosted(entryId)
@@ -348,6 +349,7 @@ sequenceDiagram
         TM-->>LOG: recordAudit(systemActor, "Transaction", transactionId)
         CRON->>SB: drain()
         SB-->>CRON: handlers finished, failures isolated and logged by the bus
+        CRON->>CRON: assert session after draining active delivery
         CRON->>IHA: listSchedule([holdingId])
         IHA-->>CRON: entries with postedAt
         alt entry missing or unposted
@@ -356,7 +358,7 @@ sequenceDiagram
             Note over CRON: next entry may advance, no marker written by trigger
         end
     end
-    Note over CRON: after cash, read/publish matured Holdings (UC-11)<br/>release session lock in finally, including scan errors<br/>a failed scan retries next minute, durable flags survive a restart
+    Note over CRON: after cash, read/publish matured Holdings (UC-11)<br/>release or discard pinned session in finally, including failures<br/>a client error revokes dispatch, active delivery settles before failure<br/>failed scans or lost sessions retry next minute, durable flags survive restart
     end
 """,
     notes="""
@@ -400,6 +402,7 @@ sequenceDiagram
     Note over IHA: fixed-term, redemption date < today, quantity > 0,<br/>not archived, not yet notified
     IHA-->>CRON: [{holdingId, accountId, householdId, ownerUserId, visibility, assetType, ticker, dueDate}, ...]
     loop for each matured Holding
+        CRON->>CRON: assert pinned session is still held
         CRON->>SB: publish("holding.matured", the row)
         SB-->>AM: subscribe("holding.matured") &mdash; notifyMaturedHolding, as the system
         alt shared Account
@@ -427,7 +430,7 @@ sequenceDiagram
     end
     CRON->>IHA: findMaturedWithPosition(today)
     IHA-->>CRON: candidates still unmarked
-    Note over CRON: count only attempted notices still pending, report deferrals<br/>release session lock even on failure (OQ-227)
+    Note over CRON: count only attempted notices still pending, report deferrals<br/>a client error revokes new dispatch, active delivery settles<br/>discard dead session and report original error, retry next tick (OQ-227)
 """,
     notes="""
     <ul>
@@ -632,6 +635,7 @@ write_chain(
     [
         "<strong>Chain:</strong> <code>investmentsDaily</code> → ① <code>InvestmentHoldingAccessor.findMaturedWithPosition(today)</code> → <code>ServiceBusUtility.publish(\"holding.matured\")</code> (async) → ② <code>AccountManager.notifyMaturedHolding</code> subscribes → ③ a shared Account&#39;s recipients: <code>HouseholdAccessor.listMembers</code> (a personal one&#39;s is its owner, OQ-171) → ④ <code>NotificationEngine.notify(\"holding.matured\", {userId}, {holdingId, assetType, ticker, dueDate})</code> per recipient, all settled (sync — the Manager needs every outcome) → ⑤ in-app: <code>NotificationInboxAccessor.insert</code> → ⑥ <code>InvestmentHoldingAccessor.markMaturedNotified</code> only after every recipient was notified → ⑦ <code>LoggingUtility</code> (async).",
         "<strong>N9 (OQ-227):</strong> startup/daily/manual entry, same PostgreSQL session lock as cash. Cash is drained and confirmed first, then each notice is published and drained. A final <code>findMaturedWithPosition(today)</code> counts attempted notices still unmarked; deferrals retry next day or manually, failed scans next minute.",
+        "<strong>Lost pinned session:</strong> an owned pg-client error listener revokes the run signal. Checkpoints stop new dispatch, active delivery is settled, the dead client is discarded and the original error reaches the job failure sink (next-tick retry). No early promise rejection leaves dispatch running behind cleanup.",
         "Same trigger shape as the scheduled cash events (§3.2a). <code>NotificationInboxAccessor</code> has two callers: the Engine writes, <code>InsightsManager</code> reads (View/Delete Notification) — a shared Accessor, not an Accessor→Accessor call.",
     ],
 )

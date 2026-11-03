@@ -6854,6 +6854,18 @@ only the journey in the browser, and checks the end state through the API
   when acquisition is uncertain or unlocking fails. Process death releases
   its database session lock; no persistent "day finished" row is needed.
   The lock excludes scheduler processes, not concurrent user transactions.
+  **A lost pinned connection revokes dispatch (review round 1).** A checked-out
+  pg client has no pool idle-error listener: its asynchronous `error` event
+  must be handled for the whole pinned lifetime, including unlock/release.
+  The listener aborts a run-scoped signal, never throws from the emitter.
+  The trigger checks that signal around reads and before each publication;
+  an already-published event is drained before failure is reported, not left
+  running behind an early rejected race. No further cash/notice dispatch
+  follows cancellation. The dead connection is discarded, only this run's
+  listener removed, and its first connection error reaches the existing
+  scheduler/command failure sink. Timer retry remains next tick. This is
+  cooperative cancellation: already-running subscribers are not rolled back
+  or forcibly stopped, and the lost session no longer excludes other runs.
 - **Translate kinds; keep dates and amounts.** Schedule `interest_payment`,
   `tax`, `redemption` become transaction `investment_interest`,
   `investment_tax`, `investment_redemption`; the persisted id becomes

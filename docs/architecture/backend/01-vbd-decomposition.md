@@ -593,7 +593,13 @@ on startup, then once per `calendar.timeZone` day, checking every minute;
 HTTP or a timer. A pinned PostgreSQL session advisory lock excludes another
 API/manual run; a busy lock or scan failure retries next tick. The run's date
 is captured once. A process restart re-reads the durable posted/notified flags,
-not an in-memory "already ran" claim.
+not an in-memory "already ran" claim. The pinned client's `error` listener
+revokes a run-scoped AbortSignal rather than throwing out of band. Dispatch
+checks it around reads and before publication; an active bus delivery is
+settled before reporting failure. The client is discarded and this listener
+removed in cleanup. The original connection error reaches the existing job
+failure sink and retries next tick. No new publication follows revocation;
+already-running subscribers are not forcibly cancelled or rolled back.
 
 Cash entries are grouped by Holding and ordered by date, redemption last on
 each date. The trigger translates `interest_payment`/`tax`/`redemption` to

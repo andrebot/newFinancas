@@ -73,6 +73,7 @@ sequenceDiagram
     Note over IHA: fixed-term, redemption date < today, quantity > 0,<br/>not archived, not yet notified
     IHA-->>CRON: [{holdingId, accountId, householdId, ownerUserId, visibility, assetType, ticker, dueDate}, ...]
     loop for each matured Holding
+        CRON->>CRON: assert pinned session is still held
         CRON->>SB: publish("holding.matured", the row)
         SB-->>AM: subscribe("holding.matured") &mdash; notifyMaturedHolding, as the system
         alt shared Account
@@ -100,7 +101,7 @@ sequenceDiagram
     end
     CRON->>IHA: findMaturedWithPosition(today)
     IHA-->>CRON: candidates still unmarked
-    Note over CRON: count only attempted notices still pending, report deferrals<br/>release session lock even on failure (OQ-227)
+    Note over CRON: count only attempted notices still pending, report deferrals<br/>a client error revokes new dispatch, active delivery settles<br/>discard dead session and report original error, retry next tick (OQ-227)
     </pre>
   </div>
   <div class="notes">
