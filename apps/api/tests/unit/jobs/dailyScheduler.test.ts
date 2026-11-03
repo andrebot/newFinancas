@@ -1,6 +1,9 @@
+import { captureLogs } from '@financas/logging';
 import {
-  afterEach, beforeEach, describe, expect, it, vi,
+  afterEach, beforeEach, describe, expect, it, onTestFinished, vi,
 } from 'vitest';
+import { reportInvestmentsDaily, reportInvestmentsDailyFailure }
+  from '../../../src/jobs/investmentsDailyCommand';
 import { investmentsDaily } from '../../../src/config/constants';
 import { startDailyScheduler } from '../../../src/jobs/dailyScheduler';
 import type { InvestmentsDailyRun } from '../../../src/jobs/investmentsDaily';
@@ -31,13 +34,42 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe('local daily scheduler', () => {
+  it('emits failure and retry completion with each attempt ID and the original stack', async () => {
+    const { events } = captureLogs(onTestFinished);
+    const { deps } = setup();
+    const error = new Error('database unavailable');
+    deps.run.mockRejectedValueOnce(error);
+    const stop = startDailyScheduler({
+      ...deps, onCompleted: reportInvestmentsDaily, onError: reportInvestmentsDailyFailure,
+    });
+    await vi.advanceTimersByTimeAsync(investmentsDaily.pollIntervalMs);
+    await stop();
+    expect(events).toHaveLength(2);
+    expect(events[0]).toMatchObject({
+      message: 'investmentsDaily failed',
+      level: 'error',
+      actor: 'system',
+      correlationId: deps.run.mock.calls[0]![1],
+      stack: error.stack,
+      error: String(error),
+    });
+    expect(events[1]).toMatchObject({
+      message: 'investmentsDaily completed',
+      level: 'info',
+      actor: 'system',
+      correlationId: deps.run.mock.calls[1]![1],
+      ...RESULT,
+    });
+    expect(events[0]!.correlationId).not.toBe(events[1]!.correlationId);
+  });
+
   it('catches up immediately using Sao Paulo today, then skips the same day', async () => {
     const { deps, start } = setup();
     const stop = start();
     await vi.advanceTimersByTimeAsync(investmentsDaily.pollIntervalMs * 2);
     expect(deps.run).toHaveBeenCalledTimes(1);
     expect(deps.run).toHaveBeenCalledWith('2026-11-02', expect.any(String));
-    expect(deps.onCompleted).toHaveBeenCalledWith(RESULT);
+    expect(deps.onCompleted).toHaveBeenCalledWith(RESULT, deps.run.mock.calls[0]![1]);
     expect(deps.onError).not.toHaveBeenCalled();
     await stop();
   });
@@ -67,7 +99,9 @@ describe('local daily scheduler', () => {
     const stop = start();
     await vi.advanceTimersByTimeAsync(investmentsDaily.pollIntervalMs * 2);
     expect(deps.run).toHaveBeenCalledTimes(2);
-    expect(deps.onCompleted.mock.calls).toEqual([[undefined], [RESULT]]);
+    expect(deps.onCompleted.mock.calls).toEqual([
+      [undefined, deps.run.mock.calls[0]![1]], [RESULT, deps.run.mock.calls[1]![1]],
+    ]);
     await stop();
   });
 
@@ -78,7 +112,7 @@ describe('local daily scheduler', () => {
     const stop = start();
     await vi.advanceTimersByTimeAsync(investmentsDaily.pollIntervalMs * 2);
     expect(deps.run).toHaveBeenCalledTimes(2);
-    expect(deps.onError).toHaveBeenCalledExactlyOnceWith(error);
+    expect(deps.onError).toHaveBeenCalledExactlyOnceWith(error, deps.run.mock.calls[0]![1]);
     await stop();
   });
 

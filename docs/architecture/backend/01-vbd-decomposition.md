@@ -600,6 +600,11 @@ settled before reporting failure. The client is discarded and this listener
 removed in cleanup. The original connection error reaches the existing job
 failure sink and retries next tick. No new publication follows revocation;
 already-running subscribers are not forcibly cancelled or rolled back.
+Each timer/manual attempt explicitly passes its correlation ID through the
+job and completion/error callbacks. The production reporters bind that ID and
+`system`, retaining an Error's original stack and existing domain code/params,
+including command cleanup failures (NFR-OBS-1/3). No startup logger is reused
+for an invocation's completion/failure.
 
 Cash entries are grouped by Holding and ordered by date, redemption last on
 each date. The trigger translates `interest_payment`/`tax`/`redemption` to

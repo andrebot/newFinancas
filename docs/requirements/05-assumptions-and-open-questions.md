@@ -6866,6 +6866,16 @@ only the journey in the browser, and checks the end state through the API
   scheduler/command failure sink. Timer retry remains next tick. This is
   cooperative cancellation: already-running subscribers are not rolled back
   or forcibly stopped, and the lost session no longer excludes other runs.
+- **Job diagnostics keep the invocation, not API-startup context (review
+  round 2; NFR-OBS-1/3, OQ-99).** Timer and manual-command policies create
+  one correlation ID before the attempt and pass it unchanged to the job,
+  completion callback and failure callback, including command cleanup errors.
+  The production reporters bind `system` and that ID on each log, never the
+  composition root's startup logger. Error reports retain the original stack
+  alongside `failureDetails`' existing domain code/params; a non-Error throw
+  is logged as text without an invented stack. Tests capture the actual shared
+  logger's emitted events for timer failure/retry, command run/cleanup,
+  completion/busy/deferred results, domain refusals and non-Error failures.
 - **Translate kinds; keep dates and amounts.** Schedule `interest_payment`,
   `tax`, `redemption` become transaction `investment_interest`,
   `investment_tax`, `investment_redemption`; the persisted id becomes

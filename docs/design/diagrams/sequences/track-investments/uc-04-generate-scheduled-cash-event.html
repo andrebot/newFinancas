@@ -102,7 +102,7 @@ sequenceDiagram
             Note over CRON: next entry may advance, no marker written by trigger
         end
     end
-    Note over CRON: after cash, read/publish matured Holdings (UC-11)<br/>release or discard pinned session in finally, including failures<br/>a client error revokes dispatch, active delivery settles before failure<br/>failed scans or lost sessions retry next minute, durable flags survive restart
+    Note over CRON: after cash, read/publish matured Holdings (UC-11)<br/>release or discard pinned session in finally, including failures<br/>a client error revokes dispatch, active delivery settles before failure<br/>failure log keeps original stack, system actor and this run&#39;s correlation ID<br/>failed scans or lost sessions retry next minute, durable flags survive restart
     end
     </pre>
   </div>

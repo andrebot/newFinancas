@@ -61,7 +61,7 @@ flowchart LR
         BE6["Redemption brings quantity to 0 →<br/>auto-archive the Holding"]
         BE7["Save the transaction record"]
         BE8["Confirm each post before advancing<br/>defer the holding on failure, continue others"]
-        BE9["Record published and deferred work (log)"]
+        BE9["Record result or error (log)<br/>include this run's id and original error stack"]
         BE1 --> BE2 --> BE3 --> BE4 --> BE5 --> BE6 --> BE7 --> BE8 --> BE9
     end
     </pre>

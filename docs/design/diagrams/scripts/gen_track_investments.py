@@ -358,7 +358,7 @@ sequenceDiagram
             Note over CRON: next entry may advance, no marker written by trigger
         end
     end
-    Note over CRON: after cash, read/publish matured Holdings (UC-11)<br/>release or discard pinned session in finally, including failures<br/>a client error revokes dispatch, active delivery settles before failure<br/>failed scans or lost sessions retry next minute, durable flags survive restart
+    Note over CRON: after cash, read/publish matured Holdings (UC-11)<br/>release or discard pinned session in finally, including failures<br/>a client error revokes dispatch, active delivery settles before failure<br/>failure log keeps original stack, system actor and this run&#39;s correlation ID<br/>failed scans or lost sessions retry next minute, durable flags survive restart
     end
 """,
     notes="""
@@ -430,7 +430,7 @@ sequenceDiagram
     end
     CRON->>IHA: findMaturedWithPosition(today)
     IHA-->>CRON: candidates still unmarked
-    Note over CRON: count only attempted notices still pending, report deferrals<br/>a client error revokes new dispatch, active delivery settles<br/>discard dead session and report original error, retry next tick (OQ-227)
+    Note over CRON: count only attempted notices still pending, report deferrals<br/>a client error revokes new dispatch, active delivery settles<br/>discard dead session, log original error/stack with this run&#39;s ID and system actor<br/>retry next tick (OQ-227)
 """,
     notes="""
     <ul>
@@ -635,7 +635,7 @@ write_chain(
     [
         "<strong>Chain:</strong> <code>investmentsDaily</code> → ① <code>InvestmentHoldingAccessor.findMaturedWithPosition(today)</code> → <code>ServiceBusUtility.publish(\"holding.matured\")</code> (async) → ② <code>AccountManager.notifyMaturedHolding</code> subscribes → ③ a shared Account&#39;s recipients: <code>HouseholdAccessor.listMembers</code> (a personal one&#39;s is its owner, OQ-171) → ④ <code>NotificationEngine.notify(\"holding.matured\", {userId}, {holdingId, assetType, ticker, dueDate})</code> per recipient, all settled (sync — the Manager needs every outcome) → ⑤ in-app: <code>NotificationInboxAccessor.insert</code> → ⑥ <code>InvestmentHoldingAccessor.markMaturedNotified</code> only after every recipient was notified → ⑦ <code>LoggingUtility</code> (async).",
         "<strong>N9 (OQ-227):</strong> startup/daily/manual entry, same PostgreSQL session lock as cash. Cash is drained and confirmed first, then each notice is published and drained. A final <code>findMaturedWithPosition(today)</code> counts attempted notices still unmarked; deferrals retry next day or manually, failed scans next minute.",
-        "<strong>Lost pinned session:</strong> an owned pg-client error listener revokes the run signal. Checkpoints stop new dispatch, active delivery is settled, the dead client is discarded and the original error reaches the job failure sink (next-tick retry). No early promise rejection leaves dispatch running behind cleanup.",
+        "<strong>Lost pinned session:</strong> an owned pg-client error listener revokes the run signal. Checkpoints stop new dispatch, active delivery is settled, the dead client is discarded and the original error and stack reach the job failure sink with the same invocation correlation ID and system actor (next-tick retry). No early promise rejection leaves dispatch running behind cleanup.",
         "Same trigger shape as the scheduled cash events (§3.2a). <code>NotificationInboxAccessor</code> has two callers: the Engine writes, <code>InsightsManager</code> reads (View/Delete Notification) — a shared Accessor, not an Accessor→Accessor call.",
     ],
 )

@@ -49,7 +49,9 @@ for deferred work or a failed scan/cleanup; a busy lock is a logged skip (0).
 A failed scan or lost lock connection retries next minute; loss cancels further
 dispatch, waits for active delivery and discards the dead client. An
 unconfirmed delivery retries next day (or the next manual run). Existing posted/notified markers prevent re-posting after
-a restart. No HTTP trigger is exposed. See OQ-227.
+a restart. Job completion/failure logs use that invocation's correlation ID;
+Error stacks and existing domain details are retained, including command
+cleanup failures. No HTTP trigger is exposed. See OQ-227.
 
 ## Documentation
 

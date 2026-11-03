@@ -33,8 +33,9 @@ import { createReportingEngine } from './engines/reporting';
 import type { Database } from './db/database';
 import { createInvestmentsDaily } from './jobs/investmentsDaily';
 import { createInvestmentsDailyLock } from './jobs/investmentsDailyLock';
-import { reportInvestmentsDaily, runInvestmentsDailyCommand }
-  from './jobs/investmentsDailyCommand';
+import {
+  reportInvestmentsDaily, reportInvestmentsDailyFailure, runInvestmentsDailyCommand,
+} from './jobs/investmentsDailyCommand';
 import { startDailyScheduler, type DailySchedulerDeps } from './jobs/dailyScheduler';
 import { createManagers } from './managers';
 import type { AccountStores } from './managers/account';
@@ -188,8 +189,8 @@ const runInvestmentsDaily = createInvestmentsDaily({
 const dailyDeps: DailySchedulerDeps = {
   run: runInvestmentsDaily,
   now: () => new Date(),
-  onCompleted: (result) => reportInvestmentsDaily(result, log),
-  onError: (error: unknown) => log.error('investmentsDaily failed', failureDetails(error)),
+  onCompleted: reportInvestmentsDaily,
+  onError: reportInvestmentsDailyFailure,
 };
 
 // The command uses the same dependencies and subscriptions, without HTTP/timers.

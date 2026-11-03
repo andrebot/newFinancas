@@ -101,7 +101,7 @@ sequenceDiagram
     end
     CRON->>IHA: findMaturedWithPosition(today)
     IHA-->>CRON: candidates still unmarked
-    Note over CRON: count only attempted notices still pending, report deferrals<br/>a client error revokes new dispatch, active delivery settles<br/>discard dead session and report original error, retry next tick (OQ-227)
+    Note over CRON: count only attempted notices still pending, report deferrals<br/>a client error revokes new dispatch, active delivery settles<br/>discard dead session, log original error/stack with this run&#39;s ID and system actor<br/>retry next tick (OQ-227)
     </pre>
   </div>
   <div class="notes">

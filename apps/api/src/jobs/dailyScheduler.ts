@@ -1,14 +1,16 @@
 import { calendar, investmentsDaily } from '../config/constants';
 import calendarDate from '../utilities/calendar';
-import { newCorrelationId } from '../utilities/correlationId';
+import { newCorrelationId, type CorrelationId } from '../utilities/correlationId';
 import type { InvestmentsDailyResult, InvestmentsDailyRun } from './investmentsDaily';
 
 /** Timer policy depends only on the job, a clock and its external log sink. */
 export interface DailySchedulerDeps {
   readonly run: InvestmentsDailyRun;
   readonly now: () => Date;
-  readonly onCompleted: (result: InvestmentsDailyResult | undefined) => void;
-  readonly onError: (error: unknown) => void;
+  readonly onCompleted: (
+    result: InvestmentsDailyResult | undefined, correlationId: CorrelationId,
+  ) => void;
+  readonly onError: (error: unknown, correlationId: CorrelationId) => void;
 }
 
 /**
@@ -29,12 +31,13 @@ export const startDailyScheduler = (deps: DailySchedulerDeps): (() => Promise<vo
    * @returns Resolves after the attempt and its log callback.
    */
   const attempt = async (today: string): Promise<void> => {
+    const correlationId = newCorrelationId();
     try {
-      const result = await deps.run(today, newCorrelationId());
+      const result = await deps.run(today, correlationId);
       if (result !== undefined) lastDay = today;
-      deps.onCompleted(result);
+      deps.onCompleted(result, correlationId);
     } catch (error) {
-      deps.onError(error);
+      deps.onError(error, correlationId);
     }
   };
 

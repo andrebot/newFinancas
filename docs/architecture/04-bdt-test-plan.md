@@ -273,6 +273,10 @@ errors during acquisition, active work and unlock revoke dispatch, wait for
 active work, discard the dead client and remove only the owned listener.
 Trigger tests revoke the lock at each read/drain boundary and assert no later
 publication, including settlement of a pending subscriber before failure.
+Timer/command tests also capture the actual production reporting callbacks'
+shared-logger events: invocation ID and system actor on completion/failure,
+original Error stack, retained domain code/params, non-Error text without a
+fabricated stack, command cleanup failure and a timer's next-attempt context.
 No Manager/Engine is mocked behind an Accessor or behind the bus. Full trigger
 journey #13 and the notification action remain I6 (task 134), not unit scope.
 
