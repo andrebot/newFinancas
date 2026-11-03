@@ -66,11 +66,18 @@ sequenceDiagram
     participant ATA as AccountTransactionAccessor
     participant LOG as LoggingUtility
 
+    Note over CRON: API startup catch-up, then once per São Paulo day<br/>or pnpm investments:run — capture today once (OQ-227)
+    CRON->>CRON: acquire pinned PostgreSQL session lock
+    alt another run owns the lock
+        Note over CRON: skip without scanning, timer retries next minute
+    else acquired
     CRON->>IHA: findDueScheduleEntries(today)
     Note over IHA: reads the schedule (and coded taxes) InvestmentProductEngine<br/>computed at buy time &mdash; the Engine is NOT called again
-    IHA-->>CRON: [{entryId, holdingId, accountId, kind, amount, date}, ...]
-    loop for each due entry
-        CRON->>SB: publish("transaction.import.requested", {entryId, ...})
+    IHA-->>CRON: [{id, holdingId, householdId, accountId, kind, amount, date}, ...]
+    Note over CRON: group by Holding, chronological, redemption last on each date<br/>translate interest_payment/tax/redemption to investment_interest/tax/redemption
+    loop each Holding's ordered entries, stop that Holding at an unconfirmed entry
+        CRON->>CRON: assert pinned session is still held
+        CRON->>SB: publish("transaction.import.requested", {scheduleEntryId: id, ...})
         SB-->>TM: subscribe("transaction.import.requested")
         TM->>IHA: markEntryPosted(entryId)
         alt already posted (a repeated delivery)
@@ -84,6 +91,18 @@ sequenceDiagram
         end
         TM-->>LOG: logActivity(correlationId, systemActor, "PostScheduledCashEvent")
         TM-->>LOG: recordAudit(systemActor, "Transaction", transactionId)
+        CRON->>SB: drain()
+        SB-->>CRON: handlers finished, failures isolated and logged by the bus
+        CRON->>CRON: assert session after draining active delivery
+        CRON->>IHA: listSchedule([holdingId])
+        IHA-->>CRON: entries with postedAt
+        alt entry missing or unposted
+            Note over CRON: defer this Holding, do not overtake with redemption<br/>other Holdings continue, retry next day or manual run
+        else entry confirmed posted
+            Note over CRON: next entry may advance, no marker written by trigger
+        end
+    end
+    Note over CRON: after cash, read/publish matured Holdings (UC-11)<br/>release or discard pinned session in finally, including failures<br/>a client error revokes dispatch, active delivery settles before failure<br/>failure log keeps original stack, system actor and this run&#39;s correlation ID<br/>failed scans or lost sessions retry next minute, durable flags survive restart
     end
     </pre>
   </div>

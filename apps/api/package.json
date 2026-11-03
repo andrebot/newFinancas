@@ -10,6 +10,7 @@
     "db:migrate": "node --env-file-if-exists=../../.env ./node_modules/drizzle-kit/bin.cjs migrate",
     "db:seed:demo": "LOG_FILE_PREFIX=seed tsx --env-file-if-exists=../../.env src/db/seed/main.ts",
     "generate:mfacode": "LOG_FILE_PREFIX=mfa-code tsx src/db/seed/mfaCodeMain.ts",
+    "investments:run": "LOG_FILE_PREFIX=api tsx --env-file-if-exists=../../.env src/server.ts --investments-daily",
     "audit:reconcile": "LOG_FILE_PREFIX=audit-reconcile tsx --env-file-if-exists=../../.env src/utilities/logging/reconcileMain.ts"
   },
   "dependencies": {

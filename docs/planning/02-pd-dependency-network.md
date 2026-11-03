@@ -9,12 +9,15 @@ durations and the critical path to the same file.
 transitive ones (if A → B → C, A → C is dropped), **no cycles**, **15
 levels**. A level is the longest chain of prerequisites in front of an
 activity; everything on one level can be done in any order.
-Today the network has 149 activities and 419 dependencies: the three
+Today the network has 149 activities and 423 dependencies: the three
 slicing splits (step 3) and `N14`, the component library (OQ-128), were
 added later. Run `pd_network.py` for the current figures.
 
 ## How the dependencies were derived
 
+- **N9 (OQ-227)** also depends on `A11`: the trigger reads due schedules,
+  confirms posted markers and reads matured Holdings through the existing
+  InvestmentHoldingAccessor, not just the service bus. No new component.
 - **Backend** — straight from the VBD communication rules: Accessors need
   the schema (three also need the reference data: categories, holdings'
   asset types, index codes); Engines need the Accessors they read or
@@ -48,14 +51,14 @@ added later. Run `pd_network.py` for the current figures.
 | L1 | 1 | N1 Project plan |
 | L2 | 1 | N2 Repository + monorepo setup |
 | L3 | 11 | FU1 ValidationUtility (web), FU2 PasswordStrengthUtility, K1 Tailwind theme + tokens, N3 Local CI (scripts + hooks), N4 Local environment (Docker Postgres, console email), N7 API contract tooling, N8 i18n catalog package, U1 CorrelationIdUtility, U3 ValidationUtility, U4 AuthenticationUtility, U6 ServiceBusUtility |
-| L4 | 7 | FU4 ThemeUtility, FU5 I18nUtility, FU7 API client, K2 Typography, K3 Icon set, N5 Schema + migrations baseline, N9 Local scheduler for investmentsDaily |
+| L4 | 6 | FU4 ThemeUtility, FU5 I18nUtility, FU7 API client, K2 Typography, K3 Icon set, N5 Schema + migrations baseline |
 | L5 | 35 | A1 UserAccessor, A2 SessionAccessor, A3 HouseholdAccessor, A4 InvitationAccessor, A5 AccountAccessor, A6 CreditCardAccessor, A7 AccountTransactionAccessor, A8 CardTransactionAccessor, A10 BudgetAccessor, A12 ValuationSnapshotAccessor, A13 GoalAccessor, A15 AuditLogAccessor, A16 NotificationInboxAccessor, FU6 FormattingUtility, K4 Button, K5 Text field, K13 Segmented control, K14 Option card, K15 Switch, K16 Checkbox, K19 Colour swatch picker, K22 Popover, K28 Skeleton + loading + empty state, K30 Badge / tag / pill, K31 Avatar, K32 Progress ring, K33 Progress bar, K34 Card / panel + section header + layouts, K42 Expandable row / accordion, K44 Key–value list, K49 Stepper, K50 Category chip, N6 Reference data + seeds, N12 Local operations (backup/restore), N14 Component library (Storybook) |
-| L6 | 24 | A9 CategoryAccessor, A11 InvestmentHoldingAccessor, A14 IndexRateAccessor, K6 Password field, K7 Money input, K8 Number / percent / rate input, K9 Date input, K11 Select / combobox, K17 Code input (6 digits), K18 Icon picker, K20 Drawer / sheet, K21 Dialog, K23 Menu, K24 Tooltip, K25 Toast + inline banner, K26 Inline confirm, K27 Type-to-confirm, K29 Amount, K35 Card rail, K43 Table, K48 Credit-card preview, U2 LoggingUtility, U5 AuthorizationUtility, U7 NotificationDeliveryUtility |
-| L7 | 25 | E1 InvestmentProductEngine, E2 ReportingEngine, FL1 Sign In, FL2 Account Recovery, FL3 Registration, FL4 MFA Enrollment, FL5 Household Setup, FL8 Delete Account, FL10 Household Deletion, FL11 Account & Card Management, FL12 Category Management, FL13 Budget Management, FL14 Goal Management, FU3 AlertUtility, K10 Date range picker, K12 Multi-select with search + presets, K36 Rail cards (balance / budget / goal), K38 Line chart / sparkline, K39 Stacked bar chart + legend, K40 Period bar, K41 Grouped list + infinite scroll, K45 List row, K47 Allocation editor, M1 IdentityManager, M2 AccountManager |
-| L8 | 14 | FL6 Guided Setup, FL7 Security, FL9 Membership Management, FL15 Record Transaction, FL16 Browse Transactions, FL17 Month Overview, I1 IdentityManager seam suite, I2 AccountManager seam suite, K37 Stat tile, K46 History editor, M3 TransactionManager, M4 InsightsManager, S1 App Shell, X1 Authenticate |
-| L9 | 12 | FL18 Portfolio Overview, FL19 Holding Maintenance, FL20 Rates Maintenance, FL21 Dashboard, I3 TransactionManager seam suite, I4 InsightsManager seam suite, I5 Manager pub/sub (household.created, holding.matured), X2 Onboard, X3 Manage Profile, X4 Manage Household, X5 Account Setup, X6 Manage Finances |
-| L10 | 6 | I6 investmentsDaily trigger end to end, I7 Frontend ↔ backend: identity, I8 Frontend ↔ backend: account setup, I9 Frontend ↔ backend: finances, X7 Track Investments, X8 Review Insights |
-| L11 | 4 | I10 Frontend ↔ backend: investments, I11 Frontend ↔ backend: insights, I12 Shell notification routing, N10 Security review (light) |
+| L6 | 21 | A9 CategoryAccessor, A11 InvestmentHoldingAccessor, A14 IndexRateAccessor, K6 Password field, K11 Select / combobox, K17 Code input (6 digits), K18 Icon picker, K20 Drawer / sheet, K21 Dialog, K23 Menu, K24 Tooltip, K25 Toast + inline banner, K26 Inline confirm, K27 Type-to-confirm, K29 Amount, K35 Card rail, K43 Table, K48 Credit-card preview, U2 LoggingUtility, U5 AuthorizationUtility, U7 NotificationDeliveryUtility |
+| L7 | 24 | E1 InvestmentProductEngine, E2 ReportingEngine, FL1 Sign In, FL2 Account Recovery, FL3 Registration, FL4 MFA Enrollment, FL5 Household Setup, FL8 Delete Account, FL10 Household Deletion, FL12 Category Management, FU3 AlertUtility, K7 Money input, K8 Number / percent / rate input, K9 Date input, K12 Multi-select with search + presets, K36 Rail cards (balance / budget / goal), K38 Line chart / sparkline, K39 Stacked bar chart + legend, K40 Period bar, K41 Grouped list + infinite scroll, K45 List row, M1 IdentityManager, M2 AccountManager, N9 Local scheduler for investmentsDaily |
+| L8 | 17 | FL7 Security, FL9 Membership Management, FL11 Account & Card Management, FL13 Budget Management, FL14 Goal Management, FL17 Month Overview, I1 IdentityManager seam suite, I2 AccountManager seam suite, K10 Date range picker, K37 Stat tile, K46 History editor, K47 Allocation editor, M1D IdentityManager: Delete User cascade, M3 TransactionManager, M4 InsightsManager, S1 App Shell, X1 Authenticate |
+| L9 | 14 | FL6 Guided Setup, FL15 Record Transaction, FL16 Browse Transactions, FL18 Portfolio Overview, FL19 Holding Maintenance, FL20 Rates Maintenance, FL21 Dashboard, I3 TransactionManager seam suite, I4 InsightsManager seam suite, I5 Manager pub/sub (household.created, holding.matured), X2 Onboard (Registration, MFA, Household Setup), X3 Manage Profile, X4 Manage Household, X5 Account Setup |
+| L10 | 6 | I6 investmentsDaily trigger end to end, I7 Frontend ↔ backend: identity, X2G Onboard: Guided Setup step, X6 Manage Finances, X7 Track Investments, X8 Review Insights |
+| L11 | 7 | I8 Frontend ↔ backend: account setup, I9 Frontend ↔ backend: finances, I10 Frontend ↔ backend: investments, I11 Frontend ↔ backend: insights, I12 Shell notification routing, I13 Delete account end to end, N10 Security review (light) |
 | L12 | 2 | N11 Accessibility audit, V1 Smoke suite |
 | L13 | 1 | V2 Core E2E (14 journeys) |
 | L14 | 2 | V3 Full E2E, V4 Load tests (k6) |

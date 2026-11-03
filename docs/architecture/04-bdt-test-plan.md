@@ -258,6 +258,28 @@ gap there as a missing scenario, not an acceptable gap.
 | `ServiceBusUtility` | Unit | The in-process event emitter it wraps — assert publish/subscribe semantics only, not any Manager's handler logic |
 | `LoggingUtility` | Unit | Nothing for the shared logger (silent under Vitest; tests read events through `captureLogs`); `AuditLogAccessor` behind the audit sink — assert the two kinds stay schema-distinct (an audit record carries only `{id, time, actor, household, action, entityType, entityId}`, never details — FR-7.1), details are redacted, the sink retries then reports, audit storage ignores `LOG_LEVEL`, and reconciliation restores only missing entries (OQ-110) |
 
+### N9 local scheduler — infrastructure boundaries (OQ-227)
+
+`apps/api/tests/unit/jobs/` tests the trigger against only its direct Holding
+reads, bus and execution-lock boundary; the timer against its job and clock;
+the PostgreSQL lock against the driver; and the run-now command against its
+job, log sink and resource cleanup. Covers all three schedule-to-transaction
+kind translations, chronological/redemption-last order, no overtaking an
+unconfirmed post, sibling progress, empty streams, busy lock, marker-based
+reruns, scan/delivery-confirmation failures, notice deferral, app-day rollover,
+overlapping timer ticks, stop while busy, exit status and cleanup failures.
+The pg fake is an EventEmitter as well as a query/release driver: connection
+errors during acquisition, active work and unlock revoke dispatch, wait for
+active work, discard the dead client and remove only the owned listener.
+Trigger tests revoke the lock at each read/drain boundary and assert no later
+publication, including settlement of a pending subscriber before failure.
+Timer/command tests also capture the actual production reporting callbacks'
+shared-logger events: invocation ID and system actor on completion/failure,
+original Error stack, retained domain code/params, non-Error text without a
+fabricated stack, command cleanup failure and a timer's next-attempt context.
+No Manager/Engine is mocked behind an Accessor or behind the bus. Full trigger
+journey #13 and the notification action remain I6 (task 134), not unit scope.
+
 ### Schema checks — embedded Postgres, unit speed, no running system
 
 Added Oct 2026 (N5, OQ-95). Not a BDT tier: these check that the

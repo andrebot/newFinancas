@@ -23,6 +23,7 @@
     "db:restore": "pnpm --filter @financas/ops ops restore",
     "db:restore-drill": "pnpm --filter @financas/ops ops restore-drill",
     "audit:reconcile": "pnpm --filter @financas/api audit:reconcile",
+    "investments:run": "pnpm --filter @financas/api investments:run",
     "lint": "eslint .",
     "typecheck": "pnpm --recursive typecheck && tsc --project tsconfig.json",
     "test": "vitest run",

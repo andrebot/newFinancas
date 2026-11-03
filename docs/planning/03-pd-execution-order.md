@@ -178,7 +178,7 @@ identity screens, the rest as later slices use them.
 
 *Done when:* holdings, market values, rates, payouts; the daily job.
 
-- [ ] **123.** `N9` Local scheduler for investmentsDaily
+- [x] **123.** `N9` Local scheduler for investmentsDaily (OQ-227: catch up on start, then once per São Paulo day; a session lock shared with `pnpm investments:run`; ordered cash delivery confirmed by posted markers before advancing, unconfirmed Holdings deferred; matured notices after cash; no HTTP route)
 - [x] **124.** `K24` Tooltip (built early with task 64, OQ-160; chart-point tooltips stay with the charts)
 - [ ] **125.** `K43` Table
 - [ ] **126.** `K38` Line chart / sparkline

@@ -36,7 +36,7 @@ compliance review** (OQ-89).
 | N6 | Reference data + seeds | Asset types, index codes, default categories (icon + colour), 18-colour palette, kind groups; a demo household for development |
 | N7 | API contract tooling | Type generation from `openapi.yaml`, request validation in Hono, error-envelope helper, contract checks |
 | N8 | i18n catalog package | `packages/i18n` ICU catalog (pt-BR, en-US), every notification type + error code, completeness check |
-| N9 | Local scheduler for `investmentsDaily` | In-process daily trigger + idempotency guard; a manual "run now" command for testing |
+| N9 | Local scheduler for `investmentsDaily` | In-process startup catch-up + once per app day; PostgreSQL session exclusion shared with `pnpm investments:run`; ordered cash events confirmed through posted markers, matured notices after cash; scan failures retry next tick, unconfirmed deliveries next day — OQ-227 |
 | N10 | Security review (light) | Authentication, MFA, tokens, sessions, authorization table, dependency audit — personal use, but money data |
 | N11 | Accessibility audit | Keyboard, focus, contrast in both themes, labels |
 | N12 | Local operations | Postgres backup + restore script (and one restore drill), log files |

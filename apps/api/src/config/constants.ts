@@ -110,6 +110,14 @@ export const calendar = {
   timeZone: 'America/Sao_Paulo',
 } as const;
 
+/** N9 local execution policy; dates use calendar.timeZone (OQ-104). */
+export const investmentsDaily = {
+  /** Inspect the calendar once a minute, not once per fixed 24-hour interval. */
+  pollIntervalMs: 60_000,
+  /** Session advisory-lock namespace, shared by the API and run-now command. */
+  lockKey: 1_234_005,
+} as const;
+
 /** Logging (U2, OQ-110). The logger is @financas/logging, configured from the environment. */
 export const logging = {
   /**
