@@ -153,6 +153,9 @@ describe('Table', () => {
     renderTable();
     const cellGrid = screen.getByText(SELIC.name).closest('[style]') as HTMLElement;
     expect(cellGrid.style.gridTemplateColumns).toBe('minmax(0,2.2fr) auto auto');
+    // The seam with K42: the row's grid sits in its summary box (min-w-0 flex-1),
+    // so it gets exactly the width the header's label grid does.
+    expect((cellGrid.parentElement as HTMLElement).className).toContain('min-w-0 flex-1');
     expect(screen.getAllByText(SELIC.ticker)).toHaveLength(1);
   });
 
