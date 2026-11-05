@@ -7,7 +7,10 @@ import { Expandable } from '../expandable/Expandable';
 // column carries its own grid track; header and rows share one template over
 // identical widths — the header mirrors K42's trigger box (same flex, gap and
 // padding, a flex-1 grid of labels, an empty slot where that chevron sits) —
-// so they compute the same track sizes for any track type. The table holds
+// so they compute the same track sizes for every track type the API accepts:
+// px, % or fr. Content-based tracks (auto, fit-content) are unsupported —
+// each grid resolves them from its own content, and header labels are not row
+// cells. The table holds
 // each row's open state by key, so the hairline under an opened row goes away
 // — mockup 51 draws `!border-0` there. Cells and panels are the caller's: a
 // row's cells in column order, the panel padded by the caller (95px on
@@ -18,8 +21,13 @@ import { Expandable } from '../expandable/Expandable';
 export interface TableColumn {
   /** The header cell's label, from the caller's catalog. */
   readonly label: string;
-  /** This column's CSS grid track, e.g., `minmax(0,2.2fr)` or `110px`; defaults to auto. */
-  readonly track?: string | undefined;
+  /**
+   * This column's CSS grid track — px, % or fr, e.g., `minmax(0,2.2fr)` or
+   * `110px`. Content-based tracks (`auto`, `fit-content`) are unsupported:
+   * each grid resolves them from its own content, so header and rows could
+   * not share them.
+   */
+  readonly track: string;
   /** Extra classes on the header cell, e.g., `text-right` for figures. */
   readonly className?: string | undefined;
 }
@@ -74,11 +82,11 @@ const FOOTER_ROW = [
 /**
  * Builds the shared grid template of header and rows from the columns' tracks.
  *
- * @param columns - The table's columns, in order.
- * @returns A CSS `grid-template-columns` value; a column without a track takes auto.
+ * @param columns - The table's columns, in order; each carries its track.
+ * @returns A CSS `grid-template-columns` value joining every track as given.
  */
 export const gridTemplateOf = (columns: readonly TableColumn[]): string => (
-  columns.map((column) => column.track ?? 'auto').join(' ')
+  columns.map((column) => column.track).join(' ')
 );
 
 /** The header row's props. */

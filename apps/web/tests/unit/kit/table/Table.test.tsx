@@ -33,11 +33,11 @@ const VALE: SampleHolding = {
   id: 'vale', ticker: 'VALE3', name: 'Vale S.A.', value: 360_000,
 };
 
-/** The table's columns, as the holdings page passes them. */
+/** The table's columns, as the holdings page passes them (mockup 51's tracks). */
 const COLUMNS: readonly TableColumn[] = [
   { label: 'Investment', track: 'minmax(0,2.2fr)' },
-  { label: 'Type' },
-  { label: 'Value', className: 'text-right' },
+  { label: 'Type', track: '110px' },
+  { label: 'Value', track: '140px', className: 'text-right' },
 ];
 
 /** The two groups of mockup 51's XP Investimentos account. */
@@ -102,8 +102,8 @@ const renderTable = (groups: readonly TableGroup<SampleHolding>[] = GROUPS, foot
 const listItemOf = (name: string) => screen.getByText(name).closest('li') as HTMLLIElement;
 
 describe('gridTemplateOf', () => {
-  it('joins the columns\' tracks in order, auto where a column has none', () => {
-    expect(gridTemplateOf(COLUMNS)).toBe('minmax(0,2.2fr) auto auto');
+  it('joins every column\'s track as given, in order', () => {
+    expect(gridTemplateOf(COLUMNS)).toBe('minmax(0,2.2fr) 110px 140px');
   });
 
   it('takes every track as given and leaves none out', () => {
@@ -119,7 +119,7 @@ describe('Table', () => {
   it('renders the column headers in order over the shared grid', () => {
     renderTable();
     const labelGrid = screen.getByText('Investment').parentElement as HTMLElement;
-    expect(labelGrid.style.gridTemplateColumns).toBe('minmax(0,2.2fr) auto auto');
+    expect(labelGrid.style.gridTemplateColumns).toBe('minmax(0,2.2fr) 110px 140px');
     expect(screen.getByText('Type')).toBeTruthy();
     expect(screen.getByText('Value').className).toContain('text-right');
   });
@@ -152,7 +152,7 @@ describe('Table', () => {
   it('renders each holding\'s cells in column order over the shared grid', () => {
     renderTable();
     const cellGrid = screen.getByText(SELIC.name).closest('[style]') as HTMLElement;
-    expect(cellGrid.style.gridTemplateColumns).toBe('minmax(0,2.2fr) auto auto');
+    expect(cellGrid.style.gridTemplateColumns).toBe('minmax(0,2.2fr) 110px 140px');
     // The seam with K42: the row's grid sits in its summary box (min-w-0 flex-1),
     // so it gets exactly the width the header's label grid does.
     expect((cellGrid.parentElement as HTMLElement).className).toContain('min-w-0 flex-1');
