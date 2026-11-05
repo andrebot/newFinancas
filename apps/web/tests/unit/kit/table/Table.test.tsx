@@ -116,12 +116,23 @@ describe('gridTemplateOf', () => {
 });
 
 describe('Table', () => {
-  it('renders the column headers in order over the shared grid plus a chevron track', () => {
+  it('renders the column headers in order over the shared grid', () => {
     renderTable();
-    const header = screen.getByText('Investment').parentElement as HTMLElement;
-    expect(header.style.gridTemplateColumns).toBe('minmax(0,2.2fr) auto auto 20px');
+    const labelGrid = screen.getByText('Investment').parentElement as HTMLElement;
+    expect(labelGrid.style.gridTemplateColumns).toBe('minmax(0,2.2fr) auto auto');
     expect(screen.getByText('Type')).toBeTruthy();
     expect(screen.getByText('Value').className).toContain('text-right');
+  });
+
+  it('mirrors K42\'s trigger box in the header, reserving its chevron slot', () => {
+    renderTable();
+    const labelGrid = screen.getByText('Investment').parentElement as HTMLElement;
+    const headerRow = labelGrid.parentElement as HTMLElement;
+    expect(headerRow.className).toContain('flex');
+    expect(headerRow.children).toHaveLength(2);
+    const slot = headerRow.children.item(1) as HTMLElement;
+    expect(slot.getAttribute('aria-hidden')).toBe('true');
+    expect(slot.className).toContain('size-5');
   });
 
   it('renders each group under its small-caps row with the caller\'s aside at its end', () => {

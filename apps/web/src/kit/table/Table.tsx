@@ -4,14 +4,15 @@ import { Expandable } from '../expandable/Expandable';
 // The kit's table (K43, OQ-228): holdings by account (mockup 51) — a row of
 // column headers, the caller's groups under small-caps rows with an aside at
 // their end, and one expandable row per item on K42's `row` surface. Each
-// column carries its own grid track, so header and rows share one template
-// and can't drift apart; the kit appends a chevron track to the header only,
-// sized to K42's chevron (its gap-3 + size-5 icon), with the same side padding
-// as that trigger. The table holds each row's open state by key, so the
-// hairline under an opened row goes away — mockup 51 draws `!border-0` there.
-// Cells and panels are the caller's: a row's cells in column order, the panel
-// padded by the caller (95px on holdings). No fetching, paging or empty state:
-// one account's holdings is a single small list the Flow loads around it.
+// column carries its own grid track; header and rows share one template over
+// identical widths — the header mirrors K42's trigger box (same flex, gap and
+// padding, a flex-1 grid of labels, an empty slot where that chevron sits) —
+// so they compute the same track sizes for any track type. The table holds
+// each row's open state by key, so the hairline under an opened row goes away
+// — mockup 51 draws `!border-0` there. Cells and panels are the caller's: a
+// row's cells in column order, the panel padded by the caller (95px on
+// holdings). No fetching, paging or empty state: one account's holdings is a
+// single small list the Flow loads around it.
 
 /** One column of the table's header; its track keeps header and rows aligned. */
 export interface TableColumn {
@@ -49,14 +50,15 @@ export interface TableProps<Item> {
   readonly footer?: ReactNode | undefined;
 }
 
-/** K42's chevron column in the header: its gap-3 + size-5 icon. */
-const CHEVRON_TRACK = '20px';
-
-// The header takes the rows' side padding (K42's row trigger is pl-5 pr-4), so
-// a label's edge sits over its cells'.
+// The header mirrors K42's row trigger (flex, gap-3, pl-5 pr-4) so its label
+// grid gets exactly the width a row's cell grid does; the empty slot stands in
+// for that chevron.
 const HEADER_ROW = [
-  'grid items-center gap-3 border-y border-line py-2 pl-5 pr-4',
+  'flex items-center gap-3 border-y border-line py-2 pl-5 pr-4',
 ].join(' ');
+
+/** The header's stand-in for K42's chevron: its size-5 icon, nothing else. */
+const CHEVRON_SLOT = 'size-5 shrink-0';
 
 // The group rows wear the ledger's day-band look (K41): small caps on raised.
 const GROUP_ROW = [
@@ -86,25 +88,29 @@ interface HeaderRowProps {
 }
 
 /**
- * Renders the column headers over the shared grid, plus an empty chevron track
- * so a label lines up with K42's chevron in the rows below.
+ * Renders the column headers in a box that mirrors K42's row trigger — same
+ * flex, gap and padding, an empty slot for its chevron — so the label grid gets
+ * exactly the width a row's cell grid does.
  *
  * @param props - The table's columns.
  * @returns The header row.
  */
 function HeaderRow({ columns }: HeaderRowProps) {
   return (
-    <div
-      className={HEADER_ROW}
-      style={{ gridTemplateColumns: `${gridTemplateOf(columns)} ${CHEVRON_TRACK}` }}
-    >
-      {columns.map((column, index) => (
-        // The header is static per render; the column's position keys it.
-        // eslint-disable-next-line react/no-array-index-key
-        <span key={index} className={`type-label text-muted ${column.className ?? ''}`}>
-          {column.label}
-        </span>
-      ))}
+    <div className={HEADER_ROW}>
+      <div
+        className="grid min-w-0 flex-1 items-center gap-3"
+        style={{ gridTemplateColumns: gridTemplateOf(columns) }}
+      >
+        {columns.map((column, index) => (
+          // The header is static per render; the column's position keys it.
+          // eslint-disable-next-line react/no-array-index-key
+          <span key={index} className={`type-label text-muted ${column.className ?? ''}`}>
+            {column.label}
+          </span>
+        ))}
+      </div>
+      <span aria-hidden="true" className={CHEVRON_SLOT} />
     </div>
   );
 }
