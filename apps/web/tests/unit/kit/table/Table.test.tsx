@@ -113,6 +113,15 @@ describe('gridTemplateOf', () => {
     }]);
     expect(template).toBe('110px minmax(0,1fr)');
   });
+
+  it('normalizes a bare fraction to a zero minimum, so it sizes content-independently', () => {
+    const template = gridTemplateOf([
+      { label: 'A', track: '1fr' },
+      { label: 'B', track: '2.5fr' },
+      { label: 'C', track: 'minmax(0,1fr)' },
+    ]);
+    expect(template).toBe('minmax(0,1fr) minmax(0,2.5fr) minmax(0,1fr)');
+  });
 });
 
 describe('Table', () => {
