@@ -116,7 +116,7 @@ is worth building once.
 | K40 | Period bar (year switcher + 12 months with in/out mini bars) | Month Overview |
 | K41 | Grouped list (sticky month / day headers + day totals) + infinite-scroll sentinel | ledger |
 | K42 | Expandable row / accordion (`row`: raised + mint edge while open; `card`: bordered fold-away section; own or caller-held open state — OQ-182) | ledger rows, holdings, archived categories |
-| K43 | Table (columns, group rows, expandable) | holdings by account |
+| K43 | Table (columns with their own grid tracks over one shared template, group rows with an aside at the end, expandable rows on K42's row surface — open state held per key so a hairline under an opened row goes away; optional footer) — OQ-228 | holdings by account |
 | K44 | Key–value list | contract details, position, transaction details |
 | K45 | List row (`ListRows` divided / raised + `ListRow`: leading avatar / icon, title, meta, trailing, footer actions; `ListRowIcon` tinted circle — OQ-153) | members, sessions, invitations, notifications, coming due |
 | K46 | History editor (dated values: add / edit / delete) | **value history and rate history — same component** |

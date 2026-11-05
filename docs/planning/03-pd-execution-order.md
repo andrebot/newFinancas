@@ -180,7 +180,7 @@ identity screens, the rest as later slices use them.
 
 - [x] **123.** `N9` Local scheduler for investmentsDaily (OQ-227: catch up on start, then once per São Paulo day; a session lock shared with `pnpm investments:run`; ordered cash delivery confirmed by posted markers before advancing, unconfirmed Holdings deferred; matured notices after cash; no HTTP route)
 - [x] **124.** `K24` Tooltip (built early with task 64, OQ-160; chart-point tooltips stay with the charts)
-- [ ] **125.** `K43` Table
+- [x] **125.** `K43` Table (OQ-228: columns carry their own grid tracks over one shared template; group rows on the ledger's day-band look with an aside at their end; expandable rows on K42's row surface — the table holds each row's open state by key, so a hairline under an opened row goes away (mockup 51's `!border-0`) and a row stays open across re-renders; optional footer slot; no fetching, paging or empty state — FL19 composes those around it)
 - [ ] **126.** `K38` Line chart / sparkline
 - [ ] **127.** `K39` Stacked bar chart + legend
 - [ ] **128.** `K37` Stat tile

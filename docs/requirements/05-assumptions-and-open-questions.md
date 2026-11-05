@@ -6912,6 +6912,17 @@ only the journey in the browser, and checks the end state through the API
 
 **Task 123 (`N9`) is complete.**
 
+### OQ-228: Table (task K43)
+**Design decisions:**
+- **One `<Table>` (`kit/table/Table.tsx`): the caller's columns, its groups and an optional footer slot — no fetching, paging or empty state.** The holdings page loads one account's holdings as a single small list (`GET …/accounts/:id/holdings` has no cursor), so loading, failure and emptiness are composed around the table by FL19, not inside it. A `status` prop like K41's was turned down: it would add branches for states this screen can't reach through the component.
+- **Each column carries its own grid track; header and rows share one template.** `gridTemplateOf(columns)` builds the `grid-template-columns` both use, so a label can never drift from its cells — a separate `gridTemplate` prop plus a `columns` list was turned down as two sources that must agree by hand. A column without a track takes `auto`.
+- **The kit appends a chevron track to the header only.** K42 draws its own chevron outside the row's grid (its trigger is a flex of summary + icon), so the header reserves one 20px track — K42's gap-3 + size-5 icon — and takes that trigger's side padding (`pl-5 pr-4`) for the labels to sit over their cells. The caller never sees the chevron column.
+- **The table holds each row's open state, keyed by `keyOf` (OQ-182's caller-held mode), so a hairline under an opened row goes away.** Mockup 51 draws `!border-0` on an opened row: it is edged in mint instead. A closed row keeps its hairline except the table's last one, which the footer's rule (or the card edge) separates. Uncontrolled rows were turned down because the list can't then know what to divide — and a row stays open across re-renders, so an account switched away from comes back as left. K41's `GroupedList` keeps its shipped behaviour: it renders opaque caller rows and was reviewed in slice 3; changing it is out of scope here.
+- **Cells and panels are the caller's.** A row's cells come in column order (the kit lays them on the shared grid); the panel is mounted only while open, as K42 does, so a collapsed holding builds no chart. Group rows wear the ledger's day-band look (K41) with the aside in normal case and tabular figures; the footer bar is ruled off and faintly raised, its content the caller's.
+- **No new i18n keys:** every string — column labels, group labels, asides, footer — is the caller's catalog copy.
+
+**Task 125 (`K43`) is complete.**
+
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
 *(None currently — OQ-29, the last item here, was resolved during data
