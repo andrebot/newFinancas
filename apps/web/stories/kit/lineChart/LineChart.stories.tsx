@@ -104,21 +104,35 @@ function EditingChart(props: LineChartProps) {
     <LineChart
       {...props}
       selectedKey={selectedKey}
-      selectedLabel={`${selectedKey.slice(5, 7)} · editing`}
+      selectedLabel={`${selectedKey} · editing`}
       onSelect={setSelectedKey}
     />
   );
 }
 
-/** Editing a saved value (mockup 52): a crosshair, its pill and clickable markers. */
+/** Editing a saved value (mockup 52): a crosshair and its pill; a press picks the nearest value. */
 export const EditingAValue: Story = {
   args: { heightPx: 150 },
   render: EditingChart,
 };
 
+/** Markers too close to aim at: a press picks what the chip shows, whichever lies on top. */
+export const DenseHistory: Story = {
+  args: {
+    reference: undefined,
+    points: Array.from({ length: 60 }, (_, index) => {
+      const year = 2022 + Math.floor(index / 12);
+      const date = `${year}-${String((index % 12) + 1).padStart(2, '0')}-15`;
+      return point(date, 100 + ((index * 7) % 40), `R$${index}`);
+    }),
+  },
+  render: EditingChart,
+};
+
 /** A value about to be saved (mockup 52): a dashed ring and segment, its month in mint. */
 export const AboutToSave: Story = {
-  args: { pending: { date: '2026-09-30', value: 118000 } },
+  args: { pending: { date: '2026-09-30', value: 118000 }, surface: 'bg' },
+  decorators: [(Story) => <div className="max-w-xl rounded-card bg-bg p-6"><Story /></div>],
 };
 
 /** A value that can't be picked has no button: a transaction's snapshot (OQ-56). */
@@ -144,6 +158,20 @@ export const Sparkline: Story = {
 /** A lone value: only a dot. */
 export const LoneValue: Story = {
   args: { points: VALUE_HISTORY.slice(0, 1), reference: undefined },
+};
+
+/** Two years of rates: the labels thin out and name the year where it changes. */
+export const LongHistory: Story = {
+  args: {
+    points: Array.from({ length: 25 }, (_, index) => {
+      const year = 2024 + Math.floor(index / 12);
+      const month = String((index % 12) + 1).padStart(2, '0');
+      return point(`${year}-${month}-28`, 10 + Math.sin(index / 3), `${10 + index}%`);
+    }),
+    ariaLabel: 'Selic history',
+    tone: 'sky',
+    reference: undefined,
+  },
 };
 
 /** Irregular dates: a long gap looks long. */

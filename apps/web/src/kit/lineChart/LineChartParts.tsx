@@ -3,7 +3,7 @@ import { lineChart } from '../../config/constants';
 import { useI18n } from '../../utilities/I18nProvider';
 import type { PlotPosition, PlotScales } from './lineGeometry';
 import type {
-  LineModel, LineReference, PlacedPoint, rangeOf,
+  LineModel, LineRange, LineReference, PlacedPoint,
 } from './lineModel';
 
 // The pieces a line chart is drawn from (K38, OQ-229). Only `LineArt` is SVG:
@@ -12,9 +12,9 @@ import type {
 
 const HAIRLINE = 'pointer-events-none absolute inset-x-0 border-t border-dashed';
 const CROSSHAIR = 'pointer-events-none absolute inset-y-0 border-l border-dashed';
-const DOT = 'block rounded-full border-2 border-card';
+const DOT = 'block rounded-full border-2';
 const FLOATING_LABEL = 'pointer-events-none absolute z-10 whitespace-nowrap type-caption';
-const RANGE_LABEL = 'absolute left-0 type-micro text-faint tabular-nums';
+const RANGE_LABEL = 'absolute left-0 type-micro text-muted tabular-nums';
 const TICK = 'absolute type-label whitespace-nowrap';
 const PENDING_RING = [
   'pointer-events-none absolute size-3 rounded-full',
@@ -62,23 +62,27 @@ export const horizontallyInside = (left: number): CSSProperties => {
 interface MarkerProps {
   readonly point: PlacedPoint;
   readonly fill: string;
+  readonly halo: string;
   readonly selected: boolean;
-  readonly onSelect: ((key: string) => void) | undefined;
+  readonly pickable: boolean;
+  readonly onPick: (key: string) => void;
 }
 
 /**
- * Draws one marker: a button when it can be picked, with a hit area larger
- * than the dot, and out of the tab order — the plot is the one tab stop, and
- * Enter there picks the value the arrows reached.
+ * Draws one marker. When it can be picked it is a button for assistive tech
+ * alone: it takes no pointer and stays out of the tab order. A pointer's press
+ * goes through to the plot, which picks the value the chip shows — overlapping
+ * buttons would pick whichever lies on top — and Enter there does the same.
  *
- * @param props - The point, its colour, whether it's selected and the callback.
+ * @param props - The point, its colours, whether it's selected and can be picked.
  * @returns The marker.
  */
 export function Marker({
-  point, fill, selected, onSelect,
+  point, fill, halo, selected, pickable, onPick,
 }: MarkerProps) {
-  const dot = <span className={selected ? `${DOT} size-4 bg-mint` : `${DOT} size-3 ${fill}`} />;
-  if (onSelect === undefined || point.selectable === false) {
+  const look = selected ? 'size-4 bg-mint' : `size-3 ${fill}`;
+  const dot = <span className={`${DOT} ${halo} ${look}`} />;
+  if (!pickable || point.selectable === false) {
     return (
       <span aria-hidden className="pointer-events-none absolute" style={centredOn(point.position)}>
         {dot}
@@ -91,9 +95,12 @@ export function Marker({
       tabIndex={-1}
       aria-label={`${point.dateLabel} ${point.valueLabel}`}
       aria-current={selected}
-      className="absolute grid size-6 cursor-pointer place-items-center rounded-full"
+      className="pointer-events-none absolute"
       style={centredOn(point.position)}
-      onClick={() => onSelect(point.key)}
+      onClick={(event) => {
+        event.stopPropagation();
+        onPick(point.key);
+      }}
     >
       {dot}
     </button>
@@ -103,13 +110,17 @@ export function Marker({
 /**
  * Draws a sparkline's only value, which has no line to show it.
  *
- * @param props - The point and its colour.
+ * @param props - The point and its colours.
  * @returns The dot.
  */
-export function LoneDot({ point, fill }: { readonly point: PlacedPoint; readonly fill: string }) {
+export function LoneDot({ point, fill, halo }: {
+  readonly point: PlacedPoint;
+  readonly fill: string;
+  readonly halo: string;
+}) {
   return (
     <span className="absolute" style={centredOn(point.position)}>
-      <span className={`${DOT} size-3 ${fill}`} />
+      <span className={`${DOT} ${halo} size-3 ${fill}`} />
     </span>
   );
 }
@@ -176,8 +187,8 @@ export function LineArt({ model }: { readonly model: LineModel }) {
 
 /** What the plot's background needs. */
 interface PlotGuidesProps {
-  readonly grid: boolean;
-  readonly range: ReturnType<typeof rangeOf> | undefined;
+  readonly grid: boolean | undefined;
+  readonly range: LineRange | undefined;
   readonly reference: LineReference | undefined;
   readonly topOf: PlotScales['topOf'];
 }
@@ -218,8 +229,8 @@ export function PlotGuides({
       ))}
       {range && <RangeGuides low={range.low} high={range.high} />}
       {reference && (
-        <span className={`${HAIRLINE} border-faint`} style={{ top: `${topOf(reference.value)}%` }}>
-          <span className="absolute bottom-0.5 left-1 type-caption whitespace-nowrap text-faint">
+        <span className={`${HAIRLINE} border-muted`} style={{ top: `${topOf(reference.value)}%` }}>
+          <span className="absolute bottom-0.5 left-1 type-caption whitespace-nowrap text-muted">
             {reference.label}
           </span>
         </span>
@@ -233,19 +244,20 @@ export function PlotGuides({
  * the value. The chip sits in the half of the plot away from the point, so it
  * doesn't cover it. It is K24's look, but touch shows it too.
  *
- * @param props - The point, and the series' fill class.
+ * @param props - The point, and its dot's colours.
  * @returns The readout.
  */
-export function ValueReadout({ point, fill }: {
+export function ValueReadout({ point, fill, halo }: {
   readonly point: PlacedPoint;
   readonly fill: string;
+  readonly halo: string;
 }) {
   const { left, top } = point.position;
   return (
     <>
       <span className={`${CROSSHAIR} border-faint`} style={{ left: `${left}%` }} />
       <span aria-hidden className="pointer-events-none absolute" style={centredOn(point.position)}>
-        <span className={`${DOT} size-3 ${fill}`} />
+        <span className={`${DOT} ${halo} size-3 ${fill}`} />
       </span>
       <span
         aria-hidden
@@ -291,17 +303,17 @@ export function SelectedGuide({ position, label }: {
 /**
  * Draws one month label under the plot.
  *
- * @param props - Where it sits, its text, and whether a pending value falls in it.
+ * @param props - Where it sits, its text and its colour class.
  * @returns The label.
  */
-export function TickLabel({ left, label, highlighted }: {
+export function TickLabel({ left, label, tone }: {
   readonly left: number;
   readonly label: string;
-  readonly highlighted: boolean;
+  readonly tone: string;
 }) {
   return (
     <span
-      className={`${TICK} ${highlighted ? 'text-mint' : 'text-faint'}`}
+      className={`${TICK} ${tone}`}
       style={horizontallyInside(left)}
     >
       {label}

@@ -128,10 +128,34 @@ describe('smoothPath', () => {
     });
   });
 
-  it('copes with two values on one day', () => {
-    const path = smoothPath([{ left: 0, top: 80 }, { left: 0, top: 40 }, { left: 100, top: 20 }]);
-    expect(path).not.toContain('NaN');
-    expect(path).not.toContain('Infinity');
+  it('takes the harmonic mean of the slopes at a middle position', () => {
+    expect(smoothPath([{ left: 0, top: 90 }, { left: 30, top: 60 }, { left: 90, top: 30 }]))
+      .toBe('M0,90 C10,80 20,66.67 30,60 C50,46.67 70,40 90,30');
+  });
+
+  it('uses the slopes themselves, whatever their size', () => {
+    expect(smoothPath([{ left: 0, top: 90 }, { left: 20, top: 50 }, { left: 80, top: 20 }]))
+      .toBe('M0,90 C6.67,76.67 13.33,55.33 20,50 C40,34 60,30 80,20');
+  });
+
+  it('stays flat over a flat series', () => {
+    expect(smoothPath([{ left: 0, top: 50 }, { left: 50, top: 50 }, { left: 100, top: 50 }]))
+      .toBe('M0,50 C16.67,50 33.33,50 50,50 C66.67,50 83.33,50 100,50');
+  });
+
+  it('curves between just two positions', () => {
+    expect(smoothPath([{ left: 0, top: 90 }, { left: 30, top: 60 }]))
+      .toBe('M0,90 C10,80 20,70 30,60');
+  });
+
+  it('lies flat at a peak', () => {
+    expect(smoothPath([{ left: 0, top: 80 }, { left: 50, top: 20 }, { left: 100, top: 60 }]))
+      .toBe('M0,80 C16.67,60 33.33,20 50,20 C66.67,20 83.33,46.67 100,60');
+  });
+
+  it('counts two values on one day as flat', () => {
+    expect(smoothPath([{ left: 0, top: 80 }, { left: 0, top: 40 }, { left: 100, top: 20 }]))
+      .toBe('M0,80 C0,80 0,40 0,40 C33.33,40 66.67,26.67 100,20');
   });
 });
 
@@ -144,7 +168,6 @@ describe('areaPath', () => {
   it('draws nothing without a line', () => {
     expect(areaPath('', [{ left: 50, top: 50 }])).toBe('');
     expect(areaPath('', [])).toBe('');
-    expect(areaPath('M0,0', [])).toBe('');
   });
 });
 
@@ -156,8 +179,13 @@ describe('nearestIndex', () => {
     expect(nearestIndex(positions, 90)).toBe(2);
   });
 
-  it('takes the earliest of a tie', () => {
-    expect(nearestIndex(positions, 20)).toBe(0);
+  it('takes the latest of a tie', () => {
+    expect(nearestIndex(positions, 20)).toBe(1);
+  });
+
+  it('reads the last of two values on one day, the one that counts', () => {
+    expect(nearestIndex([{ left: 0, top: 1 }, { left: 100, top: 1 }, { left: 100, top: 9 }], 95))
+      .toBe(2);
   });
 
   it('answers -1 with no positions', () => {
@@ -166,35 +194,97 @@ describe('nearestIndex', () => {
 });
 
 describe('monthTicks', () => {
-  it('gives one label per month, on its latest day', () => {
-    const dates = ['2026-01-05', '2026-01-25', '2026-06-30'];
-    const { leftOf } = plotScales(dates, [1]);
-    expect(monthTicks(dates, leftOf).map(({ date }) => date)).toEqual(['2026-01-25', '2026-06-30']);
+  /**
+   * Lists the days of a series' labels.
+   *
+   * @param dates - The days drawn.
+   * @param required - The months that must keep a label.
+   * @returns The labels' days.
+   */
+  const tickDates = (dates: readonly string[], required?: readonly string[]) => (
+    monthTicks(dates, plotScales(dates, [1]).leftOf, required).map(({ date }) => date)
+  );
+
+  /**
+   * Builds a monthly series.
+   *
+   * @param count - How many months, from January 2020.
+   * @returns The days.
+   */
+  const monthly = (count: number) => Array.from({ length: count }, (_, index) => {
+    const month = String((index % 12) + 1).padStart(2, '0');
+    return `${2020 + Math.floor(index / 12)}-${month}-15`;
+  });
+
+  it('has no labels without days', () => {
+    expect(tickDates([])).toEqual([]);
+  });
+
+  it('gives a month one label, on its latest day', () => {
+    expect(tickDates(['2026-01-01', '2026-01-31'])).toEqual(['2026-01-31']);
   });
 
   it('skips a label too close to the next, keeping the newest', () => {
-    const dates = ['2026-01-31', '2026-02-01', '2026-12-31'];
-    const { leftOf } = plotScales(dates, [1]);
-    expect(monthTicks(dates, leftOf).map(({ date }) => date)).toEqual(['2026-02-01', '2026-12-31']);
+    expect(tickDates(['2026-01-31', '2026-02-01', '2026-12-31']))
+      .toEqual(['2026-02-01', '2026-12-31']);
   });
 
-  it('thins a long history, so no two labels collide', () => {
-    const dates = Array.from({ length: 60 }, (_, index) => {
-      const month = String((index % 12) + 1).padStart(2, '0');
-      return `${2020 + Math.floor(index / 12)}-${month}-15`;
-    });
+  it('keeps a label exactly the minimum gap away', () => {
+    const left = (date: string) => ({ '2026-01-15': 88, '2026-02-15': 100 }[date] as number);
+    const ticks = monthTicks(['2026-01-15', '2026-02-15'], left);
+    expect(ticks.map((tick) => tick.left)).toEqual([88, 100]);
+  });
+
+  it('thins a long history with the wider gap, so labels with a year fit', () => {
+    const dates = monthly(60);
     const { leftOf } = plotScales(dates, [1]);
     const ticks = monthTicks(dates, leftOf);
-    expect(ticks.length).toBeLessThanOrEqual(Math.ceil(100 / lineChart.minTickGapPercent) + 1);
     expect(ticks.at(-1)?.date).toBe('2024-12-15');
+    ticks.slice(1).forEach((tick, index) => {
+      const gap = tick.left - (ticks[index] as { readonly left: number }).left;
+      expect(gap).toBeGreaterThanOrEqual(lineChart.multiYearTickGapPercent);
+    });
+  });
+
+  it('keeps a required month, the others making room', () => {
+    const dates = monthly(12);
+    const required = '2020-03';
+    const ticks = tickDates(dates, [required]);
+    expect(ticks).toContain('2020-03-15');
+    const { leftOf } = plotScales(dates, [1]);
+    ticks.filter((date) => date !== '2020-03-15').forEach((date) => {
+      expect(Math.abs(leftOf(date) - leftOf('2020-03-15')))
+        .toBeGreaterThanOrEqual(lineChart.minTickGapPercent);
+    });
+  });
+
+  it('ignores a required month with no label to keep', () => {
+    expect(tickDates(['2026-01-31'], ['2030-01'])).toEqual(['2026-01-31']);
+  });
+
+  it('names no year under twelve months, even across a new year', () => {
+    const dates = ['2025-11-30', '2026-04-30', '2026-10-31'];
+    const ticks = monthTicks(dates, plotScales(dates, [1]).leftOf);
+    expect(ticks.map(({ showYear }) => showYear)).toEqual([false, false, false]);
+  });
+
+  it('names the year on the first label and where it changes, from twelve months', () => {
+    const dates = ['2025-01-31', '2025-08-31', '2026-01-31'];
+    const ticks = monthTicks(dates, plotScales(dates, [1]).leftOf);
+    expect(ticks.map(({ date, showYear }) => [date, showYear])).toEqual([
+      ['2025-01-31', true],
+      ['2025-08-31', false],
+      ['2026-01-31', true],
+    ]);
   });
 });
 
 describe('pendingAnchor', () => {
-  const series = [{ date: '2026-03-31' }, { date: '2026-05-31' }];
+  const series = [{ date: '2026-03-31' }, { date: '2026-05-31' }, { date: '2026-07-31' }];
 
   it('continues from the last value on or before its day', () => {
-    expect(pendingAnchor(series, '2026-09-30')).toBe(series[1]);
+    expect(pendingAnchor(series, '2026-09-30')).toBe(series[2]);
+    expect(pendingAnchor(series, '2026-06-01')).toBe(series[1]);
     expect(pendingAnchor(series, '2026-04-15')).toBe(series[0]);
     expect(pendingAnchor(series, '2026-05-31')).toBe(series[1]);
   });
@@ -214,6 +304,7 @@ describe('steppedIndex', () => {
     expect(steppedIndex('ArrowRight', 2, 5)).toBe(3);
     expect(steppedIndex('ArrowLeft', 0, 5)).toBe(0);
     expect(steppedIndex('ArrowRight', 4, 5)).toBe(4);
+    expect(steppedIndex('ArrowRight', 0, 5)).toBe(1);
   });
 
   it('starts the arrows at the newest value with nothing active', () => {

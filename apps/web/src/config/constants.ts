@@ -70,6 +70,8 @@ export const formatting = {
     monthYear: { month: 'long', year: 'numeric' },
     /** set. · Sep — the period bar's months. */
     monthShort: { month: 'short' },
+    /** set. de 26 · Sep 26 — a chart's month label on a history of a year or more. */
+    monthShortYear: { month: 'short', year: '2-digit' },
     /** setembro · September — a period chip's month (FL17). */
     monthLong: { month: 'long' },
     /** seg., 7 de set. · Mon, Sep 7 — ledger day headers. */
@@ -188,7 +190,7 @@ export const cardRail = {
 
 /** The line chart: net worth, market value and rate history (K38, OQ-229). */
 export const lineChart = {
-  /** The plot's height when the caller names none, in px (mockups 52 and 53). */
+  /** The plot's height when the caller names none, in px (mockups 51 and 53). */
   defaultHeightPx: 110,
   /** A compact chart's plot height, in px. */
   compactHeightPx: 40,
@@ -198,6 +200,8 @@ export const lineChart = {
   bottomInsetPercent: 13,
   /** How close two month labels may sit, in percent of the plot's width. */
   minTickGapPercent: 12,
+  /** The same over a history of a year or more, whose labels can carry the year. */
+  multiYearTickGapPercent: 20,
   /** Where the background gridlines sit, in percent of the plot's height (mockup 20). */
   gridlineTopsPercent: [25, 56, 88],
   /** How near the plot's sides a label stops centring on its point, in percent. */

@@ -37,6 +37,8 @@ export interface MonthTick {
   readonly date: string;
   /** Where it sits on the X axis. */
   readonly left: number;
+  /** Whether it names the year: on a long history, the first label and each new year's. */
+  readonly showYear: boolean;
 }
 
 /**
@@ -48,7 +50,8 @@ export interface MonthTick {
 const rounded = (coordinate: number) => Math.round(coordinate * 100) / 100;
 
 /**
- * Sorts a series by day, keeping the caller's order within one day.
+ * Sorts a series by day, keeping the caller's order within one day: the last
+ * of a day is the one that counts (OQ-167).
  *
  * @param series - The values, in any order.
  * @returns A new, chronological list.
@@ -176,11 +179,12 @@ export const smoothPath = (positions: readonly PlotPosition[]): string => {
  * @returns The area's SVG path, or an empty string without a line.
  */
 export const areaPath = (line: string, positions: readonly PlotPosition[]): string => {
-  const first = positions[0];
-  const last = positions[positions.length - 1];
-  return line === '' || first === undefined || last === undefined
-    ? ''
-    : `${line} L${last.left},100 L${first.left},100 Z`;
+  if (line === '') {
+    return '';
+  }
+  const { left: firstLeft } = positions[0] as PlotPosition;
+  const { left: lastLeft } = positions.at(-1) as PlotPosition;
+  return `${line} L${lastLeft},100 L${firstLeft},100 Z`;
 };
 
 /**
@@ -189,39 +193,76 @@ export const areaPath = (line: string, positions: readonly PlotPosition[]): stri
  *
  * @param positions - The positions.
  * @param left - Where the pointer is, in percent of the plot's width.
- * @returns The closest one's index, the earliest of a tie; -1 with none.
+ * @returns The closest one's index, the latest of a tie, so that of two values on
+ * one day it reads the one that counts; -1 with none.
  */
 export const nearestIndex = (positions: readonly PlotPosition[], left: number): number => (
   positions.reduce((closest, position, index) => {
     const current = positions[closest];
     return current === undefined
-      || Math.abs(position.left - left) < Math.abs(current.left - left)
+      || Math.abs(position.left - left) <= Math.abs(current.left - left)
       ? index
       : closest;
   }, -1)
 );
 
 /**
+ * Counts the months from the year zero, to compare two days.
+ *
+ * @param date - The day, `YYYY-MM-DD`.
+ * @returns Its month's number.
+ */
+const monthNumber = (date: string) => Number(date.slice(0, 4)) * 12 + Number(date.slice(5, 7));
+
+/**
+ * Marks which labels name the year: none under a year, when no month's name
+ * repeats; otherwise the first, and each one that starts a new year.
+ *
+ * @param ticks - The labels, left to right, without the mark.
+ * @param longHistory - Whether the days drawn span a year or more.
+ * @returns The labels.
+ */
+const withYearMarks = (
+  ticks: readonly Omit<MonthTick, 'showYear'>[],
+  longHistory: boolean,
+): MonthTick[] => ticks.map((tick, index) => ({
+  ...tick,
+  showYear: longHistory && tick.date.slice(0, 4) !== ticks[index - 1]?.date.slice(0, 4),
+}));
+
+/**
  * Picks the labels under the plot: one per month, on the month's latest day,
- * from the newest back, skipping any too close to the one after it — so a long
- * history thins out instead of colliding.
+ * from the newest back, skipping any too close to one already kept — so a long
+ * history thins out instead of colliding. A required month always keeps its
+ * label, and the others make room for it.
  *
  * @param dates - The days drawn, chronological.
  * @param leftOf - The X scale.
+ * @param requiredMonths - The months (`YYYY-MM`) that must keep a label.
  * @returns The labels, left to right.
  */
 export const monthTicks = (
   dates: readonly string[],
   leftOf: PlotScales['leftOf'],
+  requiredMonths: readonly string[] = [],
 ): MonthTick[] => {
   const latestPerMonth = new Map(dates.map((date) => [date.slice(0, 7), date]));
-  return [...latestPerMonth.values()].reduceRight<MonthTick[]>((ticks, date) => {
-    const left = leftOf(date);
-    const next = ticks[0];
-    return next === undefined || next.left - left >= lineChart.minTickGapPercent
-      ? [{ date, left }, ...ticks]
-      : ticks;
-  }, []);
+  const longHistory = monthNumber(dates.at(-1) ?? '') - monthNumber(dates[0] ?? '') >= 12;
+  const gap = longHistory ? lineChart.multiYearTickGapPercent : lineChart.minTickGapPercent;
+  const requiredLefts = requiredMonths.flatMap((month) => {
+    const date = latestPerMonth.get(month);
+    return date === undefined ? [] : [leftOf(date)];
+  });
+  const kept = [...latestPerMonth.entries()].reduceRight<Omit<MonthTick, 'showYear'>[]>(
+    (ticks, [month, date]) => {
+      const left = leftOf(date);
+      const roomy = [...ticks.map((tick) => tick.left), ...requiredLefts]
+        .every((other) => Math.abs(other - left) >= gap);
+      return roomy || requiredMonths.includes(month) ? [{ date, left }, ...ticks] : ticks;
+    },
+    [],
+  );
+  return withYearMarks(kept, longHistory);
 };
 
 /**

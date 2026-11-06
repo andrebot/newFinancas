@@ -15,6 +15,9 @@ export type LineTone = 'mint' | 'sky' | 'sun' | 'lilac';
  */
 export type LineShape = 'trend' | 'history';
 
+/** What the chart sits on, which its markers' halo must match. */
+export type LineSurface = 'card' | 'bg';
+
 /** One value on the chart. */
 export interface LinePoint {
   /** Its stable key, e.g., the snapshot's id. */
@@ -60,6 +63,7 @@ export interface LineModelInput {
   readonly pending: LinePending | undefined;
   readonly tone: LineTone | undefined;
   readonly shape: LineShape | undefined;
+  readonly surface: LineSurface | undefined;
 }
 
 /** What a chart draws. */
@@ -86,6 +90,10 @@ export interface LineModel {
   readonly text: string;
   /** The series' fill colour class, for its markers. */
   readonly fill: string;
+  /** The halo's colour class, for its markers. */
+  readonly halo: string;
+  /** The newest month label's colour class: a trend's wears the series' colour. */
+  readonly latestTickTone: string;
 }
 
 const TONES: Record<LineTone, { readonly text: string; readonly fill: string }> = {
@@ -95,17 +103,22 @@ const TONES: Record<LineTone, { readonly text: string; readonly fill: string }> 
   lilac: { text: 'text-lilac', fill: 'bg-lilac' },
 };
 
+/** A series' lowest and highest values. */
+export interface LineRange {
+  readonly low: PlacedPoint;
+  readonly high: PlacedPoint;
+}
+
 /**
  * Finds the lowest and highest values.
  *
  * @param placed - The saved values.
  * @returns The two, the same one twice for a single value; undefined with none.
  */
-export const rangeOf = (placed: readonly PlacedPoint[]) => {
+export const rangeOf = (placed: readonly PlacedPoint[]): LineRange | undefined => {
   const byValue = [...placed].sort((first, second) => first.value - second.value);
   const [low] = byValue;
-  const high = byValue.at(-1);
-  return low && high && { low, high };
+  return low && { low, high: byValue.at(-1) as PlacedPoint };
 };
 
 /**
@@ -151,31 +164,57 @@ const NO_PENDING = {
 };
 
 /**
- * Works out what a chart draws, placing everything on one pair of scales: the
- * reference level and a pending value count, so neither falls out of the plot.
+ * Places the saved values on one pair of scales: the reference level and a
+ * pending value count, so neither falls out of the plot.
  *
- * @param input - The caller's values, level, pending value, tone and shape.
- * @returns What to draw.
+ * @param input - The caller's values, level and pending value.
+ * @returns The scales, every day drawn and the placed values.
  */
-export const buildLineModel = ({
-  points, reference, pending, tone, shape,
-}: LineModelInput): LineModel => {
+const placeValues = ({ points, reference, pending }: LineModelInput) => {
   const ordered = chronological(points);
   const drawn: readonly DatedValue[] = pending ? [...ordered, pending] : ordered;
   const dates = chronological(drawn).map(({ date }) => date);
   const levels = drawn.map(({ value }) => value);
   const scales = plotScales(dates, reference ? [...levels, reference.value] : levels);
   const placed = ordered.map((point) => ({ ...point, position: placedAt(scales, point) }));
+  return { scales, dates, placed };
+};
+
+/**
+ * Picks a chart's colour classes.
+ *
+ * @param input - The caller's tone, shape and surface.
+ * @returns The classes.
+ */
+const coloursOf = ({ tone, shape, surface }: LineModelInput) => {
+  const colours = TONES[tone ?? 'sky'];
+  return {
+    ...colours,
+    halo: surface === 'bg' ? 'border-bg' : 'border-card',
+    latestTickTone: shape === 'trend' ? colours.text : 'text-muted',
+  };
+};
+
+/**
+ * Works out what a chart draws.
+ *
+ * @param input - The caller's values, level, pending value, tone, shape and surface.
+ * @returns What to draw.
+ */
+export const buildLineModel = (input: LineModelInput): LineModel => {
+  const { shape, pending } = input;
+  const { scales, dates, placed } = placeValues(input);
   const positions = placed.map(({ position }) => position);
-  const line = (shape === 'trend' ? smoothPath : straightPath)(positions);
+  const trend = shape === 'trend';
+  const line = (trend ? smoothPath : straightPath)(positions);
   return {
     placed,
-    marked: shape === 'trend' ? placed.slice(-1) : placed,
+    marked: trend ? placed.slice(-1) : placed,
     scales,
     dates,
     line,
     area: areaPath(line, positions),
     ...(pending ? pendingParts(scales, placed, pending) : NO_PENDING),
-    ...TONES[tone ?? 'sky'],
+    ...coloursOf(input),
   };
 };
