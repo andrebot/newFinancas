@@ -221,7 +221,8 @@ describe('LineChart', () => {
   it('lists the values for assistive tech, with translated headers', () => {
     renderInLocale(<LineChart points={POINTS} ariaLabel="Value history" />, 'pt-BR');
     const table = screen.getByRole('table', { name: 'Value history' });
-    expect(table.classList.contains('sr-only')).toBe(true);
+    expect(table.classList.contains('sr-only')).toBe(false);
+    expect(table.parentElement?.classList.contains('sr-only')).toBe(true);
     expect(screen.getByRole('columnheader', { name: 'Data' })).not.toBeNull();
     expect(screen.getByRole('columnheader', { name: 'Valor' })).not.toBeNull();
     expect(screen.getByRole('cell', { name: 'R$300' })).not.toBeNull();

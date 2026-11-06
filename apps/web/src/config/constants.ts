@@ -210,6 +210,32 @@ export const lineChart = {
   pillClearancePercent: 30,
 } as const;
 
+/** Stacked bar charts: payout over time (K39, OQ-230). */
+export const stackedBarChart = {
+  /** The plot's height, in px (mockups 20 and 50). */
+  plotHeightPx: 170,
+  /** Room above the tallest bar, in percent of the plot's height. */
+  topInsetPercent: 13,
+  /** How much of a month's slot its bar fills, as a fraction (34px of 51.5px, mockup 50). */
+  barSlotShare: 0.66,
+  /** The widest a bar gets on a short window, in percent of the plot's width. */
+  maxBarWidthPercent: 12,
+  /** The tones of the largest series, largest first; more series than this become Others. */
+  seriesTones: ['lilac', 'mint', 'sky', 'sun', 'peach'],
+  /** The Others group's colour, which follows the theme. */
+  othersColor: 'var(--c-muted)',
+  /** The room between a bar and its chip, in px. */
+  readoutGapPx: 8,
+  /** The most months that each get a label, written by name. */
+  maxNamedMonths: 12,
+  /** The most labels a longer window gets, written as numbers (09/26). */
+  longWindowLabels: 6,
+  /** Up to this many months, a narrow plot still has room for every label. */
+  monthsFittingNarrow: 6,
+  /** The widest a month's chip gets, in rem: what lets it stay inside a narrow plot. */
+  readoutMaxWidthRem: 12,
+} as const;
+
 /** Rail cards: the balance, budget and goal cards on the card rails (K36, OQ-215). */
 export const railCard = {
   /** From what share of its target, in whole percent, a budget reads as near its limit (sun). */

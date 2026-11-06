@@ -186,25 +186,6 @@ export const areaPath = (line: string, positions: readonly PlotPosition[]): stri
 };
 
 /**
- * Finds the position closest to a point on the X axis: a reader aims at a
- * date, never at a thin line.
- *
- * @param positions - The positions.
- * @param left - Where the pointer is, in percent of the plot's width.
- * @returns The closest one's index, the latest of a tie, so that of two values on
- * one day it reads the one that counts; -1 with none.
- */
-export const nearestIndex = (positions: readonly PlotPosition[], left: number): number => (
-  positions.reduce((closest, position, index) => {
-    const current = positions[closest];
-    return current === undefined
-      || Math.abs(position.left - left) <= Math.abs(current.left - left)
-      ? index
-      : closest;
-  }, -1)
-);
-
-/**
  * Counts the months from the year zero, to compare two days.
  *
  * @param date - The day, `YYYY-MM-DD`.
@@ -281,27 +262,3 @@ export const pendingAnchor = <Item extends { readonly date: string }>(
   series: readonly Item[],
   date: string,
 ): Item | undefined => series.filter((item) => item.date <= date).at(-1) ?? series[0];
-
-/**
- * Moves through a series from the keyboard. With nothing active yet, the arrows
- * start at the newest value.
- *
- * @param key - The key pressed.
- * @param current - The active index, or -1.
- * @param count - How many values the series has.
- * @returns The new index, or undefined when the key doesn't move it.
- */
-export const steppedIndex = (
-  key: string,
-  current: number,
-  count: number,
-): number | undefined => {
-  const last = count - 1;
-  const steps: Record<string, number> = {
-    ArrowLeft: current < 0 ? last : Math.max(current - 1, 0),
-    ArrowRight: current < 0 ? last : Math.min(current + 1, last),
-    Home: 0,
-    End: last,
-  };
-  return steps[key];
-};
