@@ -2,8 +2,8 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
 import { LineChart, type LineChartProps, type LinePoint } from '../../../src/kit/lineChart/LineChart';
 
-// The kit's line chart (K38, OQ-229). Hover, tap or tab to a plot and use the
-// arrows: a crosshair snaps to the nearest value and a chip reads it.
+// The kit's line chart (K38, OQ-229). Hover or tap a plot, or tab to it and press
+// Enter or an arrow: a crosshair snaps to a value and a chip reads it.
 
 /**
  * Builds a value.
@@ -160,7 +160,7 @@ export const LoneValue: Story = {
   args: { points: VALUE_HISTORY.slice(0, 1), reference: undefined },
 };
 
-/** Two years of rates: the labels thin out and name the year where it changes. */
+/** Two years of rates: the labels thin out and turn numeric, since month names would repeat. */
 export const LongHistory: Story = {
   args: {
     points: Array.from({ length: 25 }, (_, index) => {

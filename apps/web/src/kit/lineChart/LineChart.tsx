@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { lineChart } from '../../config/constants';
 import useFormatter from '../../utilities/useFormatter';
-import { monthTicks } from './lineGeometry';
+import { isLongHistory, monthTicks } from './lineGeometry';
 import {
   LineArt, LoneDot, Marker, PendingMarker, PlotGuides, PointsTable, SelectedGuide, TickLabel,
   ValueReadout,
@@ -60,7 +60,7 @@ export interface LineChartProps {
   readonly selectedLabel?: string | undefined;
   /** A value about to be saved. */
   readonly pending?: LinePending | undefined;
-  /** Called with a value's key when it is picked: any press in the plot picks the nearest. */
+  /** Called with a value's key when it is picked: a press in the plot picks what its chip shows. */
   readonly onSelect?: ((key: string) => void) | undefined;
 }
 
@@ -96,8 +96,9 @@ function Sparkline({ model, ariaLabel, heightPx }: {
 
 /**
  * Draws the month labels under the plot, in the interface language: the month
- * of a value being edited or saved in mint, keeping its label however long the
- * history, and the newest in its model's colour.
+ * of a value being saved or edited in mint, labelled first (the one being saved
+ * wins if they would collide), and the newest in its model's colour. From a year
+ * of history on, month names repeat, so every label is numeric (09/26).
  *
  * @param props - The drawn series, and the month of the value being edited.
  * @returns The labels.
@@ -109,6 +110,7 @@ function MonthLabels({ model, selectedMonth }: {
   const formatter = useFormatter();
   const highlighted = [model.pendingMonth, selectedMonth].filter((month) => month !== undefined);
   const ticks = monthTicks(model.dates, model.scales.leftOf, highlighted);
+  const style = isLongHistory(model.dates) ? 'monthYearNumeric' : 'monthShort';
 
   /**
    * Picks a label's colour.
@@ -129,7 +131,7 @@ function MonthLabels({ model, selectedMonth }: {
         <TickLabel
           key={tick.date}
           left={tick.left}
-          label={formatter.date(tick.date, tick.showYear ? 'monthShortYear' : 'monthShort')}
+          label={formatter.date(tick.date, style)}
           tone={toneOf(tick.date, index)}
         />
       ))}
@@ -172,8 +174,8 @@ interface PlotMarksProps {
 
 /**
  * Draws what sits over the line: the value being edited, the markers, a pending
- * value and the readout. The editing state stays while a value is read, but its
- * pill gives way to the chip, which could land on it.
+ * value and the readout. The editing state stays while any value is read, that
+ * one included, but its pill gives way to the chip, which could land on it.
  *
  * @param props - The drawn series and the values to mark.
  * @returns The marks.
@@ -221,13 +223,14 @@ function FullChart({
   model, ariaLabel, heightPx, grid, showRange, reference, selectedKey, selectedLabel, onSelect,
 }: FullChartProps) {
   const { placed, scales } = model;
-  const pointOf = (key: string | undefined) => placed.find((point) => point.key === key);
+  const pickable = onSelect !== undefined;
   const {
     activeKey, plotRef, pick, handlers,
-  } = useLineReadout(placed, pickerOf(placed, onSelect));
-  const active = pointOf(activeKey);
-  const selected = pointOf(selectedKey);
-  const pickable = onSelect !== undefined;
+  } = useLineReadout({
+    marks: placed, onPick: pickerOf(placed, onSelect), startKey: selectedKey, pickable,
+  });
+  const active = placed.find((point) => point.key === activeKey);
+  const selected = placed.find((point) => point.key === selectedKey);
 
   return (
     <div className="flex flex-col gap-2">

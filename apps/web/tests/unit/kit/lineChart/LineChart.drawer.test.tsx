@@ -58,38 +58,51 @@ const openDrawer = async () => {
   return { onClose, plot: screen.getByRole('group', { name: 'History' }) };
 };
 
+/**
+ * Takes the chip, if one shows.
+ *
+ * @returns The chip, or null.
+ */
 const chip = () => screen.queryByTestId('line-chart-readout');
 
+/**
+ * Presses a key where focus really is, so a test depends on it being there.
+ *
+ * @param key - The key.
+ */
+const press = (key: string) => {
+  fireEvent.keyDown(document.activeElement as Element, { key });
+};
+
 describe('LineChart in a Drawer', () => {
-  it('shows no chip when the drawer opens', async () => {
-    await openDrawer();
+  it('opens with focus on the plot and no chip', async () => {
+    const { plot } = await openDrawer();
+    expect(document.activeElement).toBe(plot);
     expect(chip()).toBeNull();
   });
 
   it('ends a readout on Escape and leaves the drawer open', async () => {
-    const { onClose, plot } = await openDrawer();
-    plot.focus();
-    fireEvent.keyDown(plot, { key: 'End' });
+    const { onClose } = await openDrawer();
+    press('End');
     expect(chip()).not.toBeNull();
-    fireEvent.keyDown(plot, { key: 'Escape' });
+    press('Escape');
     expect(chip()).toBeNull();
     expect(onClose).not.toHaveBeenCalled();
   });
 
   it('lets a second Escape close the drawer', async () => {
-    const { onClose, plot } = await openDrawer();
-    plot.focus();
-    fireEvent.keyDown(plot, { key: 'End' });
-    fireEvent.keyDown(plot, { key: 'Escape' });
-    fireEvent.keyDown(plot, { key: 'Escape' });
+    const { onClose } = await openDrawer();
+    press('End');
+    press('Escape');
+    expect(onClose).not.toHaveBeenCalled();
+    press('Escape');
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it('shows the editing pill right after a keyboard pick, focus staying on the plot', async () => {
     const { plot } = await openDrawer();
-    plot.focus();
-    fireEvent.keyDown(plot, { key: 'Home' });
-    fireEvent.keyDown(plot, { key: 'Enter' });
+    press('Home');
+    press('Enter');
     expect(document.activeElement).toBe(plot);
     expect(screen.queryByText('editing')).not.toBeNull();
     expect(chip()).toBeNull();

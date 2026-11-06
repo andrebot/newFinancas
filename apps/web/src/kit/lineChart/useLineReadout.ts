@@ -5,11 +5,13 @@ import {
 import { nearestIndex, steppedIndex, type PlotPosition } from './lineGeometry';
 
 // Which value a line chart is reading out (K38, OQ-229): the one nearest the
-// pointer, the one a tap landed on, or the one the arrow keys reached. Focus
-// alone starts nothing, so a drawer that opens onto the plot shows no chip. A
-// tap has no hover to end it, so it stays until a tap elsewhere, or until the
-// browser takes the touch over to scroll. Picking a value ends the readout, so
-// the chart shows what was picked. The value is held by key, so it survives a
+// pointer, the one a tap landed on, or the one the keys reached. Focus alone
+// starts nothing, so a drawer that opens onto the plot shows no chip; Enter or
+// an arrow does, from the value being edited or else the newest. Only a mouse
+// has a hover to end: on a chart with nothing to pick, a tap's value stays until
+// a tap elsewhere or until the browser takes the touch over to scroll. Picking a
+// value ends the readout, so the chart shows what was picked: on an editable
+// chart, a tap picks at once. The value is held by key, so it survives a
 // refreshed series, and goes if that value does.
 
 /** One value the readout can land on. */
@@ -31,6 +33,18 @@ export interface ReadoutHandlers {
   readonly onBlur: (event: FocusEvent<HTMLElement>) => void;
 }
 
+/** What the readout works from. */
+export interface LineReadoutOptions {
+  /** The values to read, left to right. */
+  readonly marks: readonly ReadoutMark[];
+  /** Called with a value's key; answers whether it could be picked. */
+  readonly onPick: (key: string) => boolean;
+  /** The key of the value being edited: where the keyboard starts from. */
+  readonly startKey: string | undefined;
+  /** Whether the chart has values to pick, which gives Space a job here. */
+  readonly pickable: boolean;
+}
+
 /** The readout's state and the handlers that drive it. */
 export interface LineReadout {
   /** The active value's key, while one is being read. */
@@ -42,6 +56,9 @@ export interface LineReadout {
   /** What to spread on the plot's element. */
   readonly handlers: ReadoutHandlers;
 }
+
+/** The keys that start a readout or pick its value. */
+const CONFIRM_KEYS = ['Enter', ' '];
 
 /**
  * Tells where a pointer is across an element.
@@ -68,18 +85,17 @@ const hasModifier = ({
 /**
  * Tracks which value a chart reads out.
  *
- * @param marks - The values to read, left to right.
- * @param onPick - Called with a value's key; answers whether it could be picked.
+ * @param options - The values, the pick, where to start and whether anything can be picked.
  * @returns The active key, the plot's ref, the pick and the plot's handlers.
  */
-export default function useLineReadout(
-  marks: readonly ReadoutMark[],
-  onPick: (key: string) => boolean,
-): LineReadout {
+export default function useLineReadout({
+  marks, onPick, startKey, pickable,
+}: LineReadoutOptions): LineReadout {
   const [heldKey, setHeldKey] = useState<string>();
   const plotRef = useRef<HTMLDivElement>(null);
   const activeIndex = marks.findIndex((mark) => mark.key === heldKey);
   const activeKey = marks[activeIndex]?.key;
+  const startIndex = marks.findIndex((mark) => mark.key === startKey);
 
   useEffect(() => {
     if (activeKey === undefined) {
@@ -145,19 +161,37 @@ export default function useLineReadout(
   };
 
   /**
-   * Answers Enter or Space: picks the value being read. The key keeps its usual
-   * job (Space scrolls the page) when there is nothing to pick.
+   * Starts reading from the value being edited or else the newest, or picks the
+   * value being read.
+   *
+   * @returns Whether the key had something to do.
+   */
+  const startOrPick = () => {
+    if (activeKey !== undefined) {
+      return pickValue(activeKey);
+    }
+    const start = marks[startIndex] ?? marks.at(-1);
+    setHeldKey(start?.key);
+    return start !== undefined;
+  };
+
+  /**
+   * Answers Enter or Space on the plot. Space keeps its usual job (it scrolls the
+   * page) on a chart with nothing to pick; on a marker the key is the button's
+   * own, which picks that marker.
    *
    * @param event - The key press.
    */
-  const pickOnKey = (event: KeyboardEvent<HTMLElement>) => {
-    if (activeKey !== undefined && pickValue(activeKey)) {
+  const confirmOnKey = (event: KeyboardEvent<HTMLElement>) => {
+    const onPlot = event.target === event.currentTarget;
+    if (onPlot && (event.key === 'Enter' || pickable) && startOrPick()) {
       event.preventDefault();
     }
   };
 
   /**
-   * Answers a key: an arrow, Home or End moves, Escape ends, Enter or Space picks.
+   * Answers a key: an arrow, Home or End moves, Escape ends, Enter or Space picks
+   * or starts. With nothing being read, the arrows step from the value being edited.
    *
    * @param event - The key press.
    */
@@ -165,16 +199,55 @@ export default function useLineReadout(
     if (hasModifier(event)) {
       return;
     }
-    const stepped = steppedIndex(event.key, activeIndex, marks.length);
+    const from = activeIndex < 0 ? startIndex : activeIndex;
+    const stepped = steppedIndex(event.key, from, marks.length);
     if (stepped !== undefined) {
       event.preventDefault();
       setHeldKey(marks[stepped]?.key);
     } else if (event.key === 'Escape') {
       endOnEscape(event);
-    } else if (event.key === 'Enter' || event.key === ' ') {
-      pickOnKey(event);
+    } else if (CONFIRM_KEYS.includes(event.key)) {
+      confirmOnKey(event);
     }
   };
+
+  /**
+   * Ends a mouse's readout as it leaves: a finger or a pen has no hover to end.
+   *
+   * @param event - The pointer event.
+   */
+  const onPointerLeave = (event: PointerEvent<HTMLElement>) => {
+    if (event.pointerType === 'mouse') {
+      setHeldKey(undefined);
+    }
+  };
+
+  /**
+   * Picks what the chip shows, not what the click's own position says: browsers
+   * round a click's position, which near a midpoint lands on the neighbouring value.
+   *
+   * @param event - The click.
+   */
+  const onClick = (event: MouseEvent<HTMLElement>) => {
+    const key = activeKey ?? keyAtPointer(event);
+    if (key !== undefined) {
+      pickValue(key);
+    }
+  };
+
+  /**
+   * Ends the readout when focus leaves the plot and its markers.
+   *
+   * @param event - The focus event.
+   */
+  const onBlur = (event: FocusEvent<HTMLElement>) => {
+    if (!event.currentTarget.contains(event.relatedTarget)) {
+      setHeldKey(undefined);
+    }
+  };
+
+  /** Ends the readout when the browser takes a touch over to scroll. */
+  const onPointerCancel = () => setHeldKey(undefined);
 
   return {
     activeKey,
@@ -183,26 +256,11 @@ export default function useLineReadout(
     handlers: {
       onPointerMove: readAtPointer,
       onPointerDown: readAtPointer,
-      onPointerLeave: (event) => {
-        if (event.pointerType !== 'touch') {
-          setHeldKey(undefined);
-        }
-      },
-      onPointerCancel: () => setHeldKey(undefined),
-      onClick: (event) => {
-        // The chip's value, not the click's own: browsers round a click's
-        // position, which near a midpoint lands on the neighbouring value.
-        const key = activeKey ?? keyAtPointer(event);
-        if (key !== undefined) {
-          pickValue(key);
-        }
-      },
+      onPointerLeave,
+      onPointerCancel,
+      onClick,
       onKeyDown,
-      onBlur: (event) => {
-        if (!event.currentTarget.contains(event.relatedTarget)) {
-          setHeldKey(undefined);
-        }
-      },
+      onBlur,
     },
   };
 }

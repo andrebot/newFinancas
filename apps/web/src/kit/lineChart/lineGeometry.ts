@@ -37,8 +37,6 @@ export interface MonthTick {
   readonly date: string;
   /** Where it sits on the X axis. */
   readonly left: number;
-  /** Whether it names the year: on a long history, the first label and each new year's. */
-  readonly showYear: boolean;
 }
 
 /**
@@ -215,30 +213,37 @@ export const nearestIndex = (positions: readonly PlotPosition[], left: number): 
 const monthNumber = (date: string) => Number(date.slice(0, 4)) * 12 + Number(date.slice(5, 7));
 
 /**
- * Marks which labels name the year: none under a year, when no month's name
- * repeats; otherwise the first, and each one that starts a new year.
+ * Tells whether the days drawn span a year or more: from there on, month names
+ * repeat, so the labels must name the year too.
  *
- * @param ticks - The labels, left to right, without the mark.
- * @param longHistory - Whether the days drawn span a year or more.
- * @returns The labels.
+ * @param dates - The days drawn, chronological.
+ * @returns Whether they do.
  */
-const withYearMarks = (
-  ticks: readonly Omit<MonthTick, 'showYear'>[],
-  longHistory: boolean,
-): MonthTick[] => ticks.map((tick, index) => ({
-  ...tick,
-  showYear: longHistory && tick.date.slice(0, 4) !== ticks[index - 1]?.date.slice(0, 4),
-}));
+export const isLongHistory = (dates: readonly string[]): boolean => (
+  monthNumber(dates.at(-1) ?? '') - monthNumber(dates[0] ?? '') >= 12
+);
 
 /**
- * Picks the labels under the plot: one per month, on the month's latest day,
- * from the newest back, skipping any too close to one already kept — so a long
- * history thins out instead of colliding. A required month always keeps its
- * label, and the others make room for it.
+ * Tells whether a position is clear of the ones already taken.
+ *
+ * @param left - The position.
+ * @param taken - The positions already taken.
+ * @param gap - How far apart they must be.
+ * @returns Whether it is.
+ */
+const clearOf = (left: number, taken: readonly number[], gap: number) => (
+  taken.every((other) => Math.abs(other - left) >= gap)
+);
+
+/**
+ * Picks the labels under the plot: one per month, on the month's latest day.
+ * The required months go first, in the order given, each skipped if too close
+ * to one before it; the rest follow from the newest back, skipping any too
+ * close to one already kept — so a long history thins out instead of colliding.
  *
  * @param dates - The days drawn, chronological.
  * @param leftOf - The X scale.
- * @param requiredMonths - The months (`YYYY-MM`) that must keep a label.
+ * @param requiredMonths - The months (`YYYY-MM`) to label first, most important first.
  * @returns The labels, left to right.
  */
 export const monthTicks = (
@@ -247,22 +252,21 @@ export const monthTicks = (
   requiredMonths: readonly string[] = [],
 ): MonthTick[] => {
   const latestPerMonth = new Map(dates.map((date) => [date.slice(0, 7), date]));
-  const longHistory = monthNumber(dates.at(-1) ?? '') - monthNumber(dates[0] ?? '') >= 12;
-  const gap = longHistory ? lineChart.multiYearTickGapPercent : lineChart.minTickGapPercent;
-  const requiredLefts = requiredMonths.flatMap((month) => {
-    const date = latestPerMonth.get(month);
-    return date === undefined ? [] : [leftOf(date)];
-  });
-  const kept = [...latestPerMonth.entries()].reduceRight<Omit<MonthTick, 'showYear'>[]>(
-    (ticks, [month, date]) => {
+  const gap = isLongHistory(dates)
+    ? lineChart.multiYearTickGapPercent
+    : lineChart.minTickGapPercent;
+  const candidates = [
+    ...requiredMonths.flatMap((month) => latestPerMonth.get(month) ?? []),
+    ...[...latestPerMonth.values()].reverse(),
+  ];
+  return candidates
+    .reduce<MonthTick[]>((ticks, date) => {
       const left = leftOf(date);
-      const roomy = [...ticks.map((tick) => tick.left), ...requiredLefts]
-        .every((other) => Math.abs(other - left) >= gap);
-      return roomy || requiredMonths.includes(month) ? [{ date, left }, ...ticks] : ticks;
-    },
-    [],
-  );
-  return withYearMarks(kept, longHistory);
+      return clearOf(left, ticks.map((tick) => tick.left), gap)
+        ? [...ticks, { date, left }]
+        : ticks;
+    }, [])
+    .sort((first, second) => first.left - second.left);
 };
 
 /**

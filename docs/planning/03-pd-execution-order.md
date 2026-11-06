@@ -186,7 +186,7 @@ identity screens, the rest as later slices use them.
 - [ ] **128.** `K37` Stat tile
 - [ ] **129.** `K46` History editor
 - [ ] **130.** `FL18` Portfolio Overview
-- [ ] **131.** `FL19` Holding Maintenance
+- [ ] **131.** `FL19` Holding Maintenance (reverse the API's newest-first snapshots before passing them to K38: within a day, the last counts — OQ-229)
 - [ ] **132.** `FL20` Rates Maintenance
 - [ ] **133.** `X7` Track Investments (with InsightsManager's `investments-overview` and `payouts` reports — OQ-201 — and ReportingEngine's investments shapes, OQ-206)
 - [ ] **134.** `I6` investmentsDaily trigger end to end

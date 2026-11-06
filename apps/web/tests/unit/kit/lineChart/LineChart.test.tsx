@@ -1,4 +1,5 @@
 import { fireEvent, screen } from '@testing-library/react';
+import { useState } from 'react';
 import {
   describe, expect, it, vi,
 } from 'vitest';
@@ -174,19 +175,32 @@ describe('LineChart', () => {
     expect(screen.getByText('Mar').classList.contains('text-mint')).toBe(true);
   });
 
-  it('names the year on a history of a year or more', () => {
+  it('labels a history of a year or more numerically, in either language', () => {
     const years = [point('first', '2025-01-31', 1), point('last', '2026-03-31', 2)];
-    renderInLocale(<LineChart points={years} ariaLabel="Value history" />);
-    expect(screen.getByText('Jan 25')).not.toBeNull();
-    expect(screen.getByText('Mar 26')).not.toBeNull();
+    const { unmount } = renderInLocale(<LineChart points={years} ariaLabel="Value history" />);
+    expect(screen.getByText('01/25')).not.toBeNull();
+    expect(screen.getByText('03/26')).not.toBeNull();
+    unmount();
+    renderInLocale(<LineChart points={years} ariaLabel="Value history" />, 'pt-BR');
+    expect(screen.getByText('03/26')).not.toBeNull();
   });
 
-  it('wears the tone it is given', () => {
-    const { container } = renderInLocale(
-      <LineChart points={POINTS} ariaLabel="Value history" tone="lilac" />,
+  it('labels the value being saved over the edited one when they would collide', () => {
+    const long = Array.from({ length: 36 }, (_, index) => {
+      const month = String((index % 12) + 1).padStart(2, '0');
+      const date = `${2024 + Math.floor(index / 12)}-${month}-15`;
+      return point(date, date, index);
+    });
+    renderInLocale(
+      <LineChart
+        points={long.filter(({ date }) => date !== '2025-11-15')}
+        ariaLabel="Value history"
+        selectedKey="2025-10-15"
+        pending={{ date: '2025-11-15', value: 9 }}
+      />,
     );
-    expect(container.querySelector('svg')?.classList.contains('text-lilac')).toBe(true);
-    expect(container.querySelectorAll('.bg-lilac')).toHaveLength(3);
+    expect(screen.getByText('11/25').classList.contains('text-mint')).toBe(true);
+    expect(screen.queryByText('10/25')).toBeNull();
   });
 
   it('takes the height it is given, or the default', () => {
@@ -302,15 +316,6 @@ describe('LineChart', () => {
       expect(chip()).toBeNull();
     });
 
-    it('stops listening for presses once the readout ends', () => {
-      const remove = vi.spyOn(document, 'removeEventListener');
-      renderInLocale(<LineChart points={POINTS} ariaLabel="Value history" />);
-      fireEvent.pointerMove(plot(), at(190));
-      fireEvent.pointerLeave(plot(), { pointerType: 'mouse' });
-      expect(remove).toHaveBeenCalledWith('pointerdown', expect.any(Function));
-      remove.mockRestore();
-    });
-
     it('starts nothing on focus: a drawer may open onto the plot', () => {
       renderInLocale(<LineChart points={POINTS} ariaLabel="Value history" />);
       const element = plot();
@@ -347,12 +352,29 @@ describe('LineChart', () => {
       expect(fireEvent.keyDown(plot(), { key: 'ArrowLeft' })).toBe(false);
     });
 
-    it('leaves Enter and Space to the page on a chart with nothing to pick', () => {
+    it('starts at the newest on Enter, even with nothing to pick', () => {
       renderInLocale(<LineChart points={POINTS} ariaLabel="Value history" />);
       const element = plot();
+      expect(fireEvent.keyDown(element, { key: 'Enter' })).toBe(false);
+      expect(chip()).toBe('day 2026-08-31R$200');
+    });
+
+    it('leaves Space to the page and Enter idle on a chart with nothing to pick', () => {
+      renderInLocale(<LineChart points={POINTS} ariaLabel="Value history" />);
+      const element = plot();
+      expect(fireEvent.keyDown(element, { key: ' ' })).toBe(true);
+      expect(chip()).toBeNull();
       fireEvent.keyDown(element, { key: 'ArrowLeft' });
       expect(fireEvent.keyDown(element, { key: ' ' })).toBe(true);
       expect(fireEvent.keyDown(element, { key: 'Enter' })).toBe(true);
+      expect(chip()).toBe('day 2026-08-31R$200');
+    });
+
+    it('keeps the readout when a pen lifts, as with a finger', () => {
+      renderInLocale(<LineChart points={POINTS} ariaLabel="Value history" />);
+      const element = plot();
+      fireEvent.pointerDown(element, { ...at(190), pointerType: 'pen' });
+      fireEvent.pointerLeave(element, { pointerType: 'pen' });
       expect(chip()).toBe('day 2026-08-31R$200');
     });
 
@@ -596,11 +618,91 @@ describe('LineChart', () => {
       expect(chip()).toBe('day 2026-04-30R$100');
     });
 
-    it('does nothing on Enter with nothing being read', () => {
+    it.each(['Enter', ' '])('starts reading on %j with nothing being read', (key) => {
       const onSelect = vi.fn();
       renderInLocale(<LineChart points={MIXED} ariaLabel="Value history" onSelect={onSelect} />);
-      expect(fireEvent.keyDown(plot(), { key: 'Enter' })).toBe(true);
+      expect(fireEvent.keyDown(plot(), { key })).toBe(false);
+      expect(chip()).toBe('day 2026-08-31R$200');
       expect(onSelect).not.toHaveBeenCalled();
+    });
+
+    it('starts Enter from the value being edited', () => {
+      renderInLocale(
+        <LineChart
+          points={POINTS}
+          ariaLabel="Value history"
+          selectedKey="jun"
+          onSelect={() => {}}
+        />,
+      );
+      fireEvent.keyDown(plot(), { key: 'Enter' });
+      expect(chip()).toBe('day 2026-06-30R$300');
+    });
+
+    it('starts Enter from the newest when the edited value left the series', () => {
+      renderInLocale(
+        <LineChart
+          points={POINTS}
+          ariaLabel="Value history"
+          selectedKey="gone"
+          onSelect={() => {}}
+        />,
+      );
+      fireEvent.keyDown(plot(), { key: 'Enter' });
+      expect(chip()).toBe('day 2026-08-31R$200');
+    });
+
+    it('steps the arrows from the value being edited, so one edit leads to the next', () => {
+      const six = ['01', '02', '03', '04', '05', '06'].map((month) => (
+        point(month, `2026-${month}-15`, Number(month))
+      ));
+      /**
+       * Draws the chart, holding the pick as K46 will.
+       *
+       * @returns The chart.
+       */
+      function Editing() {
+        const [selectedKey, setSelectedKey] = useState<string>();
+        return (
+          <LineChart
+            points={six}
+            ariaLabel="Value history"
+            selectedKey={selectedKey}
+            onSelect={setSelectedKey}
+          />
+        );
+      }
+      renderInLocale(<Editing />);
+      const element = plot();
+      fireEvent.keyDown(element, { key: 'Home' });
+      fireEvent.keyDown(element, { key: 'ArrowRight' });
+      fireEvent.keyDown(element, { key: 'Enter' });
+      expect(chip()).toBeNull();
+      fireEvent.keyDown(element, { key: 'ArrowRight' });
+      expect(chip()).toBe('day 2026-03-15R$3');
+      fireEvent.keyDown(element, { key: 'Escape' });
+      fireEvent.keyDown(element, { key: 'ArrowLeft' });
+      expect(chip()).toBe('day 2026-01-15R$1');
+    });
+
+    it('leaves Enter and Space on a marker to the button: it picks that marker', () => {
+      const onSelect = vi.fn();
+      renderInLocale(<LineChart points={POINTS} ariaLabel="Value history" onSelect={onSelect} />);
+      const element = plot();
+      fireEvent.pointerMove(element, at(190));
+      const marker = screen.getByRole('button', { name: 'day 2026-04-30 R$100' });
+      expect(fireEvent.keyDown(marker, { key: 'Enter' })).toBe(true);
+      expect(fireEvent.keyDown(marker, { key: ' ' })).toBe(true);
+      expect(onSelect).not.toHaveBeenCalled();
+      expect(chip()).toBe('day 2026-08-31R$200');
+    });
+
+    it('ends a readout on Escape from a marker too', () => {
+      renderInLocale(<LineChart points={POINTS} ariaLabel="Value history" onSelect={() => {}} />);
+      fireEvent.keyDown(plot(), { key: 'End' });
+      const marker = screen.getByRole('button', { name: 'day 2026-04-30 R$100' });
+      fireEvent.keyDown(marker, { key: 'Escape' });
+      expect(chip()).toBeNull();
     });
 
     it('draws the value being edited with a crosshair and its pill', () => {

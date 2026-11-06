@@ -70,8 +70,8 @@ export const formatting = {
     monthYear: { month: 'long', year: 'numeric' },
     /** set. · Sep — the period bar's months. */
     monthShort: { month: 'short' },
-    /** set. de 26 · Sep 26 — a chart's month label on a history of a year or more. */
-    monthShortYear: { month: 'short', year: '2-digit' },
+    /** 09/26 — a chart's month labels on a history of a year or more. */
+    monthYearNumeric: { month: '2-digit', year: '2-digit' },
     /** setembro · September — a period chip's month (FL17). */
     monthLong: { month: 'long' },
     /** seg., 7 de set. · Mon, Sep 7 — ledger day headers. */
@@ -200,7 +200,7 @@ export const lineChart = {
   bottomInsetPercent: 13,
   /** How close two month labels may sit, in percent of the plot's width. */
   minTickGapPercent: 12,
-  /** The same over a history of a year or more, whose labels can carry the year. */
+  /** The same over a history of a year or more, whose labels are wider (09/26). */
   multiYearTickGapPercent: 20,
   /** Where the background gridlines sit, in percent of the plot's height (mockup 20). */
   gridlineTopsPercent: [25, 56, 88],

@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { lineChart } from '../../../../src/config/constants';
 import {
-  areaPath, chronological, monthTicks, nearestIndex, pendingAnchor, plotScales, smoothPath,
-  steppedIndex, straightPath, type PlotPosition,
+  areaPath, chronological, isLongHistory, monthTicks, nearestIndex, pendingAnchor, plotScales,
+  smoothPath, steppedIndex, straightPath, type PlotPosition,
 } from '../../../../src/kit/lineChart/lineGeometry';
 
 // The chart's arithmetic (BDT: pure functions → unit, nothing mocked).
@@ -235,7 +235,7 @@ describe('monthTicks', () => {
     expect(ticks.map((tick) => tick.left)).toEqual([88, 100]);
   });
 
-  it('thins a long history with the wider gap, so labels with a year fit', () => {
+  it('thins a long history with the wider gap', () => {
     const dates = monthly(60);
     const { leftOf } = plotScales(dates, [1]);
     const ticks = monthTicks(dates, leftOf);
@@ -248,8 +248,7 @@ describe('monthTicks', () => {
 
   it('keeps a required month, the others making room', () => {
     const dates = monthly(12);
-    const required = '2020-03';
-    const ticks = tickDates(dates, [required]);
+    const ticks = tickDates(dates, ['2020-03']);
     expect(ticks).toContain('2020-03-15');
     const { leftOf } = plotScales(dates, [1]);
     ticks.filter((date) => date !== '2020-03-15').forEach((date) => {
@@ -258,24 +257,41 @@ describe('monthTicks', () => {
     });
   });
 
+  it('gives a required month one label, in order from left to right', () => {
+    const ticks = tickDates(monthly(6), ['2020-03']);
+    expect(ticks.filter((date) => date === '2020-03-15')).toHaveLength(1);
+    expect(ticks).toEqual([...ticks].sort());
+  });
+
+  it('keeps the first of two required months that would collide', () => {
+    const ticks = tickDates(monthly(36), ['2021-11', '2021-10']);
+    expect(ticks).toContain('2021-11-15');
+    expect(ticks).not.toContain('2021-10-15');
+  });
+
+  it('keeps both required months when they fit', () => {
+    const ticks = tickDates(monthly(36), ['2021-11', '2021-01']);
+    expect(ticks).toContain('2021-11-15');
+    expect(ticks).toContain('2021-01-15');
+  });
+
   it('ignores a required month with no label to keep', () => {
     expect(tickDates(['2026-01-31'], ['2030-01'])).toEqual(['2026-01-31']);
   });
+});
 
-  it('names no year under twelve months, even across a new year', () => {
-    const dates = ['2025-11-30', '2026-04-30', '2026-10-31'];
-    const ticks = monthTicks(dates, plotScales(dates, [1]).leftOf);
-    expect(ticks.map(({ showYear }) => showYear)).toEqual([false, false, false]);
+describe('isLongHistory', () => {
+  it('starts at twelve months between the first and last month', () => {
+    expect(isLongHistory(['2025-01-31', '2025-12-31'])).toBe(false);
+    expect(isLongHistory(['2025-01-31', '2026-01-01'])).toBe(true);
   });
 
-  it('names the year on the first label and where it changes, from twelve months', () => {
-    const dates = ['2025-01-31', '2025-08-31', '2026-01-31'];
-    const ticks = monthTicks(dates, plotScales(dates, [1]).leftOf);
-    expect(ticks.map(({ date, showYear }) => [date, showYear])).toEqual([
-      ['2025-01-31', true],
-      ['2025-08-31', false],
-      ['2026-01-31', true],
-    ]);
+  it('counts months, not the change of year', () => {
+    expect(isLongHistory(['2025-11-30', '2026-10-31'])).toBe(false);
+  });
+
+  it('is short with no days', () => {
+    expect(isLongHistory([])).toBe(false);
   });
 });
 
