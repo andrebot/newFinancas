@@ -412,8 +412,9 @@ vice versa; only a Credit Card Bill Payment (FR-3.7) bridges the two.
   liabilities), trended over time, **reported per currency** (no
   cross-currency aggregation), including the **change versus the previous
   month** for each currency (see OQ-62).
-- **FR-5.4** A user can view historical net worth snapshots by month, for
-  any past year. For a given month, each Holding's contribution uses its
+- **FR-5.4** **[Deferred to v2 — OQ-232]** A user can view historical net
+  worth snapshots by month, for any past year. The rule below stays in v1:
+  it also defines FR-5.3's series. For a given month, each Holding's contribution uses its
   latest Valuation Snapshot at or before that month's end (FR-5.2) — there
   is no requirement that a snapshot exists for every single month; the
   last known value simply carries forward, the same way a brokerage

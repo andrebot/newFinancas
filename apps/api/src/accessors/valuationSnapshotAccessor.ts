@@ -226,7 +226,7 @@ const createValuationSnapshotAccessor = (db: Database) => ({
   ).length > 0,
 
   /**
-   * Lists a Holding's value history, newest first (FR-5.2/FR-5.4).
+   * Lists a Holding's value history, newest first (FR-5.2).
    *
    * @param holdingId - The Holding.
    * @param range - Optional inclusive date bounds.

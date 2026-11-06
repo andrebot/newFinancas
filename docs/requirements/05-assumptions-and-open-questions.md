@@ -6959,6 +6959,18 @@ only the journey in the browser, and checks the end state through the API
 
 **Task 127 (`K39`) is complete.**
 
+### OQ-232: Net worth by month for any past year (FR-5.4)
+**Confirmed with the stakeholder (Nov 2026): deferred to v2.** FR-5.4 read as v1, but no screen, route or task delivered it:
+- The `investments-overview` report and `GET /dashboard` take no period, and mockups 20 and 50 have no way to go back.
+- The nearest things aren't net worth: mockup 52's value history covers one Holding, and `GET /accounts/{id}/balances` (FR-6.6) covers one account. The second was documented as backing FR-5.4, which helped hide the gap. Those references now name FR-6.6, and the ones on the Holding routes name FR-5.2 and FR-11.2.
+- FR-6.7's widget library lists a net worth trend too, but that is v3 (OQ-67).
+
+**What stays in v1:** FR-5.3's net worth per currency, its change and its trend, over the last 6 months (OQ-231). FR-5.4's rule for a month's contribution stays too, since that series is built with it.
+
+**Why waiting loses nothing:** the history behind it is already stored and kept (Valuation Snapshots, `account_month_balances`), so v2 can show months from before it ships. FR-8.7's Goal progress by month is a shape to follow.
+
+**For v2:** design this together with OQ-231's maybe, letting the user choose the tile's window, since both choose which months a chart shows. Either needs a period on the report and K38's labels to thin out with the plot's width.
+
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
 *(None currently — OQ-29, the last item here, was resolved during data

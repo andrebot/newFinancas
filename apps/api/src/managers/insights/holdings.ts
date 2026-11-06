@@ -173,7 +173,7 @@ export const createHoldings = (deps: InsightsDeps) => ({
   },
 
   /**
-   * One Holding with its expected payout (FR-5.4).
+   * One Holding with its expected payout (FR-11.2).
    *
    * @param context - The signed-in request.
    * @param householdId - The household.

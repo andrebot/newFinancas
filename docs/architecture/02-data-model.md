@@ -246,7 +246,7 @@ table.
   Credit Card no user-supplied starting figure, so a card's first month
   row always opens at a fixed `0`, never a user input.
 - **`account_month_balances`** *(confirmed — doubles as storage for
-  FR-5.4/FR-6.6's balance-by-month and net-worth-trend reporting, not
+  FR-6.6's balance-by-month and FR-5.3's net-worth-trend reporting, not
   just a cache)* — `id` (PK), `account_id` (FK), `year`, `month`,
   **`opening_balance`** *(added this pass — see the chain-continuity
   invariant below)*, `ending_balance`, `updated_at`. Unique on

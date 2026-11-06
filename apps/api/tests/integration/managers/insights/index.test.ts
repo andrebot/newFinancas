@@ -299,7 +299,7 @@ describe('listHoldings (FR-5.3)', () => {
   });
 });
 
-describe('getHolding (FR-5.4)', () => {
+describe('getHolding (FR-11.2)', () => {
   it('answers a fixed-term Holding with its expected payout', async () => {
     const tier = fakeDeps();
     const manager = createInsightsManager(tier.deps);

@@ -17,7 +17,7 @@ export interface CreditCardView extends CreditCard {
 
 /** An Account with its balance now and its cards. */
 export interface AccountView extends Account {
-  /** Minor units: the balance as of today's month (FR-5.4). */
+  /** Minor units: the balance as of today's month (FR-6.6). */
   readonly currentBalance: number;
   /** In the order attached. */
   readonly cards: readonly CreditCardView[];

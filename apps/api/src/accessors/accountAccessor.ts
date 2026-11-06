@@ -9,7 +9,7 @@ import {
 } from '../utilities/calendarMonth';
 
 // AccountAccessor (A5, VBD): Financial Accounts and their month balances (FR-2,
-// FR-5.4/FR-6.6, 02-data-model.md). It applies data changes only. Who may see or
+// FR-6.6, 02-data-model.md). It applies data changes only. Who may see or
 // change an Account, and whether an archived one still takes movements, are
 // AccountManager's and TransactionManager's decisions. What stays here:
 // - a movement in another currency is refused (FR-2.2);
@@ -78,7 +78,7 @@ export type ApplyMovementResult = | { readonly ok: true }
   /** FR-2.2: the Account holds `accountCurrency` only. */
   | { readonly ok: false; readonly reason: 'currency_mismatch'; readonly accountCurrency: string };
 
-/** One month of an Account's balance (FR-5.4/FR-6.6). */
+/** One month of an Account's balance (FR-6.6). */
 export interface AccountMonthBalance extends CalendarMonth {
   readonly accountId: string;
   readonly openingBalance: number;
@@ -410,7 +410,7 @@ const createAccountAccessor = (db: Database) => ({
   }),
 
   /**
-   * Lists an Account's month balances, oldest first (FR-5.4/FR-6.6).
+   * Lists an Account's month balances, oldest first (FR-6.6).
    *
    * @param accountId - The Account.
    * @param range - The months; open ends reach the chain's ends.

@@ -534,7 +534,7 @@ sequenceDiagram
       <li>The Rates tab reads <code>GET /households/:householdId/index-rates</code> (every index with its history) &mdash; a plain read of <code>AccountManager</code>'s own entities, so it is <code>AccountManager</code>'s (<code>IndexRateAccessor.list</code>, read-ownership rule, OQ-172), not this Manager's; so are a Holding's value history (<code>GET &hellip;/holdings/:holdingId/valuation-snapshots</code>), its schedule (<code>&hellip;/schedule-entries</code>) and its visible Goal split (<code>&hellip;/allocations</code>) &mdash; built in M2 part 5 (OQ-178).</li>
       <li><strong>As built in M4 (OQ-208):</strong> <code>GET &hellip;/accounts/:accountId/holdings</code> and <code>GET &hellip;/holdings/:holdingId</code> read the rows straight from <code>InvestmentHoldingAccessor</code> — there is no ReportingEngine positions use case — and project each fixed-term one on read: its buy&#39;s date and amount come from <code>AccountTransactionAccessor.findBuys</code> (one read for the whole list), then only <code>InsightsManager</code> calls <code>InvestmentProductEngine.project</code> (OQ-178, OQ-205). A Holding takes its Account&#39;s access; an unseen one answers the entity&#39;s own not-found.</li>
       <li><strong>Lands with task 133:</strong> the two report types above — until then they answer 400 <code>report.unknown_type_or_range</code>, the code the contract reserves for this endpoint (OQ-208).</li>
-      <li>See FR-5.3, FR-5.4, FR-5.9, FR-11.2, FR-11.6, OQ-58, OQ-73, OQ-79, OQ-208.</li>
+      <li>See FR-5.3, FR-5.9, FR-11.2, FR-11.6, OQ-58, OQ-73, OQ-79, OQ-208.</li>
     </ul>
 """,
 ))

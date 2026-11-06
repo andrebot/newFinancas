@@ -962,7 +962,7 @@ paths:
       operationId: getAccountBalances
       summary: Get an account's balance history by month
       description: >
-        FR-5.4/FR-6.6. Backed by account_month_balances, oldest month
+        FR-6.6. Backed by account_month_balances, oldest month
         first — the chain has no gaps (OQ-169). An open end reaches the
         chain's end.
       parameters:
@@ -1424,7 +1424,7 @@ paths:
       operationId: listValuationSnapshots
       summary: Get a Holding's valuation history
       description: >
-        FR-5.2/FR-5.4. Market-priced assetTypes only (OQ-51) — a
+        FR-5.2. Market-priced assetTypes only (OQ-51) — a
         fixed-term Holding never populates this; read its costBasis
         instead. Newest first.
       parameters:

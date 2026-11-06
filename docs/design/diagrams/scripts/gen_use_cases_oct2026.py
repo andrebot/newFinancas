@@ -229,7 +229,7 @@ system_use_case(TI / "uc-11-notify-matured-holding.html", "UC-11: Notify Matured
                 ["The notification's 'Archive holding' action runs Archive Matured Holding (UC-3).",
                  "Normally a redemption (UC-4) zeroes and auto-archives the holding first; this catches the cases where it didn't."])
 use_case(TI / "uc-12-view-investments.html", "UC-12: View Investments",
-         sub(12, 12, *T, "<code>FR-5.3</code>, <code>FR-5.4</code>, <code>FR-5.9</code>, <code>FR-11.2</code>, <code>FR-11.6</code> (OQ-58, OQ-73)", ADDED),
+         sub(12, 12, *T, "<code>FR-5.3</code>, <code>FR-5.9</code>, <code>FR-11.2</code>, <code>FR-11.6</code> (OQ-58, OQ-73)", ADDED),
          [S, "Open Investments (Overview / Holdings<br/>by account / Rates tab)", "Request the tab's data (payout chart:<br/>selected holdings)", "Receive data", "Render", E],
          REQ + ["Overview: net worth per currency + change,<br/>payout this month and 12-month series<br/>(from dividend/interest transactions),<br/>allocations, coming due", "Holdings by account: positions; fixed-term →<br/>expected payout + taxes from the engine<br/>(latest index rate; US taxes 'not estimated');<br/>market-priced → value history", "Rates: each index's history", "Send response"],
          ["<strong>Everything here is computed on read</strong> — payout from linked transactions (FR-5.9), projections from the engine (FR-11.2) — nothing new is stored."], fe_split=3)

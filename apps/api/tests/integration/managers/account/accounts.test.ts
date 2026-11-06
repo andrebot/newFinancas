@@ -547,7 +547,7 @@ describe('AccountManager — Archive Account (financial-accounts/uc-03, FR-2.4)'
   });
 });
 
-describe('AccountManager — balance histories (FR-5.4, FR-2.10)', () => {
+describe('AccountManager — balance histories (FR-6.6, FR-2.10)', () => {
   const RANGE = { from: { year: 2026, month: 1 } };
 
   it('lists an Account\'s month balances after checking it may be seen', async () => {

@@ -195,7 +195,7 @@ itself when it was first introduced:
   member list, or a "pending invites" screen; FR-1.8 (multi-household
   membership) implies the first one directly.
 - `GET /accounts/{id}/balances`, `GET /credit-cards/{id}/balances` —
-  balance history endpoints back FR-5.4/FR-6.6 directly; no new stored
+  balance history endpoints back FR-6.6 directly; no new stored
   data, per that FR's own text. **OQ-175:** they take `from`/`to` as
   `YYYY-MM`; `GET /accounts/{id}/credit-cards` was dropped, since every
   Account read now carries its `cards` (with `outstandingBalance`) and

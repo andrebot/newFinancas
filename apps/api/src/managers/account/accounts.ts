@@ -400,7 +400,7 @@ const createAccounts = (deps: AccountDeps) => ({
   },
 
   /**
-   * An Account's month balances, oldest first (FR-5.4/FR-6.6).
+   * An Account's month balances, oldest first (FR-6.6).
    *
    * @param context - The signed-in request.
    * @param householdId - The household.
