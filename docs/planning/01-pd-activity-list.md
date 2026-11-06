@@ -112,7 +112,7 @@ is worth building once.
 | K36 | Rail cards: balance, budget, goal | Dashboard, Transactions |
 | K37 | Stat tile (big number + delta + sparkline) | net worth, payout this month, rates |
 | K38 | Line chart / sparkline (hand-drawn SVG; X proportional to the date; `trend` and `history` shapes; crosshair and chip on hover, tap and keyboard; `compact` is the sparkline) — OQ-229 | net worth, market value, rate history |
-| K39 | Stacked bar chart + legend (top N + Others) | payout over time (Dashboard, Investments) |
+| K39 | Stacked bar chart + legend (top 5 by total over the months shown, coloured by rank, + Others; a month read on hover, tap and keyboard) — OQ-230 | payout over time (Dashboard, Investments) |
 | K40 | Period bar (year switcher + 12 months with in/out mini bars) | Month Overview |
 | K41 | Grouped list (sticky month / day headers + day totals) + infinite-scroll sentinel | ledger |
 | K42 | Expandable row / accordion (`row`: raised + mint edge while open; `card`: bordered fold-away section; own or caller-held open state — OQ-182) | ledger rows, holdings, archived categories |

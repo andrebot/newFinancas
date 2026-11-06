@@ -826,6 +826,11 @@ const ptBR = {
     date: 'Data',
     value: 'Valor',
   },
+  stackedBarChart: {
+    month: 'Mês',
+    total: 'Total',
+    others: 'Outros ({count})',
+  },
   railCard: {
     outstanding: 'Em aberto',
     of: '/ {amount}',

@@ -811,6 +811,11 @@ const enUS: Catalog = {
     date: 'Date',
     value: 'Value',
   },
+  stackedBarChart: {
+    month: 'Month',
+    total: 'Total',
+    others: 'Others ({count})',
+  },
   railCard: {
     outstanding: 'Outstanding',
     of: '/ {amount}',

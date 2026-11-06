@@ -10,7 +10,7 @@ import {
   buildLineModel, rangeOf, type LineModel, type LinePending, type LinePoint, type LineReference,
   type LineShape, type LineSurface, type LineTone, type PlacedPoint,
 } from './lineModel';
-import useLineReadout from './useLineReadout';
+import useChartReadout from '../chartReadout/useChartReadout';
 
 // The kit's line chart (K38, OQ-229): net worth, a Holding's market value and
 // rate history (mockups 20, 50–53). It is drawn by hand: the line and its fill
@@ -226,7 +226,7 @@ function FullChart({
   const pickable = onSelect !== undefined;
   const {
     activeKey, plotRef, pick, handlers,
-  } = useLineReadout({
+  } = useChartReadout({
     marks: placed, onPick: pickerOf(placed, onSelect), startKey: selectedKey, pickable,
   });
   const active = placed.find((point) => point.key === activeKey);

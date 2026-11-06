@@ -182,7 +182,7 @@ identity screens, the rest as later slices use them.
 - [x] **124.** `K24` Tooltip (built early with task 64, OQ-160; chart-point tooltips stay with the charts)
 - [x] **125.** `K43` Table (OQ-228: columns carry their own grid tracks over one shared template; group rows on the ledger's day-band look with an aside at their end; expandable rows on K42's row surface — the table holds each row's open state by key, so a hairline under an opened row goes away (mockup 51's `!border-0`) and a row stays open across re-renders; optional footer slot; no fetching, paging or empty state — FL19 composes those around it)
 - [x] **126.** `K38` Line chart / sparkline (OQ-229: hand-drawn SVG, no chart library; X proportional to the date, Y from the lowest value to the highest; `trend` and `history` shapes; a crosshair and chip on hover, tap and keyboard, a press in the plot picking what the chip shows; draws K46's selected and pending values while K46 holds the state; `compact` is the sparkline; no fetching or empty state)
-- [ ] **127.** `K39` Stacked bar chart + legend
+- [x] **127.** `K39` Stacked bar chart + legend (OQ-230: hand-drawn in HTML; the 5 largest by their total over the months shown, coloured by rank — lilac, mint, sky, sun, peach — the rest grey as Others, a series that paid nothing left out; the newest month at full strength; a month read as on K38, its chip listing each series; `seriesColors` for FL18's selector; no fetching or empty state)
 - [ ] **128.** `K37` Stat tile
 - [ ] **129.** `K46` History editor
 - [ ] **130.** `FL18` Portfolio Overview

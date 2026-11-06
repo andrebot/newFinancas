@@ -2,9 +2,9 @@ import {
   useEffect, useRef, useState,
   type FocusEvent, type KeyboardEvent, type MouseEvent, type PointerEvent, type RefObject,
 } from 'react';
-import { nearestIndex, steppedIndex, type PlotPosition } from './lineGeometry';
+import { nearestIndex, steppedIndex, type ReadoutPosition } from './readoutIndex';
 
-// Which value a line chart is reading out (K38, OQ-229): the one nearest the
+// Which value a chart is reading out (K38, K39 — OQ-229, OQ-230): the one nearest the
 // pointer, the one a tap landed on, or the one the keys reached. Focus alone
 // starts nothing, so a drawer that opens onto the plot shows no chip; Enter or
 // an arrow does, from the value being edited or else the newest. Only a mouse
@@ -19,7 +19,7 @@ export interface ReadoutMark {
   /** The value's stable key. */
   readonly key: string;
   /** Where it sits in the plot. */
-  readonly position: PlotPosition;
+  readonly position: ReadoutPosition;
 }
 
 /** What the readout hands the plot's element. */
@@ -34,7 +34,7 @@ export interface ReadoutHandlers {
 }
 
 /** What the readout works from. */
-export interface LineReadoutOptions {
+export interface ChartReadoutOptions {
   /** The values to read, left to right. */
   readonly marks: readonly ReadoutMark[];
   /** Called with a value's key; answers whether it could be picked. */
@@ -46,7 +46,7 @@ export interface LineReadoutOptions {
 }
 
 /** The readout's state and the handlers that drive it. */
-export interface LineReadout {
+export interface ChartReadout {
   /** The active value's key, while one is being read. */
   readonly activeKey: string | undefined;
   /** Holds the plot's element, so a tap elsewhere can end the readout. */
@@ -88,9 +88,9 @@ const hasModifier = ({
  * @param options - The values, the pick, where to start and whether anything can be picked.
  * @returns The active key, the plot's ref, the pick and the plot's handlers.
  */
-export default function useLineReadout({
+export default function useChartReadout({
   marks, onPick, startKey, pickable,
-}: LineReadoutOptions): LineReadout {
+}: ChartReadoutOptions): ChartReadout {
   const [heldKey, setHeldKey] = useState<string>();
   const plotRef = useRef<HTMLDivElement>(null);
   const activeIndex = marks.findIndex((mark) => mark.key === heldKey);
