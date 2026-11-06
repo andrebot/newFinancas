@@ -13,8 +13,8 @@ import type { CardNetwork } from '@financas/reference';
  */
 export const UI_ICONS = [
   'account-balance-wallet-outline', 'add', 'add-card-outline', 'add-circle-outline',
-  'add-home-outline', 'add-shopping-cart', 'archive-outline', 'arrow-back', 'arrow-forward',
-  'arrow-upward', 'barcode', 'call-made', 'candlestick-chart-outline', 'check',
+  'add-home-outline', 'add-shopping-cart', 'archive-outline', 'arrow-back', 'arrow-downward',
+  'arrow-forward', 'arrow-upward', 'barcode', 'call-made', 'candlestick-chart-outline', 'check',
   'check-circle', 'check-circle-outline', 'chevron-left', 'chevron-right', 'close',
   'cloud-download-outline', 'content-copy-outline', 'contrast', 'credit-card-off-outline',
   'crown-outline', 'currency-exchange', 'dark-mode-outline', 'delete-outline',

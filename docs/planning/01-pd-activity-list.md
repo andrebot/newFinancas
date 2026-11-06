@@ -110,7 +110,7 @@ is worth building once.
 | K34 | Card / panel surface + section header (title + "Month/Year" label + actions) + page header + auth / wizard layouts + brand mark (`Card` sizes none / sm / md / lg; auth brand panel with a decorative preview — OQ-135); danger zone (`DangerZone`, the coral delete section of mockups 60 and 70 — OQ-151); openable card (`OpenableCard`, a card the whole of which opens its item's edit drawer — the account and budget cards, OQ-194) | every page |
 | K35 | Card rail (horizontal scroll, snap, edge fade, arrows) | balances, budgets, goals — on Dashboard and Transactions |
 | K36 | Rail cards: balance, budget, goal | Dashboard, Transactions |
-| K37 | Stat tile (big number + delta + sparkline) | net worth, payout this month, rates |
+| K37 | Stat tile (label, big number, delta pill, full K38 chart) — OQ-231 | net worth (Dashboard, Investments) |
 | K38 | Line chart / sparkline (hand-drawn SVG; X proportional to the date; `trend` and `history` shapes; crosshair and chip on hover, tap and keyboard; `compact` is the sparkline) — OQ-229 | net worth, market value, rate history |
 | K39 | Stacked bar chart + legend (top 5 by total over the months shown, coloured by rank, + Others; a month read on hover, tap and keyboard) — OQ-230 | payout over time (Dashboard, Investments) |
 | K40 | Period bar (year switcher + 12 months with in/out mini bars) | Month Overview |
