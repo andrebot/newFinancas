@@ -70,6 +70,8 @@ export const formatting = {
     monthYear: { month: 'long', year: 'numeric' },
     /** set. · Sep — the period bar's months. */
     monthShort: { month: 'short' },
+    /** 09/26 — a chart's month labels on a history of a year or more. */
+    monthYearNumeric: { month: '2-digit', year: '2-digit' },
     /** setembro · September — a period chip's month (FL17). */
     monthLong: { month: 'long' },
     /** seg., 7 de set. · Mon, Sep 7 — ledger day headers. */
@@ -184,6 +186,28 @@ export const cardRail = {
   fadePx: 56,
   /** How many placeholder cards stand in while the rail loads. */
   placeholderCards: 3,
+} as const;
+
+/** The line chart: net worth, market value and rate history (K38, OQ-229). */
+export const lineChart = {
+  /** The plot's height when the caller names none, in px (mockups 51 and 53). */
+  defaultHeightPx: 110,
+  /** A compact chart's plot height, in px. */
+  compactHeightPx: 40,
+  /** Room above the highest value, in percent of the plot's height. */
+  topInsetPercent: 13,
+  /** Room below the lowest value, in percent of the plot's height. */
+  bottomInsetPercent: 13,
+  /** How close two month labels may sit, in percent of the plot's width. */
+  minTickGapPercent: 12,
+  /** The same over a history of a year or more, whose labels are wider (09/26). */
+  multiYearTickGapPercent: 20,
+  /** Where the background gridlines sit, in percent of the plot's height (mockup 20). */
+  gridlineTopsPercent: [25, 56, 88],
+  /** How near the plot's sides a label stops centring on its point, in percent. */
+  edgeLabelPercent: 18,
+  /** A value higher than this, in percent from the top, sends the editing pill to the bottom. */
+  pillClearancePercent: 30,
 } as const;
 
 /** Rail cards: the balance, budget and goal cards on the card rails (K36, OQ-215). */
