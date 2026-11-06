@@ -79,7 +79,7 @@ ACTIVITIES = {
     "K34": ("Card / panel + section header + layouts", ["K2"]),
     "K35": ("Card rail", ["K34", "K4"]),
     "K36": ("Rail cards (balance / budget / goal)", ["K35", "K32", "K29"]),
-    "K37": ("Stat tile", ["K38", "K29", "K34"]),
+    "K37": ("Stat tile", ["K38", "K29", "K30", "K34"]),
     "K38": ("Line chart / sparkline", ["K24"]),
     "K39": ("Stacked bar chart + legend", ["K24", "K29"]),
     "K40": ("Period bar", ["K13", "K29"]),
@@ -158,7 +158,7 @@ ACTIVITIES = {
     "FL17": ("Month Overview", ["K40", "K36"]),
     "FL18": ("Portfolio Overview", ["K37", "K39", "K12", "K45"]),
     "FL19": ("Holding Maintenance", ["K43", "K44", "K47", "K46", "K20", "K11"]),
-    "FL20": ("Rates Maintenance", ["K37", "K46"]),
+    "FL20": ("Rates Maintenance", ["K34", "K38", "K46"]),
     "FL21": ("Dashboard", ["K37", "K39", "K12", "K36", "K45"]),
     # ---- shell + experiences
     "S1": ("App Shell", ["K22", "K30", "K31", "K23", "FU3", "FU4", "FU5", "FU7"]),

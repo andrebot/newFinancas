@@ -1,10 +1,13 @@
 import { fireEvent, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { statTile } from '../../../../src/config/constants';
+import { GLYPHS } from '../../../../src/kit/icons/generated/iconData';
 import { pillLookOf, StatTile, type StatTileProps } from '../../../../src/kit/statTile/StatTile';
 import { renderInLocale } from '../../../support/renderInLocale';
 
 // Kit component (BDT: Interaction tier → unit): the translator and K38 run for real.
+
+const CHART_NAME = 'Net worth · USD: monthly trend';
 
 const POINTS = [
   {
@@ -45,6 +48,16 @@ const renderTile = (
  */
 const pill = (text: string) => screen.getByText(text);
 
+/**
+ * Reads the outline of the arrow a pill draws.
+ *
+ * @param element - The pill.
+ * @returns The glyph's path.
+ */
+const arrowOf = (element: HTMLElement) => String(
+  element.querySelector('svg path')?.getAttribute('d'),
+);
+
 describe('pillLookOf', () => {
   it('reads a rise as mint and up', () => {
     expect(pillLookOf(1)).toEqual({ tone: 'mint', icon: 'arrow-upward' });
@@ -62,7 +75,7 @@ describe('pillLookOf', () => {
 describe('StatTile', () => {
   it('shows the label and the figure in its currency', () => {
     renderTile();
-    expect(screen.getByText('Net worth · USD', { selector: 'span' })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: 'Net worth · USD' })).toBeTruthy();
     expect(screen.getByText('$19,130.00')).toBeTruthy();
   });
 
@@ -70,14 +83,14 @@ describe('StatTile', () => {
     renderTile();
     const rise = pill('+$2,410.00 vs Aug');
     expect(rise.className).toContain('text-mint');
-    expect(rise.querySelector('svg')).not.toBeNull();
+    expect(GLYPHS['arrow-upward']).toContain(arrowOf(rise));
   });
 
   it('shows a fall in coral, with its sign and an arrow', () => {
     renderTile({ change: { amount: -241000, comparedTo: 'Aug' } });
     const fall = pill('−$2,410.00 vs Aug');
     expect(fall.className).toContain('text-coral');
-    expect(fall.querySelector('svg')).not.toBeNull();
+    expect(GLYPHS['arrow-downward']).toContain(arrowOf(fall));
   });
 
   it('says no change in a neutral pill, with no arrow', () => {
@@ -89,23 +102,49 @@ describe('StatTile', () => {
 
   it('draws no pill without a change', () => {
     renderTile({ change: undefined });
-    expect(screen.queryByText(/vs/)).toBeNull();
+    expect(screen.getByRole('heading').parentElement?.children).toHaveLength(1);
   });
 
   it('writes the pill in the interface language', () => {
-    renderTile({ change: { amount: 0, comparedTo: 'ago' } }, 'pt-BR');
-    expect(pill('Sem mudança vs ago')).toBeTruthy();
+    renderTile({ change: { amount: 0, comparedTo: 'ago.' } }, 'pt-BR');
+    expect(pill('Sem mudança vs ago.')).toBeTruthy();
+    expect(screen.getByRole('group', { name: 'Net worth · USD: evolução mensal' })).toBeTruthy();
   });
 
   it('names the chart after the label, at the default height', () => {
     renderTile();
-    expect(screen.getByRole('group', { name: 'Net worth · USD' }).style.height)
+    expect(screen.getByRole('group', { name: CHART_NAME }).style.height)
       .toBe(`${statTile.defaultChartHeightPx}px`);
   });
 
   it('takes the height the caller names', () => {
     renderTile({ chartHeightPx: 150 });
-    expect(screen.getByRole('group', { name: 'Net worth · USD' }).style.height).toBe('150px');
+    expect(screen.getByRole('group', { name: CHART_NAME }).style.height).toBe('150px');
+  });
+
+  it('writes the figure and the change in the tile\'s currency and the language\'s words', () => {
+    renderTile({
+      label: 'Patrimônio · BRL',
+      amount: 35860000,
+      currency: 'BRL',
+      change: { amount: 3120000, comparedTo: 'ago.' },
+    }, 'pt-BR');
+    expect(screen.getByText('R$ 358.600,00')).toBeTruthy();
+    expect(pill('+R$ 31.200,00 vs ago.')).toBeTruthy();
+  });
+
+  it('draws the gridlines only when asked', () => {
+    const { container, unmount } = renderTile();
+    expect(container.querySelectorAll('.border-t')).toHaveLength(0);
+    unmount();
+    const withGrid = renderTile({ grid: true });
+    expect(withGrid.container.querySelectorAll('.border-t')).toHaveLength(3);
+  });
+
+  it('draws a trend: a curve with only its latest value marked', () => {
+    const { container } = renderTile({ change: undefined });
+    expect(container.querySelectorAll('path')[1]?.getAttribute('d')).toContain('C');
+    expect(container.querySelectorAll('.bg-mint')).toHaveLength(1);
   });
 
   it('colours the line by currency', () => {
@@ -120,7 +159,7 @@ describe('StatTile', () => {
 
   it('lets a month be read on the chart', () => {
     renderTile();
-    const plot = screen.getByRole('group', { name: 'Net worth · USD' });
+    const plot = screen.getByRole('group', { name: CHART_NAME });
     fireEvent.keyDown(plot, { key: 'Enter' });
     expect(screen.getByText('Sep $2.00')).toBeTruthy();
   });

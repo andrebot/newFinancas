@@ -834,6 +834,7 @@ const ptBR = {
   statTile: {
     change: '{amount} vs {month}',
     unchanged: 'Sem mudança vs {month}',
+    chart: '{label}: evolução mensal',
   },
   railCard: {
     outstanding: 'Em aberto',

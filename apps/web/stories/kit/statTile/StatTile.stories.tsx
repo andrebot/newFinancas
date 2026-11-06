@@ -60,23 +60,29 @@ export const DashboardBrl: Story = {
   },
 };
 
-/** A fall: coral with a down arrow. */
-export const Fall: Story = { args: { change: { amount: -241000, comparedTo: 'Aug' } } };
+/** A fall: coral with a down arrow, over a line that ends lower. */
+export const Fall: Story = {
+  args: {
+    amount: 1672000,
+    change: { amount: -241000, comparedTo: 'Aug' },
+    points: series([12400, 13300, 14600, 15700, 19130, 16720], '$'),
+  },
+};
 
 /** No change: a neutral pill with no arrow. */
 export const Unchanged: Story = { args: { change: { amount: 0, comparedTo: 'Aug' } } };
 
 /** No previous month to compare against: no pill. */
-export const NoChange: Story = { args: { change: undefined } };
+export const NoPreviousMonth: Story = { args: { change: undefined } };
 
-/** A large figure, for the narrow tile: the number shrinks and the pill wraps. */
+/** A large figure: on a narrow tile, resize to see the number shrink and the pill wrap. */
 export const LargeFigure: Story = {
   args: {
     label: 'Net worth · BRL',
     amount: 135860000,
     currency: 'BRL',
     change: { amount: 3120000, comparedTo: 'Aug' },
-    points: BRL_POINTS,
+    points: series([1281000, 1295000, 1309000, 1318000, 1327400, 1358600], 'R$'),
   },
 };
 

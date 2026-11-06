@@ -12,18 +12,23 @@ import { Tag, type TagTone } from '../tag/Tag';
 // Dashboard and Investments (mockups 20 and 50) — a label, the change against
 // the previous month, the big number and its chart. It only displays: the
 // caller loads the figures and formats each point (FormattingUtility).
+//
+// The tile's width comes from its parent, a grid track or a block: its number
+// follows the tile's own width, so a parent that sizes to its content, such as
+// a plain `flex` row, collapses it. The series is at most 6 months (OQ-231): more
+// than that and the chart's month labels collide on a phone.
 
 /** The change against an earlier month. */
 export interface StatTileChange {
   /** The difference in minor units, signed. */
   readonly amount: number;
-  /** The month it compares against, already formatted, e.g. "Aug". */
+  /** The month it compares against, as `monthShort` writes it, e.g. "Aug" or "ago.". */
   readonly comparedTo: string;
 }
 
 /** The Stat tile's props. */
 export interface StatTileProps {
-  /** What the figure is, already translated; it names the chart too. */
+  /** What the figure is, already translated: the tile's heading. */
   readonly label: string;
   /** The figure, in the currency's minor units. */
   readonly amount: number;
@@ -31,7 +36,7 @@ export interface StatTileProps {
   readonly currency: Currency;
   /** The change to show; without it there is no pill. */
   readonly change?: StatTileChange | undefined;
-  /** The chart's series, as K38 takes it. */
+  /** The chart's series, as K38 takes it: at most the last 6 months. */
   readonly points: readonly LinePoint[];
   /** The chart's height, in px. Defaults to `statTile.defaultChartHeightPx`. */
   readonly chartHeightPx?: number | undefined;
@@ -97,10 +102,11 @@ function ChangePill({ change, currency }: {
 export function StatTile({
   label, amount, currency, change, points, chartHeightPx, grid,
 }: StatTileProps) {
+  const translator = useI18n();
   return (
     <Card className="@container flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-        <span className="type-label text-muted">{label}</span>
+        <h2 className="type-label text-muted">{label}</h2>
         {change && <ChangePill change={change} currency={currency} />}
       </div>
       <Amount
@@ -110,7 +116,7 @@ export function StatTile({
       />
       <LineChart
         points={points}
-        ariaLabel={label}
+        ariaLabel={translator.text('statTile', 'chart', { label })}
         shape="trend"
         tone={statTile.chartTones[currency]}
         heightPx={chartHeightPx ?? statTile.defaultChartHeightPx}

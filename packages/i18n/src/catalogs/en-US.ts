@@ -819,6 +819,7 @@ const enUS: Catalog = {
   statTile: {
     change: '{amount} vs {month}',
     unchanged: 'Unchanged vs {month}',
+    chart: '{label}: monthly trend',
   },
   railCard: {
     outstanding: 'Outstanding',

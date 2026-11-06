@@ -161,5 +161,7 @@ Carried over from the deleted mockups so it isn't lost:
   a shared goal.
 - **Later phase (already future-scope in the FRs):** benchmark comparison
   (FR-5.7); watchlist of unowned tickers.
+- **Net worth tile window (OQ-231):** maybe let the user choose how many
+  months the tile shows, instead of the fixed 6. Perhaps v2.
 - **Standalone Dashboard candidates:** net-worth trend alone; this month's
   investment activity delta; principal-vs-gains split.
