@@ -4,12 +4,12 @@ import { useI18n } from '../../utilities/I18nProvider';
 import type { BarColumn, BarLegendEntry, BarsModel } from './barModel';
 
 // The pieces a stacked bar chart is drawn from (K39, OQ-230). All HTML on percent
-// coordinates, so a bar keeps its rounded corners however the plot stretches.
+// coordinates, so the gap between segments stays 1px however the plot stretches.
 
 const SWATCH = 'size-2.5 shrink-0 rounded-sm';
 // The transparent border is the gap between segments: it comes out of a segment's
 // own height, so a bar stays exactly as tall as its amounts, on any surface.
-const SEGMENT = 'block w-full shrink-0 rounded-[4px] border-t border-transparent bg-clip-padding';
+const SEGMENT = 'block w-full shrink-0 border-t border-transparent bg-clip-padding';
 const READOUT_CHIP = [
   'pointer-events-none absolute top-0 z-10 flex flex-col gap-0.5 whitespace-nowrap',
   'rounded-lg bg-ink px-2 py-1 type-caption font-medium text-bg shadow-overlay',
