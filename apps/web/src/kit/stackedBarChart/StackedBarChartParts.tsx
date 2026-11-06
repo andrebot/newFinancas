@@ -7,15 +7,14 @@ import type { BarColumn, BarLegendEntry, BarsModel } from './barModel';
 // coordinates, so a bar keeps its rounded corners however the plot stretches.
 
 const SWATCH = 'size-2.5 shrink-0 rounded-sm';
-const SEGMENT = 'block w-full shrink-0 rounded-[4px]';
+// The transparent border is the gap between segments: it comes out of a segment's
+// own height, so a bar stays exactly as tall as its amounts, on any surface.
+const SEGMENT = 'block w-full shrink-0 rounded-[4px] border-t border-transparent bg-clip-padding';
 const READOUT_CHIP = [
   'pointer-events-none absolute top-0 z-10 flex flex-col gap-0.5 whitespace-nowrap',
   'rounded-lg bg-ink px-2 py-1 type-caption font-medium text-bg shadow-overlay',
 ].join(' ');
 const READOUT_ROW = 'flex items-center gap-1.5';
-
-/** The room between a bar and its chip, in px. */
-const CHIP_GAP_PX = 8;
 
 /**
  * Draws one month's bar: at full strength when it is the month in focus.
@@ -39,7 +38,7 @@ export function Bar({ column, widthPercent, focused }: {
           key={segment.key}
           data-testid="stacked-bar-segment"
           className={SEGMENT}
-          style={{ height: `${segment.heightPercent}%`, background: segment.color }}
+          style={{ height: `${segment.heightPercent}%`, backgroundColor: segment.color }}
         />
       ))}
     </span>
@@ -56,9 +55,10 @@ export function Bar({ column, widthPercent, focused }: {
  * @returns The chip's horizontal place and width limit.
  */
 const beside = ({ left }: BarColumn, widthPercent: number): CSSProperties => {
-  const maxWidth = `${stackedBarChart.readoutMaxWidthRem}rem`;
+  const { readoutGapPx, readoutMaxWidthRem } = stackedBarChart;
+  const maxWidth = `${readoutMaxWidthRem}rem`;
   const offset = (side: number) => (
-    `min(calc(${side + widthPercent / 2}% + ${CHIP_GAP_PX}px), calc(100% - ${maxWidth}))`
+    `min(calc(${side + widthPercent / 2}% + ${readoutGapPx}px), calc(100% - ${maxWidth}))`
   );
   return left <= 50
     ? { maxWidth, left: offset(left) }
@@ -67,8 +67,9 @@ const beside = ({ left }: BarColumn, widthPercent: number): CSSProperties => {
 
 /**
  * Draws the chip that reads a month: its name and total, then what each group
- * paid, largest first. It is hidden from assistive tech, which hears the same
- * from the plot's live region.
+ * paid, in the legend's order, which is the stack's: by the total over the window,
+ * not by that month. It is hidden from assistive tech, which hears the same from
+ * the plot's live region.
  *
  * @param props - The month, its written name, a bar's width and the written amounts.
  * @returns The chip.
@@ -102,7 +103,8 @@ export function MonthReadout({
 }
 
 /**
- * Draws the legend, largest first.
+ * Draws the legend, largest first. A long name without spaces breaks rather than
+ * running out of the row.
  *
  * @param props - The legend's rows.
  * @returns The legend.
@@ -111,9 +113,9 @@ export function BarLegend({ entries }: { readonly entries: readonly BarLegendEnt
   return (
     <ul className="flex flex-wrap gap-x-4 gap-y-1 type-caption text-muted">
       {entries.map((entry) => (
-        <li key={entry.key} className="flex items-center gap-1.5">
+        <li key={entry.key} className="flex min-w-0 items-center gap-1.5">
           <span className={SWATCH} style={{ background: entry.color }} />
-          {entry.label}
+          <span className="min-w-0 break-words">{entry.label}</span>
         </li>
       ))}
     </ul>
@@ -121,7 +123,9 @@ export function BarLegend({ entries }: { readonly entries: readonly BarLegendEnt
 }
 
 /**
- * Lists every amount for assistive tech: the plot itself is a drawing.
+ * Lists every amount for assistive tech: the plot itself is a drawing. The wrapper
+ * is what's visually hidden, since a table grows to fit its cells whatever width it
+ * is given, and a hidden one that wide would make the page scroll sideways.
  *
  * @param props - The caption, the chart, each month's written name and the written amounts.
  * @returns The hidden table.
@@ -136,24 +140,26 @@ export function BarsTable({
 }) {
   const translator = useI18n();
   return (
-    <table className="sr-only">
-      <caption>{caption}</caption>
-      <thead>
-        <tr>
-          <th scope="col">{translator.text('stackedBarChart', 'month')}</th>
-          {model.legend.map((entry) => <th key={entry.key} scope="col">{entry.label}</th>)}
-          <th scope="col">{translator.text('stackedBarChart', 'total')}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {model.columns.map((column) => (
-          <tr key={column.key}>
-            <th scope="row">{monthLabelOf(column.key)}</th>
-            {column.amounts.map(({ key, amount }) => <td key={key}>{formatValue(amount)}</td>)}
-            <td>{formatValue(column.total)}</td>
+    <div className="sr-only">
+      <table>
+        <caption>{caption}</caption>
+        <thead>
+          <tr>
+            <th scope="col">{translator.text('stackedBarChart', 'month')}</th>
+            {model.legend.map((entry) => <th key={entry.key} scope="col">{entry.label}</th>)}
+            <th scope="col">{translator.text('stackedBarChart', 'total')}</th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {model.columns.map((column) => (
+            <tr key={column.key}>
+              <th scope="row">{monthLabelOf(column.key)}</th>
+              {column.amounts.map(({ key, amount }) => <td key={key}>{formatValue(amount)}</td>)}
+              <td>{formatValue(column.total)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

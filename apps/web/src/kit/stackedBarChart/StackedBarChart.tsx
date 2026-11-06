@@ -20,14 +20,15 @@ import {
 //
 // It only displays. The caller loads one currency's series, sends every month it
 // wants a bar for, writes the amounts (FormattingUtility) and handles the empty
-// case: with nothing paid, it renders nothing. `seriesColors` tells the caller
-// which colour each series got, for the selector beside the chart.
+// case: with nothing paid, it renders nothing, and `seriesColors` comes back empty,
+// which is how the caller knows. `seriesColors` also tells it which colour each
+// series got, for the selector beside the chart.
 
 export { seriesColors, type BarAmount, type BarSeries } from './barModel';
 
 /** The stacked bar chart's props. */
 export interface StackedBarChartProps {
-  /** The months to draw, `YYYY-MM`, in any order; each gets a bar, even an empty one. */
+  /** The months to draw, `YYYY-MM`, in any order; each gets one bar, even an empty one. */
   readonly months: readonly string[];
   /** The series, in one currency, amounts in minor units. */
   readonly series: readonly BarSeries[];
@@ -35,8 +36,6 @@ export interface StackedBarChartProps {
   readonly ariaLabel: string;
   /** Writes an amount, in the series' currency. */
   readonly formatValue: (amount: number) => string;
-  /** The plot's height, in px; defaults to the mockups'. */
-  readonly heightPx?: number | undefined;
 }
 
 const PLOT = [
@@ -102,7 +101,7 @@ function MonthLabels({ columns, focusedKey, labelOf }: {
  * @returns The chart, or nothing when nothing was paid.
  */
 export function StackedBarChart({
-  months, series, ariaLabel, formatValue, heightPx,
+  months, series, ariaLabel, formatValue,
 }: StackedBarChartProps) {
   const translator = useI18n();
   const formatter = useFormatter();
@@ -159,7 +158,7 @@ export function StackedBarChart({
         // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
         tabIndex={0}
         className={PLOT}
-        style={{ height: heightPx ?? stackedBarChart.defaultHeightPx }}
+        style={{ height: stackedBarChart.plotHeightPx }}
         {...handlers}
       >
         <span aria-hidden>

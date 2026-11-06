@@ -85,9 +85,6 @@ export interface BarsModel {
 /** The Others group's key; a series' key is an id, so they can't meet. */
 const OTHERS_KEY = 'others';
 
-/** The Others group's colour. */
-const OTHERS_COLOR = 'var(--c-faint)';
-
 /**
  * Reads one month of a series. Nothing but money received is drawn, so a month
  * can't go below zero.
@@ -133,7 +130,7 @@ const groupSeries = (
   months: readonly string[],
   series: readonly BarSeries[],
 ): readonly SeriesGroup[] => {
-  const { seriesTones } = stackedBarChart;
+  const { seriesTones, othersColor } = stackedBarChart;
   const ranked = rankSeries(months, series);
   const rest = ranked.slice(seriesTones.length);
   const largest = ranked.slice(0, seriesTones.length).map((item, rank) => ({
@@ -142,7 +139,7 @@ const groupSeries = (
     members: [item],
   }));
   return rest.length > 0
-    ? [...largest, { key: OTHERS_KEY, color: OTHERS_COLOR, members: rest }]
+    ? [...largest, { key: OTHERS_KEY, color: othersColor, members: rest }]
     : largest;
 };
 
@@ -203,7 +200,8 @@ const labelStepOf = (count: number) => (
 /**
  * Works out what a chart draws.
  *
- * @param months - The months shown, in any order; each gets a bar, even an empty one.
+ * @param months - The months shown, in any order, a repeat ignored; each gets a
+ * bar, even an empty one.
  * @param series - The series.
  * @param othersLabel - Names the Others group, from how many series it holds.
  * @returns The bars and the legend.
@@ -213,7 +211,7 @@ export const buildBarsModel = (
   series: readonly BarSeries[],
   othersLabel: (count: number) => string,
 ): BarsModel => {
-  const ordered = [...months].sort();
+  const ordered = [...new Set(months)].sort();
   const count = ordered.length;
   const legendGroups = groupSeries(ordered, series).map((group) => ({
     ...group,

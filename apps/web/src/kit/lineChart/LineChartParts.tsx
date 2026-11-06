@@ -322,7 +322,9 @@ export function TickLabel({ left, label, tone }: {
 }
 
 /**
- * Lists the values for assistive tech: the plot itself is a drawing.
+ * Lists the values for assistive tech: the plot itself is a drawing. The wrapper is
+ * what's visually hidden, since a table grows to fit its rows whatever size it is
+ * given, and a hidden one that long would make the page scroll.
  *
  * @param props - The caption and the points.
  * @returns The hidden table.
@@ -333,22 +335,24 @@ export function PointsTable({ caption, points }: {
 }) {
   const translator = useI18n();
   return (
-    <table className="sr-only">
-      <caption>{caption}</caption>
-      <thead>
-        <tr>
-          <th scope="col">{translator.text('lineChart', 'date')}</th>
-          <th scope="col">{translator.text('lineChart', 'value')}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {points.map((point) => (
-          <tr key={point.key}>
-            <td>{point.dateLabel}</td>
-            <td>{point.valueLabel}</td>
+    <div className="sr-only">
+      <table>
+        <caption>{caption}</caption>
+        <thead>
+          <tr>
+            <th scope="col">{translator.text('lineChart', 'date')}</th>
+            <th scope="col">{translator.text('lineChart', 'value')}</th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {points.map((point) => (
+            <tr key={point.key}>
+              <td>{point.dateLabel}</td>
+              <td>{point.valueLabel}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

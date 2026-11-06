@@ -182,13 +182,13 @@ identity screens, the rest as later slices use them.
 - [x] **124.** `K24` Tooltip (built early with task 64, OQ-160; chart-point tooltips stay with the charts)
 - [x] **125.** `K43` Table (OQ-228: columns carry their own grid tracks over one shared template; group rows on the ledger's day-band look with an aside at their end; expandable rows on K42's row surface — the table holds each row's open state by key, so a hairline under an opened row goes away (mockup 51's `!border-0`) and a row stays open across re-renders; optional footer slot; no fetching, paging or empty state — FL19 composes those around it)
 - [x] **126.** `K38` Line chart / sparkline (OQ-229: hand-drawn SVG, no chart library; X proportional to the date, Y from the lowest value to the highest; `trend` and `history` shapes; a crosshair and chip on hover, tap and keyboard, a press in the plot picking what the chip shows; draws K46's selected and pending values while K46 holds the state; `compact` is the sparkline; no fetching or empty state)
-- [x] **127.** `K39` Stacked bar chart + legend (OQ-230: hand-drawn in HTML; the 5 largest by their total over the months shown, coloured by rank — lilac, mint, sky, sun, peach — the rest grey as Others, a series that paid nothing left out; the newest month at full strength; a month read as on K38, its chip listing each series; `seriesColors` for FL18's selector; no fetching or empty state)
+- [x] **127.** `K39` Stacked bar chart + legend (OQ-230: hand-drawn in HTML; the 5 largest by their total over the months shown, coloured by rank — lilac, mint, sky, sun, peach — the rest in `--c-muted` as Others, a series that paid nothing left out; the newest month at full strength; a month read as on K38, its chip listing each series; `seriesColors` for FL18's selector; no fetching or empty state)
 - [ ] **128.** `K37` Stat tile
 - [ ] **129.** `K46` History editor
-- [ ] **130.** `FL18` Portfolio Overview
+- [ ] **130.** `FL18` Portfolio Overview (OQ-230: a Playwright check that the page doesn't overflow sideways at phone width with the payout chart on it; `seriesColors(...).size === 0` is the chart's empty case)
 - [ ] **131.** `FL19` Holding Maintenance (reverse the API's newest-first snapshots before passing them to K38: within a day, the last counts — OQ-229)
 - [ ] **132.** `FL20` Rates Maintenance
-- [ ] **133.** `X7` Track Investments (with InsightsManager's `investments-overview` and `payouts` reports — OQ-201 — and ReportingEngine's investments shapes, OQ-206)
+- [ ] **133.** `X7` Track Investments (with InsightsManager's `investments-overview` and `payouts` reports — OQ-201 — and ReportingEngine's investments shapes, OQ-206; add a `YYYY-MM` `pattern` to `PayoutsReport`'s `month` in the contract, since K39 silently draws nothing for any other format — OQ-230)
 - [ ] **134.** `I6` investmentsDaily trigger end to end
 - [ ] **135.** `I10` Frontend ↔ backend: investments
 - [ ] **R4.** Slice 4 review (gate)

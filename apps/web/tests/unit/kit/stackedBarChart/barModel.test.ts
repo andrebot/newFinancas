@@ -83,7 +83,7 @@ describe('buildBarsModel', () => {
     expect(legend.slice(0, 5).map((entry) => entry.color)).toEqual(
       seriesTones.map((tone) => `var(--c-cat-${tone})`),
     );
-    expect(legend[5]?.color).toBe('var(--c-faint)');
+    expect(legend[5]?.color).toBe(stackedBarChart.othersColor);
   });
 
   it('has no Others when every series keeps a colour', () => {
@@ -146,6 +146,15 @@ describe('buildBarsModel', () => {
     expect(columns.map((column) => column.segments)).toEqual([[], []]);
   });
 
+  it('counts a repeated month once, in the ranking and the bars', () => {
+    const { legend, columns } = buildBarsModel(['2026-08', '2026-08', '2026-09'], [
+      series('a', { '2026-08': 10 }),
+      series('b', { '2026-09': 15 }),
+    ], others);
+    expect(legend.map((entry) => entry.key)).toEqual(['b', 'a']);
+    expect(columns.map((column) => column.key)).toEqual(['2026-08', '2026-09']);
+  });
+
   it('sorts the months, whatever order they come in', () => {
     const { columns } = buildBarsModel(['2026-03', '2026-01'], [paying('a', 1)], others);
     expect(columns.map((column) => column.key)).toEqual(['2026-01', '2026-03']);
@@ -201,8 +210,8 @@ describe('seriesColors', () => {
   it('gives each drawn series its colour and the rest Others grey', () => {
     const colors = seriesColors(MONTHS, SEVEN);
     expect(colors.get('a')).toBe(`var(--c-cat-${seriesTones[0]})`);
-    expect(colors.get('f')).toBe('var(--c-faint)');
-    expect(colors.get('g')).toBe('var(--c-faint)');
+    expect(colors.get('f')).toBe(stackedBarChart.othersColor);
+    expect(colors.get('g')).toBe(stackedBarChart.othersColor);
   });
 
   it('gives no colour to a series that paid nothing', () => {

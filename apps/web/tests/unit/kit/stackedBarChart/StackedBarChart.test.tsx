@@ -1,5 +1,6 @@
 import { fireEvent, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+import { stackedBarChart } from '../../../../src/config/constants';
 import { StackedBarChart, type StackedBarChartProps } from '../../../../src/kit/stackedBarChart/StackedBarChart';
 import { renderInLocale } from '../../../support/renderInLocale';
 
@@ -80,12 +81,28 @@ describe('StackedBarChart', () => {
     expect(segment?.style.height).toBe(`${(100 / 300) * 87}%`);
   });
 
-  it('uses the mockup height, or the one asked for', () => {
-    const { unmount } = renderChart();
+  it('uses the mockup height', () => {
+    renderChart();
     expect(plotBox().style.height).toBe('170px');
-    unmount();
-    renderChart({ heightPx: 90 });
-    expect(plotBox().style.height).toBe('90px');
+  });
+
+  it('stacks from the bottom, the first group lowest', () => {
+    renderChart();
+    expect(screen.getAllByTestId('stacked-bar')[0]?.className).toContain('flex-col-reverse');
+  });
+
+  it('keeps a gap between segments out of their own height', () => {
+    renderChart();
+    const [segment] = screen.getAllByTestId('stacked-bar-segment');
+    expect(segment?.className).toContain('border-transparent');
+    expect(segment?.className).toContain('bg-clip-padding');
+  });
+
+  it('hides the wrapper, not the table, so its width stays out of the page', () => {
+    renderChart();
+    const table = screen.getByRole('table', { name: 'Payout per month' });
+    expect(table.className).toBe('');
+    expect(table.parentElement?.className).toContain('sr-only');
   });
 
   it('lists the legend, largest first', () => {
@@ -151,11 +168,14 @@ describe('StackedBarChart', () => {
     renderChart();
     const plot = plotBox();
     fireEvent.pointerMove(plot, { clientX: 10 });
+    const { barSlotShare, maxBarWidthPercent, readoutGapPx } = stackedBarChart;
+    const width = Math.min(maxBarWidthPercent, (barSlotShare * 100) / (2 + barSlotShare));
     const chip = screen.getByTestId('stacked-bar-readout');
-    expect(chip.getAttribute('style')).toContain('left:');
-    expect(chip.getAttribute('style')).toContain('12rem');
+    expect(chip.getAttribute('style')).toContain(`left: min(${width}% + ${readoutGapPx}px`);
+    expect(chip.getAttribute('style')).toContain('100% - 12rem');
     fireEvent.pointerMove(plot, { clientX: 290 });
-    expect(screen.getByTestId('stacked-bar-readout').getAttribute('style')).toContain('right:');
+    expect(screen.getByTestId('stacked-bar-readout').getAttribute('style'))
+      .toContain(`right: min(${width}% + ${readoutGapPx}px`);
   });
 
   it('keeps a tap readable: a press picks nothing and ends nothing', () => {

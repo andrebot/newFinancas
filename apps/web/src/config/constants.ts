@@ -212,8 +212,8 @@ export const lineChart = {
 
 /** Stacked bar charts: payout over time (K39, OQ-230). */
 export const stackedBarChart = {
-  /** The plot's height when the caller names none, in px (mockups 20 and 50). */
-  defaultHeightPx: 170,
+  /** The plot's height, in px (mockups 20 and 50). */
+  plotHeightPx: 170,
   /** Room above the tallest bar, in percent of the plot's height. */
   topInsetPercent: 13,
   /** How much of a month's slot its bar fills, as a fraction (34px of 51.5px, mockup 50). */
@@ -222,9 +222,13 @@ export const stackedBarChart = {
   maxBarWidthPercent: 12,
   /** The tones of the largest series, largest first; more series than this become Others. */
   seriesTones: ['lilac', 'mint', 'sky', 'sun', 'peach'],
+  /** The Others group's colour, which follows the theme. */
+  othersColor: 'var(--c-muted)',
+  /** The room between a bar and its chip, in px. */
+  readoutGapPx: 8,
   /** The most months that each get a label, written by name. */
   maxNamedMonths: 12,
-  /** How many labels a longer window gets, written as numbers (09/26). */
+  /** The most labels a longer window gets, written as numbers (09/26). */
   longWindowLabels: 6,
   /** Up to this many months, a narrow plot still has room for every label. */
   monthsFittingNarrow: 6,
