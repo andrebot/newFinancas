@@ -186,6 +186,26 @@ export const cardRail = {
   placeholderCards: 3,
 } as const;
 
+/** The line chart: net worth, market value and rate history (K38, OQ-229). */
+export const lineChart = {
+  /** The plot's height when the caller names none, in px (mockups 52 and 53). */
+  defaultHeightPx: 110,
+  /** A compact chart's plot height, in px. */
+  compactHeightPx: 40,
+  /** Room above the highest value, in percent of the plot's height. */
+  topInsetPercent: 13,
+  /** Room below the lowest value, in percent of the plot's height. */
+  bottomInsetPercent: 13,
+  /** How close two month labels may sit, in percent of the plot's width. */
+  minTickGapPercent: 12,
+  /** Where the background gridlines sit, in percent of the plot's height (mockup 20). */
+  gridlineTopsPercent: [25, 56, 88],
+  /** How near the plot's sides a label stops centring on its point, in percent. */
+  edgeLabelPercent: 18,
+  /** A value higher than this, in percent from the top, sends the editing pill to the bottom. */
+  pillClearancePercent: 30,
+} as const;
+
 /** Rail cards: the balance, budget and goal cards on the card rails (K36, OQ-215). */
 export const railCard = {
   /** From what share of its target, in whole percent, a budget reads as near its limit (sun). */

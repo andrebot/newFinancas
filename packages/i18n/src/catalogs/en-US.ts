@@ -807,6 +807,10 @@ const enUS: Catalog = {
     scrollForward: 'Scroll {title} right',
     loading: 'Loading {title}',
   },
+  lineChart: {
+    date: 'Date',
+    value: 'Value',
+  },
   railCard: {
     outstanding: 'Outstanding',
     of: '/ {amount}',

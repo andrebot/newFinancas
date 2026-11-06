@@ -822,6 +822,10 @@ const ptBR = {
     scrollForward: 'Rolar {title} para a direita',
     loading: 'Carregando {title}',
   },
+  lineChart: {
+    date: 'Data',
+    value: 'Valor',
+  },
   railCard: {
     outstanding: 'Em aberto',
     of: '/ {amount}',

@@ -111,7 +111,7 @@ is worth building once.
 | K35 | Card rail (horizontal scroll, snap, edge fade, arrows) | balances, budgets, goals — on Dashboard and Transactions |
 | K36 | Rail cards: balance, budget, goal | Dashboard, Transactions |
 | K37 | Stat tile (big number + delta + sparkline) | net worth, payout this month, rates |
-| K38 | Line chart / sparkline | net worth, market value, rate history |
+| K38 | Line chart / sparkline (hand-drawn SVG; X proportional to the date; `trend` and `history` shapes; crosshair and chip on hover, tap and keyboard; `compact` is the sparkline) — OQ-229 | net worth, market value, rate history |
 | K39 | Stacked bar chart + legend (top N + Others) | payout over time (Dashboard, Investments) |
 | K40 | Period bar (year switcher + 12 months with in/out mini bars) | Month Overview |
 | K41 | Grouped list (sticky month / day headers + day totals) + infinite-scroll sentinel | ledger |
