@@ -816,6 +816,10 @@ const enUS: Catalog = {
     total: 'Total',
     others: 'Others ({count})',
   },
+  statTile: {
+    change: '{amount} vs {month}',
+    unchanged: 'Unchanged vs {month}',
+  },
   railCard: {
     outstanding: 'Outstanding',
     of: '/ {amount}',

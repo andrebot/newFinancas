@@ -6959,6 +6959,22 @@ only the journey in the browser, and checks the end state through the API
 
 **Task 127 (`K39`) is complete.**
 
+### OQ-231: Stat tile (task K37)
+**Confirmed with the stakeholder (Nov 2026):**
+- **K37 is the net worth tile and nothing else.** The activity list named net worth, payout this month and rates, but only net worth is drawn as a tile, the same on mockups 20 and 50. Payout this month is a list (50) or a small figure in a panel's corner (20), and the rate card (53) has its own layout, a value that isn't money and actions inside it. FL18 composes the payout list, FL21 the figure and FL20 the rate card from `Card` and K38. The activity list is corrected.
+- **It draws a full K38 chart, as the mockups do,** in the `trend` shape, with its month labels and a month read on hover, tap and keyboard. K38's `compact` (OQ-229) has no caller for now. The height and gridlines are the caller's: 150px with `grid` on mockup 20, 120px (`statTile.defaultChartHeightPx`) without on mockup 50.
+- **The delta pill's undrawn states:** the mockups draw only a rise (mint, up arrow). A fall is coral with a down arrow; no change is neutral with no arrow, "Unchanged vs Aug"; and with no `change` at all (`changeVsPreviousMonth` is optional, as on a first month) there is no pill. The sign is written, so colour never carries the meaning alone.
+
+**Design decisions:**
+- **The pill is K30's `Tag`** (`md`), 11px where the mockups draw 12px, so it matches every other pill in the kit.
+- **The line's colour follows the currency,** mint for USD and sky for BRL (`statTile.chartTones`), as drawn.
+- **`change` is one optional object** of the amount and the month it compares against (already formatted, "Aug"), so a caller can't send one without the other. The chart is named by the tile's `label`.
+- **The number shrinks on a narrow tile, which the mockups don't show:** 26px under a 320px content width (a container query, so it follows the tile and not the screen), 34px above it, so a large BRL figure fits a phone. The header wraps the pill under the label when both don't fit.
+- **Display only.** The caller loads the figures and formats each point's value and date; an empty series leaves the label, number and pill, since K38 then renders nothing.
+- **Tests (BDT):** Interaction tier, unit, nothing mocked: the component through the real translator and K38. Every story was also measured in Chromium through Storybook at 320px and 620px, with no sideways page overflow, and the dark and light themes were looked at. Not Firefox, Safari or a real screen reader.
+
+**Task 128 (`K37`) is complete.**
+
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
 *(None currently — OQ-29, the last item here, was resolved during data

@@ -5,6 +5,7 @@
 import type { Account, Currency } from '@financas/api-types';
 import type { CardNetwork, CategoryIcon, PaletteToken } from '@financas/reference';
 import type { IconName } from '../kit/icons/Icon';
+import type { LineTone } from '../kit/lineChart/lineModel';
 
 /** An account's type, as the contract names it. */
 type AccountType = Account['type'];
@@ -235,6 +236,17 @@ export const stackedBarChart = {
   /** The widest a month's chip gets, in rem: what lets it stay inside a narrow plot. */
   readoutMaxWidthRem: 12,
 } as const;
+
+/** The Stat tile: net worth on the Dashboard and Investments (K37, OQ-231). */
+export const statTile = {
+  /** The chart's colour for each currency (mockups 20 and 50). */
+  chartTones: { USD: 'mint', BRL: 'sky' },
+  /** The chart's height when the caller names none, in px (mockup 50). */
+  defaultChartHeightPx: 120,
+} as const satisfies {
+  readonly chartTones: Record<Currency, LineTone>;
+  readonly defaultChartHeightPx: number;
+};
 
 /** Rail cards: the balance, budget and goal cards on the card rails (K36, OQ-215). */
 export const railCard = {

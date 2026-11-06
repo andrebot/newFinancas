@@ -831,6 +831,10 @@ const ptBR = {
     total: 'Total',
     others: 'Outros ({count})',
   },
+  statTile: {
+    change: '{amount} vs {month}',
+    unchanged: 'Sem mudança vs {month}',
+  },
   railCard: {
     outstanding: 'Em aberto',
     of: '/ {amount}',
