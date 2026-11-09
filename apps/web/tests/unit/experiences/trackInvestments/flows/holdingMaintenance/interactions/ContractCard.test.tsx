@@ -112,6 +112,20 @@ describe('estimateNoteOf', () => {
       .toBe('IPCA has no value yet — record one in Rates to see the estimate.');
   });
 
+  it('gives pt-BR the article its index takes (review round 1)', () => {
+    const portuguese = {
+      translator: createTranslator('pt-BR'),
+      formatter: createFormatter('pt-BR'),
+      currency: 'BRL' as const,
+    };
+    const cdi = { ...SELIC, rate: { type: 'cdi' as const, value: 1_100_000 } };
+
+    expect(estimateNoteOf(SELIC, { value: 105000, unit: 'annual_percent' }, portuguese))
+      .toMatch(/^Estimativa se a Selic ficar em 10,50% ao ano/);
+    expect(estimateNoteOf(cdi, { value: 105000, unit: 'annual_percent' }, portuguese))
+      .toMatch(/^Estimativa se o CDI ficar em/);
+  });
+
   it('quotes a 12-month index over 12 months, and an estimate with no taxes known', () => {
     const ipca = { ...SELIC, rate: { type: 'ipca' as const, value: 55000 } };
 
@@ -132,17 +146,23 @@ describe('estimateNoteOf', () => {
 });
 
 describe('termLeftOf', () => {
-  const { translator } = TEXTS;
+  const texts = { translator: TEXTS.translator, formatter: TEXTS.formatter };
+  const term = {
+    elapsedPercent: 50, yearsLeft: 0, monthsLeft: 0, daysLeft: 0, matured: false,
+  };
 
   it('writes the years and months to go, either alone', () => {
-    expect(termLeftOf({ elapsedPercent: 10, yearsLeft: 1, monthsLeft: 0 }, translator))
-      .toBe('1 yr to go');
-    expect(termLeftOf({ elapsedPercent: 90, yearsLeft: 0, monthsLeft: 3 }, translator))
-      .toBe('3 mo to go');
+    expect(termLeftOf({ ...term, yearsLeft: 1 }, '2027-10-01', texts)).toBe('1 yr to go');
+    expect(termLeftOf({ ...term, monthsLeft: 3 }, '2027-01-01', texts)).toBe('3 mo to go');
   });
 
-  it('says it matures this month with nothing left', () => {
-    expect(termLeftOf({ elapsedPercent: 100, yearsLeft: 0, monthsLeft: 0 }, translator))
-      .toBe('Matures this month');
+  it('counts the days under a month, never "this month" (review round 1)', () => {
+    expect(termLeftOf({ ...term, daysLeft: 26 }, '2026-12-05', texts)).toBe('26 days to go');
+    expect(termLeftOf({ ...term, daysLeft: 1 }, '2026-11-10', texts)).toBe('1 day to go');
+  });
+
+  it('says when a contract past its date matured', () => {
+    expect(termLeftOf({ ...term, elapsedPercent: 100, matured: true }, '2024-03-15', texts))
+      .toBe('Matured on 03/15/2024');
   });
 });

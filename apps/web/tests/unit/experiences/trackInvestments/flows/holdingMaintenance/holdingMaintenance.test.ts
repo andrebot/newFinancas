@@ -154,8 +154,14 @@ describe('groupsTotalOf and typeSharesOf', () => {
 
 describe('contractTermOf', () => {
   it('tells the share of the term gone and the years and months to go (mockup 51)', () => {
-    expect(contractTermOf('2025-01-10', '2029-03-15', '2026-10-01')).toEqual({
-      elapsedPercent: 41, yearsLeft: 2, monthsLeft: 5,
+    expect(contractTermOf('2025-01-10', '2029-03-15', '2026-10-01')).toMatchObject({
+      elapsedPercent: 41, yearsLeft: 2, monthsLeft: 5, matured: false,
+    });
+  });
+
+  it('counts the days left under a whole month (review round 1)', () => {
+    expect(contractTermOf('2026-01-01', '2026-12-05', '2026-11-09')).toMatchObject({
+      yearsLeft: 0, monthsLeft: 0, daysLeft: 26, matured: false,
     });
   });
 
@@ -166,7 +172,7 @@ describe('contractTermOf', () => {
 
   it('is fully run on and past the due date, and before the buy is not started', () => {
     expect(contractTermOf('2025-01-10', '2026-01-10', '2026-03-01')).toEqual({
-      elapsedPercent: 100, yearsLeft: 0, monthsLeft: 0,
+      elapsedPercent: 100, yearsLeft: 0, monthsLeft: 0, daysLeft: 0, matured: true,
     });
     expect(contractTermOf('2026-01-10', '2027-01-10', '2025-12-01').elapsedPercent).toBe(0);
     expect(contractTermOf('2026-01-10', '2026-01-10', '2026-01-10').elapsedPercent).toBe(100);

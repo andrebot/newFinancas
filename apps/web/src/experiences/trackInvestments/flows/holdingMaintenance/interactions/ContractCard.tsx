@@ -110,6 +110,8 @@ const leadOf = (holding: InvestmentHolding, latestIndex: LatestIndex | undefined
   const type = holding.rate?.type;
   if (!type || type === 'fixed' || !latestIndex) return say(texts.translator, 'contract.estimate');
   return say(texts.translator, 'contract.estimateIf', {
+    // pt-BR's article follows the index: "a Selic", "o CDI" (review round 1).
+    code: type,
     index: say(texts.translator, `index.${type}`),
     rate: texts.formatter.rate(latestIndex.value),
     unit: latestIndex.unit,
@@ -155,21 +157,29 @@ export const estimateNoteOf = (
 };
 
 /**
- * Writes how long the contract has to go: "2 yrs 5 mo to go", or that it
- * matures this month.
+ * Writes how long the contract has to go: "2 yrs 5 mo to go", "12 days to go"
+ * under a month, or the day it matured (review round 1).
  *
  * @param term - The contract's term.
- * @param translator - The texts.
+ * @param dueDate - The contract's due date.
+ * @param texts - The texts and the dates' formatter.
  * @returns The text.
  */
-export const termLeftOf = (term: ContractTerm, translator: Translator) => {
+export const termLeftOf = (
+  term: ContractTerm,
+  dueDate: string,
+  { translator, formatter }: Pick<Texts, 'translator' | 'formatter'>,
+) => {
+  if (term.matured) {
+    return say(translator, 'contract.matured', { date: formatter.date(dueDate) });
+  }
   const parts = [
     ...(term.yearsLeft > 0 ? [say(translator, 'contract.years', { count: term.yearsLeft })] : []),
     ...(term.monthsLeft > 0
       ? [say(translator, 'contract.months', { count: term.monthsLeft })]
       : []),
   ];
-  if (parts.length === 0) return say(translator, 'contract.maturing');
+  if (parts.length === 0) parts.push(say(translator, 'contract.days', { count: term.daysLeft }));
   return say(translator, 'contract.toGo', { span: parts.join(' ') });
 };
 
@@ -184,9 +194,10 @@ function TermBar({ holding, today }: {
   readonly today: string;
 }) {
   const translator = useI18n();
+  const formatter = useFormatter();
   if (!holding.boughtOn || !holding.dueDate) return null;
   const term = contractTermOf(holding.boughtOn, holding.dueDate, today);
-  const left = termLeftOf(term, translator);
+  const left = termLeftOf(term, holding.dueDate, { translator, formatter });
   return (
     <div className="mt-auto flex flex-col gap-1.5">
       <div className="flex justify-between gap-3 type-caption text-muted">

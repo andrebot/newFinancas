@@ -101,6 +101,12 @@ describe('GoalAllocationCard', () => {
     expect(houseBox().value)
       .toBe('60');
 
+    // Saved but not yet refetched: Save waits, so it can't be sent twice (review round 1).
+    await waitFor(() => expect(button('Save').getAttribute('aria-busy')).toBe('true'));
+    fireEvent.click(button('Save'));
+    expect(props.onSave).toHaveBeenCalledTimes(1);
+    expect(button('Reset').disabled).toBe(true);
+
     view.rerenderInLocale(
       <GoalAllocationCard
         {...props}
@@ -108,6 +114,7 @@ describe('GoalAllocationCard', () => {
       />,
     );
     expect(button('Save').disabled).toBe(true);
+    expect(button('Save').getAttribute('aria-busy')).not.toBe('true');
   });
 
   it('shows the problems instead of saving an empty share, and keeps a refused edit', async () => {
@@ -148,6 +155,13 @@ describe('GoalAllocationCard', () => {
     renderCard({ readOnly: true, read: { status: 'ready', data: [blank] } });
 
     expect(screen.getByRole('listitem').textContent).toBe('House Down Payment0%');
+  });
+
+  it('says a read-only Holding counts toward no goal (review round 1)', () => {
+    renderCard({ readOnly: true, read: { status: 'ready', data: [] } });
+
+    expect(screen.getByText("Doesn't count toward any goal.")).toBeTruthy();
+    expect(screen.queryByRole('list')).toBeNull();
   });
 
   it('says there is nothing to fund without Goals or shares', () => {

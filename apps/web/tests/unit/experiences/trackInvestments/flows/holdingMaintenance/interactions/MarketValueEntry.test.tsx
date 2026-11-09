@@ -35,6 +35,13 @@ const typeInto = (name: string, text: string) => {
 };
 
 /**
+ * Finds the line with the change a new value makes, by its hidden label.
+ *
+ * @returns The line.
+ */
+const changeLine = () => screen.getByText(/^Change against the current value/).parentElement!;
+
+/**
  * Renders XPML11's card.
  *
  * @param over - Props to change.
@@ -79,8 +86,8 @@ describe('MarketValueEntry', () => {
     const props = renderEntry();
 
     typeInto('New value (R$)', '112.480,00');
-    expect(screen.getByLabelText('Change against the current value').textContent)
-      .toBe('+R$\u00A02.480,00(+2.3%)');
+    expect(changeLine().textContent)
+      .toBe('Change against the current value: +R$\u00A02.480,00(+2.3%)');
     fireEvent.click(screen.getByRole('button', { name: 'Save value' }));
 
     await waitFor(() => expect(props.onSave)
@@ -102,8 +109,8 @@ describe('MarketValueEntry', () => {
 
     expect(screen.getByRole<HTMLInputElement>('textbox', { name: 'New value (R$)' }).value)
       .toBe('100.000,00');
-    expect(screen.getByLabelText('Change against the current value').textContent)
-      .toBe('−R$\u00A010.000,00(−9.1%)');
+    expect(changeLine().textContent)
+      .toBe('Change against the current value: −R$\u00A010.000,00(−9.1%)');
   });
 
   it('shows the problems instead of saving an empty or future value', () => {
@@ -124,8 +131,8 @@ describe('MarketValueEntry', () => {
     expect(screen.getByText('No value recorded yet')).toBeTruthy();
     expect(screen.queryByRole('group')).toBeNull();
     typeInto('New value (R$)', '5,00');
-    expect(screen.getByLabelText('Change against the current value').textContent)
-      .toBe('+R$\u00A05,00');
+    expect(changeLine().textContent)
+      .toBe('Change against the current value: +R$\u00A05,00');
     expect(view.onSave).not.toHaveBeenCalled();
   });
 
@@ -134,7 +141,7 @@ describe('MarketValueEntry', () => {
 
     typeInto('New value (R$)', '110.000,00');
 
-    const change = screen.getByLabelText('Change against the current value');
+    const change = changeLine();
     expect(change.className).toContain('text-muted');
     expect(change.querySelector('svg')).toBeNull();
   });
@@ -144,6 +151,7 @@ describe('MarketValueEntry', () => {
 
     expect(screen.getByText('read-only')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Save value' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'View history' })).toBeTruthy();
     expect(screen.queryByText("Dashed ring = the value you're about to save")).toBeNull();
     expect(screen.getByText('Archived — the value history is read-only.')).toBeTruthy();
   });

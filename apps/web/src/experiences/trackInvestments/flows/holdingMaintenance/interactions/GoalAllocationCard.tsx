@@ -34,6 +34,9 @@ export interface GoalAllocationCardProps {
   readonly onSave: (allocations: HoldingAllocation[]) => Promise<HistoryOutcome>;
 }
 
+/** A line in place of the split. */
+const NOTE = 'type-body-sm text-muted';
+
 /** An edit, and the split it was made on: a new read ends it. */
 interface Draft {
   readonly basis: readonly HoldingAllocation[];
@@ -74,7 +77,11 @@ function SplitEditor({ data, goals, onSave }: Omit<GoalAllocationCardProps, 'rea
   const translator = useI18n();
   const [draft, setDraft] = useState<Draft | null>(null);
   const [busy, setBusy] = useState(false);
+  // The split a save succeeded on: Save waits until the refetch replaces it,
+  // so a second click can't resend it (review round 1).
+  const [savedOn, setSavedOn] = useState<readonly HoldingAllocation[] | null>(null);
   const [showErrors, setShowErrors] = useState(false);
+  const waiting = busy || savedOn === data;
   const saved = allocationRowsOf(data, goals);
   const rows = draft?.basis === data ? draft.rows : saved;
   const changed = isSplitChanged(rows, saved);
@@ -88,7 +95,10 @@ function SplitEditor({ data, goals, onSave }: Omit<GoalAllocationCardProps, 'rea
     setBusy(true);
     const outcome = await onSave(allocationsOf(rows)).catch(() => 'refused');
     setBusy(false);
-    if (outcome === 'done') setShowErrors(false);
+    if (outcome === 'done') {
+      setShowErrors(false);
+      setSavedOn(data);
+    }
   };
 
   return (
@@ -103,7 +113,7 @@ function SplitEditor({ data, goals, onSave }: Omit<GoalAllocationCardProps, 'rea
         <Button
           variant="ghost"
           size="sm"
-          disabled={!changed || busy}
+          disabled={!changed || waiting}
           onClick={() => {
             setDraft(null);
             setShowErrors(false);
@@ -115,7 +125,7 @@ function SplitEditor({ data, goals, onSave }: Omit<GoalAllocationCardProps, 'rea
           variant="primary"
           size="sm"
           disabled={!changed}
-          busy={busy}
+          busy={waiting}
           onClick={() => {
             save();
           }}
@@ -138,7 +148,9 @@ function SplitContent({
   read, goals, readOnly, onSave,
 }: GoalAllocationCardProps) {
   const translator = useI18n();
-  const say = (key: 'goals.loading' | 'goals.none') => translator.text('holdingMaintenance', key);
+  const say = (key: 'goals.loading' | 'goals.none' | 'goals.empty') => (
+    translator.text('holdingMaintenance', key)
+  );
   if (read.status === 'loading') {
     return <SkeletonRows label={say('goals.loading')} count={2} />;
   }
@@ -155,9 +167,13 @@ function SplitContent({
       />
     );
   }
-  if (readOnly) return <ShareList rows={allocationRowsOf(read.data, goals)} />;
+  if (readOnly) {
+    const rows = allocationRowsOf(read.data, goals);
+    if (rows.length === 0) return <p className={NOTE}>{say('goals.empty')}</p>;
+    return <ShareList rows={rows} />;
+  }
   if (goals.length === 0 && read.data.length === 0) {
-    return <p className="type-body-sm text-muted">{say('goals.none')}</p>;
+    return <p className={NOTE}>{say('goals.none')}</p>;
   }
   return <SplitEditor data={read.data} goals={goals} onSave={onSave} />;
 }

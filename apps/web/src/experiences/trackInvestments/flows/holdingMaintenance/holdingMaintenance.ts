@@ -65,6 +65,10 @@ export interface ContractTerm {
   /** Whole years and months still to go; both 0 once due. */
   readonly yearsLeft: number;
   readonly monthsLeft: number;
+  /** Days still to go; 0 once due. Read when less than a whole month is left. */
+  readonly daysLeft: number;
+  /** Whether the due date has come (review round 1: an unredeemed contract stays listed). */
+  readonly matured: boolean;
 }
 
 /** A Goal the split can name: active ones can take a share, completed ones are only kept. */
@@ -83,6 +87,9 @@ export interface ValueChange {
 
 /** The units a Quantity counts in: 1e-8 of a unit (OQ-86). */
 const QUANTITY_SCALE = 100_000_000;
+
+/** A day, in milliseconds: the term's days to go. */
+const DAY_MS = 86_400_000;
 
 /**
  * Tells whether a Holding is a fixed-term contract (FR-11.1, OQ-79).
@@ -276,10 +283,13 @@ export const contractTermOf = (boughtOn: string, dueDate: string, today: string)
   const gone = dayOf(today) - dayOf(boughtOn);
   const ratio = span > 0 ? gone / span : 1;
   const left = wholeMonthsBetween(today, dueDate);
+  const daysLeft = Math.max(0, Math.round((dayOf(dueDate) - dayOf(today)) / DAY_MS));
   return {
     elapsedPercent: Math.round(Math.min(1, Math.max(0, ratio)) * 100),
     yearsLeft: Math.floor(left / 12),
     monthsLeft: left % 12,
+    daysLeft,
+    matured: daysLeft === 0,
   };
 };
 

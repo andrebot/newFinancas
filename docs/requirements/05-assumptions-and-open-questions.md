@@ -7046,6 +7046,16 @@ only the journey in the browser, and checks the end state through the API
 - **Shared, moved up:** `rateText` and its `rate.*` keys to `holdingNames.ts` / the `holdingNames` catalog section (FL15, FL19); `transactionNames.ts` to `experiences/` (Manage Finances' ledger and Holding Maintenance's activity name a trade the same way); `OverviewRead` to `trackInvestments/overviewRead.ts` and `shareTone` to `trackInvestments/shareTone.ts`, so neither Track Investments Flow imports the other.
 - **Tests (BDT):** the model directly; each Interaction through the real translator and kit; the open row and the Flow with their Interactions stubbed, the toast queue real. 100% coverage. Not checked in a real browser: the page is X7's, which adds the phone-width Playwright check.
 
+**Review round 1 (independent review, stakeholder agreed):**
+- **The term never reads "this month" by mistake:** under a whole month it counts the days ("26 days to go"), and a contract past its due date, still listed while unredeemed, reads "Matured on 03/15/2024".
+- **pt-BR's estimate note takes the index's article:** "a Selic", "o CDI", "o IPCA", "o IGP-M" (the `code` param selects it).
+- **A read-only goal split with no visible share says so** ("Doesn't count toward any goal.") instead of an empty card.
+- **Save waits after a split is saved,** until the refetch replaces it, so a second click can't resend it and toast twice.
+- **The change line's label is hidden text,** not an `aria-label` on a generic span, which assistive tech ignores.
+- **"View history" replaces "Edit history"** where the drawer only reads (an archived Holding, a user who may not change it).
+- **Wording:** pt-BR trade rows say "unidades" (not "cotas", wrong for stocks); the table footer says every holding but fixed income takes a manual value.
+- **Left as is:** the type bar colours by rank, as the overview's By type does, so a type's colour can differ between accounts; mockup 51 doesn't fix a colour per type.
+
 **Task 131 (`FL19`) is complete.**
 
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)

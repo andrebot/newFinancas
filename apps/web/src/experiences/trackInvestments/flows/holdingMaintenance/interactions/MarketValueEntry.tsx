@@ -90,10 +90,9 @@ function ChangePreview({ current, next, currency }: {
   const change = valueChangeOf(current, next);
   const tone = toneOf(change.amount);
   return (
-    <span
-      aria-label={say(translator, 'value.changeLabel')}
-      className={`inline-flex items-center gap-1 type-caption tabular-nums ${tone}`}
-    >
+    <span className={`inline-flex items-center gap-1 type-caption tabular-nums ${tone}`}>
+      {/* A generic span can't carry a name, so the label is hidden text (review round 1). */}
+      <span className="sr-only">{`${say(translator, 'value.changeLabel')}: `}</span>
       {change.amount !== 0 && (
         <Icon name={change.amount > 0 ? 'arrow-upward' : 'arrow-downward'} className="size-3.5" />
       )}
@@ -185,12 +184,16 @@ function ValueForm({
 /**
  * Draws the latest value, its date and "Edit history".
  *
- * @param props - The latest value, its currency and the drawer's handler.
+ * @param props - The latest value, its currency, whether it reads only and the drawer's handler.
  * @returns The line.
  */
-function LatestValue({ latest, currency, onOpenHistory }: {
+function LatestValue({
+  latest, currency, readOnly, onOpenHistory,
+}: {
   readonly latest: HistoryEntry | undefined;
   readonly currency: Currency;
+  /** Whether the drawer only reads: the link says "View history" (review round 1). */
+  readonly readOnly: boolean;
   readonly onOpenHistory: () => void;
 }) {
   const translator = useI18n();
@@ -203,7 +206,7 @@ function LatestValue({ latest, currency, onOpenHistory }: {
       <span className="type-caption text-muted tabular-nums">
         {latest && `${say(translator, 'value.asOf', { date: formatter.date(latest.date) })} · `}
         <button type="button" className={LINK} onClick={onOpenHistory}>
-          {say(translator, 'value.editHistory')}
+          {say(translator, readOnly ? 'value.viewHistory' : 'value.editHistory')}
         </button>
       </span>
     </div>
@@ -256,7 +259,12 @@ export function MarketValueEntry({
       title={say(translator, 'value.title')}
       mode={readOnly ? 'readOnly' : 'editable'}
     >
-      <LatestValue latest={entries[0]} currency={currency} onOpenHistory={onOpenHistory} />
+      <LatestValue
+        latest={entries[0]}
+        currency={currency}
+        readOnly={readOnly}
+        onOpenHistory={onOpenHistory}
+      />
       <ValueChart
         entries={entries}
         draft={draft}
