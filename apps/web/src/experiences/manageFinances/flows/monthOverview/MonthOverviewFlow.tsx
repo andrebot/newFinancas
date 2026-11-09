@@ -7,12 +7,12 @@ import { useI18n } from '../../../../utilities/I18nProvider';
 import type { PreferenceStorage } from '../../../../utilities/safeStorage';
 import useFormatter from '../../../../utilities/useFormatter';
 import { balanceCardsOf } from '../../../balanceCards';
+import useRememberedCurrency from '../../../useRememberedCurrency';
 import { MonthRails, periodLabelOf } from '../../../interactions/MonthRails';
 import { PeriodSummary } from './interactions/PeriodSummary';
 import {
   figuresOf, firstYearOf, stripOf,
 } from './monthOverview';
-import useSummaryCurrency from './useSummaryCurrency';
 
 // The Month Overview Flow (FL17, mockups 30, 34; FR-6.11, FR-6.6, OQ-201,
 // OQ-221): the period bar — the year's months with their in / out bars and
@@ -93,7 +93,7 @@ export function MonthOverviewFlow({
 }: MonthOverviewFlowProps) {
   const translator = useI18n();
   const formatter = useFormatter();
-  const { currency, changeCurrency } = useSummaryCurrency(currencyMemory);
+  const { currency, changeCurrency } = useRememberedCurrency(currencyMemory);
   const label = periodLabelOf(translator, formatter, period);
   const report = overview.status === 'loaded' ? overview.report : undefined;
   return (

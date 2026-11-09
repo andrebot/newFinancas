@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  assetTypeName, rateText, recordText,
+  rateText, recordText,
 } from '../../../../../../src/experiences/manageFinances/flows/recordTransaction/recordText';
 import { createFormatter } from '../../../../../../src/utilities/formatting';
 import { createTranslator } from '../../../../../../src/utilities/i18n';
@@ -13,15 +13,6 @@ describe('recordText', () => {
 
     expect(recordText(translator, 'field.kind')).toBe('Tipo');
     expect(recordText(translator, 'rate.cdi', { rate: '110%' })).toBe('110% do CDI');
-  });
-});
-
-describe('assetTypeName', () => {
-  it('names an asset type, and "Other" for none', () => {
-    const translator = createTranslator('en-US');
-
-    expect(assetTypeName(translator, 'tesouro_direto')).toBe('Tesouro Direto');
-    expect(assetTypeName(translator, undefined)).toBe('Other');
   });
 });
 

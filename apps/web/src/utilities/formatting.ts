@@ -21,6 +21,8 @@ export type DateStyle = keyof typeof formatting.dateStyles;
 export interface MoneyOptions {
   /** `always` writes `+` on a positive amount (income); `auto` only `−` on a negative one. */
   readonly sign?: 'auto' | 'always' | undefined;
+  /** Shortens a large amount, e.g. `$8.8K`, `R$ 155 mil`: a chart's centre label (FL18). */
+  readonly compact?: boolean | undefined;
 }
 
 /** How a currency writes its amounts: what a money input needs to mask them (K7). */
@@ -119,21 +121,25 @@ const withMinusSign = (text: string): string => text.replace('-', '−');
  *
  * @param amount - The amount in the currency's minor units (cents), as the API sends it.
  * @param currency - The amount's currency.
- * @param options - How the sign shows.
- * @returns E.g. `R$ 1.234,56`, `$1,234.56`, `+$3,200.00`, `−$45.99`.
+ * @param options - How the sign shows, and whether to shorten it.
+ * @returns E.g. `R$ 1.234,56`, `$1,234.56`, `+$3,200.00`, `−$45.99`, `$8.8K`.
  */
 export const formatMoney = (
   amount: number,
   currency: Currency,
   options: MoneyOptions = {},
 ): string => {
-  const format = numberFormat(formatting.currencyLocale[currency], {
-    style: 'currency',
-    currency,
-    signDisplay: options.sign === 'always' ? 'exceptZero' : 'auto',
+  const signDisplay = options.sign === 'always' ? 'exceptZero' : 'auto';
+  const exact = numberFormat(formatting.currencyLocale[currency], {
+    style: 'currency', currency, signDisplay,
   });
+  const format = options.compact
+    ? numberFormat(formatting.currencyLocale[currency], {
+      style: 'currency', currency, signDisplay, notation: 'compact', maximumFractionDigits: 1,
+    })
+    : exact;
   // Always set for a currency format; the lib types it as optional.
-  const minorDigits = Number(format.resolvedOptions().maximumFractionDigits);
+  const minorDigits = Number(exact.resolvedOptions().maximumFractionDigits);
   // `+ 0` turns −0 (e.g. a negated empty sum) into 0, so it reads `$0.00`, not `−$0.00`.
   return withMinusSign(format.format(amount / 10 ** minorDigits + 0));
 };

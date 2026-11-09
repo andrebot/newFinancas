@@ -991,36 +991,57 @@ export type MonthOverviewReport = {
  * FR-5.3 / FR-5.9
  */
 export type InvestmentsOverviewReport = {
-    reportType?: 'investments-overview';
-    netWorth?: Array<{
-        currency?: Currency;
-        amount?: Money;
+    reportType: 'investments-overview';
+    /**
+     * One entry per currency the visible Holdings are in, never summed (FR-5.3)
+     */
+    netWorth: Array<{
+        currency: Currency;
+        amount: Money;
+        /**
+         * Left out when there is no previous month to compare against (OQ-231)
+         */
         changeVsPreviousMonth?: Money;
-        series?: Array<{
-            month?: string;
-            amount?: Money;
+        /**
+         * The last 6 months at most, oldest first, ending this month (OQ-231)
+         */
+        series: Array<{
+            month: string;
+            amount: Money;
         }>;
     }>;
-    payoutThisMonth?: Array<{
-        holdingId?: string;
-        transactionId?: string;
-        kind?: string;
-        date?: string;
-        currency?: Currency;
-        amount?: Money;
+    /**
+     * This month's dividend and interest transactions, one entry each (FR-5.9)
+     */
+    payoutThisMonth: Array<{
+        holdingId: string;
+        transactionId: string;
+        kind: 'investment_dividend' | 'investment_interest';
+        date: string;
+        currency: Currency;
+        amount: Money;
     }>;
-    allocations?: Array<{
-        group?: string;
-        currency?: Currency;
-        holdingId?: string | null;
-        amount?: Money;
+    /**
+     * Today's value of the visible, active Holdings, sliced three ways (OQ-233): `holding` — one Holding (`key` its id), the Stocks and FIIs panels; `assetType` — every Holding of one type (`key` the assetType), By type; `account` — every Holding in one Account (`key` its id), By account. Each slice is per currency, never summed across currencies (FR-5.3); a slice worth nothing is left out.
+     */
+    allocations: Array<{
+        kind: 'holding' | 'assetType' | 'account';
+        /**
+         * The Holding's id, the assetType, or the Account's id, by `kind`
+         */
+        key: string;
+        currency: Currency;
+        amount: Money;
     }>;
-    comingDue?: Array<{
-        holdingId?: string;
-        name?: string;
-        dueDate?: string;
-        currency?: Currency;
-        amount?: Money;
+    /**
+     * The fixed-term Holdings still open, soonest due first
+     */
+    comingDue: Array<{
+        holdingId: string;
+        name: string;
+        dueDate: string;
+        currency: Currency;
+        amount: Money;
     }>;
 };
 
@@ -1028,13 +1049,13 @@ export type InvestmentsOverviewReport = {
  * FR-5.9 — sums of dividend/interest transactions linked to each Holding
  */
 export type PayoutsReport = {
-    reportType?: 'payouts';
-    series?: Array<{
-        holdingId?: string;
-        currency?: Currency;
-        months?: Array<{
-            month?: string;
-            amount?: Money;
+    reportType: 'payouts';
+    series: Array<{
+        holdingId: string;
+        currency: Currency;
+        months: Array<{
+            month: string;
+            amount: Money;
         }>;
     }>;
 };
@@ -2679,6 +2700,28 @@ export type ListHoldingsResponses = {
 
 export type ListHoldingsResponse = ListHoldingsResponses[keyof ListHoldingsResponses];
 
+export type ListHouseholdHoldingsData = {
+    body?: never;
+    path: {
+        householdId: string;
+    };
+    query?: {
+        includeArchived?: boolean;
+    };
+    url: '/households/{householdId}/holdings';
+};
+
+export type ListHouseholdHoldingsResponses = {
+    /**
+     * OK
+     */
+    200: {
+        data?: Array<InvestmentHolding>;
+    };
+};
+
+export type ListHouseholdHoldingsResponse = ListHouseholdHoldingsResponses[keyof ListHouseholdHoldingsResponses];
+
 export type GetHoldingData = {
     body?: never;
     path: {
@@ -3115,21 +3158,33 @@ export type GetDashboardResponses = {
      * OK
      */
     200: {
+        /**
+         * One entry per currency the visible Holdings are in, never summed (FR-5.3)
+         */
         netWorth?: Array<{
-            currency?: Currency;
-            amount?: Money;
+            currency: Currency;
+            amount: Money;
+            /**
+             * Left out when there is no previous month to compare against (OQ-231)
+             */
             changeVsPreviousMonth?: Money;
-            series?: Array<{
-                month?: string;
-                amount?: Money;
+            /**
+             * The last 6 months at most, oldest first, ending this month (OQ-231)
+             */
+            series: Array<{
+                month: string;
+                amount: Money;
             }>;
         }>;
+        /**
+         * The fixed-term Holdings still open, soonest due first
+         */
         comingDue?: Array<{
-            holdingId?: string;
-            name?: string;
-            dueDate?: string;
-            currency?: Currency;
-            amount?: Money;
+            holdingId: string;
+            name: string;
+            dueDate: string;
+            currency: Currency;
+            amount: Money;
         }>;
         payouts?: PayoutsReport;
         /**

@@ -135,8 +135,9 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain:</strong> <code>InsightsManager</code> ① <code>AuthorizationUtility</code> → ② <code>ReportingEngine</code> (net worth + change, payout this month + 12-month series from dividend/interest transactions, allocations, coming due, positions) → ③ its reads → ④ <code>InvestmentProductEngine.project(householdId, terms)</code> per fixed-term holding (its terms off the Holding and its buy, OQ-205) → ⑤ <code>IndexRateAccessor.latest(householdId, index)</code>.</p>
+    <p><strong>Chain:</strong> <code>InsightsManager</code> ① <code>AuthorizationUtility</code> → ② <code>ReportingEngine</code> (net worth + change, payout this month + 12-month series from dividend/interest transactions, allocations as holding / assetType / account slices, coming due, positions) → ③ its reads → ④ <code>InvestmentProductEngine.project(householdId, terms)</code> per fixed-term holding (its terms off the Holding and its buy, OQ-205) → ⑤ <code>IndexRateAccessor.latest(householdId, index)</code>.</p>
     <p><strong>Two Engines, side by side, never calling each other</strong> — the Manager composes both results. Payout is never stored (FR-5.9); projections are computed on read (FR-11.2).</p>
+    <p>⑥ <strong>The household's Holdings (OQ-233):</strong> <code>InvestmentHoldingAccessor.listByAccounts</code> over the visible accounts, read by the Manager as the per-account list is (OQ-208) — what names the overview's ids and lists the payout selector.</p>
   </div>
 
   <script>
@@ -149,7 +150,7 @@
       svg.style.width = containerRect.width + 'px';
       svg.style.height = containerRect.height + 'px';
 
-      var edges = [{"from": "mgr-insights", "to": "util-authz", "type": "sync", "order": 1}, {"from": "mgr-insights", "to": "eng-reporting", "type": "sync", "order": 2}, {"from": "eng-reporting", "to": "acc-holding", "type": "sync", "order": 3}, {"from": "eng-reporting", "to": "acc-snapshot", "type": "sync", "order": 3}, {"from": "eng-reporting", "to": "acc-accounttxn", "type": "sync", "order": 3}, {"from": "eng-reporting", "to": "acc-account", "type": "sync", "order": 3}, {"from": "mgr-insights", "to": "eng-product", "type": "sync", "order": 4}, {"from": "eng-product", "to": "acc-indexrate", "type": "sync", "order": 5}];
+      var edges = [{"from": "mgr-insights", "to": "util-authz", "type": "sync", "order": 1}, {"from": "mgr-insights", "to": "eng-reporting", "type": "sync", "order": 2}, {"from": "eng-reporting", "to": "acc-holding", "type": "sync", "order": 3}, {"from": "eng-reporting", "to": "acc-snapshot", "type": "sync", "order": 3}, {"from": "eng-reporting", "to": "acc-accounttxn", "type": "sync", "order": 3}, {"from": "eng-reporting", "to": "acc-account", "type": "sync", "order": 3}, {"from": "mgr-insights", "to": "eng-product", "type": "sync", "order": 4}, {"from": "eng-product", "to": "acc-indexrate", "type": "sync", "order": 5}, {"from": "mgr-insights", "to": "acc-holding", "type": "sync", "order": 6}];
 
       var activeIds = {};
       edges.forEach(function (e) { activeIds[e.from] = true; activeIds[e.to] = true; });

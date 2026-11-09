@@ -148,6 +148,8 @@ Diagram: `docs/design/diagrams/ebd-tiers/app-shell.html`; sequence:
 
 **Purpose:** Follow and maintain investments. New Experience (Q2). Portfolio Builders stay disabled (v2).
 
+**OQ-233 (FL18):** the Experience reads the overview with the household's Holdings (`GET /households/{id}/holdings`), the accounts and the active Goals' progress, and holds the payout chart's choice of Holdings — the payouts query's argument — remembered per household. Net Worth Cards, Coming Due and the payout panel (Payout Holding Selector + Payout Chart) live in `experiences/interactions/`, shared with the Dashboard's Flow (FL21).
+
 | Flow | Interactions | Sequence |
 |---|---|---|
 | Portfolio Overview | Net Worth Cards, Payout This Month, Payout Holding Selector, Payout Chart, Allocation Cards, Coming Due | `docs/design/diagrams/ebd-sequences/track-investments-portfolio-overview.html` |

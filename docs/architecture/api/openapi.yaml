@@ -1321,6 +1321,33 @@ paths:
                   data:
                     type: array
                     items: { $ref: "#/components/schemas/InvestmentHolding" }
+  /households/{householdId}/holdings:
+    parameters:
+      - $ref: "#/components/parameters/HouseholdId"
+    get:
+      tags: [Investments]
+      operationId: listHouseholdHoldings
+      summary: List the household's Investment Holdings, across every visible account
+      description: >-
+        OQ-233. The Holdings the caller can see (`data.view`), in every
+        Account of the household — what the Investments overview and the
+        Dashboard name a report's `holdingId` by, and what the payout
+        selector lists. Same items and narrowing as the per-account list.
+      parameters:
+        - name: includeArchived
+          in: query
+          schema: { type: boolean, default: false }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: "#/components/schemas/InvestmentHolding" }
   /households/{householdId}/holdings/{holdingId}:
     parameters:
       - $ref: "#/components/parameters/HouseholdId"
@@ -3704,6 +3731,7 @@ components:
     InvestmentsOverviewReport:
       type: object
       description: FR-5.3 / FR-5.9
+      required: [reportType, netWorth, payoutThisMonth, allocations, comingDue]
       properties:
         reportType:
           type: string
@@ -3711,8 +3739,10 @@ components:
             - investments-overview
         netWorth:
           type: array
+          description: One entry per currency the visible Holdings are in, never summed (FR-5.3)
           items:
             type: object
+            required: [currency, amount, series]
             properties:
               currency:
                 $ref: '#/components/schemas/Currency'
@@ -3720,19 +3750,25 @@ components:
                 $ref: '#/components/schemas/Money'
               changeVsPreviousMonth:
                 $ref: '#/components/schemas/Money'
+                description: Left out when there is no previous month to compare against (OQ-231)
               series:
                 type: array
+                description: The last 6 months at most, oldest first, ending this month (OQ-231)
                 items:
                   type: object
+                  required: [month, amount]
                   properties:
                     month:
                       type: string
+                      pattern: '^\d{4}-(0[1-9]|1[0-2])$'
                     amount:
                       $ref: '#/components/schemas/Money'
         payoutThisMonth:
           type: array
+          description: This month's dividend and interest transactions, one entry each (FR-5.9)
           items:
             type: object
+            required: [holdingId, transactionId, kind, date, currency, amount]
             properties:
               holdingId:
                 type: string
@@ -3742,6 +3778,7 @@ components:
                 format: uuid
               kind:
                 type: string
+                enum: [investment_dividend, investment_interest]
               date:
                 type: string
                 format: date
@@ -3751,22 +3788,33 @@ components:
                 $ref: '#/components/schemas/Money'
         allocations:
           type: array
+          description: >-
+            Today's value of the visible, active Holdings, sliced three ways
+            (OQ-233): `holding` — one Holding (`key` its id), the Stocks and
+            FIIs panels; `assetType` — every Holding of one type (`key` the
+            assetType), By type; `account` — every Holding in one Account
+            (`key` its id), By account. Each slice is per currency, never
+            summed across currencies (FR-5.3); a slice worth nothing is left out.
           items:
             type: object
+            required: [kind, key, currency, amount]
             properties:
-              group:
+              kind:
                 type: string
+                enum: [holding, assetType, account]
+              key:
+                type: string
+                description: The Holding's id, the assetType, or the Account's id, by `kind`
               currency:
                 $ref: '#/components/schemas/Currency'
-              holdingId:
-                type: [string, "null"]
-                format: uuid
               amount:
                 $ref: '#/components/schemas/Money'
         comingDue:
           type: array
+          description: The fixed-term Holdings still open, soonest due first
           items:
             type: object
+            required: [holdingId, name, dueDate, currency, amount]
             properties:
               holdingId:
                 type: string
@@ -3783,6 +3831,7 @@ components:
     PayoutsReport:
       type: object
       description: FR-5.9 — sums of dividend/interest transactions linked to each Holding
+      required: [reportType, series]
       properties:
         reportType:
           type: string
@@ -3792,6 +3841,7 @@ components:
           type: array
           items:
             type: object
+            required: [holdingId, currency, months]
             properties:
               holdingId:
                 type: string
@@ -3802,9 +3852,11 @@ components:
                 type: array
                 items:
                   type: object
+                  required: [month, amount]
                   properties:
                     month:
                       type: string
+                      pattern: '^\d{4}-(0[1-9]|1[0-2])$'
                     amount:
                       $ref: '#/components/schemas/Money'
     InvitationReceivedNotification:

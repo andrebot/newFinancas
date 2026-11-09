@@ -1104,27 +1104,41 @@ else the month fails
     EXP->>API: GET /households/:householdId/reports/month-overview?year=&month=
 end
 """, ["FormattingUtility formats every amount in its own currency; nothing is summed across currencies.", "OQ-201: a Goal funded in other currencies shows its own currency's progress and a note pointing to Goals (the exchange rate lives there); a card shows its outstanding at the month's end.", "OQ-221: the Experience holds the month (its query's argument) and refetches it after a record, edit or delete; the Flow keeps only the $ / R$ switch. Its two regions (bar, rails) are placed by the Experience's page grid around Browse's ledger. A failed month never shows the previous month's figures."]),
-    ("track-investments-portfolio-overview", "Track Investments — Portfolio Overview", f"{R('GET /households/:householdId/reports/investments-overview')}, {R('GET /households/:householdId/reports/payouts?holdingIds=')}.",
+    ("track-investments-portfolio-overview", "Track Investments — Portfolio Overview", f"{R('GET /households/:householdId/reports/investments-overview')} with {R('GET /households/:householdId/holdings?includeArchived=true')}, {R('GET /households/:householdId/accounts')} and {R('GET /households/:householdId/goal-progress?status=active')}; {R('GET /households/:householdId/reports/payouts?holdingIds=')} (OQ-233).",
      [("NW", "Net Worth / Allocation /<br/>Coming Due cards"), ("PT", "Payout This Month"), ("HS", "Payout Holding Selector"), ("PC", "Payout Chart"), FLOW("Portfolio Overview"), EXP("Track Investments"), API],
      """
 FLOW->>EXP: request overview
+par the overview and what names it
 EXP->>API: GET /households/:householdId/reports/investments-overview
-API-->>EXP: net worth + change, payout this month, allocations, coming due
-EXP-->>FLOW: state
-FLOW-->>NW: render
+API-->>EXP: net worth + change, payout this month, allocations (holding / assetType / account), coming due
+EXP->>API: GET /households/:householdId/holdings?includeArchived=true
+API-->>EXP: every visible Holding: ticker, type, account
+EXP->>API: GET /households/:householdId/accounts
+EXP->>API: GET /households/:householdId/goal-progress?status=active
+end
+alt overview and Holdings loaded
+EXP-->>FLOW: state (report + Holdings, accounts, Goals)
+FLOW-->>NW: render net worth, allocations, Goals, by account, coming due
 FLOW-->>PT: render this month's dividend / interest transactions
-FLOW->>EXP: request payouts(default holdings)
-EXP->>API: GET /households/:householdId/reports/payouts
-API-->>EXP: series
-FLOW-->>PC: render top 5 + Others
-User->>HS: search, presets, check holdings
+else no Holding at all
+FLOW-->>NW: one empty state in place of every panel
+else failed
+EXP-->>FLOW: failed
+FLOW-->>NW: banner "Couldn't load your investments" + Try again
+end
+FLOW->>EXP: request payouts(remembered choice — "all" the first time)
+EXP->>API: GET /households/:householdId/reports/payouts (no holdingIds for "all")
+API-->>EXP: series per Holding and currency
+EXP-->>FLOW: state
+FLOW-->>PC: render the $ / R$ switch's currency: top 5 + Others
+User->>HS: search, family presets, check holdings
 HS->>FLOW: emit holdingsSelected
-FLOW->>EXP: request payouts(selected)
+FLOW->>EXP: request payouts(selected), remembered per household
 EXP->>API: GET /households/:householdId/reports/payouts?holdingIds=…
 API-->>EXP: series
 EXP-->>FLOW: state
 FLOW-->>PC: re-render (only the chart refetches)
-""", ["Portfolio Builder buttons render disabled (v2)."]),
+""", ["Portfolio Builder buttons render disabled (v2); the page header and its tabs are the Experience's (X7).", "OQ-233: allocations come as `holding`, `assetType` and `account` slices per currency, never summed; the Goals panel reads the shared goal progress, not the report. Every Holding chosen is remembered as \"all\", so a new Holding joins the chart.", "The $ / R$ switch is the panel's own, remembered apart from Month Overview's; the chart's empty state is `seriesColors(...).size === 0` (OQ-230)."]),
     ("track-investments-holding-maintenance", "Track Investments — Holding Maintenance", f"{R('GET /households/:householdId/accounts/:id/holdings')} (InsightsManager), {R('GET/PATCH /households/:householdId/holdings/:id/allocations')}, {R('…/valuation-snapshots')} (AccountManager — OQ-178).",
      [("AP", "Account Picker"), ("HT", "Holdings Table"), ("GA", "Goal Allocation Editor"), ("MV", "Market Value Entry"), ("VH", "Value History Editor"), FLOW("Holding Maintenance"), EXP("Track Investments"), API],
      """

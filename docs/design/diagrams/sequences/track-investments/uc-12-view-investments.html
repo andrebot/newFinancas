@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>View Investments</h1>
-  <p class="subtitle"><span class="route">GET /households/:householdId/reports/investments-overview</span>, <span class="route">GET /households/:householdId/reports/payouts?holdingIds=</span>, <span class="route">GET /households/:householdId/accounts/:accountId/holdings</span> &mdash; FR-5.3/5.4, FR-5.9, FR-11.2, FR-11.6. Fixed v1 report types under <code>/reports</code> (sequence review Q1).</p>
+  <p class="subtitle"><span class="route">GET /households/:householdId/reports/investments-overview</span>, <span class="route">GET /households/:householdId/reports/payouts?holdingIds=</span>, <span class="route">GET /households/:householdId/accounts/:accountId/holdings</span>, <span class="route">GET /households/:householdId/holdings</span> (OQ-233, task 133) &mdash; FR-5.3/5.4, FR-5.9, FR-11.2, FR-11.6. Fixed v1 report types under <code>/reports</code> (sequence review Q1).</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -78,7 +78,7 @@ sequenceDiagram
     RE->>IHA: holdings (cost basis for fixed-term)
     RE->>VSA: latestAsOf(market-priced holdingIds, today)
     RE->>ATA: this month's dividend / interest transactions linked to Holdings
-    RE-->>IM: {netWorthByCurrency + change vs previous month, payoutThisMonth, allocations, comingDue}
+    RE-->>IM: {netWorthByCurrency + change vs previous month, payoutThisMonth, allocations (holding / assetType / account slices per currency, OQ-233), comingDue}
     IM-->>API: report
     API-->>User: 200 OK
 
@@ -89,6 +89,15 @@ sequenceDiagram
     RE-->>IM: series per holding (top 5 + others grouped by the frontend)
     IM-->>API: report
     API-->>User: 200 OK
+
+    User->>API: GET /households/:householdId/holdings?includeArchived=true
+    Note over User,API: OQ-233 &mdash; every visible Holding, to name the overview&#39;s ids and list the payout selector
+    API->>IM: listHouseholdHoldings(context, householdId, includeArchived)
+    IM->>AZ: visibleScope(actor) &mdash; a non-member gets 404 household.not_found
+    IM->>IHA: listByAccounts(visible accountIds, {includeArchived})
+    IHA-->>IM: the Holdings, in the order opened
+    Note over IM,IRA: fixed-term projections as the per-account list below
+    IM-->>API: 200 {data}
 
     User->>API: GET /households/:householdId/accounts/:accountId/holdings?includeArchived=
     API->>IM: listHoldings(context, householdId, accountId, includeArchived)
