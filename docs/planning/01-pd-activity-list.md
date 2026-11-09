@@ -119,7 +119,7 @@ is worth building once.
 | K43 | Table (columns with their own grid tracks over one shared template, group rows with an aside at the end, expandable rows on K42's row surface — open state held per key so a hairline under an opened row goes away; optional footer) — OQ-228 | holdings by account |
 | K44 | Key–value list | contract details, position, transaction details |
 | K45 | List row (`ListRows` divided / raised + `ListRow`: leading avatar / icon, title, meta, trailing, footer actions; `ListRowIcon` tinted circle — OQ-153) | members, sessions, invitations, notifications, coming due |
-| K46 | History editor (dated values: add / edit / delete) | **value history and rate history — same component** |
+| K46 | History editor (dated values: add / edit / delete, with its K38 chart) — OQ-232 | **value history and rate history — same component** |
 | K47 | Allocation editor (goal + whole %, remaining, ≤ 100) | **investment buy and holding maintenance — same component** |
 | K48 | Credit-card preview + card number input + saved-card row (`CardPreview`, `CardNumberInput`, `CardRow`); `detectCardNetwork` / `isValidCardNumber` (Luhn) and each network's BIN ranges and number format as data in `@financas/reference`; network-aware grouping; one dark gradient per network — OQ-187 | account setup, wizard |
 | K49 | Stepper (step n of m; caller-formatted caption; vertical list from `lg`, a row of dots below it; display only — OQ-183) | setup wizard |

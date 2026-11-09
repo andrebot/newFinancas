@@ -61,6 +61,8 @@ export const formatting = {
   currencyLocale: { BRL: 'pt-BR', USD: 'en-US' },
   /** The decimals a rate shows: 10.50% (OQ-179). */
   rateFractionDigits: 2,
+  /** The decimals a relative change shows: −1.5% (mockup 52's history). */
+  changeFractionDigits: 1,
   /** The ways a calendar date is written on screen. */
   dateStyles: {
     /** 30/09/2026 · 09/30/2026 — tables, due dates, forms. */
