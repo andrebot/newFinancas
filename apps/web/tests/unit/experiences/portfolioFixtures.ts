@@ -28,6 +28,22 @@ export const holdingOf = (
   ...over,
 });
 
+/**
+ * Copies a Holding without some fields, as a read that leaves them out sends it.
+ *
+ * @param holding - The Holding.
+ * @param fields - The fields to leave out.
+ * @returns The copy.
+ */
+export const holdingWithout = (
+  holding: InvestmentHolding,
+  ...fields: readonly (keyof InvestmentHolding)[]
+): InvestmentHolding => {
+  const copy: Partial<InvestmentHolding> = { ...holding };
+  fields.forEach((field) => delete copy[field]);
+  return copy;
+};
+
 export const HOLDINGS: readonly InvestmentHolding[] = [
   holdingOf('xpml11'),
   holdingOf('knri11'),

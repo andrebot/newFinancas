@@ -1,7 +1,7 @@
 import type {
   Account, Currency, InvestmentHolding, InvestmentsOverviewReport,
 } from '@financas/api-types';
-import { money, portfolio } from '../../../../config/constants';
+import { money } from '../../../../config/constants';
 import { assetFamilyOf, type AssetFamily } from '../../../holdingNames';
 import { holdingNameOf, type PayoutThisMonthEntry } from '../../../payoutPanel';
 
@@ -194,14 +194,3 @@ export const accountRowsOf = (
       )).length,
     }));
 };
-
-/**
- * Picks a share's colour by its place, largest first (mockup 50's donuts and bars).
- *
- * @param index - The share's place.
- * @returns A palette token; the tones repeat past the last.
- */
-export const shareTone = (index: number) => (
-  // The index is taken modulo the tones' count, so it always lands on one.
-  portfolio.shareTones[index % portfolio.shareTones.length]!
-);

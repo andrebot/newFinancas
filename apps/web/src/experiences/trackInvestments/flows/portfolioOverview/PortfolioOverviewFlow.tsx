@@ -13,6 +13,7 @@ import { periodLabelOf } from '../../../interactions/MonthRails';
 import { NetWorthCards } from '../../../interactions/NetWorthCards';
 import { PayoutPanel } from '../../../interactions/PayoutPanel';
 import type { PayoutsRead } from '../../../payoutPanel';
+import type { OverviewRead } from '../../overviewRead';
 import {
   AccountAllocation, FamilyAllocation, GoalFunding, TypeAllocation,
 } from './interactions/allocationCards/AllocationCards';
@@ -32,15 +33,7 @@ import { PayoutThisMonth } from './interactions/PayoutThisMonth';
 // household with no Holding at all sees one empty state instead of a page of
 // empty panels.
 
-/** The overview, as the Experience's queries hold it. */
-export type OverviewRead = | { readonly status: 'loading' }
-  | { readonly status: 'failed' }
-  | {
-    readonly status: 'loaded';
-    readonly report: InvestmentsOverviewReport;
-    /** The household's Holdings, archived ones included: what names the report's ids. */
-    readonly holdings: readonly InvestmentHolding[];
-  };
+export type { OverviewRead };
 
 /** The payout chart's part of the Flow's props. */
 export interface PayoutsInput {

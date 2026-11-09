@@ -54,6 +54,7 @@ const HOLDING = {
   expectedPayout: 1105000,
   expectedTaxes: { estimated: true, amount: 26112 },
   projectionUnavailable: null,
+  boughtOn: '2026-10-01' as string | null,
 };
 const HOLDING_JSON = {
   id: HOLDING_ID,
@@ -72,6 +73,7 @@ const HOLDING_JSON = {
   expectedPayout: 1105000,
   expectedTaxes: { estimated: true, amount: 26112 },
   projectionUnavailable: null,
+  boughtOn: '2026-10-01',
 };
 
 /** A market-priced Holding — no rate, no projection (the mapper's other branch). */
@@ -88,6 +90,7 @@ const STOCK = {
   dueDate: null,
   expectedPayout: null,
   expectedTaxes: null,
+  boughtOn: null,
 };
 const STOCK_JSON = {
   ...HOLDING_JSON,
@@ -101,6 +104,7 @@ const STOCK_JSON = {
   dueDate: null,
   expectedPayout: null,
   expectedTaxes: null,
+  boughtOn: null,
 };
 
 /**

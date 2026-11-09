@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Track Investments — Holding Maintenance</h1>
-  <p class="subtitle"><span class="route">GET /households/:householdId/accounts/:id/holdings</span> (InsightsManager), <span class="route">GET/PATCH /households/:householdId/holdings/:id/allocations</span>, <span class="route">…/valuation-snapshots</span> (AccountManager — OQ-178).</p>
+  <p class="subtitle"><span class="route">GET /households/:householdId/reports/investments-overview</span> with <span class="route">GET /households/:householdId/holdings?includeArchived=true</span> (shared with Portfolio Overview), <span class="route">GET /households/:householdId/index-rates</span>; per open row <span class="route">GET /households/:householdId/holdings/:id/allocations</span>, <span class="route">…/valuation-snapshots</span> and <span class="route">GET /households/:householdId/transactions?holdingId=&limit=3</span>; <span class="route">PATCH /households/:householdId/holdings/:id</span>, <span class="route">POST/PATCH/DELETE …/valuation-snapshots</span> (OQ-178, OQ-234).</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -68,45 +68,56 @@ sequenceDiagram
     participant FLOW as Holding Maintenance<br/>Flow
     participant EXP as Track Investments<br/>Experience
     participant API as Backend API
+    FLOW->>EXP: request overview
+    par the overview, what names it, and the index rates
+    EXP->>API: GET /households/:householdId/reports/investments-overview
+    API-->>EXP: today's value per Holding / account (slices), payout this month
+    EXP->>API: GET /households/:householdId/holdings?includeArchived=true
+    API-->>EXP: every visible Holding (+ expected payout / taxes and boughtOn for fixed-term)
+    EXP->>API: GET /households/:householdId/index-rates
+    end
+    EXP-->>FLOW: state (report + Holdings, accounts, Goals, index rates)
+    FLOW-->>AP: render the accounts holding something (first chosen)
     User->>AP: pick account
     AP->>FLOW: emit accountChosen
-    FLOW->>EXP: request holdings(accountId)
-    EXP->>API: GET /households/:householdId/accounts/:accountId/holdings
-    API-->>EXP: positions (+ expected payout / taxes for fixed-term)
-    EXP-->>FLOW: state
-    User->>HT: expand a holding
-    HT->>FLOW: emit holdingExpanded
-    FLOW->>EXP: request split + history(holdingId)
+    FLOW-->>HT: render that account's Holdings — no request
+    User->>HT: open a holding
+    HT->>FLOW: mount the row's panel
+    FLOW->>EXP: details slot(holding) — read while the panel is mounted
     par
         EXP->>API: GET /households/:householdId/holdings/:holdingId/allocations
         API-->>EXP: the split over the Goals this member can see
-    and
+    and market-priced only
         EXP->>API: GET /households/:householdId/holdings/:holdingId/valuation-snapshots
         API-->>EXP: value history, newest first
+        EXP->>API: GET /households/:householdId/transactions?holdingId=…&limit=3
+        API-->>EXP: the latest transactions
     end
-    EXP-->>FLOW: state
+    EXP-->>FLOW: details
     alt edit goal allocations
-        User->>GA: rows with whole %
+        User->>GA: rows with whole %, Save
         GA->>FLOW: emit allocations
         FLOW->>EXP: request saveAllocations
         EXP->>API: PATCH /households/:householdId/holdings/:holdingId
     else record a market value (market-priced only)
-        User->>MV: value + as-of date
+        User->>MV: value + as-of date, Save value
         MV->>FLOW: emit marketValue
         FLOW->>EXP: request recordValue
         EXP->>API: POST /households/:householdId/holdings/:holdingId/valuation-snapshots
-    else fix a past value
+    else fix a past value (drawer)
         User->>VH: edit or delete an entry
         VH->>FLOW: emit historyChange
         FLOW->>EXP: request edit / delete snapshot
         EXP->>API: PATCH or DELETE …/valuation-snapshots/:snapshotId
     end
     API-->>EXP: done or error code (e.g. 409 snapshot.automatic_not_editable, goal.completed, holding.archived)
+    EXP-->>FLOW: ok / failed — a toast either way, K46 / K47 answered done / refused
+    EXP->>API: refetch by tag (overview, the row's details)
     EXP-->>FLOW: state refreshed
     </pre>
   </div>
   <div class="notes">
-<ul><li>Positions are read-only (transactions only).</li><li>'See in Transactions' asks the Experience to route to Manage Finances with holdingId — no Flow-to-Flow call.</li><li>The split shows only the Goals this member can see; a share funding someone else's personal Goal is kept by the server on save and still counts toward 100% (OQ-178).</li></ul>
+<ul><li>Positions are read-only (transactions only); values come from the overview's `holding` slices, a fixed-term Holding it leaves out worth its cost basis (OQ-234).</li><li>'See in Transactions' asks the Experience to route to Manage Finances with holdingId — no Flow-to-Flow call.</li><li>The split shows only the Goals this member can see; a share funding someone else's personal Goal is kept by the server on save and still counts toward 100% (OQ-178).</li><li>An archived Holding, or a user who may not manage its account, only reads; a trade's value is locked (OQ-56, OQ-232).</li></ul>
   </div>
   <script>
     mermaid.initialize({

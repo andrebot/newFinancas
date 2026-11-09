@@ -53,8 +53,8 @@ const rateOf = (holding: ProjectedHolding) => {
  * its rate and what InvestmentProductEngine projected on read (FR-11.2, OQ-205).
  *
  * @param holding - The Manager's result.
- * @returns The JSON shape — `expectedPayout`, `expectedTaxes` and
- *   `projectionUnavailable` null for a market-priced Holding.
+ * @returns The JSON shape — `expectedPayout`, `expectedTaxes`,
+ *   `projectionUnavailable` and `boughtOn` null for a market-priced Holding.
  */
 export const toInvestmentHoldingJson = (holding: ProjectedHolding) => ({
   id: holding.id,
@@ -73,4 +73,5 @@ export const toInvestmentHoldingJson = (holding: ProjectedHolding) => ({
   expectedPayout: holding.expectedPayout,
   expectedTaxes: holding.expectedTaxes,
   projectionUnavailable: holding.projectionUnavailable,
+  boughtOn: holding.boughtOn,
 });

@@ -293,6 +293,16 @@ export const portfolio = {
   readonly comingDueSoonMonths: number;
 };
 
+/** The Holdings by account tab (FL19, mockups 51–52, OQ-234). */
+export const holdingMaintenance = {
+  /** How many of a Holding's latest transactions its Activity card lists (mockup 51). */
+  activityCount: 3,
+  /** From this width the table shows every column; below it, Investment and Value only. */
+  wideQuery: '(min-width: 768px)',
+  /** The market value card's chart height (mockup 51). */
+  valueChartHeightPx: 96,
+} as const;
+
 /** Rail cards: the balance, budget and goal cards on the card rails (K36, OQ-215). */
 export const railCard = {
   /** From what share of its target, in whole percent, a budget reads as near its limit (sun). */

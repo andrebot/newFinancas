@@ -15,7 +15,8 @@ import { accountNotFound, holdingNotFound } from './errors';
 // computed on read by InvestmentProductEngine.project from the Holding's own
 // rate and due date plus its buy's date and amount (FR-11.2, OQ-205) — the
 // buys of a whole list read at once; an index with no value yet leaves it
-// unprojected, named why.
+// unprojected, named why. It also carries that buy's date, `boughtOn`, which
+// Holding Maintenance shows with the term elapsed (OQ-234).
 
 /** A Holding as the contract shows it: its row plus its expected payout. */
 export interface ProjectedHolding extends InvestmentHolding {
@@ -27,6 +28,8 @@ export interface ProjectedHolding extends InvestmentHolding {
     | null;
   /** Why the projection is unavailable (OQ-205) — null when projected or market-priced. */
   readonly projectionUnavailable: Pick<IndexMissing, 'reason' | 'indexCode'> | null;
+  /** Fixed-term only — the date of the buy that opened it (OQ-234); null otherwise. */
+  readonly boughtOn: string | null;
 }
 
 /** What a read answers with for a Holding that carries no projection. */
@@ -34,6 +37,7 @@ const NO_PROJECTION = {
   expectedPayout: null,
   expectedTaxes: null,
   projectionUnavailable: null,
+  boughtOn: null,
 } as const;
 
 /**
@@ -107,6 +111,7 @@ const projectOne = async (
       expectedPayout: null,
       expectedTaxes: null,
       projectionUnavailable: { reason: result.reason, indexCode: result.indexCode },
+      boughtOn: buy.date,
     };
   }
   return {
@@ -114,6 +119,7 @@ const projectOne = async (
     expectedPayout: result.expectedPayout,
     expectedTaxes: result.expectedTaxes,
     projectionUnavailable: null,
+    boughtOn: buy.date,
   };
 };
 

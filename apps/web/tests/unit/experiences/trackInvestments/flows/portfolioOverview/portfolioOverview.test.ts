@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  accountRowsOf, familySharesOf, payoutRowsOf, shareTone, totalsByCurrency, typeSharesOf,
+  accountRowsOf, familySharesOf, payoutRowsOf, totalsByCurrency, typeSharesOf,
 } from '../../../../../../src/experiences/trackInvestments/flows/portfolioOverview/portfolioOverview';
 import {
   holdingOf, HOLDINGS, INVESTMENT_ACCOUNTS, OVERVIEW,
@@ -115,13 +115,5 @@ describe('accountRowsOf', () => {
   it('names an account it doesn\'t know by nothing', () => {
     const [row] = accountRowsOf(OVERVIEW.allocations, [], []);
     expect([row?.name, row?.holdings]).toEqual(['', 0]);
-  });
-});
-
-describe('shareTone', () => {
-  it('colours shares by place and repeats past the last tone', () => {
-    expect(shareTone(0)).toBe('mint');
-    expect(shareTone(1)).toBe('sky');
-    expect(shareTone(8)).toBe('mint');
   });
 });
