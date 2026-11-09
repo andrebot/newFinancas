@@ -53,6 +53,8 @@ export const i18n = {
 export const money = {
   /** Every currency, in the order a currency picker offers them. */
   currencies: ['BRL', 'USD'] satisfies readonly Currency[],
+  /** A $ / R$ switch's pick until one is remembered: R$ first, as everywhere else (OQ-221). */
+  defaultCurrency: 'BRL' satisfies Currency,
 } as const;
 
 /** Money, rates, percents, dates and lists (FU6 FormattingUtility, NFR-I18N-2, OQ-179). */
@@ -250,6 +252,47 @@ export const statTile = {
   readonly defaultChartHeightPx: number;
 };
 
+/**
+ * The investments overview and what the Dashboard shares with it (FL18, FL21;
+ * OQ-233): net worth tiles, payouts, allocations and what comes due.
+ */
+export const portfolio = {
+  /** The net worth tiles' order, as mockups 20 and 50 draw them. */
+  netWorthOrder: ['USD', 'BRL'],
+  /** How many months the payout chart shows, ending this month (mockup 50: "last 12 months"). */
+  payoutMonths: 12,
+  /** Where the payout chart's $ / R$ pick is remembered. */
+  payoutCurrencyStorageKey: 'financas.payouts.currency',
+  /** Where the payout chart's Holdings are remembered, per household. */
+  payoutSelectionStorageKey: 'financas.payouts.holdings',
+  /**
+   * The selector's groups, in order, and the asset types in each (mockup 50:
+   * FIIs, Stocks, Fixed income); every fixed-term type is fixed income, and
+   * any other type is Other.
+   */
+  payoutGroups: { fii: ['fii'], stock: ['stock'] },
+  /** A family's tag tone in the payout list (mockup 50: FIIs lilac, stocks sun). */
+  familyTones: {
+    fii: 'lilac', stock: 'sun', fixedIncome: 'sky', other: 'mint',
+  },
+  /** Up to this many months away, a due date reads as "in n months", in sun (mockup 50). */
+  comingDueSoonMonths: 3,
+  /**
+   * The allocation donuts' and bars' colours, largest share first (mockup 50);
+   * they repeat past the last. Coral is left out: it means errors.
+   */
+  shareTones: ['mint', 'sky', 'lilac', 'sun', 'peach', 'teal', 'indigo', 'orange'],
+} as const satisfies {
+  readonly shareTones: readonly [PaletteToken, ...PaletteToken[]];
+  readonly netWorthOrder: readonly Currency[];
+  readonly payoutMonths: number;
+  readonly payoutCurrencyStorageKey: string;
+  readonly payoutSelectionStorageKey: string;
+  readonly payoutGroups: Readonly<Record<'fii' | 'stock', readonly string[]>>;
+  readonly familyTones: Readonly<Record<'fii' | 'stock' | 'fixedIncome' | 'other', PaletteToken>>;
+  readonly comingDueSoonMonths: number;
+};
+
 /** Rail cards: the balance, budget and goal cards on the card rails (K36, OQ-215). */
 export const railCard = {
   /** From what share of its target, in whole percent, a budget reads as near its limit (sun). */
@@ -296,9 +339,7 @@ export const periodBar = {
 export const monthOverview = {
   /** Where the $ / R$ switch's last pick is remembered, so the next visit opens on it. */
   currencyStorageKey: 'financas.monthOverview.currency',
-  /** The switch's pick until one is remembered: R$ first, as everywhere else. */
-  defaultCurrency: 'BRL',
-} as const satisfies { readonly currencyStorageKey: string; readonly defaultCurrency: Currency };
+} as const;
 
 /** Multi-selects: the payout holdings and the ledger filter's long lists (K12, OQ-214). */
 export const multiSelect = {

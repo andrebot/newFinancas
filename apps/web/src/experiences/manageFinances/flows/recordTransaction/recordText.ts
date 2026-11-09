@@ -3,7 +3,7 @@ import type { Formatter } from '../../../../utilities/formatting';
 import type { MessageParams, Translator } from '../../../../utilities/i18n';
 
 // The Record Transaction drawer's texts (FL15): its `recordTransaction`
-// catalog section, and the asset types' names (`assetTypes`). Many keys are
+// catalog section (the asset types' names are in `holdingNames.ts`). Many keys are
 // built from reference data — `kind.<code>`, `rate.<type>`, … — so they are
 // looked up through here, in one place; a key the catalog lacks shows itself,
 // which the Flow's tests catch.
@@ -21,17 +21,6 @@ export type RecordTextKey = keyof Catalog['recordTransaction'];
  */
 export const recordText = (translator: Translator, key: string, params?: MessageParams) => (
   translator.text('recordTransaction', key as RecordTextKey, params)
-);
-
-/**
- * Names an asset type (FR-5.1, OQ-79).
- *
- * @param translator - The texts.
- * @param code - The asset type's code; an unknown one is "Other".
- * @returns Its name in the interface language.
- */
-export const assetTypeName = (translator: Translator, code: string | undefined) => (
-  translator.text('assetTypes', (code ?? 'other') as keyof Catalog['assetTypes'])
 );
 
 /** A contract's rate, as a Holding or the form holds it. */

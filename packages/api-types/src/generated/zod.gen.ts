@@ -873,52 +873,56 @@ export const zMonthOverviewReport = z.object({
  * FR-5.3 / FR-5.9
  */
 export const zInvestmentsOverviewReport = z.object({
-    reportType: z.enum(['investments-overview']).optional(),
+    reportType: z.enum(['investments-overview']),
     netWorth: z.array(z.object({
-        currency: zCurrency.optional(),
-        amount: zMoney.optional(),
+        currency: zCurrency,
+        amount: zMoney,
         changeVsPreviousMonth: zMoney.optional(),
         series: z.array(z.object({
-            month: z.string().optional(),
-            amount: zMoney.optional()
-        })).optional()
-    })).optional(),
+            month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
+            amount: zMoney
+        }))
+    })),
     payoutThisMonth: z.array(z.object({
-        holdingId: z.uuid().optional(),
-        transactionId: z.uuid().optional(),
-        kind: z.string().optional(),
-        date: z.iso.date().optional(),
-        currency: zCurrency.optional(),
-        amount: zMoney.optional()
-    })).optional(),
+        holdingId: z.uuid(),
+        transactionId: z.uuid(),
+        kind: z.enum(['investment_dividend', 'investment_interest']),
+        date: z.iso.date(),
+        currency: zCurrency,
+        amount: zMoney
+    })),
     allocations: z.array(z.object({
-        group: z.string().optional(),
-        currency: zCurrency.optional(),
-        holdingId: z.uuid().nullish(),
-        amount: zMoney.optional()
-    })).optional(),
+        kind: z.enum([
+            'holding',
+            'assetType',
+            'account'
+        ]),
+        key: z.string(),
+        currency: zCurrency,
+        amount: zMoney
+    })),
     comingDue: z.array(z.object({
-        holdingId: z.uuid().optional(),
-        name: z.string().optional(),
-        dueDate: z.iso.date().optional(),
-        currency: zCurrency.optional(),
-        amount: zMoney.optional()
-    })).optional()
+        holdingId: z.uuid(),
+        name: z.string(),
+        dueDate: z.iso.date(),
+        currency: zCurrency,
+        amount: zMoney
+    }))
 });
 
 /**
  * FR-5.9 — sums of dividend/interest transactions linked to each Holding
  */
 export const zPayoutsReport = z.object({
-    reportType: z.enum(['payouts']).optional(),
+    reportType: z.enum(['payouts']),
     series: z.array(z.object({
-        holdingId: z.uuid().optional(),
-        currency: zCurrency.optional(),
+        holdingId: z.uuid(),
+        currency: zCurrency,
         months: z.array(z.object({
-            month: z.string().optional(),
-            amount: zMoney.optional()
-        })).optional()
-    })).optional()
+            month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
+            amount: zMoney
+        }))
+    }))
 });
 
 export const zInvitationReceivedNotification = z.object({
@@ -1549,6 +1553,21 @@ export const zListHoldingsResponse = z.object({
     data: z.array(zInvestmentHolding).optional()
 });
 
+export const zListHouseholdHoldingsPath = z.object({
+    householdId: z.uuid()
+});
+
+export const zListHouseholdHoldingsQuery = z.object({
+    includeArchived: z.boolean().optional().default(false)
+});
+
+/**
+ * OK
+ */
+export const zListHouseholdHoldingsResponse = z.object({
+    data: z.array(zInvestmentHolding).optional()
+});
+
 export const zGetHoldingPath = z.object({
     householdId: z.uuid(),
     holdingId: z.uuid()
@@ -1708,20 +1727,20 @@ export const zGetDashboardPath = z.object({
  */
 export const zGetDashboardResponse = z.object({
     netWorth: z.array(z.object({
-        currency: zCurrency.optional(),
-        amount: zMoney.optional(),
+        currency: zCurrency,
+        amount: zMoney,
         changeVsPreviousMonth: zMoney.optional(),
         series: z.array(z.object({
-            month: z.string().optional(),
-            amount: zMoney.optional()
-        })).optional()
+            month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
+            amount: zMoney
+        }))
     })).optional(),
     comingDue: z.array(z.object({
-        holdingId: z.uuid().optional(),
-        name: z.string().optional(),
-        dueDate: z.iso.date().optional(),
-        currency: zCurrency.optional(),
-        amount: zMoney.optional()
+        holdingId: z.uuid(),
+        name: z.string(),
+        dueDate: z.iso.date(),
+        currency: zCurrency,
+        amount: zMoney
     })).optional(),
     payouts: zPayoutsReport.optional(),
     balances: z.array(z.object({

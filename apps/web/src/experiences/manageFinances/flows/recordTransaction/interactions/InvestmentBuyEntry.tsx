@@ -18,7 +18,8 @@ import {
   assetTypesFor, INTEREST_PAYMENTS, isDebentureBuy, isFixedTermBuy, RATE_TYPES, takesSpread,
   type ContractTerms, type TransactionForm,
 } from '../transactionForm';
-import { assetTypeName, rateText, recordText } from '../recordText';
+import { assetTypeName } from '../../../../holdingNames';
+import { rateText, recordText } from '../recordText';
 
 // Investment Buy Entry (FL15, mockup 32; FR-5.1, FR-11.1, OQ-50, OQ-201,
 // OQ-205, OQ-219): what a buy names — its asset type (the fixed-term ones of

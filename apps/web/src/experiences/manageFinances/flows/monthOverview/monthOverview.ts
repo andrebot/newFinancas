@@ -1,12 +1,10 @@
 import type { Account, Currency, MonthOverviewReport } from '@financas/api-types';
-import { money, monthOverview as settings } from '../../../../config/constants';
 import type { PeriodMonth } from '../../../../kit/periodBar/periodBar';
 
 // What the Month Overview Flow (FL17, FR-6.11, OQ-221) reads from the
 // report: the year strip and the summary narrowed to the $ / R$ switch's
-// currency — never summed across currencies — how far back the period bar
-// reaches, and which currency the switch opens on. Pure, so it tests without
-// React.
+// currency — never summed across currencies — and how far back the period
+// bar reaches. Pure, so it tests without React.
 
 /** One currency's month: money in, money out and the net, in minor units. */
 export interface MonthFigures {
@@ -60,14 +58,4 @@ export const firstYearOf = (accounts: readonly Account[], householdCreatedAt: st
     Number(householdCreatedAt.slice(0, 4)),
     ...accounts.map((account) => Number(account.startingBalanceDate.slice(0, 4))),
   )
-);
-
-/**
- * Reads the switch's remembered currency.
- *
- * @param stored - What storage holds, if anything.
- * @returns The currency, or the default when nothing (or something unknown) is stored.
- */
-export const rememberedCurrency = (stored: string | null): Currency => (
-  money.currencies.find((currency) => currency === stored) ?? settings.defaultCurrency
 );

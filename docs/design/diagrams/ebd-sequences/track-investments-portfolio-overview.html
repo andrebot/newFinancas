@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Track Investments — Portfolio Overview</h1>
-  <p class="subtitle"><span class="route">GET /households/:householdId/reports/investments-overview</span>, <span class="route">GET /households/:householdId/reports/payouts?holdingIds=</span>.</p>
+  <p class="subtitle"><span class="route">GET /households/:householdId/reports/investments-overview</span> with <span class="route">GET /households/:householdId/holdings?includeArchived=true</span>, <span class="route">GET /households/:householdId/accounts</span> and <span class="route">GET /households/:householdId/goal-progress?status=active</span>; <span class="route">GET /households/:householdId/reports/payouts?holdingIds=</span> (OQ-233).</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -68,18 +68,32 @@ sequenceDiagram
     participant EXP as Track Investments<br/>Experience
     participant API as Backend API
     FLOW->>EXP: request overview
+    par the overview and what names it
     EXP->>API: GET /households/:householdId/reports/investments-overview
-    API-->>EXP: net worth + change, payout this month, allocations, coming due
-    EXP-->>FLOW: state
-    FLOW-->>NW: render
+    API-->>EXP: net worth + change, payout this month, allocations (holding / assetType / account), coming due
+    EXP->>API: GET /households/:householdId/holdings?includeArchived=true
+    API-->>EXP: every visible Holding: ticker, type, account
+    EXP->>API: GET /households/:householdId/accounts
+    EXP->>API: GET /households/:householdId/goal-progress?status=active
+    end
+    alt overview and Holdings loaded
+    EXP-->>FLOW: state (report + Holdings, accounts, Goals)
+    FLOW-->>NW: render net worth, allocations, Goals, by account, coming due
     FLOW-->>PT: render this month's dividend / interest transactions
-    FLOW->>EXP: request payouts(default holdings)
-    EXP->>API: GET /households/:householdId/reports/payouts
-    API-->>EXP: series
-    FLOW-->>PC: render top 5 + Others
-    User->>HS: search, presets, check holdings
+    else no Holding at all
+    FLOW-->>NW: one empty state in place of every panel
+    else failed
+    EXP-->>FLOW: failed
+    FLOW-->>NW: banner "Couldn't load your investments" + Try again
+    end
+    FLOW->>EXP: request payouts(remembered choice — "all" the first time)
+    EXP->>API: GET /households/:householdId/reports/payouts (no holdingIds for "all")
+    API-->>EXP: series per Holding and currency
+    EXP-->>FLOW: state
+    FLOW-->>PC: render the $ / R$ switch's currency: top 5 + Others
+    User->>HS: search, family presets, check holdings
     HS->>FLOW: emit holdingsSelected
-    FLOW->>EXP: request payouts(selected)
+    FLOW->>EXP: request payouts(selected), remembered per household
     EXP->>API: GET /households/:householdId/reports/payouts?holdingIds=…
     API-->>EXP: series
     EXP-->>FLOW: state
@@ -87,7 +101,7 @@ sequenceDiagram
     </pre>
   </div>
   <div class="notes">
-<ul><li>Portfolio Builder buttons render disabled (v2).</li></ul>
+<ul><li>Portfolio Builder buttons render disabled (v2); the page header and its tabs are the Experience's (X7).</li><li>OQ-233: allocations come as `holding`, `assetType` and `account` slices per currency, never summed; the Goals panel reads the shared goal progress, not the report. Every Holding chosen is remembered as "all", so a new Holding joins the chart.</li><li>The $ / R$ switch is the panel's own, remembered apart from Month Overview's; the chart's empty state is `seriesColors(...).size === 0` (OQ-230).</li></ul>
   </div>
   <script>
     mermaid.initialize({

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  figuresOf, firstYearOf, rememberedCurrency, stripOf,
+  figuresOf, firstYearOf, stripOf,
 } from '../../../../../../src/experiences/manageFinances/flows/monthOverview/monthOverview';
 import { accountOf, REPORT } from '../../../monthFixtures';
 
@@ -45,19 +45,5 @@ describe('firstYearOf', () => {
 
   it('is the household\'s year with no accounts', () => {
     expect(firstYearOf([], '2026-01-10T00:00:00Z')).toBe(2026);
-  });
-});
-
-describe('rememberedCurrency', () => {
-  it('reads a remembered currency', () => {
-    expect(rememberedCurrency('USD')).toBe('USD');
-  });
-
-  it('opens on R$ when nothing is remembered', () => {
-    expect(rememberedCurrency(null)).toBe('BRL');
-  });
-
-  it('opens on R$ when what is stored is not a currency', () => {
-    expect(rememberedCurrency('EUR')).toBe('BRL');
   });
 });

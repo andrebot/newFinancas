@@ -16,6 +16,12 @@ describe('formatMoney', () => {
     expect(formatMoney(5, 'USD')).toBe('$0.05');
   });
 
+  it('shortens a large amount when asked, still from minor units', () => {
+    expect(formatMoney(878000, 'USD', { compact: true })).toBe('$8.8K');
+    expect(formatMoney(15500000, 'BRL', { compact: true })).toBe(`R$${NBSP}155${NBSP}mil`);
+    expect(formatMoney(4500, 'USD', { compact: true })).toBe('$45');
+  });
+
   it('writes a negative amount with the true minus sign', () => {
     expect(formatMoney(-4599, 'USD')).toBe('−$45.99');
     expect(formatMoney(-5840, 'BRL')).toBe(`−R$${NBSP}58,40`);

@@ -141,9 +141,10 @@ write(TI / "uc-04-generate-scheduled-cash-event.html", "Call Chain — Generate 
 # are gen_track_investments.py's.
 write(TI / "uc-12-view-investments.html", "Call Chain — View Investments", f"Use case 12 of 12 in {T}, FR-5.3/5.4, FR-5.9, FR-11.2, FR-11.6. View. {ADDED}",
       E((1, "mgr-insights", "util-authz"), (2, "mgr-insights", "eng-reporting"), (3, "eng-reporting", "acc-holding"), (3, "eng-reporting", "acc-snapshot"), (3, "eng-reporting", "acc-accounttxn"), (3, "eng-reporting", "acc-account"),
-        (4, "mgr-insights", "eng-product"), (5, "eng-product", "acc-indexrate")),
-      ["<strong>Chain:</strong> <code>InsightsManager</code> ① <code>AuthorizationUtility</code> → ② <code>ReportingEngine</code> (net worth + change, payout this month + 12-month series from dividend/interest transactions, allocations, coming due, positions) → ③ its reads → ④ <code>InvestmentProductEngine.project(householdId, terms)</code> per fixed-term holding (its terms off the Holding and its buy, OQ-205) → ⑤ <code>IndexRateAccessor.latest(householdId, index)</code>.",
-       "<strong>Two Engines, side by side, never calling each other</strong> — the Manager composes both results. Payout is never stored (FR-5.9); projections are computed on read (FR-11.2)."])
+        (4, "mgr-insights", "eng-product"), (5, "eng-product", "acc-indexrate"), (6, "mgr-insights", "acc-holding")),
+      ["<strong>Chain:</strong> <code>InsightsManager</code> ① <code>AuthorizationUtility</code> → ② <code>ReportingEngine</code> (net worth + change, payout this month + 12-month series from dividend/interest transactions, allocations as holding / assetType / account slices, coming due, positions) → ③ its reads → ④ <code>InvestmentProductEngine.project(householdId, terms)</code> per fixed-term holding (its terms off the Holding and its buy, OQ-205) → ⑤ <code>IndexRateAccessor.latest(householdId, index)</code>.",
+       "<strong>Two Engines, side by side, never calling each other</strong> — the Manager composes both results. Payout is never stored (FR-5.9); projections are computed on read (FR-11.2).",
+       "⑥ <strong>The household's Holdings (OQ-233):</strong> <code>InvestmentHoldingAccessor.listByAccounts</code> over the visible accounts, read by the Manager as the per-account list is (OQ-208) — what names the overview's ids and lists the payout selector."])
 
 INS = CC / "insights-reports"
 write(INS / "uc-01-view-dashboard.html", "Call Chain — View Dashboard", f"Use case 1 of 6 in the Insights &amp; Reports set (CUC-8), FR-6.0. View (fixed panels, v1). {REVIEW}",

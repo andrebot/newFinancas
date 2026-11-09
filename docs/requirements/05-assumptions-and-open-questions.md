@@ -6999,6 +6999,34 @@ only the journey in the browser, and checks the end state through the API
 
 **Task 129 (`K46`) is complete.**
 
+### OQ-233: Portfolio Overview (task FL18)
+**Confirmed with the stakeholder (Nov 2026):**
+- **All five allocation panels of mockup 50 are built,** and the contract now says what they read: `allocations` is a list of `{kind, key, currency, amount}` slices, all required — `holding` (key the Holding's id: the Stocks and FIIs panels), `assetType` (By type) and `account` (By account), per currency, never summed (FR-5.3), a slice worth nothing left out. The old `group` / `holdingId` shape was undefined. The Goals panel reads the shared goal progress (`goal-progress?status=active`), not the report.
+- **A household-wide Holdings list, `GET /households/{householdId}/holdings`** (`listHouseholdHoldings`, `includeArchived`), names the report's ids — tickers in the payout list and the selector, types in Coming Due, open Holdings per account — in one request. It sits on the contract-routes plan list until task 133 (X7) builds it.
+- **The payout chart opens on every Holding, and the choice is remembered per household** (`usePayoutSelection`, held by the Experience, since it is the payouts query's argument). Choosing every Holding is kept as `all`, so a Holding bought later joins the chart by itself, and `all` asks the report with no `holdingIds`; a remembered Holding that is gone is dropped.
+- **The Playwright check that the page doesn't overflow sideways at phone width (OQ-230) moves to task 133,** which builds the page. FL18 was checked in Chromium through a temporary story instead: no sideways overflow at 320px, both themes at 1440px.
+
+**Design decisions:**
+- **Contract items pulled forward from X7 (OQ-230, OQ-231):** every field of `InvestmentsOverviewReport` and `PayoutsReport` is required but `changeVsPreviousMonth` (left out with no previous month); both reports' `month` take the `YYYY-MM` pattern; `netWorth.series` is at most the last 6 months; `payoutThisMonth.kind` is `investment_dividend` or `investment_interest`; `comingDue` comes soonest first.
+- **Shared with the Dashboard (FL21), in `experiences/`:** Net Worth Cards (the one mapping from a `netWorth` entry to K37's props, `netWorthTiles.ts`: a month's figure on its last day, the change against the month before the newest, USD then BRL as drawn, in a `grid-cols-1` grid so K37 gets its width), Coming Due (a date badge, the type and "in n months" in sun up to `portfolio.comingDueSoonMonths`, otherwise the year) and the payout panel (K12 + K39 + its own $ / R$ switch). FL18 alone has Payout This Month and the Allocation Cards.
+- **The payout panel:** the last 12 months ending this month (`portfolio.payoutMonths`), one currency at a time, this month's total beside the switch; the selector groups Holdings by family — FIIs, Stocks, Fixed income (every fixed-term type), Other — each by ticker, a preset per family, each row with its chart colour from `seriesColors` and this month's payout; an archived Holding is listed and marked. Nothing chosen asks for a choice; `seriesColors(...).size === 0` says nothing was paid in that currency (OQ-230). The $ / R$ pick is remembered apart from Month Overview's: `useRememberedCurrency` (shared, moved from FL17) with its own key.
+- **Payout This Month:** one row per transaction, R$ first then the largest first, the ticker tinted by family (`portfolio.familyTones`: FIIs lilac, stocks sun), and a total per currency joined by a dot.
+- **Allocation Cards:** a donut and legend per currency for Stocks and FIIs — every currency drawn the same way, where mockup 50 shrinks the second currency to one line — shown only when the household holds that family; By type a bar per currency; Goals each active Goal's pill (own-currency funding, `ownFundingOf`) or "Not funded yet"; By account each Account's value and open Holdings. Whole percents, rounded. Colours by place (`portfolio.shareTones`). Under 320px of panel width the donut sits above its legend. The donut's centre uses FormattingUtility's new `compact` money ("$8.8K", "R$ 155 mil").
+- **States:** while the overview loads every panel shows a labelled placeholder (`role="status"`); a failed overview is one banner with Try again in place of every panel, the payout panel too (its names come with the overview); a household with no Holding sees one empty state. The page header, its tabs and the disabled v2 Portfolio Builders are X7's.
+- **Shared names:** `assetTypeName` moved from FL15 to `experiences/holdingNames.ts`, with the families and `holdingIdOf`.
+- **Tests (BDT):** the models directly; the Interactions through the real translator and kit; the Flow with its Interactions stubbed.
+
+**Review round 1 (independent review, stakeholder agreed):**
+- **The payout panel waits while the overview loads,** instead of asking to "Choose holdings": the Flow hands it `loading` until the Holdings are read, the panel checks loading before an empty choice, and the selector is disabled while there is nothing to choose from.
+- **A remembered Holding that is gone is never requested:** `queryIdsOf(selection, holdings)` sends what the selector shows, so a list choice waits for the Holdings (`all` still needs none). The contract now says the payouts report ignores an id the caller can't see or that no longer exists, rather than refusing it.
+- **A household switch reads the new household's storage:** `usePayoutSelection` and `useRememberedCurrency` drop a choice made with another storage object. X7 keeps one storage object per household (and per key), so a re-render doesn't count as a switch.
+- **A fixed-term Holding past its date and not yet redeemed reads "Overdue",** in coral, where it read "this month".
+- **X7 reads the Holdings with `includeArchived=true`,** and a Holding the list still lacks is named "Unnamed holding", never left blank, on the chart and in the payout list.
+- **Each donut's total is read out** from a hidden line, the drawing itself hidden; each allocation panel's placeholder is named after the panel ("Loading Stocks allocation").
+- **Left as is:** "this month" (the payout window, the label, Coming Due) is the browser's local month, while the reports' month is the server's; around midnight on the night a month turns over, they can differ until the next read. Low risk, so it is noted rather than changed.
+
+**Task 130 (`FL18`) is complete.**
+
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
 *(None currently — OQ-29, the last item here, was resolved during data
