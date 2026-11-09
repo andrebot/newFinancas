@@ -62,7 +62,9 @@ export interface InlineConfirmProps {
 }
 
 /**
- * Builds the key handler that cancels on Escape, unless a request is running.
+ * Builds the key handler that cancels on Escape. Escape never goes further,
+ * so it can't close the drawer around it; while a request runs, it does
+ * nothing at all (OQ-232).
  *
  * @param busy - Whether the caller's request is running.
  * @param cancel - What a cancel does.
@@ -71,9 +73,9 @@ export interface InlineConfirmProps {
 export const cancelOnEscape = (busy: boolean, cancel: () => void) => (
   event: KeyboardEvent<HTMLElement>,
 ) => {
-  if (event.key !== 'Escape' || busy) return;
+  if (event.key !== 'Escape') return;
   event.stopPropagation();
-  cancel();
+  if (!busy) cancel();
 };
 
 /**

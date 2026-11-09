@@ -105,7 +105,9 @@ describe('InlineConfirm', () => {
     expect(onCancel).not.toHaveBeenCalled();
   });
 
-  it('while busy, spins on confirm and can\'t be cancelled', () => {
+  it('while busy, spins on confirm and can\'t be cancelled, Escape going nowhere', () => {
+    const onPageKey = vi.fn();
+    document.addEventListener('keydown', onPageKey);
     const { onConfirm, onCancel } = renderConfirm({ busy: true });
 
     const confirm = screen.getByRole('button', { name: 'Arquivar' });
@@ -116,6 +118,8 @@ describe('InlineConfirm', () => {
     expect(cancel.disabled).toBe(true);
     fireEvent.keyDown(confirm, { key: 'Escape' });
     expect(onCancel).not.toHaveBeenCalled();
+    expect(onPageKey).not.toHaveBeenCalled();
+    document.removeEventListener('keydown', onPageKey);
   });
 
   it('while another request runs, confirm waits but cancel still closes', () => {

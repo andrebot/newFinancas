@@ -51,6 +51,8 @@ export interface Formatter {
   readonly money: (amount: number, currency: Currency, options?: MoneyOptions) => string;
   readonly rate: (rate: number) => string;
   readonly percent: (percent: number) => string;
+  readonly change: (ratio: number) => string;
+  readonly ratePoints: (points: number) => string;
   readonly date: (isoDate: string, style?: DateStyle) => string;
   readonly list: (items: readonly string[]) => string;
 }
@@ -201,6 +203,40 @@ export const formatPercent = (percent: number, locale: Locale): string => (
 );
 
 /**
+ * Writes a relative change, signed, in the interface language.
+ *
+ * @param ratio - The change over the earlier value, e.g. -0.015 for a 1.5% fall.
+ * @param locale - The interface locale.
+ * @returns E.g. `+2.3%`, `−1.5%`, `0.0%` (en-US); `+2,3%` (pt-BR).
+ */
+export const formatChange = (ratio: number, locale: Locale): string => {
+  const format = numberFormat(locale, {
+    style: 'percent',
+    signDisplay: 'exceptZero',
+    minimumFractionDigits: formatting.changeFractionDigits,
+    maximumFractionDigits: formatting.changeFractionDigits,
+  });
+  return withMinusSign(format.format(ratio));
+};
+
+/**
+ * Writes the difference between two rates in percentage points, signed and
+ * without a unit, which the catalog adds ("pp", "p.p.").
+ *
+ * @param points - The difference, percent × 10,000, as rates come (2500 is 0.25 points).
+ * @param locale - The interface locale.
+ * @returns E.g. `+0.25`, `−0.18`, `0.00` (en-US); `+0,25` (pt-BR).
+ */
+export const formatRatePoints = (points: number, locale: Locale): string => {
+  const format = numberFormat(locale, {
+    signDisplay: 'exceptZero',
+    minimumFractionDigits: formatting.rateFractionDigits,
+    maximumFractionDigits: formatting.rateFractionDigits,
+  });
+  return withMinusSign(format.format(points / RATE_SCALE));
+};
+
+/**
  * Writes a calendar date in the interface language. The date is read as a
  * day, not an instant, so no time zone moves it to the day before.
  *
@@ -272,6 +308,8 @@ export const createFormatter = (locale: Locale): Formatter => ({
   money: formatMoney,
   rate: (rate) => formatRate(rate, locale),
   percent: (percent) => formatPercent(percent, locale),
+  change: (ratio) => formatChange(ratio, locale),
+  ratePoints: (points) => formatRatePoints(points, locale),
   date: (isoDate, style) => formatDate(isoDate, locale, style),
   list: (items) => formatList(items, locale),
 });

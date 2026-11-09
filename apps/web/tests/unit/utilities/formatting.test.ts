@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   createFormatter, dateConventions, decimalSeparator, formatDate, formatList, formatMoney,
-  formatPercent, formatRate, moneyConventions,
+  formatChange, formatPercent, formatRate, formatRatePoints, moneyConventions,
 } from '../../../src/utilities/formatting';
 
 // Utility (BDT: unit, pure — nothing to mock). `Intl` writes a no-break
@@ -78,6 +78,31 @@ describe('formatPercent', () => {
   });
 });
 
+describe('formatChange', () => {
+  it('writes a signed change with one decimal in the interface language', () => {
+    expect(formatChange(0.023, 'en-US')).toBe('+2.3%');
+    expect(formatChange(-0.015, 'en-US')).toBe('−1.5%');
+    expect(formatChange(0.023, 'pt-BR')).toBe('+2,3%');
+  });
+
+  it('writes no sign when the change rounds to nothing', () => {
+    expect(formatChange(0, 'en-US')).toBe('0.0%');
+    expect(formatChange(-0.0001, 'en-US')).toBe('0.0%');
+  });
+});
+
+describe('formatRatePoints', () => {
+  it('writes a signed difference in points with the rate decimals', () => {
+    expect(formatRatePoints(2500, 'en-US')).toBe('+0.25');
+    expect(formatRatePoints(-1800, 'en-US')).toBe('−0.18');
+    expect(formatRatePoints(2500, 'pt-BR')).toBe('+0,25');
+  });
+
+  it('writes no sign for no difference', () => {
+    expect(formatRatePoints(0, 'en-US')).toBe('0.00');
+  });
+});
+
 describe('formatDate', () => {
   it('writes a day numerically by default, in each locale’s order', () => {
     expect(formatDate('2026-09-30', 'pt-BR')).toBe('30/09/2026');
@@ -117,6 +142,8 @@ describe('createFormatter', () => {
     expect(formatter.money(123456, 'USD')).toBe('$1,234.56');
     expect(formatter.rate(105000)).toBe('10,50%');
     expect(formatter.percent(40)).toBe('40%');
+    expect(formatter.change(0.015)).toBe('+1,5%');
+    expect(formatter.ratePoints(2500)).toBe('+0,25');
     expect(formatter.date('2026-09-30')).toBe('30/09/2026');
     expect(formatter.date('2026-09-07', 'dayMonth')).toBe('7 de set.');
     expect(formatter.list(['A', 'B'])).toBe('A e B');
