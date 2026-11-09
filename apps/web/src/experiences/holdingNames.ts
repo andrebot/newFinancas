@@ -2,11 +2,13 @@ import type { InvestmentHolding } from '@financas/api-types';
 import type { Catalog } from '@financas/i18n';
 import { isFixedTerm } from '@financas/reference';
 import { portfolio } from '../config/constants';
+import type { Formatter } from '../utilities/formatting';
 import type { Translator } from '../utilities/i18n';
 
-// How the pages name a Holding's asset type and the family it belongs to
-// (FL15, FL18, FL21; FR-5.1, OQ-79, OQ-233). Shared, since Record Transaction,
-// the Investments overview and the Dashboard all name them the same way.
+// How the pages name a Holding's asset type, the family it belongs to and
+// its rate (FL15, FL18, FL19, FL21; FR-5.1, OQ-79, OQ-205, OQ-233). Shared,
+// since Record Transaction, the Investments pages and the Dashboard all name
+// them the same way.
 
 /** The families the payout selector groups Holdings by (mockup 50). */
 export type AssetFamily = 'fii' | 'stock' | 'fixedIncome' | 'other';
@@ -58,3 +60,31 @@ export const assetFamilyOf = (code: string | undefined): AssetFamily => {
 export const familyName = (translator: Translator, family: AssetFamily) => (
   translator.text('holdingNames', `family.${family}`)
 );
+
+/** A contract's rate, as a Holding or the form holds it. */
+export interface QuotedRate {
+  /** `fixed` when unknown. */
+  readonly type?: string | undefined;
+  /** Percent × 10,000. */
+  readonly value?: number | null | undefined;
+  /** CDI/Selic only: percent × 10,000 on top (OQ-205). */
+  readonly spread?: number | null | undefined;
+}
+
+/**
+ * Writes a fixed-term rate the way the contract quotes it: "110% of CDI",
+ * or "100% of Selic + 0.05%" with a spread.
+ *
+ * @param translator - The texts.
+ * @param formatter - Numbers in the interface language.
+ * @param rate - The rate.
+ * @returns The rate's text.
+ */
+export const rateText = (translator: Translator, formatter: Formatter, rate: QuotedRate) => {
+  const key = `rate.${rate.type ?? 'fixed'}` as keyof Catalog['holdingNames'];
+  const base = translator.text('holdingNames', key, { rate: formatter.rate(rate.value ?? 0) });
+  if (!rate.spread) return base;
+  return translator.text('holdingNames', 'rate.withSpread', {
+    rate: base, spread: formatter.rate(rate.spread),
+  });
+};

@@ -195,9 +195,14 @@ describe('listHoldings (FR-5.3)', () => {
         expectedPayout: 1105000,
         expectedTaxes: { estimated: true, amount: 26112 },
         projectionUnavailable: null,
+        boughtOn: BUY.date,
       },
       {
-        ...STOCK, expectedPayout: null, expectedTaxes: null, projectionUnavailable: null,
+        ...STOCK,
+        expectedPayout: null,
+        expectedTaxes: null,
+        projectionUnavailable: null,
+        boughtOn: null,
       },
     ]);
     expect(tier.holdings.listByAccounts)
@@ -311,6 +316,7 @@ describe('getHolding (FR-5.4)', () => {
       expectedPayout: 1105000,
       expectedTaxes: { estimated: true, amount: 26112 },
       projectionUnavailable: null,
+      boughtOn: BUY.date,
     });
     expect(tier.accountTransactions.findBuys).toHaveBeenCalledWith(HOME, [HOLDING.id]);
   });
@@ -348,7 +354,11 @@ describe('getHolding (FR-5.4)', () => {
     const holding = await manager.getHolding(context, HOME, STOCK.id);
 
     expect(holding).toEqual({
-      ...STOCK, expectedPayout: null, expectedTaxes: null, projectionUnavailable: null,
+      ...STOCK,
+      expectedPayout: null,
+      expectedTaxes: null,
+      projectionUnavailable: null,
+      boughtOn: null,
     });
     expect(tier.accountTransactions.findBuys).toHaveBeenCalledWith(HOME, []);
     expect(tier.investmentProducts.project).not.toHaveBeenCalled();
@@ -362,7 +372,11 @@ describe('getHolding (FR-5.4)', () => {
     const holding = await manager.getHolding(context, HOME, HOLDING.id);
 
     expect(holding).toEqual({
-      ...HOLDING, expectedPayout: null, expectedTaxes: null, projectionUnavailable: null,
+      ...HOLDING,
+      expectedPayout: null,
+      expectedTaxes: null,
+      projectionUnavailable: null,
+      boughtOn: null,
     });
     expect(tier.investmentProducts.project).not.toHaveBeenCalled();
   });
@@ -381,6 +395,7 @@ describe('getHolding (FR-5.4)', () => {
       expectedPayout: null,
       expectedTaxes: null,
       projectionUnavailable: { reason: 'index_missing', indexCode: 'ipca' },
+      boughtOn: BUY.date,
     });
   });
 

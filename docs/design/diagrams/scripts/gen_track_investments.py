@@ -514,6 +514,7 @@ sequenceDiagram
                 Note over IPE: coded tax rules per type (OQ-79)<br/>US: expectedTaxes = not estimated
                 IPE-->>IM: {expectedPayout, expectedTaxes}
             end
+            Note over IM: boughtOn = the opening buy&#39;s date (OQ-234) &mdash; null for a market-priced Holding
         end
         IM-->>API: the Holdings with their projections
     end

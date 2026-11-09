@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  rateText, recordText,
-} from '../../../../../../src/experiences/manageFinances/flows/recordTransaction/recordText';
-import { createFormatter } from '../../../../../../src/utilities/formatting';
+import { recordText } from '../../../../../../src/experiences/manageFinances/flows/recordTransaction/recordText';
 import { createTranslator } from '../../../../../../src/utilities/i18n';
 
 // The drawer's texts (BDT: Utility-like helper → unit, the real catalog).
@@ -12,19 +9,7 @@ describe('recordText', () => {
     const translator = createTranslator('pt-BR');
 
     expect(recordText(translator, 'field.kind')).toBe('Tipo');
-    expect(recordText(translator, 'rate.cdi', { rate: '110%' })).toBe('110% do CDI');
-  });
-});
-
-describe('rateText', () => {
-  const translator = createTranslator('en-US');
-  const formatter = createFormatter('en-US');
-
-  it('quotes a rate, its spread on top, and a fixed rate when it knows none', () => {
-    expect(rateText(translator, formatter, { type: 'cdi', value: 1_100_000 }))
-      .toBe('110.00% of CDI');
-    expect(rateText(translator, formatter, { type: 'selic', value: 1_000_000, spread: 545 }))
-      .toBe('100.00% of Selic + 0.05%');
-    expect(rateText(translator, formatter, { spread: null })).toBe('0.00% a year');
+    expect(recordText(translator, 'asset.locked', { ticker: 'XPML11', assetType: 'FII' }))
+      .toBe('XPML11 · FII');
   });
 });

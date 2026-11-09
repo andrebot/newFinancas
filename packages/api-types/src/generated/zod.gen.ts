@@ -731,7 +731,8 @@ export const zInvestmentHolding = z.object({
     projectionUnavailable: z.object({
         reason: z.enum(['index_missing']),
         indexCode: zIndexCode
-    }).nullish()
+    }).nullish(),
+    boughtOn: z.iso.date().nullish()
 });
 
 export const zIndexRateValue = z.object({

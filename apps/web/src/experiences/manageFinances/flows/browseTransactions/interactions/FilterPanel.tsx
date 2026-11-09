@@ -14,7 +14,7 @@ import type { Translator } from '../../../../../utilities/i18n';
 import { cardName } from '../../../../cardNames';
 import {
   groupName, kindIcon, kindName,
-} from '../../../transactionNames';
+} from '../../../../transactionNames';
 import { browseText } from '../browseText';
 import {
   chosenInGroup, kindCodesOf, rangeProblemsOf, withGroupKinds, type LedgerFilters,

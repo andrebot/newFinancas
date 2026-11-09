@@ -1,14 +1,15 @@
 import type { Catalog } from '@financas/i18n';
 import type { KindGroup } from '@financas/reference';
-import { transactionKinds as settings } from '../../config/constants';
-import type { IconName } from '../../kit/icons/Icon';
-import type { Translator } from '../../utilities/i18n';
+import { transactionKinds as settings } from '../config/constants';
+import type { IconName } from '../kit/icons/Icon';
+import type { Translator } from '../utilities/i18n';
 
-// The names Manage Finances' Flows share (FL15, FL16): a transaction kind's
-// and a kind group's, from the `transactions` catalog section, and a kind's
-// icon; a card's name is every page's (`experiences/cardNames.ts`). Kept at
-// the Experience so neither Flow reads the other's texts (EBD: no sideways
-// ties between sibling Flows).
+// The transaction names every page shares (FL15, FL16, FL19): a transaction
+// kind's and a kind group's, from the `transactions` catalog section, and a
+// kind's icon; a card's name is every page's too (`experiences/cardNames.ts`).
+// Kept above the Experiences so no Flow reads another's texts (EBD: no
+// sideways ties) — Manage Finances' ledger and Holding Maintenance's activity
+// name a trade the same way.
 
 /** A key of the shared `transactions` catalog section. */
 type TransactionsKey = keyof Catalog['transactions'];

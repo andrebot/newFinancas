@@ -1139,45 +1139,56 @@ API-->>EXP: series
 EXP-->>FLOW: state
 FLOW-->>PC: re-render (only the chart refetches)
 """, ["Portfolio Builder buttons render disabled (v2); the page header and its tabs are the Experience's (X7).", "OQ-233: allocations come as `holding`, `assetType` and `account` slices per currency, never summed; the Goals panel reads the shared goal progress, not the report. Every Holding chosen is remembered as \"all\", so a new Holding joins the chart.", "The $ / R$ switch is the panel's own, remembered apart from Month Overview's; the chart's empty state is `seriesColors(...).size === 0` (OQ-230)."]),
-    ("track-investments-holding-maintenance", "Track Investments — Holding Maintenance", f"{R('GET /households/:householdId/accounts/:id/holdings')} (InsightsManager), {R('GET/PATCH /households/:householdId/holdings/:id/allocations')}, {R('…/valuation-snapshots')} (AccountManager — OQ-178).",
+    ("track-investments-holding-maintenance", "Track Investments — Holding Maintenance", f"{R('GET /households/:householdId/reports/investments-overview')} with {R('GET /households/:householdId/holdings?includeArchived=true')} (shared with Portfolio Overview), {R('GET /households/:householdId/index-rates')}; per open row {R('GET /households/:householdId/holdings/:id/allocations')}, {R('…/valuation-snapshots')} and {R('GET /households/:householdId/transactions?holdingId=&limit=3')}; {R('PATCH /households/:householdId/holdings/:id')}, {R('POST/PATCH/DELETE …/valuation-snapshots')} (OQ-178, OQ-234).",
      [("AP", "Account Picker"), ("HT", "Holdings Table"), ("GA", "Goal Allocation Editor"), ("MV", "Market Value Entry"), ("VH", "Value History Editor"), FLOW("Holding Maintenance"), EXP("Track Investments"), API],
      """
+FLOW->>EXP: request overview
+par the overview, what names it, and the index rates
+EXP->>API: GET /households/:householdId/reports/investments-overview
+API-->>EXP: today's value per Holding / account (slices), payout this month
+EXP->>API: GET /households/:householdId/holdings?includeArchived=true
+API-->>EXP: every visible Holding (+ expected payout / taxes and boughtOn for fixed-term)
+EXP->>API: GET /households/:householdId/index-rates
+end
+EXP-->>FLOW: state (report + Holdings, accounts, Goals, index rates)
+FLOW-->>AP: render the accounts holding something (first chosen)
 User->>AP: pick account
 AP->>FLOW: emit accountChosen
-FLOW->>EXP: request holdings(accountId)
-EXP->>API: GET /households/:householdId/accounts/:accountId/holdings
-API-->>EXP: positions (+ expected payout / taxes for fixed-term)
-EXP-->>FLOW: state
-User->>HT: expand a holding
-HT->>FLOW: emit holdingExpanded
-FLOW->>EXP: request split + history(holdingId)
+FLOW-->>HT: render that account's Holdings — no request
+User->>HT: open a holding
+HT->>FLOW: mount the row's panel
+FLOW->>EXP: details slot(holding) — read while the panel is mounted
 par
     EXP->>API: GET /households/:householdId/holdings/:holdingId/allocations
     API-->>EXP: the split over the Goals this member can see
-and
+and market-priced only
     EXP->>API: GET /households/:householdId/holdings/:holdingId/valuation-snapshots
     API-->>EXP: value history, newest first
+    EXP->>API: GET /households/:householdId/transactions?holdingId=…&limit=3
+    API-->>EXP: the latest transactions
 end
-EXP-->>FLOW: state
+EXP-->>FLOW: details
 alt edit goal allocations
-    User->>GA: rows with whole %
+    User->>GA: rows with whole %, Save
     GA->>FLOW: emit allocations
     FLOW->>EXP: request saveAllocations
     EXP->>API: PATCH /households/:householdId/holdings/:holdingId
 else record a market value (market-priced only)
-    User->>MV: value + as-of date
+    User->>MV: value + as-of date, Save value
     MV->>FLOW: emit marketValue
     FLOW->>EXP: request recordValue
     EXP->>API: POST /households/:householdId/holdings/:holdingId/valuation-snapshots
-else fix a past value
+else fix a past value (drawer)
     User->>VH: edit or delete an entry
     VH->>FLOW: emit historyChange
     FLOW->>EXP: request edit / delete snapshot
     EXP->>API: PATCH or DELETE …/valuation-snapshots/:snapshotId
 end
 API-->>EXP: done or error code (e.g. 409 snapshot.automatic_not_editable, goal.completed, holding.archived)
+EXP-->>FLOW: ok / failed — a toast either way, K46 / K47 answered done / refused
+EXP->>API: refetch by tag (overview, the row's details)
 EXP-->>FLOW: state refreshed
-""", ["Positions are read-only (transactions only).", "'See in Transactions' asks the Experience to route to Manage Finances with holdingId — no Flow-to-Flow call.", "The split shows only the Goals this member can see; a share funding someone else's personal Goal is kept by the server on save and still counts toward 100% (OQ-178)."]),
+""", ["Positions are read-only (transactions only); values come from the overview's `holding` slices, a fixed-term Holding it leaves out worth its cost basis (OQ-234).", "'See in Transactions' asks the Experience to route to Manage Finances with holdingId — no Flow-to-Flow call.", "The split shows only the Goals this member can see; a share funding someone else's personal Goal is kept by the server on save and still counts toward 100% (OQ-178).", "An archived Holding, or a user who may not manage its account, only reads; a trade's value is locked (OQ-56, OQ-232)."]),
     ("track-investments-rates-maintenance", "Track Investments — Rates Maintenance", f"{R('GET /households/:householdId/index-rates')}, {R('POST/PATCH/DELETE /households/:householdId/index-rates/:index/values')}.",
      [("RC", "Rate Card"), ("RU", "Rate Update Entry"), ("RH", "Rate History Editor"), FLOW("Rates Maintenance"), EXP("Track Investments"), API],
      """

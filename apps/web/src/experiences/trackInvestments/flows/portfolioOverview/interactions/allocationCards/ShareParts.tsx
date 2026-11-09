@@ -2,7 +2,8 @@ import type { Currency } from '@financas/api-types';
 import { useI18n } from '../../../../../../utilities/I18nProvider';
 import { categoryColor } from '../../../../../../utilities/theme';
 import useFormatter from '../../../../../../utilities/useFormatter';
-import { shareTone, type Share } from '../../portfolioOverview';
+import shareTone from '../../../../shareTone';
+import type { Share } from '../../portfolioOverview';
 
 // The pieces the allocation panels draw a currency's shares with (FL18,
 // mockup 50; OQ-233): a donut, a stacked bar and the legend that carries every

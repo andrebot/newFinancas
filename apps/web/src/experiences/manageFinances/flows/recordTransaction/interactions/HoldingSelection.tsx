@@ -16,8 +16,8 @@ import type { Translator } from '../../../../../utilities/i18n';
 import useFormatter from '../../../../../utilities/useFormatter';
 import type { Load } from '../recordTransactionState';
 import { isTrade } from '../transactionForm';
-import { assetTypeName } from '../../../../holdingNames';
-import { rateText, recordText } from '../recordText';
+import { assetTypeName, rateText } from '../../../../holdingNames';
+import { recordText } from '../recordText';
 
 /** One unit of a Holding, in the × 10⁸ fixed point quantities travel in (OQ-189). */
 const UNIT = 10 ** KIND_SCALE.quantity;

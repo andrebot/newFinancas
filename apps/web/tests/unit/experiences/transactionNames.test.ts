@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   groupName, kindIcon, kindName,
-} from '../../../../src/experiences/manageFinances/transactionNames';
-import { createTranslator } from '../../../../src/utilities/i18n';
+} from '../../../src/experiences/transactionNames';
+import { createTranslator } from '../../../src/utilities/i18n';
 
-// The names Manage Finances' Flows share (BDT: Utility-like helper → unit, the real catalog).
+// The transaction names every page shares (BDT: Utility-like helper → unit, the real catalog).
 
 describe('transactionNames', () => {
   const english = createTranslator('en-US');

@@ -5,7 +5,7 @@ import { LockedField } from '../../../../../kit/field/LockedField';
 import { SegmentedControl } from '../../../../../kit/segmentedControl/SegmentedControl';
 import { useI18n } from '../../../../../utilities/I18nProvider';
 import { groupOf, kindsOfGroup } from '../transactionForm';
-import { groupName, kindIcon, kindName } from '../../../transactionNames';
+import { groupName, kindIcon, kindName } from '../../../../transactionNames';
 import { recordText } from '../recordText';
 
 // Kind Group & Kind Selection (FL15, mockup 31; FR-3.1): the four groups as

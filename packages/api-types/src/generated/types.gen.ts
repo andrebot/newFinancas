@@ -488,6 +488,10 @@ export type InvestmentHolding = {
         reason: 'index_missing';
         indexCode: IndexCode;
     } | null;
+    /**
+     * Fixed-term only — the date of the buy that opened it, which Holding Maintenance shows with the term elapsed (OQ-234); null for a market-priced Holding or one with no buy on record
+     */
+    boughtOn?: string | null;
 };
 
 /**
@@ -1022,7 +1026,7 @@ export type InvestmentsOverviewReport = {
         amount: Money;
     }>;
     /**
-     * Today's value of the visible, active Holdings, sliced three ways (OQ-233): `holding` — one Holding (`key` its id), the Stocks and FIIs panels; `assetType` — every Holding of one type (`key` the assetType), By type; `account` — every Holding in one Account (`key` its id), By account. Each slice is per currency, never summed across currencies (FR-5.3); a slice worth nothing is left out.
+     * Today's value of the visible, active Holdings, sliced three ways (OQ-233): `holding` — one Holding (`key` its id), for every active Holding of any type: the Stocks and FIIs panels, and Holding Maintenance's values (OQ-234); `assetType` — every Holding of one type (`key` the assetType), By type; `account` — every Holding in one Account (`key` its id), By account. Each slice is per currency, never summed across currencies (FR-5.3); a slice worth nothing is left out.
      */
     allocations: Array<{
         kind: 'holding' | 'assetType' | 'account';
