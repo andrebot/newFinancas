@@ -66,11 +66,13 @@ const currencyRank = (currency: Currency) => money.currencies.indexOf(currency);
  *
  * @param entries - This month's dividend and interest transactions.
  * @param holdings - The household's Holdings, to name each one.
+ * @param unknown - The name for a Holding the list lacks (review round 1).
  * @returns The rows.
  */
 export const payoutRowsOf = (
   entries: readonly PayoutThisMonthEntry[],
   holdings: readonly InvestmentHolding[],
+  unknown: string,
 ): PayoutRow[] => {
   const byId = new Map(holdings.map((holding) => [holding.id, holding]));
   return [...entries]
@@ -79,7 +81,9 @@ export const payoutRowsOf = (
     ))
     .map((entry) => {
       const holding = byId.get(entry.holdingId);
-      return { entry, ticker: holdingNameOf(holding), family: assetFamilyOf(holding?.assetType) };
+      return {
+        entry, ticker: holdingNameOf(holding, unknown), family: assetFamilyOf(holding?.assetType),
+      };
     });
 };
 

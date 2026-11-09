@@ -220,6 +220,11 @@ describe('PortfolioOverviewFlow', () => {
     expect(dataOf('payout-panel', 'holdings')).toBe('0');
   });
 
+  it('holds the payout panel loading until the overview brings the Holdings', () => {
+    renderFlow({ overview: { status: 'loading' } });
+    expect(dataOf('payout-panel', 'status')).toBe('loading');
+  });
+
   it('stands one banner with Try again in for every panel when the overview failed', () => {
     const { onRetry } = renderFlow({ overview: { status: 'failed' } });
     expect(screen.getByText("Couldn't load your investments.")).toBeTruthy();

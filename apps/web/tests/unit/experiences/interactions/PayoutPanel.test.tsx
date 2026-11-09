@@ -153,6 +153,20 @@ describe('PayoutPanel', () => {
     expect(screen.queryByText('September/2026')).toBeNull();
   });
 
+  it('shows the placeholder, not "Choose holdings", while nothing is read yet', () => {
+    renderPanel({ holdings: [], chosen: [], payouts: { status: 'loading' } });
+    expect(screen.getByRole('status', { name: 'Loading payouts' })).toBeTruthy();
+    expect(screen.queryByText('Choose holdings to see what they paid.')).toBeNull();
+    const selector = screen.getByRole<HTMLButtonElement>('button', { name: 'Holdings' });
+    expect(selector.disabled).toBe(true);
+  });
+
+  it('lets the Holdings be chosen once they are read', () => {
+    renderPanel();
+    const selector = screen.getByRole<HTMLButtonElement>('button', { name: 'Holdings' });
+    expect(selector.disabled).toBe(false);
+  });
+
   it('offers Try again when the payouts failed', () => {
     const { onRetry } = renderPanel({ payouts: { status: 'failed' } });
     expect(screen.getByText("Couldn't load the payouts.")).toBeTruthy();

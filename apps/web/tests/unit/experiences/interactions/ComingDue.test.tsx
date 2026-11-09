@@ -33,6 +33,18 @@ describe('ComingDue', () => {
     expect(within(tesouro!).getByText(/Tesouro Direto · 2035/)).toBeTruthy();
   });
 
+  it('marks a Holding past its date, not yet redeemed, as overdue in coral', () => {
+    const overdue = { ...OVERVIEW.comingDue[1]!, dueDate: '2026-09-15' };
+    renderInLocale(<ComingDue entries={[overdue]} holdings={HOLDINGS} />);
+    expect(screen.getByText('Overdue').className).toContain('text-coral');
+    expect(screen.getByText('Sep').parentElement?.className).toContain('bg-coral/15');
+  });
+
+  it('keeps a Holding due later plain, by its year', () => {
+    renderInLocale(<ComingDue entries={[OVERVIEW.comingDue[0]!]} holdings={HOLDINGS} />);
+    expect(screen.getByText('May').parentElement?.className).toContain('bg-raised');
+  });
+
   it('reads the due date out in full, the badge being decoration', () => {
     renderInLocale(<ComingDue entries={OVERVIEW.comingDue} holdings={HOLDINGS} />);
     expect(screen.getByText('Due 12/15/2026:')).toBeTruthy();

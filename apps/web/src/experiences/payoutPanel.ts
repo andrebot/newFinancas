@@ -34,9 +34,12 @@ export interface HoldingGroup {
  * Names a Holding as the panel shows it.
  *
  * @param holding - The Holding, if the list holds it.
- * @returns Its ticker; an empty name when unknown.
+ * @param unknown - The name for one the list lacks, e.g. "Unnamed holding".
+ * @returns Its ticker, or the stand-in.
  */
-export const holdingNameOf = (holding: InvestmentHolding | undefined) => holding?.ticker ?? '';
+export const holdingNameOf = (holding: InvestmentHolding | undefined, unknown = '') => (
+  holding?.ticker ?? unknown
+);
 
 /**
  * Builds the chart's series in one currency.
@@ -44,19 +47,21 @@ export const holdingNameOf = (holding: InvestmentHolding | undefined) => holding
  * @param report - The payouts report.
  * @param currency - The switch's currency.
  * @param holdings - The household's Holdings, to name each series.
+ * @param unknown - The name for a Holding the list lacks (review round 1).
  * @returns One series per Holding paid in that currency.
  */
 export const payoutSeriesOf = (
   report: PayoutsReport,
   currency: Currency,
   holdings: readonly InvestmentHolding[],
+  unknown: string,
 ): BarSeries[] => {
   const byId = new Map(holdings.map((holding) => [holding.id, holding]));
   return report.series
     .filter((series) => series.currency === currency)
     .map((series) => ({
       key: series.holdingId,
-      label: holdingNameOf(byId.get(series.holdingId)),
+      label: holdingNameOf(byId.get(series.holdingId), unknown),
       amounts: series.months,
     }));
 };

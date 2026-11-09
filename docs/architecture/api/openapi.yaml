@@ -1873,7 +1873,10 @@ paths:
             type: array
             items:
               type: string
-          description: payouts — holdings to include
+          description: >-
+            payouts — holdings to include; every visible one when left out. An
+            id the caller can't see, or that no longer exists, is ignored, not
+            refused (OQ-233)
         - name: months
           in: query
           required: false

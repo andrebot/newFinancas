@@ -41,6 +41,21 @@ describe('usePayoutSelection', () => {
     expect(memory.write).toHaveBeenCalledWith('["h1"]');
   });
 
+  it('reads another household\'s storage afresh, never carrying a choice over', () => {
+    const first = memoryOf(null);
+    const { result, rerender } = renderHook(
+      ({ memory }) => usePayoutSelection(memory),
+      { initialProps: { memory: first } },
+    );
+    act(() => result.current.choose(['h1'], HOLDINGS));
+    const second = memoryOf('["h2"]');
+    rerender({ memory: second });
+    expect(result.current.selection).toEqual(['h2']);
+    act(() => result.current.choose(['h1', 'h2'], HOLDINGS));
+    expect(second.write).toHaveBeenCalledWith('"all"');
+    expect(result.current.selection).toBe('all');
+  });
+
   it('remembers every Holding chosen as "all"', () => {
     const memory = memoryOf('["h1"]');
     const { result } = renderHook(() => usePayoutSelection(memory));

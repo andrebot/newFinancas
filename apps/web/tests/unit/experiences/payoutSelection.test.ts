@@ -60,10 +60,10 @@ describe('selectionOf', () => {
 
 describe('queryIdsOf', () => {
   it('asks for every Holding with no list', () => {
-    expect(queryIdsOf('all')).toBeUndefined();
+    expect(queryIdsOf('all', HOLDINGS)).toBeUndefined();
   });
 
-  it('asks for the chosen ids', () => {
-    expect(queryIdsOf(['h1'])).toEqual(['h1']);
+  it('asks for the chosen ids, never one that is gone', () => {
+    expect(queryIdsOf(['h1', 'gone'], HOLDINGS)).toEqual(['h1']);
   });
 });

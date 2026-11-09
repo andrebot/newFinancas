@@ -5,8 +5,9 @@ import { holdingIdOf } from './holdingNames';
 // OQ-233): every Holding the first time, then the last choice, remembered
 // per household. Choosing every Holding is kept as "all", so a Holding bought
 // later joins the chart by itself; a remembered Holding that is gone is
-// dropped. "All" asks the payouts report for every Holding, with no list —
-// it needs no Holdings read first. Pure, so it tests without React.
+// dropped, from the selector and from the request. "All" asks the payouts
+// report for every Holding, with no list — it needs no Holdings read first;
+// a list waits for them. Pure, so it tests without React.
 
 /** The remembered choice: every Holding, or these ones. */
 export type PayoutSelection = 'all' | readonly string[];
@@ -68,11 +69,16 @@ export const selectionOf = (
 );
 
 /**
- * Tells the payouts report which Holdings to sum.
+ * Tells the payouts report which Holdings to sum: what the selector shows, so a
+ * remembered Holding that is gone is never asked for (review round 1).
  *
  * @param selection - The choice.
+ * @param holdings - The household's Holdings.
  * @returns The ids for `holdingIds`; none for every Holding.
  */
-export const queryIdsOf = (selection: PayoutSelection): readonly string[] | undefined => (
-  selection === 'all' ? undefined : selection
+export const queryIdsOf = (
+  selection: PayoutSelection,
+  holdings: readonly InvestmentHolding[],
+): readonly string[] | undefined => (
+  selection === 'all' ? undefined : chosenIdsOf(selection, holdings)
 );

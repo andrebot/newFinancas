@@ -3,16 +3,18 @@ import { portfolio } from '../config/constants';
 import { monthOfDate } from './reportMonths';
 
 // What Coming Due shows of each fixed-term Holding still open (FL18, FL21;
-// mockups 20, 50; OQ-233): its type, from the Holdings list, and either how
-// many months away it is due — when that is soon — or the year. Soonest
-// first. Pure, so it tests without React.
+// mockups 20, 50; OQ-233): its type, from the Holdings list, and either that
+// it is overdue — past its date and not yet redeemed (review round 1) — how
+// many months away it is due, when that is soon, or the year. Soonest first.
+// Pure, so it tests without React.
 
 /** One fixed-term Holding still open, as the report sends it. */
 export type ComingDueEntry = InvestmentsOverviewReport['comingDue'][number];
 
 /** When a Holding comes due, as a row reads it. */
-export type DueIn = | { readonly soon: true; readonly months: number }
-  | { readonly soon: false; readonly year: string };
+export type DueIn = | { readonly when: 'overdue' }
+  | { readonly when: 'soon'; readonly months: number }
+  | { readonly when: 'later'; readonly year: string };
 
 /** One row of the Coming Due list. */
 export interface ComingDueRow {
@@ -35,17 +37,18 @@ const monthsBetween = (from: string, to: string) => (
 );
 
 /**
- * Tells how a due date reads: soon in months, or later by its year.
+ * Tells how a due date reads: overdue, soon in months, or later by its year.
  *
  * @param dueDate - `YYYY-MM-DD`.
  * @param today - `YYYY-MM-DD`.
- * @returns The months away while soon, otherwise the year.
+ * @returns Overdue once the date has passed; the months away while soon; otherwise the year.
  */
 export const dueInOf = (dueDate: string, today: string): DueIn => {
+  if (dueDate < today) return { when: 'overdue' };
   const months = monthsBetween(monthOfDate(today), monthOfDate(dueDate));
   return months <= portfolio.comingDueSoonMonths
-    ? { soon: true, months: Math.max(0, months) }
-    : { soon: false, year: dueDate.slice(0, 4) };
+    ? { when: 'soon', months }
+    : { when: 'later', year: dueDate.slice(0, 4) };
 };
 
 /**

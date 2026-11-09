@@ -120,7 +120,8 @@ function PayoutsRow({ report, holdings, payouts }: LoadedParts & {
         holdings={holdings}
         chosen={payouts.chosen}
         onChosenChange={payouts.onChosenChange}
-        payouts={payouts.read}
+        // Until the overview brings the Holdings, the panel can only wait (review round 1).
+        payouts={report ? payouts.read : { status: 'loading' }}
         onRetry={payouts.onRetry}
         thisMonth={report?.payoutThisMonth}
         currencyMemory={payouts.currencyMemory}

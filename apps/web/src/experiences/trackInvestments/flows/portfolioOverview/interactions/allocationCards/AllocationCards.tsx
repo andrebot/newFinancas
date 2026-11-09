@@ -52,7 +52,7 @@ function Panel({
         <div
           role="status"
           aria-busy="true"
-          aria-label={translator.text('allocationCards', 'loading')}
+          aria-label={translator.text('allocationCards', 'loading', { title })}
         >
           <Skeleton shape="block" className="h-24" />
         </div>

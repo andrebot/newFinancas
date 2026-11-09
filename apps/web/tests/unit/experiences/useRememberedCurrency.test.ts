@@ -44,6 +44,22 @@ describe('useRememberedCurrency', () => {
     expect(result.current.currency).toBe('BRL');
   });
 
+  it('reads a new storage afresh, never carrying the old pick over', () => {
+    const first = memoryOf(null);
+    const { result, rerender } = renderHook(
+      ({ memory }) => useRememberedCurrency(memory),
+      { initialProps: { memory: first } },
+    );
+    act(() => result.current.changeCurrency('USD'));
+    const second = memoryOf(null);
+    rerender({ memory: second });
+    expect(result.current.currency).toBe('BRL');
+    act(() => result.current.changeCurrency('USD'));
+    expect(second.write).toHaveBeenCalledWith('USD');
+    rerender({ memory: second });
+    expect(result.current.currency).toBe('USD');
+  });
+
   it('switches and remembers the pick', () => {
     const memory = memoryOf(null);
     const { result } = renderHook(() => useRememberedCurrency(memory));

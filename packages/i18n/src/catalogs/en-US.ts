@@ -830,6 +830,7 @@ const enUS: Catalog = {
     'family.stock': 'Stocks',
     'family.fixedIncome': 'Fixed income',
     'family.other': 'Other',
+    unknown: 'Unnamed holding',
   },
   comingDue: {
     title: 'Coming due',
@@ -838,6 +839,7 @@ const enUS: Catalog = {
     empty: 'Nothing coming due.',
     due: 'Due {date}: ',
     inMonths: '{count, plural, =0 {this month} one {in # month} other {in # months}}',
+    overdue: 'Overdue',
   },
   payoutPanel: {
     title: 'Payout over time',
@@ -873,7 +875,8 @@ const enUS: Catalog = {
     byAccount: 'By account',
     holdings: '{count, plural, one {# holding} other {# holdings}}',
     empty: 'Nothing to show yet.',
-    loading: 'Loading',
+    loading: 'Loading {title}',
+    total: 'Total in {currency}: {amount}',
     goalProgress: '{name}: funded so far',
     goalAmounts: '{funded} / {target}',
   },

@@ -149,7 +149,6 @@ function ChartArea({
   const translator = useI18n();
   const formatter = useFormatter();
   const note = (text: string) => <p className="py-6 text-center type-body-sm text-muted">{text}</p>;
-  if (chosen === 0) return note(translator.text('payoutPanel', 'noneChosen'));
   if (payouts.status === 'loading') {
     return (
       <div role="status" aria-busy="true" aria-label={translator.text('payoutPanel', 'loading')}>
@@ -157,6 +156,7 @@ function ChartArea({
       </div>
     );
   }
+  if (chosen === 0) return note(translator.text('payoutPanel', 'noneChosen'));
   if (payouts.status === 'failed' || series === undefined) {
     return (
       <InlineBanner
@@ -200,7 +200,12 @@ export function PayoutPanel({
   const newest = monthOfDate(today);
   const months = monthsEndingAt(newest, portfolio.payoutMonths);
   const series = payouts.status === 'loaded' && chosen.length > 0
-    ? payoutSeriesOf(payouts.report, currency, holdings)
+    ? payoutSeriesOf(
+      payouts.report,
+      currency,
+      holdings,
+      translator.text('holdingNames', 'unknown'),
+    )
     : undefined;
   const colors = seriesColors(months, series ?? []);
   const groups = holdingGroupsOf(holdings);
@@ -242,6 +247,8 @@ export function PayoutPanel({
       <MultiSelect
         label={translator.text('payoutPanel', 'holdings')}
         labelHidden
+        // Until the Holdings are read there is nothing to choose from (review round 1).
+        disabled={holdings.length === 0}
         options={optionsOf({
           groups, colors, paid: payoutsByHolding(thisMonth ?? []), translator,
         })}

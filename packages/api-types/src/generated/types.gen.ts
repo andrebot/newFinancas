@@ -3262,7 +3262,7 @@ export type GetReportData = {
          */
         month?: number;
         /**
-         * payouts — holdings to include
+         * payouts — holdings to include; every visible one when left out. An id the caller can't see, or that no longer exists, is ignored, not refused (OQ-233)
          */
         holdingIds?: Array<string>;
         /**

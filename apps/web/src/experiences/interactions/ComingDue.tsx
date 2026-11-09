@@ -7,14 +7,15 @@ import { useI18n } from '../../utilities/I18nProvider';
 import useFormatter from '../../utilities/useFormatter';
 import useToday from '../../utilities/useToday';
 import {
-  comingDueRowsOf, type ComingDueEntry, type ComingDueRow,
+  comingDueRowsOf, type ComingDueEntry, type ComingDueRow, type DueIn,
 } from '../comingDue';
 import { assetTypeName } from '../holdingNames';
 
 // Coming Due (FL18, FL21; mockups 20, 50; FR-6.0, OQ-233): the fixed-term
 // Holdings still open, soonest first — a date badge, the Holding's name, its
-// type and either "in n months" (in sun, when soon) or the year it is due,
-// and the amount. Shared by the Investments overview and the Dashboard.
+// type and either "Overdue" (in coral, past its date and not yet redeemed),
+// "in n months" (in sun, when soon) or the year it is due, and the amount.
+// Shared by the Investments overview and the Dashboard.
 // Display only: the caller hands in the report's list and the Holdings.
 
 /** Coming Due's props. */
@@ -23,6 +24,34 @@ export interface ComingDueProps {
   readonly entries: readonly ComingDueEntry[] | undefined;
   /** The household's Holdings, for each one's type. */
   readonly holdings: readonly InvestmentHolding[];
+}
+
+/** The date badge's look for each state: coral overdue, sun soon, plain later. */
+const BADGE_TONES: Readonly<Record<DueIn['when'], string>> = {
+  overdue: 'bg-coral/15 text-coral',
+  soon: 'bg-sun/15 text-sun',
+  later: 'bg-raised text-muted',
+};
+
+/**
+ * Writes when a Holding is due: overdue, in months, or the year.
+ *
+ * @param props - When it is due.
+ * @returns The text, coloured when it needs attention.
+ */
+function DueText({ dueIn }: { readonly dueIn: DueIn }) {
+  const translator = useI18n();
+  if (dueIn.when === 'overdue') {
+    return <span className="text-coral">{translator.text('comingDue', 'overdue')}</span>;
+  }
+  if (dueIn.when === 'soon') {
+    return (
+      <span className="text-sun">
+        {translator.text('comingDue', 'inMonths', { count: dueIn.months })}
+      </span>
+    );
+  }
+  return <>{dueIn.year}</>;
 }
 
 /**
@@ -40,7 +69,7 @@ function DueRow({ row }: { readonly row: ComingDueRow }) {
       <span
         className={[
           'flex w-10 shrink-0 flex-col items-center rounded-lg py-1',
-          dueIn.soon ? 'bg-sun/15 text-sun' : 'bg-raised text-muted',
+          BADGE_TONES[dueIn.when],
         ].join(' ')}
         aria-hidden="true"
       >
@@ -57,11 +86,7 @@ function DueRow({ row }: { readonly row: ComingDueRow }) {
           </span>
           {assetTypeName(translator, assetType)}
           {' · '}
-          {dueIn.soon ? (
-            <span className="text-sun">
-              {translator.text('comingDue', 'inMonths', { count: dueIn.months })}
-            </span>
-          ) : dueIn.year}
+          <DueText dueIn={dueIn} />
         </p>
       </div>
       <Amount amount={entry.amount} currency={entry.currency} className="type-body-sm font-bold" />

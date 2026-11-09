@@ -11,7 +11,7 @@ import {
 
 describe('payoutRowsOf', () => {
   it('puts R$ first, then the largest first, each named and in its family', () => {
-    expect(payoutRowsOf(OVERVIEW.payoutThisMonth, HOLDINGS).map((row) => (
+    expect(payoutRowsOf(OVERVIEW.payoutThisMonth, HOLDINGS, '?').map((row) => (
       [row.ticker, row.family, row.entry.amount]
     ))).toEqual([
       ['XPML11', 'fii', 89000],
@@ -21,9 +21,9 @@ describe('payoutRowsOf', () => {
     ]);
   });
 
-  it('names an unknown Holding by nothing, in other', () => {
-    const [row] = payoutRowsOf([OVERVIEW.payoutThisMonth[0]!], []);
-    expect([row?.ticker, row?.family]).toEqual(['', 'other']);
+  it('names a Holding the list lacks by the stand-in, in other', () => {
+    const [row] = payoutRowsOf([OVERVIEW.payoutThisMonth[0]!], [], 'Unnamed holding');
+    expect([row?.ticker, row?.family]).toEqual(['Unnamed holding', 'other']);
   });
 });
 

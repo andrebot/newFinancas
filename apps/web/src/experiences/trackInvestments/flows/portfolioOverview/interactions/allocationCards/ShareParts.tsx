@@ -1,4 +1,5 @@
 import type { Currency } from '@financas/api-types';
+import { useI18n } from '../../../../../../utilities/I18nProvider';
 import { categoryColor } from '../../../../../../utilities/theme';
 import useFormatter from '../../../../../../utilities/useFormatter';
 import { shareTone, type Share } from '../../portfolioOverview';
@@ -6,7 +7,8 @@ import { shareTone, type Share } from '../../portfolioOverview';
 // The pieces the allocation panels draw a currency's shares with (FL18,
 // mockup 50; OQ-233): a donut, a stacked bar and the legend that carries every
 // figure. The donut and the bar are decoration — hidden from assistive tech —
-// so the legend is what a screen reader hears. Colours follow each share's
+// so the legend is what a screen reader hears, and the donut's total is read
+// from a hidden line (review round 1). Colours follow each share's
 // place, largest first, and the theme.
 
 /** The donut's radius in its 36-unit box: its circumference is 100, so a percent is a length. */
@@ -26,6 +28,7 @@ export function Donut({
   readonly currency: Currency;
   readonly caption: string;
 }) {
+  const translator = useI18n();
   const formatter = useFormatter();
   // Each share's arc, and where it starts: the shares before it, in percent of the whole.
   const arcs = shares.map((share, index) => ({
@@ -33,24 +36,34 @@ export function Donut({
     start: (shares.slice(0, index).reduce((sum, before) => sum + before.amount, 0) / total) * 100,
   }));
   return (
-    <div className="relative size-28 shrink-0" aria-hidden="true">
-      <svg viewBox="0 0 36 36" className="size-full -rotate-90">
-        <circle cx="18" cy="18" r={RADIUS} fill="none" stroke="var(--c-track)" strokeWidth="5" />
-        {arcs.map(({ share, start }, index) => (
-          <circle
-            key={share.key}
-            cx="18"
-            cy="18"
-            r={RADIUS}
-            fill="none"
-            stroke={categoryColor(shareTone(index))}
-            strokeWidth="5"
-            strokeDasharray={`${(share.amount / total) * 100} 100`}
-            strokeDashoffset={-start}
-          />
-        ))}
-      </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
+    <div className="relative size-28 shrink-0">
+      <span className="sr-only">
+        {translator.text('allocationCards', 'total', {
+          currency, amount: formatter.money(total, currency),
+        })}
+      </span>
+      <div aria-hidden="true">
+        <svg viewBox="0 0 36 36" className="size-full -rotate-90">
+          <circle cx="18" cy="18" r={RADIUS} fill="none" stroke="var(--c-track)" strokeWidth="5" />
+          {arcs.map(({ share, start }, index) => (
+            <circle
+              key={share.key}
+              cx="18"
+              cy="18"
+              r={RADIUS}
+              fill="none"
+              stroke={categoryColor(shareTone(index))}
+              strokeWidth="5"
+              strokeDasharray={`${(share.amount / total) * 100} 100`}
+              strokeDashoffset={-start}
+            />
+          ))}
+        </svg>
+      </div>
+      <div
+        className="absolute inset-0 flex flex-col items-center justify-center"
+        aria-hidden="true"
+      >
         <span className="type-micro uppercase text-muted">{caption}</span>
         <span className="type-caption font-bold text-ink tabular-nums">
           {formatter.money(total, currency, { compact: true })}

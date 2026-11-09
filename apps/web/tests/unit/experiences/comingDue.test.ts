@@ -6,20 +6,22 @@ import { HOLDINGS, OVERVIEW } from './portfolioFixtures';
 
 describe('dueInOf', () => {
   it('counts the months while the date is soon', () => {
-    expect(dueInOf('2026-12-15', '2026-09-20')).toEqual({ soon: true, months: 3 });
-    expect(dueInOf('2026-10-01', '2026-09-30')).toEqual({ soon: true, months: 1 });
+    expect(dueInOf('2026-12-15', '2026-09-20')).toEqual({ when: 'soon', months: 3 });
+    expect(dueInOf('2026-10-01', '2026-09-30')).toEqual({ when: 'soon', months: 1 });
   });
 
-  it('is this month for a date within it', () => {
-    expect(dueInOf('2026-09-30', '2026-09-01')).toEqual({ soon: true, months: 0 });
+  it('is this month for a date within it, today included', () => {
+    expect(dueInOf('2026-09-30', '2026-09-01')).toEqual({ when: 'soon', months: 0 });
+    expect(dueInOf('2026-09-20', '2026-09-20')).toEqual({ when: 'soon', months: 0 });
   });
 
-  it('never counts back for a date already past', () => {
-    expect(dueInOf('2026-08-15', '2026-09-01')).toEqual({ soon: true, months: 0 });
+  it('is overdue once the date has passed, even earlier this month', () => {
+    expect(dueInOf('2026-08-15', '2026-09-01')).toEqual({ when: 'overdue' });
+    expect(dueInOf('2026-09-19', '2026-09-20')).toEqual({ when: 'overdue' });
   });
 
   it('names the year once it is further off', () => {
-    expect(dueInOf('2027-01-15', '2026-09-20')).toEqual({ soon: false, year: '2027' });
+    expect(dueInOf('2027-01-15', '2026-09-20')).toEqual({ when: 'later', year: '2027' });
   });
 });
 

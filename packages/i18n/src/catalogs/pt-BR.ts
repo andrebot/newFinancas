@@ -845,6 +845,7 @@ const ptBR = {
     'family.stock': 'Ações',
     'family.fixedIncome': 'Renda fixa',
     'family.other': 'Outros',
+    unknown: 'Ativo sem nome',
   },
   comingDue: {
     title: 'A vencer',
@@ -853,6 +854,7 @@ const ptBR = {
     empty: 'Nada a vencer.',
     due: 'Vence em {date}: ',
     inMonths: '{count, plural, =0 {este mês} one {em # mês} other {em # meses}}',
+    overdue: 'Vencido',
   },
   payoutPanel: {
     title: 'Proventos ao longo do tempo',
@@ -888,7 +890,8 @@ const ptBR = {
     byAccount: 'Por conta',
     holdings: '{count, plural, one {# ativo} other {# ativos}}',
     empty: 'Nada para mostrar ainda.',
-    loading: 'Carregando',
+    loading: 'Carregando {title}',
+    total: 'Total em {currency}: {amount}',
     goalProgress: '{name}: financiado até agora',
     goalAmounts: '{funded} / {target}',
   },

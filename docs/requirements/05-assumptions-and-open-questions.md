@@ -7016,6 +7016,15 @@ only the journey in the browser, and checks the end state through the API
 - **Shared names:** `assetTypeName` moved from FL15 to `experiences/holdingNames.ts`, with the families and `holdingIdOf`.
 - **Tests (BDT):** the models directly; the Interactions through the real translator and kit; the Flow with its Interactions stubbed.
 
+**Review round 1 (independent review, stakeholder agreed):**
+- **The payout panel waits while the overview loads,** instead of asking to "Choose holdings": the Flow hands it `loading` until the Holdings are read, the panel checks loading before an empty choice, and the selector is disabled while there is nothing to choose from.
+- **A remembered Holding that is gone is never requested:** `queryIdsOf(selection, holdings)` sends what the selector shows, so a list choice waits for the Holdings (`all` still needs none). The contract now says the payouts report ignores an id the caller can't see or that no longer exists, rather than refusing it.
+- **A household switch reads the new household's storage:** `usePayoutSelection` and `useRememberedCurrency` drop a choice made with another storage object. X7 keeps one storage object per household (and per key), so a re-render doesn't count as a switch.
+- **A fixed-term Holding past its date and not yet redeemed reads "Overdue",** in coral, where it read "this month".
+- **X7 reads the Holdings with `includeArchived=true`,** and a Holding the list still lacks is named "Unnamed holding", never left blank, on the chart and in the payout list.
+- **Each donut's total is read out** from a hidden line, the drawing itself hidden; each allocation panel's placeholder is named after the panel ("Loading Stocks allocation").
+- **Left as is:** "this month" (the payout window, the label, Coming Due) is the browser's local month, while the reports' month is the server's; around midnight on the night a month turns over, they can differ until the next read. Low risk, so it is noted rather than changed.
+
 **Task 130 (`FL18`) is complete.**
 
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)

@@ -13,29 +13,36 @@ describe('holdingNameOf', () => {
     expect(holdingNameOf(holdingOf('xpml11'))).toBe('XPML11');
     expect(holdingNameOf(undefined)).toBe('');
     expect(holdingNameOf({ id: 'bare' })).toBe('');
+    expect(holdingNameOf(undefined, 'Unnamed holding')).toBe('Unnamed holding');
   });
 });
 
 describe('payoutSeriesOf', () => {
   it('keeps the switch\'s currency only, named by ticker', () => {
-    expect(payoutSeriesOf(PAYOUTS, 'BRL', HOLDINGS).map((series) => [series.key, series.label]))
+    const brl = payoutSeriesOf(PAYOUTS, 'BRL', HOLDINGS, '?');
+    expect(brl.map((series) => [series.key, series.label]))
       .toEqual([['xpml11', 'XPML11'], ['knri11', 'KNRI11']]);
-    expect(payoutSeriesOf(PAYOUTS, 'USD', HOLDINGS).map((series) => series.key)).toEqual(['aapl']);
+    const usd = payoutSeriesOf(PAYOUTS, 'USD', HOLDINGS, '?');
+    expect(usd.map((series) => series.key)).toEqual(['aapl']);
+  });
+
+  it('names a Holding the list lacks by the stand-in, not by nothing', () => {
+    expect(payoutSeriesOf(PAYOUTS, 'USD', [], 'Unnamed holding')[0]?.label).toBe('Unnamed holding');
   });
 
   it('hands the months on as the chart takes them', () => {
-    const [xpml] = payoutSeriesOf(PAYOUTS, 'BRL', HOLDINGS);
+    const [xpml] = payoutSeriesOf(PAYOUTS, 'BRL', HOLDINGS, '?');
     expect(xpml?.amounts).toEqual(PAYOUTS.series[0]!.months);
   });
 });
 
 describe('monthTotalOf', () => {
   it('adds up one month across the series', () => {
-    expect(monthTotalOf(payoutSeriesOf(PAYOUTS, 'BRL', HOLDINGS), '2026-09')).toBe(110000);
+    expect(monthTotalOf(payoutSeriesOf(PAYOUTS, 'BRL', HOLDINGS, '?'), '2026-09')).toBe(110000);
   });
 
   it('is zero for a month nobody paid in', () => {
-    expect(monthTotalOf(payoutSeriesOf(PAYOUTS, 'BRL', HOLDINGS), '2026-01')).toBe(0);
+    expect(monthTotalOf(payoutSeriesOf(PAYOUTS, 'BRL', HOLDINGS, '?'), '2026-01')).toBe(0);
   });
 
   it('counts an amount below zero as nothing, as the chart does', () => {

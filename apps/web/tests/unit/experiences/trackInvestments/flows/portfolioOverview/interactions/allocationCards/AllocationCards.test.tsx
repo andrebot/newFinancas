@@ -23,6 +23,12 @@ describe('FamilyAllocation', () => {
     expect(screen.getByText('100% · R$ 3.600,00')).toBeTruthy();
   });
 
+  it('reads each donut\'s total out, the drawing itself hidden', () => {
+    renderInLocale(<FamilyAllocation slices={SLICES} holdings={HOLDINGS} family="stock" />);
+    expect(screen.getByText('Total in USD: $8,780.00')).toBeTruthy();
+    expect(screen.getByText('$8.8K').closest('[aria-hidden="true"]')).toBeTruthy();
+  });
+
   it('names the FIIs panel', () => {
     renderInLocale(<FamilyAllocation slices={SLICES} holdings={HOLDINGS} family="fii" />);
     expect(screen.getByRole('heading', { name: 'FIIs allocation' })).toBeTruthy();
@@ -38,7 +44,7 @@ describe('FamilyAllocation', () => {
 
   it('shows a placeholder while the report loads', () => {
     renderInLocale(<FamilyAllocation slices={undefined} holdings={HOLDINGS} family="stock" />);
-    expect(screen.getByRole('status', { name: 'Loading' })).toBeTruthy();
+    expect(screen.getByRole('status', { name: 'Loading Stocks allocation' })).toBeTruthy();
   });
 });
 
@@ -84,7 +90,7 @@ describe('GoalFunding', () => {
 
   it('shows a placeholder while the Goals load, and says when there are none', () => {
     const { rerenderInLocale } = renderInLocale(<GoalFunding goals={undefined} />);
-    expect(screen.getByRole('status', { name: 'Loading' })).toBeTruthy();
+    expect(screen.getByRole('status', { name: 'Loading Goals' })).toBeTruthy();
     rerenderInLocale(<GoalFunding goals={[]} />);
     expect(screen.getByText('Nothing to show yet.')).toBeTruthy();
   });
