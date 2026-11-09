@@ -1,4 +1,5 @@
 import { useEffect, useRef, type FormEvent } from 'react';
+import { formatting } from '../../config/constants';
 import { moneyConventions } from '../../utilities/formatting';
 import { useI18n } from '../../utilities/I18nProvider';
 import useFormatter from '../../utilities/useFormatter';
@@ -29,21 +30,29 @@ export const ROW_GRID = [
 /** Date and value: stacked on a narrow editor, their own columns from 448px. */
 export const DATE_VALUE = 'flex min-w-0 flex-col @md:contents';
 
+/** How many hundredths of a percent the change shows: 10 for one decimal. */
+const CHANGE_STEPS = 10 ** formatting.changeFractionDigits;
+
 /**
  * Picks the colour of a change: mint for a rise and coral for a fall in a
- * market value; a rate's change and no change stay muted (mockup 53).
+ * market value; a rate's change, and one that rounds to 0.0%, stay muted
+ * (mockup 53).
  *
  * @param change - The change, if any.
  * @returns The colour class.
  */
 export const changeToneOf = (change: HistoryChange | undefined): string => {
-  if (change?.unit !== 'ratio' || change.amount === 0) return 'text-muted';
+  if (change?.unit !== 'ratio') return 'text-muted';
+  // Rounded half away from zero, as `Intl` writes it: −0.05% shows as −0.1%.
+  const shownSteps = Math.round(Math.abs(change.amount) * 100 * CHANGE_STEPS);
+  if (shownSteps === 0) return 'text-muted';
   return change.amount > 0 ? 'text-mint' : 'text-coral';
 };
 
 /**
  * Writes what a value changed: a signed percent for money, signed points
- * for a rate, a dash for the first value.
+ * for a rate, a dash when there is nothing to compare (the first value, or
+ * money after a zero).
  *
  * @param props - The change.
  * @returns The change's text.
@@ -76,9 +85,21 @@ export interface HistoryRowProps {
   readonly deleteId: string;
   /** Another request runs: its buttons wait. */
   readonly disabled: boolean;
+  /** Saved or deleted, the list not yet refetched: dimmed, as loading, its buttons waiting. */
+  readonly settling: boolean;
+  /** Nothing can be changed: no buttons and no lock. */
+  readonly readOnly: boolean;
   readonly onEdit: () => void;
   readonly onDelete: () => void;
 }
+
+/** A row's actions: what the last cell needs. */
+type RowActionsProps = Pick<
+  HistoryRowProps, 'editId' | 'deleteId' | 'disabled' | 'readOnly' | 'onEdit' | 'onDelete'
+> & {
+  readonly date: string;
+  readonly locked: boolean;
+};
 
 /**
  * Draws a locked value's last cell: a lock instead of the buttons.
@@ -98,20 +119,54 @@ function LockedActions() {
 }
 
 /**
- * Draws a saved value: its date, the value (with why it can't be changed,
- * when it can't), the change it made and its edit and delete buttons.
+ * Draws a row's last cell: nothing when read-only, a lock on a value that
+ * can't be changed, else the edit and delete buttons.
  *
- * @param props - The value, its change and its actions.
+ * @param props - The row's date, ids, state and handlers.
+ * @returns The cell.
+ */
+function RowActions({
+  date, editId, deleteId, disabled, readOnly, locked, onEdit, onDelete,
+}: RowActionsProps) {
+  const translator = useI18n();
+  if (readOnly) return <span />;
+  if (locked) return <LockedActions />;
+  return (
+    <span className="flex justify-end">
+      <IconButton
+        id={editId}
+        icon="edit-outline"
+        label={translator.text('historyEditor', 'edit', { date })}
+        disabled={disabled}
+        onClick={onEdit}
+      />
+      <IconButton
+        id={deleteId}
+        icon="delete-outline"
+        label={translator.text('historyEditor', 'delete', { date })}
+        disabled={disabled}
+        onClick={onDelete}
+      />
+    </span>
+  );
+}
+
+/**
+ * Draws a saved value: its date, the value (with why it can't be changed,
+ * when it can't), the change it made and its edit and delete buttons. While
+ * a save or delete of it waits for the list to refetch, it is dimmed and busy.
+ *
+ * @param props - The value, its change, its state and its actions.
  * @returns The row.
  */
 export function HistoryRow({
-  entry, change, valueKind, editId, deleteId, disabled, onEdit, onDelete,
+  entry, change, valueKind, editId, deleteId, disabled, settling, readOnly, onEdit, onDelete,
 }: HistoryRowProps) {
-  const translator = useI18n();
   const formatter = useFormatter();
   const date = formatter.date(entry.date);
+  const look = settling ? 'opacity-50' : 'hover:bg-ink/[.03]';
   return (
-    <li className={`${ROW_GRID} rounded-xl py-2.5 hover:bg-ink/[.03]`}>
+    <li aria-busy={settling} className={`${ROW_GRID} rounded-xl py-2.5 transition-opacity ${look}`}>
       <span className={DATE_VALUE}>
         <span className="type-body-sm tabular-nums text-muted">{date}</span>
         <span className="flex min-w-0 flex-col">
@@ -124,30 +179,24 @@ export function HistoryRow({
         </span>
       </span>
       <ChangeText change={change} />
-      {entry.lockedReason ? <LockedActions /> : (
-        <span className="flex justify-end">
-          <IconButton
-            id={editId}
-            icon="edit-outline"
-            label={translator.text('historyEditor', 'edit', { date })}
-            disabled={disabled}
-            onClick={onEdit}
-          />
-          <IconButton
-            id={deleteId}
-            icon="delete-outline"
-            label={translator.text('historyEditor', 'delete', { date })}
-            disabled={disabled}
-            onClick={onDelete}
-          />
-        </span>
-      )}
+      <RowActions
+        date={date}
+        editId={editId}
+        deleteId={deleteId}
+        disabled={disabled || settling}
+        readOnly={readOnly}
+        locked={entry.lockedReason !== undefined}
+        onEdit={onEdit}
+        onDelete={onDelete}
+      />
     </li>
   );
 }
 
 /** The form's props. */
 export interface HistoryFormProps {
+  /** The form's name, already translated: "Edit value of 07/31/2026" or "New value". */
+  readonly name: string;
   readonly draft: HistoryDraft;
   readonly errors: HistoryDraftErrors;
   /** Counts refused saves: each moves focus to the first problem. */
@@ -242,7 +291,7 @@ function ValueField({
  * @returns The form.
  */
 export function HistoryForm({
-  draft, errors, refusals, valueKind, valueLabel, hint, busy, onChange, onSubmit, onCancel,
+  name, draft, errors, refusals, valueKind, valueLabel, hint, busy, onChange, onSubmit, onCancel,
 }: HistoryFormProps) {
   const translator = useI18n();
   const formRef = useRef<HTMLFormElement>(null);
@@ -260,6 +309,7 @@ export function HistoryForm({
     // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <form
       ref={formRef}
+      aria-label={name}
       noValidate
       className="flex flex-col gap-3 rounded-xl border border-mint/40 bg-raised p-3"
       onSubmit={onSubmit}

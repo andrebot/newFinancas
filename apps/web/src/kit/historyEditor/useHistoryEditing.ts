@@ -10,7 +10,8 @@ import {
 // The History editor's state (K46, OQ-232): which value is open — edited,
 // being deleted, or a new one — what is typed, whether the caller's request
 // runs, and where focus goes back to. The caller runs the request; its
-// answer closes the form (`done`) or keeps it (`refused`).
+// answer closes the form (`done`) or keeps it (`refused`). A value saved or
+// deleted stays dimmed, as loading, until the caller's list changes.
 
 /** What is open: one value's form or its delete confirm, the new value's form, or nothing. */
 export type HistoryOpen = { readonly mode: 'edit'; readonly key: string }
@@ -29,6 +30,13 @@ interface FocusReturn {
   readonly fallbackId: string;
 }
 
+/** A value whose save or delete went through, until the list it was in is replaced. */
+export interface HistorySettling {
+  readonly key: string;
+  /** The list when the request went through; a refetch hands down a new one. */
+  readonly entries: readonly HistoryEntry[];
+}
+
 /** What the editor's state is built from. */
 export interface HistoryEditingInput {
   readonly entries: readonly HistoryEntry[];
@@ -44,6 +52,8 @@ export interface HistoryEditingInput {
 export interface HistoryEditing {
   /** What is open, or `null`; a value that left the list closes. */
   readonly open: HistoryOpen;
+  /** The value shown as loading: saved or deleted, the list not yet refetched. */
+  readonly settlingKey: string | undefined;
   readonly draft: HistoryDraft;
   readonly busy: boolean;
   /** The draft's problems, shown once a save was refused. */
@@ -51,7 +61,7 @@ export interface HistoryEditing {
   /** Counts refused saves, so each one moves focus to the first problem. */
   readonly refusals: number;
   readonly setDraft: (draft: HistoryDraft) => void;
-  /** Opens a value's form, or the new value's form without a key. */
+  /** Opens a value's form, or the new value's form without a key; the open one stays as typed. */
   readonly startEdit: (fallbackId: string, key?: string) => void;
   readonly startDelete: (fallbackId: string, key: string) => void;
   /** Closes what is open; its buttons and Escape do nothing while a request runs. */
@@ -63,6 +73,9 @@ export interface HistoryEditing {
 }
 
 const EMPTY_DRAFT: HistoryDraft = { date: '', value: null };
+
+/** Sends focus to the list: nothing to go back to, or nothing that can take it yet. */
+const TO_LIST: FocusReturn = { element: null, fallbackId: '' };
 
 /**
  * Asks the caller, reading a failed promise as a refusal so the form stays.
@@ -94,6 +107,22 @@ export const openStillListed = (
   if (open === null || open.mode === 'add') return open;
   return entries.some((entry) => entry.key === open.key) ? open : null;
 };
+
+/**
+ * Names the value still shown as loading: one saved or deleted while the
+ * caller's list is still the one it was in. Any new list ends it, so a
+ * refetch that fails doesn't leave it dimmed for good.
+ *
+ * @param settling - The value whose request went through, if any.
+ * @param entries - The saved values now.
+ * @returns Its key, or none once the list was replaced.
+ */
+export const settlingKeyOf = (
+  settling: HistorySettling | null,
+  entries: readonly HistoryEntry[],
+): string | undefined => (
+  settling?.entries === entries ? settling.key : undefined
+);
 
 /**
  * Names the value whose form is open.
@@ -133,7 +162,8 @@ export default function useHistoryEditing({
   const [draft, setDraft] = useState<HistoryDraft>(EMPTY_DRAFT);
   const [busy, setBusy] = useState(false);
   const [refusals, setRefusals] = useState(0);
-  const focusReturn = useRef<FocusReturn>({ element: null, fallbackId: '' });
+  const [settling, setSettling] = useState<HistorySettling | null>(null);
+  const focusReturn = useRef<FocusReturn>(TO_LIST);
   const open = openStillListed(openState, entries);
   const editingKey = editingKeyOf(open);
   const errors = draftErrorsOf(draft, {
@@ -161,25 +191,39 @@ export default function useHistoryEditing({
     setRefusals(0);
   };
 
-  /** Closes what is open and sends focus back. */
-  const close = () => {
+  /**
+   * Closes what is open and sends focus back.
+   *
+   * @param target - Where focus goes; where it came from by default.
+   */
+  const close = (target: FocusReturn = focusReturn.current) => {
     setOpen(null);
-    restoreFocus(focusReturn.current, listRef);
+    restoreFocus(target, listRef);
   };
 
   /**
-   * Runs the caller's request and closes once it is done.
+   * Runs the caller's request. Once it is done, what is open closes. A new
+   * value sends focus back to Add; a saved or deleted one stays dimmed until
+   * the list changes, and focus goes to the list, since its buttons wait.
    *
    * @param request - The caller's request.
+   * @param key - The value it is about; none for a new one.
    */
-  const run = async (request: () => Promise<HistoryOutcome>) => {
+  const run = async (request: () => Promise<HistoryOutcome>, key?: string) => {
     setBusy(true);
     const outcome = await outcomeOf(request);
     setBusy(false);
-    if (outcome === 'done') close();
+    if (outcome !== 'done') return;
+    if (key === undefined) {
+      close();
+      return;
+    }
+    setSettling({ key, entries });
+    close(TO_LIST);
   };
 
   const startEdit = (fallbackId: string, key?: string) => {
+    if (key !== undefined && key === editingKey) return;
     const entry = entries.find((candidate) => candidate.key === key);
     if (entry) openWith({ mode: 'edit', key: entry.key }, fallbackId, entry);
     else openWith({ mode: 'add' }, fallbackId, EMPTY_DRAFT);
@@ -193,7 +237,7 @@ export default function useHistoryEditing({
       return;
     }
     const submission = { key: editingKey, date: draft.date, value: draft.value };
-    run(() => onSave(submission));
+    run(() => onSave(submission), editingKey);
   };
 
   const startDelete = (fallbackId: string, key: string) => {
@@ -201,11 +245,12 @@ export default function useHistoryEditing({
   };
 
   const confirmDelete = (key: string) => {
-    run(() => onDelete(key));
+    run(() => onDelete(key), key);
   };
 
   return {
     open,
+    settlingKey: settlingKeyOf(settling, entries),
     draft,
     busy,
     errors: refusals > 0 ? errors : {},
@@ -213,7 +258,7 @@ export default function useHistoryEditing({
     setDraft,
     startEdit,
     startDelete,
-    cancel: close,
+    cancel: () => close(),
     submit,
     confirmDelete,
   };

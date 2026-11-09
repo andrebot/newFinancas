@@ -11,7 +11,7 @@ import {
   changeToneOf, defaultValueLabelOf,
 } from '../../../../src/kit/historyEditor/HistoryEditorParts';
 import {
-  editingKeyOf, openStillListed, outcomeOf,
+  editingKeyOf, openStillListed, outcomeOf, settlingKeyOf,
 } from '../../../../src/kit/historyEditor/useHistoryEditing';
 import { renderInLocale } from '../../../support/renderInLocale';
 
@@ -111,6 +111,16 @@ const rowTexts = () => within(screen.getByRole('list', { name: 'Saved values' })
   .map((row) => row.textContent);
 
 /**
+ * Finds a value's row by its date.
+ *
+ * @param date - The date as the row writes it.
+ * @returns The row.
+ */
+const rowOf = (date: string) => within(screen.getByRole('list', { name: 'Saved values' }))
+  .getByText(date)
+  .closest('li') as HTMLLIElement;
+
+/**
  * Waits until an element holds focus.
  *
  * @param find - Finds the element.
@@ -126,6 +136,12 @@ describe('changeToneOf', () => {
     expect(changeToneOf({ unit: 'ratio', amount: 0 })).toBe('text-muted');
     expect(changeToneOf({ unit: 'points', amount: 2500 })).toBe('text-muted');
     expect(changeToneOf(undefined)).toBe('text-muted');
+  });
+
+  it('colours a change by what it shows: one that rounds to 0.0% stays muted', () => {
+    expect(changeToneOf({ unit: 'ratio', amount: -0.00001 })).toBe('text-muted');
+    expect(changeToneOf({ unit: 'ratio', amount: 0.0004 })).toBe('text-muted');
+    expect(changeToneOf({ unit: 'ratio', amount: -0.0005 })).toBe('text-coral');
   });
 });
 
@@ -155,6 +171,12 @@ describe('useHistoryEditing helpers', () => {
     expect(openStillListed({ mode: 'delete', key: 'gone' }, ENTRIES)).toBeNull();
   });
 
+  it('shows a value as loading only while its list is the one it was in', () => {
+    expect(settlingKeyOf(null, ENTRIES)).toBeUndefined();
+    expect(settlingKeyOf({ key: 'jul', entries: ENTRIES }, ENTRIES)).toBe('jul');
+    expect(settlingKeyOf({ key: 'jul', entries: ENTRIES }, [...ENTRIES])).toBeUndefined();
+  });
+
   it('names the value whose form is open', () => {
     expect(editingKeyOf({ mode: 'edit', key: 'aug' })).toBe('aug');
     expect(editingKeyOf({ mode: 'delete', key: 'aug' })).toBeUndefined();
@@ -179,7 +201,7 @@ describe('HistoryEditor', () => {
       expect(rowTexts()).toEqual([
         '08/31/2026R$\u00a0110.000,00−1.5%Edit value of 08/31/2026Delete value of 08/31/2026',
         '07/31/2026R$\u00a0111.650,00+3.3%Edit value of 07/31/2026Delete value of 07/31/2026',
-        '06/30/2026R$\u00a0108.070,00From a buy—No earlier value',
+        '06/30/2026R$\u00a0108.070,00From a buy—No change to show',
       ]);
     });
 
@@ -272,15 +294,32 @@ describe('HistoryEditor', () => {
       expect(impactHint).toHaveBeenCalledWith('2026-06-15');
     });
 
-    it('saves the value with its key and closes once done, focus back on its button', async () => {
-      const { onSave } = renderEditor();
+    it('saves the value with its key, then shows it loading until a refetch', async () => {
+      const { onSave, rerenderInLocale, props } = renderEditor();
       fireEvent.click(button('Edit value of 07/31/2026'));
       typeInto('Value (R$)', '112.000,00');
       fireEvent.click(button('Save'));
 
       expect(onSave.mock.calls).toEqual([[{ key: 'jul', date: '2026-07-31', value: 11200000 }]]);
       await waitFor(() => expect(screen.queryByRole('textbox', { name: 'Date' })).toBeNull());
-      await expectFocusOn(() => button('Edit value of 07/31/2026'));
+      expect(rowOf('07/31/2026').getAttribute('aria-busy')).toBe('true');
+      expect(button('Edit value of 07/31/2026').disabled).toBe(true);
+      expect(button('Edit value of 08/31/2026').disabled).toBe(false);
+      await expectFocusOn(() => screen.getByRole('list', { name: 'Saved values' }));
+
+      const refetched = ENTRIES.map((entry) => (
+        entry.key === 'jul' ? { ...entry, value: 11200000 } : entry
+      ));
+      rerenderInLocale(<HistoryEditor {...props} entries={refetched} />);
+      expect(rowOf('07/31/2026').getAttribute('aria-busy')).toBe('false');
+      expect(rowOf('07/31/2026').textContent).toContain('112.000,00');
+    });
+
+    it('names the form by the value it edits', () => {
+      renderEditor();
+      fireEvent.click(button('Edit value of 07/31/2026'));
+
+      expect(screen.getByRole('form', { name: 'Edit value of 07/31/2026' })).toBeTruthy();
     });
 
     it('waits on a running save, then keeps the form when it is refused', async () => {
@@ -296,6 +335,13 @@ describe('HistoryEditor', () => {
       fireEvent.click(button('Save'));
       fireEvent.submit(button('Save').closest('form') as HTMLFormElement);
       expect(onSave).toHaveBeenCalledTimes(1);
+
+      const outside = vi.fn();
+      document.addEventListener('keydown', outside);
+      fireEvent.keyDown(screen.getByRole('textbox', { name: 'Date' }), { key: 'Escape' });
+      expect(outside).not.toHaveBeenCalled();
+      expect(screen.getByRole('textbox', { name: 'Date' })).toBeTruthy();
+      document.removeEventListener('keydown', outside);
 
       await act(async () => request.settle('refused'));
       expect(screen.getByRole<HTMLInputElement>('textbox', { name: 'Date' }).value)
@@ -389,6 +435,16 @@ describe('HistoryEditor', () => {
       await expectFocusOn(() => screen.getByRole('list', { name: 'Saved values' }));
     });
 
+    it('keeps what was typed when the open value is picked on the chart again', () => {
+      renderEditor();
+      fireEvent.click(button('Edit value of 07/31/2026'));
+      typeInto('Value (R$)', '1,00');
+      fireEvent.click(screen.getByRole('button', { name: /^07\/31\/2026/ }));
+
+      expect(screen.getByRole<HTMLInputElement>('textbox', { name: 'Value (R$)' }).value)
+        .toBe('1,00');
+    });
+
     it('moves to another value, dropping what was typed', () => {
       renderEditor();
       fireEvent.click(button('Edit value of 08/31/2026'));
@@ -406,6 +462,7 @@ describe('HistoryEditor', () => {
       fireEvent.click(button('Add a past value'));
 
       expect(screen.queryByRole('button', { name: 'Add a past value' })).toBeNull();
+      expect(screen.getByRole('form', { name: 'New value' })).toBeTruthy();
       expect(screen.queryByText(/Recalculated/)).toBeNull();
       typeInto('Date', '07/15/2026');
       typeInto('Value (R$)', '109.000,00');
@@ -446,13 +503,22 @@ describe('HistoryEditor', () => {
       })).toBeTruthy();
     });
 
-    it('deletes on confirm and closes once done', async () => {
-      const { onDelete } = renderEditor();
+    it('deletes on confirm, then dims the value until the list drops it', async () => {
+      const { onDelete, rerenderInLocale, props } = renderEditor();
       fireEvent.click(button('Delete value of 07/31/2026'));
       fireEvent.click(button('Delete'));
 
       expect(onDelete.mock.calls).toEqual([['jul']]);
       await waitFor(() => expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull());
+      expect(rowOf('07/31/2026').getAttribute('aria-busy')).toBe('true');
+      expect(rowOf('07/31/2026').className).toContain('opacity-50');
+      expect(button('Delete value of 07/31/2026').disabled).toBe(true);
+      await expectFocusOn(() => screen.getByRole('list', { name: 'Saved values' }));
+
+      rerenderInLocale(
+        <HistoryEditor {...props} entries={ENTRIES.filter((entry) => entry.key !== 'jul')} />,
+      );
+      expect(rowTexts().some((text) => text?.startsWith('07/31/2026'))).toBe(false);
     });
 
     it('keeps the confirm when the delete is refused', async () => {
@@ -475,6 +541,20 @@ describe('HistoryEditor', () => {
 
       expect(onDelete).not.toHaveBeenCalled();
       await expectFocusOn(() => button('Delete value of 07/31/2026'));
+    });
+  });
+
+  describe('read-only', () => {
+    it('shows the values and the chart with nothing to change', () => {
+      renderEditor({ readOnly: true });
+
+      expect(rowTexts()).toHaveLength(3);
+      expect(screen.queryByRole('button', { name: /^Edit value/ })).toBeNull();
+      expect(screen.queryByRole('button', { name: /^Delete value/ })).toBeNull();
+      expect(screen.queryByTitle("Can't be changed")).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Add a past value' })).toBeNull();
+      expect(screen.queryByRole('button', { name: /^08\/31\/2026/ })).toBeNull();
+      expect(screen.getByText('From a buy')).toBeTruthy();
     });
   });
 });

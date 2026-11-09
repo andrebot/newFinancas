@@ -1,4 +1,8 @@
-import { useId, useMemo, useRef } from 'react';
+import {
+  useId, useMemo, useRef, type ReactNode,
+} from 'react';
+import type { Formatter } from '../../utilities/formatting';
+import type { Translator } from '../../utilities/i18n';
 import { useI18n } from '../../utilities/I18nProvider';
 import useFormatter from '../../utilities/useFormatter';
 import { InlineConfirm } from '../confirm/InlineConfirm';
@@ -54,9 +58,21 @@ export interface HistoryEditorProps {
   readonly impactHint: (fromDate: string) => string;
   /** One value per day, as a rate has (OQ-172). */
   readonly uniqueDays?: boolean | undefined;
-  /** Saves a new value (no key) or an edited one; answers how it ended. */
+  /**
+   * Nothing can be changed — a Viewer's rates, an archived Holding's values:
+   * no buttons, no "Add a past value", and the chart only reads.
+   */
+  readonly readOnly?: boolean | undefined;
+  /**
+   * Saves a new value (no key) or an edited one; answers how it ended. On
+   * `done`, an edited value stays dimmed, as loading, until a new `entries`
+   * list arrives — so pass the query's data, which changes only on a refetch.
+   */
   readonly onSave: (submission: HistorySubmission) => Promise<HistoryOutcome>;
-  /** Deletes a value; answers how it ended. */
+  /**
+   * Deletes a value; answers how it ended. On `done`, it stays dimmed until a
+   * new `entries` list arrives.
+   */
   readonly onDelete: (key: string) => Promise<HistoryOutcome>;
 }
 
@@ -101,10 +117,31 @@ const formHintOf = (
   return from && impactHint(from);
 };
 
+/**
+ * Names the open form for assistive tech: which value it edits, or a new one.
+ *
+ * @param open - What is open.
+ * @param entries - The saved values.
+ * @param translator - The interface language's translator.
+ * @param formatter - The interface language's formatters.
+ * @returns E.g. "Edit value of 07/31/2026" or "New value".
+ */
+const formNameOf = (
+  open: HistoryOpen,
+  entries: readonly HistoryEntry[],
+  translator: Translator,
+  formatter: Formatter,
+): string => {
+  const original = editedEntryOf(open, entries);
+  return original
+    ? translator.text('historyEditor', 'edit', { date: formatter.date(original.date) })
+    : translator.text('historyEditor', 'newValue');
+};
+
 /** The chart's props: the editor's look and its state. */
 type HistoryChartProps = Pick<
   HistoryEditorProps, 'entries' | 'valueKind' | 'chartLabel' | 'tone' | 'reference'
-> & { readonly editing: HistoryEditing };
+> & { readonly editing: HistoryEditing; readonly readOnly: boolean };
 
 /**
  * Draws the chart with what is being edited: the value's crosshair and pill,
@@ -114,7 +151,7 @@ type HistoryChartProps = Pick<
  * @returns The chart.
  */
 function HistoryChart({
-  entries, valueKind, chartLabel, tone, reference, editing,
+  entries, valueKind, chartLabel, tone, reference, editing, readOnly,
 }: HistoryChartProps) {
   const translator = useI18n();
   const formatter = useFormatter();
@@ -138,7 +175,7 @@ function HistoryChart({
           month: formatter.date(original.date, 'monthShort'),
         })}
         pending={formOpen ? pendingOf(draft, original) : undefined}
-        onSelect={(key) => editing.startEdit('', key)}
+        onSelect={readOnly ? undefined : (key) => editing.startEdit('', key)}
       />
     </div>
   );
@@ -174,6 +211,33 @@ function DeleteConfirm({ entry, impactHint, editing }: {
 }
 
 /**
+ * Draws the foot of the editor: the new value's form while it is open, else
+ * the dashed "Add a past value" button, or nothing when read-only.
+ *
+ * @param props - The button's id, the open form, the state and the handler.
+ * @returns The form, the button or nothing.
+ */
+function AddValue({
+  id, form, readOnly, busy, onAdd,
+}: {
+  readonly id: string;
+  readonly form: ReactNode;
+  readonly readOnly: boolean;
+  readonly busy: boolean;
+  readonly onAdd: () => void;
+}) {
+  const translator = useI18n();
+  if (form) return form;
+  if (readOnly) return null;
+  return (
+    <button id={id} type="button" className={ADD_BUTTON} disabled={busy} onClick={onAdd}>
+      <Icon name="add" className="size-4.5" />
+      {translator.text('historyEditor', 'add')}
+    </button>
+  );
+}
+
+/**
  * Renders the History editor.
  *
  * @param props - The values, their kind, the chart's look, the wording and the requests.
@@ -181,9 +245,10 @@ function DeleteConfirm({ entry, impactHint, editing }: {
  */
 export function HistoryEditor({
   entries, valueKind, chartLabel, tone, reference, valueLabel, impactHint, uniqueDays = false,
-  onSave, onDelete,
+  readOnly = false, onSave, onDelete,
 }: HistoryEditorProps) {
   const translator = useI18n();
+  const formatter = useFormatter();
   const editorId = useId();
   const listRef = useRef<HTMLUListElement>(null);
   const editing = useHistoryEditing({
@@ -194,6 +259,7 @@ export function HistoryEditor({
 
   const form = (
     <HistoryForm
+      name={formNameOf(open, entries, translator, formatter)}
       draft={editing.draft}
       errors={editing.errors}
       refusals={editing.refusals}
@@ -217,6 +283,7 @@ export function HistoryEditor({
           tone={tone}
           reference={reference}
           editing={editing}
+          readOnly={readOnly}
         />
       )}
       <div className="flex flex-col gap-1">
@@ -256,6 +323,8 @@ export function HistoryEditor({
                 editId={editId}
                 deleteId={deleteId}
                 disabled={busy}
+                settling={editing.settlingKey === entry.key}
+                readOnly={readOnly}
                 onEdit={() => editing.startEdit(editId, entry.key)}
                 onDelete={() => editing.startDelete(deleteId, entry.key)}
               />
@@ -263,18 +332,13 @@ export function HistoryEditor({
           })}
         </ul>
       </div>
-      {open?.mode === 'add' ? form : (
-        <button
-          id={addId}
-          type="button"
-          className={ADD_BUTTON}
-          disabled={busy}
-          onClick={() => editing.startEdit(addId)}
-        >
-          <Icon name="add" className="size-4.5" />
-          {translator.text('historyEditor', 'add')}
-        </button>
-      )}
+      <AddValue
+        id={addId}
+        form={open?.mode === 'add' ? form : undefined}
+        readOnly={readOnly}
+        busy={busy}
+        onAdd={() => editing.startEdit(addId)}
+      />
     </div>
   );
 }

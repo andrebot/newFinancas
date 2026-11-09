@@ -138,7 +138,11 @@ describe('TypeToConfirm', () => {
     expect(onConfirm).not.toHaveBeenCalled();
     expect(screen.getByRole<HTMLInputElement>('textbox').disabled).toBe(true);
     expect(screen.getByRole<HTMLButtonElement>('button', { name: 'Cancelar' }).disabled).toBe(true);
+    const onPageKey = vi.fn();
+    document.addEventListener('keydown', onPageKey);
     fireEvent.keyDown(confirmButton(), { key: 'Escape' });
     expect(onCancel).not.toHaveBeenCalled();
+    expect(onPageKey).not.toHaveBeenCalled();
+    document.removeEventListener('keydown', onPageKey);
   });
 });

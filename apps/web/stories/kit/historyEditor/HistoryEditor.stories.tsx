@@ -8,8 +8,10 @@ import {
 // The History editor (K46, OQ-232): dated values with their chart, edited in
 // place, deleted behind a confirm, a past value added. The caller holds the
 // list and runs each request — here after a short wait, refused when the
-// story says so. The frame is the caller's: here the value history drawer's
-// body (mockup 52), 560px wide, or a phone's sheet.
+// story says so; the list is "refetched" a moment after the answer, so a
+// saved or deleted value shows as loading meanwhile. The frame is the
+// caller's: here the value history drawer's body (mockup 52), 560px wide, or
+// a phone's sheet.
 
 const MARKET_VALUES: readonly HistoryEntry[] = [
   { key: 'aug', date: '2026-08-31', value: 11000000 },
@@ -83,7 +85,8 @@ function History({
   const [entries, setEntries] = useState(initial);
 
   /**
-   * Answers a request after the wait: refused, or applied to the list.
+   * Answers a request after the wait: refused, or done and applied to the
+   * list after another wait, as a refetch would.
    *
    * @param apply - What the request changes.
    * @returns How it ended.
@@ -91,7 +94,7 @@ function History({
   const answer = async (apply: () => void): Promise<HistoryOutcome> => {
     await wait();
     if (refuse) return 'refused';
-    apply();
+    wait().then(apply);
     return 'done';
   };
 
@@ -155,3 +158,6 @@ export const Phone: Story = { args: { width: 'phone' } };
 
 /** Nothing saved yet: no chart, only the button that adds a value. */
 export const Empty: Story = { args: { initial: [] } };
+
+/** A Viewer's rates, or an archived Holding: the values and chart, nothing to change. */
+export const ReadOnly: Story = { args: { readOnly: true } };
