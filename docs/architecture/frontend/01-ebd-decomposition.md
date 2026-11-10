@@ -152,6 +152,8 @@ Diagram: `docs/design/diagrams/ebd-tiers/app-shell.html`; sequence:
 
 **OQ-234 (FL19):** Holding Maintenance reads the same overview and household Holdings as Portfolio Overview (`trackInvestments/overviewRead.ts`) — values from the `holding` / `account` slices, picking an account makes no request — plus the index rates for the contract's estimate. An open row reads its split, its value history and its latest 3 transactions through the Experience's `details` slot, only while open; the open row holds its own drafts and turns each request's answer into K46/K47's `done` / `refused` and a toast. Archived Holdings are listed last, read-only; below `md` the table keeps Investment and Value.
 
+**OQ-235 (FL20):** Rates Maintenance reads the index rates, the household Holdings (for "Used by") and the members (for "Added by"), all through the Experience. A card per index shows the latest value, the change it made, the last 6 months and the Holdings it feeds; Update opens the inline form (one per page) and History the K46 drawer. A Member changes only the values they recorded, a Viewer only reads. The hint says that only the latest value is projected.
+
 | Flow | Interactions | Sequence |
 |---|---|---|
 | Portfolio Overview | Net Worth Cards, Payout This Month, Payout Holding Selector, Payout Chart, Allocation Cards, Coming Due | `docs/design/diagrams/ebd-sequences/track-investments-portfolio-overview.html` |

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  assetFamilyOf, assetTypeName, familyName, holdingIdOf, rateText,
+  assetFamilyOf, assetTypeName, familyName, holdingIdOf, indexName, rateText,
 } from '../../../src/experiences/holdingNames';
 import { createFormatter } from '../../../src/utilities/formatting';
 import { createTranslator } from '../../../src/utilities/i18n';
@@ -47,6 +47,15 @@ describe('familyName', () => {
   it('names a family in both languages', () => {
     expect(familyName(createTranslator('en-US'), 'fixedIncome')).toBe('Fixed income');
     expect(familyName(createTranslator('pt-BR'), 'fixedIncome')).toBe('Renda fixa');
+  });
+});
+
+describe('indexName', () => {
+  it('names each reference index', () => {
+    const translator = createTranslator('en-US');
+
+    expect(['selic', 'cdi', 'ipca', 'igpm'].map((code) => indexName(translator, code)))
+      .toEqual(['Selic', 'CDI', 'IPCA', 'IGP-M']);
   });
 });
 

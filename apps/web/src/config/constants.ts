@@ -75,6 +75,8 @@ export const formatting = {
     monthYear: { month: 'long', year: 'numeric' },
     /** set. · Sep — the period bar's months. */
     monthShort: { month: 'short' },
+    /** set. de 2025 · Sep 2025 — a rate card's "vs" month in another year (FL20). */
+    monthShortYear: { month: 'short', year: 'numeric' },
     /** 09/26 — a chart's month labels on a history of a year or more. */
     monthYearNumeric: { month: '2-digit', year: '2-digit' },
     /** setembro · September — a period chip's month (FL17). */
@@ -301,6 +303,18 @@ export const holdingMaintenance = {
   wideQuery: '(min-width: 768px)',
   /** The market value card's chart height (mockup 51). */
   valueChartHeightPx: 96,
+} as const;
+
+/** Rates Maintenance (FL20, mockup 53, OQ-235). */
+export const ratesMaintenance = {
+  /** How many months a rate card's chart shows, counted back from its latest value's month. */
+  chartMonths: 6,
+  /** A rate card's chart height (mockup 53). */
+  chartHeightPx: 96,
+  /** Each index's colour: its dot and its line (mockup 53). An unknown index is `sky`. */
+  indexTones: {
+    selic: 'sky', cdi: 'mint', ipca: 'sun', igpm: 'lilac',
+  },
 } as const;
 
 /** Rail cards: the balance, budget and goal cards on the card rails (K36, OQ-215). */

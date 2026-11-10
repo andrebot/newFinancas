@@ -1189,28 +1189,38 @@ EXP-->>FLOW: ok / failed — a toast either way, K46 / K47 answered done / refus
 EXP->>API: refetch by tag (overview, the row's details)
 EXP-->>FLOW: state refreshed
 """, ["Positions are read-only (transactions only); values come from the overview's `holding` slices, a fixed-term Holding it leaves out worth its cost basis (OQ-234).", "'See in Transactions' asks the Experience to route to Manage Finances with holdingId — no Flow-to-Flow call.", "The split shows only the Goals this member can see; a share funding someone else's personal Goal is kept by the server on save and still counts toward 100% (OQ-178).", "An archived Holding, or a user who may not manage its account, only reads; a trade's value is locked (OQ-56, OQ-232)."]),
-    ("track-investments-rates-maintenance", "Track Investments — Rates Maintenance", f"{R('GET /households/:householdId/index-rates')}, {R('POST/PATCH/DELETE /households/:householdId/index-rates/:index/values')}.",
+    ("track-investments-rates-maintenance", "Track Investments — Rates Maintenance", f"{R('GET /households/:householdId/index-rates')} with {R('GET /households/:householdId/holdings?includeArchived=true')} (shared with the other tabs) and {R('GET /households/:householdId/members')}; {R('POST/PATCH/DELETE /households/:householdId/index-rates/:index/values')} (OQ-172, OQ-178, OQ-235).",
      [("RC", "Rate Card"), ("RU", "Rate Update Entry"), ("RH", "Rate History Editor"), FLOW("Rates Maintenance"), EXP("Track Investments"), API],
      """
 FLOW->>EXP: request rates
+par the rates, the Holdings they feed, who recorded them
 EXP->>API: GET /households/:householdId/index-rates
-API-->>EXP: every index with history
-EXP-->>FLOW: state
-FLOW-->>RC: render Selic, CDI, IPCA, IGP-M with charts
-alt update
-    User->>RU: value + as-of date
-    RU->>FLOW: emit rateEntered
+API-->>EXP: every index (in-code order) with its values, newest first
+EXP->>API: GET /households/:householdId/holdings?includeArchived=true
+API-->>EXP: every visible Holding (its rate's index)
+EXP->>API: GET /households/:householdId/members
+API-->>EXP: the members (first names)
+end
+EXP-->>FLOW: state (rates, Holdings, members, viewer)
+FLOW-->>RC: render Selic, CDI, IPCA, IGP-M — latest value, last 6 months, Used by
+alt update (anyone but a Viewer)
+    User->>RC: Update
+    RC->>FLOW: emit updateOpened (one form on the page)
+    User->>RU: value + as-of date, Save
+    RU->>FLOW: emit rateEntered (day not taken, not after today)
     FLOW->>EXP: request record
     EXP->>API: POST /households/:householdId/index-rates/:index/values
-else fix history
-    User->>RH: edit or delete an entry
+else fix history (drawer)
+    User->>RH: edit or delete an entry (another member's is locked)
     RH->>FLOW: emit historyChange
     FLOW->>EXP: request edit / delete
     EXP->>API: PATCH or DELETE /households/:householdId/index-rates/:index/values/:valueId
 end
-API-->>EXP: done
+API-->>EXP: done or error code (e.g. 409 index_rate.duplicate_day, 403, 404 index_rate.not_found)
+EXP-->>FLOW: ok / failed — a toast either way, K46 / the form answered done / refused
+EXP->>API: refetch by tag (rates — the overview and Holdings re-project)
 EXP-->>FLOW: state refreshed
-""", ["Values are × 10,000 on the wire; FormattingUtility shows 10.50% a.a."]),
+""", ["Values are × 10,000 on the wire; FormattingUtility shows 10.50%.", "Only an index's latest value feeds projections (FR-11.2), so the hint says that rather than \"re-projects\" (OQ-235).", "A Member changes only the values they recorded; an Owner or Admin any; a Viewer only reads (OQ-178)."]),
     ("review-insights-dashboard", "Review Insights — Dashboard", f"{R('GET /households/:householdId/dashboard')}, {R('GET /households/:householdId/reports/payouts?holdingIds=')}.",
      [("PN", "Panels"), ("HS", "Payout Holding Selector"), ("PC", "Payout Chart"), FLOW("Dashboard"), EXP("Review Insights"), API],
      """

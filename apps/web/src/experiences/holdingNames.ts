@@ -88,3 +88,15 @@ export const rateText = (translator: Translator, formatter: Formatter, rate: Quo
     rate: base, spread: formatter.rate(rate.spread),
   });
 };
+
+/**
+ * Names a reference index (FR-11.6): Selic, CDI, IPCA, IGP-M. Shared by the
+ * Contract card's estimate note (FL19) and the rate cards (FL20).
+ *
+ * @param translator - The texts.
+ * @param code - The index's code, e.g. `selic`.
+ * @returns Its name.
+ */
+export const indexName = (translator: Translator, code: string) => (
+  translator.text('holdingNames', `index.${code}` as keyof Catalog['holdingNames'])
+);

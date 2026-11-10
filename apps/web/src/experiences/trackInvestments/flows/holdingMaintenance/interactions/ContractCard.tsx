@@ -5,6 +5,7 @@ import type { Formatter } from '../../../../../utilities/formatting';
 import { useI18n } from '../../../../../utilities/I18nProvider';
 import type { Translator } from '../../../../../utilities/i18n';
 import useFormatter from '../../../../../utilities/useFormatter';
+import { indexName } from '../../../../holdingNames';
 import { contractTermOf, type ContractTerm } from '../holdingMaintenance';
 import { DetailCard } from './DetailCard';
 
@@ -112,7 +113,7 @@ const leadOf = (holding: InvestmentHolding, latestIndex: LatestIndex | undefined
   return say(texts.translator, 'contract.estimateIf', {
     // pt-BR's article follows the index: "a Selic", "o CDI" (review round 1).
     code: type,
-    index: say(texts.translator, `index.${type}`),
+    index: indexName(texts.translator, type),
     rate: texts.formatter.rate(latestIndex.value),
     unit: latestIndex.unit,
   });
@@ -150,8 +151,7 @@ export const estimateNoteOf = (
   const { translator } = texts;
   const missing = holding.projectionUnavailable;
   if (missing) {
-    const index = say(translator, `index.${missing.indexCode}`);
-    return say(translator, 'contract.missing', { index });
+    return say(translator, 'contract.missing', { index: indexName(translator, missing.indexCode) });
   }
   return [leadOf(holding, latestIndex, texts), ...netPartOf(holding, texts)].join(' · ');
 };

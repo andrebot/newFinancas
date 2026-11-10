@@ -9,6 +9,7 @@ import {
 } from '../../../../../../../src/experiences/trackInvestments/flows/holdingMaintenance/interactions/MarketValueEntry';
 import type { HistoryEntry } from '../../../../../../../src/kit/historyEditor/historyModel';
 import { renderInLocale } from '../../../../../../support/renderInLocale';
+import typeInto from '../../../../../../support/typeInto';
 
 // Market Value Entry (BDT: Interaction, unit; nothing mocked but the
 // caller's handlers — K38, the inputs and the translator run for real).
@@ -19,20 +20,6 @@ const ENTRIES: HistoryEntry[] = [
     key: 'buy', date: '2026-03-20', value: 3680000, lockedReason: 'From a trade',
   },
 ];
-
-/**
- * Types into a field as the browser does, then fires the input event React reads.
- *
- * @param name - The field's label.
- * @param text - Its text after the edit.
- */
-const typeInto = (name: string, text: string) => {
-  const input = screen.getByRole<HTMLInputElement>('textbox', { name });
-  const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
-  setValue?.call(input, text);
-  input.setSelectionRange(text.length, text.length);
-  fireEvent.input(input);
-};
 
 /**
  * Finds the line with the change a new value makes, by its hidden label.
