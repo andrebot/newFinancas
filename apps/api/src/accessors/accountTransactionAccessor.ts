@@ -27,6 +27,9 @@ export type {
 // - Browse reads newest first on (date, id), and its day totals and month counts
 //   cover the whole filtered set, whatever page the rows land on (OQ-201).
 
+/** The kinds that pay a Holding out — its only payout source (FR-5.9). */
+const PAYOUT_KINDS = ['investment_dividend', 'investment_interest'] as const;
+
 /** A trade's signed changes to its Holding, the exact undo of the trade (OQ-171). */
 export interface TradeDeltas {
   /** 1e-8 units. */
@@ -525,6 +528,33 @@ const createAccountTransactionAccessor = (db: Database) => ({
         eq(accountTransactions.kind, 'investment_buy'),
         inArray(accountTransactions.holdingId, [...holdingIds]),
         eq(accounts.householdId, householdId),
+      ))
+      .orderBy(asc(accountTransactions.date), asc(accountTransactions.id));
+    return rows.map(toTransaction);
+  },
+
+  /**
+   * The payouts of some Holdings between two days — the dividend and interest
+   * transactions linked to them, the only payout source (FR-5.9) — oldest first
+   * on (date, id), for ReportingEngine's investments reports (OQ-201).
+   *
+   * @param holdingIds - The Holdings.
+   * @param from - First day, inclusive (`YYYY-MM-DD`).
+   * @param to - Last day, inclusive.
+   * @returns Their payouts; none for an empty list.
+   */
+  listPayouts: async (
+    holdingIds: readonly string[],
+    from: string,
+    to: string,
+  ): Promise<AccountTransaction[]> => {
+    if (holdingIds.length === 0) return [];
+    const rows = await db.select(rowColumns).from(accountTransactions)
+      .where(and(
+        inArray(accountTransactions.kind, [...PAYOUT_KINDS]),
+        inArray(accountTransactions.holdingId, [...holdingIds]),
+        gte(accountTransactions.date, from),
+        lte(accountTransactions.date, to),
       ))
       .orderBy(asc(accountTransactions.date), asc(accountTransactions.id));
     return rows.map(toTransaction);

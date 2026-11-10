@@ -81,16 +81,17 @@ export const shareOf = (value: number, percentage: number): number => (
 );
 
 /**
- * Reads each Holding's value on a date (OQ-51, OQ-206).
+ * Reads each Holding's value on a date (OQ-51, OQ-206) — Goal progress and the
+ * investments reports alike.
  *
  * @param deps - The snapshot and cost-basis reads.
  * @param holdings - The Holdings.
  * @param date - The day.
  * @returns Values by Holding id; one with no value by then is absent.
  */
-const valuesOn = async (
-  deps: GoalProgressDeps,
-  holdings: readonly PricedHolding[],
+export const valuesOn = async (
+  deps: Pick<GoalProgressDeps, 'latestSnapshots' | 'costBasisAsOf'>,
+  holdings: readonly Pick<PricedHolding, 'id' | 'assetType'>[],
   date: string,
 ): Promise<Map<string, number>> => {
   const fixedTerm = holdings.filter((holding) => isFixedTerm(holding.assetType));

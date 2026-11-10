@@ -87,21 +87,21 @@ sequenceDiagram
     FLOW-->>NW: banner "Couldn't load your investments" + Try again
     end
     FLOW->>EXP: request payouts(remembered choice — "all" the first time)
-    EXP->>API: GET /households/:householdId/reports/payouts (no holdingIds for "all")
+    EXP->>API: GET /households/:householdId/reports/payouts?months=12 (no holdingIds for "all" — a list waits for the Holdings)
     API-->>EXP: series per Holding and currency
     EXP-->>FLOW: state
     FLOW-->>PC: render the $ / R$ switch's currency: top 5 + Others
     User->>HS: search, family presets, check holdings
     HS->>FLOW: emit holdingsSelected
     FLOW->>EXP: request payouts(selected), remembered per household
-    EXP->>API: GET /households/:householdId/reports/payouts?holdingIds=…
+    EXP->>API: GET /households/:householdId/reports/payouts?months=12&holdingIds=a,b (comma-joined)
     API-->>EXP: series
     EXP-->>FLOW: state
     FLOW-->>PC: re-render (only the chart refetches)
     </pre>
   </div>
   <div class="notes">
-<ul><li>Portfolio Builder buttons render disabled (v2); the page header and its tabs are the Experience's (X7).</li><li>OQ-233: allocations come as `holding`, `assetType` and `account` slices per currency, never summed; the Goals panel reads the shared goal progress, not the report. Every Holding chosen is remembered as "all", so a new Holding joins the chart.</li><li>The $ / R$ switch is the panel's own, remembered apart from Month Overview's; the chart's empty state is `seriesColors(...).size === 0` (OQ-230).</li></ul>
+<ul><li>Portfolio Builder buttons render disabled (v2), left out on a phone; the page header and its tabs are the Experience's (X7) — the open tab in the address, only it mounted (OQ-236).</li><li>OQ-233: allocations come as `holding`, `assetType` and `account` slices per currency, never summed; the Goals panel reads the shared goal progress, not the report. Every Holding chosen is remembered as "all", so a new Holding joins the chart.</li><li>The $ / R$ switch is the panel's own, remembered apart from Month Overview's; the chart's empty state is `seriesColors(...).size === 0` (OQ-230).</li></ul>
   </div>
   <script>
     mermaid.initialize({

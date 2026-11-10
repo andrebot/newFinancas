@@ -1,8 +1,11 @@
 import type { GoalWithProgress } from '@financas/api-types';
+import type { AllocationGoal } from '../kit/allocationEditor/allocation';
+import { wholePercent } from '../kit/progress/progress';
 
 // What funds a Goal in its own currency (FR-8.5, OQ-201, OQ-215), read the
 // same way by every Experience that shows one: Account Setup's Goals tab,
-// Manage Finances' Month Overview and the Dashboard. No rate enters here —
+// Manage Finances' Month Overview and the Dashboard — and the Goals a Holding's
+// split names, in Record Transaction and Holding Maintenance alike. No rate enters here —
 // converting is the Goals tab's alone (FR-9.1) — so the rail cards and the
 // Goals page agree on what is funded, what is not and what needs a rate.
 // Pure, and owned by no Experience, so none of them reaches into another.
@@ -34,3 +37,31 @@ export const ownFundingOf = (goal: GoalWithProgress): OwnFunding => {
     needsRate: own.length < contributions.length,
   };
 };
+
+/** A Goal as a Holding's split names it: whether it is completed, too (FR-8.9). */
+export interface SplitGoal extends AllocationGoal {
+  /** A completed Goal's share is kept or removed, never grown. */
+  readonly completed: boolean;
+}
+
+/**
+ * Reads the Goals as a trade's split names them: each with its progress in
+ * its own currency — whole percent, rounded down — and whether it is
+ * completed, the active ones first.
+ *
+ * @param active - The active Goals with their progress.
+ * @param completed - The completed ones.
+ * @returns The split's Goals.
+ */
+export const splitGoalsOf = (
+  active: readonly GoalWithProgress[],
+  completed: readonly GoalWithProgress[],
+): readonly SplitGoal[] => [
+  ...active.map((goal) => ({ goal, completed: false })),
+  ...completed.map((goal) => ({ goal, completed: true })),
+].map(({ goal, completed: done }) => ({
+  id: goal.id,
+  name: goal.name,
+  progress: wholePercent(ownFundingOf(goal).funded, goal.targetAmount),
+  completed: done,
+}));

@@ -3,13 +3,18 @@ import type { Goal } from '../../accessors/goalAccessor';
 import auditLogCsv from './auditLogReport';
 import { goalProgress, visibleAccountIdsOf, type GoalWithProgress } from './goalProgress';
 import {
+  investmentsOverview, payoutsReport, type InvestmentsDeps, type InvestmentsOverview,
+  type PayoutSeries, type PayoutsQuery,
+} from './investments';
+import {
   monthOverview, type MonthOverview, type MonthOverviewDeps, type Viewer,
 } from './monthOverview';
 
 // ReportingEngine (E2, VBD §2.2): reshapes ledger, balance, Budget, Goal and
 // Holding data into the read-side reports InsightsManager serves — the only
 // Manager that calls it. Slice 3's part (OQ-206): the Month Overview and Goal
-// progress (current and by month), plus the audit-log CSV (OQ-104). It reads
+// progress (current and by month), plus the audit-log CSV (OQ-104); slice 4's
+// (task 133, OQ-236): the investments overview and the payouts series. It reads
 // through the Accessors; the caller decides which Goals the viewer sees and
 // which day "now" is.
 
@@ -17,15 +22,19 @@ export type { Contribution, Funding, GoalWithProgress } from './goalProgress';
 export type {
   BudgetStatus, CurrencySummary, MonthEndBalance, MonthOverview, StripMonth, Viewer,
 } from './monthOverview';
+export type {
+  AllocationSlice, ComingDueEntry, InvestmentsOverview, MonthAmount, NetWorth, PayoutEntry,
+  PayoutSeries, PayoutsQuery,
+} from './investments';
 
 /** What the Engine reads. */
-export type ReportingEngineDeps = MonthOverviewDeps;
+export type ReportingEngineDeps = MonthOverviewDeps & InvestmentsDeps;
 
 /**
  * Creates the reporting engine.
  *
  * @param deps - The Accessor reads.
- * @returns `monthOverview`, `goalProgress` and `auditLogCsv`.
+ * @returns `monthOverview`, `goalProgress`, `investmentsOverview`, `payouts` and `auditLogCsv`.
  */
 export const createReportingEngine = (deps: ReportingEngineDeps) => ({
   /**
@@ -59,6 +68,33 @@ export const createReportingEngine = (deps: ReportingEngineDeps) => ({
       householdId: viewer.householdId, visibleAccountIds: visibleAccountIdsOf(accounts), date,
     });
   },
+
+  /**
+   * The Investments overview as a member sees it (FR-5.3, FR-5.9, OQ-233):
+   * net worth per currency over the last months, this month's payouts, today's
+   * allocation slices and the open fixed-term Holdings.
+   *
+   * @param viewer - The household and member.
+   * @param today - `YYYY-MM-DD`.
+   * @param months - How many months the net worth series covers at most.
+   * @returns The overview.
+   */
+  investmentsOverview: (
+    viewer: Viewer,
+    today: string,
+    months: number,
+  ): Promise<InvestmentsOverview> => investmentsOverview(deps, viewer, { today, months }),
+
+  /**
+   * The chosen Holdings' monthly payouts (FR-5.9, OQ-233).
+   *
+   * @param viewer - The household and member.
+   * @param query - The Holdings (every visible one when absent), the window and today.
+   * @returns One series per Holding and currency paid within the window.
+   */
+  payouts: (viewer: Viewer, query: PayoutsQuery): Promise<PayoutSeries[]> => (
+    payoutsReport(deps, viewer, query)
+  ),
 
   auditLogCsv,
 });

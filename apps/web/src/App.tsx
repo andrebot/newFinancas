@@ -16,6 +16,7 @@ import {
   useIdentity, usePendingInvitationCount,
 } from './experiences/manageProfile/shellSources';
 import { OnboardExperience } from './experiences/onboard/OnboardExperience';
+import TrackInvestmentsExperience from './experiences/trackInvestments/TrackInvestmentsExperience';
 import { placeholderActions, placeholderPages } from './placeholders';
 import { AppRoutes } from './shell/AppRoutes';
 import type { ShellConfig } from './shell/shellConfig';
@@ -61,6 +62,7 @@ export const shellConfigFor = (
     profile: <ManageProfileExperience />,
     accountSetup: <AccountSetupExperience />,
     transactions: <ManageFinancesExperience />,
+    investments: <TrackInvestmentsExperience />,
   },
   sources: {
     useIdentity, useHouseholds, usePendingInvitationCount, useAccountInUse,

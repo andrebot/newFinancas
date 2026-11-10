@@ -177,7 +177,7 @@ describe('insights routes (OQ-201, under /households/:householdId — OQ-174)', 
       signedIn(),
       HOME,
       'month-overview',
-      { year: undefined, month: undefined },
+      { months: 12 },
     );
   });
 
@@ -187,8 +187,12 @@ describe('insights routes (OQ-201, under /households/:householdId — OQ-174)', 
 
     await send(app, 'GET', `/households/${HOME}/reports/month-overview?year=2025&month=3`);
 
-    expect(insights.report)
-      .toHaveBeenCalledWith(signedIn(), HOME, 'month-overview', { year: 2025, month: 3 });
+    expect(insights.report).toHaveBeenCalledWith(
+      signedIn(),
+      HOME,
+      'month-overview',
+      { year: 2025, month: 3, months: 12 },
+    );
   });
 
   it('refuses a report query that is not a year and/or month before the Manager', async () => {
@@ -222,22 +226,76 @@ describe('insights routes (OQ-201, under /households/:householdId — OQ-174)', 
     expect(insights.goalProgressFor).not.toHaveBeenCalled();
   });
 
-  it('hands the v1 types not served yet to the Manager, answering its refusal as 400', async () => {
+  it('GET …/reports/investments-overview → 200, the report as the Manager built it', async () => {
     const { app, insights } = setup();
-    insights.report.mockRejectedValueOnce(createDomainError({
-      code: 'report.unknown_type_or_range', message: 'Report type not served yet',
-    }));
+    const overview = {
+      reportType: 'investments-overview' as const,
+      netWorth: [{
+        currency: 'BRL', amount: 1_500, changeVsPreviousMonth: 500, series: [],
+      }],
+      payoutThisMonth: [],
+      allocations: [{
+        kind: 'holding' as const, key: HOLDING_ID, currency: 'BRL', amount: 1_500,
+      }],
+      comingDue: [],
+    };
+    insights.report.mockResolvedValue(overview);
 
-    const payouts = await send(app, 'GET', `/households/${HOME}/reports/payouts`);
+    const response = await send(app, 'GET', `/households/${HOME}/reports/investments-overview`);
 
-    expect(payouts.status).toBe(400);
-    expect(await errorOf(payouts)).toMatchObject({ code: 'report.unknown_type_or_range' });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual(overview);
+  });
+
+  it('GET …/reports/payouts → 200, reading a comma-joined list of Holdings (OQ-236)', async () => {
+    const { app, insights } = setup();
+    insights.report.mockResolvedValue({ reportType: 'payouts', series: [] });
+
+    const response = await send(
+      app,
+      'GET',
+      `/households/${HOME}/reports/payouts?holdingIds=${HOLDING_ID},${GOAL_ID}&months=3`,
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ reportType: 'payouts', series: [] });
     expect(insights.report).toHaveBeenCalledWith(
       signedIn(),
       HOME,
       'payouts',
-      { year: undefined, month: undefined },
+      { holdingIds: [HOLDING_ID, GOAL_ID], months: 3 },
     );
+  });
+
+  it('refuses a payouts window outside 1..24 months before the Manager (OQ-236)', async () => {
+    const { app, insights } = setup();
+
+    const none = await send(app, 'GET', `/households/${HOME}/reports/payouts?months=0`);
+    const long = await send(app, 'GET', `/households/${HOME}/reports/payouts?months=25`);
+
+    expect(none.status).toBe(422);
+    expect(long.status).toBe(422);
+    expect(insights.report).not.toHaveBeenCalled();
+  });
+
+  it('GET …/holdings → 200, the household\'s Holdings (OQ-233)', async () => {
+    const { app, insights } = setup();
+    insights.listHouseholdHoldings.mockResolvedValue([HOLDING]);
+
+    const response = await send(app, 'GET', `/households/${HOME}/holdings?includeArchived=true`);
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ data: [HOLDING_JSON] });
+    expect(insights.listHouseholdHoldings).toHaveBeenCalledWith(signedIn(), HOME, true);
+  });
+
+  it('GET …/holdings leaves archived Holdings out unless asked', async () => {
+    const { app, insights } = setup();
+    insights.listHouseholdHoldings.mockResolvedValue([]);
+
+    await send(app, 'GET', `/households/${HOME}/holdings`);
+
+    expect(insights.listHouseholdHoldings).toHaveBeenCalledWith(signedIn(), HOME, false);
   });
 
   it('GET …/goal-progress → 200, the active Goals with what funds them', async () => {

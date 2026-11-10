@@ -154,6 +154,8 @@ Diagram: `docs/design/diagrams/ebd-tiers/app-shell.html`; sequence:
 
 **OQ-235 (FL20):** Rates Maintenance reads the index rates, the household Holdings (for "Used by") and the members (for "Added by"), all through the Experience. A card per index shows the latest value, the change it made, the last 6 months and the Holdings it feeds; Update opens the inline form (one per page) and History the K46 drawer. A Member changes only the values they recorded, a Viewer only reads. The hint says that only the latest value is projected.
 
+**OQ-236 (X7):** the page holds the open tab in the address (`?tab=overview|holdings|rates`) and mounts only the open tab — the Maintenance Flows' drawers open in portals — with RTK Query's cache making a switch back immediate. The overview is loaded once the report, the household Holdings and the accounts are in; one storage object per household remembers the payout choice; the members come from Manage Household's `listMembers`. The disabled v2 Portfolio Builders are left out below `md`.
+
 | Flow | Interactions | Sequence |
 |---|---|---|
 | Portfolio Overview | Net Worth Cards, Payout This Month, Payout Holding Selector, Payout Chart, Allocation Cards, Coming Due | `docs/design/diagrams/ebd-sequences/track-investments-portfolio-overview.html` |

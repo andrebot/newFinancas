@@ -21,7 +21,7 @@ import { activeFilterCount } from './flows/browseTransactions/ledgerFilters';
 import { MonthOverviewFlow } from './flows/monthOverview/MonthOverviewFlow';
 import { RecordTransactionFlow } from './flows/recordTransaction/RecordTransactionFlow';
 import type { EditedTransaction } from './flows/recordTransaction/recordTransactionState';
-import { splitGoalsOf } from './manageFinances';
+import { splitGoalsOf } from '../goalFunding';
 import useLedger from './useLedger';
 import useMonthOverview from './useMonthOverview';
 import useRecordDrawer, { type RecordDrawer } from './useRecordDrawer';

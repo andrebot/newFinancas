@@ -1,28 +1,39 @@
+import { investmentsReports } from '../../config/constants';
 import { monthOf } from '../../utilities/calendarMonth';
-import type { MonthOverview, Viewer } from '../../engines/reporting';
+import type {
+  InvestmentsOverview, MonthOverview, PayoutSeries, Viewer,
+} from '../../engines/reporting';
 import { memberOnly, requireAccess } from '../access';
 import type { SignedInContext } from '../requestContext';
 import { todayOf, type InsightsDeps } from './context';
-import { reportNotServed } from './errors';
 
-// The reports (FR-6.11) on `GET /households/:householdId/reports/:reportType`:
-// slice 3 serves the Month Overview alone (OQ-201); the other v1 types answer
-// `report.unknown_type_or_range` until task 133 (OQ-208) — the Manager decides
-// which types exist, after the membership check, so a non-member learns
-// nothing either way. Every member may read a report — what each sees is
+// The reports (FR-6.11, FR-5.3, FR-5.9) on
+// `GET /households/:householdId/reports/:reportType`: the Month Overview
+// (slice 3, OQ-201), the Investments overview and the payouts series (task
+// 133, OQ-236). Every member may read a report — what each sees is
 // ReportingEngine's to narrow, from the viewer it is handed; the Manager only
-// decides which month was asked for.
+// decides the day, and which month or window was asked for.
 
 /** The report types the contract's v1 enum names (OQ-208). */
 export type ReportType = 'month-overview' | 'investments-overview' | 'payouts';
 
-/** A served report, tagged with its type — the Month Overview, for now. */
-export type TaggedReport = MonthOverview & { readonly reportType: 'month-overview' };
+/** A served report, tagged with its type. */
+export type TaggedReport = | MonthOverview & { readonly reportType: 'month-overview' }
+  | InvestmentsOverview & { readonly reportType: 'investments-overview' }
+  | { readonly reportType: 'payouts'; readonly series: readonly PayoutSeries[] };
 
-/** The parts a report query may ask for — each absent when the query omits it. */
+/** The parts a Month Overview query may ask for — each absent when the query omits it. */
 export interface MonthAsked {
   readonly year?: number | undefined;
   readonly month?: number | undefined;
+}
+
+/** What a report query may ask for: a month, or the payouts' Holdings and window. */
+export interface ReportAsked extends MonthAsked {
+  /** Payouts — the Holdings; every visible one when absent. */
+  readonly holdingIds?: readonly string[] | undefined;
+  /** Payouts — how many months back, this one included (the contract defaults it). */
+  readonly months?: number | undefined;
 }
 
 /**
@@ -38,6 +49,37 @@ export const monthAskedFor = (deps: Pick<InsightsDeps, 'now'>, asked?: MonthAske
 };
 
 /**
+ * Builds each report type from the Engine, by type.
+ *
+ * @param deps - The tier below.
+ * @param viewer - The household and member.
+ * @param asked - The query parts.
+ * @returns The builders, by report type.
+ */
+const buildersOf = (deps: InsightsDeps, viewer: Viewer, asked: ReportAsked) => ({
+  'month-overview': async (): Promise<TaggedReport> => ({
+    reportType: 'month-overview',
+    ...await deps.reporting.monthOverview(viewer, monthAskedFor(deps, asked)),
+  }),
+  'investments-overview': async (): Promise<TaggedReport> => ({
+    reportType: 'investments-overview',
+    ...await deps.reporting.investmentsOverview(
+      viewer,
+      todayOf(deps),
+      investmentsReports.netWorthMonths,
+    ),
+  }),
+  payouts: async (): Promise<TaggedReport> => ({
+    reportType: 'payouts',
+    series: await deps.reporting.payouts(viewer, {
+      holdingIds: asked.holdingIds,
+      months: asked.months ?? investmentsReports.defaultPayoutMonths,
+      today: todayOf(deps),
+    }),
+  }),
+});
+
+/**
  * Builds the report use cases.
  *
  * @param deps - The tier below.
@@ -45,28 +87,25 @@ export const monthAskedFor = (deps: Pick<InsightsDeps, 'now'>, asked?: MonthAske
  */
 export const createReports = (deps: InsightsDeps) => ({
   /**
-   * A report as the member sees it (FR-6.11, FR-6.6) — the Month Overview;
-   * the other v1 types are refused until task 133 (OQ-208).
+   * A report as the member sees it (FR-6.11, FR-5.3, FR-5.9).
    *
    * @param context - The signed-in request.
    * @param householdId - The household.
    * @param reportType - The type asked for.
-   * @param asked - The year and/or month; today's when absent.
+   * @param asked - The month (Month Overview) or the Holdings and window
+   *   (payouts); today's month and every visible Holding when absent.
    * @returns The report, tagged with its type.
-   * @throws {DomainError} `household.not_found`; `report.unknown_type_or_range`.
+   * @throws {DomainError} `household.not_found`.
    */
   report: async (
     context: SignedInContext,
     householdId: string,
     reportType: ReportType,
-    asked?: MonthAsked,
+    asked: ReportAsked = {},
   ): Promise<TaggedReport> => {
     const viewerUserId = context.actor.userId;
     await requireAccess(deps.authorization, viewerUserId, householdId, memberOnly);
-    if (reportType !== 'month-overview') throw reportNotServed();
-    const viewer: Viewer = { householdId, viewerUserId };
-    const overview = await deps.reporting.monthOverview(viewer, monthAskedFor(deps, asked));
-    return { reportType, ...overview };
+    return buildersOf(deps, { householdId, viewerUserId }, asked)[reportType]();
   },
 });
 

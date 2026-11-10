@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { SignedInContext } from '../../../../src/managers/requestContext';
 import { createInsightsManager } from '../../../../src/managers/insights';
 import {
-  ANA_ID, BUY, GOAL, HOLDING, OVERVIEW, STOCK, fakeDeps,
+  ACCOUNT, ANA_ID, BUY, GOAL, HOLDING, INVESTMENTS, OVERVIEW, SERIES, STOCK, fakeDeps,
 } from './fakes';
 
 const context: SignedInContext = {
@@ -14,10 +14,10 @@ const HOME = '0199c5a0-0000-7000-8000-0000000000bb';
 const VIEWER = { householdId: HOME, viewerUserId: ANA_ID };
 
 describe('createInsightsManager', () => {
-  it('exposes every slice-3 use case on one object (VBD §2.1)', () => {
+  it('exposes every use case built so far on one object (VBD §2.1)', () => {
     const manager = createInsightsManager(fakeDeps().deps);
     for (const name of ['report', 'goalProgressList', 'goalProgressFor',
-      'listHoldings', 'getHolding']) {
+      'listHouseholdHoldings', 'listHoldings', 'getHolding']) {
       expect(typeof (manager as Record<string, unknown>)[name]).toBe('function');
     }
   });
@@ -58,16 +58,36 @@ describe('report (FR-6.11, OQ-208)', () => {
       .toHaveBeenNthCalledWith(2, VIEWER, { year: 2026, month: 2 });
   });
 
-  it('refuses the v1 types not served yet (task 133)', async () => {
+  it('answers the Investments overview for today over the net worth window', async () => {
     const tier = fakeDeps();
     const manager = createInsightsManager(tier.deps);
 
-    await Promise.all((['investments-overview', 'payouts'] as const).map((reportType) => (
-      expect(manager.report(context, HOME, reportType)).rejects.toMatchObject({
-        domainError: { code: 'report.unknown_type_or_range' },
-      })
-    )));
-    expect(tier.reporting.monthOverview).not.toHaveBeenCalled();
+    const report = await manager.report(context, HOME, 'investments-overview', { year: 2020 });
+
+    expect(report).toEqual({ reportType: 'investments-overview', ...INVESTMENTS });
+    expect(tier.reporting.investmentsOverview).toHaveBeenCalledWith(VIEWER, '2026-10-13', 6);
+  });
+
+  it('answers the payouts of the asked Holdings over the asked window (task 133)', async () => {
+    const tier = fakeDeps();
+    const manager = createInsightsManager(tier.deps);
+    const asked = { holdingIds: [HOLDING.id], months: 3 };
+
+    const report = await manager.report(context, HOME, 'payouts', asked);
+
+    expect(report).toEqual({ reportType: 'payouts', series: SERIES });
+    expect(tier.reporting.payouts)
+      .toHaveBeenCalledWith(VIEWER, { ...asked, today: '2026-10-13' });
+  });
+
+  it('reads every visible Holding\'s payouts over 12 months when nothing is asked', async () => {
+    const tier = fakeDeps();
+    const manager = createInsightsManager(tier.deps);
+
+    await manager.report(context, HOME, 'payouts');
+
+    expect(tier.reporting.payouts)
+      .toHaveBeenCalledWith(VIEWER, { holdingIds: undefined, months: 12, today: '2026-10-13' });
   });
 
   it('a non-member learns nothing, whatever the type (OQ-117)', async () => {
@@ -75,12 +95,15 @@ describe('report (FR-6.11, OQ-208)', () => {
     tier.authorization.authorize.mockResolvedValue({ outcome: 'not_member' });
     const manager = createInsightsManager(tier.deps);
 
-    await Promise.all((['month-overview', 'payouts'] as const).map((reportType) => (
+    const types = ['month-overview', 'investments-overview', 'payouts'] as const;
+    await Promise.all(types.map((reportType) => (
       expect(manager.report(context, HOME, reportType)).rejects.toMatchObject({
         domainError: { code: 'household.not_found' },
       })
     )));
     expect(tier.reporting.monthOverview).not.toHaveBeenCalled();
+    expect(tier.reporting.investmentsOverview).not.toHaveBeenCalled();
+    expect(tier.reporting.payouts).not.toHaveBeenCalled();
   });
 });
 
@@ -179,6 +202,33 @@ describe('goalProgressFor (FR-8.5/8.7)', () => {
 
     await expect(manager.goalProgressFor(context, HOME, GOAL.id))
       .rejects.toMatchObject({ domainError: { code: 'goal.not_found' } });
+  });
+});
+
+describe('listHouseholdHoldings (OQ-233)', () => {
+  it('lists the Holdings of every Account the member sees, projected', async () => {
+    const tier = fakeDeps();
+    const manager = createInsightsManager(tier.deps);
+
+    const holdings = await manager.listHouseholdHoldings(context, HOME, true);
+
+    expect(holdings.map((holding) => holding.id)).toEqual([HOLDING.id, STOCK.id]);
+    expect(holdings[0]).toMatchObject({ expectedPayout: 1105000, boughtOn: BUY.date });
+    expect(tier.accounts.list).toHaveBeenCalledWith(HOME, ANA_ID);
+    expect(tier.holdings.listByAccounts)
+      .toHaveBeenCalledWith([ACCOUNT.id], { includeArchived: true });
+    expect(tier.accountTransactions.findBuys).toHaveBeenCalledWith(HOME, [HOLDING.id]);
+  });
+
+  it('a non-member learns nothing (OQ-117)', async () => {
+    const tier = fakeDeps();
+    tier.authorization.authorize.mockResolvedValue({ outcome: 'not_member' });
+    const manager = createInsightsManager(tier.deps);
+
+    await expect(manager.listHouseholdHoldings(context, HOME, false)).rejects.toMatchObject({
+      domainError: { code: 'household.not_found' },
+    });
+    expect(tier.accounts.list).not.toHaveBeenCalled();
   });
 });
 

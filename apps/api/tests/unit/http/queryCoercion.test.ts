@@ -26,6 +26,7 @@ describe('coerceValue', () => {
     ['boolean', 'false', false],
     ['boolean', 'yes', 'yes'],
     ['array', 'a', ['a']],
+    ['array', 'a,b', ['a', 'b']],
     ['other', '2026-10-01', '2026-10-01'],
   ] as const)('converts %s %j to %j', (kind, value, expected) => {
     expect(coerceValue(kind, value)).toEqual(expected);

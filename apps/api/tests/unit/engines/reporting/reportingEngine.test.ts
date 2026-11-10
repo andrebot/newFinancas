@@ -53,6 +53,31 @@ describe('createReportingEngine', () => {
     expect(deps.listAccounts).toHaveBeenCalledWith(HOUSEHOLD_ID, 'ana');
   });
 
+  it('builds the Investments overview over the asked window (task 133)', async () => {
+    const deps = fakeDeps();
+    deps.listAccounts.mockResolvedValue([anAccount()]);
+    deps.listHoldings.mockResolvedValue([aHolding()]);
+
+    const overview = await createReportingEngine(deps)
+      .investmentsOverview(VIEWER, '2026-10-13', 6);
+
+    expect(overview.netWorth).toEqual([]);
+    // Six month ends but today's, plus today for the series and for the slices.
+    expect(deps.latestSnapshots).toHaveBeenCalledTimes(7);
+  });
+
+  it('builds the payouts series through the Accessor reads (task 133)', async () => {
+    const deps = fakeDeps();
+    deps.listAccounts.mockResolvedValue([anAccount()]);
+    deps.listHoldings.mockResolvedValue([aHolding()]);
+
+    const series = await createReportingEngine(deps)
+      .payouts(VIEWER, { months: 2, today: '2026-10-13' });
+
+    expect(series).toEqual([]);
+    expect(deps.listPayouts).toHaveBeenCalledWith(['petr4'], '2026-09-01', '2026-10-31');
+  });
+
   it('keeps the audit-log CSV (OQ-104)', () => {
     expect(createReportingEngine(fakeDeps()).auditLogCsv).toBe(auditLogCsv);
   });

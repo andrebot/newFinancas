@@ -1882,8 +1882,10 @@ paths:
           required: false
           schema:
             type: integer
+            minimum: 1
+            maximum: 24
             default: 12
-          description: payouts — how many months back
+          description: payouts — how many months back, this month included (OQ-236)
       responses:
         "200":
           description: OK
@@ -3746,7 +3748,11 @@ components:
             - investments-overview
         netWorth:
           type: array
-          description: One entry per currency the visible Holdings are in, never summed (FR-5.3)
+          description: >-
+            One entry per currency the visible Holdings held value in, never
+            summed (FR-5.3): the Holdings' value — a market-priced one's latest
+            snapshot, a fixed-term one's cost basis (FR-5.4, OQ-51) — not
+            account balances (OQ-236)
           items:
             type: object
             required: [currency, amount, series]
@@ -3757,10 +3763,13 @@ components:
                 $ref: '#/components/schemas/Money'
               changeVsPreviousMonth:
                 $ref: '#/components/schemas/Money'
-                description: Left out when there is no previous month to compare against (OQ-231)
+                description: Left out when the series holds only this month (OQ-231, OQ-236)
               series:
                 type: array
-                description: The last 6 months at most, oldest first, ending this month (OQ-231)
+                description: >-
+                  The last 6 months at most, oldest first, ending this month,
+                  from the first month the currency held value; each month's
+                  figure on its last day, this month's today (OQ-231, OQ-236)
                 items:
                   type: object
                   required: [month, amount]
@@ -3819,7 +3828,9 @@ components:
                 $ref: '#/components/schemas/Money'
         comingDue:
           type: array
-          description: The fixed-term Holdings still open, soonest due first
+          description: >-
+            The fixed-term Holdings still open, soonest due first, each worth
+            its principal (cost basis), as net worth counts it (OQ-236)
           items:
             type: object
             required: [holdingId, name, dueDate, currency, amount]

@@ -1,6 +1,7 @@
 import type { GoalWithProgress } from '@financas/api-types';
 import { describe, expect, it } from 'vitest';
-import { ownFundingOf } from '../../../src/experiences/goalFunding';
+import { ownFundingOf, splitGoalsOf } from '../../../src/experiences/goalFunding';
+import { goalOf } from './monthFixtures';
 
 // A Goal's own-currency funding (BDT: pure logic shared by Experiences,
 // unit; nothing mocked) — what the rail cards and the Goals page both read.
@@ -64,5 +65,36 @@ describe('ownFundingOf', () => {
     expect(ownFundingOf(goalFundedBy([funder(null)]))).toEqual({
       funded: 0, unfunded: false, needsRate: false,
     });
+  });
+});
+
+describe('splitGoalsOf', () => {
+  it('lists the active Goals first, each with its own-currency progress rounded down', () => {
+    const trip = {
+      ...goalOf('trip', [
+        {
+          holdingId: 'aapl',
+          name: 'AAPL',
+          percentage: 10,
+          contribution: { currency: 'USD', amount: 10000 },
+        },
+        {
+          holdingId: 'cdb',
+          name: 'CDB',
+          percentage: 10,
+          contribution: { currency: 'BRL', amount: 99999 },
+        },
+      ]),
+      targetAmount: 30000,
+    };
+    const done = goalOf('car');
+    expect(splitGoalsOf([trip], [done])).toEqual([
+      {
+        id: 'trip', name: trip.name, progress: 33, completed: false,
+      },
+      {
+        id: 'car', name: done.name, progress: 0, completed: true,
+      },
+    ]);
   });
 });

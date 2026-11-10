@@ -134,6 +134,8 @@ const reporting = createReportingEngine({
   findHoldings: insightStores.holdings.findByIds,
   latestSnapshots: insightStores.valuations.latestAsOf,
   costBasisAsOf: insightStores.accountTransactions.costBasisAsOf,
+  listHoldings: insightStores.holdings.listByAccounts,
+  listPayouts: insightStores.accountTransactions.listPayouts,
 });
 const {
   identity, account, transaction, insights,

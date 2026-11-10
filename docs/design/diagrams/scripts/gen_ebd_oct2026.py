@@ -1127,19 +1127,19 @@ EXP-->>FLOW: failed
 FLOW-->>NW: banner "Couldn't load your investments" + Try again
 end
 FLOW->>EXP: request payouts(remembered choice — "all" the first time)
-EXP->>API: GET /households/:householdId/reports/payouts (no holdingIds for "all")
+EXP->>API: GET /households/:householdId/reports/payouts?months=12 (no holdingIds for "all" — a list waits for the Holdings)
 API-->>EXP: series per Holding and currency
 EXP-->>FLOW: state
 FLOW-->>PC: render the $ / R$ switch's currency: top 5 + Others
 User->>HS: search, family presets, check holdings
 HS->>FLOW: emit holdingsSelected
 FLOW->>EXP: request payouts(selected), remembered per household
-EXP->>API: GET /households/:householdId/reports/payouts?holdingIds=…
+EXP->>API: GET /households/:householdId/reports/payouts?months=12&holdingIds=a,b (comma-joined)
 API-->>EXP: series
 EXP-->>FLOW: state
 FLOW-->>PC: re-render (only the chart refetches)
-""", ["Portfolio Builder buttons render disabled (v2); the page header and its tabs are the Experience's (X7).", "OQ-233: allocations come as `holding`, `assetType` and `account` slices per currency, never summed; the Goals panel reads the shared goal progress, not the report. Every Holding chosen is remembered as \"all\", so a new Holding joins the chart.", "The $ / R$ switch is the panel's own, remembered apart from Month Overview's; the chart's empty state is `seriesColors(...).size === 0` (OQ-230)."]),
-    ("track-investments-holding-maintenance", "Track Investments — Holding Maintenance", f"{R('GET /households/:householdId/reports/investments-overview')} with {R('GET /households/:householdId/holdings?includeArchived=true')} (shared with Portfolio Overview), {R('GET /households/:householdId/index-rates')}; per open row {R('GET /households/:householdId/holdings/:id/allocations')}, {R('…/valuation-snapshots')} and {R('GET /households/:householdId/transactions?holdingId=&limit=3')}; {R('PATCH /households/:householdId/holdings/:id')}, {R('POST/PATCH/DELETE …/valuation-snapshots')} (OQ-178, OQ-234).",
+""", ["Portfolio Builder buttons render disabled (v2), left out on a phone; the page header and its tabs are the Experience's (X7) — the open tab in the address, only it mounted (OQ-236).", "OQ-233: allocations come as `holding`, `assetType` and `account` slices per currency, never summed; the Goals panel reads the shared goal progress, not the report. Every Holding chosen is remembered as \"all\", so a new Holding joins the chart.", "The $ / R$ switch is the panel's own, remembered apart from Month Overview's; the chart's empty state is `seriesColors(...).size === 0` (OQ-230)."]),
+    ("track-investments-holding-maintenance", "Track Investments — Holding Maintenance", f"{R('GET /households/:householdId/reports/investments-overview')} with {R('GET /households/:householdId/holdings?includeArchived=true')} and {R('GET /households/:householdId/accounts')} (shared with Portfolio Overview), {R('GET /households/:householdId/goal-progress?status=')}, {R('GET /households/:householdId/index-rates')}; per open row {R('GET /households/:householdId/holdings/:id/allocations')}, {R('…/valuation-snapshots')} and {R('GET /households/:householdId/transactions?holdingId=&limit=3')}; {R('PATCH /households/:householdId/holdings/:id')}, {R('POST/PATCH/DELETE …/valuation-snapshots')} (OQ-178, OQ-234).",
      [("AP", "Account Picker"), ("HT", "Holdings Table"), ("GA", "Goal Allocation Editor"), ("MV", "Market Value Entry"), ("VH", "Value History Editor"), FLOW("Holding Maintenance"), EXP("Track Investments"), API],
      """
 FLOW->>EXP: request overview
@@ -1148,6 +1148,8 @@ EXP->>API: GET /households/:householdId/reports/investments-overview
 API-->>EXP: today's value per Holding / account (slices), payout this month
 EXP->>API: GET /households/:householdId/holdings?includeArchived=true
 API-->>EXP: every visible Holding (+ expected payout / taxes and boughtOn for fixed-term)
+EXP->>API: GET /households/:householdId/accounts
+EXP->>API: GET /households/:householdId/goal-progress?status=active + ?status=completed
 EXP->>API: GET /households/:householdId/index-rates
 end
 EXP-->>FLOW: state (report + Holdings, accounts, Goals, index rates)
@@ -1233,7 +1235,7 @@ FLOW-->>PC: render payouts
 User->>HS: change holdings
 HS->>FLOW: emit holdingsSelected
 FLOW->>EXP: request payouts(selected)
-EXP->>API: GET /households/:householdId/reports/payouts?holdingIds=…
+EXP->>API: GET /households/:householdId/reports/payouts?months=12&holdingIds=a,b (comma-joined)
 API-->>EXP: series
 EXP-->>FLOW: state
 FLOW-->>PC: re-render
