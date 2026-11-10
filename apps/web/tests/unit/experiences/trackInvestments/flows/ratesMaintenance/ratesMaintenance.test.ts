@@ -1,8 +1,8 @@
 import type { IndexRateValue } from '@financas/api-types';
 import { describe, expect, it } from 'vitest';
 import {
-  chartWindowOf, holdingsTrackingOf, latestChangeOf, mayChangeRate, mayRecordRates,
-  rateEntriesOf, recorderNameOf, windowStartOf, type RateViewer,
+  chartWindowOf, comparedStyleOf, holdingsTrackingOf, latestChangeOf, mayChangeRate,
+  mayRecordRates, rateEntriesOf, recorderOf, windowStartOf, type RateViewer,
 } from '../../../../../../src/experiences/trackInvestments/flows/ratesMaintenance/ratesMaintenance';
 import { holdingOf } from '../../../portfolioFixtures';
 
@@ -53,13 +53,25 @@ describe('mayChangeRate', () => {
   });
 });
 
-describe('recorderNameOf', () => {
-  it('finds a member\'s first name, and none for a former member', () => {
+describe('recorderOf', () => {
+  it('finds a member by first name, else a former member', () => {
     const recorders = [{ userId: 'ben', firstName: 'Ben' }];
 
-    expect(recorderNameOf('ben', recorders)).toBe('Ben');
-    expect(recorderNameOf('gone', recorders)).toBeUndefined();
-    expect(recorderNameOf(null, recorders)).toBeUndefined();
+    expect(recorderOf('ben', recorders)).toEqual({ kind: 'member', name: 'Ben' });
+    expect(recorderOf('gone', recorders)).toEqual({ kind: 'former' });
+    expect(recorderOf(null, recorders)).toEqual({ kind: 'former' });
+  });
+
+  it('knows no one while the members are unknown', () => {
+    expect(recorderOf('ben', undefined)).toEqual({ kind: 'unknown' });
+  });
+});
+
+describe('comparedStyleOf', () => {
+  it('names the day in one month, the month in one year, else the month and year', () => {
+    expect(comparedStyleOf('2026-09-30', '2026-09-18')).toBe('dayMonth');
+    expect(comparedStyleOf('2026-09-30', '2026-08-31')).toBe('monthShort');
+    expect(comparedStyleOf('2026-01-31', '2025-12-31')).toBe('monthShortYear');
   });
 });
 
@@ -135,17 +147,20 @@ describe('latestChangeOf', () => {
 });
 
 describe('holdingsTrackingOf', () => {
-  it('lists the active Holdings whose rate tracks the index', () => {
+  it('lists the active, unmatured Holdings whose rate tracks the index', () => {
     const holdings = [
       holdingOf('selic29', { rate: { type: 'selic', value: 1000000 } }),
       holdingOf('cdb', { rate: { type: 'cdi', value: 1100000 } }),
       holdingOf('gone', {
         rate: { type: 'selic', value: 1000000 }, archivedAt: '2026-01-01T00:00:00Z',
       }),
+      holdingOf('due', { rate: { type: 'selic', value: 1000000 }, dueDate: '2026-09-30' }),
+      holdingOf('later', { rate: { type: 'selic', value: 1000000 }, dueDate: '2026-10-01' }),
       holdingOf('xpml11'),
     ];
 
-    expect(holdingsTrackingOf(holdings, 'selic').map(({ id }) => id)).toEqual(['selic29']);
-    expect(holdingsTrackingOf(holdings, 'igpm')).toEqual([]);
+    expect(holdingsTrackingOf(holdings, 'selic', '2026-09-30').map(({ id }) => id))
+      .toEqual(['selic29', 'later']);
+    expect(holdingsTrackingOf(holdings, 'igpm', '2026-09-30')).toEqual([]);
   });
 });

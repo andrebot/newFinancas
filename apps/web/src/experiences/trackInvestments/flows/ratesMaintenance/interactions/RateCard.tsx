@@ -53,6 +53,16 @@ const DOTS: Record<LineTone, string> = {
 };
 
 /**
+ * Tells whether nothing holds the focus: the element that held it was removed,
+ * as the form's own buttons are when it closes.
+ *
+ * @returns `true` when the focus fell back to the page.
+ */
+const isFocusLost = () => (
+  document.activeElement === null || document.activeElement === document.body
+);
+
+/**
  * Writes the line under the value: the day it is for and the change it
  * made, "as of 09/30/2026 · +0.18 pp vs Aug".
  *
@@ -160,8 +170,9 @@ export function RateCard({
   const shown = chartWindowOf(entries, settings.chartMonths);
 
   useEffect(() => {
-    // A closed form hands focus back to Update, which takes its place again.
-    if (wasOpen.current && !formOpen) updateRef.current?.focus();
+    // A closed form hands focus back to Update, which takes its place again —
+    // only when the focus went with it, not when another card's form took it.
+    if (wasOpen.current && !formOpen && isFocusLost()) updateRef.current?.focus();
     wasOpen.current = formOpen;
   }, [formOpen]);
 

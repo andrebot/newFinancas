@@ -75,6 +75,8 @@ export const formatting = {
     monthYear: { month: 'long', year: 'numeric' },
     /** set. · Sep — the period bar's months. */
     monthShort: { month: 'short' },
+    /** set. de 2025 · Sep 2025 — a rate card's "vs" month in another year (FL20). */
+    monthShortYear: { month: 'short', year: 'numeric' },
     /** 09/26 — a chart's month labels on a history of a year or more. */
     monthYearNumeric: { month: '2-digit', year: '2-digit' },
     /** setembro · September — a period chip's month (FL17). */

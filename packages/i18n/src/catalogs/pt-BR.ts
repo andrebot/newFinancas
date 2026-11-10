@@ -1014,7 +1014,7 @@ const ptBR = {
     none: 'Sem valor ainda',
     chart: '{index}: valores recentes',
     usedBy: 'Usada por',
-    unused: 'Nenhum investimento usa ainda',
+    unused: 'Ainda não usada por nenhum investimento',
     update: 'Atualizar',
     history: 'Histórico',
     viewHistory: 'Ver histórico',
@@ -1033,6 +1033,7 @@ const ptBR = {
     'history.done': 'Concluir',
     'locked.by': 'Registrado por {name}',
     'locked.former': 'Registrado por um ex-membro',
+    'locked.unknown': 'Não pode ser alterado',
   },
   historyEditor: {
     list: 'Valores salvos',

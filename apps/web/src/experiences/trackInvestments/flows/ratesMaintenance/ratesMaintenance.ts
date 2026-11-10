@@ -27,7 +27,10 @@ export interface LatestChange {
   readonly points: number;
   /** The previous value's day, `YYYY-MM-DD`. */
   readonly previousDate: string;
-  /** How to write that day: its month, or the day itself when both fall in one month. */
+  /**
+   * How to write that day: the day itself when both fall in one month, its
+   * month in the same year, or its month and year in another.
+   */
   readonly style: DateStyle;
 }
 
@@ -57,17 +60,26 @@ export const mayChangeRate = (value: IndexRateValue, viewer: RateViewer) => mayM
   viewer.role,
 );
 
+/** Who recorded a locked value: a member, a former member, or unknown while the members load. */
+export type Recorder = { readonly kind: 'member'; readonly name: string }
+  | { readonly kind: 'former' }
+  | { readonly kind: 'unknown' };
+
 /**
- * Finds the name a locked value shows for who recorded it.
+ * Tells who recorded a locked value.
  *
  * @param userId - The recorder; none once their account is gone (FR-1.17).
- * @param recorders - The household's members.
- * @returns Their first name, or none for a former member.
+ * @param recorders - The household's members; unknown while they load or after the read failed.
+ * @returns The member's first name, a former member, or unknown.
  */
-export const recorderNameOf = (
+export const recorderOf = (
   userId: string | null,
-  recorders: readonly RateRecorder[],
-): string | undefined => recorders.find((recorder) => recorder.userId === userId)?.firstName;
+  recorders: readonly RateRecorder[] | undefined,
+): Recorder => {
+  if (!recorders) return { kind: 'unknown' };
+  const found = recorders.find((recorder) => recorder.userId === userId);
+  return found ? { kind: 'member', name: found.firstName } : { kind: 'former' };
+};
 
 /**
  * Lists an index's values as K46 takes them, newest first: one the viewer
@@ -125,6 +137,20 @@ export const chartWindowOf = (
 };
 
 /**
+ * Chooses how the card names the previous value's day: the day itself when
+ * both fall in one month, its month in the same year, its month and year in
+ * another ("vs Sep 2025").
+ *
+ * @param latestDate - The latest value's day.
+ * @param previousDate - The previous value's day.
+ * @returns The date style.
+ */
+export const comparedStyleOf = (latestDate: string, previousDate: string): DateStyle => {
+  if (latestDate.slice(0, 7) === previousDate.slice(0, 7)) return 'dayMonth';
+  return latestDate.slice(0, 4) === previousDate.slice(0, 4) ? 'monthShort' : 'monthShortYear';
+};
+
+/**
  * Works out what the latest value changed against the one before it, as the
  * card's "+0.18 pp vs Aug" reads it.
  *
@@ -134,25 +160,28 @@ export const chartWindowOf = (
 export const latestChangeOf = (entries: readonly HistoryEntry[]): LatestChange | undefined => {
   const [latest, previous] = entries;
   if (!latest || !previous) return undefined;
-  const sameMonth = latest.date.slice(0, 7) === previous.date.slice(0, 7);
   return {
     points: latest.value - previous.value,
     previousDate: previous.date,
-    style: sameMonth ? 'dayMonth' : 'monthShort',
+    style: comparedStyleOf(latest.date, previous.date),
   };
 };
 
 /**
  * Lists the Holdings an index's latest value is projected into (FR-11.2):
- * the active ones whose rate tracks it.
+ * the active ones whose rate tracks it and that haven't matured — on its due
+ * date or after it, as FL19 reads a contract, nothing is left to project.
  *
  * @param holdings - The household's Holdings, archived ones included.
  * @param index - The index's code.
+ * @param today - Today, `YYYY-MM-DD`.
  * @returns Those Holdings, as listed.
  */
 export const holdingsTrackingOf = (
   holdings: readonly InvestmentHolding[],
   index: string,
+  today: string,
 ): InvestmentHolding[] => holdings.filter((holding) => (
   !holding.archivedAt && holding.rate?.type === index
+  && !(holding.dueDate && holding.dueDate <= today)
 ));

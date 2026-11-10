@@ -21,6 +21,9 @@ import { holdingOf, holdingWithout } from '../../../portfolioFixtures';
 // one and how it answers the Experience's requests; the translator and the
 // toast queue stay real.
 
+/** Every `entries` list the card stand-in was handed, in order. */
+const seenEntries: unknown[] = [];
+
 vi.mock('../../../../../../src/experiences/trackInvestments/flows/ratesMaintenance/interactions/RateCard', () => ({
   /**
    * The card's stand-in: what it was handed, its form, and its two buttons.
@@ -31,25 +34,28 @@ vi.mock('../../../../../../src/experiences/trackInvestments/flows/ratesMaintenan
   RateCard: ({
     name, about, unit, tone, entries, usedBy, mayRecord, historyReadOnly, updateForm, onUpdate,
     onOpenHistory,
-  }: RateCardProps) => (
-    <section
-      data-testid="card"
-      data-name={name}
-      data-about={about}
-      data-unit={unit}
-      data-tone={tone}
-      data-entries={entries.map((entry) => entry.lockedReason ?? entry.key).join(',')}
-      data-used-by={
+  }: RateCardProps) => {
+    seenEntries.push(entries);
+    return (
+      <section
+        data-testid="card"
+        data-name={name}
+        data-about={about}
+        data-unit={unit}
+        data-tone={tone}
+        data-entries={entries.map((entry) => entry.lockedReason ?? entry.key).join(',')}
+        data-used-by={
         usedBy?.map((holding) => `${holding.id}:${holding.name}`).join(',') ?? 'unknown'
       }
-      data-may-record={String(mayRecord)}
-      data-history-read-only={String(historyReadOnly)}
-    >
-      {updateForm}
-      <button type="button" onClick={onUpdate}>update</button>
-      <button type="button" onClick={onOpenHistory}>history</button>
-    </section>
-  ),
+        data-may-record={String(mayRecord)}
+        data-history-read-only={String(historyReadOnly)}
+      >
+        {updateForm}
+        <button type="button" onClick={onUpdate}>update</button>
+        <button type="button" onClick={onOpenHistory}>history</button>
+      </section>
+    );
+  },
 }));
 vi.mock('../../../../../../src/experiences/trackInvestments/flows/ratesMaintenance/interactions/RateUpdateEntry', () => ({
   /**
@@ -138,6 +144,7 @@ const SELIC: IndexRateSeries = {
 const HOLDINGS = [
   holdingOf('selic29', { ticker: 'Tesouro Selic 2029', rate: { type: 'selic', value: 1000000 } }),
   holdingWithout(holdingOf('cdb', { rate: { type: 'selic', value: 1000000 } }), 'ticker'),
+  holdingOf('matured', { rate: { type: 'selic', value: 1000000 }, dueDate: '2001-01-01' }),
   holdingOf('ipca35', { rate: { type: 'ipca', value: 55000 } }),
 ];
 
@@ -145,6 +152,7 @@ let queue: AlertQueue;
 
 beforeEach(() => {
   queue = createAlertQueue(3);
+  seenEntries.length = 0;
   delete document.body.dataset.outcome;
 });
 
@@ -171,12 +179,24 @@ const renderSlot = (over: Partial<RateSlotProps> = {}) => {
     history: { open: false, onOpen: vi.fn(), onClose: vi.fn() },
     ...over,
   };
-  renderInLocale(
+  const view = renderInLocale(
     <AlertProvider queue={queue}>
       <RateSlot {...props} />
     </AlertProvider>,
   );
-  return props;
+  return {
+    ...props,
+    /**
+     * Renders the slot again with some props changed.
+     *
+     * @param next - Props to change.
+     */
+    rerender: (next: Partial<RateSlotProps>) => view.rerenderInLocale(
+      <AlertProvider queue={queue}>
+        <RateSlot {...props} {...next} />
+      </AlertProvider>,
+    ),
+  };
 };
 
 /**
@@ -203,7 +223,24 @@ describe('RateSlot', () => {
     expect(card().historyReadOnly).toBe('false');
   });
 
-  it('lists the active Holdings it feeds, an unnamed one too', () => {
+  it('says only that a value is locked while the members are unknown', () => {
+    renderSlot({ recorders: undefined });
+
+    expect(card().entries).toBe("sep,Can't be changed,Can't be changed");
+  });
+
+  it('hands the card a new list only when the values change (OQ-232)', () => {
+    const { rerender } = renderSlot();
+
+    rerender({ holdings: [] });
+    rerender({ series: { ...SELIC, values: [...SELIC.values] } });
+
+    expect(seenEntries).toHaveLength(3);
+    expect(seenEntries[1]).toBe(seenEntries[0]);
+    expect(seenEntries[2]).not.toBe(seenEntries[1]);
+  });
+
+  it('lists the active Holdings it feeds, an unnamed one too, not a matured one', () => {
     renderSlot();
     expect(card().usedBy).toBe('selic29:Tesouro Selic 2029,cdb:Unnamed holding');
   });

@@ -26,8 +26,11 @@ export interface RatesMaintenanceFlowProps {
   readonly rates: SourceState<readonly IndexRateSeries[]>;
   /** The household's Holdings, archived ones included; unknown while they load. */
   readonly holdings: readonly InvestmentHolding[] | undefined;
-  /** The household's members, who name a locked value's recorder. */
-  readonly recorders: readonly RateRecorder[];
+  /**
+   * The household's members, who name a locked value's recorder; unknown
+   * while they load or after the read failed. Pass the query's data (OQ-232).
+   */
+  readonly recorders: readonly RateRecorder[] | undefined;
   readonly viewer: RateViewer;
   readonly requests: RateRequests;
 }
@@ -74,12 +77,13 @@ function RateCards({
           form={{
             open: formIndex === one.index,
             onOpen: () => setFormIndex(one.index),
-            onClose: () => setFormIndex(undefined),
+            // A save that ends late closes only its own form, never one opened since.
+            onClose: () => setFormIndex((open) => (open === one.index ? undefined : open)),
           }}
           history={{
             open: historyIndex === one.index,
             onOpen: () => setHistoryIndex(one.index),
-            onClose: () => setHistoryIndex(undefined),
+            onClose: () => setHistoryIndex((open) => (open === one.index ? undefined : open)),
           }}
         />
       ))}

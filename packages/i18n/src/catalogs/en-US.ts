@@ -1018,6 +1018,7 @@ const enUS: Catalog = {
     'history.done': 'Done',
     'locked.by': 'Added by {name}',
     'locked.former': 'Added by a former member',
+    'locked.unknown': "Can't be changed",
   },
   historyEditor: {
     list: 'Saved values',

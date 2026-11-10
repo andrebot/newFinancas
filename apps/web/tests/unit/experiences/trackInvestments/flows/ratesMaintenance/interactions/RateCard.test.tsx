@@ -85,6 +85,38 @@ describe('RateCard', () => {
     expect(screen.getByText('as of 09/30/2026')).toBeTruthy();
   });
 
+  it('names the year when the value before is from another one', () => {
+    renderInLocale(<RateCard {...propsOf({
+      entries: [
+        { key: 'b', date: '2026-01-31', value: 44200 },
+        { key: 'a', date: '2025-12-31', value: 42400 },
+      ],
+    })}
+    />);
+
+    expect(screen.getByText('as of 01/31/2026 · +0.18 pp vs Dec 2025')).toBeTruthy();
+  });
+
+  it('leaves the focus alone when another card\'s form took it', async () => {
+    const { rerenderInLocale } = renderInLocale(
+      <>
+        <input aria-label="elsewhere" />
+        <RateCard {...propsOf({ updateForm: <p>the form</p> })} />
+      </>,
+    );
+    screen.getByRole('textbox', { name: 'elsewhere' }).focus();
+
+    rerenderInLocale(
+      <>
+        <input aria-label="elsewhere" />
+        <RateCard {...propsOf()} />
+      </>,
+    );
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Update' })).toBeTruthy());
+    expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'elsewhere' }));
+  });
+
   it('says so for an index with no value yet, and draws nothing', () => {
     renderInLocale(<RateCard {...propsOf({ entries: [], usedBy: [] })} />);
 

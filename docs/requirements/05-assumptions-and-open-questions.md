@@ -7072,6 +7072,15 @@ only the journey in the browser, and checks the end state through the API
 - **X7 (task 133) fills the Flow's props:** the rates read, the household Holdings, the members, the viewer and the record / edit / delete requests. A rate write refetches the rates, the overview and the Holdings (their expected payouts are projected from it).
 - **Tests (BDT):** the model directly; each Interaction through the real translator and kit; `RateSlot` with its Interactions stubbed and the toast queue real; the Flow with `RateSlot` stubbed. 100% coverage. Not checked in a real browser: the page is X7's.
 
+**Review round 1 (independent review, stakeholder agreed):**
+- **A closed form gives focus back to Update only when the focus went with it.** Opening Selic's form while CDI's was open used to land focus on CDI's Update, since CDI's card ran its "focus back" after Selic's form took it.
+- **A save that ends late closes only its own form,** never one opened since on another card (what was typed there was lost). The history drawer's close works the same way.
+- **The members can be unknown** (loading, or a failed read): a locked value then reads "Can't be changed" instead of "Added by a former member". The prop says to pass the query's data, since a new array re-lists the values and ends K46's wait (OQ-232); a test now holds the list's identity.
+- **"vs" names the year when the value before is from another one** ("vs Dec 2025", the new `monthShortYear` date style).
+- **A matured Holding feeds nothing:** "Used by" and the hint leave out a contract on or past its due date, as FL19 reads "matured".
+- **pt-BR:** "Ainda não usada por nenhum investimento".
+- **Left as is:** the hint's "No holding is projected from it yet", which the review found arguable.
+
 **Task 132 (`FL20`) is complete.**
 
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)

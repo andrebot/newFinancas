@@ -110,6 +110,18 @@ describe('RatesMaintenanceFlow', () => {
     expect(slot('ipca').form).toBe('false');
   });
 
+  it('lets a late close leave another index\'s form and drawer open', () => {
+    renderFlow();
+
+    fireEvent.click(screen.getByRole('button', { name: 'update cdi' }));
+    fireEvent.click(screen.getByRole('button', { name: 'history cdi' }));
+    fireEvent.click(screen.getByRole('button', { name: 'cancel selic' }));
+    fireEvent.click(screen.getByRole('button', { name: 'done selic' }));
+
+    expect(slot('cdi').form).toBe('true');
+    expect(slot('cdi').history).toBe('true');
+  });
+
   it('opens and closes one index\'s history', () => {
     renderFlow();
 
