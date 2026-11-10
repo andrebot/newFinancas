@@ -110,6 +110,14 @@ export const calendar = {
   timeZone: 'America/Sao_Paulo',
 } as const;
 
+/** The investments reports (task 133, OQ-201, OQ-236). */
+export const investmentsReports = {
+  /** How many months the net worth series covers, ending this month (OQ-231). */
+  netWorthMonths: 6,
+  /** The payouts window when a caller names none — the contract's default. */
+  defaultPayoutMonths: 12,
+} as const;
+
 /** N9 local execution policy; dates use calendar.timeZone (OQ-104). */
 export const investmentsDaily = {
   /** Inspect the calendar once a minute, not once per fixed 24-hour interval. */

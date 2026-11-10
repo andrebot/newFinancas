@@ -1,9 +1,9 @@
 import type { LedgerItem } from '@financas/api-types';
 import { describe, expect, it } from 'vitest';
 import {
-  holdingToReadFor, ledgerStatusOf, overviewReadOf, periodOf, splitGoalsOf, type LedgerQueryState,
+  holdingToReadFor, ledgerStatusOf, overviewReadOf, periodOf, type LedgerQueryState,
 } from '../../../../src/experiences/manageFinances/manageFinances';
-import { goalOf, REPORT } from '../monthFixtures';
+import { REPORT } from '../monthFixtures';
 
 // What the Manage Finances Experience reads its queries into (BDT: unit —
 // pure, nothing mocked).
@@ -46,37 +46,6 @@ describe('overviewReadOf', () => {
   it('loads while the month changes, and fails when it failed', () => {
     expect(overviewReadOf({ isError: false })).toEqual({ status: 'loading' });
     expect(overviewReadOf({ isError: true })).toEqual({ status: 'failed' });
-  });
-});
-
-describe('splitGoalsOf', () => {
-  it('lists the active Goals first, each with its own-currency progress rounded down', () => {
-    const trip = {
-      ...goalOf('trip', [
-        {
-          holdingId: 'aapl',
-          name: 'AAPL',
-          percentage: 10,
-          contribution: { currency: 'USD', amount: 10000 },
-        },
-        {
-          holdingId: 'cdb',
-          name: 'CDB',
-          percentage: 10,
-          contribution: { currency: 'BRL', amount: 99999 },
-        },
-      ]),
-      targetAmount: 30000,
-    };
-    const done = goalOf('car');
-    expect(splitGoalsOf([trip], [done])).toEqual([
-      {
-        id: 'trip', name: trip.name, progress: 33, completed: false,
-      },
-      {
-        id: 'car', name: done.name, progress: 0, completed: true,
-      },
-    ]);
   });
 });
 

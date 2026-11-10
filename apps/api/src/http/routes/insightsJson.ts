@@ -1,8 +1,11 @@
-import type { Funding, GoalWithProgress, ProjectedHolding } from '../../managers/insights';
+import type {
+  Funding, GoalWithProgress, ProjectedHolding, TaggedReport,
+} from '../../managers/insights';
 import { toGoalJson } from './accountJson';
 
 // The JSON shapes InsightsManager's reads answer with (the contract's
-// `GoalFundingRow`, `GoalWithProgress`, `GoalProgress` and `InvestmentHolding`).
+// `GoalFundingRow`, `GoalWithProgress`, `GoalProgress`, `InvestmentHolding` and
+// the reports).
 
 /**
  * One Holding funding a Goal, as the contract shows it (`GoalFundingRow`).
@@ -75,3 +78,16 @@ export const toInvestmentHoldingJson = (holding: ProjectedHolding) => ({
   projectionUnavailable: holding.projectionUnavailable,
   boughtOn: holding.boughtOn,
 });
+
+/**
+ * Shapes a report as the contract shows it: the Month Overview's Goals
+ * through their JSON form, the other types as they are.
+ *
+ * @param report - The served report.
+ * @returns Its JSON body.
+ */
+export const toReportJson = (report: TaggedReport) => (
+  report.reportType === 'month-overview'
+    ? { ...report, goals: report.goals.map(toGoalWithProgressJson) }
+    : report
+);

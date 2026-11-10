@@ -123,6 +123,7 @@ export const mockInsights = (): MockedInsights => ({
   report: vi.fn(),
   goalProgressList: vi.fn(),
   goalProgressFor: vi.fn(),
+  listHouseholdHoldings: vi.fn(),
   listHoldings: vi.fn(),
   getHolding: vi.fn(),
 });

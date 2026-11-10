@@ -462,30 +462,41 @@ sequenceDiagram
     participant IRA as IndexRateAccessor
 
     User->>API: GET /households/:householdId/reports/investments-overview
-    API->>IM: report(actor, "investments-overview")
-    IM->>AZ: visibleScope(actor)
-    IM->>RE: investmentsOverview(scope)
-    RE->>IHA: holdings (cost basis for fixed-term)
-    RE->>VSA: latestAsOf(market-priced holdingIds, today)
-    RE->>ATA: this month's dividend / interest transactions linked to Holdings
-    RE-->>IM: {netWorthByCurrency + change vs previous month, payoutThisMonth, allocations (holding / assetType / account slices per currency, OQ-233), comingDue}
-    IM-->>API: report
+    API->>IM: report(context, householdId, "investments-overview")
+    IM->>AZ: authorize(actor, householdId) &mdash; membership only, a non-member gets 404 household.not_found
+    IM->>RE: investmentsOverview(viewer, today, 6) &mdash; investmentsReports.netWorthMonths
+    RE->>AA: list(householdId, viewerUserId) &mdash; the Accounts the viewer sees, each Holding&#39;s currency
+    RE->>IHA: listByAccounts(visible accountIds, {includeArchived: true})
+    loop each of the last 6 month ends (this month: today), and today for the active Holdings
+        RE->>VSA: latestAsOf(market-priced holdingIds, date)
+        RE->>ATA: costBasisAsOf(fixed-term holdingIds, date) &mdash; OQ-51
+    end
+    RE->>ATA: listPayouts(holdingIds, this month&#39;s first day, its last)
+    Note over RE: net worth per currency from the first month with value, change vs the month before when there is one (OQ-236)<br/>allocations: holding / assetType / account slices of the active Holdings, per currency, none empty (OQ-233)<br/>comingDue: active fixed-term Holdings with principal left, worth their principal, soonest first (OQ-236)
+    RE-->>IM: {netWorth, payoutThisMonth, allocations, comingDue}
+    IM-->>API: report, tagged investments-overview
     API-->>User: 200 OK
 
     User->>API: GET /households/:householdId/reports/payouts?holdingIds=a,b,c&months=12
-    API->>IM: report(actor, "payouts", {holdingIds, months})
-    IM->>RE: payoutSeries(scope, holdingIds, months)
-    RE->>ATA: monthly sums of linked dividend / interest transactions
-    RE-->>IM: series per holding (top 5 + others grouped by the frontend)
-    IM-->>API: report
+    Note over User,API: holdingIds comma-joined (explode: false), months 1..24, else 422 (OQ-236)
+    API->>IM: report(context, householdId, "payouts", {holdingIds, months})
+    IM->>AZ: authorize(actor, householdId) &mdash; membership only
+    IM->>RE: payouts(viewer, {holdingIds, months, today})
+    RE->>AA: list(householdId, viewerUserId)
+    RE->>IHA: listByAccounts(visible accountIds, {includeArchived: true})
+    Note over RE: an asked id the viewer can't see, or that is gone, is ignored (OQ-233)
+    RE->>ATA: listPayouts(chosen holdingIds, the window&#39;s first day, this month&#39;s last)
+    RE-->>IM: one series per Holding and currency paid, every month filled (the frontend groups top 5 + Others)
+    IM-->>API: report, tagged payouts
     API-->>User: 200 OK
 
     User->>API: GET /households/:householdId/holdings?includeArchived=true
     Note over User,API: OQ-233 &mdash; every visible Holding, to name the overview&#39;s ids and list the payout selector
     API->>IM: listHouseholdHoldings(context, householdId, includeArchived)
-    IM->>AZ: visibleScope(actor) &mdash; a non-member gets 404 household.not_found
+    IM->>AZ: authorize(actor, householdId) &mdash; membership only, a non-member gets 404 household.not_found
+    IM->>AA: list(householdId, viewerUserId) &mdash; the Accounts the viewer sees
     IM->>IHA: listByAccounts(visible accountIds, {includeArchived})
-    IHA-->>IM: the Holdings, in the order opened
+    IHA-->>IM: the Holdings, by Account, in the order opened
     Note over IM,IRA: fixed-term projections as the per-account list below
     IM-->>API: 200 {data}
 
@@ -543,7 +554,7 @@ sequenceDiagram
       <li>Payout comes only from linked transactions (FR-5.9); projections are computed on read (FR-11.2) &mdash; nothing new is stored.</li>
       <li>The Rates tab reads <code>GET /households/:householdId/index-rates</code> (every index with its history) &mdash; a plain read of <code>AccountManager</code>'s own entities, so it is <code>AccountManager</code>'s (<code>IndexRateAccessor.list</code>, read-ownership rule, OQ-172), not this Manager's; so are a Holding's value history (<code>GET &hellip;/holdings/:holdingId/valuation-snapshots</code>), its schedule (<code>&hellip;/schedule-entries</code>) and its visible Goal split (<code>&hellip;/allocations</code>) &mdash; built in M2 part 5 (OQ-178).</li>
       <li><strong>As built in M4 (OQ-208):</strong> <code>GET &hellip;/accounts/:accountId/holdings</code> and <code>GET &hellip;/holdings/:holdingId</code> read the rows straight from <code>InvestmentHoldingAccessor</code> — there is no ReportingEngine positions use case — and project each fixed-term one on read: its buy&#39;s date and amount come from <code>AccountTransactionAccessor.findBuys</code> (one read for the whole list), then only <code>InsightsManager</code> calls <code>InvestmentProductEngine.project</code> (OQ-178, OQ-205). A Holding takes its Account&#39;s access; an unseen one answers the entity&#39;s own not-found.</li>
-      <li><strong>Lands with task 133:</strong> the two report types above — until then they answer 400 <code>report.unknown_type_or_range</code>, the code the contract reserves for this endpoint (OQ-208).</li>
+      <li><strong>As built in task 133 (OQ-236):</strong> net worth is the visible Holdings&#39; value only (FR-5.4) &mdash; a month&#39;s figure on its last day, a Holding counted only until the day it was archived (a matured contract archived by hand keeps its principal, so it would otherwise count forever); the series starts at the first month with value, and the change is left out when it holds only this month. Coming Due carries each contract&#39;s principal, as net worth counts it. A payout is a dividend or interest transaction linked to its Holding (<code>AccountTransactionAccessor.listPayouts</code>).</li>
       <li>See FR-5.3, FR-5.4, FR-5.9, FR-11.2, FR-11.6, OQ-58, OQ-73, OQ-79, OQ-208.</li>
     </ul>
 """,

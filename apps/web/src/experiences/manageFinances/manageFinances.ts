@@ -1,12 +1,7 @@
-import type {
-  GoalWithProgress, LedgerItem, MonthOverviewReport, TransactionPage,
-} from '@financas/api-types';
+import type { LedgerItem, MonthOverviewReport, TransactionPage } from '@financas/api-types';
 import type { GroupedListStatus } from '../../kit/groupedList/GroupedList';
-import { wholePercent } from '../../kit/progress/progress';
 import type { Period } from '../../kit/periodBar/periodBar';
-import { ownFundingOf } from '../goalFunding';
 import type { MonthOverviewRead } from './flows/monthOverview/MonthOverviewFlow';
-import type { SplitGoal } from './flows/recordTransaction/recordTransactionState';
 import { isBuy } from './flows/recordTransaction/transactionForm';
 
 // What the Manage Finances Experience reads its queries into for its Flows
@@ -69,28 +64,6 @@ export const overviewReadOf = (query: ReportQueryState): MonthOverviewRead => {
   }
   return query.isError ? { status: 'failed' } : { status: 'loading' };
 };
-
-/**
- * Reads the Goals as a trade's split names them: each with its progress in
- * its own currency — whole percent, rounded down — and whether it is
- * completed, the active ones first.
- *
- * @param active - The active Goals with their progress.
- * @param completed - The completed ones.
- * @returns The split's Goals.
- */
-export const splitGoalsOf = (
-  active: readonly GoalWithProgress[],
-  completed: readonly GoalWithProgress[],
-): readonly SplitGoal[] => [
-  ...active.map((goal) => ({ goal, completed: false })),
-  ...completed.map((goal) => ({ goal, completed: true })),
-].map(({ goal, completed: done }) => ({
-  id: goal.id,
-  name: goal.name,
-  progress: wholePercent(ownFundingOf(goal).funded, goal.targetAmount),
-  completed: done,
-}));
 
 /**
  * Tells which Holding an edit must read before its drawer opens: a buy's, for

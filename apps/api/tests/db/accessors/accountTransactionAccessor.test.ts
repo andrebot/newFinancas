@@ -843,6 +843,47 @@ describe('costBasisAsOf', () => {
   }));
 });
 
+describe('listPayouts', () => {
+  it('answers the Holdings\' dividends and interest in the range, oldest first', scenario(async ({
+    record, ledger, holding,
+  }) => {
+    const [, dividend, interest] = await recordAll(record, [
+      { kind: 'investment_dividend', holdingId: holding, date: '2026-01-31' },
+      {
+        kind: 'investment_dividend', holdingId: holding, date: '2026-02-01', amount: 300,
+      },
+      {
+        kind: 'investment_interest', holdingId: holding, date: '2026-02-28', amount: 200,
+      },
+      { kind: 'investment_tax', holdingId: holding, date: '2026-02-10' },
+      {
+        kind: 'investment_buy',
+        effect: 'investment_trade',
+        holdingId: holding,
+        date: '2026-02-15',
+        trade: { quantityDelta: 1, costBasisDelta: 100 },
+      },
+      { kind: 'investment_dividend', holdingId: holding, date: '2026-03-01' },
+    ]);
+
+    const payouts = await ledger.listPayouts([holding], '2026-02-01', '2026-02-28');
+
+    expect(payouts.map(({ id, kind, amount }) => ({ id, kind, amount }))).toEqual([
+      { id: dividend!.id, kind: 'investment_dividend', amount: 300 },
+      { id: interest!.id, kind: 'investment_interest', amount: 200 },
+    ]);
+  }));
+
+  it('reads only the Holdings asked for, and nothing for none', scenario(async ({
+    record, ledger, holding,
+  }) => {
+    await record({ kind: 'investment_dividend', holdingId: holding, date: '2026-02-01' });
+
+    expect(await ledger.listPayouts([UNKNOWN_ID], '2026-01-01', '2026-12-31')).toEqual([]);
+    expect(await ledger.listPayouts([], '2026-01-01', '2026-12-31')).toEqual([]);
+  }));
+});
+
 describe('findBuys', () => {
   it('answers each Holding\'s buys in one read, oldest first on (date, id)', scenario(async ({
     db, record, ledger, householdId, holding, checking,

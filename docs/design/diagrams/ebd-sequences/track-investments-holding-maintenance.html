@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Track Investments — Holding Maintenance</h1>
-  <p class="subtitle"><span class="route">GET /households/:householdId/reports/investments-overview</span> with <span class="route">GET /households/:householdId/holdings?includeArchived=true</span> (shared with Portfolio Overview), <span class="route">GET /households/:householdId/index-rates</span>; per open row <span class="route">GET /households/:householdId/holdings/:id/allocations</span>, <span class="route">…/valuation-snapshots</span> and <span class="route">GET /households/:householdId/transactions?holdingId=&limit=3</span>; <span class="route">PATCH /households/:householdId/holdings/:id</span>, <span class="route">POST/PATCH/DELETE …/valuation-snapshots</span> (OQ-178, OQ-234).</p>
+  <p class="subtitle"><span class="route">GET /households/:householdId/reports/investments-overview</span> with <span class="route">GET /households/:householdId/holdings?includeArchived=true</span> and <span class="route">GET /households/:householdId/accounts</span> (shared with Portfolio Overview), <span class="route">GET /households/:householdId/goal-progress?status=</span>, <span class="route">GET /households/:householdId/index-rates</span>; per open row <span class="route">GET /households/:householdId/holdings/:id/allocations</span>, <span class="route">…/valuation-snapshots</span> and <span class="route">GET /households/:householdId/transactions?holdingId=&limit=3</span>; <span class="route">PATCH /households/:householdId/holdings/:id</span>, <span class="route">POST/PATCH/DELETE …/valuation-snapshots</span> (OQ-178, OQ-234).</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -74,6 +74,8 @@ sequenceDiagram
     API-->>EXP: today's value per Holding / account (slices), payout this month
     EXP->>API: GET /households/:householdId/holdings?includeArchived=true
     API-->>EXP: every visible Holding (+ expected payout / taxes and boughtOn for fixed-term)
+    EXP->>API: GET /households/:householdId/accounts
+    EXP->>API: GET /households/:householdId/goal-progress?status=active + ?status=completed
     EXP->>API: GET /households/:householdId/index-rates
     end
     EXP-->>FLOW: state (report + Holdings, accounts, Goals, index rates)

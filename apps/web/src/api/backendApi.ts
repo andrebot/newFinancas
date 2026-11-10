@@ -14,8 +14,14 @@ import { apiBaseQuery } from './baseQuery';
 // invalidate them, and any other read built on that data provides them too,
 // so a write on one page refreshes every page showing it (PR #145).
 
-/** The tags of the household data several Experiences show. */
-export const SHARED_TAGS = ['Accounts', 'Budgets', 'Categories', 'Goals'] as const;
+/**
+ * The tags of the household data several Experiences show — a Holding's Goal
+ * split too: Record Transaction pre-fills a trade with it, Holding
+ * Maintenance edits it (OQ-236).
+ */
+export const SHARED_TAGS = [
+  'Accounts', 'Budgets', 'Categories', 'Goals', 'HoldingAllocations',
+] as const;
 
 /** One of the shared tags. */
 export type SharedTag = (typeof SHARED_TAGS)[number];

@@ -997,17 +997,17 @@ export type MonthOverviewReport = {
 export type InvestmentsOverviewReport = {
     reportType: 'investments-overview';
     /**
-     * One entry per currency the visible Holdings are in, never summed (FR-5.3)
+     * One entry per currency the visible Holdings held value in, never summed (FR-5.3): the Holdings' value — a market-priced one's latest snapshot, a fixed-term one's cost basis (FR-5.4, OQ-51) — not account balances (OQ-236)
      */
     netWorth: Array<{
         currency: Currency;
         amount: Money;
         /**
-         * Left out when there is no previous month to compare against (OQ-231)
+         * Left out when the series holds only this month (OQ-231, OQ-236)
          */
         changeVsPreviousMonth?: Money;
         /**
-         * The last 6 months at most, oldest first, ending this month (OQ-231)
+         * The last 6 months at most, oldest first, ending this month, from the first month the currency held value; each month's figure on its last day, this month's today, a Holding counted until the day it was archived (OQ-231, OQ-236)
          */
         series: Array<{
             month: string;
@@ -1038,7 +1038,7 @@ export type InvestmentsOverviewReport = {
         amount: Money;
     }>;
     /**
-     * The fixed-term Holdings still open, soonest due first
+     * The fixed-term Holdings still open, soonest due first, each worth its principal (cost basis), as net worth counts it (OQ-236)
      */
     comingDue: Array<{
         holdingId: string;
@@ -3163,17 +3163,17 @@ export type GetDashboardResponses = {
      */
     200: {
         /**
-         * One entry per currency the visible Holdings are in, never summed (FR-5.3)
+         * One entry per currency the visible Holdings held value in, never summed (FR-5.3): the Holdings' value — a market-priced one's latest snapshot, a fixed-term one's cost basis (FR-5.4, OQ-51) — not account balances (OQ-236)
          */
         netWorth?: Array<{
             currency: Currency;
             amount: Money;
             /**
-             * Left out when there is no previous month to compare against (OQ-231)
+             * Left out when the series holds only this month (OQ-231, OQ-236)
              */
             changeVsPreviousMonth?: Money;
             /**
-             * The last 6 months at most, oldest first, ending this month (OQ-231)
+             * The last 6 months at most, oldest first, ending this month, from the first month the currency held value; each month's figure on its last day, this month's today, a Holding counted until the day it was archived (OQ-231, OQ-236)
              */
             series: Array<{
                 month: string;
@@ -3181,7 +3181,7 @@ export type GetDashboardResponses = {
             }>;
         }>;
         /**
-         * The fixed-term Holdings still open, soonest due first
+         * The fixed-term Holdings still open, soonest due first, each worth its principal (cost basis), as net worth counts it (OQ-236)
          */
         comingDue?: Array<{
             holdingId: string;
@@ -3270,7 +3270,7 @@ export type GetReportData = {
          */
         holdingIds?: Array<string>;
         /**
-         * payouts — how many months back
+         * payouts — how many months back, this month included (OQ-236)
          */
         months?: number;
     };

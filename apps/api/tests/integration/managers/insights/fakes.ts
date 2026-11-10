@@ -4,7 +4,9 @@ import type { AccountTransaction } from '../../../../src/accessors/accountTransa
 import type { Goal, GoalStatus } from '../../../../src/accessors/goalAccessor';
 import type { InvestmentHolding } from '../../../../src/accessors/investmentHoldingAccessor';
 import type { ProjectResult } from '../../../../src/engines/investmentProduct';
-import type { GoalWithProgress, MonthOverview } from '../../../../src/engines/reporting';
+import type {
+  GoalWithProgress, InvestmentsOverview, MonthOverview, PayoutSeries,
+} from '../../../../src/engines/reporting';
 import type { InsightsDeps } from '../../../../src/managers/insights';
 import type { Authorization } from '../../../../src/utilities/authorization';
 
@@ -106,6 +108,18 @@ export const OVERVIEW: MonthOverview = {
   summary: [], yearStrip: [], balances: [], budgets: [], goals: [],
 };
 
+/** The Investments overview the Engine answers with by default. */
+export const INVESTMENTS: InvestmentsOverview = {
+  netWorth: [], payoutThisMonth: [], allocations: [], comingDue: [],
+};
+
+/** The payouts series the Engine answers with by default. */
+export const SERIES: PayoutSeries[] = [{
+  holdingId: '0199c5a0-0000-7000-8000-0000000000f1',
+  currency: 'BRL',
+  months: [{ month: '2026-10', amount: 1_000 }],
+}];
+
 /**
  * InsightsManager's tier below, mocked; `deps` is what createInsightsManager takes.
  *
@@ -119,6 +133,8 @@ export const fakeDeps = () => {
         goals.map((goal) => ({ goal, fundedBy: [] }))
       ),
     ),
+    investmentsOverview: vi.fn(async (): Promise<InvestmentsOverview> => INVESTMENTS),
+    payouts: vi.fn(async (): Promise<PayoutSeries[]> => SERIES),
     auditLogCsv: vi.fn(),
   };
   const investmentProducts = {
@@ -134,6 +150,7 @@ export const fakeDeps = () => {
   };
   const accounts = {
     findById: vi.fn(async (): Promise<Account | undefined> => ACCOUNT),
+    list: vi.fn(async (): Promise<Account[]> => [ACCOUNT]),
   };
   const holdings = {
     findById: vi.fn(async (): Promise<InvestmentHolding | undefined> => HOLDING),

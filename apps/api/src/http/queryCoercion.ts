@@ -13,7 +13,8 @@ const KINDS = new Set<string>(['number', 'boolean', 'array']);
 const BOOLEANS: Record<string, boolean> = { true: true, false: false };
 
 const CONVERT: Record<FieldKind, (value: string) => unknown> = {
-  array: (value) => [value],
+  // The contract's lists are `explode: false`: one parameter, comma-joined (OQ-236).
+  array: (value) => value.split(','),
   boolean: (value) => BOOLEANS[value] ?? value,
   number: (value) => (value.trim() !== '' && !Number.isNaN(Number(value)) ? Number(value) : value),
   other: (value) => value,

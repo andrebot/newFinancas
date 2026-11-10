@@ -1782,7 +1782,7 @@ export const zGetReportQuery = z.object({
     year: z.int().gte(1900).lte(9999).optional(),
     month: z.int().gte(1).lte(12).optional(),
     holdingIds: z.array(z.string()).optional(),
-    months: z.int().optional().default(12)
+    months: z.int().gte(1).lte(24).optional().default(12)
 });
 
 /**

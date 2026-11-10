@@ -2,7 +2,7 @@ import { isFixedTerm } from '@financas/reference';
 import type { AccountTransaction } from '../../accessors/accountTransactionAccessor';
 import type { InvestmentHolding } from '../../accessors/investmentHoldingAccessor';
 import type { ContractTerms, IndexMissing } from '../../engines/investmentProduct';
-import { accessToOwned, requireAccess } from '../access';
+import { accessToOwned, memberOnly, requireAccess } from '../access';
 import type { SignedInContext } from '../requestContext';
 import { engineRateOf } from '../holdingRates';
 import type { InsightsDeps } from './context';
@@ -146,9 +146,33 @@ const projectAll = async (
  * Builds the Holding read use cases.
  *
  * @param deps - The tier below.
- * @returns `listHoldings` and `getHolding`.
+ * @returns `listHouseholdHoldings`, `listHoldings` and `getHolding`.
  */
 export const createHoldings = (deps: InsightsDeps) => ({
+  /**
+   * The household's Holdings the member sees — every Account
+   * AccountAccessor lists for them — each with its expected payout
+   * (OQ-233): what names the investments reports' ids.
+   *
+   * @param context - The signed-in request.
+   * @param householdId - The household.
+   * @param includeArchived - Archived Holdings too.
+   * @returns The Holdings, by Account then in the order opened.
+   * @throws {DomainError} `household.not_found`.
+   */
+  listHouseholdHoldings: async (
+    context: SignedInContext,
+    householdId: string,
+    includeArchived: boolean,
+  ): Promise<ProjectedHolding[]> => {
+    const viewerUserId = context.actor.userId;
+    await requireAccess(deps.authorization, viewerUserId, householdId, memberOnly);
+    const accounts = await deps.accounts.list(householdId, viewerUserId);
+    const accountIds = accounts.map((account) => account.id);
+    const holdings = await deps.holdings.listByAccounts(accountIds, { includeArchived });
+    return projectAll(deps, householdId, holdings);
+  },
+
   /**
    * An Account's Holdings, each with its expected payout (FR-5.3).
    *

@@ -75,7 +75,7 @@ sequenceDiagram
     User->>HS: change holdings
     HS->>FLOW: emit holdingsSelected
     FLOW->>EXP: request payouts(selected)
-    EXP->>API: GET /households/:householdId/reports/payouts?holdingIds=…
+    EXP->>API: GET /households/:householdId/reports/payouts?months=12&holdingIds=a,b (comma-joined)
     API-->>EXP: series
     EXP-->>FLOW: state
     FLOW-->>PC: re-render

@@ -31,12 +31,3 @@ export const goalNotFound = (): DomainError => createDomainError({
 export const holdingNotFound = (): DomainError => createDomainError({
   code: 'holding.not_found', message: 'Holding not found',
 });
-
-/**
- * A v1 report type this build does not serve yet (task 133, OQ-208).
- *
- * @returns `report.unknown_type_or_range`, the code the contract reserves for it.
- */
-export const reportNotServed = (): DomainError => createDomainError({
-  code: 'report.unknown_type_or_range', message: 'Report type not served yet',
-});

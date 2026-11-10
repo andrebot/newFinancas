@@ -92,7 +92,7 @@ sequenceDiagram
     end
     API-->>EXP: done or error code (e.g. 409 index_rate.duplicate_day, 403, 404 index_rate.not_found)
     EXP-->>FLOW: ok / failed — a toast either way, K46 / the form answered done / refused
-    EXP->>API: refetch by tag (rates — the overview and Holdings re-project)
+    EXP->>API: refetch by tag (rates and Holdings — their expected payouts re-project, OQ-236)
     EXP-->>FLOW: state refreshed
     </pre>
   </div>

@@ -1,5 +1,6 @@
 import { vi } from 'vitest';
 import type { Account } from '../../../../src/accessors/accountAccessor';
+import type { AccountTransaction } from '../../../../src/accessors/accountTransactionAccessor';
 import type { Budget, BudgetPeriodOf } from '../../../../src/accessors/budgetAccessor';
 import type { CreditCard } from '../../../../src/accessors/creditCardAccessor';
 import type { Goal, GoalAllocation } from '../../../../src/accessors/goalAccessor';
@@ -180,6 +181,37 @@ export const fakeDeps = () => ({
   findHoldings: vi.fn<ReportingEngineDeps['findHoldings']>(async () => []),
   latestSnapshots: vi.fn<ReportingEngineDeps['latestSnapshots']>(async () => []),
   costBasisAsOf: vi.fn<ReportingEngineDeps['costBasisAsOf']>(async () => []),
+  listHoldings: vi.fn<ReportingEngineDeps['listHoldings']>(async () => []),
+  listPayouts: vi.fn<ReportingEngineDeps['listPayouts']>(async () => []),
+});
+
+/**
+ * Builds a payout — a dividend linked to a Holding, BRL by default.
+ *
+ * @param overrides - The fields to change.
+ * @returns The transaction, as `listPayouts` answers it.
+ */
+export const aPayout = (overrides: Partial<AccountTransaction> = {}): AccountTransaction => ({
+  id: 'payout',
+  accountId: 'checking',
+  kind: 'investment_dividend',
+  effect: 'movement',
+  date: '2026-10-05',
+  amount: 1_000,
+  currency: 'BRL',
+  categoryId: null,
+  subcategoryId: null,
+  description: null,
+  holdingId: 'petr4',
+  holding: { ticker: 'PETR4', assetType: 'stock' },
+  trade: null,
+  creditCardId: null,
+  transferId: null,
+  pair: null,
+  source: 'manual',
+  createdByUserId: ANA_ID,
+  createdAt: NOW,
+  ...overrides,
 });
 
 /**

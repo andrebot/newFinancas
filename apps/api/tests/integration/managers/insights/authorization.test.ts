@@ -75,6 +75,24 @@ const GUARDED: readonly GuardedUseCase[] = [
     run: (manager) => manager.report(CONTEXT, HOUSEHOLD_ID, 'month-overview'),
   },
   {
+    name: 'read the Investments overview',
+    useCase: 'report',
+    request: () => MEMBER_ONLY,
+    reads: [],
+    hidden: null,
+    reached: 'reporting.investmentsOverview',
+    run: (manager) => manager.report(CONTEXT, HOUSEHOLD_ID, 'investments-overview'),
+  },
+  {
+    name: 'read the payouts',
+    useCase: 'report',
+    request: () => MEMBER_ONLY,
+    reads: [],
+    hidden: null,
+    reached: 'reporting.payouts',
+    run: (manager) => manager.report(CONTEXT, HOUSEHOLD_ID, 'payouts'),
+  },
+  {
     name: 'list Goal progress',
     useCase: 'goalProgressList',
     request: () => MEMBER_ONLY,
@@ -91,6 +109,15 @@ const GUARDED: readonly GuardedUseCase[] = [
     hidden: 'goal.not_found',
     reached: 'reporting.goalProgress',
     run: (manager) => manager.goalProgressFor(CONTEXT, HOUSEHOLD_ID, GOAL.id),
+  },
+  {
+    name: 'list the household\'s Holdings',
+    useCase: 'listHouseholdHoldings',
+    request: () => MEMBER_ONLY,
+    reads: [],
+    hidden: null,
+    reached: 'investmentProducts.project',
+    run: (manager) => manager.listHouseholdHoldings(CONTEXT, HOUSEHOLD_ID, false),
   },
   {
     name: 'list an Account\'s Holdings',
@@ -176,7 +203,9 @@ describe('InsightsManager ↔ AuthorizationUtility seam (I4)', () => {
   it('covers every use case InsightsManager has', () => {
     const useCases = Object.keys(createInsightsManager(fakeDeps().deps));
 
-    expect(GUARDED.map(({ useCase }) => useCase).sort()).toEqual(useCases.sort());
+    const guarded = [...new Set(GUARDED.map(({ useCase }) => useCase))];
+
+    expect(guarded.sort()).toEqual(useCases.sort());
   });
 
   it.each(MEMBERS_ONLY)('$name asks once for the membership check', async ({ run }) => {
