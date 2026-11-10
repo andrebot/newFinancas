@@ -303,6 +303,18 @@ export const holdingMaintenance = {
   valueChartHeightPx: 96,
 } as const;
 
+/** Rates Maintenance (FL20, mockup 53, OQ-235). */
+export const ratesMaintenance = {
+  /** How many months a rate card's chart shows, counted back from its latest value's month. */
+  chartMonths: 6,
+  /** A rate card's chart height (mockup 53). */
+  chartHeightPx: 96,
+  /** Each index's colour: its dot and its line (mockup 53). An unknown index is `sky`. */
+  indexTones: {
+    selic: 'sky', cdi: 'mint', ipca: 'sun', igpm: 'lilac',
+  },
+} as const;
+
 /** Rail cards: the balance, budget and goal cards on the card rails (K36, OQ-215). */
 export const railCard = {
   /** From what share of its target, in whole percent, a budget reads as near its limit (sun). */

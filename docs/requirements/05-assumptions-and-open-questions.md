@@ -7058,6 +7058,22 @@ only the journey in the browser, and checks the end state through the API
 
 **Task 131 (`FL19`) is complete.**
 
+### OQ-235: Rates Maintenance (task FL20)
+**Confirmed with the stakeholder (Nov 2026):**
+- **The save hint says what is always true: "Payouts for 2 holdings are projected from the latest value."** Mockup 53's "Re-projects payouts for 1 holding." is wrong for most history edits, since a projection reads only an index's latest value (FR-11.2, FR-11.6). Editing or deleting an older value re-projects nothing. With no Holding tracking the index it reads "No holding is projected from it yet." The same sentence is the inline form's hint and K46's `impactHint`, so K46 is unchanged. Weighed and rejected: the mockup's wording on every save, which overstates it, and a hint that knows whether the latest value changes, which K46's `impactHint(fromDate)` can't tell without the old and new days.
+
+**Design decisions:**
+- **Mockup 53's cards, one per index in the API's order** (`INDEX_CODES`): a dot in the index's colour (`ratesMaintenance.indexTones`: Selic sky, CDI mint, IPCA sun, IGP-M lilac), its name (`indexName`, moved with the `index.*` keys from `holdingMaintenance` to `holdingNames`, shared with FL19's estimate note) and what it measures, then the latest value with its unit ("a year" / "over 12 months"; pt-BR "a.a." / "em 12m"). Under it, "as of 09/30/2026 · +0.18 pp vs Aug": the change against the value before, by that value's month, or by its day when both fall in one month ("vs Sep 18"), or "unchanged". An index with no value reads "No value yet" and draws no chart.
+- **The chart shows the last 6 months counted back from the latest value's month** (`ratesMaintenance.chartMonths`, K38 `history` with `showRange` and `grid`, OQ-229 leaving the window to the Flow), so an index nobody updated lately still draws its line. The history drawer shows every value.
+- **"Used by" lists the active Holdings whose rate tracks the index,** by ticker or identifier, from the household Holdings X7 already reads (OQ-234). Two contracts of one title are two chips, keyed by id. While the Holdings load, the row and the hint stay out.
+- **Rate Update Entry is mockup 53's inline form, in the buttons' place:** New value (K8, may go below zero), As of (today until changed), the hint, Cancel and Save. It checks the draft with K46's `draftErrorsOf` and `uniqueDays`, so a day already taken is refused before sending. Problems show once a save is refused, focused on the first; it opens focused on the value; Escape cancels, except while a request runs (`cancelOnEscape`). Only one form is open on the page; Cancel or a save hands focus back to Update. **Rate History Editor** is K46 in a drawer with `uniqueDays`, the line in the index's colour.
+- **Who may change it (OQ-178), through `mayManageOwned` with the recorder as owner:** an Owner or Admin any value, a Member those they recorded, a Viewer nothing ("View history", no Update). Another's value is locked "Added by Ana", from the household's members (`GET …/members`, which every member may read); one whose recorder is gone, "Added by a former member".
+- **The Flow holds which form and which drawer are open;** `RateSlot` words one index and turns each request's answer into `done` / `refused` and a toast. The entries are memoized on the query's data, so K46 sees a new list only on a refetch (OQ-232). The answer-and-toast helper moved from FL19's open row to `trackInvestments/historyAnswer.ts`, shared by both Flows.
+- **X7 (task 133) fills the Flow's props:** the rates read, the household Holdings, the members, the viewer and the record / edit / delete requests. A rate write refetches the rates, the overview and the Holdings (their expected payouts are projected from it).
+- **Tests (BDT):** the model directly; each Interaction through the real translator and kit; `RateSlot` with its Interactions stubbed and the toast queue real; the Flow with `RateSlot` stubbed. 100% coverage. Not checked in a real browser: the page is X7's.
+
+**Task 132 (`FL20`) is complete.**
+
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
 *(None currently — OQ-29, the last item here, was resolved during data

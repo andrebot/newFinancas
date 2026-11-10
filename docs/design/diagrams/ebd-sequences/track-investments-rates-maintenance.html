@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>Track Investments — Rates Maintenance</h1>
-  <p class="subtitle"><span class="route">GET /households/:householdId/index-rates</span>, <span class="route">POST/PATCH/DELETE /households/:householdId/index-rates/:index/values</span>.</p>
+  <p class="subtitle"><span class="route">GET /households/:householdId/index-rates</span> with <span class="route">GET /households/:householdId/holdings?includeArchived=true</span> (shared with the other tabs) and <span class="route">GET /households/:householdId/members</span>; <span class="route">POST/PATCH/DELETE /households/:householdId/index-rates/:index/values</span> (OQ-172, OQ-178, OQ-235).</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -67,27 +67,37 @@ sequenceDiagram
     participant EXP as Track Investments<br/>Experience
     participant API as Backend API
     FLOW->>EXP: request rates
+    par the rates, the Holdings they feed, who recorded them
     EXP->>API: GET /households/:householdId/index-rates
-    API-->>EXP: every index with history
-    EXP-->>FLOW: state
-    FLOW-->>RC: render Selic, CDI, IPCA, IGP-M with charts
-    alt update
-        User->>RU: value + as-of date
-        RU->>FLOW: emit rateEntered
+    API-->>EXP: every index (in-code order) with its values, newest first
+    EXP->>API: GET /households/:householdId/holdings?includeArchived=true
+    API-->>EXP: every visible Holding (its rate's index)
+    EXP->>API: GET /households/:householdId/members
+    API-->>EXP: the members (first names)
+    end
+    EXP-->>FLOW: state (rates, Holdings, members, viewer)
+    FLOW-->>RC: render Selic, CDI, IPCA, IGP-M — latest value, last 6 months, Used by
+    alt update (anyone but a Viewer)
+        User->>RC: Update
+        RC->>FLOW: emit updateOpened (one form on the page)
+        User->>RU: value + as-of date, Save
+        RU->>FLOW: emit rateEntered (day not taken, not after today)
         FLOW->>EXP: request record
         EXP->>API: POST /households/:householdId/index-rates/:index/values
-    else fix history
-        User->>RH: edit or delete an entry
+    else fix history (drawer)
+        User->>RH: edit or delete an entry (another member's is locked)
         RH->>FLOW: emit historyChange
         FLOW->>EXP: request edit / delete
         EXP->>API: PATCH or DELETE /households/:householdId/index-rates/:index/values/:valueId
     end
-    API-->>EXP: done
+    API-->>EXP: done or error code (e.g. 409 index_rate.duplicate_day, 403, 404 index_rate.not_found)
+    EXP-->>FLOW: ok / failed — a toast either way, K46 / the form answered done / refused
+    EXP->>API: refetch by tag (rates — the overview and Holdings re-project)
     EXP-->>FLOW: state refreshed
     </pre>
   </div>
   <div class="notes">
-<ul><li>Values are × 10,000 on the wire; FormattingUtility shows 10.50% a.a.</li></ul>
+<ul><li>Values are × 10,000 on the wire; FormattingUtility shows 10.50%.</li><li>Only an index's latest value feeds projections (FR-11.2), so the hint says that rather than "re-projects" (OQ-235).</li><li>A Member changes only the values they recorded; an Owner or Admin any; a Viewer only reads (OQ-178).</li></ul>
   </div>
   <script>
     mermaid.initialize({

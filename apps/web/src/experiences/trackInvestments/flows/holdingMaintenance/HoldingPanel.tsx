@@ -2,18 +2,17 @@ import type {
   Currency, HoldingAllocation, IndexRateSeries, LedgerItem, ValuationSnapshot,
 } from '@financas/api-types';
 import { useState } from 'react';
-import type {
-  HistoryOutcome, HistorySubmission,
-} from '../../../../kit/historyEditor/historyModel';
+import type { HistorySubmission } from '../../../../kit/historyEditor/historyModel';
 import { InlineBanner } from '../../../../kit/alert/InlineBanner';
 import { Button } from '../../../../kit/button/Button';
 import { SkeletonRows } from '../../../../kit/skeleton/Skeleton';
 import { useAlerts } from '../../../../utilities/AlertProvider';
 import { useI18n } from '../../../../utilities/I18nProvider';
-import type { RequestOutcome } from '../../../../utilities/requestOutcome';
+import type { RequestFailure, RequestOutcome } from '../../../../utilities/requestOutcome';
 import type { SourceState } from '../../../../utilities/sourceState';
 import useToday from '../../../../utilities/useToday';
 import { holdingIdOf } from '../../../holdingNames';
+import answerOf from '../../historyAnswer';
 import {
   historyEntriesOf, isFixedTermHolding, latestIndexOf, type HoldingGoal, type HoldingRow,
 } from './holdingMaintenance';
@@ -83,30 +82,6 @@ export interface HoldingPanelProps {
 }
 
 /**
- * Turns a request's answer into K46's outcome, with a toast either way.
- *
- * @param request - The request.
- * @param doneText - The success toast.
- * @param alerts - The page's toasts.
- * @param errorText - Writes a failure's code.
- * @returns `done` on success, `refused` otherwise.
- */
-const answerOf = async (
-  request: Promise<RequestOutcome>,
-  doneText: string,
-  alerts: ReturnType<typeof useAlerts>,
-  errorText: (outcome: Extract<RequestOutcome, { ok: false }>) => string,
-): Promise<HistoryOutcome> => {
-  const outcome = await request;
-  if (outcome.ok) {
-    alerts.success(doneText);
-    return 'done';
-  }
-  alerts.error(errorText(outcome));
-  return 'refused';
-};
-
-/**
  * Builds the open row's handlers: each request, answered for K46/K47 and toasted.
  *
  * @param holdingId - The Holding.
@@ -117,9 +92,7 @@ const useHandlers = (holdingId: string, requests: HoldingRequests) => {
   const translator = useI18n();
   const alerts = useAlerts();
   const say = (key: string) => translator.text('holdingMaintenance', key as 'value.saved');
-  const errorText = ({ error }: Extract<RequestOutcome, { ok: false }>) => (
-    translator.error(error.code, error.params)
-  );
+  const errorText = ({ code, params }: RequestFailure) => translator.error(code, params);
   const valueOf = ({ date, value }: HistorySubmission): MarketValue => ({
     asOfDate: date, valuation: value,
   });

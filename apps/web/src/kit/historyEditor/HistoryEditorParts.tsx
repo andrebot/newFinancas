@@ -235,7 +235,7 @@ export const defaultValueLabelOf = (
  * @param translator - The interface language's translator.
  * @returns The message.
  */
-const dateErrorText = (
+export const dateErrorText = (
   error: HistoryDateError | undefined,
   translator: ReturnType<typeof useI18n>,
 ): string | undefined => {

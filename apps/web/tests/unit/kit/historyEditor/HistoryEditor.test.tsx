@@ -14,6 +14,7 @@ import {
   editingKeyOf, openStillListed, outcomeOf, settlingKeyOf,
 } from '../../../../src/kit/historyEditor/useHistoryEditing';
 import { renderInLocale } from '../../../support/renderInLocale';
+import typeInto from '../../../support/typeInto';
 
 // Kit component (BDT: Interaction tier → unit): only the caller's callbacks
 // are stand-ins; the translator, the inputs, K38 and K26 run for real.
@@ -77,20 +78,6 @@ const renderEditor = (
   return {
     ...view, onSave, onDelete, impactHint, props: all,
   };
-};
-
-/**
- * Types into a field as the browser does, then fires the input event React reads.
- *
- * @param name - The field's label.
- * @param text - Its text after the edit.
- */
-const typeInto = (name: string, text: string) => {
-  const input = screen.getByRole<HTMLInputElement>('textbox', { name });
-  const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
-  setValue?.call(input, text);
-  input.setSelectionRange(text.length, text.length);
-  fireEvent.input(input);
 };
 
 /**
