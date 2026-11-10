@@ -3769,7 +3769,8 @@ components:
                 description: >-
                   The last 6 months at most, oldest first, ending this month,
                   from the first month the currency held value; each month's
-                  figure on its last day, this month's today (OQ-231, OQ-236)
+                  figure on its last day, this month's today, a Holding counted
+                  until the day it was archived (OQ-231, OQ-236)
                 items:
                   type: object
                   required: [month, amount]

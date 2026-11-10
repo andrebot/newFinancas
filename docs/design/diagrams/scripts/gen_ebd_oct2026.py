@@ -1220,7 +1220,7 @@ else fix history (drawer)
 end
 API-->>EXP: done or error code (e.g. 409 index_rate.duplicate_day, 403, 404 index_rate.not_found)
 EXP-->>FLOW: ok / failed — a toast either way, K46 / the form answered done / refused
-EXP->>API: refetch by tag (rates — the overview and Holdings re-project)
+EXP->>API: refetch by tag (rates and Holdings — their expected payouts re-project, OQ-236)
 EXP-->>FLOW: state refreshed
 """, ["Values are × 10,000 on the wire; FormattingUtility shows 10.50%.", "Only an index's latest value feeds projections (FR-11.2), so the hint says that rather than \"re-projects\" (OQ-235).", "A Member changes only the values they recorded; an Owner or Admin any; a Viewer only reads (OQ-178)."]),
     ("review-insights-dashboard", "Review Insights — Dashboard", f"{R('GET /households/:householdId/dashboard')}, {R('GET /households/:householdId/reports/payouts?holdingIds=')}.",

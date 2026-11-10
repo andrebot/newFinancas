@@ -6,6 +6,8 @@ import type {
 import type {
   InvestmentHoldingAccessor, PricedHolding,
 } from '../../accessors/investmentHoldingAccessor';
+import { calendar } from '../../config/constants';
+import calendarDate from '../../utilities/calendar';
 import {
   monthEnd, monthKey, monthOf, monthOrdinal, monthsBetween, type CalendarMonth,
 } from '../../utilities/calendarMonth';
@@ -16,7 +18,9 @@ import type { Viewer } from './monthOverview';
 // OQ-233, OQ-236). Net worth here is the visible Holdings' value — a
 // market-priced one's latest snapshot, a fixed-term one's cost basis (OQ-51) —
 // per currency, never summed (FR-5.3). Each month reads as it was: a Holding
-// archived since still counts for a month it held value. Today's slices,
+// counts until the day it was archived, never after — a matured contract
+// archived by hand, its redemption never recorded, still holds its principal,
+// and the slices leave it out too (OQ-236, review round 1). Today's slices,
 // Coming Due and this month's payouts read the active Holdings. A payout is a
 // dividend or interest transaction linked to its Holding (FR-5.9). What the
 // viewer sees is the Accounts AccountAccessor lists for them.
@@ -170,8 +174,20 @@ export const netWorthOf = (currency: string, series: readonly MonthAmount[]): Ne
 };
 
 /**
+ * Tells whether a Holding counts on a day: it does until the day it was
+ * archived, in the app's time zone (OQ-236).
+ *
+ * @param holding - The Holding.
+ * @param date - The day, `YYYY-MM-DD`.
+ * @returns Whether it was still active then.
+ */
+export const activeOn = (holding: PricedHolding, date: string): boolean => (
+  holding.archivedAt === null || calendarDate(holding.archivedAt, calendar.timeZone) > date
+);
+
+/**
  * Net worth per currency over a window (FR-5.3, FR-5.4): each past month on its
- * last day, this month today.
+ * last day, this month today — each day counting the Holdings active then.
  *
  * @param deps - The value reads.
  * @param holdings - The visible Holdings, archived ones included.
@@ -188,12 +204,13 @@ const netWorthsOf = async (
   const last = window.length - 1;
   const totals = await Promise.all(window.map(async (month, index) => {
     const date = index === last ? today : monthEnd(month);
-    return totalsByCurrency(holdings, await valuesOn(deps, holdings, date));
+    const active = holdings.filter((holding) => activeOn(holding, date));
+    return totalsByCurrency(active, await valuesOn(deps, active, date));
   }));
   const currencies = [...new Set(holdings.map((holding) => holding.currency))].sort();
   return currencies.flatMap((currency) => netWorthOf(currency, window.map((month, index) => ({
-    // Every Holding's currency has a total, however small: none is missing.
-    month: monthKey(month), amount: totals[index]!.get(currency)!,
+    // A currency none of that day's active Holdings is in has no total: nothing.
+    month: monthKey(month), amount: totals[index]!.get(currency) ?? 0,
   }))));
 };
 

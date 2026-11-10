@@ -92,13 +92,14 @@ export const ledgerPathOf = ({ householdId, query }: LedgerInput, cursor: string
  * Names the caches a write makes stale: all of them once it went through, or
  * when it says its row is gone; none when it failed otherwise. The shared
  * accounts and goals too: it moved a balance, and a buy's split moves a
- * goal's funding (Account Setup shows both, PR #145).
+ * goal's funding (Account Setup shows both, PR #145); and the Holdings' splits,
+ * which a trade can save (Holding Maintenance shows them, OQ-236).
  *
  * @param error - The write's failure, if any.
  * @returns The tags to invalidate.
  */
 export const writeTagsOf = (error: unknown) => changedTags(
-  [...WRITE_TAGS, 'Accounts', 'Goals'],
+  [...WRITE_TAGS, 'Accounts', 'Goals', 'HoldingAllocations'],
   error,
   GONE,
 );
@@ -140,6 +141,8 @@ export const manageFinancesApi = backendApi.enhanceEndpoints({
     listHoldingAllocations: build.query<readonly HoldingAllocation[], HoldingTarget>({
       query: (target) => `${holdingPath(target)}/allocations`,
       transformResponse: (response: HoldingAllocations) => response.data,
+      // Holding Maintenance saves splits: its save makes this one stale (OQ-236).
+      providesTags: ['HoldingAllocations', 'Goals'],
     }),
     listScheduleEntries: build.query<readonly InvestmentScheduleEntry[], HoldingTarget>({
       query: (target) => `${holdingPath(target)}/schedule-entries`,

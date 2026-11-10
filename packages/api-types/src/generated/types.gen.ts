@@ -1007,7 +1007,7 @@ export type InvestmentsOverviewReport = {
          */
         changeVsPreviousMonth?: Money;
         /**
-         * The last 6 months at most, oldest first, ending this month, from the first month the currency held value; each month's figure on its last day, this month's today (OQ-231, OQ-236)
+         * The last 6 months at most, oldest first, ending this month, from the first month the currency held value; each month's figure on its last day, this month's today, a Holding counted until the day it was archived (OQ-231, OQ-236)
          */
         series: Array<{
             month: string;
@@ -3173,7 +3173,7 @@ export type GetDashboardResponses = {
              */
             changeVsPreviousMonth?: Money;
             /**
-             * The last 6 months at most, oldest first, ending this month, from the first month the currency held value; each month's figure on its last day, this month's today (OQ-231, OQ-236)
+             * The last 6 months at most, oldest first, ending this month, from the first month the currency held value; each month's figure on its last day, this month's today, a Holding counted until the day it was archived (OQ-231, OQ-236)
              */
             series: Array<{
                 month: string;

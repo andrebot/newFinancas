@@ -39,12 +39,13 @@ describe('ledgerPathOf', () => {
 });
 
 describe('writeTagsOf', () => {
-  it('makes the ledger, the month, the balances and the Goals stale after a write', () => {
-    expect(writeTagsOf(undefined)).toEqual(['Ledger', 'MonthOverview', 'Accounts', 'Goals']);
+  it('makes the ledger, the month, the balances, the Goals and splits stale after a write', () => {
+    expect(writeTagsOf(undefined))
+      .toEqual(['Ledger', 'MonthOverview', 'Accounts', 'Goals', 'HoldingAllocations']);
   });
 
   it('does so too when the row is already gone', () => {
-    expect(writeTagsOf({ code: 'transaction.not_found' })).toHaveLength(4);
+    expect(writeTagsOf({ code: 'transaction.not_found' })).toHaveLength(5);
   });
 
   it.each([

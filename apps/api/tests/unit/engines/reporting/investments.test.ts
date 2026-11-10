@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  allocationsOf, comingDueOf, investmentsOverview, netWorthOf, payoutSeriesOf, payoutsReport,
-  visibleHoldingsOf, windowOf,
+  activeOn, allocationsOf, comingDueOf, investmentsOverview, netWorthOf, payoutSeriesOf,
+  payoutsReport, visibleHoldingsOf, windowOf,
 } from '../../../../src/engines/reporting/investments';
 import {
   aHolding, anAccount, aPayout, aSnapshot, fakeDeps, VIEWER,
@@ -56,6 +56,17 @@ describe('visibleHoldingsOf', () => {
       { id: 'petr4', currency: 'BRL' },
       { id: 'aapl', currency: 'USD' },
     ]);
+  });
+});
+
+describe('activeOn (OQ-236)', () => {
+  it('counts a Holding until the day it was archived, in the app\'s time zone', () => {
+    // 02:00 UTC on 1 October is still 30 September in São Paulo.
+    const archived = aHolding({ archivedAt: new Date('2026-10-01T02:00:00Z') });
+
+    expect(activeOn(archived, '2026-09-29')).toBe(true);
+    expect(activeOn(archived, '2026-09-30')).toBe(false);
+    expect(activeOn(aHolding(), '2030-01-01')).toBe(true);
   });
 });
 
@@ -170,26 +181,25 @@ describe('comingDueOf (OQ-236)', () => {
 });
 
 describe('investmentsOverview (FR-5.3, FR-5.9)', () => {
-  it('values each month on its last day, this one today, archived Holdings too', async () => {
-    const archived = aHolding({ id: 'sold', archivedAt: new Date('2026-09-20') });
-    const deps = householdWith([aHolding(), archived, CDB]);
-    deps.latestSnapshots.mockImplementation(async (_ids, date) => (
-      date === TODAY ? [aSnapshot('petr4', 300)] : [aSnapshot('petr4', 200), aSnapshot('sold', 50)]
+  it('values each month on its last day, this one today', async () => {
+    const deps = householdWith([aHolding(), CDB]);
+    deps.latestSnapshots.mockImplementation(async (ids, date) => (
+      ids.includes('petr4') ? [aSnapshot('petr4', date === TODAY ? 300 : 200)] : []
     ));
-    deps.costBasisAsOf.mockImplementation(async () => [{ holdingId: 'cdb', costBasis: 1_000 }]);
+    deps.costBasisAsOf.mockImplementation(async (ids) => (
+      ids.includes('cdb') ? [{ holdingId: 'cdb', costBasis: 1_000 }] : []
+    ));
 
     const overview = await investmentsOverview(deps, VIEWER, { today: TODAY, months: 2 });
 
     expect(overview.netWorth).toEqual([{
       currency: 'BRL',
       amount: 1_300,
-      changeVsPreviousMonth: 50,
-      series: [{ month: '2026-09', amount: 1_250 }, { month: '2026-10', amount: 1_300 }],
+      changeVsPreviousMonth: 100,
+      series: [{ month: '2026-09', amount: 1_200 }, { month: '2026-10', amount: 1_300 }],
     }]);
-    expect(deps.latestSnapshots).toHaveBeenCalledWith(['petr4', 'sold'], '2026-09-30');
-    expect(deps.latestSnapshots).toHaveBeenCalledWith(['petr4', 'sold'], TODAY);
-    // Today's slices and Coming Due read the active Holdings only.
-    expect(deps.latestSnapshots).toHaveBeenCalledWith(['petr4'], TODAY);
+    expect(deps.latestSnapshots).toHaveBeenCalledWith(['petr4'], '2026-09-30');
+    expect(deps.costBasisAsOf).toHaveBeenCalledWith(['cdb'], TODAY);
     expect(overview.allocations.filter((slice) => slice.kind === 'holding')).toEqual([
       {
         kind: 'holding', key: 'petr4', currency: 'BRL', amount: 300,
@@ -200,6 +210,62 @@ describe('investmentsOverview (FR-5.3, FR-5.9)', () => {
     ]);
     expect(overview.comingDue).toEqual([{
       holdingId: 'cdb', name: 'CDB Banco X', dueDate: '2027-03-15', currency: 'BRL', amount: 1_000,
+    }]);
+  });
+
+  it('counts an archived Holding only before the day it was archived (OQ-236)', async () => {
+    // A stock sold out in September, and a matured CDB archived by hand in
+    // October with its redemption never recorded: its principal is still there.
+    const sold = aHolding({ id: 'sold', archivedAt: new Date('2026-09-20T12:00:00Z') });
+    const matured = aHolding({
+      id: 'matured',
+      assetType: 'cdb',
+      dueDate: '2026-08-15',
+      archivedAt: new Date('2026-10-02T12:00:00Z'),
+    });
+    const deps = householdWith([aHolding(), sold, matured]);
+    deps.latestSnapshots.mockImplementation(async (ids) => [
+      aSnapshot('petr4', 200), aSnapshot('sold', 50),
+    ].filter(({ holdingId }) => ids.includes(holdingId)));
+    deps.costBasisAsOf.mockImplementation(async (ids) => (
+      ids.includes('matured') ? [{ holdingId: 'matured', costBasis: 1_000 }] : []
+    ));
+
+    const overview = await investmentsOverview(deps, VIEWER, { today: TODAY, months: 3 });
+
+    expect(overview.netWorth).toEqual([{
+      currency: 'BRL',
+      amount: 200,
+      changeVsPreviousMonth: -1_000,
+      series: [
+        { month: '2026-08', amount: 1_250 },
+        { month: '2026-09', amount: 1_200 },
+        { month: '2026-10', amount: 200 },
+      ],
+    }]);
+    // Net worth today is what today's slices add up to.
+    expect(overview.allocations.filter((slice) => slice.kind === 'holding')).toEqual([
+      {
+        kind: 'holding', key: 'petr4', currency: 'BRL', amount: 200,
+      },
+    ]);
+    expect(overview.comingDue).toEqual([]);
+  });
+
+  it('keeps a currency whose Holdings were all archived, at nothing since', async () => {
+    const sold = aHolding({ id: 'aapl', archivedAt: new Date('2026-10-01T12:00:00Z') });
+    const deps = householdWith([{ ...sold, accountId: 'brokerage' }]);
+    deps.latestSnapshots.mockImplementation(async (ids) => (
+      ids.includes('aapl') ? [aSnapshot('aapl', 70)] : []
+    ));
+
+    const overview = await investmentsOverview(deps, VIEWER, { today: TODAY, months: 2 });
+
+    expect(overview.netWorth).toEqual([{
+      currency: 'USD',
+      amount: 0,
+      changeVsPreviousMonth: -70,
+      series: [{ month: '2026-09', amount: 70 }, { month: '2026-10', amount: 0 }],
     }]);
   });
 

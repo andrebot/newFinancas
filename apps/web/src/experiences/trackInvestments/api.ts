@@ -16,8 +16,9 @@ import { holdingMaintenance } from '../../config/constants';
 // so a transaction recorded in Manage Finances refreshes the page (PR #145).
 // A write that went through — or whose target is already gone — invalidates
 // what it changed: a value the overview, the Goals' progress and the history;
-// a split the Goals and the split; a rate the rates, the overview and the
-// Holdings, whose expected payouts are projected from it (OQ-235).
+// a split the Goals and the split (a tag shared with Manage Finances); a rate
+// the rates and the Holdings, whose expected payouts are projected from it
+// (OQ-235, OQ-236).
 
 /** What addresses a Holding inside its household. */
 export interface HoldingTarget {
@@ -71,8 +72,8 @@ export interface RateValueTarget extends IndexTarget {
 
 /** The Experience's own caches. */
 const OWN_TAGS = [
-  'InvestmentsOverview', 'Payouts', 'Holdings', 'IndexRates', 'HoldingAllocations',
-  'ValuationSnapshots', 'HoldingActivity',
+  'InvestmentsOverview', 'Payouts', 'Holdings', 'IndexRates', 'ValuationSnapshots',
+  'HoldingActivity',
 ] as const;
 
 /** Builds a household's path. */
@@ -124,8 +125,11 @@ const VALUE_TAGS = ['ValuationSnapshots', 'InvestmentsOverview', 'Goals'] as con
 /** What a split write makes stale. */
 const SPLIT_TAGS = ['HoldingAllocations', 'Goals'] as const;
 
-/** What a rate write makes stale (OQ-235). */
-const RATE_TAGS = ['IndexRates', 'InvestmentsOverview', 'Holdings'] as const;
+/**
+ * What a rate write makes stale: the Holdings, whose expected payouts are
+ * projected from it — not the overview, which projects nothing (OQ-236).
+ */
+const RATE_TAGS = ['IndexRates', 'Holdings'] as const;
 
 /** Track Investments' slice of the backend API. */
 export const trackInvestmentsApi = backendApi.enhanceEndpoints({

@@ -188,10 +188,40 @@ describe('a rate write (OQ-235)', () => {
         householdId: 'doe', index: 'cdi', valueId: 'v-1',
       }),
     )],
-  ])('reads the rates, the overview and the Holdings again after %s', async (_name, write) => {
+  ])('reads the rates and the Holdings again after %s, not the overview', async (
+    _name,
+    write,
+  ) => {
     expect(await readsAfter([OVERVIEW, HOLDINGS, RATES, SNAPSHOTS], write)).toEqual({
-      [OVERVIEW[0]]: 2, [HOLDINGS[0]]: 2, [RATES[0]]: 2, [SNAPSHOTS[0]]: 1,
+      [OVERVIEW[0]]: 1, [HOLDINGS[0]]: 2, [RATES[0]]: 2, [SNAPSHOTS[0]]: 1,
     });
+  });
+});
+
+describe('a Holding\'s split (OQ-236)', () => {
+  it('is read again in Manage Finances after Holding Maintenance saves it', async () => {
+    const fetchFn = fakeFetch(WRITE_ANSWERS);
+    const { store } = fakeStore({ refreshToken: 'r-0', fetchFn });
+    const split = store.dispatch(
+      manageFinancesApi.endpoints.listHoldingAllocations.initiate(HOLDING),
+    );
+    await split;
+    await store.dispatch(trackInvestmentsApi.endpoints.saveHoldingAllocations.initiate({
+      ...HOLDING, allocations: [],
+    }));
+    await settle();
+    const reads = (await sent(fetchFn))
+      .filter(({ route }) => route === 'GET /api/v1/households/doe/holdings/h-1/allocations');
+    expect(reads).toHaveLength(2);
+    split.unsubscribe();
+  });
+
+  it('is read again in Holding Maintenance after a trade changes in Manage Finances', async () => {
+    expect(await readsAfter([SPLIT], (store) => store.dispatch(
+      manageFinancesApi.endpoints.deleteTransaction.initiate({
+        householdId: 'doe', transactionId: 't-1',
+      }),
+    ))).toEqual({ [SPLIT[0]]: 2 });
   });
 });
 
