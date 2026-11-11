@@ -7126,6 +7126,19 @@ only the journey in the browser, and checks the end state through the API
 
 **Task 134 (`I6`) is complete.**
 
+### OQ-238: Frontend ↔ backend: investments (task I10)
+**Confirmed with the stakeholder (Nov 2026):**
+- **Core #10 reaches the 409 through a share the editor can't show.** The split editor (K47) never sends more than 100% of the shares it shows (`isAllocationValid`), so a browser split past 100% needs one it hides: a share funding another member's personal Goal, which `PATCH /holdings/{id}` keeps and still counts (OQ-178). A Member buys a stock on the shared account with 60% to their personal Goal; the Owner, seeing only the shared Goal, gives it 41% in Holding Maintenance. The server refuses (409 `goal.allocation_exceeds_100`, the toast says 101%), the Member's 60% is intact and the Owner's split still empty; 40% then saves (uc-02's success). Weighed and rejected: the same check through the API alone, which skips the frontend ↔ backend seam, and a race like #9's, which replace-all semantics can't produce.
+- **Core #6's projection is a CDI-linked CDB whose index moves.** A CDB at 110% of CDI, bought through the API with CDI at 10.00% (I9 already records a buy in the browser), shows on the Holdings tab's Contract card the expected payout, taxes and net the API's household Holdings read projects. A newer CDI value (12.50%, today) recorded in the Rates tab raises the projection, and the reopened card shows the new figures and rate — the card follows the index's latest value, not the one the buy saw. Weighed and rejected: one static check, which can't tell the latest value from any other, and checking I9's fixed-rate CDB, which involves no index.
+
+**Design decisions:**
+- **Five journeys in `tests/e2e/investments/`**, arranged and checked through the API (`tests/e2e/support/investmentsApi.ts`: index values, the household Holdings as projected, a Holding's visible split; `createGoal` takes a visibility): `holdingProjection.spec.ts` (#6, `@core`), `allocationLimit.spec.ts` (#10, `@core`), and Full E2E, untagged — `marketValues.spec.ts` (uc-05/06/07: today's value in the Market value card, then the history drawer edits it, adds a past value and deletes today's; the buy's snapshot listed "From a trade"), `indexRates.spec.ts` (uc-08/09/10: the same on Selic, through Update and the Rate History drawer) and `payoutSelection.spec.ts` (two stocks paying dividends; unticking one asks again for `/reports/payouts` alone, with the other's id, the legend keeps only it, and the choice survives a reload).
+- **Not here:** accepting "Archive holding" from the bell (core #13's last step and the Track Investments routing scenario) joins with I12 (task 141), as OQ-237 left it.
+- **The kit's checkbox is clicked through its label,** as a user does: the input is visually hidden behind it.
+- **Nothing in the app changed.** No bug was found, so no call, route or step moved and no diagram is redrawn.
+
+**Task 135 (`I10`) is complete.**
+
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
 *(None currently — OQ-29, the last item here, was resolved during data
