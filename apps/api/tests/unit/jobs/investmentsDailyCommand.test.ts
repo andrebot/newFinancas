@@ -5,7 +5,7 @@ import {
 import { newCorrelationId } from '../../../src/utilities/correlationId';
 import { createDomainError } from '../../../src/utilities/domainError';
 import {
-  reportInvestmentsDaily, reportInvestmentsDailyFailure, runInvestmentsDailyCommand,
+  reportInvestmentsDaily, reportInvestmentsDailyFailure, runInvestmentsDailyCommand, todayOption,
 } from '../../../src/jobs/investmentsDailyCommand';
 import type { InvestmentsDailyRun } from '../../../src/jobs/investmentsDaily';
 
@@ -65,6 +65,32 @@ describe('investments:run command lifecycle', () => {
     deps.run.mockResolvedValueOnce(undefined);
     expect(await runInvestmentsDailyCommand(deps)).toBe(0);
     expect(deps.onCompleted).toHaveBeenCalledExactlyOnceWith(undefined, deps.run.mock.calls[0]![1]);
+    expect(deps.close).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['2026-11-02', '2020-07-02', '2024-02-29'])(
+    'runs as of %s, a real day on or before today (OQ-237)',
+    async (asOf) => {
+      const deps = setup();
+      expect(await runInvestmentsDailyCommand({ ...deps, asOf })).toBe(0);
+      expect(deps.run).toHaveBeenCalledExactlyOnceWith(asOf, expect.any(String));
+    },
+  );
+
+  it.each([
+    ['a later day', '2026-11-03'],
+    ['a day that does not exist', '2020-02-30'],
+    ['a day that does not parse', '2020-13-45'],
+    ['another format', '02/07/2020'],
+    ['an empty value', ''],
+  ])('refuses %s without running, still closing (OQ-237)', async (_case, asOf) => {
+    const deps = setup();
+    expect(await runInvestmentsDailyCommand({ ...deps, asOf })).toBe(1);
+    expect(deps.run).not.toHaveBeenCalled();
+    expect(deps.onError).toHaveBeenCalledExactlyOnceWith(
+      new Error(`--today must be a YYYY-MM-DD day on or before 2026-11-02, not "${asOf}"`),
+      expect.any(String),
+    );
     expect(deps.close).toHaveBeenCalledTimes(1);
   });
 
@@ -152,5 +178,17 @@ describe('daily run reporting', () => {
     expect(events[0]).toMatchObject({
       label: 'investmentsDaily', actor: 'system', correlationId, level, message, ...result,
     });
+  });
+});
+
+describe('todayOption', () => {
+  it('reads --today wherever it sits among the arguments', () => {
+    expect(todayOption(['node', 'server.ts', '--investments-daily', '--today=2020-07-02']))
+      .toBe('2020-07-02');
+    expect(todayOption(['node', 'server.ts', '--today=', '--investments-daily'])).toBe('');
+  });
+
+  it('is undefined without the option', () => {
+    expect(todayOption(['node', 'server.ts', '--investments-daily', '--today'])).toBeUndefined();
   });
 });

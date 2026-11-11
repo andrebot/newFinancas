@@ -21,7 +21,8 @@ pnpm db:seed:demo    # optional: a demo household (idempotent); sign in as ana@ 
 pnpm generate:mfacode # the demo users' current MFA code (instead of an authenticator app)
 pnpm db:backup       # back up the database (restore + drill: docs/operations/backup-restore.md)
 pnpm audit:reconcile # restore audit entries missing from the database, from the log files
-pnpm investments:run # run the daily investment checks now (no HTTP server or timer)
+pnpm investments:run # run the daily investment checks now (no HTTP server or timer);
+                     # --today=YYYY-MM-DD runs as of an earlier day
 pnpm dev            # api on :3000, web on :5173
 pnpm storybook      # component library on :6006 (dev-only, OQ-128)
 pnpm check          # lint + typecheck + API contract + unit + integration, 100% coverage gate

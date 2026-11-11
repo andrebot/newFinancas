@@ -322,7 +322,7 @@ sequenceDiagram
     participant ATA as AccountTransactionAccessor
     participant LOG as LoggingUtility
 
-    Note over CRON: API startup catch-up, then once per São Paulo day<br/>or pnpm investments:run — capture today once (OQ-227)
+    Note over CRON: API startup catch-up, then once per São Paulo day<br/>or pnpm investments:run [--today=an earlier day, OQ-237] — capture today once (OQ-227)
     CRON->>CRON: acquire pinned PostgreSQL session lock
     alt another run owns the lock
         Note over CRON: skip without scanning, timer retries next minute
@@ -437,7 +437,7 @@ sequenceDiagram
       <li><strong>Type + params, never text (OQ-82):</strong> the frontend renders &ldquo;Your CDB matured on 2026-10-01. Archive it?&rdquo; in the reader&#39;s language from <code>assetType</code>. <strong>OQ-178:</strong> the params carry <code>assetType</code> and <code>ticker</code> instead of a <code>holdingName</code> &mdash; a Holding has no name, and a label is the reader&#39;s language&#39;s to build.</li>
       <li><strong>Recipients are the Manager&#39;s (OQ-171):</strong> the event carries the Holding&#39;s Account owner and visibility; a shared Account&#39;s recipients are its household&#39;s members, read through <code>HouseholdAccessor</code> &mdash; the Accessor never reads memberships.</li>
       <li><strong>Synchronous on purpose:</strong> unlike invitations, the Manager waits for every delivery (all settled), because marking the Holding notified depends on them all. A partial failure re-notifies tomorrow, including those already told &mdash; accepted.</li>
-      <li><strong>N9 (OQ-227):</strong> the publisher runs on startup, once per app calendar day, or with <code>pnpm investments:run</code>. It holds the same session lock as the cash stream, drains delivery, then re-reads matured candidates to count unconfirmed notices separately from publications. A scan failure retries next tick, a deferred delivery next day or manual run.</li>
+      <li><strong>N9 (OQ-227):</strong> the publisher runs on startup, once per app calendar day, or with <code>pnpm investments:run</code> (as of an earlier day with <code>--today</code>, OQ-237). It holds the same session lock as the cash stream, drains delivery, then re-reads matured candidates to count unconfirmed notices separately from publications. A scan failure retries next tick, a deferred delivery next day or manual run.</li>
       <li>Normally a redemption (UC-4) zeroes and auto-archives the Holding first; this catches the rest.</li>
       <li>See FR-5.8, FR-6.5, OQ-68, OQ-72, OQ-82, OQ-171, OQ-178; Manager review M6.</li>
     </ul>
