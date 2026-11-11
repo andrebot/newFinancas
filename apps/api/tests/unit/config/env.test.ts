@@ -14,6 +14,7 @@ describe('loadEnv', () => {
       DATABASE_URL,
       EMAIL_PROVIDER: 'console',
       WEB_APP_URL: 'https://financas.example.com/',
+      INVESTMENTS_DAILY_TIMER: 'off',
       ...SECRETS,
     });
 
@@ -22,14 +23,16 @@ describe('loadEnv', () => {
       databaseUrl: DATABASE_URL,
       emailProvider: 'console',
       webAppUrl: 'https://financas.example.com',
+      investmentsDailyTimer: false,
       jwtSecret: JWT_SECRET,
       mfaEncryptionKey: MFA_ENCRYPTION_KEY,
     });
   });
 
-  it('defaults PORT to 3000, EMAIL_PROVIDER to console and WEB_APP_URL to the dev server', () => {
+  it('defaults PORT, EMAIL_PROVIDER, WEB_APP_URL and turns the daily timer on', () => {
     const config = loadEnv({ DATABASE_URL, ...SECRETS });
 
+    expect(config.investmentsDailyTimer).toBe(true);
     expect(config.port).toBe(3000);
     expect(config.emailProvider).toBe('console');
     expect(config.webAppUrl).toBe('http://localhost:5173');
@@ -48,7 +51,8 @@ describe('loadEnv', () => {
 
     expect(Object.keys(config).sort())
       .toEqual([
-        'databaseUrl', 'emailProvider', 'jwtSecret', 'mfaEncryptionKey', 'port', 'webAppUrl',
+        'databaseUrl', 'emailProvider', 'investmentsDailyTimer', 'jwtSecret', 'mfaEncryptionKey',
+        'port', 'webAppUrl',
       ]);
   });
 
@@ -87,7 +91,15 @@ describe('loadEnv', () => {
       .toThrow(/EMAIL_PROVIDER/);
   });
 
+  it('takes INVESTMENTS_DAILY_TIMER=on as on', () => {
+    const config = loadEnv({ DATABASE_URL, INVESTMENTS_DAILY_TIMER: 'on', ...SECRETS });
+
+    expect(config.investmentsDailyTimer).toBe(true);
+  });
+
   it.each([
+    ['an INVESTMENTS_DAILY_TIMER other than on/off', { INVESTMENTS_DAILY_TIMER: 'false' },
+      /INVESTMENTS_DAILY_TIMER/],
     ['a short JWT_SECRET', { JWT_SECRET: 'short' }, /JWT_SECRET/],
     ['a 31-byte key', { MFA_ENCRYPTION_KEY: SHORT_KEY }, /MFA_ENCRYPTION_KEY/],
     ['a non-base64 key', { MFA_ENCRYPTION_KEY: 'not base64!' }, /MFA_ENCRYPTION_KEY/],

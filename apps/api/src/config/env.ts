@@ -17,6 +17,7 @@ const envSchema = z.object({
   DATABASE_URL: postgresUrl,
   EMAIL_PROVIDER: z.enum(['console']).default('console'),
   WEB_APP_URL: z.url({ protocol: /^https?$/ }).default('http://localhost:5173'),
+  INVESTMENTS_DAILY_TIMER: z.enum(['on', 'off']).default('on'),
   JWT_SECRET: z.string().min(authentication.accessToken.minSecretLength),
   MFA_ENCRYPTION_KEY: z.base64().refine(
     (value) => Buffer.from(value, 'base64').length === KEY_BYTES,
@@ -31,6 +32,11 @@ export interface Env {
   readonly emailProvider: 'console';
   /** Where the web app runs — links in emails point here (OQ-115). */
   readonly webAppUrl: string;
+  /**
+   * Whether the API runs investmentsDaily on its own timer. Off only for the API
+   * under E2E, where journeys run the job themselves (OQ-237).
+   */
+  readonly investmentsDailyTimer: boolean;
   readonly jwtSecret: string;
   readonly mfaEncryptionKey: string;
 }
@@ -58,6 +64,7 @@ const loadEnv = (env: Record<string, string | undefined>): Env => {
     databaseUrl: result.data.DATABASE_URL,
     emailProvider: result.data.EMAIL_PROVIDER,
     webAppUrl: result.data.WEB_APP_URL.replace(/\/+$/, ''),
+    investmentsDailyTimer: result.data.INVESTMENTS_DAILY_TIMER === 'on',
     jwtSecret: result.data.JWT_SECRET,
     mfaEncryptionKey: result.data.MFA_ENCRYPTION_KEY,
   };

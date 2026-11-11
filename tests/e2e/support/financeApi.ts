@@ -1,7 +1,8 @@
 import type { APIRequestContext } from '@playwright/test';
 import type {
   Account, AccountMonthBalance, AccountTransaction, GoalWithProgress, InvestmentHolding,
-  InvestmentScheduleEntry, MonthOverviewReport, TransactionCreateRequest, ValuationSnapshot,
+  InvestmentScheduleEntry, MonthOverviewReport, TransactionCreateRequest, TransactionPage,
+  ValuationSnapshot,
 } from '@financas/api-types';
 import { listAccounts } from './accountApi';
 import { send, type TestUser } from './identityApi';
@@ -294,4 +295,52 @@ export const goalProgress = async (
     { accessToken: member.accessToken },
   );
   return list.data ?? [];
+};
+
+/**
+ * Lists every transaction recorded against a Holding, newest first.
+ *
+ * @param request - Playwright's API client.
+ * @param member - A member who sees its Account.
+ * @param householdId - The household.
+ * @param holdingId - The Holding.
+ * @returns Its transactions (one page is plenty for a journey's Holding).
+ */
+export const holdingTransactions = async (
+  request: APIRequestContext,
+  member: Member,
+  householdId: string,
+  holdingId: string,
+): Promise<readonly AccountTransaction[]> => {
+  const page = await send<TransactionPage>(
+    request,
+    'GET',
+    `/households/${householdId}/transactions?holdingId=${holdingId}&limit=100`,
+    { accessToken: member.accessToken },
+  );
+  // A Holding's trades and cash are all Account transactions.
+  return (page.items ?? []).filter((item) => item.ledger === 'account');
+};
+
+/**
+ * Deletes a transaction, as its detail's Delete would.
+ *
+ * @param request - Playwright's API client.
+ * @param member - Who deletes it.
+ * @param householdId - The household.
+ * @param transactionId - The transaction.
+ * @returns Resolves once it is deleted.
+ */
+export const deleteTransaction = async (
+  request: APIRequestContext,
+  member: Member,
+  householdId: string,
+  transactionId: string,
+): Promise<void> => {
+  await send<undefined>(
+    request,
+    'DELETE',
+    `/households/${householdId}/transactions/${transactionId}`,
+    { accessToken: member.accessToken },
+  );
 };

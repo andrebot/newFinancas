@@ -5,7 +5,7 @@ import {
 import { newCorrelationId } from '../../../src/utilities/correlationId';
 import { createDomainError } from '../../../src/utilities/domainError';
 import {
-  reportInvestmentsDaily, reportInvestmentsDailyFailure, runInvestmentsDailyCommand,
+  reportInvestmentsDaily, reportInvestmentsDailyFailure, runInvestmentsDailyCommand, todayArguments,
 } from '../../../src/jobs/investmentsDailyCommand';
 import type { InvestmentsDailyRun } from '../../../src/jobs/investmentsDaily';
 
@@ -53,7 +53,8 @@ describe('investments:run command lifecycle', () => {
     const deps = setup();
     expect(await runInvestmentsDailyCommand(deps)).toBe(0);
     expect(deps.run).toHaveBeenCalledExactlyOnceWith('2026-11-02', expect.any(String));
-    expect(deps.onCompleted).toHaveBeenCalledExactlyOnceWith(RESULT, deps.run.mock.calls[0]![1]);
+    expect(deps.onCompleted)
+      .toHaveBeenCalledExactlyOnceWith(RESULT, deps.run.mock.calls[0]![1], '2026-11-02');
     expect(deps.close).toHaveBeenCalledTimes(1);
     expect(deps.onCompleted.mock.invocationCallOrder[0])
       .toBeLessThan(deps.close.mock.invocationCallOrder[0]!);
@@ -64,7 +65,45 @@ describe('investments:run command lifecycle', () => {
     const deps = setup();
     deps.run.mockResolvedValueOnce(undefined);
     expect(await runInvestmentsDailyCommand(deps)).toBe(0);
-    expect(deps.onCompleted).toHaveBeenCalledExactlyOnceWith(undefined, deps.run.mock.calls[0]![1]);
+    expect(deps.onCompleted)
+      .toHaveBeenCalledExactlyOnceWith(undefined, deps.run.mock.calls[0]![1], '2026-11-02');
+    expect(deps.close).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['2026-11-02', '2020-07-02', '2024-02-29'])(
+    'runs as of %s, a real day on or before today (OQ-237)',
+    async (asOf) => {
+      const deps = setup();
+      expect(await runInvestmentsDailyCommand({ ...deps, todayArgs: [`--today=${asOf}`] })).toBe(0);
+      expect(deps.run).toHaveBeenCalledExactlyOnceWith(asOf, expect.any(String));
+      expect(deps.onCompleted).toHaveBeenCalledExactlyOnceWith(RESULT, expect.any(String), asOf);
+    },
+  );
+
+  it('runs as of today with no --today argument', async () => {
+    const deps = setup();
+    expect(await runInvestmentsDailyCommand({ ...deps, todayArgs: [] })).toBe(0);
+    expect(deps.run).toHaveBeenCalledExactlyOnceWith('2026-11-02', expect.any(String));
+  });
+
+  it.each([
+    ['a later day', ['--today=2026-11-03']],
+    ['a day that does not exist', ['--today=2020-02-30']],
+    ['a day that does not parse', ['--today=2020-13-45']],
+    ['another format', ['--today=02/07/2020']],
+    ['an empty value', ['--today=']],
+    ['the option without its "="', ['--today']],
+    ['another option starting with --today', ['--todayx=2020-07-02']],
+    ['the option twice', ['--today=2020-07-02', '--today=2020-07-03']],
+  ])('refuses %s without running, still closing (OQ-237)', async (_case, todayArgs) => {
+    const deps = setup();
+    expect(await runInvestmentsDailyCommand({ ...deps, todayArgs })).toBe(1);
+    expect(deps.run).not.toHaveBeenCalled();
+    expect(deps.onError).toHaveBeenCalledExactlyOnceWith(
+      new Error('--today takes one YYYY-MM-DD day on or before 2026-11-02, as '
+        + `--today=YYYY-MM-DD; got "${todayArgs.join(' ')}"`),
+      expect.any(String),
+    );
     expect(deps.close).toHaveBeenCalledTimes(1);
   });
 
@@ -75,7 +114,8 @@ describe('investments:run command lifecycle', () => {
       const result = { ...RESULT, [field]: 1 };
       deps.run.mockResolvedValueOnce(result);
       expect(await runInvestmentsDailyCommand(deps)).toBe(1);
-      expect(deps.onCompleted).toHaveBeenCalledExactlyOnceWith(result, deps.run.mock.calls[0]![1]);
+      expect(deps.onCompleted)
+        .toHaveBeenCalledExactlyOnceWith(result, deps.run.mock.calls[0]![1], '2026-11-02');
       expect(deps.close).toHaveBeenCalledTimes(1);
     },
   );
@@ -147,10 +187,28 @@ describe('daily run reporting', () => {
   ] as const)('reports %j honestly', (result, level, message) => {
     const { events } = captureLogs(onTestFinished);
     const correlationId = newCorrelationId();
-    reportInvestmentsDaily(result, correlationId);
+    reportInvestmentsDaily(result, correlationId, '2020-07-02');
     expect(events).toHaveLength(1);
     expect(events[0]).toMatchObject({
-      label: 'investmentsDaily', actor: 'system', correlationId, level, message, ...result,
+      label: 'investmentsDaily',
+      actor: 'system',
+      correlationId,
+      level,
+      message,
+      today: '2020-07-02',
+      ...result,
     });
+  });
+});
+
+describe('todayArguments', () => {
+  it('picks every --today argument wherever it sits, malformed ones too', () => {
+    expect(todayArguments([
+      'node', 'server.ts', '--today', '2020-07-02', '--investments-daily', '--today=2020-07-01',
+    ])).toEqual(['--today', '--today=2020-07-01']);
+  });
+
+  it('is empty without the option', () => {
+    expect(todayArguments(['node', 'server.ts', '--investments-daily'])).toEqual([]);
   });
 });

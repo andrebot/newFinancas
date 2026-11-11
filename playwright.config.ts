@@ -45,8 +45,10 @@ export default defineConfig({
     {
       command: 'pnpm --filter @financas/api start',
       url: `${API_URL}/health`,
-      // The API under test uses the test database, never the dev one.
-      env: { DATABASE_URL: process.env.DATABASE_TEST_URL ?? '' },
+      // The API under test uses the test database, never the dev one. Its daily
+      // timer is off: only a journey runs investmentsDaily, as of the day it
+      // picks (OQ-237) — the timer would run it on the real date mid-suite.
+      env: { DATABASE_URL: process.env.DATABASE_TEST_URL ?? '', INVESTMENTS_DAILY_TIMER: 'off' },
       reuseExistingServer: true,
     },
     { command: 'pnpm --filter @financas/web dev', url: WEB_URL, reuseExistingServer: true },

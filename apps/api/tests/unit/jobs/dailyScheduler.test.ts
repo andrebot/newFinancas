@@ -69,7 +69,8 @@ describe('local daily scheduler', () => {
     await vi.advanceTimersByTimeAsync(investmentsDaily.pollIntervalMs * 2);
     expect(deps.run).toHaveBeenCalledTimes(1);
     expect(deps.run).toHaveBeenCalledWith('2026-11-02', expect.any(String));
-    expect(deps.onCompleted).toHaveBeenCalledWith(RESULT, deps.run.mock.calls[0]![1]);
+    expect(deps.onCompleted)
+      .toHaveBeenCalledWith(RESULT, deps.run.mock.calls[0]![1], '2026-11-02');
     expect(deps.onError).not.toHaveBeenCalled();
     await stop();
   });
@@ -100,7 +101,8 @@ describe('local daily scheduler', () => {
     await vi.advanceTimersByTimeAsync(investmentsDaily.pollIntervalMs * 2);
     expect(deps.run).toHaveBeenCalledTimes(2);
     expect(deps.onCompleted.mock.calls).toEqual([
-      [undefined, deps.run.mock.calls[0]![1]], [RESULT, deps.run.mock.calls[1]![1]],
+      [undefined, deps.run.mock.calls[0]![1], '2026-11-02'],
+      [RESULT, deps.run.mock.calls[1]![1], '2026-11-02'],
     ]);
     await stop();
   });

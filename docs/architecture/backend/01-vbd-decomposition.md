@@ -590,7 +590,9 @@ investment checks — they read the same Accessor, so they share one cron.
 No Manager or Engine in the trigger itself. **N9 (OQ-227):** the API runs it
 on startup, then once per `calendar.timeZone` day, checking every minute;
 `pnpm investments:run` uses the same composition root and subscriptions without
-HTTP or a timer. A pinned PostgreSQL session advisory lock excludes another
+HTTP or a timer; `--today=YYYY-MM-DD` runs it as of an earlier app day, never a
+later one, and `INVESTMENTS_DAILY_TIMER=off` starts the API without its timer —
+the API under E2E, where journeys run the job themselves (OQ-237). A pinned PostgreSQL session advisory lock excludes another
 API/manual run; a busy lock or scan failure retries next tick. The run's date
 is captured once. A process restart re-reads the durable posted/notified flags,
 not an in-memory "already ran" claim. The pinned client's `error` listener

@@ -278,7 +278,8 @@ shared-logger events: invocation ID and system actor on completion/failure,
 original Error stack, retained domain code/params, non-Error text without a
 fabricated stack, command cleanup failure and a timer's next-attempt context.
 No Manager/Engine is mocked behind an Accessor or behind the bus. Full trigger
-journey #13 and the notification action remain I6 (task 134), not unit scope.
+journey #13 is I6 (task 134, OQ-237): the command run as of a fixed day; the
+bell's archive action waits for I12 (task 141).
 
 ### Schema checks — embedded Postgres, unit speed, no running system
 
@@ -462,7 +463,7 @@ added) — 14 in total:
 10. **Allocate a Holding to two Goals totaling 101%** → rejected (409 `goal.allocation_exceeds_100`), first allocation intact.
 11. **Sell a whole position, then delete that sell** → Holding auto-archived (`system`), then back to active; a Holding the user archived is **not** unarchived by the same delete (OQ-80). Replaces the old Objective archive round-trip (Goals' complete/reopen moved to Full E2E).
 12. **Export the household audit log as a Viewer** → rejected (403) before any CSV is generated; **as an Owner** → succeeds. The permission gate on the system's only access path to that data.
-13. **`investmentsDaily` run** (trigger invoked directly, clock fixed) → a due fixed-term interest/redemption transaction is recorded once (re-running the same day records nothing new); a matured Holding with a position produces exactly one `holding.matured` notification; accepting its "Archive holding" action through the bell archives it (`user`).
+13. **`investmentsDaily` run** (trigger invoked directly — `pnpm investments:run --today=…`, OQ-237 — clock fixed) → a due fixed-term interest/redemption transaction is recorded once (re-running the same day records nothing new); a matured Holding with a position produces exactly one `holding.matured` notification; accepting its "Archive holding" action through the bell archives it (`user`).
 14. **Invite → bell → accept** in the browser: the invitee sees the localized notification with the inviter's *current* name, the accept is performed by Manage Profile, and the notification disappears.
 
 **Slice 3 (`I9`, OQ-201):** smoke #4 (record a simple transaction → the balance moves); core #5 up to the Month Overview's Budget rail (the Dashboard check joins with `I11`), #7, #11, and #6's Holding and schedule (the projection on the Holdings view joins with `I10`).
@@ -474,6 +475,8 @@ added) — 14 in total:
 - #6 up to the schedule.
 
 Browse & Filter with paging, Month Overview per period and Goal progress (a CDB bought with its split to a Goal, on the Goals rail, the Goals tab and `goal-progress` — R3's E1) are Full E2E journeys, untagged.
+
+**I6 (OQ-237)** adds #13, tagged `@core`, in `tests/e2e/investments/investmentsDaily.spec.ts`, up to the notice: the API under test with its daily timer off, so only the journey runs the job; a CDB arranged in 2020 and the job run as of 2020 days, years before any other journey's data, so the run reaches only it, each run confirmed by its completion log — nothing as of the day before it falls due; its interest, tax and redemption recorded once as of the day after, each with its entry's date and amount; the owner deletes the redemption, and the matured position notifies once, a rerun nothing new. The notice is read from the test database (`tests/e2e/support/notificationsDb.ts`) until the inbox exists; accepting "Archive holding" through the bell joins with I12 (task 141), which reads the bell instead.
 
 ### Full E2E — nightly / pre-release gate, the remaining coverage
 
