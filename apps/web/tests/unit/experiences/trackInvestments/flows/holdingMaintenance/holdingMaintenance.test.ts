@@ -285,6 +285,15 @@ describe('allocationRowsOf, allocationsOf and isSplitChanged', () => {
     expect(isSplitChanged([{ ...saved[0]!, goalId: 'trip' }], saved)).toBe(true);
     expect(isSplitChanged([], saved)).toBe(true);
   });
+
+  it('tells a change to one share of several (R4 V1)', () => {
+    const saved = allocationRowsOf([
+      { goalId: 'house', percentage: 45 },
+      { goalId: 'trip', percentage: 20 },
+    ], goals);
+
+    expect(isSplitChanged([saved[0]!, { ...saved[1]!, percent: 25 }], saved)).toBe(true);
+  });
 });
 
 describe('latestIndexOf', () => {

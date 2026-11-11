@@ -1,6 +1,6 @@
 import type { IndexRateSeries, InvestmentHolding } from '@financas/api-types';
 import {
-  act, fireEvent, screen, waitFor,
+  act, cleanup, fireEvent, screen, waitFor,
 } from '@testing-library/react';
 import {
   beforeEach, describe, expect, it, vi,
@@ -84,9 +84,9 @@ vi.mock('../../../../../../src/experiences/trackInvestments/flows/holdingMainten
    * @returns The stub.
    */
   ValueHistoryDrawer: ({
-    open, onSave, onDelete, onClose,
+    open, readOnly, onSave, onDelete, onClose,
   }: ValueHistoryDrawerProps) => (open ? (
-    <div data-testid="drawer">
+    <div data-testid="drawer" data-readonly={String(readOnly)}>
       <button
         type="button"
         onClick={() => {
@@ -264,7 +264,7 @@ describe('HoldingPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'save value' }));
 
     await waitFor(() => expect(document.body.dataset.outcome).toBe('refused'));
-    expect(toasts()).toHaveLength(1);
+    expect(toasts()).toEqual(["This holding is archived and can't be changed."]);
   });
 
   it('edits and deletes from the history drawer, and closes it', async () => {
@@ -315,6 +315,18 @@ describe('HoldingPanel', () => {
     renderPanel({ mayChange: false });
 
     expect(screen.getByTestId('value').dataset.note).toBe('');
+  });
+
+  it('opens the history only when asked, read-only for a user who may not change it (R4 V2)', () => {
+    renderPanel({ mayChange: false });
+    expect(screen.queryByTestId('drawer')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'open history' }));
+    expect(screen.getByTestId('drawer').dataset.readonly).toBe('true');
+    cleanup();
+
+    renderPanel();
+    fireEvent.click(screen.getByRole('button', { name: 'open history' }));
+    expect(screen.getByTestId('drawer').dataset.readonly).toBe('false');
   });
 
   it('stands in for the value card while its values load or after they failed', () => {

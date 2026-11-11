@@ -170,6 +170,68 @@ describe('GoalAllocationCard', () => {
     expect(screen.getByText('No goals to fund yet — add one in Goals.')).toBeTruthy();
   });
 
+  it('offers only the open Goals to add, never a completed one (R4 V1)', async () => {
+    renderCard({
+      goals: [...GOALS, {
+        id: 'car', name: 'New Car', progress: 10, completed: false,
+      }],
+    });
+
+    fireEvent.click(button('Add goal · New Car'));
+
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Percentage for New Car' }))
+      .toBeTruthy());
+    expect(screen.queryByRole('button', { name: /Add goal/ })).toBeNull();
+  });
+
+  it('edits a first split, and one whose Goals are all gone (R4 V1)', () => {
+    const { props, view } = renderCard({ read: { status: 'ready', data: [] } });
+    expect(screen.getByRole('button', { name: /Add goal/ })).toBeTruthy();
+
+    view.rerenderInLocale(
+      <GoalAllocationCard {...props} goals={[]} read={{ status: 'ready', data: SPLIT }} />,
+    );
+    expect(screen.queryByText('No goals to fund yet — add one in Goals.')).toBeNull();
+    expect(button('Save')).toBeTruthy();
+  });
+
+  it('holds a problem back until Save, and drops it after Reset or a save (R4 V1)', async () => {
+    const { props, view } = renderCard();
+    const invalid = () => houseBox().getAttribute('aria-invalid');
+
+    typePercent('House Down Payment', '');
+    expect(invalid()).not.toBe('true');
+    fireEvent.click(button('Save'));
+    expect(invalid()).toBe('true');
+
+    fireEvent.click(button('Reset'));
+    typePercent('House Down Payment', '');
+    expect(invalid()).not.toBe('true');
+
+    fireEvent.click(button('Save'));
+    typePercent('House Down Payment', '30');
+    fireEvent.click(button('Save'));
+    await waitFor(() => expect(props.onSave).toHaveBeenCalledTimes(1));
+    const saved = [{ goalId: 'house', percentage: 30 }];
+    view.rerenderInLocale(
+      <GoalAllocationCard {...props} read={{ status: 'ready', data: saved }} />,
+    );
+    typePercent('House Down Payment', '');
+    expect(invalid()).not.toBe('true');
+  });
+
+  it('sends the split once while its save is running (R4 V1)', async () => {
+    const onSave = vi.fn(() => new Promise<'done'>(() => {}));
+    renderCard({ onSave });
+
+    typePercent('House Down Payment', '60');
+    fireEvent.click(button('Save'));
+    await waitFor(() => expect(button('Save').getAttribute('aria-busy')).toBe('true'));
+    fireEvent.click(button('Save'));
+
+    expect(onSave).toHaveBeenCalledTimes(1);
+  });
+
   it('shows placeholders while loading, and a failure with Try again', () => {
     const retry = vi.fn();
     const { props, view } = renderCard({ read: { status: 'loading' } });
