@@ -317,7 +317,7 @@ describe('HoldingPanel', () => {
     expect(screen.getByTestId('value').dataset.note).toBe('');
   });
 
-  it('opens the history only when asked, read-only for a user who may not change it (R4 V2)', () => {
+  it('opens the history only when asked, read-only for who may not change it (R4 V2)', () => {
     renderPanel({ mayChange: false });
     expect(screen.queryByTestId('drawer')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'open history' }));
