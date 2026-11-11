@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { pick, typeDate } from '../support/controls';
 import {
-  UNIT, accountNamed, isoDay, recordTransaction, valuationSnapshots,
+  UNIT, accountNamed, daysAgo, isoDay, recordTransaction, usDate, valuationSnapshots,
 } from '../support/financeApi';
 import { createHousehold, registerUser } from '../support/identityApi';
 import { signInThroughUi } from '../support/signIn';
@@ -16,27 +16,6 @@ import text from '../support/text';
 
 /** What the stock cost: R$ 2.500,00. */
 const COST = 250_000;
-
-/**
- * A day some days before today, local time.
- *
- * @param days - How many days back.
- * @returns The day.
- */
-const daysAgo = (days: number): Date => {
-  const today = new Date();
-  return new Date(today.getFullYear(), today.getMonth(), today.getDate() - days);
-};
-
-/**
- * Writes a day as the en-US interface does.
- *
- * @param date - The day.
- * @returns E.g. `11/03/2026`.
- */
-const usDate = (date: Date): string => new Intl.DateTimeFormat('en-US', {
-  year: 'numeric', month: '2-digit', day: '2-digit',
-}).format(date);
 
 test('a market value is recorded, edited, added in the past and deleted', async ({
   page, request,
@@ -58,6 +37,11 @@ test('a market value is recorded, edited, added in the past and deleted', async 
   const holdingId = buy.holdingId!;
   const today = new Date();
   const pastDay = daysAgo(10);
+  /** The Holding's snapshots in the API, oldest first, as source, day and value. */
+  const snapshotsOf = async () => (
+    await valuationSnapshots(request, owner, household.id, holdingId)
+  ).map(({ source, asOfDate, valuation }) => ({ source, asOfDate, valuation }))
+    .sort((first, second) => first.asOfDate!.localeCompare(second.asOfDate!));
 
   await signInThroughUi(page, owner);
   await page.goto('/investments');
@@ -76,17 +60,23 @@ test('a market value is recorded, edited, added in the past and deleted', async 
     .pressSequentially('275000');
   await value.getByRole('button', { name: text('holdingMaintenance', 'value.save') }).click();
   await expect(page.getByText(text('holdingMaintenance', 'value.saved'))).toBeVisible();
-  const recorded = (await valuationSnapshots(request, owner, household.id, holdingId))
-    .find((snapshot) => snapshot.source === 'manual');
-  expect(recorded).toMatchObject({ asOfDate: isoDay(today), valuation: 275_000 });
+  const fromTrade = { source: 'transaction', asOfDate: isoDay(bought), valuation: COST };
+  expect(await snapshotsOf()).toEqual([
+    fromTrade, { source: 'manual', asOfDate: isoDay(today), valuation: 275_000 },
+  ]);
 
   await value.getByRole('button', { name: text('holdingMaintenance', 'value.editHistory') })
     .click();
   const drawer = page.getByRole('dialog', { name: 'ITSA4' });
   const saved = drawer.getByRole('list', { name: text('historyEditor', 'list') });
-  await expect(saved.getByRole('listitem').filter({
-    hasText: usDate(bought),
-  })).toContainText(text('holdingMaintenance', 'history.trade'));
+  // The buy's own snapshot is locked (OQ-56): no Edit or Delete on its row.
+  const tradeRow = saved.getByRole('listitem').filter({ hasText: usDate(bought) });
+  await expect(tradeRow).toContainText(text('holdingMaintenance', 'history.trade'));
+  const boughtOn = { date: usDate(bought) };
+  await expect(drawer.getByRole('button', { name: text('historyEditor', 'edit', boughtOn) }))
+    .toHaveCount(0);
+  await expect(drawer.getByRole('button', { name: text('historyEditor', 'delete', boughtOn) }))
+    .toHaveCount(0);
 
   // Edit today's value in place.
   const editName = text('historyEditor', 'edit', { date: usDate(today) });
@@ -107,14 +97,11 @@ test('a market value is recorded, edited, added in the past and deleted', async 
   await addForm.getByRole('button', { name: text('historyEditor', 'save') }).click();
   await expect(addForm).toBeHidden();
   await expect(saved.getByRole('listitem').filter({ hasText: usDate(pastDay) })).toBeVisible();
-  await expect.poll(async () => (await valuationSnapshots(request, owner, household.id, holdingId))
-    .filter((snapshot) => snapshot.source === 'manual')
-    .map(({ asOfDate, valuation }) => ({ asOfDate, valuation }))
-    .sort((first, second) => first.asOfDate!.localeCompare(second.asOfDate!)))
-    .toEqual([
-      { asOfDate: isoDay(pastDay), valuation: 260_000 },
-      { asOfDate: isoDay(today), valuation: 280_000 },
-    ]);
+  await expect.poll(snapshotsOf).toEqual([
+    fromTrade,
+    { source: 'manual', asOfDate: isoDay(pastDay), valuation: 260_000 },
+    { source: 'manual', asOfDate: isoDay(today), valuation: 280_000 },
+  ]);
 
   // Delete today's, behind the confirm.
   const deleteName = text('historyEditor', 'delete', { date: usDate(today) });
@@ -122,11 +109,7 @@ test('a market value is recorded, edited, added in the past and deleted', async 
   await drawer.getByRole('button', { name: text('historyEditor', 'deleteConfirm'), exact: true })
     .click();
   await expect(page.getByText(text('holdingMaintenance', 'history.deleted'))).toBeVisible();
-  const left = await valuationSnapshots(request, owner, household.id, holdingId);
-  expect(left.map(({ source, asOfDate, valuation }) => ({ source, asOfDate, valuation }))
-    .sort((first, second) => first.asOfDate!.localeCompare(second.asOfDate!)))
-    .toEqual([
-      { source: 'transaction', asOfDate: isoDay(bought), valuation: COST },
-      { source: 'manual', asOfDate: isoDay(pastDay), valuation: 260_000 },
-    ]);
+  expect(await snapshotsOf()).toEqual([
+    fromTrade, { source: 'manual', asOfDate: isoDay(pastDay), valuation: 260_000 },
+  ]);
 });

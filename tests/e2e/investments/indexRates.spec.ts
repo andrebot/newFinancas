@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { pick, typeDate } from '../support/controls';
-import { isoDay } from '../support/financeApi';
+import { daysAgo, isoDay, usDate } from '../support/financeApi';
 import { createHousehold, registerUser } from '../support/identityApi';
 import { indexRateValues } from '../support/investmentsApi';
 import { signInThroughUi } from '../support/signIn';
@@ -10,27 +10,6 @@ import text from '../support/text';
 // Selic gets today's value through its card's Update form in Rates
 // Maintenance (FL20), then the Rate History drawer (K46) edits it, adds a
 // past value and deletes today's. Each write is checked in the API.
-
-/**
- * A day some days before today, local time.
- *
- * @param days - How many days back.
- * @returns The day.
- */
-const daysAgo = (days: number): Date => {
-  const today = new Date();
-  return new Date(today.getFullYear(), today.getMonth(), today.getDate() - days);
-};
-
-/**
- * Writes a day as the en-US interface does.
- *
- * @param date - The day.
- * @returns E.g. `11/03/2026`.
- */
-const usDate = (date: Date): string => new Intl.DateTimeFormat('en-US', {
-  year: 'numeric', month: '2-digit', day: '2-digit',
-}).format(date);
 
 test('an index value is recorded, edited, added in the past and deleted', async ({
   page, request,

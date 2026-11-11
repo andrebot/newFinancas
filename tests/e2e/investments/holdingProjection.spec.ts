@@ -1,7 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
 import type { InvestmentHolding } from '@financas/api-types';
 import { pick } from '../support/controls';
-import { accountNamed, isoDay, recordTransaction } from '../support/financeApi';
+import {
+  accountNamed, daysAgo, isoDay, recordTransaction,
+} from '../support/financeApi';
 import { createHousehold, registerUser } from '../support/identityApi';
 import {
   indexRateValues, projectedHolding, recordIndexRate,
@@ -25,17 +27,6 @@ const NEWER_CDI = 125_000;
 
 /** What the CDB costs: R$ 10.000,00. */
 const COST = 1_000_000;
-
-/**
- * A day some days before today, as the API takes it.
- *
- * @param days - How many days back.
- * @returns It as `YYYY-MM-DD`.
- */
-const daysAgo = (days: number): string => {
-  const today = new Date();
-  return isoDay(new Date(today.getFullYear(), today.getMonth(), today.getDate() - days));
-};
 
 /**
  * Opens the Holdings tab's row of a fixed-term Holding, showing its cards.
@@ -85,13 +76,13 @@ test('the Holdings view projects a CDI-linked CDB from CDI\'s latest value', {
   const household = await createHousehold(request, owner, 'Projection Home');
   const account = await accountNamed(request, owner, household.id, 'Main Checking');
   await recordIndexRate(request, owner, household.id, {
-    index: 'cdi', value: FIRST_CDI, asOf: daysAgo(30),
+    index: 'cdi', value: FIRST_CDI, asOf: isoDay(daysAgo(30)),
   });
   const today = new Date();
   const buy = await recordTransaction(request, owner, household.id, {
     kind: 'investment_buy',
     accountId: account.id,
-    date: daysAgo(5),
+    date: isoDay(daysAgo(5)),
     amount: COST,
     currency: 'BRL',
     assetType: 'cdb',

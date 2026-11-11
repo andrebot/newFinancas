@@ -43,6 +43,27 @@ export const monthStart = (offset: number): Date => {
 };
 
 /**
+ * A day some days before today, local time.
+ *
+ * @param days - How many days back.
+ * @returns That day.
+ */
+export const daysAgo = (days: number): Date => {
+  const today = new Date();
+  return new Date(today.getFullYear(), today.getMonth(), today.getDate() - days);
+};
+
+/**
+ * Writes a day as the en-US interface does (FormattingUtility's dates).
+ *
+ * @param date - The day.
+ * @returns E.g. `11/03/2026`.
+ */
+export const usDate = (date: Date): string => new Intl.DateTimeFormat('en-US', {
+  year: 'numeric', month: '2-digit', day: '2-digit',
+}).format(date);
+
+/**
  * A month as the balance history names it.
  *
  * @param date - Any day in the month.

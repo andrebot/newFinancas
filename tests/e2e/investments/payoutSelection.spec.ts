@@ -1,4 +1,6 @@
-import { expect, test, type Page } from '@playwright/test';
+import {
+  expect, test, type Locator, type Page,
+} from '@playwright/test';
 import {
   UNIT, accountNamed, isoDay, monthStart, recordTransaction,
 } from '../support/financeApi';
@@ -10,7 +12,20 @@ import text from '../support/text';
 // stocks that paid dividends, both drawn at first; unticking one asks again
 // for the payouts report alone, with the other's id (the overview and the
 // Holdings are not fetched again), the chart's legend keeps only the one
-// chosen, and the choice is remembered for the household across a reload.
+// chosen, and the choice is kept across a reload (the per-household storage is
+// usePayoutSelection's unit tests').
+
+/**
+ * A holding's entry in the payout chart's legend: a list item holding just its
+ * ticker (the chart's own table and the holdings picker hold no list items).
+ *
+ * @param panel - The payout panel.
+ * @param ticker - The holding's ticker.
+ * @returns The entry.
+ */
+const legendEntry = (panel: Locator, ticker: string) => (
+  panel.getByRole('listitem').filter({ hasText: new RegExp(`^${ticker}$`) })
+);
 
 /**
  * The payout panel: the section its heading opens.
@@ -28,7 +43,7 @@ test('the payout chart draws only the holdings chosen, and remembers them', asyn
   const owner = await registerUser(request, { firstName: 'Paulo', lastName: 'Payout' });
   const household = await createHousehold(request, owner, 'Payout Home');
   const account = await accountNamed(request, owner, household.id, 'Main Checking');
-  /** Buys a stock two months ago and records a dividend in each month since. */
+  /** Buys a stock two months ago and records a dividend in each month since, one at a time. */
   const stockPaying = async (ticker: string, dividend: number) => {
     const buy = await recordTransaction(request, owner, household.id, {
       kind: 'investment_buy',
@@ -40,19 +55,16 @@ test('the payout chart draws only the holdings chosen, and remembers them', asyn
       ticker,
       quantity: 25 * UNIT,
     });
-    await Promise.all([monthStart(-1), new Date()].map((date) => recordTransaction(
-      request,
-      owner,
-      household.id,
-      {
-        kind: 'investment_dividend',
-        accountId: account.id,
-        date: isoDay(date),
-        amount: dividend,
-        currency: 'BRL',
-        holdingId: buy.holdingId!,
-      },
-    )));
+    const dividendOn = (date: Date) => recordTransaction(request, owner, household.id, {
+      kind: 'investment_dividend',
+      accountId: account.id,
+      date: isoDay(date),
+      amount: dividend,
+      currency: 'BRL',
+      holdingId: buy.holdingId!,
+    });
+    await dividendOn(monthStart(-1));
+    await dividendOn(new Date());
     return buy.holdingId!;
   };
   const itsa = await stockPaying('ITSA4', 1_250);
@@ -61,10 +73,9 @@ test('the payout chart draws only the holdings chosen, and remembers them', asyn
   await signInThroughUi(page, owner);
   await page.goto('/investments');
   const panel = payoutPanel(page);
-  const legend = panel.getByRole('list').last();
   await expect(panel.getByRole('group', { name: text('payoutPanel', 'chart') })).toBeVisible();
-  await expect(legend).toContainText('ITSA4');
-  await expect(legend).toContainText('TAEE11');
+  await expect(legendEntry(panel, 'ITSA4')).toBeVisible();
+  await expect(legendEntry(panel, 'TAEE11')).toBeVisible();
 
   // From here on, every report or Holdings read the page asks for.
   const asked: string[] = [];
@@ -83,15 +94,15 @@ test('the payout chart draws only the holdings chosen, and remembers them', asyn
   await payoutsAsked;
   await choice.getByRole('button', { name: text('multiSelect', 'done') }).click();
 
-  await expect(legend).not.toContainText('TAEE11');
-  await expect(legend).toContainText('ITSA4');
+  await expect(legendEntry(panel, 'TAEE11')).toHaveCount(0);
+  await expect(legendEntry(panel, 'ITSA4')).toBeVisible();
   await expect(panel).toContainText(text('payoutPanel', 'summary', { count: 1, total: 2 }));
   expect(asked).toHaveLength(1);
   expect(new URL(asked[0]!, 'http://e2e').searchParams.get('holdingIds')).toBe(itsa);
 
-  // The choice is the household's, kept across a reload.
+  // The choice is kept across a reload.
   await page.reload();
   await expect(panel).toContainText(text('payoutPanel', 'summary', { count: 1, total: 2 }));
-  await expect(legend).toContainText('ITSA4');
-  await expect(legend).not.toContainText('TAEE11');
+  await expect(legendEntry(panel, 'ITSA4')).toBeVisible();
+  await expect(legendEntry(panel, 'TAEE11')).toHaveCount(0);
 });

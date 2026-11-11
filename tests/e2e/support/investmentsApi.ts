@@ -110,7 +110,8 @@ export const projectedHolding = async (
  * @param member - A member who sees its Account.
  * @param householdId - The household.
  * @param holdingId - The Holding.
- * @returns Each visible share as its Goal and percentage, oldest first.
+ * @returns Each visible share as its Goal and percentage, in the server's order — a
+ *   split saved together shares its `createdAt`, so compare them as a set.
  */
 export const holdingSplit = async (
   request: APIRequestContext,

@@ -64,7 +64,12 @@ test('a split past 100% with a share the editor can\'t show is refused, the firs
   }).click();
   const percent = goals.getByLabel(text('allocationEditor', 'percentOf', { goal: 'Family Trip' }));
   await percent.fill('41');
+  const answered = page.waitForResponse((response) => (
+    response.request().method() === 'PATCH'
+    && new URL(response.url()).pathname.endsWith(`/holdings/${holdingId}`)
+  ));
   await goals.getByRole('button', { name: text('holdingMaintenance', 'goals.save') }).click();
+  expect((await answered).status()).toBe(409);
 
   // The editor showed 41%; the server counted the hidden 60% too.
   await expect(page.getByText(text('errors', 'goal.allocation_exceeds_100', { requested: 101 })))
