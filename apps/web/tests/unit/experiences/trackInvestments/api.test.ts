@@ -132,20 +132,34 @@ const WRITE_ANSWERS = {
     error: { code: 'index_rate.not_found', message: 'x', correlationId: 'c' },
   }),
   'DELETE /households/doe/transactions/t-1': () => jsonResponse(204),
+  'GET /households/doe/reports/payouts': () => jsonResponse(200, {}),
+  'GET /households/doe/transactions': () => jsonResponse(200, { items: [] }),
 };
+
+/**
+ * Answers a write with a 404 naming what it couldn't find.
+ *
+ * @param code - The error code.
+ * @returns The answer.
+ */
+const gone = (code: string) => () => jsonResponse(404, {
+  error: { code, message: 'x', correlationId: 'c' },
+});
 
 /**
  * Reads some of the page's data, makes a write, and counts each read's requests.
  *
  * @param reads - The reads to start, each with its route prefix.
  * @param write - The write.
+ * @param answers - Answers to put in place of the usual ones.
  * @returns How many times each route prefix was asked for, by prefix.
  */
 const readsAfter = async (
   reads: readonly (readonly [string, (store: Store) => Running])[],
   write: (store: Store) => PromiseLike<unknown>,
+  answers: Partial<Record<string, () => Response>> = {},
 ) => {
-  const fetchFn = fakeFetch(WRITE_ANSWERS);
+  const fetchFn = fakeFetch({ ...WRITE_ANSWERS, ...answers });
   const { store } = fakeStore({ refreshToken: 'r-0', fetchFn });
   const running = reads.map(([, begin]) => begin(store));
   await Promise.all(running);
@@ -271,5 +285,50 @@ describe('a transaction recorded in Manage Finances', () => {
     expect(await readsAfter([OVERVIEW, HOLDINGS, RATES], write)).toEqual({
       [OVERVIEW[0]]: 2, [HOLDINGS[0]]: 2, [RATES[0]]: 1,
     });
+  });
+
+  it('reads the payouts, the activity and the value history again (R4 V3)', async () => {
+    const payouts = ['/households/doe/reports/payouts', start('getPayouts', {
+      householdId: 'doe', holdingIds: undefined, months: 12,
+    })] as const;
+    const activity = [
+      '/households/doe/transactions', start('listHoldingActivity', HOLDING),
+    ] as const;
+    const write = (store: Store) => store.dispatch(manageFinancesApi.endpoints.deleteTransaction
+      .initiate({ householdId: 'doe', transactionId: 't-1' }));
+    expect(await readsAfter([payouts, activity, SNAPSHOTS], write)).toEqual({
+      [payouts[0]]: 2, [activity[0]]: 2, [SNAPSHOTS[0]]: 2,
+    });
+  });
+});
+
+describe('a write whose target is already gone (R4 V3)', () => {
+  it.each([
+    ['a split save', SPLIT, 'PATCH /households/doe/holdings/h-1', 'holding.not_found',
+      (store: Store) => store.dispatch(trackInvestmentsApi.endpoints.saveHoldingAllocations
+        .initiate({ ...HOLDING, allocations: [] }))],
+    ['a market value edit', SNAPSHOTS,
+      'PATCH /households/doe/holdings/h-1/valuation-snapshots/s-1', 'snapshot.not_found',
+      (store: Store) => store.dispatch(trackInvestmentsApi.endpoints.editMarketValue.initiate({
+        ...HOLDING, snapshotId: 's-1', value: 1, asOf: '2026-10-01',
+      }))],
+    ['a market value delete', SNAPSHOTS,
+      'DELETE /households/doe/holdings/h-1/valuation-snapshots/s-1', 'snapshot.not_found',
+      (store: Store) => store.dispatch(trackInvestmentsApi.endpoints.deleteMarketValue
+        .initiate({ ...HOLDING, snapshotId: 's-1' }))],
+    ['a rate edit', RATES, 'PATCH /households/doe/index-rates/cdi/values/v-1',
+      'index_rate.not_found',
+      (store: Store) => store.dispatch(trackInvestmentsApi.endpoints.editIndexRate.initiate({
+        householdId: 'doe', index: 'cdi', valueId: 'v-1', value: 1, asOf: '2026-10-01',
+      }))],
+  ] as const)('reads its list again after %s answers not found', async (
+    _name,
+    list,
+    route,
+    code,
+    write,
+  ) => {
+    expect(await readsAfter([list], write, { [route]: gone(code) }))
+      .toEqual({ [list[0]]: 2 });
   });
 });
