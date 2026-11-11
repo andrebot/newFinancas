@@ -8,7 +8,7 @@ export interface DailySchedulerDeps {
   readonly run: InvestmentsDailyRun;
   readonly now: () => Date;
   readonly onCompleted: (
-    result: InvestmentsDailyResult | undefined, correlationId: CorrelationId,
+    result: InvestmentsDailyResult | undefined, correlationId: CorrelationId, today: string,
   ) => void;
   readonly onError: (error: unknown, correlationId: CorrelationId) => void;
 }
@@ -35,7 +35,7 @@ export const startDailyScheduler = (deps: DailySchedulerDeps): (() => Promise<vo
     try {
       const result = await deps.run(today, correlationId);
       if (result !== undefined) lastDay = today;
-      deps.onCompleted(result, correlationId);
+      deps.onCompleted(result, correlationId, today);
     } catch (error) {
       deps.onError(error, correlationId);
     }

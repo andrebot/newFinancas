@@ -28,23 +28,41 @@ const POSTED_KIND: Readonly<Record<string, string>> = {
   redemption: 'investment_redemption',
 };
 
+/** What a ledger row says, to compare a Holding's rows with what its schedule promised. */
+interface LedgerLine {
+  readonly kind: string;
+  readonly date: string;
+  readonly amount: number;
+}
+
 /**
- * The kinds of a Holding's transactions, sorted, to compare as a multiset.
+ * Orders ledger lines by kind, then date, so two sets compare as multisets.
+ *
+ * @param lines - The lines.
+ * @returns A sorted copy.
+ */
+const sorted = (lines: readonly LedgerLine[]): LedgerLine[] => [...lines].sort((first, second) => (
+  first.kind.localeCompare(second.kind) || first.date.localeCompare(second.date)
+));
+
+/**
+ * A Holding's transactions as kind, date and amount, sorted.
  *
  * @param request - Playwright's API client.
  * @param member - Who reads them.
  * @param householdId - The household.
  * @param holdingId - The Holding.
- * @returns Each transaction's kind.
+ * @returns Each transaction's line.
  */
-const kindsOf = async (
+const ledgerOf = async (
   request: APIRequestContext,
   member: { readonly accessToken: string },
   householdId: string,
   holdingId: string,
-): Promise<string[]> => (
-  (await holdingTransactions(request, member, householdId, holdingId))
-    .map((transaction) => transaction.kind ?? '').sort()
+): Promise<LedgerLine[]> => sorted(
+  (await holdingTransactions(request, member, householdId, holdingId)).map((transaction) => ({
+    kind: transaction.kind!, date: transaction.date!, amount: transaction.amount!,
+  })),
 );
 
 test('investmentsDaily records a due schedule once and notifies a matured position once', {
@@ -70,18 +88,22 @@ test('investmentsDaily records a due schedule once and notifies a matured positi
   const schedule = await scheduleEntries(request, owner, household.id, holdingId);
   expect(schedule.map((entry) => entry.kind)).toContain('redemption');
   expect(schedule.every((entry) => entry.postedAt === null)).toBe(true);
-  const posted = schedule.map((entry) => POSTED_KIND[entry.kind!]!);
+  const bought: LedgerLine = { kind: 'investment_buy', date: '2020-01-02', amount: 100_000 };
+  // Each entry recorded as its own transaction, its date and amount unchanged.
+  const posted = schedule.map((entry) => ({
+    kind: POSTED_KIND[entry.kind!]!, date: entry.date!, amount: entry.amount!,
+  }));
 
   // As of the day before it falls due, the clock fixed there: nothing is due yet.
   await runInvestmentsDaily(DAY_BEFORE_DUE);
-  expect(await kindsOf(request, owner, household.id, holdingId)).toEqual(['investment_buy']);
+  expect(await ledgerOf(request, owner, household.id, holdingId)).toEqual([bought]);
 
   // The first run records every due entry, redemption last: the position closes.
   await runInvestmentsDaily(RUN_DAY);
   expect((await scheduleEntries(request, owner, household.id, holdingId))
     .every((entry) => entry.postedAt !== null)).toBe(true);
-  expect(await kindsOf(request, owner, household.id, holdingId))
-    .toEqual(['investment_buy', ...posted].sort());
+  expect(await ledgerOf(request, owner, household.id, holdingId))
+    .toEqual(sorted([bought, ...posted]));
   expect(await getHolding(request, owner, household.id, holdingId)).toMatchObject({
     quantity: 0, archivedBy: 'system',
   });
@@ -94,11 +116,11 @@ test('investmentsDaily records a due schedule once and notifies a matured positi
   expect(await getHolding(request, owner, household.id, holdingId)).toMatchObject({
     quantity: UNIT, archivedAt: null,
   });
-  const kept = await kindsOf(request, owner, household.id, holdingId);
+  const kept = await ledgerOf(request, owner, household.id, holdingId);
 
   // Re-running the same day records nothing new and notifies the owner once.
   await runInvestmentsDaily(RUN_DAY);
-  expect(await kindsOf(request, owner, household.id, holdingId)).toEqual(kept);
+  expect(await ledgerOf(request, owner, household.id, holdingId)).toEqual(kept);
   const notices = [{
     type: 'holding.matured',
     params: {
@@ -109,6 +131,6 @@ test('investmentsDaily records a due schedule once and notifies a matured positi
 
   // And again: still nothing new, still one notice.
   await runInvestmentsDaily(RUN_DAY);
-  expect(await kindsOf(request, owner, household.id, holdingId)).toEqual(kept);
+  expect(await ledgerOf(request, owner, household.id, holdingId)).toEqual(kept);
   expect(await notificationsOf(ownerId, 'holding.matured')).toEqual(notices);
 });

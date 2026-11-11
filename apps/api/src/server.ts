@@ -34,7 +34,7 @@ import type { Database } from './db/database';
 import { createInvestmentsDaily } from './jobs/investmentsDaily';
 import { createInvestmentsDailyLock } from './jobs/investmentsDailyLock';
 import {
-  reportInvestmentsDaily, reportInvestmentsDailyFailure, runInvestmentsDailyCommand, todayOption,
+  reportInvestmentsDaily, reportInvestmentsDailyFailure, runInvestmentsDailyCommand, todayArguments,
 } from './jobs/investmentsDailyCommand';
 import { startDailyScheduler, type DailySchedulerDeps } from './jobs/dailyScheduler';
 import { createManagers } from './managers';
@@ -199,7 +199,7 @@ const dailyDeps: DailySchedulerDeps = {
 if (process.argv.includes('--investments-daily')) {
   process.exitCode = await runInvestmentsDailyCommand({
     ...dailyDeps,
-    asOf: todayOption(process.argv),
+    todayArgs: todayArguments(process.argv),
     close: async () => {
       await pool.end();
       logger.end();
@@ -213,7 +213,8 @@ if (process.argv.includes('--investments-daily')) {
     port: env.port,
   });
   log.info('API started', { port: env.port });
-  startDailyScheduler(dailyDeps);
+  if (env.investmentsDailyTimer) startDailyScheduler(dailyDeps);
+  else log.warn('investmentsDaily timer is off: run pnpm investments:run (OQ-237)');
 
   // Restore audit entries the sink could not store last time (OQ-110).
   const logDir = resolveLogDir(process.env, os.homedir());

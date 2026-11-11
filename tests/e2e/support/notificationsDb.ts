@@ -2,7 +2,7 @@ import pg from 'pg';
 
 // The notification inbox has no route until Review Insights (X8, slice 5):
 // until then a journey reads a user's notifications straight from the test
-// database, as the API's own role, read-only (I6, OQ-237).
+// database, as the API's own role — a plain SELECT, nothing written (I6, OQ-237).
 
 /** One stored notification, as the inbox will list it. */
 export interface StoredNotification {
@@ -21,7 +21,9 @@ const notificationsOf = async (
   userId: string,
   type: string,
 ): Promise<readonly StoredNotification[]> => {
-  const client = new pg.Client({ connectionString: process.env.DATABASE_TEST_URL });
+  const connectionString = process.env.DATABASE_TEST_URL;
+  if (!connectionString) throw new Error('DATABASE_TEST_URL is not set (see .env.example)');
+  const client = new pg.Client({ connectionString });
   await client.connect();
   try {
     const result = await client.query<StoredNotification>(

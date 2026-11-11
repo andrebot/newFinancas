@@ -476,7 +476,7 @@ added) — 14 in total:
 
 Browse & Filter with paging, Month Overview per period and Goal progress (a CDB bought with its split to a Goal, on the Goals rail, the Goals tab and `goal-progress` — R3's E1) are Full E2E journeys, untagged.
 
-**I6 (OQ-237)** adds #13, tagged `@core`, in `tests/e2e/investments/investmentsDaily.spec.ts`, up to the notice: a CDB arranged in 2020 and the job run as of 2020 days, years before any other journey's data, so the run reaches only it — nothing as of the day before it falls due; its interest, tax and redemption recorded once as of the day after; the owner deletes the redemption, and the matured position notifies once, a rerun nothing new. The notice is read from the test database (`tests/e2e/support/notificationsDb.ts`) until the inbox exists; accepting "Archive holding" through the bell joins with I12 (task 141), which reads the bell instead.
+**I6 (OQ-237)** adds #13, tagged `@core`, in `tests/e2e/investments/investmentsDaily.spec.ts`, up to the notice: the API under test with its daily timer off, so only the journey runs the job; a CDB arranged in 2020 and the job run as of 2020 days, years before any other journey's data, so the run reaches only it, each run confirmed by its completion log — nothing as of the day before it falls due; its interest, tax and redemption recorded once as of the day after, each with its entry's date and amount; the owner deletes the redemption, and the matured position notifies once, a rerun nothing new. The notice is read from the test database (`tests/e2e/support/notificationsDb.ts`) until the inbox exists; accepting "Archive holding" through the bell joins with I12 (task 141), which reads the bell instead.
 
 ### Full E2E — nightly / pre-release gate, the remaining coverage
 
