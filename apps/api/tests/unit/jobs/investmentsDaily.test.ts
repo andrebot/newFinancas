@@ -214,6 +214,18 @@ describe('investmentsDaily infrastructure trigger', () => {
     expect(entries).toEqual(original);
   });
 
+  it('redeems last on its day, even read after the interest with an id sorting first', async () => {
+    const deps = setup([
+      { ...ENTRY, id: 'c-interest' },
+      { ...ENTRY, id: 'a-redemption', kind: 'redemption' },
+    ]);
+
+    await deps.run(TODAY, CORRELATION_ID);
+
+    expect(deps.bus.publish.mock.calls.map((call) => call[1].scheduleEntryId))
+      .toEqual(['c-interest', 'a-redemption']);
+  });
+
   it.each([false, true])(
     'defers an unconfirmed Holding (missing marker: %s), not its siblings',
     async (missing) => {
