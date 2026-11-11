@@ -478,6 +478,8 @@ Browse & Filter with paging, Month Overview per period and Goal progress (a CDB 
 
 **I6 (OQ-237)** adds #13, tagged `@core`, in `tests/e2e/investments/investmentsDaily.spec.ts`, up to the notice: the API under test with its daily timer off, so only the journey runs the job; a CDB arranged in 2020 and the job run as of 2020 days, years before any other journey's data, so the run reaches only it, each run confirmed by its completion log — nothing as of the day before it falls due; its interest, tax and redemption recorded once as of the day after, each with its entry's date and amount; the owner deletes the redemption, and the matured position notifies once, a rerun nothing new. The notice is read from the test database (`tests/e2e/support/notificationsDb.ts`) until the inbox exists; accepting "Archive holding" through the bell joins with I12 (task 141), which reads the bell instead.
 
+**I10 (OQ-238)** adds, in `tests/e2e/investments/`, two `@core` journeys — #6's projection (a CDB at 110% of CDI: the Holdings tab's Contract card shows the payout, taxes and net the API projects, and follows a newer CDI value recorded in the Rates tab) and #10 (a Member's hidden 60% share to a personal Goal; the Owner's 41% to a shared Goal refused with 409, the 60% intact, 40% then saved) — and, untagged, market value record-edit-delete with the Value History, index rate record-edit-delete, and the payout chart's holding selection (only `/reports/payouts` asked again, the choice kept across a reload — the per-household storage is `usePayoutSelection`'s unit tests').
+
 ### Full E2E — nightly / pre-release gate, the remaining coverage
 
 Not a fresh list — a **coverage-completion policy** applied to inventory
