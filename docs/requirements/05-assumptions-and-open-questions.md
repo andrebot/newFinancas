@@ -5105,6 +5105,13 @@ not a hardcoded assumption.
 - **One stacking order for the kit (`LAYERS`, `kit/popover/overlay.ts`).** Bottom to top: the shell's chrome (z-20/30), the drawer's scrim and panel (z-40/50), the panels (select, menu, popover — the icon picker's "more" too), tooltips, toasts. The panels had been at z-40, under the drawer, so a Select inside a drawer opened behind it with no visible options.
 - **Two widths from `md`: `default` 520px and `wide` 640px.** The account drawers are wide: beside the 200px card preview, a 520px drawer left the card number about 160px — too narrow for a 16-digit number. Below `md` every drawer is still the full-screen sheet.
 
+**Amended in K21 (Nov 2026, OQ-241):**
+- **The scrim really starts under the header now.** Floating UI's overlay
+  writes `top: 0` inline, which beat the `md:top-16` class, so from `md` up
+  the scrim had been dimming the header too — unlike mockups 21 and 24. The
+  class is now `md:top-16!` (important), and the Account Management journey
+  checks the scrim's top in a browser.
+
 **Task 107 (`K20`) is complete.**
 
 ### OQ-192: Account & Card Management (task FL11)
@@ -7248,15 +7255,19 @@ forward with all the next phases"), from the review in
   `open`; Esc, a press on the scrim and the ✕ call `onClose`; focus goes to
   the body's first field (the ✕ when there is none) and back on closing.
   Props: `title`, `subtitle` (the line under it, "The Doe Household ·
-  CSV"), `icon` (the mint badge), the body and a `footer`. The ✕'s label is
-  the new catalog key `dialog.close`.
+  CSV", which also describes the dialog — `aria-describedby`), `icon` (the
+  mint badge), the body and a `footer`. The ✕'s label is the new catalog
+  key `dialog.close`.
 - **Look, from mockup 24:** from `md` up, a 440px `bg-card` card in the
   middle of the screen, `rounded-[24px]`, a line border and the new
   `shadow-dialog` token (`--s-dialog`, per theme — deeper than the
   panels' `shadow-overlay`); never taller than the viewport less 4rem, the
   body scrolling. Its scrim covers the whole viewport, the header included
-  (the drawer's starts under it). **Below `md` it is a full-screen sheet**,
-  as the drawer is — chosen over a centred card and a bottom sheet.
+  (the drawer's starts under it — see the OQ-191 amendment). **Below `md`
+  it is a full-screen sheet**, as the drawer is — chosen over a centred card
+  and a bottom sheet. Two small departures from the mockup, kept for one
+  kit: the ✕ is the shell's 40px button (the mockup's is 36px), and the
+  scrim is the `bg-scrim` token (55%; the mockup's is 60%).
 - **Motion:** the card fades and grows from 95% (the sheet rises), the
   scrim fades, over `dialog.transitionMs` (200ms, `config/constants.ts`);
   none under `prefers-reduced-motion`.
@@ -7265,6 +7276,18 @@ forward with all the next phases"), from the review in
   transition status, the ✕ and the first-field focus. Each draws its own
   panel and motion through `ModalSurface` (scrim and panel classes, the
   transition's length). The drawer's API and behaviour are unchanged.
+- **Esc closes the innermost layer first** (from the PR #170 review). A
+  select, multi-select, menu or popover open inside a modal already took Esc
+  for itself; a tooltip shown by hover, with focus in another field, did not —
+  Esc closed the modal and left the tooltip up. The tooltip now catches Esc
+  in the capture phase, before anything else hears it (WCAG 1.4.13). A
+  Floating UI tree over the shell and the panels was tried and rejected: it
+  kept the modal open but couldn't close the tooltip, and every case it
+  covered already worked. `tests/unit/kit/modal/nestedEscape.test.tsx` pins
+  all five panels in both modals.
+- **The dialog's geometry is checked in a browser by X8's journey** (the
+  audit-log export): jsdom draws no CSS, so the unit tests pin the classes
+  that carry each layout rule.
 
 **Task 137 (`K21`) is complete.**
 

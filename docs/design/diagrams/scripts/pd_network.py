@@ -62,7 +62,7 @@ ACTIVITIES = {
     "K19": ("Colour swatch picker", ["FU4"]),
     # ---- UI kit: overlays + feedback
     "K20": ("Drawer / sheet", ["K4"]),
-    "K21": ("Dialog", ["K4"]),
+    "K21": ("Dialog", ["K20", "K22"]),
     "K22": ("Popover", ["K2"]),
     "K23": ("Menu", ["K22"]),
     "K24": ("Tooltip", ["K22"]),

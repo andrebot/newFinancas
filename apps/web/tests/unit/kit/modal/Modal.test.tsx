@@ -34,10 +34,12 @@ function Holder({ open, onClose }: HolderProps) {
       open={open}
       onClose={onClose}
       labelledBy="heading"
+      describedBy="note"
       initialFocus={field}
       surface={surface}
     >
       <h2 id="heading">Exportar</h2>
+      <p id="note">Em CSV</p>
       <input ref={field} aria-label="De" />
     </Modal>
   );
@@ -53,7 +55,7 @@ describe('Modal', () => {
   it('opens a modal dialog named by the heading, with the caller’s scrim and panel', async () => {
     render(<Holder open onClose={vi.fn()} />);
 
-    const dialog = await screen.findByRole('dialog', { name: 'Exportar' });
+    const dialog = await screen.findByRole('dialog', { name: 'Exportar', description: 'Em CSV' });
     expect(dialog.getAttribute('aria-modal')).toBe('true');
     expect(dialog.className).toBe('test-panel');
     expect(document.querySelector('.test-scrim')).not.toBeNull();
@@ -86,6 +88,31 @@ describe('Modal', () => {
     });
 
     expect(onClose).toHaveBeenCalledTimes(2);
+  });
+
+  it('locks the page’s scroll while open, and frees it once closed', async () => {
+    const { rerender } = render(<Holder open onClose={vi.fn()} />);
+    await screen.findByRole('dialog');
+    expect(document.body.style.overflow).toBe('hidden');
+
+    rerender(<Holder open={false} onClose={vi.fn()} />);
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(document.body.style.overflow).toBe('');
+  });
+
+  it('gives the focus back to what had it once closed', async () => {
+    const outside = document.createElement('button');
+    document.body.append(outside);
+    outside.focus();
+    const { rerender } = render(<Holder open onClose={vi.fn()} />);
+    const field = await screen.findByRole('textbox', { name: 'De' });
+    await waitFor(() => expect(document.activeElement).toBe(field));
+
+    rerender(<Holder open={false} onClose={vi.fn()} />);
+
+    await waitFor(() => expect(document.activeElement).toBe(outside));
+    outside.remove();
   });
 
   it('goes away once the caller closes it', async () => {

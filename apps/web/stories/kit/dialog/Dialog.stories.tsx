@@ -11,21 +11,39 @@ import { TextField } from '../../../src/kit/textField/TextField';
 // `md` to see the full-screen sheet.
 
 /**
- * Renders a button that opens the dialog, holding its open state.
+ * Builds Cancel / Download CSV, as mockup 24 has them; both close the dialog.
+ *
+ * @param close - Closes the dialog.
+ * @returns The actions.
+ */
+const actions = (close: () => void) => (
+  <>
+    <Button variant="ghost" onClick={close}>Cancel</Button>
+    <Button variant="primary" onClick={close}>Download CSV</Button>
+  </>
+);
+
+/**
+ * Renders a button that opens the dialog, holding its open state. A `footer`
+ * arg turns on the actions row, whose buttons close it.
  *
  * @param props - The story's args: the heading, badge, body, footer and close handler.
  * @returns The opener and the dialog.
  */
-function Interactive({ open: initial, onClose, ...rest }: DialogProps) {
+function Interactive({
+  open: initial, onClose, footer, ...rest
+}: DialogProps) {
   const [open, setOpen] = useState(initial);
+  const close = () => setOpen(false);
   return (
     <>
       <Button onClick={() => setOpen(true)}>Open dialog</Button>
       <Dialog
         {...rest}
         open={open}
+        footer={footer ? actions(close) : undefined}
         onClose={() => {
-          setOpen(false);
+          close();
           onClose();
         }}
       />
@@ -54,14 +72,6 @@ function RangeFields() {
   );
 }
 
-/** Cancel / Download CSV, as mockup 24 has them. */
-const footer = (
-  <>
-    <Button variant="ghost">Cancel</Button>
-    <Button variant="primary">Download CSV</Button>
-  </>
-);
-
 const meta = {
   title: 'Kit/Dialog',
   component: Dialog,
@@ -72,7 +82,7 @@ const meta = {
     subtitle: 'The Doe Household · CSV',
     icon: 'download',
     children: <RangeFields />,
-    footer,
+    footer: true,
     onClose: fn(),
   },
 } satisfies Meta<DialogProps>;

@@ -1,5 +1,5 @@
 import {
-  act, fireEvent, screen, waitFor,
+  act, fireEvent, screen, waitFor, within,
 } from '@testing-library/react';
 import { useState, type ReactNode } from 'react';
 import {
@@ -83,28 +83,54 @@ describe('Dialog', () => {
 
     await openDialog();
 
-    const dialog = screen.getByRole('dialog', { name: 'Exportar log de auditoria' });
+    const dialog = screen.getByRole('dialog', {
+      name: 'Exportar log de auditoria', description: 'Família Silva · CSV',
+    });
     expect(dialog.getAttribute('aria-modal')).toBe('true');
-    expect(screen.getByText('Família Silva · CSV')).toBeDefined();
-    expect(dialog.querySelector('.bg-mint\\/15 svg')).not.toBeNull();
+    expect(within(dialog).getByTestId('dialog-badge').querySelector('svg')).not.toBeNull();
     expect(screen.getByRole('button', { name: 'Fechar' })).toBeDefined();
     expect(screen.getByRole('button', { name: 'Baixar CSV' })).toBeDefined();
   });
 
-  it('is a 440px centred card from md, a full-screen sheet below it', () => {
+  // jsdom draws no CSS, so these pin the classes that carry each layout rule;
+  // the real geometry is the Playwright suite's (the audit-log export, X8).
+  it('is a full-screen sheet below md, rising from the bottom', () => {
+    renderInLocale(<Dialog open title="Exportar" onClose={vi.fn()}>Corpo</Dialog>, 'pt-BR');
+
+    expect(screen.getByRole('dialog').className.split(' ')).toEqual(expect.arrayContaining([
+      'fixed', 'inset-0', 'data-[status=initial]:translate-y-full',
+      'data-[status=close]:translate-y-full',
+    ]));
+  });
+
+  it('is a 440px card centred from md, never taller than the viewport less 4rem', () => {
+    renderInLocale(<Dialog open title="Exportar" onClose={vi.fn()}>Corpo</Dialog>, 'pt-BR');
+
+    expect(screen.getByRole('dialog').className.split(' ')).toEqual(expect.arrayContaining([
+      'md:inset-auto', 'md:top-1/2', 'md:left-1/2', 'md:-translate-x-1/2', 'md:-translate-y-1/2',
+      'md:w-[440px]', 'md:max-h-[calc(100dvh-4rem)]', 'md:rounded-[24px]', 'md:shadow-dialog',
+    ]));
+  });
+
+  it('stays centred from md while it grows in and out, only scaling and fading', () => {
     renderInLocale(<Dialog open title="Exportar" onClose={vi.fn()}>Corpo</Dialog>, 'pt-BR');
 
     const classes = screen.getByRole('dialog').className.split(' ');
-    expect(classes).toEqual(expect.arrayContaining([
-      'fixed', 'inset-0', 'md:inset-auto', 'md:w-[440px]', 'md:rounded-[24px]', 'md:shadow-dialog',
-    ]));
+    ['initial', 'close'].forEach((status) => {
+      expect(classes).toEqual(expect.arrayContaining([
+        `md:data-[status=${status}]:-translate-y-1/2`,
+        `md:data-[status=${status}]:scale-95`,
+        `md:data-[status=${status}]:opacity-0`,
+      ]));
+    });
   });
 
   it('puts its scrim over the whole viewport, the header included', () => {
     renderInLocale(<Dialog open title="Exportar" onClose={vi.fn()}>Corpo</Dialog>, 'pt-BR');
 
     const scrim = document.querySelector('.bg-scrim') as HTMLElement;
-    expect(scrim.className).not.toContain('md:top-16');
+    expect(scrim.className).not.toMatch(/\btop-/);
+    expect(scrim.style.top).toBe('0px');
   });
 
   it('grows in: the status goes from initial to open', async () => {
@@ -122,9 +148,9 @@ describe('Dialog', () => {
     );
 
     const dialog = await screen.findByRole('dialog');
-    expect(dialog.querySelector('.text-muted.type-caption')).toBeNull();
-    expect(dialog.querySelector('.bg-mint\\/15')).toBeNull();
-    expect(dialog.querySelector('.justify-end')).toBeNull();
+    expect(dialog.getAttribute('aria-describedby')).toBeNull();
+    expect(within(dialog).queryByTestId('dialog-badge')).toBeNull();
+    expect(within(dialog).queryByTestId('dialog-footer')).toBeNull();
   });
 
   it('puts the focus on the body’s first field', async () => {
@@ -158,7 +184,7 @@ describe('Dialog', () => {
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Exportar' }));
   });
 
-  it('asks to close on Esc and on a press on the scrim', async () => {
+  it('asks to close on Esc, and stays open for a caller that ignores it', async () => {
     const onClose = vi.fn();
     renderInLocale(
       <Dialog open title="Exportar" onClose={onClose}><input aria-label="De" /></Dialog>,
@@ -169,12 +195,21 @@ describe('Dialog', () => {
     await act(async () => {
       fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
     });
+
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(screen.getByRole('dialog')).toBeDefined();
+  });
+
+  it('asks to close on a press on the scrim', async () => {
+    const onClose = vi.fn();
+    renderInLocale(<Dialog open title="Exportar" onClose={onClose}>Corpo</Dialog>, 'pt-BR');
+    await screen.findByRole('dialog');
+
     await act(async () => {
       fireEvent.mouseDown(document.querySelector('.bg-scrim') as Element);
     });
 
-    expect(onClose).toHaveBeenCalledTimes(2);
-    expect(screen.getByRole('dialog')).toBeDefined();
+    expect(onClose).toHaveBeenCalledOnce();
   });
 
   it('says Close in English', async () => {

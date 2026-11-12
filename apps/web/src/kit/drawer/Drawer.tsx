@@ -43,9 +43,12 @@ export const DRAWER_WIDTHS: Record<DrawerSize, string> = {
   wide: 'md:w-[640px]',
 };
 
-/** The scrim, fading in and out. */
+/**
+ * The scrim, fading in and out; from `md` up it starts under the 64px header.
+ * Floating UI's overlay sets `top: 0` inline, so the class needs `!` to win.
+ */
 export const SCRIM = [
-  `${LAYERS.scrim} bg-scrim transition-opacity ease-out motion-reduce:transition-none md:top-16`,
+  `${LAYERS.scrim} bg-scrim transition-opacity ease-out motion-reduce:transition-none md:top-16!`,
   'data-[status=initial]:opacity-0 data-[status=close]:opacity-0',
 ].join(' ');
 

@@ -20,6 +20,9 @@ test('an Owner adds an account with a card, edits it and archives it', async ({
 
   await page.getByRole('button', { name: text('accountSetup', 'add') }).click();
   const create = page.getByRole('dialog', { name: text('accountSetup', 'create.title') });
+  // The drawer's scrim starts under the 64px header (OQ-191, amended in OQ-241).
+  await expect(create).toBeVisible();
+  expect((await page.locator('.bg-scrim').boundingBox())?.y).toBe(64);
   await create.getByLabel(text('accountSetup', 'field.name')).fill('Travel Checking');
   await pick(create, text('accountSetup', 'field.currency'), 'USD');
   await pick(

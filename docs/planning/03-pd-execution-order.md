@@ -201,7 +201,7 @@ identity screens, the rest as later slices use them.
 - [x] **137.** `K21` Dialog (OQ-241: centred card from `md`, full-screen sheet below; one modal shell with the Drawer)
 - [ ] **138.** `FL21` Dashboard (OQ-231: reuses FL18's Net Worth Cards, 150px with `grid`)
 - [ ] **139.** `X8` Review Insights (with InsightsManager's Dashboard, notification inbox and audit-log export routes — OQ-201 — and ReportingEngine's Dashboard shape, OQ-206)
-- [ ] **140.** `I11` Frontend ↔ backend: insights
+- [ ] **140.** `I11` Frontend ↔ backend: insights (the audit-log export journey also checks the Dialog's geometry in the browser — centred 440px card, scrim over the header — OQ-241)
 - [ ] **141.** `I12` Shell notification routing (finish core journey #13, OQ-237: accept the matured notice's "Archive holding" through the bell — archived by `user` — reading the bell instead of `tests/e2e/support/notificationsDb.ts`, then drop that helper)
 - [ ] **142.** `I13` Delete account end to end
 - [ ] **R5.** Slice 5 review (gate)

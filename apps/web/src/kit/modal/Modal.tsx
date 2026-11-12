@@ -30,6 +30,8 @@ export interface ModalProps {
   readonly onClose: () => void;
   /** The id of the heading that names the dialog. */
   readonly labelledBy: string;
+  /** The id of the line that describes it, if any. */
+  readonly describedBy?: string | undefined;
   /** Where the opening focus goes. */
   readonly initialFocus: MutableRefObject<HTMLElement | null>;
   /** The scrim's and panel's look, and the transition's length. */
@@ -98,12 +100,12 @@ export function CloseButton({ label, onClick, buttonRef }: CloseButtonProps) {
 /**
  * Renders the scrim and the panel while open, and while they go out.
  *
- * @param props - The open state, the close request, the heading's id, the opening focus,
- *   the look and the content.
+ * @param props - The open state, the close request, the heading's and description's ids,
+ *   the opening focus, the look and the content.
  * @returns The scrim and panel in a portal, or nothing while closed.
  */
 export function Modal({
-  open, onClose, labelledBy, initialFocus, surface, children,
+  open, onClose, labelledBy, describedBy, initialFocus, surface, children,
 }: ModalProps) {
   const { refs: { setFloating }, context } = useFloating({
     open,
@@ -128,6 +130,7 @@ export function Modal({
         <div
           ref={setFloating}
           aria-labelledby={labelledBy}
+          aria-describedby={describedBy}
           aria-modal="true"
           className={surface.panel}
           data-status={status}

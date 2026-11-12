@@ -38,7 +38,12 @@ export const SCRIM = [
   'data-[status=initial]:opacity-0 data-[status=close]:opacity-0',
 ].join(' ');
 
-/** The panel: a full-screen sheet rising below `md`, the centred card growing in from it. */
+/**
+ * The panel: a full-screen sheet rising below `md`, the centred card growing
+ * in from it. The sheet's `data-[status=…]:translate-y-full` outranks the
+ * plain `md:-translate-y-1/2`, so the md status rules repeat `-translate-y-1/2`
+ * — without them the card would drop a full height as it opens and closes.
+ */
 export const PANEL = [
   `fixed inset-0 ${LAYERS.drawer} flex flex-col gap-5 bg-card p-6 outline-none`,
   'transition-[translate,scale,opacity] ease-out motion-reduce:transition-none',
@@ -66,6 +71,7 @@ export function Dialog({
 }: DialogProps) {
   const translator = useI18n();
   const titleId = useId();
+  const subtitleId = useId();
   const firstField = useRef<HTMLElement | null>(null);
   const closeButton = useRef<HTMLButtonElement | null>(null);
   const surface = { scrim: SCRIM, panel: PANEL, transitionMs: dialog.transitionMs };
@@ -75,15 +81,22 @@ export function Dialog({
       open={open}
       onClose={onClose}
       labelledBy={titleId}
+      describedBy={subtitle ? subtitleId : undefined}
       initialFocus={firstField}
       surface={surface}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
-          {icon && <span className={BADGE}><Icon name={icon} className="size-5" /></span>}
+          {icon && (
+            <span className={BADGE} data-testid="dialog-badge">
+              <Icon name={icon} className="size-5" />
+            </span>
+          )}
           <div className="min-w-0">
             <h2 id={titleId} className="truncate type-heading-sm">{title}</h2>
-            {subtitle && <div className="truncate type-caption text-muted">{subtitle}</div>}
+            {subtitle && (
+              <div id={subtitleId} className="truncate type-caption text-muted">{subtitle}</div>
+            )}
           </div>
         </div>
         <CloseButton
@@ -98,7 +111,11 @@ export function Dialog({
       >
         {children}
       </div>
-      {footer && <div className="flex items-center justify-end gap-2">{footer}</div>}
+      {footer && (
+        <div className="flex items-center justify-end gap-2" data-testid="dialog-footer">
+          {footer}
+        </div>
+      )}
     </Modal>
   );
 }
