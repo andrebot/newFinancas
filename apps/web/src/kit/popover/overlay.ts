@@ -11,9 +11,10 @@ import { overlay } from '../../config/constants';
 
 /**
  * The app's stacking order above the page, bottom to top: the shell's chrome
- * (z-20/30), the drawer's scrim and panel (K20), then what opens from
- * anywhere — even inside a drawer — the panels (select, menu, popover), the
- * tooltips and the toasts.
+ * (z-20/30), the modals' scrim and panel (the drawer K20 and the dialog
+ * K21), then what opens from anywhere — even inside a modal — the panels
+ * (select, menu, popover), the tooltips and the toasts. `drawer` is the
+ * layer of both modals' panels.
  */
 export const LAYERS = {
   scrim: 'z-40',

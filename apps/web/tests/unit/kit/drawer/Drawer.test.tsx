@@ -5,7 +5,7 @@ import { useState, type ReactNode } from 'react';
 import {
   describe, expect, it, vi,
 } from 'vitest';
-import { Drawer, focusFirstField } from '../../../../src/kit/drawer/Drawer';
+import { Drawer } from '../../../../src/kit/drawer/Drawer';
 import { renderInLocale } from '../../../support/renderInLocale';
 
 // Kit component (BDT: Interaction tier → unit): only the caller's close
@@ -112,6 +112,15 @@ describe('Drawer', () => {
     expect(classes).not.toContain('md:w-[520px]');
   });
 
+  it('starts its scrim under the header from md, outranking the overlay’s inline top', () => {
+    renderInLocale(<Drawer open title="Conta" onClose={vi.fn()}>Corpo</Drawer>, 'pt-BR');
+
+    // Floating UI writes `top: 0` inline; only an important class beats it.
+    const scrim = document.querySelector('.bg-scrim') as HTMLElement;
+    expect(scrim.style.top).toBe('0px');
+    expect(scrim.className.split(' ')).toContain('md:top-16!');
+  });
+
   it('slides in: the status goes from initial to open', async () => {
     renderHolder();
 
@@ -200,15 +209,5 @@ describe('Drawer', () => {
 
     expect(onClose).toHaveBeenCalledOnce();
     expect(screen.getByRole('dialog')).toBeDefined();
-  });
-});
-
-describe('focusFirstField', () => {
-  it('points nowhere once the body is gone and there is no ✕', () => {
-    const target = { current: document.createElement('input') as HTMLElement | null };
-
-    focusFirstField(target, { current: null })(null);
-
-    expect(target.current).toBeNull();
   });
 });

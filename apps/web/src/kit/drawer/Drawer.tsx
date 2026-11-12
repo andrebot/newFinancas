@@ -1,13 +1,9 @@
 import {
-  FloatingFocusManager, FloatingOverlay, FloatingPortal, useDismiss, useFloating,
-  useInteractions, useRole, useTransitionStatus,
-} from '@floating-ui/react';
-import {
-  useId, useRef, type MutableRefObject, type ReactNode,
+  useId, useRef, type ReactNode,
 } from 'react';
 import { drawer } from '../../config/constants';
 import { useI18n } from '../../utilities/I18nProvider';
-import { Icon } from '../icons/Icon';
+import { CloseButton, focusFirstField, Modal } from '../modal/Modal';
 import { LAYERS } from '../popover/overlay';
 
 // The kit's drawer (K20, OQ-191): the right-side panel every focused form
@@ -17,7 +13,8 @@ import { LAYERS } from '../popover/overlay';
 // dialog: focus stays inside and the page behind doesn't scroll. Esc, a click
 // on the scrim or the ✕ ask the caller to close it, so a caller with a save
 // out can ignore them. It slides in and out (the panel) and fades (the
-// scrim), unless the device asks for less motion.
+// scrim), unless the device asks for less motion. The modal wiring is the
+// shell it shares with the dialog (K21, `kit/modal/Modal`, OQ-241).
 
 /** The drawer's props. */
 export interface DrawerProps {
@@ -46,15 +43,12 @@ export const DRAWER_WIDTHS: Record<DrawerSize, string> = {
   wide: 'md:w-[640px]',
 };
 
-/** What can take focus when the drawer opens: the body's first field or control. */
-const FOCUSABLE = [
-  'input:not([disabled])', 'select:not([disabled])', 'textarea:not([disabled])',
-  'button:not([disabled])', 'a[href]', '[tabindex]:not([tabindex="-1"])',
-].join(', ');
-
-/** The scrim, fading in and out. */
+/**
+ * The scrim, fading in and out; from `md` up it starts under the 64px header.
+ * Floating UI's overlay sets `top: 0` inline, so the class needs `!` to win.
+ */
 export const SCRIM = [
-  `${LAYERS.scrim} bg-scrim transition-opacity ease-out motion-reduce:transition-none md:top-16`,
+  `${LAYERS.scrim} bg-scrim transition-opacity ease-out motion-reduce:transition-none md:top-16!`,
   'data-[status=initial]:opacity-0 data-[status=close]:opacity-0',
 ].join(' ');
 
@@ -70,27 +64,6 @@ export const PANEL = [
 
 const CAPTION = 'type-caption font-semibold tracking-wider text-muted uppercase';
 
-const CLOSE_BUTTON = [
-  'flex size-10 shrink-0 items-center justify-center rounded-full text-muted',
-  'hover:bg-ink/5 hover:text-ink outline-none focus-visible:outline-2 focus-visible:outline-mint',
-].join(' ');
-
-/**
- * Builds the body's ref, which points the opening focus at its first field,
- * or at the ✕ when the body has nothing to focus.
- *
- * @param target - Where the opening focus goes.
- * @param closeButton - The ✕, the fallback.
- * @returns The callback ref for the body.
- */
-export const focusFirstField = (
-  target: MutableRefObject<HTMLElement | null>,
-  closeButton: MutableRefObject<HTMLButtonElement | null>,
-) => (body: HTMLDivElement | null) => {
-  // eslint-disable-next-line no-param-reassign -- a ref is written through.
-  target.current = body?.querySelector<HTMLElement>(FOCUSABLE) ?? closeButton.current;
-};
-
 /**
  * Renders the drawer while it is open, and while it slides out.
  *
@@ -104,63 +77,42 @@ export function Drawer({
   const titleId = useId();
   const firstField = useRef<HTMLElement | null>(null);
   const closeButton = useRef<HTMLButtonElement | null>(null);
-  const { refs: { setFloating }, context } = useFloating({
-    open,
-    // Only `useDismiss` changes it from here, and only ever to closed.
-    onOpenChange: onClose,
-  });
-  const { getFloatingProps } = useInteractions([
-    useDismiss(context, { outsidePressEvent: 'mousedown' }),
-    useRole(context, { role: 'dialog' }),
-  ]);
-  const { isMounted, status } = useTransitionStatus(context, { duration: drawer.transitionMs });
-  const timing = { transitionDuration: `${drawer.transitionMs}ms` };
-
-  if (!isMounted) {
-    return null;
-  }
+  const surface = {
+    scrim: SCRIM,
+    panel: `${PANEL} ${DRAWER_WIDTHS[size]}`,
+    transitionMs: drawer.transitionMs,
+  };
 
   return (
-    <FloatingPortal>
-      <FloatingOverlay lockScroll className={SCRIM} data-status={status} style={timing} />
-      <FloatingFocusManager context={context} initialFocus={firstField}>
-        <div
-          ref={setFloating}
-          aria-labelledby={titleId}
-          aria-modal="true"
-          className={`${PANEL} ${DRAWER_WIDTHS[size]}`}
-          data-status={status}
-          style={timing}
-          {...getFloatingProps()}
-        >
-          <div className="flex items-center justify-between gap-3 border-b border-line px-6 py-5">
-            <div className="min-w-0">
-              {caption && <div className={CAPTION}>{caption}</div>}
-              <h2 id={titleId} className="truncate type-heading-md">{title}</h2>
-            </div>
-            <button
-              ref={closeButton}
-              type="button"
-              className={CLOSE_BUTTON}
-              aria-label={translator.text('drawer', 'close')}
-              onClick={onClose}
-            >
-              <Icon name="close" className="size-[22px]" />
-            </button>
-          </div>
-          <div
-            ref={focusFirstField(firstField, closeButton)}
-            className="flex-1 overflow-y-auto px-6 py-5"
-          >
-            {children}
-          </div>
-          {footer && (
-            <div className="flex items-center justify-end gap-3 border-t border-line px-6 py-4">
-              {footer}
-            </div>
-          )}
+    <Modal
+      open={open}
+      onClose={onClose}
+      labelledBy={titleId}
+      initialFocus={firstField}
+      surface={surface}
+    >
+      <div className="flex items-center justify-between gap-3 border-b border-line px-6 py-5">
+        <div className="min-w-0">
+          {caption && <div className={CAPTION}>{caption}</div>}
+          <h2 id={titleId} className="truncate type-heading-md">{title}</h2>
         </div>
-      </FloatingFocusManager>
-    </FloatingPortal>
+        <CloseButton
+          buttonRef={closeButton}
+          label={translator.text('drawer', 'close')}
+          onClick={onClose}
+        />
+      </div>
+      <div
+        ref={focusFirstField(firstField, closeButton)}
+        className="flex-1 overflow-y-auto px-6 py-5"
+      >
+        {children}
+      </div>
+      {footer && (
+        <div className="flex items-center justify-end gap-3 border-t border-line px-6 py-4">
+          {footer}
+        </div>
+      )}
+    </Modal>
   );
 }

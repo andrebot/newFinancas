@@ -88,7 +88,9 @@ export function Tooltip({
   const { getReferenceProps, getFloatingProps } = useInteractions([
     useHover(context, { mouseOnly: true, delay: { open: tooltip.openDelayMs, close: 0 } }),
     useFocus(context, { visibleOnly: true }),
-    useDismiss(context, { referencePress: true }),
+    // Esc is caught before anything else hears it, so inside a drawer or a
+    // dialog it closes the tooltip and never the modal with it (OQ-241).
+    useDismiss(context, { referencePress: true, capture: { escapeKey: true } }),
     useRole(context, { role: 'tooltip', enabled: !repeatsName }),
   ]);
   const { ref: mergedRef, ...merged } = triggerProps;

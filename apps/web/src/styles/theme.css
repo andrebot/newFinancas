@@ -66,6 +66,8 @@
   /* The lift under floating panels (popover, menu, …): deep on the dark
      background, soft and ink-tinted on the light one. */
   --s-overlay: 0 24px 60px -20px rgb(0 0 0 / 0.85);
+  /* The deeper lift under a centred dialog (K21, mockup 24). */
+  --s-dialog: 0 30px 80px -20px rgb(0 0 0 / 0.9);
   /* The scrim behind a drawer (S1, mockup 21's 55% black); the light theme's
      is ink-tinted, as its overlay shadow is. */
   --s-scrim: rgb(0 0 0 / 0.55);
@@ -119,6 +121,7 @@
   --c-cat-slate: #475569;
 
   --s-overlay: 0 24px 60px -20px rgb(19 32 26 / 0.22);
+  --s-dialog: 0 30px 80px -20px rgb(19 32 26 / 0.28);
   --s-scrim: rgb(19 32 26 / 0.4);
   --s-glow: 0 6px 20px -6px rgb(11 122 85 / 0.45);
 }
@@ -179,6 +182,7 @@
   --color-cat-slate: var(--c-cat-slate);
 
   --shadow-overlay: var(--s-overlay);
+  --shadow-dialog: var(--s-dialog);
   --color-scrim: var(--s-scrim);
   --shadow-glow: var(--s-glow);
 
