@@ -55,34 +55,54 @@
 </head>
 <body>
   <h1>Review Insights — Dashboard</h1>
-  <p class="subtitle"><span class="route">GET /households/:householdId/dashboard</span>, <span class="route">GET /households/:householdId/reports/payouts?holdingIds=</span>.</p>
+  <p class="subtitle"><span class="route">GET /households/:householdId/dashboard</span> with <span class="route">GET /households/:householdId/holdings?includeArchived=true</span> and <span class="route">GET /households/:householdId/accounts</span>; <span class="route">GET /households/:householdId/reports/payouts?holdingIds=</span> (OQ-242).</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
     actor User
-    participant PN as Panels
+    participant PN as Net Worth / Coming Due /<br/>Month Rails
     participant HS as Payout Holding Selector
     participant PC as Payout Chart
     participant FLOW as Dashboard<br/>Flow
     participant EXP as Review Insights<br/>Experience
     participant API as Backend API
     FLOW->>EXP: request dashboard
+    par the Dashboard and what names it
     EXP->>API: GET /households/:householdId/dashboard
-    API-->>EXP: fixed panels
+    API-->>EXP: month, net worth + change, coming due, balances, budgets (over-budget first), active Goals
+    EXP->>API: GET /households/:householdId/holdings?includeArchived=true
+    API-->>EXP: every visible Holding: ticker, type, account
+    EXP->>API: GET /households/:householdId/accounts
+    API-->>EXP: accounts with their cards
+    end
+    alt all three loaded
+    EXP-->>FLOW: state (report + Holdings, accounts)
+    FLOW-->>PN: render net worth beside coming due, then the report month's rails
+    else no Holding at all
+    FLOW-->>PN: one card in place of net worth, coming due and the payout chart — "Go to Transactions", the rails as always
+    User->>FLOW: Go to Transactions
+    FLOW->>EXP: emit goToTransactions
+    EXP-->>User: navigate to Transactions
+    else failed
+    EXP-->>FLOW: failed
+    FLOW-->>PN: banner "Couldn't load your dashboard" + Try again, in place of every panel
+    end
+    FLOW->>EXP: request payouts(remembered choice — "all" the first time)
+    EXP->>API: GET /households/:householdId/reports/payouts?months=12 (no holdingIds for "all" — a list waits for the Holdings)
+    API-->>EXP: series per Holding and currency
     EXP-->>FLOW: state
-    FLOW-->>PN: render net worth, coming due, rails (over-budget first)
-    FLOW-->>PC: render payouts
-    User->>HS: change holdings
+    FLOW-->>PC: render the $ / R$ switch's currency: top 5 + Others
+    User->>HS: search, family presets, check holdings
     HS->>FLOW: emit holdingsSelected
-    FLOW->>EXP: request payouts(selected)
+    FLOW->>EXP: request payouts(selected), remembered per household
     EXP->>API: GET /households/:householdId/reports/payouts?months=12&holdingIds=a,b (comma-joined)
     API-->>EXP: series
     EXP-->>FLOW: state
-    FLOW-->>PC: re-render
+    FLOW-->>PC: re-render (only the chart refetches)
     </pre>
   </div>
   <div class="notes">
-<ul><li>Widgets are v3, reports v2.</li></ul>
+<ul><li>Widgets are v3, reports v2. The page header (title, the month chip) is the Experience's (X8).</li><li>OQ-242: the rails are titled with the report's `month`, never the browser's clock. The report's optional `payouts` block is X8's to use or drop; the chart reads `reports/payouts` with the remembered choice.</li><li>The Dashboard sends no payout this month, so the selector's rows show no amount.</li></ul>
   </div>
   <script>
     mermaid.initialize({

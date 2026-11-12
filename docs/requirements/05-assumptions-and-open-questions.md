@@ -7291,6 +7291,80 @@ forward with all the next phases"), from the review in
 
 **Task 137 (`K21`) is complete.**
 
+### OQ-242: Dashboard (task FL21)
+**Confirmed with the stakeholder (Nov 2026):**
+- **A household with no Holding sees one card in place of the investment
+  panels** — net worth, Coming Due and the payout chart — and the rails as
+  always. Mockup 20 draws only a household with Holdings. This matters on the
+  first landing after onboarding. Weighed and rejected: hiding the panels, so
+  the page is just the rails, and each panel's own empty line, which left a
+  page of empty panels.
+- **The card points to Transactions, not Investments:** "No investments yet",
+  "Net worth, payouts and what comes due show here once you record an
+  investment buy in Transactions." and **Go to Transactions**. Only a buy
+  creates a Holding (FR-5.1), and the Investments page's own empty state sends
+  the user to Transactions anyway. The Flow emits `onGoToTransactions` and the
+  Experience navigates.
+
+**Design decisions:**
+- **Layout, from mockup 20:** from `xl`, the two net worth tiles and a 380px
+  Coming Due column; the payout panel across the page; the Balances rail
+  across the page; Budgets beside Goals. Below `xl` the tiles sit side by side
+  from `md` (Net Worth Cards' own grid), and everything else stacks. The tiles'
+  chart is 150px tall with `grid` (OQ-231, `dashboard.netWorthChartHeightPx`).
+  The Flow places `MonthRails`' three rails in its own grid, so the Interaction
+  is unchanged.
+- **The server's month, never the browser's clock (PR #171 review).** The
+  report carries its `month` (`YYYY-MM`), and the rails are titled with it,
+  so a user in another time zone, or a page left open past midnight, never
+  sees one month's figures under another's name. While the report loads the
+  rails show no month. The page header (title, subtitle, the month chip)
+  belongs to X8, as the Investments header belongs to X7, and reads the same
+  `month`.
+- **Contract, pulled forward from X8:** the `getDashboard` response is now
+  the named schema `DashboardReport`. `month`, `netWorth`, `comingDue`,
+  `balances`, `budgets` and `goals` are required; `payouts` is optional
+  (stakeholder, PR #171 review — see below). Its
+  `balances`, `budgets` and `goals` are the month overview's (budgets
+  over-budget first), and `netWorth` and `comingDue` are the investments
+  overview's.
+- **The Flow's props:** `dashboard` is `loading | failed | loaded`. It is
+  `loaded` only once the report, the household's Holdings (archived ones too,
+  for the tickers and types) and the accounts (for the balance cards) are all
+  in. Next come `onRetry`, `onGoToTransactions`, and `payouts`, the payout
+  chart's input as FL18 takes it. That type moved from FL18's Flow to
+  `experiences/payoutPanel.ts`, where both Flows import it, and was renamed
+  `PayoutChartInput` (review), apart from the payouts query's own
+  `PayoutsInput`.
+- **Coming Due keeps its 380px column** when there are no net worth tiles
+  (review): a household whose Holdings were all archived over 6 months ago
+  has Holdings but no net worth, and Coming Due would otherwise slide into
+  the wide column, leaving the narrow one empty.
+- **States:** while the Dashboard loads, every panel shows its placeholder.
+  One request brings every panel, so when it fails one banner with Try again
+  replaces them all, rails included. A failed payouts report fails the chart
+  alone, as on FL18. The Dashboard sends no `payoutThisMonth`, so the
+  selector's rows show no amount for this month — no dash either, which
+  would read as "paid nothing" (review: `PayoutPanel` now leaves the column
+  out when no payouts are handed in).
+- **Left for X8:** the response may embed `payouts`, but the server doesn't
+  know the choice of Holdings the user remembered, so that block is right
+  only when the choice is every Holding. **Kept, optional (stakeholder, PR
+  #171 review)** rather than required — a required block the Flow never reads
+  would cost the server 12 months of payouts on every load. X8 decides
+  whether to send and use it then, or to drop it.
+- **Tests (BDT):** Flow tier, unit. The Interactions are stubbed and the
+  translator, kit pieces, `periodLabelOf` and `balanceCardsOf` are real. The
+  tests cover the three states, the household with no Holding, the payout
+  choice passed through and a failed payouts report. The layout was checked
+  in Chromium through a temporary story: no sideways overflow at 320px or
+  1024px; at 1440px the panels sit as in mockup 20, in both themes.
+- **The sequence diagram** (`review-insights-dashboard`) now draws the three
+  reads, the loaded / no-Holding / failed branches and the chart's own
+  payouts query with the remembered choice (review).
+
+**Task 138 (`FL21`) is complete.**
+
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
 *(None currently — OQ-29, the last item here, was resolved during data

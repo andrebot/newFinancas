@@ -301,6 +301,14 @@ export const portfolio = {
   readonly comingDueSoonMonths: number;
 };
 
+/** The Dashboard (FL21; mockup 20; OQ-231, OQ-242). */
+export const dashboard = {
+  /** The net worth tiles' chart height, in px, drawn with its background lines (mockup 20). */
+  netWorthChartHeightPx: 150,
+} as const satisfies {
+  readonly netWorthChartHeightPx: number;
+};
+
 /** The Holdings by account tab (FL19, mockups 51–52, OQ-234). */
 export const holdingMaintenance = {
   /** How many of a Holding's latest transactions its Activity card lists (mockup 51). */

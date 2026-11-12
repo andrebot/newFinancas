@@ -210,6 +210,8 @@ describe('PayoutPanel', () => {
     await openSelector();
     const panel = screen.getByRole('dialog', { name: 'Holdings' });
     expect(within(panel).queryByText('R$ 890,00')).toBeNull();
+    // No dash either: it would read as "paid nothing this month" (PR #171 review).
+    expect(within(panel).queryByText('—')).toBeNull();
   });
 
   it('speaks the interface language', () => {

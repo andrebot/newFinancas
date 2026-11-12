@@ -85,7 +85,8 @@ function ThisMonth({ payout }: { readonly payout: HoldingPayout | undefined }) {
 interface OptionSources {
   readonly groups: readonly HoldingGroup[];
   readonly colors: ReadonlyMap<string, string>;
-  readonly paid: ReadonlyMap<string, HoldingPayout>;
+  /** This month's payout per Holding; none when the caller has none, so the rows show no amount. */
+  readonly paid: ReadonlyMap<string, HoldingPayout> | undefined;
   readonly translator: Translator;
 }
 
@@ -105,7 +106,7 @@ const optionsOf = ({
       value: id,
       label: holdingNameOf(holding),
       leading: <Swatch color={colors.get(id)} />,
-      trailing: <ThisMonth payout={paid.get(id)} />,
+      trailing: paid && <ThisMonth payout={paid.get(id)} />,
       description: holding.archivedAt ? translator.text('payoutPanel', 'archived') : undefined,
     };
   }),
@@ -250,7 +251,7 @@ export function PayoutPanel({
         // Until the Holdings are read there is nothing to choose from (review round 1).
         disabled={holdings.length === 0}
         options={optionsOf({
-          groups, colors, paid: payoutsByHolding(thisMonth ?? []), translator,
+          groups, colors, paid: thisMonth && payoutsByHolding(thisMonth), translator,
         })}
         value={chosen}
         onChange={onChosenChange}

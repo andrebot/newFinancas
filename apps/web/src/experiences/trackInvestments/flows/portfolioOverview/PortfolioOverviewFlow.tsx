@@ -5,14 +5,13 @@ import { InlineBanner } from '../../../../kit/alert/InlineBanner';
 import { Button } from '../../../../kit/button/Button';
 import { EmptyState } from '../../../../kit/emptyState/EmptyState';
 import { useI18n } from '../../../../utilities/I18nProvider';
-import type { PreferenceStorage } from '../../../../utilities/safeStorage';
 import useFormatter from '../../../../utilities/useFormatter';
 import useToday from '../../../../utilities/useToday';
 import { ComingDue } from '../../../interactions/ComingDue';
 import { periodLabelOf } from '../../../interactions/MonthRails';
 import { NetWorthCards } from '../../../interactions/NetWorthCards';
 import { PayoutPanel } from '../../../interactions/PayoutPanel';
-import type { PayoutsRead } from '../../../payoutPanel';
+import type { PayoutChartInput } from '../../../payoutPanel';
 import type { OverviewRead } from '../../overviewRead';
 import {
   AccountAllocation, FamilyAllocation, GoalFunding, TypeAllocation,
@@ -35,20 +34,6 @@ import { PayoutThisMonth } from './interactions/PayoutThisMonth';
 
 export type { OverviewRead };
 
-/** The payout chart's part of the Flow's props. */
-export interface PayoutsInput {
-  /** The payouts report for the choice. */
-  readonly read: PayoutsRead;
-  /** The Holdings chosen, as the Experience resolved them. */
-  readonly chosen: readonly string[];
-  /** Emits a new choice. */
-  readonly onChosenChange: (ids: readonly string[]) => void;
-  /** Asks for the payouts again after they failed. */
-  readonly onRetry: () => void;
-  /** Where the chart's $ / R$ pick is remembered. */
-  readonly currencyMemory: PreferenceStorage;
-}
-
 /** What the Flow asks of the Experience. */
 export interface PortfolioOverviewFlowProps {
   readonly overview: OverviewRead;
@@ -58,7 +43,7 @@ export interface PortfolioOverviewFlowProps {
   readonly accounts: readonly Account[];
   /** The active Goals with their progress; unknown while they load. */
   readonly goals: readonly GoalWithProgress[] | undefined;
-  readonly payouts: PayoutsInput;
+  readonly payouts: PayoutChartInput;
 }
 
 /**
@@ -95,7 +80,7 @@ interface LoadedParts {
  * @returns The row.
  */
 function PayoutsRow({ report, holdings, payouts }: LoadedParts & {
-  readonly payouts: PayoutsInput;
+  readonly payouts: PayoutChartInput;
 }) {
   const translator = useI18n();
   const formatter = useFormatter();

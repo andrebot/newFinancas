@@ -749,6 +749,75 @@ export type CardTransaction = {
     ledger?: 'card';
 };
 
+/**
+ * FR-6.0 — the v1 Dashboard's fixed panels for the current month: the investments overview's net worth and coming due, and the month's balances, budgets (over-budget first) and active Goals (OQ-242, pulled forward from task X8).
+ */
+export type DashboardReport = {
+    /**
+     * The month the panels are for, the server's current month: what the app titles them with, never the browser's clock (OQ-242)
+     */
+    month: string;
+    /**
+     * One entry per currency the visible Holdings held value in, never summed (FR-5.3): the Holdings' value — a market-priced one's latest snapshot, a fixed-term one's cost basis (FR-5.4, OQ-51) — not account balances (OQ-236)
+     */
+    netWorth: Array<{
+        currency: Currency;
+        amount: Money;
+        /**
+         * Left out when the series holds only this month (OQ-231, OQ-236)
+         */
+        changeVsPreviousMonth?: Money;
+        /**
+         * The last 6 months at most, oldest first, ending this month, from the first month the currency held value; each month's figure on its last day, this month's today, a Holding counted until the day it was archived (OQ-231, OQ-236)
+         */
+        series: Array<{
+            month: string;
+            amount: Money;
+        }>;
+    }>;
+    /**
+     * The fixed-term Holdings still open, soonest due first, each worth its principal (cost basis), as net worth counts it (OQ-236)
+     */
+    comingDue: Array<{
+        holdingId: string;
+        name: string;
+        dueDate: string;
+        currency: Currency;
+        amount: Money;
+    }>;
+    /**
+     * The last 12 months of payouts of every Holding. Optional: the payout chart reads `reports/payouts` with the user's remembered choice; task X8 decides whether to send and use this block when that choice is every Holding (OQ-242)
+     */
+    payouts?: PayoutsReport;
+    /**
+     * Each visible Account open at the month's end (one archived later included, OQ-206) with its balance then, and each of its cards' outstanding balance at the month's end (OQ-201). A credit_card_only Account's own row never moves; the app shows its cards' sum (OQ-175, OQ-221)
+     */
+    balances: Array<{
+        accountId: string;
+        creditCardId: string | null;
+        currency: Currency;
+        amount: Money;
+    }>;
+    /**
+     * The visible Budgets active that month, over-budget first; one with no period opened that month shows the target in effect then (OQ-166) and zero spend (OQ-201)
+     */
+    budgets: Array<{
+        budgetId: string;
+        name: string;
+        currency: Currency;
+        visibility: 'personal' | 'shared';
+        targetAmount: Money;
+        /**
+         * Money out − money in across its claimed categories (OQ-201)
+         */
+        spendAmount: Money;
+    }>;
+    /**
+     * Progress at the month's end (FR-8.7), per currency as always; the frontend shows the Goal's own currency and notes when others fund it (OQ-201 — the exchange rate stays on the Goals page)
+     */
+    goals: Array<GoalWithProgress>;
+};
+
 export type DashboardWidget = {
     id?: string;
     /**
@@ -3170,64 +3239,7 @@ export type GetDashboardResponses = {
     /**
      * OK
      */
-    200: {
-        /**
-         * One entry per currency the visible Holdings held value in, never summed (FR-5.3): the Holdings' value — a market-priced one's latest snapshot, a fixed-term one's cost basis (FR-5.4, OQ-51) — not account balances (OQ-236)
-         */
-        netWorth?: Array<{
-            currency: Currency;
-            amount: Money;
-            /**
-             * Left out when the series holds only this month (OQ-231, OQ-236)
-             */
-            changeVsPreviousMonth?: Money;
-            /**
-             * The last 6 months at most, oldest first, ending this month, from the first month the currency held value; each month's figure on its last day, this month's today, a Holding counted until the day it was archived (OQ-231, OQ-236)
-             */
-            series: Array<{
-                month: string;
-                amount: Money;
-            }>;
-        }>;
-        /**
-         * The fixed-term Holdings still open, soonest due first, each worth its principal (cost basis), as net worth counts it (OQ-236)
-         */
-        comingDue?: Array<{
-            holdingId: string;
-            name: string;
-            dueDate: string;
-            currency: Currency;
-            amount: Money;
-        }>;
-        payouts?: PayoutsReport;
-        /**
-         * Each visible Account open at the month's end (one archived later included, OQ-206) with its balance then, and each of its cards' outstanding balance at the month's end (OQ-201). A credit_card_only Account's own row never moves; the app shows its cards' sum (OQ-175, OQ-221)
-         */
-        balances?: Array<{
-            accountId: string;
-            creditCardId: string | null;
-            currency: Currency;
-            amount: Money;
-        }>;
-        /**
-         * The visible Budgets active that month, over-budget first; one with no period opened that month shows the target in effect then (OQ-166) and zero spend (OQ-201)
-         */
-        budgets?: Array<{
-            budgetId: string;
-            name: string;
-            currency: Currency;
-            visibility: 'personal' | 'shared';
-            targetAmount: Money;
-            /**
-             * Money out − money in across its claimed categories (OQ-201)
-             */
-            spendAmount: Money;
-        }>;
-        /**
-         * Progress at the month's end (FR-8.7), per currency as always; the frontend shows the Goal's own currency and notes when others fund it (OQ-201 — the exchange rate stays on the Goals page)
-         */
-        goals?: Array<GoalWithProgress>;
-    };
+    200: DashboardReport;
 };
 
 export type GetDashboardResponse = GetDashboardResponses[keyof GetDashboardResponses];

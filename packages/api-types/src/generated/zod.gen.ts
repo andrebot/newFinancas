@@ -926,6 +926,45 @@ export const zPayoutsReport = z.object({
     }))
 });
 
+/**
+ * FR-6.0 — the v1 Dashboard's fixed panels for the current month: the investments overview's net worth and coming due, and the month's balances, budgets (over-budget first) and active Goals (OQ-242, pulled forward from task X8).
+ */
+export const zDashboardReport = z.object({
+    month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
+    netWorth: z.array(z.object({
+        currency: zCurrency,
+        amount: zMoney,
+        changeVsPreviousMonth: zMoney.optional(),
+        series: z.array(z.object({
+            month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
+            amount: zMoney
+        }))
+    })),
+    comingDue: z.array(z.object({
+        holdingId: z.uuid(),
+        name: z.string(),
+        dueDate: z.iso.date(),
+        currency: zCurrency,
+        amount: zMoney
+    })),
+    payouts: zPayoutsReport.optional(),
+    balances: z.array(z.object({
+        accountId: z.uuid(),
+        creditCardId: z.uuid().nullable(),
+        currency: zCurrency,
+        amount: zMoney
+    })),
+    budgets: z.array(z.object({
+        budgetId: z.uuid(),
+        name: z.string(),
+        currency: zCurrency,
+        visibility: z.enum(['personal', 'shared']),
+        targetAmount: zMoney,
+        spendAmount: zMoney
+    })),
+    goals: z.array(zGoalWithProgress)
+});
+
 export const zInvitationReceivedNotification = z.object({
     id: z.uuid().optional(),
     seenAt: z.iso.datetime().nullish(),
@@ -1726,40 +1765,7 @@ export const zGetDashboardPath = z.object({
 /**
  * OK
  */
-export const zGetDashboardResponse = z.object({
-    netWorth: z.array(z.object({
-        currency: zCurrency,
-        amount: zMoney,
-        changeVsPreviousMonth: zMoney.optional(),
-        series: z.array(z.object({
-            month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
-            amount: zMoney
-        }))
-    })).optional(),
-    comingDue: z.array(z.object({
-        holdingId: z.uuid(),
-        name: z.string(),
-        dueDate: z.iso.date(),
-        currency: zCurrency,
-        amount: zMoney
-    })).optional(),
-    payouts: zPayoutsReport.optional(),
-    balances: z.array(z.object({
-        accountId: z.uuid(),
-        creditCardId: z.uuid().nullable(),
-        currency: zCurrency,
-        amount: zMoney
-    })).optional(),
-    budgets: z.array(z.object({
-        budgetId: z.uuid(),
-        name: z.string(),
-        currency: zCurrency,
-        visibility: z.enum(['personal', 'shared']),
-        targetAmount: zMoney,
-        spendAmount: zMoney
-    })).optional(),
-    goals: z.array(zGoalWithProgress).optional()
-});
+export const zGetDashboardResponse = zDashboardReport;
 
 export const zEditDashboardWidgetsBody = z.object({
     widgets: z.array(zDashboardWidgetInput)
