@@ -1,26 +1,25 @@
 import type {
   CreateInvitationResponse,
   HouseholdInvitation,
-  HouseholdMembership,
   ListHouseholdInvitationsResponse,
-  ListMembersResponse,
 } from '@financas/api-types';
 import backendApi from '../../api/backendApi';
 import send from '../../api/send';
 import type {
-  AssignableRole, HouseholdMember, ListedInvitation,
+  AssignableRole, ListedInvitation,
 } from './flows/membershipManagement/membershipState';
 
 // The Manage Household Experience's endpoints (X4, OQ-160). The households
-// list is a shared identity read (`api/identityApi.ts`, OQ-163); this slice
-// invalidates its tag when a transfer changes the user's role. The members
-// are cached per household: the page header counts them and Leave Household
-// names the successor from them, so every change to the membership fetches
-// them again. The invitations are the Membership Management Flow's
-// own list, fetched as it mounts and never kept. A transfer also fetches the
-// households again, where the user's role changed. Leaving or deleting the
-// household invalidates nothing: the Experience fetches the households itself
-// and moves the user on (`householdExit.ts`).
+// list and the members are shared identity reads (`api/identityApi.ts`,
+// OQ-163; the members since the slice 4 review, A1); this slice invalidates
+// their tags when a write changes them. The members are cached per household:
+// the page header counts them and Leave Household names the successor from
+// them, so every change to the membership fetches them again. The invitations
+// are the Membership Management Flow's own list, fetched as it mounts and
+// never kept. A transfer also fetches the households again, where the user's
+// role changed. Leaving or deleting the household invalidates nothing: the
+// Experience fetches the households itself and moves the user on
+// (`householdExit.ts`).
 
 /** A member's address in the API. */
 export interface MemberTarget {
@@ -83,21 +82,6 @@ export const toListedInvitation = (invitation: HouseholdInvitation): ListedInvit
 });
 
 /**
- * Turns one listed membership into the Flow's member.
- *
- * @param membership - The membership, as the API lists it.
- * @returns The member.
- */
-export const toHouseholdMember = (membership: HouseholdMembership): HouseholdMember => ({
-  userId: membership.userId,
-  firstName: membership.firstName,
-  lastName: membership.lastName,
-  email: membership.email,
-  role: membership.role,
-  joinedAt: membership.joinedAt,
-});
-
-/**
  * Names the cached members of one household.
  *
  * @param householdId - The household.
@@ -110,13 +94,6 @@ export const manageHouseholdApi = backendApi.enhanceEndpoints({
   addTagTypes: ['Households', 'Members'],
 }).injectEndpoints({
   endpoints: (build) => ({
-    listMembers: build.query<readonly HouseholdMember[], string>({
-      query: (householdId) => householdPath(householdId, '/members'),
-      transformResponse: (response: ListMembersResponse) => (
-        (response.data ?? []).map(toHouseholdMember)
-      ),
-      providesTags: (_result, _error, householdId) => membersTag(householdId),
-    }),
     listHouseholdInvitations: build.query<readonly ListedInvitation[], string>({
       query: (householdId) => householdPath(householdId, '/invitations'),
       transformResponse: (response: ListHouseholdInvitationsResponse) => (
@@ -165,8 +142,6 @@ export const manageHouseholdApi = backendApi.enhanceEndpoints({
 });
 
 export const {
-  useListMembersQuery,
-  useLazyListMembersQuery,
   useLazyListHouseholdInvitationsQuery,
   useChangeMemberRoleMutation,
   useRemoveMemberMutation,

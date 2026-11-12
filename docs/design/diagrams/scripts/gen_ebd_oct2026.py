@@ -52,7 +52,7 @@ EXPERIENCES = [
      [("Security", ["Password Change", "Session List", "Sign Out All Others"], "security"),
       ("Delete Account", ["Consequences Review", "Type-to-Confirm"], "delete-account")],
      ["Edit Personal Info", "Edit Preferences", "Respond to Invitation"], ["ValidationUtility", "PasswordStrengthUtility", "AlertUtility", "ThemeUtility", "I18nUtility", "FormattingUtility"],
-     "New Experience (Q1): split out of Authenticate (Security) and Manage Household (Edit Profile, Delete Account). Hands the App Shell the signed-in user and the pending-invitation count, and owns the invitation.received route (OQ-159). Reads Manage Household's households list for the role and the households owned."),
+     "New Experience (Q1): split out of Authenticate (Security) and Manage Household (Edit Profile, Delete Account). Hands the App Shell the signed-in user and the pending-invitation count, and owns the invitation.received route (OQ-159). Reads the shared households list (api/identityApi.ts, OQ-163) for the role and the households owned."),
     ("Manage Household", "manage-household", "Run the household",
      [("Membership Management", ["Member List", "Role Menu", "Invite Member", "Pending Invitations", "Remove Member Confirm", "Transfer Ownership"], "membership-management"),
       ("Household Deletion", ["Consequences Review", "Type-to-Confirm"], "household-deletion")],

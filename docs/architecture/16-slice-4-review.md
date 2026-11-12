@@ -4,7 +4,7 @@ The gate at the end of slice 4 (investments: holdings, market values, rates,
 payouts and the daily job — tasks 123–135), run by the method in
 `13-slice-review.md` (OQ-164). Work happens on the `review/slice-4` branch,
 cut from `main` after PR #164 (`I10`).
-**Status: phases 1–2 complete (PR #165, phase 2's PR); phase 3 next.**
+**Status: complete — phases 1–2 in PRs #165 and #166, phase 3 in its PR.**
 
 ## Scope
 
@@ -197,3 +197,64 @@ E1–E2 fixed, tests and docs only, no app code:
 Each new check was run against the wrong outcome it guards: R$ 2.600,00
 expected on the tile fails; R$ 12,50 (last month's dividend) expected in
 Payout this month fails. Then the runs above.
+
+## Phase 3 — code and architecture
+
+A Harmonic Design pass over slice 4's code (`9180504..`, after PR #166):
+VBD call rules (backend), EBD tiers (web), BDT mock placement, and the plan
+against what's built. Runtime and type imports of the 95 changed source
+files were extracted per layer and every cross-boundary edge read.
+
+**What holds.**
+- **Backend.** No Engine calls another Engine: ReportingEngine's investments
+  shapes take their reads injected (type imports of the Accessors' rows
+  only). No Accessor calls another. Routes import InsightsManager as types
+  only. InsightsManager shares `holdingRates` and `access` at `managers/*.ts`
+  (`project/manager-isolation` holds). The daily job reads the Holding
+  Accessor and publishes on the bus with no Manager or Engine in its path —
+  the plain infrastructure trigger VBD §3.2a designed; its lock and command
+  are the job's own.
+- **Web.** Only Experiences call the backend (the ESLint rules hold). X7's
+  three Flows import no sibling: what two share is the Experience's pure
+  modules (`overviewRead`, `historyAnswer`, `shareTone`) or the shared
+  Interactions FL21 will reuse (`NetWorthCards`, `ComingDue`, `PayoutPanel`,
+  OQ-231/233) and their helpers. The kit imports nothing above it.
+- **Tests.** The X7 Experience mocks its three Flows; each Flow mocks only
+  its Interactions (Holding Maintenance also its own `HoldingPanel`, whose
+  test mocks the cards); the backend has no module mocks.
+- **Plan.** Tasks 123–135 are ticked. The contract-routes test lists nothing
+  of slice 4 as unbuilt (dashboard, transactions report, notifications,
+  audit log are slice 5; Delete User task 136); every path X7 calls is
+  served.
+
+| # | Finding (symptom → cause → where else to look) | Severity | Proposed fix |
+|---|---|---|---|
+| A1 | **Track Investments reads Manage Household's endpoints.** `TrackInvestmentsExperience` takes `useListMembersQuery` from `experiences/manageHousehold/api.ts` (for Rates' "Added by"). *Cause (EBD):* a read two Experiences share was left in one Experience's slice — exactly what slice 1's A2 (OQ-163) moved the user and households out of, and `identityApi.ts` says so in its header. *Counterpart:* no rule stops it — `project/ebd-backend-calls` guards Flows and Interactions only, so it can recur the way slice 3's A1 did for Managers. | Low | Move `listMembers` to `api/identityApi.ts`; Manage Household's writes keep invalidating `Members`. Add ESLint `project/experience-api-isolation`: an Experience may not import another Experience's `api.ts`. |
+| A2 | **Note — one save lifecycle written four times.** Market Value Entry, the Goal split editor, Rate Update Entry and `useHistoryEditing` each hold busy, problems shown only after Save, focus on the field at fault and a clean form after a save. Phase 1 found the same gaps in each copy (V1, V5, V6): the axis is real and was tested four times over, partly. *Counterpart (BDT):* each copy needed the same tests. | Note | **Leave it** (recommended): every copy is now tested and they differ in what "done" closes. Extract a Utility hook when the next form with that lifecycle lands (slice 5's Dialog forms). |
+
+**Doc drift found on the way.** The EBD decomposition (and its diagram's
+Manage Profile page) still placed the households list in Manage Household's
+API — stale since OQ-163. Corrected with A1.
+
+### Phase 3 — fixes (2026-11-11)
+
+Decisions (OQ-239): fix A1; leave A2 as a note.
+
+- **A1:** `listMembers` (and its lazy hook) moves to `api/identityApi.ts`,
+  returning the contract's `HouseholdMembership`; Manage Household's
+  field-for-field `toHouseholdMember` goes, its writes still invalidate
+  `Members`. Tests move with it (`tests/unit/api/identityApi.test.tsx`: the
+  list, an empty answer, and a re-read after a role change). ESLint
+  `project/experience-api-isolation/<experience>` refuses the old import —
+  checked by putting it back — and leaves Flows and Interactions to
+  `project/ebd-backend-calls`, still in force (checked too). OQ-236 and the
+  EBD doc are amended, the Manage Profile tier page regenerated.
+
+No backend call, route, error code or step changed, so no sequence diagram
+is redrawn.
+
+## Closing (OQ-164)
+
+R4 is complete: phase 1 in PR #165, phase 2 in PR #166, phase 3 in this
+phase's PR. Nothing stays open as work: A2 waits for the next form with the
+same save lifecycle. The next slice starts at task 136 (`M1D`).

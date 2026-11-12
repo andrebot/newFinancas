@@ -8,6 +8,11 @@ const NODE_FILES = [
 ];
 const STORY_FILES = ['apps/web/stories/**', 'apps/web/.storybook/**'];
 const DEV_ONLY_FILES = ['**/tests/**', '**/*.config.{js,ts}', ...STORY_FILES];
+// The web app's Experiences, each a folder under apps/web/src/experiences/.
+const EXPERIENCES = [
+  'accountSetup', 'authenticate', 'manageFinances', 'manageHousehold', 'manageProfile', 'onboard',
+  'trackInvestments',
+];
 const NO_CLASSES = 'Purely functional codebase — no classes (NFR-MAINT-1).';
 // Tailwind's default font sizes, which typography.css removes (OQ-125).
 const DEAD_TEXT_SIZE = String.raw`/(^|[\s:])text-(xs|sm|base|lg|[2-9]?xl)(\s|$)/`;
@@ -176,6 +181,27 @@ export default [
             .flatMap((other) => [`../${other}`, `../${other}/**`]),
           message: 'A Manager never imports another Manager\'s modules: '
             + 'move what both use to a shared managers/*.ts module.',
+        }],
+      }],
+    },
+  })),
+
+  // EBD (slice 4 review, A1): an Experience never reads another Experience's
+  // endpoints. What two Experiences read lives in `src/api/` (`identityApi`,
+  // `setupApi`, `goalsApi`), so each imports it from there.
+  ...EXPERIENCES.map((experience) => ({
+    name: `project/experience-api-isolation/${experience}`,
+    files: [`apps/web/src/experiences/${experience}/**`],
+    // Flows and Interactions call no endpoint at all (project/ebd-backend-calls),
+    // and a later block's options would replace that rule's there.
+    ignores: ['**/flows/**', '**/interactions/**'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': ['error', {
+        patterns: [{
+          group: EXPERIENCES.filter((other) => other !== experience)
+            .map((other) => `**/${other}/api`),
+          message: 'An Experience never imports another Experience\'s endpoints: '
+            + 'move the shared ones to src/api/.',
         }],
       }],
     },
