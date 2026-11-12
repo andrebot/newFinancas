@@ -238,6 +238,8 @@ describe('GoalAllocationCard', () => {
     expect(screen.getByRole('status', { name: 'Loading the goal split' })).toBeTruthy();
 
     view.rerenderInLocale(<GoalAllocationCard {...props} read={{ status: 'failed', retry }} />);
+    expect(screen.getByRole('heading', { name: 'Counts toward goals' })).toBeTruthy();
+    expect(screen.getByText("Couldn't load this holding's details.")).toBeTruthy();
     fireEvent.click(button('Try again'));
 
     expect(retry).toHaveBeenCalled();

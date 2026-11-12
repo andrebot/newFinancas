@@ -42,6 +42,9 @@ describe('ContractCard', () => {
     );
 
     expect(screen.getByRole('heading', { name: 'Contract' })).toBeTruthy();
+    expect([...document.querySelectorAll('dt')].map((term) => term.textContent))
+      .toEqual(['Invested', 'Bought', 'Expected payout', 'Expected taxes']);
+    expect(screen.getByText('Term elapsed')).toBeTruthy();
     expect(screen.getByText('read-only')).toBeTruthy();
     expect(screen.getByText('01/10/2025')).toBeTruthy();
     expect(screen.getByText('R$ 212.200,00')).toBeTruthy();

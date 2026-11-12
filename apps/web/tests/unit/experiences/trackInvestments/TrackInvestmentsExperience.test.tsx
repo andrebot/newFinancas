@@ -274,6 +274,7 @@ describe('the page', () => {
   it('opens on the overview, with the disabled v2 Portfolio Builders', async () => {
     await renderExperience();
     expect(screen.getByRole('heading', { level: 1, name: 'Investments' })).toBeTruthy();
+    expect(screen.getByRole('radiogroup', { name: 'Investments sections' })).toBeTruthy();
     expect(screen.getByText(/Net worth across every holding/)).toBeTruthy();
     const builders = screen.getAllByRole('button', { name: /Portfolio Builder/ });
     expect(builders.map((button) => [button.textContent, (button as HTMLButtonElement).disabled]))

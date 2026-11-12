@@ -53,6 +53,7 @@ describe('MarketValueEntry', () => {
   it('shows the latest value, its date, the chart and the form', () => {
     renderEntry();
 
+    expect(screen.getByRole('heading', { name: 'Market value' })).toBeTruthy();
     expect(screen.getByText('editable')).toBeTruthy();
     expect(screen.getAllByText('R$ 110.000,00').length).toBeGreaterThan(0);
     expect(screen.getByText(/as of 08\/31\/2026/)).toBeTruthy();

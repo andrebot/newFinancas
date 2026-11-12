@@ -139,6 +139,7 @@ describe('RateCard', () => {
     })}
     />);
     expect(screen.getAllByText('Tesouro Selic 2029')).toHaveLength(2);
+    expect(screen.getByText('Used by')).toBeTruthy();
 
     rerenderInLocale(<RateCard {...propsOf({ usedBy: undefined })} />);
     expect(screen.queryByText('Used by')).toBeNull();

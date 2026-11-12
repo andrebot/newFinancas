@@ -99,6 +99,15 @@ describe('PayoutPanel', () => {
       .toMatch(/^September 2026R\$\s1\.100,00XPML11/);
   });
 
+  it('names the currency switch and the Holdings search (R4 V8)', async () => {
+    renderPanel();
+    expect(screen.getByRole('radiogroup', { name: 'Payout currency' })).toBeTruthy();
+
+    await openSelector();
+
+    expect(screen.getByRole('searchbox', { name: 'Search holdings' })).toBeTruthy();
+  });
+
   it('switches to $ and remembers the pick', () => {
     const { currencyMemory } = renderPanel();
     fireEvent.click(screen.getByRole('radio', { name: '$' }));

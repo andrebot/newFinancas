@@ -101,6 +101,7 @@ describe('AccountAllocation', () => {
     renderInLocale(
       <AccountAllocation slices={SLICES} holdings={HOLDINGS} accounts={INVESTMENT_ACCOUNTS} />,
     );
+    expect(screen.getByRole('heading', { name: 'By account' })).toBeTruthy();
     const [xp, checking] = screen.getAllByRole('listitem');
     expect(within(xp!).getByText('XP Investimentos')).toBeTruthy();
     expect(within(xp!).getByText('4 holdings')).toBeTruthy();

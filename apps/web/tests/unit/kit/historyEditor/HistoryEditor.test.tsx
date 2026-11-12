@@ -191,6 +191,13 @@ describe('HistoryEditor', () => {
   });
 
   describe('the list', () => {
+    it('takes focus only from the editor, never from Tab (R4 V8)', () => {
+      renderEditor();
+
+      expect(screen.getByRole('list', { name: 'Saved values' }).getAttribute('tabindex'))
+        .toBe('-1');
+    });
+
     it('lists the values newest first, each with what it changed', () => {
       renderEditor();
 

@@ -13,6 +13,8 @@ describe('PositionCard', () => {
     renderInLocale(<PositionCard holding={XPML} currency="BRL" value={11000000} payout={89000} />);
 
     expect(screen.getByRole('heading', { name: 'Position' })).toBeTruthy();
+    expect([...document.querySelectorAll('dt')].map((term) => term.textContent))
+      .toEqual(['Quantity', 'Avg. price', 'Invested', 'Payout']);
     expect(screen.getByText('1,200')).toBeTruthy();
     expect(screen.getByText('R$ 91,67')).toBeTruthy();
     expect(screen.getByText('R$ 110.000,00')).toBeTruthy();

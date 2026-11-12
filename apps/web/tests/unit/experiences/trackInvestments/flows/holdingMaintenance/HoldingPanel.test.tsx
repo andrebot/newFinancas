@@ -333,8 +333,10 @@ describe('HoldingPanel', () => {
     const retry = vi.fn();
     renderPanel({ details: { ...READY, snapshots: { status: 'loading' } } });
     expect(screen.getByRole('status', { name: 'Loading your holdings' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Market value' })).toBeTruthy();
 
     renderPanel({ details: { ...READY, snapshots: { status: 'failed', retry } } });
+    expect(screen.getByText("Couldn't load this holding's details.")).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(retry).toHaveBeenCalled();
   });
