@@ -226,6 +226,7 @@ describe('Table', () => {
       />,
     );
     expect(screen.queryByText('5 holdings')).toBeNull();
+    expect(document.querySelector('[class*="bg-raised/40"]')).toBeNull();
   });
 
   it(

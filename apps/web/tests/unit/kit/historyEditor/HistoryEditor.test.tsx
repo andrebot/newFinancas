@@ -221,6 +221,13 @@ describe('HistoryEditor', () => {
       expect(screen.getByText('+0,25 p.p.').className).toContain('text-muted');
     });
 
+    it('adds a reason line only under a locked value (R4 V10)', () => {
+      renderEditor();
+
+      expect(within(rowOf('08/31/2026')).getByText(/110\.000,00/)
+        .parentElement?.childElementCount).toBe(1);
+    });
+
     it('names each value\'s buttons by its date', () => {
       renderEditor();
 

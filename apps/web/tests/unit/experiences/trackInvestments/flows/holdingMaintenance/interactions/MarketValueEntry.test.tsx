@@ -214,4 +214,12 @@ describe('MarketValueEntry', () => {
     expect(screen.queryByText("Dashed ring = the value you're about to save")).toBeNull();
     expect(screen.getByText('Archived — the value history is read-only.')).toBeTruthy();
   });
+
+  it('leaves out an empty note, and the header an empty action (R4 V10)', () => {
+    renderEntry({ readOnly: true });
+
+    expect(document.querySelector('p.mt-auto')).toBeNull();
+    expect(screen.getByRole('heading', { name: 'Market value' }).parentElement?.childElementCount)
+      .toBe(3);
+  });
 });
