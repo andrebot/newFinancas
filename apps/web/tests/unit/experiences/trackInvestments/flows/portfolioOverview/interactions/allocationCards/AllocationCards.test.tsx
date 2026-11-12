@@ -109,6 +109,18 @@ describe('AccountAllocation', () => {
     expect(within(checking!).getByText('Main Checking')).toBeTruthy();
   });
 
+  it('shows one state at a time: the placeholder, the empty line or the rows (R4 V9)', () => {
+    const { rerenderInLocale } = renderInLocale(
+      <AccountAllocation slices={SLICES} holdings={HOLDINGS} accounts={INVESTMENT_ACCOUNTS} />,
+    );
+    expect(screen.queryByText('Nothing to show yet.')).toBeNull();
+
+    rerenderInLocale(
+      <AccountAllocation slices={undefined} holdings={HOLDINGS} accounts={INVESTMENT_ACCOUNTS} />,
+    );
+    expect(screen.queryByRole('list')).toBeNull();
+  });
+
   it('counts in the interface language', () => {
     renderInLocale(
       <AccountAllocation slices={SLICES} holdings={HOLDINGS} accounts={INVESTMENT_ACCOUNTS} />,

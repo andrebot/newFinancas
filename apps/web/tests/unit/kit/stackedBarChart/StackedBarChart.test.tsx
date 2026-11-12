@@ -146,6 +146,7 @@ describe('StackedBarChart', () => {
     const amounts = [{ month: '2026-01', amount: 5 }];
     renderChart({ months, series: [{ key: 'a', label: 'a', amounts }] });
     expect(screen.getByText('01/26')).not.toBeNull();
+    expect(screen.queryByText('02/25')).toBeNull();
   });
 
   it('reads the month under the pointer and ends as a mouse leaves', () => {

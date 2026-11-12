@@ -292,6 +292,17 @@ describe('the page', () => {
     expect(screen.getByText(/one account at a time/)).toBeTruthy();
   });
 
+  it('shows placeholders, not a failure, while the user loads (R4 V9)', async () => {
+    await renderExperience({ 'GET /users/me': () => new Promise<Response>(() => {}) });
+    expect(screen.getByRole('status', { name: 'Loading your investments' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Try again' })).toBeNull();
+  });
+
+  it('asks the overview for the active Goals only (R4 V9)', async () => {
+    const { fetchFn } = await renderExperience();
+    expect(calls(fetchFn)).toContain('GET /households/doe/goal-progress?status=active');
+  });
+
   it('offers a retry when the user can\'t be loaded', async () => {
     await renderExperience({ 'GET /users/me': () => jsonResponse(500, envelope('internal')) });
     expect(screen.getByRole('button', { name: 'Try again' })).toBeTruthy();

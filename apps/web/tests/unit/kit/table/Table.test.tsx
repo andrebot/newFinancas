@@ -122,6 +122,12 @@ describe('gridTemplateOf', () => {
     ]);
     expect(template).toBe('minmax(0,1fr) minmax(0,2.5fr) minmax(0,1fr)');
   });
+
+  it('wraps a padded bare fraction, and only a whole one (R4 V9)', () => {
+    expect(gridTemplateOf([{ label: 'A', track: ' 1fr ' }])).toBe('minmax(0,1fr)');
+    expect(gridTemplateOf([{ label: 'A', track: 'auto 1fr' }])).toBe('auto 1fr');
+    expect(gridTemplateOf([{ label: 'A', track: '1fr auto' }])).toBe('1fr auto');
+  });
 });
 
 describe('Table', () => {

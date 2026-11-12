@@ -414,6 +414,16 @@ describe('HistoryEditor', () => {
       expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Date' }));
     });
 
+    it('takes a second value on a day already taken unless told otherwise (R4 V9)', async () => {
+      const { onSave } = renderEditor();
+      fireEvent.click(button('Add a past value'));
+      typeInto('Date', '08/31/2026');
+      typeInto('Value (R$)', '100.000,00');
+      await act(async () => fireEvent.click(button('Save')));
+
+      expect(onSave).toHaveBeenCalledWith({ date: '2026-08-31', value: 10000000 });
+    });
+
     it('shows no problem before a save is tried', () => {
       renderEditor();
       fireEvent.click(button('Edit value of 08/31/2026'));
