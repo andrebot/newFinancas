@@ -2,7 +2,7 @@ import {
   describe, expect, it, vi,
 } from 'vitest';
 import {
-  handlerFor, routeNotificationAction, type NotificationAction, type NotificationRoutes,
+  handlerFor, paramText, routeNotificationAction, type NotificationAction, type NotificationRoutes,
 } from '../../../src/shell/notificationRouting';
 
 // Notification routing (BDT: App Shell routing table → the Experiences it
@@ -78,5 +78,14 @@ describe('handlerFor', () => {
   it('never mistakes an inherited property for a route', () => {
     expect(handlerFor({}, 'toString')).toBeUndefined();
     expect(handlerFor({}, 'invitation.received')).toBeUndefined();
+  });
+});
+
+describe('paramText', () => {
+  it('reads a text param, and nothing from one that isn\'t text or isn\'t there', () => {
+    const params = { holdingId: 'cdb-1', ticker: 7 };
+    expect(paramText(params, 'holdingId')).toBe('cdb-1');
+    expect(paramText(params, 'ticker')).toBeUndefined();
+    expect(paramText(params, 'householdId')).toBeUndefined();
   });
 });

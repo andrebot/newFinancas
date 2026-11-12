@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
+import openInbox from '../support/bell';
 import {
   createHousehold, inviteUser, registerUser, revokeInvitation,
 } from '../support/identityApi';
@@ -13,20 +14,8 @@ import text from '../support/text';
 // with only its delete (OQ-243). Opening the inbox marks it seen — "new" while
 // that panel stays open, "Seen" the next time — and deleting it empties the
 // inbox. Accepting through the bell, and the matured Holding's Archive, are
-// the shell's routing (I12).
-
-/**
- * Opens the bell's inbox.
- *
- * @param page - The browser page, signed in.
- * @returns The inbox panel.
- */
-const openInbox = async (page: Page) => {
-  const bell = text('shell', 'header.notifications');
-  // Named by its label and, while there are any, the unseen count, e.g. `Notifications 1 unseen`.
-  await page.getByRole('button', { name: startingWith(bell) }).click();
-  return page.getByRole('dialog', { name: bell });
-};
+// the shell's routing (I12: core #14 in `identity/bellInvitation.spec.ts`, #13's
+// archive in `investments/investmentsDaily.spec.ts`).
 
 test('a revoked invitation\'s notice is marked seen and deleted from the bell', async ({
   page, request,

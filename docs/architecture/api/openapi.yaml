@@ -3975,6 +3975,14 @@ components:
             holdingId:
               type: string
               format: uuid
+            householdId:
+              type: string
+              format: uuid
+              description: >
+                The Holding's household (OQ-245): the inbox is the user's, not a
+                household's, so Archive holding and View holding address it here
+                rather than in the active household. A notice sent before OQ-245
+                has none; the frontend then uses the active household.
             assetType:
               type: string
               description: The Holding's asset type, the frontend's label in the reader's language (OQ-82, OQ-178)

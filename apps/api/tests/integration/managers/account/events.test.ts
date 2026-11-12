@@ -32,9 +32,13 @@ const MATURED_PAYLOAD = {
   ticker: null,
   dueDate: '2026-10-01',
 };
-/** What every recipient is told: a type and params, never text (OQ-82). */
+/** What every recipient is told: a type and params, never text (OQ-82), its household (OQ-245). */
 const MATURED_PARAMS = {
-  holdingId: CDB_ID, assetType: 'cdb', ticker: null, dueDate: '2026-10-01',
+  holdingId: CDB_ID,
+  householdId: HOUSEHOLD_ID,
+  assetType: 'cdb',
+  ticker: null,
+  dueDate: '2026-10-01',
 };
 
 /**
@@ -137,9 +141,28 @@ describe('AccountManager — holding.matured (FR-5.8, FR-6.5, track-investments/
     expect(holdings.markMaturedNotified).toHaveBeenCalledWith(CDB_ID);
   });
 
-  it('tells every member of the household for a shared Account (OQ-171)', async () => {
+  it('tells only the members who may archive a shared one (OQ-171, OQ-245)', async () => {
     const { deps, notifications, households } = fakeDeps();
-    households.listMembers.mockResolvedValueOnce([{ userId: ANA_ID }, { userId: BEA_ID }]);
+    households.listMembers.mockResolvedValueOnce([
+      { userId: 'owner', role: 'Owner' },
+      { userId: 'admin', role: 'Admin' },
+      { userId: ANA_ID, role: 'Member' },
+      { userId: 'member', role: 'Member' },
+      { userId: 'viewer', role: 'Viewer' },
+    ]);
+
+    // Ana created the shared Account: a Member may archive what they created.
+    await createAccountManager(deps).notifyMaturedHolding(matured({ visibility: 'shared' }));
+
+    expect(notifications.notify.mock.calls.map(([, recipient]) => recipient))
+      .toEqual([{ userId: 'owner' }, { userId: 'admin' }, { userId: ANA_ID }]);
+  });
+
+  it('tells the Owner and Admins of a shared one (OQ-171)', async () => {
+    const { deps, notifications, households } = fakeDeps();
+    households.listMembers.mockResolvedValueOnce([
+      { userId: ANA_ID, role: 'Owner' }, { userId: BEA_ID, role: 'Admin' },
+    ]);
 
     await createAccountManager(deps).notifyMaturedHolding(matured({ visibility: 'shared' }));
 
@@ -161,7 +184,9 @@ describe('AccountManager — holding.matured (FR-5.8, FR-6.5, track-investments/
     const {
       deps, notifications, holdings, households,
     } = fakeDeps();
-    households.listMembers.mockResolvedValueOnce([{ userId: ANA_ID }, { userId: BEA_ID }]);
+    households.listMembers.mockResolvedValueOnce([
+      { userId: ANA_ID, role: 'Owner' }, { userId: BEA_ID, role: 'Admin' },
+    ]);
     notifications.notify.mockRejectedValueOnce(new Error('inbox down'));
     const logs = captureLogs(onTestFinished);
 

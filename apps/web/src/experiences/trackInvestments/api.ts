@@ -17,7 +17,8 @@ import { holdingMaintenance } from '../../config/constants';
 // what it changed: a value the overview, the Goals' progress and the history;
 // a split the Goals and the split (a tag shared with Manage Finances); a rate
 // the rates and the Holdings, whose expected payouts are projected from it
-// (OQ-235, OQ-236). The household's Holdings and the payouts report are
+// (OQ-235, OQ-236); an archive the Holdings, the overview and the Goals
+// (OQ-245). The household's Holdings and the payouts report are
 // shared with Review Insights (`api/investmentsApi.ts`, OQ-243); this slice
 // is injected on top of them.
 
@@ -109,6 +110,13 @@ const SPLIT_TAGS = ['HoldingAllocations', 'Goals'] as const;
  */
 const RATE_TAGS = ['IndexRates', 'Holdings'] as const;
 
+/**
+ * What archiving a matured Holding makes stale (OQ-245): the Holdings — the
+ * list, its archived section and the Dashboard — the overview's net worth and
+ * Coming Due, and the Goals it may fund.
+ */
+const ARCHIVE_TAGS = ['Holdings', 'InvestmentsOverview', 'Goals'] as const;
+
 /** Track Investments' slice of the backend API. */
 export const trackInvestmentsApi = investmentsApi.enhanceEndpoints({
   addTagTypes: [...OWN_TAGS],
@@ -168,6 +176,10 @@ export const trackInvestmentsApi = investmentsApi.enhanceEndpoints({
     deleteIndexRate: build.mutation<void, RateValueTarget>({
       query: (target) => send('DELETE', rateValuePath(target)),
       invalidatesTags: (_result, error) => changedTags(RATE_TAGS, error, 'index_rate.not_found'),
+    }),
+    archiveHolding: build.mutation<void, HoldingTarget>({
+      query: (target) => send('POST', `${holdingPath(target)}/archive`),
+      invalidatesTags: (_result, error) => changedTags(ARCHIVE_TAGS, error, 'holding.not_found'),
     }),
   }),
 });

@@ -266,7 +266,7 @@ sequenceDiagram
 UCS.append(dict(
     filename="uc-03-archive-holding.html",
     title="Archive Matured Holding",
-    subtitle='<span class="route">POST /households/:householdId/holdings/:holdingId/archive</span> &mdash; FR-5.8/OQ-43/OQ-72. Reached from the &ldquo;past due &mdash; archive?&rdquo; notification. One-way.',
+    subtitle='<span class="route">POST /households/:householdId/holdings/:holdingId/archive</span> &mdash; FR-5.8/OQ-43/OQ-72. Reached from the &ldquo;past due &mdash; archive?&rdquo; notification, in the household it names (OQ-245). One-way.',
     mermaid="""
 sequenceDiagram
 """ + P_CORE_AM + "\n" + HOLDING_PARTICIPANTS + """
@@ -407,12 +407,12 @@ sequenceDiagram
         SB-->>AM: subscribe("holding.matured") &mdash; notifyMaturedHolding, as the system
         alt shared Account
             AM->>HA: listMembers(householdId)
-            HA-->>AM: the members &mdash; each is a recipient (OQ-171)
+            HA-->>AM: the members with their roles &mdash; a recipient each one who may archive it: Owner, Admin, or the Member who created the Account (OQ-171, OQ-245)
         else personal Account
             Note over AM: the recipient is ownerUserId (none if the owner is gone)
         end
         par for each recipient
-            AM->>NE: notify("holding.matured", {userId}, {holdingId, assetType, ticker, dueDate})
+            AM->>NE: notify("holding.matured", {userId}, {holdingId, householdId, assetType, ticker, dueDate})
             Note over NE: routing table: holding.matured &rarr; in-app
             NE->>NIA: insert(userId, "holding.matured", params)
             NIA-->>NE: stored
@@ -435,7 +435,7 @@ sequenceDiagram
     notes="""
     <ul>
       <li><strong>Type + params, never text (OQ-82):</strong> the frontend renders &ldquo;Your CDB matured on 2026-10-01. Archive it?&rdquo; in the reader&#39;s language from <code>assetType</code>. <strong>OQ-178:</strong> the params carry <code>assetType</code> and <code>ticker</code> instead of a <code>holdingName</code> &mdash; a Holding has no name, and a label is the reader&#39;s language&#39;s to build.</li>
-      <li><strong>Recipients are the Manager&#39;s (OQ-171):</strong> the event carries the Holding&#39;s Account owner and visibility; a shared Account&#39;s recipients are its household&#39;s members, read through <code>HouseholdAccessor</code> &mdash; the Accessor never reads memberships.</li>
+      <li><strong>Recipients are the Manager&#39;s (OQ-171):</strong> the event carries the Holding&#39;s Account owner and visibility; a shared Account&#39;s recipients are its household&#39;s members who may archive it (<code>decide(role, userId, data.delete)</code> &mdash; Owner, Admin, the creating Member, OQ-245), read through <code>HouseholdAccessor</code> &mdash; the Accessor never reads memberships.</li>
       <li><strong>Synchronous on purpose:</strong> unlike invitations, the Manager waits for every delivery (all settled), because marking the Holding notified depends on them all. A partial failure re-notifies tomorrow, including those already told &mdash; accepted.</li>
       <li><strong>N9 (OQ-227):</strong> the publisher runs on startup, once per app calendar day, or with <code>pnpm investments:run</code> (as of an earlier day with <code>--today</code>, OQ-237). It holds the same session lock as the cash stream, drains delivery, then re-reads matured candidates to count unconfirmed notices separately from publications. A scan failure retries next tick, a deferred delivery next day or manual run.</li>
       <li>Normally a redemption (UC-4) zeroes and auto-archives the Holding first; this catches the rest.</li>
@@ -654,7 +654,7 @@ write_chain(
     E((1, "acc-holding", "util-servicebus", "a"), (2, "util-servicebus", "mgr-account", "a"), (3, "mgr-account", "acc-household"),
       (4, "mgr-account", "eng-notify"), (5, "eng-notify", "acc-inbox"), (6, "mgr-account", "acc-holding"), (7, "mgr-account", "util-logging", "a")),
     [
-        "<strong>Chain:</strong> <code>investmentsDaily</code> → ① <code>InvestmentHoldingAccessor.findMaturedWithPosition(today)</code> → <code>ServiceBusUtility.publish(\"holding.matured\")</code> (async) → ② <code>AccountManager.notifyMaturedHolding</code> subscribes → ③ a shared Account&#39;s recipients: <code>HouseholdAccessor.listMembers</code> (a personal one&#39;s is its owner, OQ-171) → ④ <code>NotificationEngine.notify(\"holding.matured\", {userId}, {holdingId, assetType, ticker, dueDate})</code> per recipient, all settled (sync — the Manager needs every outcome) → ⑤ in-app: <code>NotificationInboxAccessor.insert</code> → ⑥ <code>InvestmentHoldingAccessor.markMaturedNotified</code> only after every recipient was notified → ⑦ <code>LoggingUtility</code> (async).",
+        "<strong>Chain:</strong> <code>investmentsDaily</code> → ① <code>InvestmentHoldingAccessor.findMaturedWithPosition(today)</code> → <code>ServiceBusUtility.publish(\"holding.matured\")</code> (async) → ② <code>AccountManager.notifyMaturedHolding</code> subscribes → ③ a shared Account&#39;s recipients: <code>HouseholdAccessor.listMembers</code>, those who may archive it (a personal one&#39;s is its owner, OQ-171, OQ-245) → ④ <code>NotificationEngine.notify(\"holding.matured\", {userId}, {holdingId, householdId, assetType, ticker, dueDate})</code> (the household since OQ-245) per recipient, all settled (sync — the Manager needs every outcome) → ⑤ in-app: <code>NotificationInboxAccessor.insert</code> → ⑥ <code>InvestmentHoldingAccessor.markMaturedNotified</code> only after every recipient was notified → ⑦ <code>LoggingUtility</code> (async).",
         "<strong>N9 (OQ-227):</strong> startup/daily/manual entry, same PostgreSQL session lock as cash. Cash is drained and confirmed first, then each notice is published and drained. A final <code>findMaturedWithPosition(today)</code> counts attempted notices still unmarked; deferrals retry next day or manually, failed scans next minute.",
         "<strong>Lost pinned session:</strong> an owned pg-client error listener revokes the run signal. Checkpoints stop new dispatch, active delivery is settled, the dead client is discarded and the original error and stack reach the job failure sink with the same invocation correlation ID and system actor (next-tick retry). No early promise rejection leaves dispatch running behind cleanup.",
         "Same trigger shape as the scheduled cash events (§3.2a). <code>NotificationInboxAccessor</code> has two callers: the Engine writes, <code>InsightsManager</code> reads (View/Delete Notification) — a shared Accessor, not an Accessor→Accessor call.",

@@ -903,6 +903,7 @@ const enUS: Catalog = {
     'builders.comingLater': 'Coming in v2',
     loading: 'Loading your investments',
     failed: "Couldn't load your investments.",
+    'archive.done': '{name} archived.',
     retry: 'Try again',
   },
   reviewInsights: {
@@ -927,7 +928,8 @@ const enUS: Catalog = {
     delete: 'Delete notification',
     stale: 'This invitation is no longer open.',
     someone: 'Someone',
-    unrouted: "This can't be done from here yet.",
+    unrouted: "This can't be done from here.",
+    notMember: "You're no longer a member of that household.",
     deleteFailed: "Couldn't delete the notification.",
   },
   auditExport: {

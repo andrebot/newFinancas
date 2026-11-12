@@ -4286,6 +4286,7 @@ not a hardcoded assumption.
   owner and visibility; `AccountManager` notifies the owner of a personal
   Account and, for a shared one, the members from
   `HouseholdAccessor.listMembers` — the Accessor never reads memberships.
+  *(Narrowed by OQ-245: only the members who may archive a shared Holding.)*
   `markMaturedNotified` marks once.
 - **The rest:** `insert(holding)` opens a Holding with no position (its
   buy's `applyTrade` sets one) and refuses an Account that is
@@ -7389,7 +7390,7 @@ forward with all the next phases"), from the review in
   (`/investments?tab=holdings&holding=…`): its account chosen, its row open
   (Holding Maintenance's `openHoldingId`, the kit Table's `initialOpenKeys`).
   The notice carries no household, so this finds the Holding only in the
-  active household.
+  active household. *(Superseded by OQ-245: the notice names its household.)*
 - **The bell polls `GET /notifications` every 60s while the tab is in
   front**, and on focus (`inbox.pollIntervalMs`; `setupListeners` in
   `main.tsx`).
@@ -7530,6 +7531,88 @@ through the API, the browser does only the journey; helpers in
      exact, since a SectionHeader's hint sits inside the heading.
 
 **Task 140 (`I11`) is complete.**
+
+### OQ-245: Shell notification routing (task I12)
+**Found while designing:** the routing table still held only
+`invitation.received` — X7 never added `holding.matured`, so the bell's
+Archive holding answered "This can't be done from here yet." (the S1 decision
+had X3 / X7 add their entries). Track Investments' standalone *Archive Matured
+Holding* is built here.
+
+**Confirmed with the stakeholder (Nov 2026):**
+- **A matured notice names its Holding's household.** The bell is the
+  user's, not a household's, while a Holding is household-scoped: a notice
+  about another household's Holding archived in the active one was a 404.
+  `AccountManager.notifyMaturedHolding` adds `householdId` (already on the
+  `holding.matured` event) to the params, and the contract documents it.
+  Archive holding archives there; View holding switches to it first
+  (`switchHousehold`, as the switcher does), then opens the Holding — this
+  replaces OQ-243's "active household only". A notice without one (sent
+  before OQ-245) uses the active household. Rejected: the active household
+  only, failing with a "switch first" toast.
+- **No confirm before archiving.** The notice is the question ("…still has a
+  position. Archive it?"), as the routing sequence draws it, even though the
+  archive is one-way.
+
+**Design decisions:**
+- **`archiveMaturedHolding.ts`** (Track Investments), shaped like Respond to
+  Invitation: the thunk sends `POST …/holdings/{id}/archive` through the
+  slice's new `archiveHolding` mutation, toasts "{name} archived." (the
+  ticker, else the asset type, as the notice names it) or the error code's
+  text, and answers `done` / `failed`; the shell then deletes the notice on
+  `done`. `maturedHoldingRoute` reads the params and fails an action other
+  than `archive`, or a notice naming no Holding, without a request.
+  `App.tsx` adds the entry.
+- **The archive invalidates the Holdings, the overview and the Goals** (and
+  does so on 404 `holding.not_found` too, the target gone): the Holdings list,
+  its archived section and the Dashboard, net worth and Coming Due, and the
+  Goals it may fund.
+- **Core #13 `@core`, now whole** (`investments/investmentsDaily.spec.ts`):
+  the notices are read through `GET /notifications`, their params now with
+  the household, and `tests/e2e/support/notificationsDb.ts` is gone — no E2E
+  read skips the API any more. After the job's part (still alone with the
+  job), the owner opens the bell on "CDB Daily reached its due date on
+  07/01/2020…", presses Archive holding, sees "CDB Daily archived." and an
+  empty inbox; the Holding reads `archivedBy: user` with its position, and
+  `GET /notifications` is empty.
+- **Core #14 `@core`** (`identity/bellInvitation.spec.ts`): the inviter is
+  renamed after the invite; the invitee's bell names them by the new name,
+  Accept goes through Manage Profile ("You joined Bell Home."), the inbox
+  empties, and the invitee is a Member of the household. `openInbox` moved to
+  `support/bell.ts`, shared with the inbox's own journey; `renameUser` joins
+  `identityApi.ts`.
+- **Diagrams:** the routing sequence (the household from the notice, Track
+  Investments' outcome, View holding's switch, no more "until task 141"),
+  uc-03's subtitle, and uc-11's sequence and call chain (the params).
+
+- **PR #174 review (an independent reviewer; fixed unless noted):**
+  1. A shared Holding's notice went to every member, but only the Owner, the
+     Admins and the Member who created the Account may archive
+     (`data.delete`): a Viewer's Archive was a 403 and their notice stuck.
+     **A shared Holding's notice now goes only to the members who may archive
+     it** (`decide` in `recipientsOf`) — this narrows OQ-171's "every member".
+     Rejected: hiding Archive per role in the inbox (the web can't tell a
+     creating Member) and treating a 403 as done.
+  2. A Holding gone — `holding.not_found`, or `household.not_found` for a
+     household the user left — kept its notice forever: the thunk now toasts
+     the refusal and answers `done`, so the shell clears it.
+  3. View holding switched to a household the user had left, and the gate
+     then moved them to their first household: it now checks the user's
+     households and toasts "You're no longer a member of that household."
+  4. Review Insights dispatches the shell's `switchHousehold` — **kept**, as
+     Onboard and Manage Household already do; recorded in the panel's comment.
+  5. The archive's refresh was half tested: the Holdings, the overview and a
+     split (the Goals) are now read again, also on a 404.
+  6. The routing sequence still deleted the notice unconditionally through the
+     shell: it now dismisses through Review Insights, only on `done`.
+  7. OQ-243's "active household only" and the EBD doc's View holding note
+     now point here.
+  8. One `paramText` in the shell's routing module for the inbox and Track
+     Investments; the unused `useArchiveHoldingMutation` dropped; pt-BR
+     "Investimento {name} arquivado." (a feminine asset name read wrong); the
+     unknown-type toast lost its "yet".
+
+**Task 141 (`I12`) is complete.**
 
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 

@@ -1150,6 +1150,11 @@ export type HoldingMaturedNotification = {
     params: {
         holdingId?: string;
         /**
+         * The Holding's household (OQ-245): the inbox is the user's, not a household's, so Archive holding and View holding address it here rather than in the active household. A notice sent before OQ-245 has none; the frontend then uses the active household.
+         *
+         */
+        householdId?: string;
+        /**
          * The Holding's asset type, the frontend's label in the reader's language (OQ-82, OQ-178)
          */
         assetType?: string;
