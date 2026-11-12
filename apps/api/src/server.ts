@@ -46,7 +46,9 @@ import { createServiceBus } from './utilities/serviceBus';
 import { newCorrelationId } from './utilities/correlationId';
 import { failureDetails } from './utilities/domainError';
 import { createAuditSink } from './utilities/logging/auditSink';
-import { logFileLister, reconcileAudit } from './utilities/logging/reconcile';
+import {
+  logFileLister, reconcileAudit, reconcileFailureDetails,
+} from './utilities/logging/reconcile';
 import createUnitOfWork from './utilities/unitOfWork';
 
 const env = loadEnv(process.env);
@@ -224,5 +226,7 @@ if (process.argv.includes('--investments-daily')) {
     insertMany: auditLog.insertMany,
   })
     .then((restored) => log.info('Audit reconciled', { restored }))
-    .catch((error: unknown) => log.error('Audit reconciliation failed', { error: String(error) }));
+    .catch((error: unknown) => (
+      log.error('Audit reconciliation failed', reconcileFailureDetails(error))
+    ));
 }
