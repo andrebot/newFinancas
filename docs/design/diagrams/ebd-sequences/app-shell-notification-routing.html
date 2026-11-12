@@ -65,13 +65,13 @@ sequenceDiagram
     participant MP as Manage Profile<br/>Experience
     participant TI as Track Investments<br/>Experience
     participant API as Backend API
-    SHELL->>API: GET /notifications (via Review Insights) — read-only, polled
+    SHELL->>API: GET /notifications (via Review Insights) — read-only, every 60s while the tab is in front, and on focus
     API-->>SHELL: [{id, type, params, seenAt}]
     SHELL-->>BELL: badge = count of seenAt null
     User->>BELL: open the bell
-    BELL->>SHELL: emit inboxOpened
-    SHELL-->>BELL: render each via I18nUtility (type → catalog string, IDs resolved)
-    SHELL->>API: POST /notifications/seen {ids shown} (OQ-105)
+    BELL->>API: GET /users/me/invitations — names an invitation notice (one no longer there: "no longer open", delete only)
+    BELL-->>User: render each via I18nUtility (type → catalog string, IDs resolved)
+    BELL->>API: POST /notifications/seen {ids unseen when it opened, ≤200 a call} (OQ-105) — they stay "new" while open
     alt invitation.received — Accept
         User->>BELL: Accept
         BELL->>SHELL: emit action {type: invitation.received, accept, params}
@@ -86,10 +86,18 @@ sequenceDiagram
     end
     API-->>SHELL: done
     SHELL->>API: DELETE /notifications/:notificationId
+    opt holding.matured — View holding (OQ-243)
+        User->>BELL: View holding
+        BELL-->>User: close, then navigate to /investments?tab=holdings&holding=:holdingId — its account chosen, its row open
+    end
+    opt the row's ✕
+        User->>BELL: delete
+        BELL->>API: DELETE /notifications/:notificationId (Review Insights' own)
+    end
     </pre>
   </div>
   <div class="notes">
-<ul><li>The inbox never performs the action itself — the owning Experience does (Q3).</li><li>A new type = one routing entry + one catalog string.</li></ul>
+<ul><li>The inbox never performs the action itself — the owning Experience does (Q3). An action no Experience owns yet comes back `unrouted`: the inbox says so in a toast (Archive holding until task 141).</li><li>A new type = one routing entry + one catalog string.</li><li>The notice carries no household, so View holding opens the Holding when it is in the active household (OQ-243).</li></ul>
   </div>
   <script>
     mermaid.initialize({

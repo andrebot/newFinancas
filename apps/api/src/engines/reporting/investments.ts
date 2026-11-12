@@ -385,3 +385,34 @@ export const payoutsReport = async (
   const payouts = await deps.listPayouts(chosen, from, monthEnd(monthOf(query.today)));
   return payoutSeriesOf(payouts, window);
 };
+
+/** The Dashboard's investment panels (OQ-242): net worth and Coming Due. */
+export interface DashboardInvestments {
+  readonly netWorth: readonly NetWorth[];
+  readonly comingDue: readonly ComingDueEntry[];
+}
+
+/**
+ * The Dashboard's investment panels as a member sees them (OQ-242, OQ-243):
+ * the overview's net worth and Coming Due, without its payouts and slices.
+ *
+ * @param deps - The Account, Holding and value reads.
+ * @param viewer - The household and member.
+ * @param query - Today and how many months the net worth series covers.
+ * @param query.today - `YYYY-MM-DD`.
+ * @param query.months - The series' length at most.
+ * @returns Net worth per currency and the open fixed-term Holdings.
+ */
+export const dashboardInvestments = async (
+  deps: InvestmentsDeps,
+  viewer: Viewer,
+  query: { readonly today: string; readonly months: number },
+): Promise<DashboardInvestments> => {
+  const holdings = await visibleHoldingsOf(deps, viewer);
+  const active = holdings.filter((holding) => holding.archivedAt === null);
+  const [netWorth, today] = await Promise.all([
+    netWorthsOf(deps, holdings, windowOf(query.today, query.months), query.today),
+    valuesOn(deps, active, query.today),
+  ]);
+  return { netWorth, comingDue: comingDueOf(active, today) };
+};

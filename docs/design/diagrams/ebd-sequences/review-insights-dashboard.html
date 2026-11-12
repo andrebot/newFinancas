@@ -102,7 +102,7 @@ sequenceDiagram
     </pre>
   </div>
   <div class="notes">
-<ul><li>Widgets are v3, reports v2. The page header (title, the month chip) is the Experience's (X8).</li><li>OQ-242: the rails are titled with the report's `month`, never the browser's clock. The report's optional `payouts` block is X8's to use or drop; the chart reads `reports/payouts` with the remembered choice.</li><li>The Dashboard sends no payout this month, so the selector's rows show no amount.</li></ul>
+<ul><li>Widgets are v3, reports v2. The page header (title, the month chip) is the Experience's (X8), titled with the same report's `month`; no month while it loads.</li><li>OQ-242: the rails are titled with the report's `month`, never the browser's clock. OQ-243: the report sends no payouts — the chart always reads `reports/payouts` with the remembered choice, sharing Track Investments' cache (`usePayoutChart`).</li><li>The Dashboard sends no payout this month, so the selector's rows show no amount.</li></ul>
   </div>
   <script>
     mermaid.initialize({

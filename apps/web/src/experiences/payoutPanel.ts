@@ -124,3 +124,18 @@ export const payoutsByHolding = (
   const amount = (totals.get(entry.holdingId)?.amount ?? 0) + entry.amount;
   return totals.set(entry.holdingId, { currency: entry.currency, amount });
 }, new Map<string, HoldingPayout>());
+
+/**
+ * Reads the payouts report for the panel: the answer for the current choice
+ * only, never a previous choice's (`currentData`).
+ *
+ * @param query - The report query's state.
+ * @returns The panel's read.
+ */
+export const payoutsReadOf = (query: {
+  readonly currentData?: PayoutsReport | undefined;
+  readonly isError: boolean;
+}): PayoutsRead => {
+  if (query.currentData !== undefined) return { status: 'loaded', report: query.currentData };
+  return query.isError ? { status: 'failed' } : { status: 'loading' };
+};

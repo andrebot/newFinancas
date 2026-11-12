@@ -1997,17 +1997,33 @@ paths:
         access method in v1 — there is no in-app browsable table
         anywhere in this API. audit_log_entries carries no foreign keys
         by design (OQ-25/NFR-AUD-1) — actor/entity references are plain
-        stored values, permanently orphan-tolerant.
+        stored values, permanently orphan-tolerant. Both dates are
+        required, inclusive days in the app's time zone (OQ-104); an
+        `endDate` before `startDate` is 422 `date.before_start` (OQ-243).
+        Downloaded as `audit-log-<startDate>-<endDate>.csv`.
       parameters:
-        - $ref: "#/components/parameters/StartDate"
-        - $ref: "#/components/parameters/EndDate"
+        - name: startDate
+          in: query
+          required: true
+          description: First day included, ISO 8601 date (YYYY-MM-DD).
+          schema: { type: string, format: date }
+        - name: endDate
+          in: query
+          required: true
+          description: Last day included, ISO 8601 date (YYYY-MM-DD).
+          schema: { type: string, format: date }
       responses:
         "200":
           description: OK
+          headers:
+            Content-Disposition:
+              description: '`attachment; filename="audit-log-<startDate>-<endDate>.csv"`'
+              schema: { type: string }
           content:
             text/csv:
               schema: { type: string }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/ValidationError" }
   /households/{householdId}/holdings/{holdingId}/valuation-snapshots/{snapshotId}:
     parameters:
       - $ref: "#/components/parameters/HouseholdId"
@@ -3418,7 +3434,9 @@ components:
         FR-6.0 — the v1 Dashboard's fixed panels for the current month: the
         investments overview's net worth and coming due, and the month's
         balances, budgets (over-budget first) and active Goals (OQ-242,
-        pulled forward from task X8).
+        pulled forward from task X8). No payouts: the payout chart reads
+        `reports/payouts` with the user's remembered choice of Holdings,
+        which the server doesn't know (OQ-243).
       required: [month, netWorth, comingDue, balances, budgets, goals]
       properties:
         month:
@@ -3431,13 +3449,6 @@ components:
           $ref: '#/components/schemas/InvestmentsOverviewReport/properties/netWorth'
         comingDue:
           $ref: '#/components/schemas/InvestmentsOverviewReport/properties/comingDue'
-        payouts:
-          $ref: '#/components/schemas/PayoutsReport'
-          description: >-
-            The last 12 months of payouts of every Holding. Optional: the
-            payout chart reads `reports/payouts` with the user's remembered
-            choice; task X8 decides whether to send and use this block when
-            that choice is every Holding (OQ-242)
         balances:
           $ref: '#/components/schemas/MonthOverviewReport/properties/balances'
         budgets:

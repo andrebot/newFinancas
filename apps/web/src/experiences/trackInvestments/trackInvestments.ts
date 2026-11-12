@@ -1,8 +1,5 @@
-import type {
-  Account, InvestmentHolding, InvestmentsOverviewReport, PayoutsReport,
-} from '@financas/api-types';
+import type { Account, InvestmentHolding, InvestmentsOverviewReport } from '@financas/api-types';
 import { isFixedTerm } from '@financas/reference';
-import type { PayoutsRead } from '../payoutPanel';
 import type { OverviewRead } from './overviewRead';
 import type { MarketValue } from './flows/holdingMaintenance/HoldingPanel';
 
@@ -56,21 +53,6 @@ export const overviewReadOf = ({ report, holdings, accounts }: OverviewQueries):
   return [report, holdings, accounts].some((query) => query.isError)
     ? { status: 'failed' }
     : { status: 'loading' };
-};
-
-/**
- * Reads the payouts report for the panel: the answer for the current choice
- * only, never a previous choice's (`currentData`).
- *
- * @param query - The report query's state.
- * @returns The panel's read.
- */
-export const payoutsReadOf = (query: {
-  readonly currentData?: PayoutsReport | undefined;
-  readonly isError: boolean;
-}): PayoutsRead => {
-  if (query.currentData !== undefined) return { status: 'loaded', report: query.currentData };
-  return query.isError ? { status: 'failed' } : { status: 'loading' };
 };
 
 /**

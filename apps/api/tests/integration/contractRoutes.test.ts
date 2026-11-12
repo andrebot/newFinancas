@@ -16,12 +16,11 @@ const BASE = '/api/v1';
 
 /** Contract operations whose backend is still on the plan (03-pd-execution-order.md). */
 const NOT_YET_ROUTED: readonly { readonly matches: RegExp; readonly lands: string }[] = [
+  { matches: /^PATCH \/households\/\{householdId\}\/dashboard\/widgets$/, lands: 'v3 (OQ-67)' },
   {
-    matches: /^\w+ \/households\/\{householdId\}\/(dashboard|reports\/transactions)(\/|$)/,
-    lands: 'slice 5',
+    matches: /^GET \/households\/\{householdId\}\/reports\/transactions\/export$/,
+    lands: 'v2 (OQ-71)',
   },
-  { matches: /^\w+ \/notifications(\/|$)/, lands: 'slice 5' },
-  { matches: /^GET \/households\/\{householdId\}\/audit-log(\/|$)/, lands: 'slice 5' },
 ];
 
 /**

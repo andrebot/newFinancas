@@ -1,7 +1,7 @@
 import {
   describe, expect, it, vi,
 } from 'vitest';
-import { manageProfileApi } from '../../../../src/experiences/manageProfile/api';
+import { identityApi } from '../../../../src/api/identityApi';
 import {
   answeredText, invitationRoute, respondToInvitation,
 } from '../../../../src/experiences/manageProfile/respondToInvitation';
@@ -95,7 +95,7 @@ describe('respondToInvitation', () => {
         householdId: 'rivera', role: 'Member',
       }),
     });
-    const subscription = store.dispatch(manageProfileApi.endpoints.listMyInvitations.initiate());
+    const subscription = store.dispatch(identityApi.endpoints.listMyInvitations.initiate());
     await subscription;
 
     const outcome = await store.dispatch(respondToInvitation('inv-rivera', 'accept', feedback));

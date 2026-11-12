@@ -113,6 +113,7 @@ export function AppShell({ config, households, active }: AppShellProps) {
       <main className={MAIN}>
         <Outlet />
       </main>
+      {config.overlays}
     </div>
   );
 }

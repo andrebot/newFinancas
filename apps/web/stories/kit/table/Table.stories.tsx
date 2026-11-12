@@ -182,19 +182,21 @@ const renderPanel = (holding: SampleHolding) => (
   </div>
 );
 
-/** The story's props: whether the table shows its footer line. */
+/** The story's props: whether the table shows its footer line, and the rows open at first. */
 interface HoldingsProps {
   /** Whether the table ends with its count and total line. */
   readonly withFooter: boolean;
+  /** The rows open on the first render, by key — e.g., one a link pointed at. */
+  readonly initialOpenKeys?: readonly string[] | undefined;
 }
 
 /**
  * Renders mockup 51's XP Investimentos account in a card, as FL19 composes it.
  *
- * @param props - Whether the footer shows.
+ * @param props - Whether the footer shows, and the rows open at first.
  * @returns The holdings table.
  */
-function HoldingsTable({ withFooter }: HoldingsProps) {
+function HoldingsTable({ withFooter, initialOpenKeys }: HoldingsProps) {
   return (
     <Card size="none" className="max-w-4xl">
       <h2 className="px-5 pt-4 pb-3 type-heading-sm">XP Investimentos</h2>
@@ -204,6 +206,7 @@ function HoldingsTable({ withFooter }: HoldingsProps) {
         keyOf={(holding) => holding.id}
         renderItem={renderCells}
         renderPanel={renderPanel}
+        initialOpenKeys={initialOpenKeys}
         footer={withFooter ? (
           <>
             <span className="type-body-sm text-muted">
@@ -232,3 +235,6 @@ export const HoldingsByAccount: Story = {};
 
 /** The same table without its footer line. */
 export const NoFooter: Story = { args: { withFooter: false } };
+
+/** A row a link pointed at, open on the first render (OQ-243: the bell's "View holding"). */
+export const OpenAtFirst: Story = { args: { initialOpenKeys: ['xpml'] } };

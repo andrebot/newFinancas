@@ -31,3 +31,12 @@ export const goalNotFound = (): DomainError => createDomainError({
 export const holdingNotFound = (): DomainError => createDomainError({
   code: 'holding.not_found', message: 'Holding not found',
 });
+
+/**
+ * The notification does not exist, or is someone else's (OQ-105).
+ *
+ * @returns `notification.not_found`.
+ */
+export const notificationNotFound = (): DomainError => createDomainError({
+  code: 'notification.not_found', message: 'Notification not found',
+});

@@ -65,11 +65,12 @@ describe('createTranslator', () => {
       inviterName: 'Ana', householdName: 'Casa', role: 'Viewer',
     })).toBe('Ana invited you to Casa as a viewer.');
     expect(translator.notification('holding.matured', {
-      holdingId: 'h1', assetType: 'tesouro_direto', ticker: null, dueDate: '2026-10-01',
-    })).toBe('Your Tesouro Direto matured on 2026-10-01. Archive it?');
+      name: 'Tesouro Selic 2029', dueDate: '10/01/2026',
+    })).toBe('Tesouro Selic 2029 reached its due date on 10/01/2026 but still has a position. '
+      + 'Archive it?');
     expect(createTranslator('pt-BR').notification('holding.matured', {
-      holdingId: 'h1', assetType: 'cdb', ticker: null, dueDate: '2026-10-01',
-    })).toBe('Seu investimento CDB venceu em 2026-10-01. Arquivar?');
+      name: 'CDB', dueDate: '01/10/2026',
+    })).toBe('CDB venceu em 01/10/2026, mas ainda tem posição. Arquivar?');
   });
 
   it('shows each section’s generic message for an unknown code, and logs it', () => {

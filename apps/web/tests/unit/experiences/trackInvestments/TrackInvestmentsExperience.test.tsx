@@ -65,7 +65,7 @@ vi.mock(
  * @returns The stub, with the open row's details.
  */
 function HoldingMaintenanceStub({
-  overview, onRetry, accounts, goals, indexRates, viewer, details, requests,
+  overview, onRetry, accounts, goals, indexRates, viewer, details, requests, openHoldingId,
 }: HoldingMaintenanceFlowProps) {
   const [open, setOpen] = useState<string>();
   const holding = HOLDINGS.find(({ id }) => id === open);
@@ -79,6 +79,7 @@ function HoldingMaintenanceStub({
           goals,
           indexRates: indexRates?.length ?? null,
           viewer,
+          openHoldingId: openHoldingId ?? null,
         }}
         requests={{
           saveSplit: () => requests.onSaveAllocations('vale3', [
@@ -430,7 +431,13 @@ describe('the holdings tab (FL19)', () => {
       ],
       indexRates: 1,
       viewer: { selfUserId: 'jane', role: 'Member' },
+      openHoldingId: null,
     });
+  });
+
+  it('opens on the Holding the address names — the bell\'s "View holding" (OQ-243)', async () => {
+    await renderExperience({}, '/investments?tab=holdings&holding=vale3');
+    expect(shownBy('holdings')).toEqual(expect.objectContaining({ openHoldingId: 'vale3' }));
   });
 
   it('reads an open market-priced Holding\'s split, values and latest trades', async () => {

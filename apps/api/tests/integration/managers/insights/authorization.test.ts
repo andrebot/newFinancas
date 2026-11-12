@@ -18,7 +18,10 @@ import {
 // that decide access — no Engine, no further read (the Manager has no logger).
 // Data that isn't there asks only the membership check. Every request is
 // `data.view`, which every role holds, so `forbidden` never comes back: the
-// refusals are `not_member` and `not_visible`.
+// refusals are `not_member` and `not_visible`. Two use cases stand apart (task
+// 139, OQ-243): the audit-log export asks `audit.export`, which only Owners and
+// Admins hold, and the Notification Inbox is the user's own, in no household —
+// it asks nothing.
 
 const BEA_ID = '0199c5a0-0000-7000-8000-000000000002';
 
@@ -93,6 +96,15 @@ const GUARDED: readonly GuardedUseCase[] = [
     run: (manager) => manager.report(CONTEXT, HOUSEHOLD_ID, 'payouts'),
   },
   {
+    name: 'read the Dashboard',
+    useCase: 'getDashboard',
+    request: () => MEMBER_ONLY,
+    reads: [],
+    hidden: null,
+    reached: 'reporting.dashboard',
+    run: (manager) => manager.getDashboard(CONTEXT, HOUSEHOLD_ID),
+  },
+  {
     name: 'list Goal progress',
     useCase: 'goalProgressList',
     request: () => MEMBER_ONLY,
@@ -139,6 +151,24 @@ const GUARDED: readonly GuardedUseCase[] = [
   },
 ];
 
+/** The inbox's use cases: the user's own notifications, in no household. */
+const INBOX: readonly {
+  readonly useCase: keyof Manager;
+  readonly run: (manager: Manager) => Promise<unknown>;
+}[] = [
+  { useCase: 'listNotifications', run: (manager) => manager.listNotifications(CONTEXT) },
+  {
+    useCase: 'markNotificationsSeen',
+    run: (manager) => manager.markNotificationsSeen(CONTEXT, ['n1']),
+  },
+  { useCase: 'deleteNotification', run: (manager) => manager.deleteNotification(CONTEXT, 'n1') },
+];
+
+/** The audit-log export over one day. */
+const exportOneDay = (manager: Manager) => manager.exportAuditLog(CONTEXT, HOUSEHOLD_ID, {
+  startDate: '2026-10-01', endDate: '2026-10-01',
+});
+
 /** The use cases that load data, which may be someone else's personal data or not there. */
 const LOADING = GUARDED.filter(({ hidden }) => hidden !== null);
 
@@ -184,6 +214,8 @@ const belowOf = (fakes: Fakes): MockGroups => ({
   accounts: fakes.accounts,
   holdings: fakes.holdings,
   accountTransactions: fakes.accountTransactions,
+  notifications: fakes.notifications,
+  auditLog: fakes.auditLog,
 });
 
 /**
@@ -203,7 +235,11 @@ describe('InsightsManager ↔ AuthorizationUtility seam (I4)', () => {
   it('covers every use case InsightsManager has', () => {
     const useCases = Object.keys(createInsightsManager(fakeDeps().deps));
 
-    const guarded = [...new Set(GUARDED.map(({ useCase }) => useCase))];
+    const guarded = [...new Set([
+      ...GUARDED.map(({ useCase }) => useCase),
+      ...INBOX.map(({ useCase }) => useCase),
+      'exportAuditLog',
+    ])];
 
     expect(guarded.sort()).toEqual(useCases.sort());
   });
@@ -334,6 +370,53 @@ describe('InsightsManager ↔ AuthorizationUtility seam (I4)', () => {
       expect(fakes.goals.list).toHaveBeenCalledWith(HOUSEHOLD_ID, ANA_ID, 'completed');
       expect(fakes.reporting.goalProgress)
         .toHaveBeenCalledWith(VIEWER, expect.anything(), expect.anything());
+    });
+  });
+
+  it.each(INBOX)('$useCase asks no household access: the inbox is the user\'s own', async ({
+    run,
+  }) => {
+    const fakes = fakeDeps();
+
+    await run(createInsightsManager(fakes.deps));
+
+    expect(fakes.authorization.authorize).not.toHaveBeenCalled();
+  });
+
+  describe('the audit-log export (FR-7.2, OQ-46)', () => {
+    it('asks once for `audit.export`', async () => {
+      const fakes = fakeDeps();
+
+      await exportOneDay(createInsightsManager(fakes.deps));
+
+      expect(fakes.authorization.authorize).toHaveBeenCalledOnce();
+      expect(fakes.authorization.authorize)
+        .toHaveBeenCalledWith(ANA_ID, HOUSEHOLD_ID, { action: 'audit.export' });
+    });
+
+    it.each(['Owner', 'Admin'] as const)('lets an %s read the log', async (role) => {
+      const fakes = withRole(fakeDeps(), role);
+
+      await exportOneDay(createInsightsManager(fakes.deps));
+
+      expect(fakes.auditLog.listForExport).toHaveBeenCalledOnce();
+    });
+
+    it.each(['Member', 'Viewer'] as const)('refuses a %s before any read', async (role) => {
+      const fakes = withRole(fakeDeps(), role);
+
+      await expect(exportOneDay(createInsightsManager(fakes.deps)))
+        .rejects.toMatchObject({ domainError: { code: 'auth.forbidden' } });
+      expect(touchedBeyondAccess(belowOf(fakes), [])).toEqual([]);
+    });
+
+    it('answers a non-member household.not_found before any read', async () => {
+      const fakes = fakeDeps();
+      fakes.authorization.authorize.mockResolvedValueOnce({ outcome: 'not_member' });
+
+      await expect(exportOneDay(createInsightsManager(fakes.deps)))
+        .rejects.toMatchObject({ domainError: NOT_FOUND });
+      expect(touchedBeyondAccess(belowOf(fakes), [])).toEqual([]);
     });
   });
 });

@@ -135,8 +135,9 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain:</strong> <code>InsightsManager</code> ① <code>AuthorizationUtility</code> → ② <code>ReportingEngine</code> (net worth + change, coming due, payout series, balances, budgets over-budget first, goals) → ③ its reads.</p>
+    <p><strong>Chain:</strong> <code>InsightsManager</code> ① <code>AuthorizationUtility</code> (<code>memberOnly</code>) → ② <code>ReportingEngine.dashboard(viewer, today, 6)</code> (net worth + change, coming due, balances, budgets over-budget first, goals, and the month they are for) → ③ its reads.</p>
     <p><strong>Round 9:</strong> no <code>DashboardAccessor</code> read — the v1 Dashboard is fixed (OQ-67); the accessor is parked for v3.</p>
+    <p><strong>Task 139 (OQ-243):</strong> no payout series — the chart reads the payouts report with the user's remembered choice of Holdings, so no <code>listPayouts</code> here.</p>
   </div>
 
   <script>

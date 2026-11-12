@@ -23,7 +23,7 @@ UCS = []
 UCS.append(dict(
     filename="uc-01-view-dashboard.html",
     title="View Dashboard",
-    subtitle='<span class="route">GET /households/:householdId/dashboard</span> &mdash; FR-6.0 (v1 fixed panels, OQ-67). Updated in the Oct 2026 sequence review: no stored layout &mdash; widgets are v3.',
+    subtitle='<span class="route">GET /households/:householdId/dashboard</span> &mdash; FR-6.0 (v1 fixed panels, OQ-67). Updated in the Oct 2026 sequence review: no stored layout &mdash; widgets are v3. As built in task 139 (OQ-242, OQ-243): the panels for the server&#39;s month, no payouts.',
     mermaid="""
 sequenceDiagram
 """ + P_CORE + """
@@ -31,19 +31,28 @@ sequenceDiagram
     participant RE as ReportingEngine
 
     User->>API: GET /households/:householdId/dashboard
-    API->>IM: getDashboard(actor)
-    IM->>AZ: visibleScope(actor)
-    AZ-->>IM: scope (personal + shared, FR-2.3/4.2/8.1)
-    IM->>RE: dashboard(scope, today)
-    Note over RE: net worth per currency + change vs previous month,<br/>coming-due fixed income, payout series (default holdings),<br/>balances, budgets (over-budget first), goals &mdash; the same<br/>shapes the month-overview / investments-overview reports and<br/>View Goals produce, composed once
-    RE-->>IM: panels
-    IM-->>API: dashboard {panels}
-    API-->>User: 200 OK
+    API->>IM: getDashboard(context, householdId)
+    IM->>AZ: authorize(actor, householdId, memberOnly)
+    alt not a member
+        AZ-->>IM: not_member
+        IM-->>API: household.not_found
+        API-->>User: 404 household.not_found
+    else any member &mdash; data.view is everyone&#39;s on shared data (OQ-111)
+        AZ-->>IM: allowed
+        Note over IM: today in the app&#39;s time zone (OQ-104)
+        IM->>RE: dashboard(viewer, today, 6)
+        Note over RE: net worth per currency over the last 6 months and Coming Due<br/>(the investments overview&#39;s, without its payouts and slices),<br/>month-end balances, budgets (over-budget first) and goals<br/>(the Month Overview&#39;s) &mdash; narrowed to the viewer (OQ-206)
+        RE-->>IM: {month, netWorth, comingDue, balances, budgets, goals}
+        IM-->>API: the panels
+        API-->>User: 200 OK DashboardReport
+    end
 """,
     notes="""
     <ul>
-      <li><strong>v1 = fixed panels (FR-6.0, OQ-67):</strong> no <code>DashboardAccessor</code> read (parked until v3). Changing which holdings the payout chart shows refetches <code>GET /households/:householdId/reports/payouts</code> only.</li>
-      <li>See FR-6.0, FR-5.3, FR-5.9, FR-4.3, FR-8.5, OQ-67.</li>
+      <li><strong>v1 = fixed panels (FR-6.0, OQ-67):</strong> no <code>DashboardAccessor</code> read (parked until v3).</li>
+      <li><strong>The server&#39;s month (OQ-242):</strong> the report carries <code>month</code> (<code>YYYY-MM</code>), and the app titles the page and the rails with it, never the browser&#39;s clock.</li>
+      <li><strong>No payouts (OQ-243):</strong> the payout chart shows the Holdings the user picked, remembered in the browser, which the server doesn&#39;t know &mdash; so it always reads <code>GET /households/:householdId/reports/payouts</code> with that choice, sharing Investments&#39; cache. Changing the choice refetches only that.</li>
+      <li>See FR-6.0, FR-5.3, FR-5.9, FR-4.3, FR-8.5, OQ-67, OQ-242, OQ-243.</li>
     </ul>
 """,
 ))
@@ -168,7 +177,7 @@ sequenceDiagram
     participant NA as NotificationInboxAccessor
 
     User->>API: GET /notifications
-    API->>IM: listNotifications(actor)
+    API->>IM: listNotifications(context)
     IM->>NA: listByUser(actor)
     Note over NA: read-only &mdash; newest first (OQ-105)
     NA-->>IM: [{id, type, params, seenAt, createdAt}, ...]
@@ -176,7 +185,8 @@ sequenceDiagram
     API-->>User: 200 OK {data: [{id, type, params, seenAt, createdAt}, ...]}
     Note over User,API: the user opens the inbox
     User->>API: POST /notifications/seen {notificationIds}
-    API->>IM: markNotificationsSeen(actor, notificationIds)
+    Note over API: contract check first: 1..200 UUIDs &rarr; 422 validation.failed
+    API->>IM: markNotificationsSeen(context, notificationIds)
     IM->>NA: markSeen(actor, notificationIds, now)
     Note over NA: only these IDs, only the actor's, only unseen &mdash;<br/>one that arrived after the list stays unseen (FR-6.10)
     NA-->>IM: count marked
@@ -187,6 +197,7 @@ sequenceDiagram
     <ul>
       <li><strong>Oct 2026 review:</strong> each item is <code>{type, params, seen, createdAt}</code> &mdash; never text (OQ-82). The frontend renders it from the shared i18n catalog and resolves IDs (e.g. a deleted inviter shows as &ldquo;Someone&rdquo;). v1 types: <code>invitation.received</code>, <code>holding.matured</code>; actions call their own use cases (accept/decline invitation, archive holding).</li>
       <li><strong>v1 producers (OQ-68):</strong> Invite User (<code>invitation.received</code>) and the daily job (<code>holding.matured</code>).</li>
+      <li><strong>As built in task 139 (OQ-243):</strong> the user&#39;s own inbox, in no household &mdash; no role check; the routes sit behind their own signed-in guard. The bell polls the list every 60s while the tab is in front, and on focus; the panel marks what it opened with (in batches of 200), and those stay &ldquo;new&rdquo; while it is open.</li>
       <li><strong>Why two calls (OQ-105):</strong> a GET that marked everything seen could not feed the bell's unseen badge without clearing it, broke HTTP's safe-read rule (a prefetch or retry would clear it), and would also mark a notification arriving between the list and the mark.</li>
       <li>See FR-6.10, OQ-45.</li>
     </ul>
@@ -202,10 +213,9 @@ UCS.append(dict(
 sequenceDiagram
 """ + P_CORE + """
     participant NA as NotificationInboxAccessor
-    participant LOG as LoggingUtility
 
     User->>API: DELETE /notifications/:notificationId
-    API->>IM: deleteNotification(actor, notificationId)
+    API->>IM: deleteNotification(context, notificationId)
     IM->>NA: deleteForUser(actor, notificationId)
     Note over NA: ownership check and delete in one statement (OQ-105)
     alt not the actor's, or doesn't exist
@@ -214,13 +224,13 @@ sequenceDiagram
         API-->>User: 404 notification.not_found
     else the actor's
         NA-->>IM: deleted
-        IM-->>LOG: logActivity(correlationId, actor, "DeleteNotification")
         IM-->>API: deleted
         API-->>User: 204 No Content
     end
 """,
     notes="""
     <ul>
+      <li><strong>As built in task 139 (OQ-243):</strong> no activity log call &mdash; the request log already records the call (OQ-110), and InsightsManager has no logger. The bell&#39;s actions delete a notice the same way once the Experience that owns it reports success (the App Shell&#39;s routing).</li>
       <li>404 rather than 403 for a notification belonging to someone else &mdash; same enumeration-avoidance instinct as Revoke Session in Identity & Household.</li>
       <li>See FR-6.10, OQ-45.</li>
     </ul>

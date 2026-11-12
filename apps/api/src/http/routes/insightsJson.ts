@@ -1,11 +1,13 @@
+import type { InboxNotification } from '../../accessors/notificationInboxAccessor';
+import type { Dashboard } from '../../engines/reporting';
 import type {
   Funding, GoalWithProgress, ProjectedHolding, TaggedReport,
 } from '../../managers/insights';
 import { toGoalJson } from './accountJson';
 
 // The JSON shapes InsightsManager's reads answer with (the contract's
-// `GoalFundingRow`, `GoalWithProgress`, `GoalProgress`, `InvestmentHolding` and
-// the reports).
+// `GoalFundingRow`, `GoalWithProgress`, `GoalProgress`, `InvestmentHolding`,
+// the reports, `DashboardReport` and `Notification`).
 
 /**
  * One Holding funding a Goal, as the contract shows it (`GoalFundingRow`).
@@ -91,3 +93,30 @@ export const toReportJson = (report: TaggedReport) => (
     ? { ...report, goals: report.goals.map(toGoalWithProgressJson) }
     : report
 );
+
+/**
+ * Shapes the Dashboard as the contract shows it (`DashboardReport`): its Goals
+ * through their JSON form, the other panels as they are.
+ *
+ * @param panels - The Engine's Dashboard.
+ * @returns Its JSON body.
+ */
+export const toDashboardJson = (panels: Dashboard) => ({
+  ...panels,
+  goals: panels.goals.map(toGoalWithProgressJson),
+});
+
+/**
+ * Shapes a stored notification as the contract shows it (`Notification`): type
+ * and raw params, never text (OQ-82).
+ *
+ * @param notification - The Accessor's row.
+ * @returns The JSON shape, with ISO 8601 instants.
+ */
+export const toNotificationJson = (notification: InboxNotification) => ({
+  id: notification.id,
+  type: notification.type,
+  params: notification.params,
+  seenAt: notification.seenAt?.toISOString() ?? null,
+  createdAt: notification.createdAt.toISOString(),
+});

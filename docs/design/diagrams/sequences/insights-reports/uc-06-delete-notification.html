@@ -63,10 +63,9 @@ sequenceDiagram
     participant API as Hono route
     participant IM as InsightsManager
     participant NA as NotificationInboxAccessor
-    participant LOG as LoggingUtility
 
     User->>API: DELETE /notifications/:notificationId
-    API->>IM: deleteNotification(actor, notificationId)
+    API->>IM: deleteNotification(context, notificationId)
     IM->>NA: deleteForUser(actor, notificationId)
     Note over NA: ownership check and delete in one statement (OQ-105)
     alt not the actor's, or doesn't exist
@@ -75,7 +74,6 @@ sequenceDiagram
         API-->>User: 404 notification.not_found
     else the actor's
         NA-->>IM: deleted
-        IM-->>LOG: logActivity(correlationId, actor, "DeleteNotification")
         IM-->>API: deleted
         API-->>User: 204 No Content
     end
@@ -83,6 +81,7 @@ sequenceDiagram
   </div>
   <div class="notes">
     <ul>
+      <li><strong>As built in task 139 (OQ-243):</strong> no activity log call &mdash; the request log already records the call (OQ-110), and InsightsManager has no logger. The bell&#39;s actions delete a notice the same way once the Experience that owns it reports success (the App Shell&#39;s routing).</li>
       <li>404 rather than 403 for a notification belonging to someone else &mdash; same enumeration-avoidance instinct as Revoke Session in Identity & Household.</li>
       <li>See FR-6.10, OQ-45.</li>
     </ul>

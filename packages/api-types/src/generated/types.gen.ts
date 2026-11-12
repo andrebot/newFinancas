@@ -750,7 +750,7 @@ export type CardTransaction = {
 };
 
 /**
- * FR-6.0 — the v1 Dashboard's fixed panels for the current month: the investments overview's net worth and coming due, and the month's balances, budgets (over-budget first) and active Goals (OQ-242, pulled forward from task X8).
+ * FR-6.0 — the v1 Dashboard's fixed panels for the current month: the investments overview's net worth and coming due, and the month's balances, budgets (over-budget first) and active Goals (OQ-242, pulled forward from task X8). No payouts: the payout chart reads `reports/payouts` with the user's remembered choice of Holdings, which the server doesn't know (OQ-243).
  */
 export type DashboardReport = {
     /**
@@ -785,10 +785,6 @@ export type DashboardReport = {
         currency: Currency;
         amount: Money;
     }>;
-    /**
-     * The last 12 months of payouts of every Holding. Optional: the payout chart reads `reports/payouts` with the user's remembered choice; task X8 decides whether to send and use this block when that choice is every Holding (OQ-242)
-     */
-    payouts?: PayoutsReport;
     /**
      * Each visible Account open at the month's end (one archived later included, OQ-206) with its balance then, and each of its cards' outstanding balance at the month's end (OQ-201). A credit_card_only Account's own row never moves; the app shows its cards' sum (OQ-175, OQ-221)
      */
@@ -3417,15 +3413,15 @@ export type ExportAuditLogData = {
     path: {
         householdId: string;
     };
-    query?: {
+    query: {
         /**
-         * Inclusive, ISO 8601 date (YYYY-MM-DD).
+         * First day included, ISO 8601 date (YYYY-MM-DD).
          */
-        startDate?: string;
+        startDate: string;
         /**
-         * Inclusive, ISO 8601 date (YYYY-MM-DD).
+         * Last day included, ISO 8601 date (YYYY-MM-DD).
          */
-        endDate?: string;
+        endDate: string;
     };
     url: '/households/{householdId}/audit-log/export';
 };
@@ -3435,6 +3431,10 @@ export type ExportAuditLogErrors = {
      * Authenticated, but not permitted to perform this action. Codes: `auth.forbidden`.
      */
     403: Error;
+    /**
+     * Request body failed validation. Codes: `validation.failed` with `details[]`, or specific codes such as `password.too_short`, `transaction.investment_not_allowed_on_account`, `transaction.kind_not_allowed_for_target`, `transaction.currency_mismatch`, `transaction.subcategory_mismatch`, `category.archived` (OQ-201), `index_rate.missing` (OQ-205), `account.cards_not_allowed` (FR-2.7).
+     */
+    422: Error;
 };
 
 export type ExportAuditLogError = ExportAuditLogErrors[keyof ExportAuditLogErrors];

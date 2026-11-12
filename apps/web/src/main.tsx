@@ -1,5 +1,6 @@
 // Composition root: mounts React into index.html. No logic lives here, so it
 // is excluded from unit coverage and exercised by the E2E smoke test instead.
+import { setupListeners } from '@reduxjs/toolkit/query';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { sessionEnded } from './api/baseQuery';
@@ -35,6 +36,10 @@ const store = createAppStore({
   api: browserApiEnvironment(window),
   shell: { householdMemory: safeStorage(() => window.localStorage, shell.householdStorageKey) },
 });
+
+// The window's focus and connection reach RTK Query, so the bell's polling
+// pauses while the tab is in the background and catches up on focus (OQ-243).
+setupListeners(store.dispatch);
 
 // Signing out in another tab ends this tab's session too (OQ-124 follow-up).
 watchSignOutElsewhere(window, api.refreshTokenStorageKey, () => store.dispatch(sessionEnded()));

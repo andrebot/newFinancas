@@ -66,6 +66,16 @@ describe('createReportingEngine', () => {
     expect(deps.latestSnapshots).toHaveBeenCalledTimes(7);
   });
 
+  it('builds the Dashboard for today\'s month through the Accessor reads (task 139)', async () => {
+    const deps = fakeDeps();
+    deps.listAccounts.mockResolvedValue([anAccount()]);
+
+    const panels = await createReportingEngine(deps).dashboard(VIEWER, '2026-10-13', 6);
+
+    expect(panels.month).toBe('2026-10');
+    expect(deps.listAccounts).toHaveBeenCalledWith(HOUSEHOLD_ID, 'ana');
+  });
+
   it('builds the payouts series through the Accessor reads (task 133)', async () => {
     const deps = fakeDeps();
     deps.listAccounts.mockResolvedValue([anAccount()]);

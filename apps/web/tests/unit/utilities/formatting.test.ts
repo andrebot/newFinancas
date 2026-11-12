@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   createFormatter, dateConventions, decimalSeparator, formatDate, formatList, formatMoney,
-  formatChange, formatPercent, formatRate, formatRatePoints, moneyConventions,
+  formatChange, formatPercent, formatRate, formatRatePoints, formatRelativeTime, moneyConventions,
 } from '../../../src/utilities/formatting';
 
 // Utility (BDT: unit, pure — nothing to mock). `Intl` writes a no-break
@@ -141,6 +141,24 @@ describe('formatList', () => {
   });
 });
 
+describe('formatRelativeTime (OQ-243)', () => {
+  const NOW = new Date('2026-10-13T12:00:00Z');
+
+  it('tells how long ago in the largest whole unit, in each locale', () => {
+    expect(formatRelativeTime('2026-10-13T10:00:00Z', NOW, 'en-US')).toBe('2 hours ago');
+    expect(formatRelativeTime('2026-10-10T11:00:00Z', NOW, 'en-US')).toBe('3 days ago');
+    expect(formatRelativeTime('2026-10-12T11:00:00Z', NOW, 'en-US')).toBe('yesterday');
+    expect(formatRelativeTime('2026-10-13T11:55:00Z', NOW, 'pt-BR')).toBe('há 5 minutos');
+    expect(formatRelativeTime('2026-09-01T12:00:00Z', NOW, 'en-US')).toBe('last month');
+    expect(formatRelativeTime('2024-10-01T12:00:00Z', NOW, 'en-US')).toBe('2 years ago');
+  });
+
+  it('says now under a minute, and for a clock a little behind', () => {
+    expect(formatRelativeTime('2026-10-13T11:59:30Z', NOW, 'en-US')).toBe('now');
+    expect(formatRelativeTime('2026-10-13T12:00:20Z', NOW, 'pt-BR')).toBe('agora');
+  });
+});
+
 describe('createFormatter', () => {
   it('binds every formatter but money to the locale', () => {
     const formatter = createFormatter('pt-BR');
@@ -153,5 +171,7 @@ describe('createFormatter', () => {
     expect(formatter.date('2026-09-30')).toBe('30/09/2026');
     expect(formatter.date('2026-09-07', 'dayMonth')).toBe('7 de set.');
     expect(formatter.list(['A', 'B'])).toBe('A e B');
+    expect(formatter.relativeTime('2026-10-13T10:00:00Z', new Date('2026-10-13T12:00:00Z')))
+      .toBe('há 2 horas');
   });
 });

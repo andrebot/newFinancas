@@ -176,7 +176,9 @@ Diagram: `docs/design/diagrams/ebd-tiers/app-shell.html`; sequence:
 
 **OQ-242 (FL21):** `experiences/reviewInsights/flows/dashboard/DashboardFlow.tsx` composes the Interactions shared with Track Investments (Net Worth Cards, Coming Due, the payout panel) and Manage Finances (Month Rails). It shows the report's month and takes the Dashboard with the household's Holdings and accounts, plus the payout chart's input as FL18 does. A household with no Holding sees one card pointing to Transactions in place of the investment panels.
 
-**Utilities:** AlertUtility, ThemeUtility, I18nUtility, FormattingUtility. Tier diagram: `docs/design/diagrams/ebd-tiers/review-insights.html`.
+**OQ-243 (X8):** `experiences/reviewInsights/ReviewInsightsExperience.tsx` is the Dashboard page — its header titled with the report's month — reading the Dashboard, the household's Holdings and accounts, and the payout chart through `usePayoutChart`, shared with Track Investments (the household's Holdings and the payouts report moved to `api/investmentsApi.ts`, the invitations to `api/identityApi.ts`). Its chrome parts (`chrome.tsx`) go to the App Shell: the bell's inbox (`InboxPanel` over the *Notification Inbox* Interaction — the unseen count polled every minute while the tab is in front) and the *Export Audit Log* dialog, mounted in the shell's new `overlays` slot and opened by the drawer through a dialog switch. "View holding" opens `/investments?tab=holdings&holding=…`, which Holding Maintenance reads to choose the Holding's account and open its row.
+
+**Utilities:** AlertUtility, ThemeUtility, I18nUtility, FormattingUtility (relative times, OQ-243), DownloadUtility. Tier diagram: `docs/design/diagrams/ebd-tiers/review-insights.html`.
 
 
 ## Utilities

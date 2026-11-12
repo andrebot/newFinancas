@@ -1,16 +1,15 @@
 import type {
   GetReportResponse, HoldingAllocation, HoldingAllocations, IndexCode, IndexRateSeries,
-  InvestmentHolding, InvestmentsOverviewReport, LedgerItem, ListHouseholdHoldingsResponse,
-  ListIndexRatesResponse, ListValuationSnapshotsResponse, PayoutsReport, TransactionPage,
-  ValuationSnapshot,
+  InvestmentsOverviewReport, LedgerItem, ListIndexRatesResponse, ListValuationSnapshotsResponse,
+  TransactionPage, ValuationSnapshot,
 } from '@financas/api-types';
-import backendApi, { changedTags } from '../../api/backendApi';
+import { changedTags } from '../../api/backendApi';
+import { investmentsApi } from '../../api/investmentsApi';
 import send from '../../api/send';
 import { holdingMaintenance } from '../../config/constants';
 
 // The Track Investments Experience's own endpoints (X7; OQ-233..236): the
-// Investments overview and the payouts reports, the household's Holdings,
-// the index rates, an open Holding's split, value history and latest
+// Investments overview, the index rates, an open Holding's split, value history and latest
 // transactions, and the writes Holding and Rates Maintenance make. Every read
 // built on the household's accounts or Goals also provides those shared tags,
 // so a transaction recorded in Manage Finances refreshes the page (PR #145).
@@ -18,21 +17,14 @@ import { holdingMaintenance } from '../../config/constants';
 // what it changed: a value the overview, the Goals' progress and the history;
 // a split the Goals and the split (a tag shared with Manage Finances); a rate
 // the rates and the Holdings, whose expected payouts are projected from it
-// (OQ-235, OQ-236).
+// (OQ-235, OQ-236). The household's Holdings and the payouts report are
+// shared with Review Insights (`api/investmentsApi.ts`, OQ-243); this slice
+// is injected on top of them.
 
 /** What addresses a Holding inside its household. */
 export interface HoldingTarget {
   readonly householdId: string;
   readonly holdingId: string;
-}
-
-/** The payouts report's question (OQ-233). */
-export interface PayoutsInput {
-  readonly householdId: string;
-  /** The Holdings to sum; every visible one when absent. */
-  readonly holdingIds: readonly string[] | undefined;
-  /** How many months back, this one included. */
-  readonly months: number;
 }
 
 /** A market value as the contract sends it, addressed to its Holding. */
@@ -72,8 +64,7 @@ export interface RateValueTarget extends IndexTarget {
 
 /** The Experience's own caches. */
 const OWN_TAGS = [
-  'InvestmentsOverview', 'Payouts', 'Holdings', 'IndexRates', 'ValuationSnapshots',
-  'HoldingActivity',
+  'InvestmentsOverview', 'IndexRates', 'ValuationSnapshots', 'HoldingActivity',
 ] as const;
 
 /** Builds a household's path. */
@@ -94,19 +85,6 @@ const indexValuesPath = ({ householdId, index }: IndexTarget) => (
 /** Builds one index value's path. */
 const rateValuePath = ({ valueId, ...index }: RateValueTarget) => (
   `${indexValuesPath(index)}/${encodeURIComponent(valueId)}`);
-
-/**
- * Builds the payouts report's address: the Holdings comma-joined, as the
- * contract's `explode: false` asks, and left out for every Holding.
- *
- * @param input - The household, the Holdings and the window.
- * @returns The report's path and search.
- */
-export const payoutsPathOf = ({ householdId, holdingIds, months }: PayoutsInput) => {
-  const params = new URLSearchParams({ months: String(months) });
-  if (holdingIds !== undefined) params.set('holdingIds', holdingIds.join(','));
-  return `${householdPath(householdId)}/reports/payouts?${params.toString()}`;
-};
 
 /**
  * Builds the address of a Holding's latest transactions (OQ-234).
@@ -132,7 +110,7 @@ const SPLIT_TAGS = ['HoldingAllocations', 'Goals'] as const;
 const RATE_TAGS = ['IndexRates', 'Holdings'] as const;
 
 /** Track Investments' slice of the backend API. */
-export const trackInvestmentsApi = backendApi.enhanceEndpoints({
+export const trackInvestmentsApi = investmentsApi.enhanceEndpoints({
   addTagTypes: [...OWN_TAGS],
 }).injectEndpoints({
   endpoints: (build) => ({
@@ -140,16 +118,6 @@ export const trackInvestmentsApi = backendApi.enhanceEndpoints({
       query: (householdId) => `${householdPath(householdId)}/reports/investments-overview`,
       transformResponse: (response: GetReportResponse) => response as InvestmentsOverviewReport,
       providesTags: ['InvestmentsOverview', 'Accounts', 'Goals'],
-    }),
-    getPayouts: build.query<PayoutsReport, PayoutsInput>({
-      query: payoutsPathOf,
-      transformResponse: (response: GetReportResponse) => response as PayoutsReport,
-      providesTags: ['Payouts', 'Accounts'],
-    }),
-    listHouseholdHoldings: build.query<readonly InvestmentHolding[], string>({
-      query: (householdId) => `${householdPath(householdId)}/holdings?includeArchived=true`,
-      transformResponse: (response: ListHouseholdHoldingsResponse) => response.data ?? [],
-      providesTags: ['Holdings', 'Accounts'],
     }),
     listIndexRates: build.query<readonly IndexRateSeries[], string>({
       query: (householdId) => `${householdPath(householdId)}/index-rates`,
@@ -206,8 +174,6 @@ export const trackInvestmentsApi = backendApi.enhanceEndpoints({
 
 export const {
   useGetInvestmentsOverviewQuery,
-  useGetPayoutsQuery,
-  useListHouseholdHoldingsQuery,
   useListIndexRatesQuery,
   useListHoldingSplitQuery,
   useListValuationSnapshotsQuery,

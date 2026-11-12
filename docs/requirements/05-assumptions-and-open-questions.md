@@ -7365,6 +7365,91 @@ forward with all the next phases"), from the review in
 
 **Task 138 (`FL21`) is complete.**
 
+### OQ-243: Review Insights (task X8)
+**Confirmed with the stakeholder (Nov 2026):**
+- **The Dashboard sends no payouts** (settles OQ-242's "left for X8"). The
+  payout chart shows the Holdings the user picked, remembered in the browser
+  per household, which the server doesn't know; the optional `payouts` block
+  matched it only when the pick was every Holding. The chart always reads
+  `reports/payouts` with the pick, as on Investments, through RTK's shared
+  cache. `payouts` is gone from `DashboardReport`. Weighed and rejected:
+  sending it and using it for "all" — 12 months of payouts computed on every
+  load for at most one saved request, and two ways to load one chart.
+- **The audit-log export needs both days** (`startDate`, `endDate` required:
+  422 `field.required`), and **an end before the start is 422
+  `date.before_start`** on `endDate`. `date.before_start` is now an API field
+  code too, no longer the web client's alone. Rejected: defaulting a missing
+  day on the server — the dialog always sends both.
+- **An invitation notice whose invitation no longer waits** (answered
+  elsewhere, declined, revoked, expired) says "This invitation is no longer
+  open." with only its delete. The names come from the pending invitations
+  (`GET /users/me/invitations`), so a stale one has none. Rejected: generic
+  text with Accept/Decline that would fail.
+- **"View holding"** opens Investments' Holdings tab on the Holding
+  (`/investments?tab=holdings&holding=…`): its account chosen, its row open
+  (Holding Maintenance's `openHoldingId`, the kit Table's `initialOpenKeys`).
+  The notice carries no household, so this finds the Holding only in the
+  active household.
+- **The bell polls `GET /notifications` every 60s while the tab is in
+  front**, and on focus (`inbox.pollIntervalMs`; `setupListeners` in
+  `main.tsx`).
+
+**Design decisions:**
+- **Backend.** `ReportingEngine.dashboard(viewer, today, 6)` combines the
+  Month Overview for today's month (balances, Budgets over-budget first,
+  Goals) with `dashboardInvestments` — the investments overview's net worth
+  and Coming Due, without its payouts and slices — and the `month`.
+  `InsightsManager` gains `getDashboard` (member check), the inbox
+  (`listNotifications`, `markNotificationsSeen`, `deleteNotification` —
+  the user's own, no household check, 404 `notification.not_found` for
+  another's or a missing one) and `exportAuditLog` (`audit.export`, the range
+  check, then `AuditLogAccessor.listForExport` and `auditLogCsv`; the file
+  downloads as `audit-log-<start>-<end>.csv`). Its deps take the inbox's
+  three reads/writes and the audit read. `/notifications` has its own
+  signed-in guard — the household guard doesn't reach it. The contract-routes
+  plan list keeps only the v3 widgets and the v2 transactions export.
+- **Shared reads moved to `src/api/`** (the slice 4 A1 rule): the
+  household's Holdings and the payouts report (`investmentsApi.ts`, with
+  `usePayoutChart` in `experiences/` for both Experiences) and the pending
+  invitations (`identityApi.ts`). `holdingLinkOf` lives in
+  `experiences/holdingLink.ts`, so neither Experience reads the other's code.
+- **The Dashboard page** (`ReviewInsightsExperience`): the header —
+  "Dashboard", the description, the month chip from the report's `month`
+  (none while it loads) — and `DashboardFlow` with the Dashboard, the
+  Holdings, the accounts and the payout chart. Any write to the accounts,
+  Budgets, Goals or Holdings refreshes it by tag.
+- **The inbox** (`InboxPanel` over the *Notification Inbox* Interaction,
+  mockup 23): once the notices and the invitations are in, it marks the
+  notices unseen at opening as seen (batches of 200), and those stay "new"
+  while it is open; seen ones are dimmed, "Seen · 3 days ago" (a new
+  `relativeTime` formatter). Accept, Decline and Archive go to the shell's
+  routing; an action no Experience owns yet (Archive until task 141) toasts
+  "This can't be done from here yet." The matured notice now reads "{name}
+  reached its due date on {date} but still has a position. Archive it?" —
+  the ticker, else the type — as mockup 23 draws it. A matured notice
+  without its Holding or date shows the generic line.
+- **The export** (mockup 24): a K21 Dialog with Last 30 days (the start),
+  Last 90 days, This year or Custom, checked like the API before it asks;
+  the CSV is saved under the API's name (`downloadTextFile` takes a media
+  type) and a toast says so; a refusal is a toast and the dialog stays.
+  The drawer opens it through a dialog switch; the App Shell mounts it in
+  its new `overlays` slot.
+- **The placeholders are gone** with the last page (`placeholders.tsx`, its
+  test and the `shell.placeholder.*` strings).
+- **Diagrams:** the View Dashboard, View Notification Inbox, Delete
+  Notification and Export Audit Log sequences, the View Dashboard call chain,
+  and the Dashboard and notification-routing EBD sequences. Delete
+  Notification loses its stale `logActivity` (OQ-110: the request log
+  records it).
+- **Tests (BDT):** the Engine's shapes unit-tested over faked Accessors; the
+  Manager and its authorization seam over its mocked tier (the export's
+  Owner/Admin matrix, the inbox asking nothing); the routes over a mocked
+  Manager; the endpoints through the real store; the Interactions unit; the
+  Experience, the panel, the export host and the chrome as integration
+  tests with the tier below stubbed.
+
+**Task 139 (`X8`) is complete.**
+
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
 *(None currently — OQ-29, the last item here, was resolved during data

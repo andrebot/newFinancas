@@ -2,9 +2,7 @@ import type {
   AcceptInvitationResponse,
   ChangePasswordData,
   EditCurrentUserData,
-  ListMyInvitationsResponse,
   ListSessionsResponse,
-  ReceivedInvitation,
   Session,
   User,
   UserPreferences,
@@ -16,8 +14,9 @@ import { identityApi } from '../../api/identityApi';
 // The Manage Profile Experience's endpoints (X3, OQ-159): edits to the user's
 // own profile and preferences (the profile itself is a shared identity read,
 // `api/identityApi.ts`, OQ-163), their sessions and password (Security, OQ-154),
-// the account's deletion (OQ-151) and the invitations waiting for them. The
-// profile and the invitations are cached; the sessions are the Security
+// the account's deletion (OQ-151) and the answers to the invitations waiting
+// for them (the list itself is a shared identity read since task 139, OQ-243).
+// The profile and the invitations are cached; the sessions are the Security
 // Flow's own list, fetched as it mounts and never kept. Answering an
 // invitation fetches the invitations again — and, once accepted, the
 // households (Manage Household's list), where the new one appears.
@@ -90,11 +89,6 @@ export const manageProfileApi = backendApi.enhanceEndpoints({
     changePassword: build.mutation<void, ChangePasswordData['body']>({
       query: (change) => send('POST', '/auth/change-password', change),
     }),
-    listMyInvitations: build.query<readonly ReceivedInvitation[], void>({
-      query: () => '/users/me/invitations',
-      transformResponse: (response: ListMyInvitationsResponse) => response.data ?? [],
-      providesTags: ['MyInvitations'],
-    }),
     acceptInvitation: build.mutation<AcceptInvitationResponse, string>({
       query: (invitationId) => send('POST', invitationPath(invitationId, 'accept')),
       invalidatesTags: ['MyInvitations', 'Households'],
@@ -113,7 +107,6 @@ export const {
   useRevokeSessionMutation,
   useRevokeOtherSessionsMutation,
   useChangePasswordMutation,
-  useListMyInvitationsQuery,
   useAcceptInvitationMutation,
   useDeclineInvitationMutation,
 } = manageProfileApi;

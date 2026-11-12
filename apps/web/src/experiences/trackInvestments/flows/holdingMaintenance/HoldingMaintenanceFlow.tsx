@@ -29,7 +29,9 @@ import { HoldingsTable } from './interactions/HoldingsTable';
 // Portfolio Overview), the accounts, the Goals and the index rates, and, for
 // an open row only, that Holding's details through the `details` slot; it
 // runs every write and refreshes by tag. The Flow holds the chosen account;
-// each open row holds its own drafts. It never calls the backend.
+// each open row holds its own drafts. A Holding a link pointed at — the
+// bell's "View holding", OQ-243 — opens with its account chosen and its row
+// open. It never calls the backend.
 
 /** Who is looking: what the "may change" rule reads (OQ-178, OQ-223). */
 export interface HoldingViewer {
@@ -60,6 +62,8 @@ export interface HoldingMaintenanceFlowProps {
     render: (details: HoldingDetails) => ReactNode,
   ) => ReactNode;
   readonly requests: HoldingRequests;
+  /** The Holding to show first — its account chosen, its row open (OQ-243). */
+  readonly openHoldingId?: string | undefined;
 }
 
 /**
@@ -97,9 +101,11 @@ interface LoadedProps extends Omit<HoldingMaintenanceFlowProps, 'overview' | 'on
  * @returns The page's content.
  */
 function LoadedHoldings({
-  report, holdings, cards, goals, indexRates, viewer, details, requests,
+  report, holdings, cards, goals, indexRates, viewer, details, requests, openHoldingId,
 }: LoadedProps) {
-  const [chosenId, setChosenId] = useState<string>();
+  const [chosenId, setChosenId] = useState(() => (
+    holdings.find((holding) => holding.id === openHoldingId)?.accountId
+  ));
   const wide = useMediaQuery(settings.wideQuery, true);
   // A chosen account that no longer holds anything gives way to the first.
   const card = cards.find(({ account }) => account.id === chosenId) ?? cards[0]!;
@@ -136,6 +142,7 @@ function LoadedHoldings({
         groups={holdingGroupsOf(own, report.allocations, currency)}
         wide={wide}
         renderPanel={renderPanel}
+        openHoldingId={openHoldingId}
       />
     </div>
   );

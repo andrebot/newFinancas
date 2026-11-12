@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  activeOn, allocationsOf, comingDueOf, investmentsOverview, netWorthOf, payoutSeriesOf,
-  payoutsReport, visibleHoldingsOf, windowOf,
+  activeOn, allocationsOf, comingDueOf, dashboardInvestments, investmentsOverview, netWorthOf,
+  payoutSeriesOf, payoutsReport, visibleHoldingsOf, windowOf,
 } from '../../../../src/engines/reporting/investments';
 import {
   aHolding, anAccount, aPayout, aSnapshot, fakeDeps, VIEWER,
@@ -307,6 +307,25 @@ describe('investmentsOverview (FR-5.3, FR-5.9)', () => {
     expect(await investmentsOverview(deps, VIEWER, { today: TODAY, months: 6 })).toEqual({
       netWorth: [], payoutThisMonth: [], allocations: [], comingDue: [],
     });
+  });
+});
+
+describe('dashboardInvestments (OQ-242, OQ-243)', () => {
+  it('answers the overview\'s net worth and Coming Due, reading no payouts', async () => {
+    const deps = householdWith([aHolding(), CDB]);
+    deps.latestSnapshots.mockImplementation(async (ids) => (
+      ids.includes('petr4') ? [aSnapshot('petr4', 300)] : []
+    ));
+    deps.costBasisAsOf.mockImplementation(async (ids) => (
+      ids.includes('cdb') ? [{ holdingId: 'cdb', costBasis: 1_000 }] : []
+    ));
+
+    const panels = await dashboardInvestments(deps, VIEWER, { today: TODAY, months: 2 });
+    const overview = await investmentsOverview(deps, VIEWER, { today: TODAY, months: 2 });
+
+    expect(panels).toEqual({ netWorth: overview.netWorth, comingDue: overview.comingDue });
+    expect(panels.comingDue).toHaveLength(1);
+    expect(deps.listPayouts).toHaveBeenCalledTimes(1);
   });
 });
 

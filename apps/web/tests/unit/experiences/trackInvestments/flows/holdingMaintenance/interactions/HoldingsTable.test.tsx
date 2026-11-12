@@ -22,15 +22,17 @@ const XP = [...HOLDINGS.filter((holding) => holding.accountId === 'xp'), TESOURO
  *
  * @param wide - Whether every column fits.
  * @param holdings - The account's Holdings.
+ * @param openHoldingId - The Holding whose row is open at first, if any.
  * @returns The render result.
  */
-const renderTable = (wide: boolean, holdings = XP) => renderInLocale(
+const renderTable = (wide: boolean, holdings = XP, openHoldingId?: string) => renderInLocale(
   <HoldingsTable
     accountName="XP Investimentos"
     currency="BRL"
     groups={holdingGroupsOf(holdings, OVERVIEW.allocations, 'BRL')}
     wide={wide}
     renderPanel={(row) => <p>{`Panel of ${row.holding.ticker}`}</p>}
+    openHoldingId={openHoldingId}
   />,
 );
 
@@ -78,6 +80,13 @@ describe('HoldingsTable', () => {
     renderTable(true);
 
     fireEvent.click(screen.getByText('XPML11'));
+
+    expect(screen.getByText('Panel of XPML11')).toBeTruthy();
+    expect(screen.queryByText('Panel of KNRI11')).toBeNull();
+  });
+
+  it('opens a linked Holding\'s row at first (OQ-243)', () => {
+    renderTable(true, XP, 'xpml11');
 
     expect(screen.getByText('Panel of XPML11')).toBeTruthy();
     expect(screen.queryByText('Panel of KNRI11')).toBeNull();

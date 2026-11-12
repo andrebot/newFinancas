@@ -14,7 +14,9 @@ import {
   useIdentity, usePendingInvitationCount,
 } from '../../src/experiences/manageProfile/shellSources';
 import { OnboardExperience } from '../../src/experiences/onboard/OnboardExperience';
-import { ComingSoon } from '../../src/placeholders';
+import InboxPanel from '../../src/experiences/reviewInsights/InboxPanel';
+import ReviewInsightsExperience from '../../src/experiences/reviewInsights/ReviewInsightsExperience';
+import { useUnseenCount } from '../../src/experiences/reviewInsights/chrome';
 import { selectSession } from '../../src/shell/shellState';
 import { AlertProvider } from '../../src/utilities/AlertProvider';
 import { createAlertQueue } from '../../src/utilities/alerts';
@@ -67,10 +69,12 @@ describe('shellConfigFor', () => {
       useIdentity, useHouseholds, usePendingInvitationCount, useAccountInUse,
     });
     expect(Object.keys(config.notificationRoutes)).toEqual(['invitation.received']);
-    expect(config.inbox).toBeUndefined();
+    expect(config.inbox?.useUnseenCount).toBe(useUnseenCount);
+    expect(config.inbox?.Panel).toBe(InboxPanel);
+    expect(config.overlays).toBeTruthy();
     expect(config.pages.profile).toEqual(<ManageProfileExperience />);
     expect(config.pages.household).toEqual(<ManageHouseholdExperience />);
-    expect(config.pages.dashboard).toEqual(<ComingSoon key="dashboard" />);
+    expect(config.pages.dashboard).toEqual(<ReviewInsightsExperience />);
     expect(config.pages.signIn).toEqual(<AuthenticateExperience entry="signIn" />);
     expect(config.pages.forgotPassword).toEqual(<AuthenticateExperience entry="recovery" />);
     expect(config.pages.resetPassword).toEqual(<AuthenticateExperience entry="recovery" />);

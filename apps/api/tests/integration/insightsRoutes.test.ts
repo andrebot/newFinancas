@@ -404,3 +404,211 @@ describe('insights routes (OQ-201, under /households/:householdId — OQ-174)', 
     expect(await errorOf(holding)).toMatchObject({ code: 'holding.not_found' });
   });
 });
+
+const NOTIFICATION_ID = '0199c5a0-0000-7000-8000-0000000000c1';
+
+/**
+ * Sends a signed-in JSON request under /api/v1.
+ *
+ * @param app - The app.
+ * @param path - Path under /api/v1.
+ * @param body - The JSON body.
+ * @returns The response.
+ */
+const post = (app: ReturnType<typeof setup>['app'], path: string, body: unknown) => (
+  app.request(`/api/v1${path}`, {
+    method: 'POST',
+    headers: { Authorization: 'Bearer good-token', 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+);
+
+describe('the Dashboard route (task 139, OQ-242)', () => {
+  it('GET …/dashboard → 200, the panels with each Goal in its JSON form', async () => {
+    const { app, insights } = setup();
+    insights.getDashboard.mockResolvedValue({
+      month: '2026-10',
+      netWorth: [],
+      comingDue: [],
+      balances: [],
+      budgets: [],
+      goals: [WITH_PROGRESS],
+    });
+
+    const response = await send(app, 'GET', `/households/${HOME}/dashboard`);
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      month: '2026-10',
+      netWorth: [],
+      comingDue: [],
+      balances: [],
+      budgets: [],
+      goals: [GOAL_WITH_PROGRESS_JSON],
+    });
+    expect(insights.getDashboard).toHaveBeenCalledWith(signedIn(), HOME);
+  });
+
+  it('refuses a household id that is not a UUID before the Manager', async () => {
+    const { app, insights } = setup();
+
+    const response = await send(app, 'GET', '/households/home/dashboard');
+
+    expect(response.status).toBe(422);
+    expect(insights.getDashboard).not.toHaveBeenCalled();
+  });
+});
+
+describe('the Notification Inbox routes (FR-6.10, OQ-105)', () => {
+  it('need a signed-in user', async () => {
+    const { app, insights } = setup();
+
+    const response = await app.request('/api/v1/notifications');
+
+    expect(response.status).toBe(401);
+    expect(insights.listNotifications).not.toHaveBeenCalled();
+  });
+
+  it('GET /notifications → 200, type and params with ISO instants', async () => {
+    const { app, insights } = setup();
+    insights.listNotifications.mockResolvedValue([{
+      id: NOTIFICATION_ID,
+      type: 'invitation.received',
+      params: { invitationId: 'i1' },
+      seenAt: NOW,
+      createdAt: NOW,
+    }, {
+      id: 'n2', type: 'future.type', params: {}, seenAt: null, createdAt: NOW,
+    }]);
+
+    const response = await send(app, 'GET', '/notifications');
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      data: [{
+        id: NOTIFICATION_ID,
+        type: 'invitation.received',
+        params: { invitationId: 'i1' },
+        seenAt: NOW.toISOString(),
+        createdAt: NOW.toISOString(),
+      }, {
+        id: 'n2', type: 'future.type', params: {}, seenAt: null, createdAt: NOW.toISOString(),
+      }],
+    });
+    expect(insights.listNotifications).toHaveBeenCalledWith(signedIn());
+  });
+
+  it('POST /notifications/seen → 204, the ids handed on', async () => {
+    const { app, insights } = setup();
+    insights.markNotificationsSeen.mockResolvedValue();
+
+    const response = await post(app, '/notifications/seen', { notificationIds: [NOTIFICATION_ID] });
+
+    expect(response.status).toBe(204);
+    expect(insights.markNotificationsSeen).toHaveBeenCalledWith(signedIn(), [NOTIFICATION_ID]);
+  });
+
+  it('refuses an empty or non-UUID id list before the Manager', async () => {
+    const { app, insights } = setup();
+
+    const empty = await post(app, '/notifications/seen', { notificationIds: [] });
+    const notUuid = await post(app, '/notifications/seen', { notificationIds: ['n1'] });
+
+    expect(empty.status).toBe(422);
+    expect(notUuid.status).toBe(422);
+    expect(insights.markNotificationsSeen).not.toHaveBeenCalled();
+  });
+
+  it('DELETE /notifications/:id → 204', async () => {
+    const { app, insights } = setup();
+    insights.deleteNotification.mockResolvedValue();
+
+    const response = await send(app, 'DELETE', `/notifications/${NOTIFICATION_ID}`);
+
+    expect(response.status).toBe(204);
+    expect(insights.deleteNotification).toHaveBeenCalledWith(signedIn(), NOTIFICATION_ID);
+  });
+
+  it('answers the Manager\'s notification.not_found as 404', async () => {
+    const { app, insights } = setup();
+    insights.deleteNotification.mockRejectedValue(
+      createDomainError({ code: 'notification.not_found', message: 'Notification not found' }),
+    );
+
+    const response = await send(app, 'DELETE', `/notifications/${NOTIFICATION_ID}`);
+
+    expect(response.status).toBe(404);
+    expect(await errorOf(response)).toMatchObject({ code: 'notification.not_found' });
+  });
+});
+
+describe('the audit-log export route (FR-7.2, OQ-243)', () => {
+  const EXPORT = `/households/${HOME}/audit-log/export`;
+
+  it('GET …/audit-log/export → 200, the CSV as an attachment named by its days', async () => {
+    const { app, insights } = setup();
+    insights.exportAuditLog.mockResolvedValue({
+      csv: 'timestamp,actor_id\r\n', filename: 'audit-log-2026-09-01-2026-09-30.csv',
+    });
+
+    const response = await send(app, 'GET', `${EXPORT}?startDate=2026-09-01&endDate=2026-09-30`);
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('Content-Type')).toBe('text/csv; charset=utf-8');
+    expect(response.headers.get('Content-Disposition'))
+      .toBe('attachment; filename="audit-log-2026-09-01-2026-09-30.csv"');
+    expect(await response.text()).toBe('timestamp,actor_id\r\n');
+    expect(insights.exportAuditLog).toHaveBeenCalledWith(
+      signedIn(),
+      HOME,
+      { startDate: '2026-09-01', endDate: '2026-09-30' },
+    );
+  });
+
+  it('refuses a missing day, each as field.required, before the Manager', async () => {
+    const { app, insights } = setup();
+
+    const response = await send(app, 'GET', EXPORT);
+
+    expect(response.status).toBe(422);
+    expect(await errorOf(response)).toMatchObject({
+      code: 'validation.failed',
+      details: expect.arrayContaining([
+        { field: 'startDate', code: 'field.required' },
+        { field: 'endDate', code: 'field.required' },
+      ]),
+    });
+    expect(insights.exportAuditLog).not.toHaveBeenCalled();
+  });
+
+  it('refuses a day that is not a date before the Manager', async () => {
+    const { app, insights } = setup();
+
+    const response = await send(app, 'GET', `${EXPORT}?startDate=yesterday&endDate=2026-09-30`);
+
+    expect(response.status).toBe(422);
+    expect(insights.exportAuditLog).not.toHaveBeenCalled();
+  });
+
+  it('answers the Manager\'s refusals: 403 below Admin, 422 for an inverted range', async () => {
+    const { app, insights } = setup();
+    insights.exportAuditLog.mockRejectedValueOnce(
+      createDomainError({ code: 'auth.forbidden', message: 'Not permitted' }),
+    );
+    insights.exportAuditLog.mockRejectedValueOnce(createDomainError({
+      code: 'validation.failed',
+      message: 'Request validation failed',
+      details: [{ field: 'endDate', code: 'date.before_start' }],
+    }));
+    const query = '?startDate=2026-09-02&endDate=2026-09-01';
+
+    const forbidden = await send(app, 'GET', `${EXPORT}${query}`);
+    const inverted = await send(app, 'GET', `${EXPORT}${query}`);
+
+    expect(forbidden.status).toBe(403);
+    expect(inverted.status).toBe(422);
+    expect(await errorOf(inverted)).toMatchObject({
+      details: [{ field: 'endDate', code: 'date.before_start' }],
+    });
+  });
+});
