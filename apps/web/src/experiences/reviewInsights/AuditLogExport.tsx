@@ -11,7 +11,8 @@ import { ExportAuditLog, type ExportRange } from './interactions/ExportAuditLog'
 // Insights' part of the App Shell's chrome: the drawer opens the dialog
 // through its switch; this host asks the API for the active household's log
 // over the range, saves the CSV under the name the API gave it and closes the
-// dialog. A refusal — Owner/Admin only, both days, the end not before the
+// dialog. Each opening starts afresh — Last 30 days ending today, no errors
+// (PR #172 review). A refusal — Owner/Admin only, both days, the end not before the
 // start — is a toast in the user's language; the dialog stays open.
 
 /** The host's props. */
@@ -54,6 +55,7 @@ export function AuditLogExport({ dialog }: AuditLogExportProps) {
 
   return (
     <ExportAuditLog
+      key={dialog.opens()}
       open={open}
       householdName={household.name}
       busy={isLoading}

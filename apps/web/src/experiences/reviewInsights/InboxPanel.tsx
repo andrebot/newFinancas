@@ -80,12 +80,13 @@ const useMarkShownSeen = (listed: readonly Notification[] | undefined, ready: bo
 };
 
 /**
- * Holds which row's work is running, disabling it meanwhile.
+ * Holds which rows' work is running, disabling each meanwhile — one row's
+ * end never re-enables another still running (PR #172 review).
  *
- * @returns The busy row and the runner.
+ * @returns The busy rows and the runner.
  */
-const useBusyRow = () => {
-  const [busyId, setBusyId] = useState<string>();
+const useBusyRows = () => {
+  const [busyIds, setBusyIds] = useState<readonly string[]>([]);
 
   /**
    * Runs one row's work with the row disabled.
@@ -94,11 +95,11 @@ const useBusyRow = () => {
    * @param work - What to run.
    */
   const busyWith = (id: string, work: () => Promise<void>) => {
-    setBusyId(id);
-    work().finally(() => setBusyId(undefined));
+    setBusyIds((running) => [...running, id]);
+    work().finally(() => setBusyIds((running) => running.filter((busy) => busy !== id)));
   };
 
-  return { busyId, busyWith };
+  return { busyIds, busyWith };
 };
 
 /**
@@ -116,7 +117,7 @@ export default function InboxPanel({ close, onAction }: InboxPanelProps) {
   const invitations = useListMyInvitationsQuery();
   const [deleteNotification] = useDeleteNotificationMutation();
   const freshIds = useMarkShownSeen(notifications.data, invitations.data !== undefined);
-  const { busyId, busyWith } = useBusyRow();
+  const { busyIds, busyWith } = useBusyRows();
   const find = (id: string) => notifications.data?.find((notification) => notification.id === id);
 
   /**
@@ -152,7 +153,7 @@ export default function InboxPanel({ close, onAction }: InboxPanelProps) {
     <NotificationInbox
       read={inboxReadOf(notifications, invitations, freshIds)}
       now={now}
-      busyId={busyId}
+      busyIds={busyIds}
       onRetry={() => {
         [notifications, invitations].forEach((query) => {
           if (query.isError) query.refetch();

@@ -11,6 +11,8 @@ export interface DialogSwitch {
   readonly open: () => void;
   readonly close: () => void;
   readonly isOpen: () => boolean;
+  /** How many times it has opened: a key that starts the dialog afresh on each opening. */
+  readonly opens: () => number;
   /** Calls the listener whenever the flag changes; returns its removal. */
   readonly subscribe: (listener: () => void) => () => void;
 }
@@ -22,16 +24,19 @@ export interface DialogSwitch {
  */
 export const createDialogSwitch = (): DialogSwitch => {
   let opened = false;
+  let openings = 0;
   const listeners = new Set<() => void>();
   const set = (next: boolean) => {
     if (next === opened) return;
     opened = next;
+    if (next) openings += 1;
     listeners.forEach((listener) => listener());
   };
   return {
     open: () => set(true),
     close: () => set(false),
     isOpen: () => opened,
+    opens: () => openings,
     subscribe: (listener) => {
       listeners.add(listener);
       return () => {

@@ -15,9 +15,11 @@ describe('createDialogSwitch', () => {
     const stop = dialog.subscribe(listener);
 
     expect(dialog.isOpen()).toBe(false);
+    expect(dialog.opens()).toBe(0);
     dialog.open();
     dialog.open();
     expect(dialog.isOpen()).toBe(true);
+    expect(dialog.opens()).toBe(1);
     dialog.close();
     expect(dialog.isOpen()).toBe(false);
     expect(listener).toHaveBeenCalledTimes(2);
@@ -25,6 +27,7 @@ describe('createDialogSwitch', () => {
     stop();
     dialog.open();
     expect(listener).toHaveBeenCalledTimes(2);
+    expect(dialog.opens()).toBe(2);
   });
 });
 

@@ -1,4 +1,5 @@
 import { act, screen } from '@testing-library/react';
+import { useState } from 'react';
 import {
   describe, expect, it, vi,
 } from 'vitest';
@@ -22,28 +23,38 @@ import { fakeStore, renderWithShell } from '../../shell/shellFakes';
 
 vi.mock('../../../../src/utilities/downloadTextFile', () => ({ default: vi.fn() }));
 
-vi.mock('../../../../src/experiences/reviewInsights/interactions/ExportAuditLog', () => ({
-  /**
-   * The dialog's stand-in.
-   *
-   * @param props - What the host passes.
-   * @returns The stub.
-   */
-  ExportAuditLog: ({
-    open, householdName, busy, onClose, onDownload,
-  }: ExportAuditLogProps) => (
+/**
+ * Export Audit Log's stand-in, with a draft of its own: what the real dialog
+ * holds between renders — its range and errors.
+ *
+ * @param props - What the host passes.
+ * @returns The stub.
+ */
+function ExportAuditLogStub({
+  open, householdName, busy, onClose, onDownload,
+}: ExportAuditLogProps) {
+  const [edited, setEdited] = useState(false);
+  return (
     <Stub
       name="export"
-      shows={{ open, householdName, busy }}
+      shows={{
+        open, householdName, busy, edited,
+      }}
       events={{
         close: onClose,
+        edit: () => setEdited(true),
         download: () => {
           onDownload({ startDate: '2026-09-01', endDate: '2026-09-30' });
         },
       }}
     />
-  ),
-}));
+  );
+}
+
+vi.mock(
+  '../../../../src/experiences/reviewInsights/interactions/ExportAuditLog',
+  () => ({ ExportAuditLog: ExportAuditLogStub }),
+);
 
 const DOE = {
   id: 'doe', name: 'The Doe Household', createdAt: '2025-03-01T00:00:00Z', role: 'Owner',
@@ -96,7 +107,7 @@ describe('AuditLogExport (FR-7.2, OQ-243)', () => {
     const { dialog } = await renderHost();
 
     expect(shownBy('export')).toEqual({
-      open: true, householdName: 'The Doe Household', busy: false,
+      open: true, householdName: 'The Doe Household', busy: false, edited: false,
     });
     await act(async () => dialog.close());
     expect(shownBy('export')).toEqual(expect.objectContaining({ open: false }));
@@ -139,6 +150,18 @@ describe('AuditLogExport (FR-7.2, OQ-243)', () => {
 
     expect(screen.getByText('You don\'t have permission to do that.')).toBeTruthy();
     expect(dialog.isOpen()).toBe(true);
+  });
+
+  it('starts the dialog afresh on each opening (PR #172 review)', async () => {
+    const { dialog } = await renderHost();
+    await press('edit');
+    expect(shownBy('export')).toEqual(expect.objectContaining({ edited: true }));
+
+    await act(async () => dialog.close());
+    expect(shownBy('export')).toEqual(expect.objectContaining({ edited: true }));
+    await act(async () => dialog.open());
+
+    expect(shownBy('export')).toEqual(expect.objectContaining({ open: true, edited: false }));
   });
 
   it('closes on the dialog\'s close', async () => {

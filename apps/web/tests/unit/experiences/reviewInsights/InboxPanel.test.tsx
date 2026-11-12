@@ -29,7 +29,7 @@ vi.mock('../../../../src/experiences/reviewInsights/interactions/NotificationInb
    * @returns The stub.
    */
   NotificationInbox: ({
-    read, busyId, onRetry, onAnswer, onArchive, onView, onDelete,
+    read, busyIds, onRetry, onAnswer, onArchive, onView, onDelete,
   }: NotificationInboxProps) => (
     <Stub
       name="inbox"
@@ -38,7 +38,7 @@ vi.mock('../../../../src/experiences/reviewInsights/interactions/NotificationInb
         entries: read.status === 'loaded'
           ? read.entries.map(({ id, fresh, notice }) => ({ id, fresh, kind: notice.kind }))
           : null,
-        busyId: busyId ?? null,
+        busyIds,
       }}
       events={{
         retry: onRetry,
@@ -137,17 +137,47 @@ describe('InboxPanel (FR-6.10, OQ-105)', () => {
         { id: 'n-invite', fresh: true, kind: 'invitation' },
         { id: 'n-other', fresh: false, kind: 'other' },
       ],
-      busyId: null,
+      busyIds: [],
     });
   });
 
   it('marks exactly the unseen ones seen, once, and keeps them new while open', async () => {
-    const { fetchFn } = await renderPanel();
+    // The refetch after marking answers them seen, as the API would.
+    const marked = INBOX.map((notification) => ({
+      ...notification, seenAt: notification.seenAt ?? '2026-10-13T12:00:00Z',
+    }));
+    const answers = [INBOX, marked];
+    const { fetchFn } = await renderPanel({
+      'GET /notifications': () => jsonResponse(200, { data: answers.shift() ?? marked }),
+    });
     await settle();
 
     expect(await seenCalls(fetchFn)).toEqual([{ notificationIds: ['n-matured', 'n-invite'] }]);
+    const reads = (await sent(fetchFn))
+      .filter(({ route }) => route === 'GET /api/v1/notifications');
+    expect(reads).toHaveLength(2);
     expect(shownBy('inbox')).toEqual(expect.objectContaining({
-      entries: expect.arrayContaining([{ id: 'n-matured', fresh: true, kind: 'matured' }]),
+      entries: [
+        { id: 'n-matured', fresh: true, kind: 'matured' },
+        { id: 'n-invite', fresh: true, kind: 'invitation' },
+        { id: 'n-other', fresh: false, kind: 'other' },
+      ],
+    }));
+  });
+
+  it('shows as new one that arrived after the last poll (PR #172 review)', async () => {
+    // Opened on a stale list with the invitation only; the refetch brings the CDB.
+    const answers = [[INVITED], [MATURED, { ...INVITED, seenAt: '2026-10-13T12:00:00Z' }]];
+    await renderPanel({
+      'GET /notifications': () => jsonResponse(200, { data: answers.shift() ?? [] }),
+    });
+    await settle();
+
+    expect(shownBy('inbox')).toEqual(expect.objectContaining({
+      entries: [
+        { id: 'n-matured', fresh: true, kind: 'matured' },
+        { id: 'n-invite', fresh: true, kind: 'invitation' },
+      ],
     }));
   });
 
@@ -192,11 +222,15 @@ describe('InboxPanel (FR-6.10, OQ-105)', () => {
       action: 'accept',
       params: INVITED.params,
     });
-    expect(shownBy('inbox')).toEqual(expect.objectContaining({ busyId: 'n-invite' }));
+    expect(shownBy('inbox')).toEqual(expect.objectContaining({ busyIds: ['n-invite'] }));
+
+    // A second row's work ending first leaves the first one busy (PR #172 review).
+    await press('delete');
+    expect(shownBy('inbox')).toEqual(expect.objectContaining({ busyIds: ['n-invite'] }));
 
     finish('done');
     await settle();
-    expect(shownBy('inbox')).toEqual(expect.objectContaining({ busyId: null }));
+    expect(shownBy('inbox')).toEqual(expect.objectContaining({ busyIds: [] }));
   });
 
   it('tells the user when no Experience owns the action yet', async () => {

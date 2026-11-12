@@ -7448,6 +7448,25 @@ forward with all the next phases"), from the review in
   Experience, the panel, the export host and the chrome as integration
   tests with the tier below stubbed.
 
+- **PR #172 review (an independent reviewer; all fixed):**
+  1. "View holding" did nothing while the Holdings tab was already open — the
+     Flow's chosen account and the Table's open rows are set once, on mount.
+     `useLinkedHolding` now takes the `holding` parameter once per visit and
+     the tab remounts Holding Maintenance on each visit.
+  2. The parameter stayed in the address, so a tab switch or reload jumped
+     back to the Holding; it is now dropped (replacing the entry) once taken.
+  3. A notification that arrived after the last poll showed as "Seen" once
+     the panel refetched: a row is now new when it was unseen at opening **or
+     still is**.
+  4. The "stays new while open" test passed for the wrong reason (the fake
+     never answered seen); the refetch now answers the marked ones seen.
+  5. Only one row was busy at a time, so a second action re-enabled the first;
+     the panel now holds every busy row.
+  6. The export dialog kept its range and errors between openings, and Last 30
+     days went stale over days; the dialog switch counts openings and the host
+     keys the dialog on it.
+  Also: every inbox route's 401 is tested.
+
 **Task 139 (`X8`) is complete.**
 
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)

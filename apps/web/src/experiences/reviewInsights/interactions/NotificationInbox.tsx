@@ -18,7 +18,7 @@ import type { InboxEntry, InboxNotice } from '../inbox';
 // Archive holding and View holding, and a delete on every row. Rows already
 // seen before the panel opened are dimmed, "Seen · 3 days ago". Display only:
 // the Experience reads the inbox and answers every event; a row whose action
-// is running is disabled.
+// is running is disabled, however many run at once.
 
 /** The inbox, as the Experience holds it. */
 export type InboxRead = | { readonly status: 'loading' }
@@ -33,8 +33,8 @@ export interface NotificationInboxProps {
   readonly read: InboxRead;
   /** The moment the times are told from. */
   readonly now: Date;
-  /** The row whose action is running, if any. */
-  readonly busyId: string | undefined;
+  /** The rows whose action is running, each disabled meanwhile. */
+  readonly busyIds: readonly string[];
   readonly onRetry: () => void;
   readonly onAnswer: (notificationId: string, answer: InvitationAnswer) => void;
   readonly onArchive: (notificationId: string) => void;
@@ -173,7 +173,7 @@ function InboxRow({
  * @returns The body.
  */
 function InboxBody({
-  read, now, busyId, onRetry, onDelete, ...events
+  read, now, busyIds, onRetry, onDelete, ...events
 }: NotificationInboxProps) {
   const translator = useI18n();
   if (read.status === 'loading') {
@@ -206,7 +206,7 @@ function InboxBody({
           key={entry.id}
           entry={entry}
           now={now}
-          busy={busyId === entry.id}
+          busy={busyIds.includes(entry.id)}
           onDelete={onDelete}
           {...events}
         />
@@ -218,7 +218,7 @@ function InboxBody({
 /**
  * Renders the inbox: its heading with how many are new, then its body.
  *
- * @param props - The inbox, the moment times are told from, the busy row and the handlers.
+ * @param props - The inbox, the moment times are told from, the busy rows and the handlers.
  * @returns The panel's content.
  */
 export function NotificationInbox(props: NotificationInboxProps) {

@@ -33,7 +33,11 @@ export interface InboxEntry {
   readonly id: string;
   /** ISO 8601. */
   readonly createdAt: string;
-  /** Whether it was unseen when the inbox opened: it shows as new, not as seen. */
+  /**
+   * Whether it shows as new: unseen when the inbox opened, or unseen still —
+   * one that arrived after the last poll, listed once the inbox refetched
+   * (PR #172 review).
+   */
   readonly fresh: boolean;
   readonly notice: InboxNotice;
 }
@@ -124,7 +128,8 @@ export const unseenIdsOf = (notifications: readonly Notification[]): string[] =>
  * @param notifications - The inbox, as listed.
  * @param invitations - The invitations waiting for the user.
  * @param freshIds - The notifications unseen when the inbox opened.
- * @returns The rows; a notification without an id is left out.
+ * @returns The rows, each new when it was unseen at opening or still is; a
+ *   notification without an id is left out.
  */
 export const entriesOf = (
   notifications: readonly Notification[],
@@ -136,7 +141,7 @@ export const entriesOf = (
   return [{
     id: stored.id,
     createdAt: stored.createdAt ?? '',
-    fresh: freshIds.includes(stored.id),
+    fresh: freshIds.includes(stored.id) || !stored.seenAt,
     notice: noticeOf(stored, invitations),
   }];
 });

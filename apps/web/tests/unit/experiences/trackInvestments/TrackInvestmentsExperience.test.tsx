@@ -438,6 +438,8 @@ describe('the holdings tab (FL19)', () => {
   it('opens on the Holding the address names — the bell\'s "View holding" (OQ-243)', async () => {
     await renderExperience({}, '/investments?tab=holdings&holding=vale3');
     expect(shownBy('holdings')).toEqual(expect.objectContaining({ openHoldingId: 'vale3' }));
+    // Taken once: a tab switch or a reload won't jump back to it (PR #172 review).
+    expect(screen.getByTestId('location').textContent).toBe('/investments?tab=holdings');
   });
 
   it('reads an open market-priced Holding\'s split, values and latest trades', async () => {

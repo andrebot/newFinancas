@@ -8,7 +8,7 @@ import {
 } from '../../../../../src/experiences/reviewInsights/interactions/NotificationInbox';
 import { renderInLocale } from '../../../../support/renderInLocale';
 import {
-  INBOX, INVITATION, INVITED, maturedWith, without,
+  INBOX, INVITATION, INVITED, maturedWith, SEEN_OTHER, without,
 } from '../dashboardFixtures';
 
 // The Notification Inbox (BDT: Interaction, unit): what it draws for each
@@ -31,7 +31,7 @@ const renderInbox = (
   const props: NotificationInboxProps = {
     read: { status: 'loaded', entries: entriesOf(INBOX, [INVITATION], ['n-matured', 'n-invite']) },
     now: NOW,
-    busyId: undefined,
+    busyIds: [],
     onRetry: vi.fn(),
     onAnswer: vi.fn(),
     onArchive: vi.fn(),
@@ -105,8 +105,8 @@ describe('NotificationInbox', () => {
     expect(props.onDelete).toHaveBeenCalledWith('n-other');
   });
 
-  it('disables only the busy row', () => {
-    renderInbox({ busyId: 'n-invite' });
+  it('disables only the busy rows', () => {
+    renderInbox({ busyIds: ['n-invite'] });
 
     const button = (name: string) => screen.getByRole<HTMLButtonElement>('button', { name });
     expect(button('Accept').disabled).toBe(true);
@@ -124,7 +124,6 @@ describe('NotificationInbox', () => {
     expect(screen.getByText('This invitation is no longer open.')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Accept' })).toBeNull();
     expect(screen.getByText(/^CDB reached its due date on 09\/30\/2026/)).toBeTruthy();
-    expect(screen.queryByText(/marked seen/)).toBeNull();
   });
 
   it('calls an inviter whose account is gone "Someone", a row without a time timeless', () => {
@@ -134,6 +133,12 @@ describe('NotificationInbox', () => {
 
     const row = rowOf(/^Someone invited you/);
     expect(row.querySelectorAll('p')[1]?.textContent).toBe('');
+  });
+
+  it('says nothing new when every notification was seen before', () => {
+    renderInbox({ read: { status: 'loaded', entries: entriesOf([SEEN_OTHER], [], []) } });
+
+    expect(screen.queryByText(/marked seen/)).toBeNull();
   });
 
   it('says so when there is nothing', () => {

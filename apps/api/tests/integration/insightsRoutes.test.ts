@@ -460,13 +460,23 @@ describe('the Dashboard route (task 139, OQ-242)', () => {
 });
 
 describe('the Notification Inbox routes (FR-6.10, OQ-105)', () => {
-  it('need a signed-in user', async () => {
+  it('need a signed-in user, each of them (PR #172 review)', async () => {
     const { app, insights } = setup();
 
-    const response = await app.request('/api/v1/notifications');
+    const listed = await app.request('/api/v1/notifications');
+    const marked = await app.request('/api/v1/notifications/seen', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ notificationIds: [NOTIFICATION_ID] }),
+    });
+    const deleted = await app.request(`/api/v1/notifications/${NOTIFICATION_ID}`, {
+      method: 'DELETE',
+    });
 
-    expect(response.status).toBe(401);
+    expect([listed.status, marked.status, deleted.status]).toEqual([401, 401, 401]);
     expect(insights.listNotifications).not.toHaveBeenCalled();
+    expect(insights.markNotificationsSeen).not.toHaveBeenCalled();
+    expect(insights.deleteNotification).not.toHaveBeenCalled();
   });
 
   it('GET /notifications → 200, type and params with ISO instants', async () => {

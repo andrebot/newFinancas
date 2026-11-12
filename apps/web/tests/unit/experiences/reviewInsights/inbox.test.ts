@@ -73,8 +73,11 @@ describe('unseenIdsOf', () => {
 });
 
 describe('entriesOf', () => {
-  it('builds a row per notification, new when unseen as the inbox opened', () => {
-    expect(entriesOf(INBOX, [INVITATION], ['n-matured'])).toEqual([
+  it('builds a row per notification, new when unseen as the inbox opened or still', () => {
+    // The matured notice was marked seen since the inbox opened; the invitation
+    // arrived after the last poll, so it wasn't among those it opened with.
+    const marked = { ...MATURED, seenAt: '2026-10-13T12:00:00Z' };
+    expect(entriesOf([marked, INVITED, SEEN_OTHER], [INVITATION], ['n-matured'])).toEqual([
       {
         id: 'n-matured',
         createdAt: MATURED.createdAt,
@@ -84,7 +87,7 @@ describe('entriesOf', () => {
       {
         id: 'n-invite',
         createdAt: INVITED.createdAt,
-        fresh: false,
+        fresh: true,
         notice: expect.objectContaining({ kind: 'invitation' }),
       },
       {
@@ -101,7 +104,7 @@ describe('entriesOf', () => {
     );
     expect(entries).toEqual([
       {
-        id: 'n-invite', createdAt: '', fresh: false, notice: { kind: 'staleInvitation' },
+        id: 'n-invite', createdAt: '', fresh: true, notice: { kind: 'staleInvitation' },
       },
     ]);
   });
