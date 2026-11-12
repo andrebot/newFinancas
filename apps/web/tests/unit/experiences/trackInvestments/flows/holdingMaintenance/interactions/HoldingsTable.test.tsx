@@ -80,6 +80,7 @@ describe('HoldingsTable', () => {
     fireEvent.click(screen.getByText('XPML11'));
 
     expect(screen.getByText('Panel of XPML11')).toBeTruthy();
+    expect(screen.queryByText('Panel of KNRI11')).toBeNull();
   });
 
   it('draws no type bar for an account worth nothing, and dashes what a Holding lacks', () => {

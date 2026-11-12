@@ -107,6 +107,20 @@ describe('holdingGroupsOf', () => {
     expect(groups[1]?.rows.at(-1)?.archived).toBe(true);
   });
 
+  it('puts the largest first whichever order the Holdings come in (R4 V4)', () => {
+    const slices = [
+      {
+        kind: 'holding' as const, key: 'a', currency: 'BRL' as const, amount: 100,
+      },
+      {
+        kind: 'holding' as const, key: 'b', currency: 'BRL' as const, amount: 300,
+      },
+    ];
+    const groups = holdingGroupsOf([holdingOf('a'), holdingOf('b')], slices, 'BRL');
+
+    expect(groups[0]?.rows.map((row) => row.holding.id)).toEqual(['b', 'a']);
+  });
+
   it('orders equal values by ticker, and leaves an empty group out', () => {
     const groups = holdingGroupsOf(
       [holdingOf('b'), holdingOf('a'), without('c', 'ticker')],
