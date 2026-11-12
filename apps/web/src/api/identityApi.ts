@@ -1,4 +1,6 @@
-import type { ListHouseholdsResponse, MyHousehold, User } from '@financas/api-types';
+import type {
+  HouseholdMembership, ListHouseholdsResponse, ListMembersResponse, MyHousehold, User,
+} from '@financas/api-types';
 import backendApi from './backendApi';
 import type { SourceState } from '../utilities/sourceState';
 import { toSourceState } from './sourceState';
@@ -8,11 +10,15 @@ import { toSourceState } from './sourceState';
 // Manage Profile, Manage Household and — through the hooks App.tsx hands it —
 // the App Shell all read them, so they belong to no one Experience's slice:
 // each Experience imports them from here, never from a sibling. Only
-// Experiences call these hooks; the shell gets them as sources.
+// Experiences call these hooks; the shell gets them as sources. A household's
+// members (`GET /households/:id/members`) joined them in the slice 4 review
+// (A1): Manage Household lists and changes them, Track Investments names a
+// rate's recorder from them; the membership writes stay Manage Household's
+// and fetch them again through the `Members` tag.
 
 /** The shared identity reads. */
 export const identityApi = backendApi.enhanceEndpoints({
-  addTagTypes: ['Me', 'Households'],
+  addTagTypes: ['Me', 'Households', 'Members'],
 }).injectEndpoints({
   endpoints: (build) => ({
     getCurrentUser: build.query<User, void>({
@@ -24,10 +30,18 @@ export const identityApi = backendApi.enhanceEndpoints({
       transformResponse: (response: ListHouseholdsResponse) => response.data ?? [],
       providesTags: ['Households'],
     }),
+    // Cached per household: every change to its membership fetches it again.
+    listMembers: build.query<readonly HouseholdMembership[], string>({
+      query: (householdId) => `/households/${encodeURIComponent(householdId)}/members`,
+      transformResponse: (response: ListMembersResponse) => response.data ?? [],
+      providesTags: (_result, _error, householdId) => [{ type: 'Members', id: householdId }],
+    }),
   }),
 });
 
-export const { useGetCurrentUserQuery, useListHouseholdsQuery } = identityApi;
+export const {
+  useGetCurrentUserQuery, useListHouseholdsQuery, useListMembersQuery, useLazyListMembersQuery,
+} = identityApi;
 
 /**
  * The user's households, with their role in each, as the App Shell takes
