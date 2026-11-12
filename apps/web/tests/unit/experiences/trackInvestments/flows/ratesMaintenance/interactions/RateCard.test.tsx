@@ -117,6 +117,14 @@ describe('RateCard', () => {
     expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'elsewhere' }));
   });
 
+  it('takes no focus when it appears, or re-renders, with no form ever open (R4 V6)', () => {
+    const { rerenderInLocale } = renderInLocale(<RateCard {...propsOf()} />);
+    expect(document.activeElement).toBe(document.body);
+
+    rerenderInLocale(<RateCard {...propsOf({ entries: IPCA.slice(1) })} />);
+    expect(document.activeElement).toBe(document.body);
+  });
+
   it('says so for an index with no value yet, and draws nothing', () => {
     renderInLocale(<RateCard {...propsOf({ entries: [], usedBy: [] })} />);
 

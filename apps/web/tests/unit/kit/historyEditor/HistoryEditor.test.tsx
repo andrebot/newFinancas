@@ -116,6 +116,15 @@ const expectFocusOn = async (find: () => HTMLElement) => {
   await waitFor(() => expect(document.activeElement).toBe(find()));
 };
 
+/**
+ * Waits for the next animation frame, where the editor hands focus back.
+ *
+ * @returns Once the frame ran.
+ */
+const nextFrame = () => new Promise<void>((resolve) => {
+  requestAnimationFrame(() => resolve());
+});
+
 describe('changeToneOf', () => {
   it('colours a market value\'s rise and fall, never a rate or no change', () => {
     expect(changeToneOf({ unit: 'ratio', amount: 0.1 })).toBe('text-mint');
@@ -374,6 +383,28 @@ describe('HistoryEditor', () => {
 
       expect(screen.queryByText('Required.')).toBeNull();
       expect(onSave).not.toHaveBeenCalled();
+    });
+
+    it('moves the focus to the field at fault, not only the first (R4 V6)', async () => {
+      renderEditor();
+      fireEvent.click(button('Edit value of 08/31/2026'));
+      typeInto('Value (R$)', '');
+      screen.getByRole('textbox', { name: 'Date' }).focus();
+      fireEvent.click(button('Save'));
+
+      await expectFocusOn(() => screen.getByRole('textbox', { name: 'Value (R$)' }));
+    });
+
+    it('keeps the focus in the form it opened, and takes none on mount (R4 V6)', async () => {
+      renderEditor();
+      await act(nextFrame);
+      expect(document.activeElement).toBe(document.body);
+
+      fireEvent.click(button('Edit value of 08/31/2026'));
+      await act(nextFrame);
+      await act(nextFrame);
+
+      expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Date' }));
     });
 
     it('shows no problem before a save is tried', () => {
