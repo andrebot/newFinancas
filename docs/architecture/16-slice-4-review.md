@@ -4,7 +4,7 @@ The gate at the end of slice 4 (investments: holdings, market values, rates,
 payouts and the daily job — tasks 123–135), run by the method in
 `13-slice-review.md` (OQ-164). Work happens on the `review/slice-4` branch,
 cut from `main` after PR #164 (`I10`).
-**Status: phase 1 complete (its PR); phases 2–3 next.**
+**Status: phases 1–2 complete (PR #165, phase 2's PR); phase 3 next.**
 
 ## Scope
 
@@ -145,3 +145,55 @@ types no minus sign), the term bar's tone and a figure's `numeric` look
 
 Fixed on `review/slice-4`: B1–B3 (backend) and V1–V10 (web), tests only, no
 app code. Both second runs clean.
+PR #165.
+
+## Phase 2 — the Playwright suite
+
+The slice's journeys (`tests/e2e/investments/`): 7 tests, three tagged
+`@core` — #13 up to the notice (I6), #6's projection and #10 (I10) — and four
+untagged: market value and index rate record-edit-delete with their history
+drawers, the payout chart's holding selection (I10), and X7's overview at
+phone width. Together they cover track-investments uc-02 and uc-04–uc-12
+(uc-01's buy is I9's; uc-03, archiving a matured Holding from the bell,
+waits for I12). Preconditions are arranged through the API, the browser does
+only the journey, and every write's end state is read back through the API.
+
+**Runs (2026-11-11, local, 16 workers):** the slice and smoke 3× — first
+50/51: the daily journey failed beside a copy of itself (E2); after E2's fix
+51/51 in 16 s; 10× — 170/170 in 43 s; the whole suite 3× — 150/150 in 55 s.
+(The "Token refresh got no answer" warnings are the Authenticate journey's
+reload mid-refresh, OQ-162 — expected.)
+
+**CI cadence holds.** `ci.yml` runs `@smoke` on every PR and `@core` after
+merge on `main`; `nightly.yml` runs everything at 06:00 UTC and on demand.
+The BDT plan's slice-4 lists are written (the `I6` and `I10` paragraphs);
+X7's overview journey was missing from them (E1).
+
+| # | Finding | Severity | Proposed fix |
+|---|---|---|---|
+| E1 | **uc-12 View Investments checks no figure.** X7's overview journey asserts the payout chart is drawn and the page doesn't scroll sideways, nothing more: a report with the wrong net worth or payouts, or a page showing other numbers than the report's, would pass. The BDT plan doesn't list the journey either. | Medium | Check the report's net worth (the buy's snapshot, R$ 2.500,00) and this month's payout (the one dividend, R$ 14,00) through the API, and the Net Worth tile and Payout this month panel showing them; list the journey in the plan. |
+| E2 | **The daily journey can't run beside another journey that runs the job.** A run posts every journey's due entries and takes the job's session lock, so two at once — a copy under `--repeat-each` (seen: "another run owns the lock"), or I12's bell journey (task 141) beside #13 — find the lock busy or each other's 2020 data. | Medium | Run each such journey alone: a session advisory lock of the suite's own (not the job's) held for the journey's whole length, released when it ends or its process dies (`aloneWithTheJob`), the journey marked slow for the wait. |
+
+**Not findings.**
+- **#6's projection compares the Contract card with the API's projection**,
+  not with figures of its own: the seam is the page showing what the API
+  projects; the arithmetic is InvestmentProductEngine's suites'. It does
+  check the projection moves the right way with the newer CDI.
+- **The market value and rate journeys use `daysAgo` and today** — the
+  runner, the browser and the API share São Paulo's calendar
+  (`playwright.config.ts`), so no midnight drift.
+
+### Phase 2 — fixes (2026-11-11)
+
+E1–E2 fixed, tests and docs only, no app code:
+- **E1:** `portfolioOverview.spec.ts` reads the overview report
+  (`investmentsOverview` in `support/investmentsApi.ts`) — net worth
+  `[BRL 250,000]`, this month's payout `[BRL 1,400]` — and finds R$ 2.500,00
+  on the Net Worth tile and R$ 14,00 in Payout this month. The BDT plan's
+  I10 paragraph lists the journey.
+- **E2:** `aloneWithTheJob` in `support/investmentsDaily.ts` wraps #13; the
+  BDT plan's I6 paragraph states the rule for I12.
+
+Each new check was run against the wrong outcome it guards: R$ 2.600,00
+expected on the tile fails; R$ 12,50 (last month's dividend) expected in
+Payout this month fails. Then the runs above.
