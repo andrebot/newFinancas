@@ -1,7 +1,7 @@
 import {
   and, asc, eq, gte, lt, sql,
 } from 'drizzle-orm';
-import { calendar } from '../config/constants';
+import { calendar, logging } from '../config/constants';
 import type { Database } from '../db/database';
 import { auditLogEntries } from '../db/schema';
 
@@ -62,17 +62,23 @@ const createAuditLogAccessor = (db: Database) => ({
   ).length > 0,
 
   /**
-   * Appends many entries at once, skipping IDs already stored (reconciliation).
+   * Appends many entries, skipping IDs already stored (reconciliation), in
+   * batches of `logging.auditBatchSize`: one statement for a day's log would
+   * pass PostgreSQL's parameter cap and be refused whole.
    *
    * @param entries - Entries recovered from the log files.
    * @returns How many were missing and are now stored.
    */
   insertMany: async (entries: readonly NewAuditEntry[]): Promise<number> => {
-    if (entries.length === 0) return 0;
-    return (
-      await db.insert(auditLogEntries).values([...entries]).onConflictDoNothing()
-        .returning({ id: auditLogEntries.id })
-    ).length;
+    let stored = 0;
+    for (let start = 0; start < entries.length; start += logging.auditBatchSize) {
+      const batch = entries.slice(start, start + logging.auditBatchSize);
+      // eslint-disable-next-line no-await-in-loop -- one batch at a time, each under the cap
+      const inserted = await db.insert(auditLogEntries).values(batch).onConflictDoNothing()
+        .returning({ id: auditLogEntries.id });
+      stored += inserted.length;
+    }
+    return stored;
   },
 
   /**
