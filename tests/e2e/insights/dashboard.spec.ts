@@ -1,11 +1,13 @@
+import { expect, test } from '@playwright/test';
 import {
-  expect, test, type Locator, type Page,
-} from '@playwright/test';
-import {
-  UNIT, accountNamed, isoDay, monthStart, recordTransaction,
+  accountNamed, isoDay, monthStart, recordTransaction,
 } from '../support/financeApi';
 import { createHousehold, registerUser } from '../support/identityApi';
 import { dashboard } from '../support/insightsApi';
+import { stockPaying } from '../support/investmentsApi';
+import {
+  legendEntry, netWorthCard, payoutPanel, sectionOf,
+} from '../support/locators';
 import brl from '../support/money';
 import { signInThroughUi } from '../support/signIn';
 import text from '../support/text';
@@ -16,28 +18,6 @@ import text from '../support/text';
 // the CDB at its principal, as the `dashboard` report gives them (OQ-236). The
 // payout chart reads `reports/payouts` with the choice of Holdings made on
 // Investments, which the Dashboard shares — the report sends no payouts (OQ-243).
-
-/**
- * The section a heading opens.
- *
- * @param page - The browser page.
- * @param heading - The heading's text.
- * @returns The section.
- */
-const sectionOf = (page: Page, heading: string) => page.locator('section', {
-  has: page.getByRole('heading', { name: heading }),
-});
-
-/**
- * A holding's entry in the payout chart's legend: a list item holding just its ticker.
- *
- * @param panel - The payout panel.
- * @param ticker - The holding's ticker.
- * @returns The entry.
- */
-const legendEntry = (panel: Locator, ticker: string) => (
-  panel.getByRole('listitem').filter({ hasText: new RegExp(`^${ticker}$`) })
-);
 
 /**
  * The Holdings a payouts request asks for.
@@ -66,37 +46,17 @@ test('the Dashboard shows net worth, Coming Due and the payouts chosen on Invest
     dueDate: isoDay(new Date(today.getFullYear() + 2, today.getMonth(), 15)),
     interestPayment: 'at_maturity',
   });
-  /** Buys a stock two months ago and records a dividend last month and this one. */
-  const stockPaying = async (ticker: string, dividend: number) => {
-    const buy = await recordTransaction(request, owner, household.id, {
-      kind: 'investment_buy',
-      accountId: account.id,
-      date: isoDay(monthStart(-2)),
-      amount: 250_000,
-      currency: 'BRL',
-      assetType: 'stock',
-      ticker,
-      quantity: 25 * UNIT,
-    });
-    const dividendOn = (date: Date) => recordTransaction(request, owner, household.id, {
-      kind: 'investment_dividend',
-      accountId: account.id,
-      date: isoDay(date),
-      amount: dividend,
-      currency: 'BRL',
-      holdingId: buy.holdingId!,
-    });
-    // One at a time: each moves the account's balance history.
-    await dividendOn(monthStart(-1));
-    await dividendOn(today);
-  };
-  await stockPaying('ITSA4', 1_250);
-  await stockPaying('TAEE11', 2_100);
+  await stockPaying(request, owner, household.id, {
+    accountId: account.id, ticker: 'ITSA4', dividend: 1_250,
+  });
+  await stockPaying(request, owner, household.id, {
+    accountId: account.id, ticker: 'TAEE11', dividend: 2_100,
+  });
 
   // On Investments, TAEE11 is left out of the payout chart.
   await signInThroughUi(page, owner);
   await page.goto('/investments');
-  const investmentsPanel = sectionOf(page, text('payoutPanel', 'title'));
+  const investmentsPanel = payoutPanel(page);
   await expect(legendEntry(investmentsPanel, 'TAEE11')).toBeVisible();
   const holdings = text('payoutPanel', 'holdings');
   await investmentsPanel.getByRole('button', { name: holdings }).click();
@@ -112,7 +72,7 @@ test('the Dashboard shows net worth, Coming Due and the payouts chosen on Invest
   const asked = page.waitForRequest((sent) => sent.url().includes('/reports/payouts'));
   await page.goto('/');
   expect(holdingIdsOf((await asked).url())).toBe(chosenIds);
-  const panel = sectionOf(page, text('payoutPanel', 'title'));
+  const panel = payoutPanel(page);
   await expect(panel.getByRole('group', { name: text('payoutPanel', 'chart') })).toBeVisible();
   await expect(legendEntry(panel, 'ITSA4')).toBeVisible();
   await expect(legendEntry(panel, 'TAEE11')).toHaveCount(0);
@@ -125,9 +85,7 @@ test('the Dashboard shows net worth, Coming Due and the payouts chosen on Invest
   expect(report.comingDue).toEqual([expect.objectContaining({
     holdingId: cdb.holdingId, currency: 'BRL', amount: 1_000_000,
   })]);
-  const netWorthLabel = text('netWorthCards', 'label', { currency: 'BRL' });
-  const netWorth = page.getByRole('heading', { name: netWorthLabel }).locator('xpath=../..');
-  await expect(netWorth).toContainText(brl(1_500_000));
+  await expect(netWorthCard(page, 'BRL')).toContainText(brl(1_500_000));
   const comingDue = sectionOf(page, text('comingDue', 'title'));
   await expect(comingDue).toContainText('CDB Banco Azul');
   await expect(comingDue).toContainText(brl(1_000_000));

@@ -19,14 +19,17 @@ import text from '../support/text';
 const DIALOG_WIDTH_PX = 440;
 
 /**
- * Opens the navigation drawer.
+ * Opens the navigation drawer and waits for it to show, its Sign out at its foot.
  *
  * @param page - The browser page, signed in.
- * @returns The drawer.
+ * @returns The drawer, open.
  */
 const openDrawer = async (page: Page) => {
   await page.getByRole('button', { name: text('shell', 'header.openMenu') }).click();
-  return page.getByRole('navigation', { name: text('shell', 'drawer.label') });
+  const drawer = page.getByRole('navigation', { name: text('shell', 'drawer.label') });
+  await expect(drawer.getByRole('button', { name: text('shell', 'account.signOut') }))
+    .toBeVisible();
+  return drawer;
 };
 
 /**
@@ -52,16 +55,18 @@ test('a Viewer is refused the audit log and an Owner downloads it', {
   await addMember(request, owner, household.id, { user: viewer, role: 'Viewer' });
   const ownerId = (await currentUser(request, owner.accessToken)).id;
   const viewerId = (await currentUser(request, viewer.accessToken)).id;
-  // Days around today in any timezone: the app's day may not be the runner's.
-  const around = { startDate: isoDay(daysAgo(1)), endDate: isoDay(daysAgo(-1)) };
+  // Today: the runner, the browser and the API share São Paulo's calendar
+  // (playwright.config.ts), so the setup's entries are today's.
+  const today = isoDay(new Date());
+  const todayOnly = { startDate: today, endDate: today };
 
-  // The Viewer: no export in the drawer, and the API refuses it.
+  // The Viewer: no export in the open drawer, and the API refuses it.
   await signInThroughUi(page, viewer);
   const viewerDrawer = await openDrawer(page);
   await expect(viewerDrawer.getByText(text('shell', 'records.title'))).toHaveCount(0);
   await expect(viewerDrawer.getByRole('button', { name: text('shell', 'records.exportAuditLog') }))
     .toHaveCount(0);
-  const refused = await exportAuditLog(request, viewer, household.id, around);
+  const refused = await exportAuditLog(request, viewer, household.id, todayOnly);
   expect(refused.status).toBe(403);
   expect(JSON.parse(refused.body)).toMatchObject({ error: { code: 'auth.forbidden' } });
   await page.keyboard.press('Escape');
@@ -69,7 +74,8 @@ test('a Viewer is refused the audit log and an Owner downloads it', {
 
   // The audit sink stores entries in the background (OQ-110): wait for the
   // setup's last one before the Owner asks.
-  await expect.poll(async () => (await exportAuditLog(request, owner, household.id, around)).body)
+  const ownerExport = () => exportAuditLog(request, owner, household.id, todayOnly);
+  await expect.poll(async () => (await ownerExport()).body)
     .toContain(`,${viewerId},AcceptInvitation,`);
 
   // The Owner: the drawer's export, in its dialog.
@@ -98,15 +104,13 @@ test('a Viewer is refused the audit log and an Owner downloads it', {
   await expect(page.getByText(text('auditExport', 'done'))).toBeVisible();
   await expect(dialog).toHaveCount(0);
 
-  // The file is the API's for those days, named by them, the setup in it.
-  const name = /^audit-log-(\d{4}-\d{2}-\d{2})-(\d{4}-\d{2}-\d{2})\.csv$/
-    .exec(download.suggestedFilename());
-  expect(name).not.toBeNull();
-  const [, startDate, endDate] = name!;
+  // Last 30 days: the 30 days ending today, both included (`lastDays` in the
+  // kit's presets). The file is named by them and is the API's for them.
+  const lastThirtyDays = { startDate: isoDay(daysAgo(29)), endDate: today };
+  expect(download.suggestedFilename())
+    .toBe(`audit-log-${lastThirtyDays.startDate}-${lastThirtyDays.endDate}.csv`);
   const csv = await readFile(await download.path(), 'utf8');
-  const expected = await exportAuditLog(request, owner, household.id, {
-    startDate: startDate!, endDate: endDate!,
-  });
+  const expected = await exportAuditLog(request, owner, household.id, lastThirtyDays);
   expect(expected.status).toBe(200);
   expect(csv).toBe(expected.body);
   const [columns, ...rows] = csv.trim().split(/\r?\n/);

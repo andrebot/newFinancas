@@ -3,6 +3,7 @@ import {
   createHousehold, inviteUser, registerUser, revokeInvitation,
 } from '../support/identityApi';
 import { notifications } from '../support/insightsApi';
+import { startingWith } from '../support/locators';
 import { signInThroughUi } from '../support/signIn';
 import text from '../support/text';
 
@@ -23,7 +24,7 @@ import text from '../support/text';
 const openInbox = async (page: Page) => {
   const bell = text('shell', 'header.notifications');
   // Named by its label and, while there are any, the unseen count, e.g. `Notifications 1 unseen`.
-  await page.getByRole('button', { name: new RegExp(`^${bell}`) }).click();
+  await page.getByRole('button', { name: startingWith(bell) }).click();
   return page.getByRole('dialog', { name: bell });
 };
 
@@ -52,15 +53,16 @@ test('a revoked invitation\'s notice is marked seen and deleted from the bell', 
   await expect(inbox.getByText(text('inbox', 'newSeen', { count: 1 }))).toBeVisible();
   await expect(inbox.getByRole('button', { name: text('inbox', 'accept') })).toHaveCount(0);
   await expect(inbox.getByRole('button', { name: text('inbox', 'decline') })).toHaveCount(0);
-  await expect.poll(async () => (await notifications(request, invitee))[0]?.seenAt)
-    .not.toBeNull();
+  // Still there, one notice, now with the moment it was seen.
+  await expect.poll(() => notifications(request, invitee))
+    .toEqual([expect.objectContaining({ seenAt: expect.any(String) })]);
 
   // Closed and opened again: seen, the bell's count gone.
   await page.keyboard.press('Escape');
   await expect(unseen).toHaveCount(0);
   const reopened = await openInbox(page);
   const seen = text('inbox', 'seen', { time: '' }).trim();
-  await expect(reopened.getByText(new RegExp(`^${seen}`))).toBeVisible();
+  await expect(reopened.getByText(startingWith(seen))).toBeVisible();
   await expect(reopened.getByText(text('inbox', 'newSeen', { count: 1 }))).toHaveCount(0);
 
   // Deleted: the inbox is empty, here and on the server.

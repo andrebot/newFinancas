@@ -4,6 +4,7 @@ import {
 } from '../support/financeApi';
 import { createHousehold, registerUser } from '../support/identityApi';
 import { investmentsOverview } from '../support/investmentsApi';
+import { netWorthCard, sectionOf } from '../support/locators';
 import brl from '../support/money';
 import { signInThroughUi } from '../support/signIn';
 import text from '../support/text';
@@ -68,12 +69,8 @@ test('the overview draws the payout chart and never scrolls sideways at phone wi
     .toEqual([{ currency: 'BRL', amount: 250_000 }]);
   expect(overview.payoutThisMonth.map(({ currency, amount }) => ({ currency, amount })))
     .toEqual([{ currency: 'BRL', amount: 1_400 }]);
-  const netWorthLabel = text('netWorthCards', 'label', { currency: 'BRL' });
-  const netWorth = page.getByRole('heading', { name: netWorthLabel }).locator('xpath=../..');
-  await expect(netWorth).toContainText(brl(250_000));
-  const payout = page.locator('section', {
-    has: page.getByRole('heading', { name: text('payoutThisMonth', 'title') }),
-  });
+  await expect(netWorthCard(page, 'BRL')).toContainText(brl(250_000));
+  const payout = sectionOf(page, text('payoutThisMonth', 'title'));
   await expect(payout).toContainText(brl(1_400));
 
   // An expression, not a function: the E2E code compiles without the DOM's types.

@@ -7505,10 +7505,29 @@ through the API, the browser does only the journey; helpers in
 - **The Dashboard's investment panels** (`insights/dashboard.spec.ts`,
   untagged): a CDB and two dividend-paying stocks; TAEE11 left out of the
   payout chart on Investments, the Dashboard asks `reports/payouts` for the
-  same `holdingIds` and draws only those (OQ-243); net worth R$ 15.000,00 (the
-  Holdings' value) and Coming Due the CDB at its R$ 10.000,00 principal, as the
+  same `holdingIds` and draws only those (OQ-243); net worth R$ 15,000.00 (the
+  Holdings' value) and Coming Due the CDB at its R$ 10,000.00 principal, as the
   report gives them (OQ-236).
 - **No diagram changes:** I11 adds tests only; no call, route, code or step moved.
+
+- **PR #173 review (an independent reviewer; all fixed):**
+  1. The Viewer's "no export" check passed with the drawer closed: the drawer
+     is now waited for, its Sign out shown, before the absences are checked.
+  2. "Last 30 days" was never checked — the dates came back from the file's
+     name: the file is now `audit-log-<29 days ago>-<today>.csv` (the kit's
+     `lastDays`, both ends included).
+  3. "Marked seen on the server" passed on an empty list: the poll now wants
+     exactly one notice with a `seenAt`.
+  4. The payout legend, the payout panel, the net-worth card and the
+     dividend-paying stock moved to `support/locators.ts` and
+     `support/investmentsApi.ts` (`stockPaying`), shared with
+     `payoutSelection.spec.ts` and `portfolioOverview.spec.ts`.
+  5. The export's setup polls today alone: the runner, the browser and the API
+     share São Paulo's calendar (`playwright.config.ts`), so the comment
+     claiming otherwise is gone.
+  6. Patterns built from catalog text are escaped (`startingWith`).
+  7. A section's heading must start with its title, not merely hold it — not
+     exact, since a SectionHeader's hint sits inside the heading.
 
 **Task 140 (`I11`) is complete.**
 

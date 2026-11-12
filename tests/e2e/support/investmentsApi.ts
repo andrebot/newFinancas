@@ -2,6 +2,9 @@ import type { APIRequestContext } from '@playwright/test';
 import type {
   HoldingAllocations, IndexCode, IndexRateSeries, IndexRateValue, InvestmentHolding,
 } from '@financas/api-types';
+import {
+  UNIT, isoDay, monthStart, recordTransaction,
+} from './financeApi';
 import { send, type TestUser } from './identityApi';
 
 // Arranging and reading what the Investments page works on through the API
@@ -152,3 +155,51 @@ export const investmentsOverview = (
   `/households/${householdId}/reports/investments-overview`,
   { accessToken: member.accessToken },
 );
+
+/** A stock bought two months ago that paid a dividend last month and this one. */
+export interface PayingStock {
+  readonly accountId: string;
+  readonly ticker: string;
+  /** Each month's dividend, in minor units. */
+  readonly dividend: number;
+}
+
+/**
+ * Buys 25 shares of a stock for R$ 2.500,00 two months ago and records its
+ * dividend last month and today — what a payout chart draws.
+ *
+ * @param request - Playwright's API client.
+ * @param member - Any member but a Viewer.
+ * @param householdId - The household.
+ * @param stock - The account, the ticker and the monthly dividend.
+ * @returns The new Holding's id.
+ */
+export const stockPaying = async (
+  request: APIRequestContext,
+  member: Member,
+  householdId: string,
+  stock: PayingStock,
+): Promise<string> => {
+  const buy = await recordTransaction(request, member, householdId, {
+    kind: 'investment_buy',
+    accountId: stock.accountId,
+    date: isoDay(monthStart(-2)),
+    amount: 250_000,
+    currency: 'BRL',
+    assetType: 'stock',
+    ticker: stock.ticker,
+    quantity: 25 * UNIT,
+  });
+  const dividendOn = (date: Date) => recordTransaction(request, member, householdId, {
+    kind: 'investment_dividend',
+    accountId: stock.accountId,
+    date: isoDay(date),
+    amount: stock.dividend,
+    currency: 'BRL',
+    holdingId: buy.holdingId!,
+  });
+  // One at a time: each moves the account's balance history.
+  await dividendOn(monthStart(-1));
+  await dividendOn(new Date());
+  return buy.holdingId!;
+};
