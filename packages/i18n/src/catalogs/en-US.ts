@@ -1340,6 +1340,9 @@ const enUS: Catalog = {
   drawer: {
     close: 'Close',
   },
+  dialog: {
+    close: 'Close',
+  },
   alerts: {
     region: 'Alerts',
     dismiss: 'Dismiss',

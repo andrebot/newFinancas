@@ -7240,6 +7240,34 @@ forward with all the next phases"), from the review in
 - **The web's `profile.deleteAccount` is on** and `DELETE /users/me` left the
   contract-routes plan list (OQ-163). Task 142 (`I13`) checks it end to end.
 
+### OQ-241: Dialog (task K21)
+**Confirmed with the stakeholder (Nov 2026):**
+- **A centred modal dialog for a short task** — the audit-log export's
+  date range (mockup 24) — on the same terms as the drawer (OQ-191):
+  `role="dialog"`, `aria-modal`, named by its title; the caller holds
+  `open`; Esc, a press on the scrim and the ✕ call `onClose`; focus goes to
+  the body's first field (the ✕ when there is none) and back on closing.
+  Props: `title`, `subtitle` (the line under it, "The Doe Household ·
+  CSV"), `icon` (the mint badge), the body and a `footer`. The ✕'s label is
+  the new catalog key `dialog.close`.
+- **Look, from mockup 24:** from `md` up, a 440px `bg-card` card in the
+  middle of the screen, `rounded-[24px]`, a line border and the new
+  `shadow-dialog` token (`--s-dialog`, per theme — deeper than the
+  panels' `shadow-overlay`); never taller than the viewport less 4rem, the
+  body scrolling. Its scrim covers the whole viewport, the header included
+  (the drawer's starts under it). **Below `md` it is a full-screen sheet**,
+  as the drawer is — chosen over a centred card and a bottom sheet.
+- **Motion:** the card fades and grows from 95% (the sheet rises), the
+  scrim fades, over `dialog.transitionMs` (200ms, `config/constants.ts`);
+  none under `prefers-reduced-motion`.
+- **One modal shell for the drawer and the dialog** (`kit/modal/Modal`):
+  the portal, the scrim, the focus manager, the dismiss wiring, the
+  transition status, the ✕ and the first-field focus. Each draws its own
+  panel and motion through `ModalSurface` (scrim and panel classes, the
+  transition's length). The drawer's API and behaviour are unchanged.
+
+**Task 137 (`K21`) is complete.**
+
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
 *(None currently — OQ-29, the last item here, was resolved during data

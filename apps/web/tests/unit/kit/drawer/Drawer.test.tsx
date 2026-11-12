@@ -5,7 +5,7 @@ import { useState, type ReactNode } from 'react';
 import {
   describe, expect, it, vi,
 } from 'vitest';
-import { Drawer, focusFirstField } from '../../../../src/kit/drawer/Drawer';
+import { Drawer } from '../../../../src/kit/drawer/Drawer';
 import { renderInLocale } from '../../../support/renderInLocale';
 
 // Kit component (BDT: Interaction tier → unit): only the caller's close
@@ -200,15 +200,5 @@ describe('Drawer', () => {
 
     expect(onClose).toHaveBeenCalledOnce();
     expect(screen.getByRole('dialog')).toBeDefined();
-  });
-});
-
-describe('focusFirstField', () => {
-  it('points nowhere once the body is gone and there is no ✕', () => {
-    const target = { current: document.createElement('input') as HTMLElement | null };
-
-    focusFirstField(target, { current: null })(null);
-
-    expect(target.current).toBeNull();
   });
 });

@@ -1355,6 +1355,9 @@ const ptBR = {
   drawer: {
     close: 'Fechar',
   },
+  dialog: {
+    close: 'Fechar',
+  },
   alerts: {
     region: 'Avisos',
     dismiss: 'Dispensar',

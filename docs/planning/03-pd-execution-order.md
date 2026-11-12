@@ -198,7 +198,7 @@ identity screens, the rest as later slices use them.
 *Done when:* dashboard, audit export, notification bell routing, delete account.
 
 - [x] **136.** `M1D` IdentityManager: Delete User cascade (then turn on `profile.deleteAccount` in the web settings and drop `DELETE /users/me` from the contract-routes test's plan list, OQ-163) (OQ-240: one erasure — each Accessor's `forgetUser` — on Leave, Remove Member and Delete User, "personal" household-scoped; departures first, then the erasure and the user row in one transaction; a transfer losing its side a lone movement; a personal Budget's periods deleted; 409 documented; the Leave/Remove copy names what goes)
-- [ ] **137.** `K21` Dialog
+- [x] **137.** `K21` Dialog (OQ-241: centred card from `md`, full-screen sheet below; one modal shell with the Drawer)
 - [ ] **138.** `FL21` Dashboard (OQ-231: reuses FL18's Net Worth Cards, 150px with `grid`)
 - [ ] **139.** `X8` Review Insights (with InsightsManager's Dashboard, notification inbox and audit-log export routes — OQ-201 — and ReportingEngine's Dashboard shape, OQ-206)
 - [ ] **140.** `I11` Frontend ↔ backend: insights

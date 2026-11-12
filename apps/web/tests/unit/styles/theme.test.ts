@@ -111,6 +111,13 @@ describe('theme.css tokens', () => {
     expect(css).toContain('--shadow-overlay: var(--s-overlay);');
   });
 
+  it('gives each theme its own dialog shadow, read at runtime', () => {
+    const shadows = [...css.matchAll(/--s-dialog:\s*([^;]+);/g)].map((match) => match[1]);
+    expect(shadows).toHaveLength(2);
+    expect(shadows[0]).not.toBe(shadows[1]);
+    expect(css).toContain('--shadow-dialog: var(--s-dialog);');
+  });
+
   it('gives each theme its own drawer scrim, read at runtime', () => {
     const scrims = [...css.matchAll(/--s-scrim:\s*([^;]+);/g)].map((match) => match[1]);
     expect(scrims).toEqual(['rgb(0 0 0 / 0.55)', 'rgb(19 32 26 / 0.4)']);

@@ -105,6 +105,8 @@ variable-based form; `22-dashboard-light-theme.html` is the proof.
   amount inside for goal lists.
 - **Drawers**: right-side drawer for every focused form (Record, Filter,
   Edit, Add Budget/Goal, Value history); full-screen sheet on mobile.
+- **Dialogs**: a centred 440px card for a short task (the audit-log
+  export's date range, page 24); full-screen sheet on mobile (OQ-241).
 - **Inline confirms**: archive/delete (coral, irreversible) and
   mark-completed (mint, reversible) confirm inside the card or row.
 - **Setup pages are configuration**: Budgets cards show no spend progress;
