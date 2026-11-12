@@ -112,6 +112,68 @@ describe('MarketValueEntry', () => {
       .filter((input) => input.getAttribute('aria-invalid') === 'true')).toHaveLength(2);
   });
 
+  it('holds a problem back until Save, and flags only the field at fault (R4 V5)', () => {
+    renderEntry();
+    const invalid = () => screen.getAllByRole('textbox')
+      .filter((input) => input.getAttribute('aria-invalid') === 'true')
+      .map((input) => input.getAttribute('aria-label') ?? input.id);
+
+    typeInto('As of', '10/01/2026');
+    expect(screen.queryByText('Date is later than allowed.')).toBeNull();
+
+    typeInto('As of', '09/30/2026');
+    fireEvent.click(screen.getByRole('button', { name: 'Save value' }));
+    expect(invalid()).toHaveLength(1);
+    expect(screen.getByRole('textbox', { name: 'As of' }).getAttribute('aria-invalid'))
+      .not.toBe('true');
+  });
+
+  it('drops the problems once a save goes through (R4 V5)', async () => {
+    const props = renderEntry();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save value' }));
+    typeInto('New value (R$)', '100.000,00');
+    fireEvent.click(screen.getByRole('button', { name: 'Save value' }));
+
+    await waitFor(() => expect(props.onSave).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(
+      screen.getByRole<HTMLInputElement>('textbox', { name: 'New value (R$)' }).value,
+    ).toBe(''));
+    expect(screen.getByRole('textbox', { name: 'New value (R$)' }).getAttribute('aria-invalid'))
+      .not.toBe('true');
+  });
+
+  it('records a second value on a day that already has one (R4 V5)', async () => {
+    const props = renderEntry();
+
+    typeInto('As of', '08/31/2026');
+    typeInto('New value (R$)', '100.000,00');
+    fireEvent.click(screen.getByRole('button', { name: 'Save value' }));
+
+    await waitFor(() => expect(props.onSave)
+      .toHaveBeenCalledWith({ date: '2026-08-31', value: 10000000 }));
+  });
+
+  it('sends the value once while its save runs, without reloading the page (R4 V5)', async () => {
+    const onSave = vi.fn(() => new Promise<'done'>(() => {}));
+    renderEntry({ onSave });
+
+    typeInto('New value (R$)', '100.000,00');
+    const form = screen.getByRole('button', { name: 'Save value' }).closest('form')!;
+    expect(fireEvent.submit(form)).toBe(false);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Save value' })
+      .getAttribute('aria-busy')).toBe('true'));
+    fireEvent.click(screen.getByRole('button', { name: 'Save value' }));
+
+    expect(onSave).toHaveBeenCalledTimes(1);
+  });
+
+  it('previews no change while no value is typed (R4 V5)', () => {
+    renderEntry();
+
+    expect(screen.queryByText(/^Change against the current value/)).toBeNull();
+  });
+
   it('gives the first value no percent, and an unchanged one no arrow', () => {
     const view = renderEntry({ entries: [] });
 

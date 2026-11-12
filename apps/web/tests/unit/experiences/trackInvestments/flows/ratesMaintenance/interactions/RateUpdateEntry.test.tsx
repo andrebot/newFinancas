@@ -65,6 +65,12 @@ describe('RateUpdateEntry', () => {
     expect(onSave).toHaveBeenCalledWith({ date: '2026-09-15', value: -2500 });
   });
 
+  it('never reloads the page on a submit (R4 V5)', () => {
+    renderEntry();
+
+    expect(fireEvent.submit(button('Save').closest('form') as HTMLFormElement)).toBe(false);
+  });
+
   it('sends nothing without a value, and shows why only after Save', async () => {
     const { onSave } = renderEntry();
 

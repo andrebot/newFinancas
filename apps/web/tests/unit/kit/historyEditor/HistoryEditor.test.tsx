@@ -362,6 +362,20 @@ describe('HistoryEditor', () => {
       await expectFocusOn(() => screen.getByRole('textbox', { name: 'Date' }));
     });
 
+    it('opens again with no problem shown, and never reloads the page (R4 V5)', () => {
+      const { onSave } = renderEditor();
+      fireEvent.click(button('Edit value of 08/31/2026'));
+      typeInto('Value (R$)', '');
+      expect(fireEvent.submit(button('Save').closest('form') as HTMLFormElement)).toBe(false);
+      expect(screen.getByText('Required.')).toBeTruthy();
+
+      fireEvent.click(button('Cancel'));
+      fireEvent.click(button('Add a past value'));
+
+      expect(screen.queryByText('Required.')).toBeNull();
+      expect(onSave).not.toHaveBeenCalled();
+    });
+
     it('shows no problem before a save is tried', () => {
       renderEditor();
       fireEvent.click(button('Edit value of 08/31/2026'));
