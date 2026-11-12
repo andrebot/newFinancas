@@ -272,7 +272,7 @@ describe('ManageHouseholdExperience — membership', () => {
 
     expect(outcomeOf('membership')).toEqual({
       ok: true,
-      members: MEMBERS.map(({ householdId: _, ...member }) => member),
+      members: MEMBERS,
       invitations: [{
         id: 'inv-1',
         email: 'morgan@example.com',

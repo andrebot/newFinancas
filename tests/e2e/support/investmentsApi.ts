@@ -127,3 +127,28 @@ export const holdingSplit = async (
   );
   return split.data.map(({ goalId, percentage }) => ({ goalId, percentage }));
 };
+
+/** The investments overview's figures a journey checks (OQ-233, OQ-236). */
+export interface OverviewFigures {
+  readonly netWorth: readonly { readonly currency: string; readonly amount: number }[];
+  readonly payoutThisMonth: readonly { readonly currency: string; readonly amount: number }[];
+}
+
+/**
+ * Reads the household's investments overview, as the Investments page does.
+ *
+ * @param request - Playwright's API client.
+ * @param member - A member of the household.
+ * @param householdId - The household.
+ * @returns The report's net worth and this month's payouts.
+ */
+export const investmentsOverview = (
+  request: APIRequestContext,
+  member: Member,
+  householdId: string,
+): Promise<OverviewFigures> => send<OverviewFigures>(
+  request,
+  'GET',
+  `/households/${householdId}/reports/investments-overview`,
+  { accessToken: member.accessToken },
+);

@@ -1,54 +1,26 @@
 import { describe, expect, it } from 'vitest';
-import {
-  manageHouseholdApi, toHouseholdMember, toListedInvitation,
-} from '../../../../src/experiences/manageHousehold/api';
+import { manageHouseholdApi, toListedInvitation } from '../../../../src/experiences/manageHousehold/api';
 import { fakeStore } from '../../shell/shellFakes';
 import { jsonResponse } from '../../api/fakes';
 import { fakeFetch } from '../hookFakes';
 
-// The translation of the API's members and invitations into the Flow's shapes
+// The translation of the API's invitations into the Flow's shape
 // (Accessor-like: translation only). The endpoints themselves are exercised
-// by the Experience's integration test.
+// by the Experience's integration test; the members list is a shared identity
+// read (`api/identityApi.ts`, slice 4 review A1).
 
-describe('the members and invitations lists', () => {
-  it('reads answers with no list as none', async () => {
+describe('the invitations list', () => {
+  it('reads an answer with no list as none', async () => {
     const { store } = fakeStore({
       refreshToken: 'r-0',
-      fetchFn: fakeFetch({
-        '/households/doe/members': () => jsonResponse(200, {}),
-        '/households/doe/invitations': () => jsonResponse(200, {}),
-      }),
+      fetchFn: fakeFetch({ '/households/doe/invitations': () => jsonResponse(200, {}) }),
     });
-    const { listMembers, listHouseholdInvitations } = manageHouseholdApi.endpoints;
+    const invitations = store.dispatch(
+      manageHouseholdApi.endpoints.listHouseholdInvitations.initiate('doe'),
+    );
 
-    const members = store.dispatch(listMembers.initiate('doe'));
-    const invitations = store.dispatch(listHouseholdInvitations.initiate('doe'));
-
-    expect((await members).data).toEqual([]);
     expect((await invitations).data).toEqual([]);
-    members.unsubscribe();
     invitations.unsubscribe();
-  });
-});
-
-describe('toHouseholdMember', () => {
-  it('keeps what the members list shows, without the household', () => {
-    expect(toHouseholdMember({
-      userId: 'alex',
-      householdId: 'doe',
-      firstName: 'Alex',
-      lastName: 'Rivera',
-      email: 'alex@example.com',
-      role: 'Admin',
-      joinedAt: '2024-03-01T00:00:00Z',
-    })).toEqual({
-      userId: 'alex',
-      firstName: 'Alex',
-      lastName: 'Rivera',
-      email: 'alex@example.com',
-      role: 'Admin',
-      joinedAt: '2024-03-01T00:00:00Z',
-    });
   });
 });
 

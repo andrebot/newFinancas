@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router';
+import { useLazyListMembersQuery, useListMembersQuery } from '../../api/identityApi';
 import { failureOf, toRequestOutcome, type EndpointResult } from '../../api/outcome';
 import { shell } from '../../config/constants';
 import { Button } from '../../kit/button/Button';
@@ -17,9 +18,7 @@ import {
   useCreateInvitationMutation,
   useDeleteHouseholdMutation,
   useLazyListHouseholdInvitationsQuery,
-  useLazyListMembersQuery,
   useLeaveHouseholdMutation,
-  useListMembersQuery,
   useRemoveMemberMutation,
   useRevokeInvitationMutation,
   useTransferOwnershipMutation,

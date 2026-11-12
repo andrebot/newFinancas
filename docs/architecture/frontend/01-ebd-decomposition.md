@@ -86,7 +86,7 @@ Diagram: `docs/design/diagrams/ebd-tiers/app-shell.html`; sequence:
 
 ### Manage Profile
 
-**Purpose:** Look after my own account. New Experience (Q1): split out of Authenticate (Security) and Manage Household (Edit Profile, Delete Account). Built in X3 (OQ-159): `experiences/manageProfile/`. It hands the App Shell the signed-in user and the pending-invitation count, owns the `invitation.received` route, and reads Manage Household's households list for the user's role and the households they own. A picked theme or language shows at once through the shell and is undone if the save fails.
+**Purpose:** Look after my own account. New Experience (Q1): split out of Authenticate (Security) and Manage Household (Edit Profile, Delete Account). Built in X3 (OQ-159): `experiences/manageProfile/`. It hands the App Shell the signed-in user and the pending-invitation count, owns the `invitation.received` route, and reads the shared households list (`api/identityApi.ts`, OQ-163) for the user's role and the households they own. A picked theme or language shows at once through the shell and is undone if the save fails.
 
 | Flow | Interactions | Sequence |
 |---|---|---|
@@ -99,7 +99,7 @@ Diagram: `docs/design/diagrams/ebd-tiers/app-shell.html`; sequence:
 
 ### Manage Household
 
-**Purpose:** Run the household. Its households list (`GET /households`, `experiences/manageHousehold/api.ts`) feeds the App Shell's gate and switcher; it was brought in with X3 (OQ-159). Switch Household is the App Shell's own — its household switcher sets the active household and resets the API cache, no endpoint (OQ-156); 'Create household' there starts Onboard (Q3). Built in X4 (OQ-160): `experiences/manageHousehold/ManageHouseholdExperience.tsx` on `/household`, keyed on the active household. The header counts the cached members; Leave Household is its own card above the danger zone. Once the household is left or deleted, a toast says so and the shell switches to the next household's Dashboard, or Onboard when none is left (`householdExit.ts`).
+**Purpose:** Run the household. The households list (`GET /households`) it was brought in with (X3, OQ-159) is a shared identity read in `api/identityApi.ts` (OQ-163) that feeds the App Shell's gate and switcher; so are the members (`GET /households/{id}/members`), which Track Investments reads too (slice 4 review A1, OQ-239). Switch Household is the App Shell's own — its household switcher sets the active household and resets the API cache, no endpoint (OQ-156); 'Create household' there starts Onboard (Q3). Built in X4 (OQ-160): `experiences/manageHousehold/ManageHouseholdExperience.tsx` on `/household`, keyed on the active household. The header counts the cached members; Leave Household is its own card above the danger zone. Once the household is left or deleted, a toast says so and the shell switches to the next household's Dashboard, or Onboard when none is left (`householdExit.ts`).
 
 | Flow | Interactions | Sequence |
 |---|---|---|
@@ -154,7 +154,7 @@ Diagram: `docs/design/diagrams/ebd-tiers/app-shell.html`; sequence:
 
 **OQ-235 (FL20):** Rates Maintenance reads the index rates, the household Holdings (for "Used by") and the members (for "Added by"), all through the Experience. A card per index shows the latest value, the change it made, the last 6 months and the Holdings it feeds; Update opens the inline form (one per page) and History the K46 drawer. A Member changes only the values they recorded, a Viewer only reads. The hint says that only the latest value is projected.
 
-**OQ-236 (X7):** the page holds the open tab in the address (`?tab=overview|holdings|rates`) and mounts only the open tab — the Maintenance Flows' drawers open in portals — with RTK Query's cache making a switch back immediate. The overview is loaded once the report, the household Holdings and the accounts are in; one storage object per household remembers the payout choice; the members come from Manage Household's `listMembers`. The disabled v2 Portfolio Builders are left out below `md`.
+**OQ-236 (X7):** the page holds the open tab in the address (`?tab=overview|holdings|rates`) and mounts only the open tab — the Maintenance Flows' drawers open in portals — with RTK Query's cache making a switch back immediate. The overview is loaded once the report, the household Holdings and the accounts are in; one storage object per household remembers the payout choice; the members come from the shared `listMembers` in `api/identityApi.ts` (slice 4 review A1, OQ-239). The disabled v2 Portfolio Builders are left out below `md`.
 
 | Flow | Interactions | Sequence |
 |---|---|---|

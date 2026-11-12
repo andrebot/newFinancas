@@ -3,13 +3,17 @@ import {
   UNIT, accountNamed, isoDay, monthStart, recordTransaction,
 } from '../support/financeApi';
 import { createHousehold, registerUser } from '../support/identityApi';
+import { investmentsOverview } from '../support/investmentsApi';
+import brl from '../support/money';
 import { signInThroughUi } from '../support/signIn';
 import text from '../support/text';
 
 // X7 — the Investments page (Track Investments) against the real API: the
 // overview of a household holding a stock that paid dividends, read through
 // the investments-overview and payouts reports and the household's Holdings
-// (OQ-233), with the payout chart drawn. At phone width nothing on it may
+// (OQ-233), with the payout chart drawn. Its figures are the report's — net
+// worth the Holding's value, its buy's snapshot (OQ-236), and this month's
+// payout the one dividend (uc-12, R4 E1). At phone width nothing on it may
 // push the page sideways (OQ-230, moved here from FL18 by OQ-233).
 
 /** The narrowest phone the layout supports. */
@@ -56,6 +60,21 @@ test('the overview draws the payout chart and never scrolls sideways at phone wi
   const chart = page.getByRole('group', { name: text('payoutPanel', 'chart') });
   await expect(chart).toBeVisible();
   await expect(page.getByText('ITSA4').first()).toBeVisible();
+
+  // The figures: the report's, and the report right — the buy's R$ 2.500,00
+  // and this month's R$ 14,00 dividend.
+  const overview = await investmentsOverview(request, owner, household.id);
+  expect(overview.netWorth.map(({ currency, amount }) => ({ currency, amount })))
+    .toEqual([{ currency: 'BRL', amount: 250_000 }]);
+  expect(overview.payoutThisMonth.map(({ currency, amount }) => ({ currency, amount })))
+    .toEqual([{ currency: 'BRL', amount: 1_400 }]);
+  const netWorthLabel = text('netWorthCards', 'label', { currency: 'BRL' });
+  const netWorth = page.getByRole('heading', { name: netWorthLabel }).locator('xpath=../..');
+  await expect(netWorth).toContainText(brl(250_000));
+  const payout = page.locator('section', {
+    has: page.getByRole('heading', { name: text('payoutThisMonth', 'title') }),
+  });
+  await expect(payout).toContainText(brl(1_400));
 
   // An expression, not a function: the E2E code compiles without the DOM's types.
   const overflow = await page.evaluate<number>(
