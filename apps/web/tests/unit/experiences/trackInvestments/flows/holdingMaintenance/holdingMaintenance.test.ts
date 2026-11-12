@@ -107,6 +107,20 @@ describe('holdingGroupsOf', () => {
     expect(groups[1]?.rows.at(-1)?.archived).toBe(true);
   });
 
+  it('puts the largest first whichever order the Holdings come in (R4 V4)', () => {
+    const slices = [
+      {
+        kind: 'holding' as const, key: 'a', currency: 'BRL' as const, amount: 100,
+      },
+      {
+        kind: 'holding' as const, key: 'b', currency: 'BRL' as const, amount: 300,
+      },
+    ];
+    const groups = holdingGroupsOf([holdingOf('a'), holdingOf('b')], slices, 'BRL');
+
+    expect(groups[0]?.rows.map((row) => row.holding.id)).toEqual(['b', 'a']);
+  });
+
   it('orders equal values by ticker, and leaves an empty group out', () => {
     const groups = holdingGroupsOf(
       [holdingOf('b'), holdingOf('a'), without('c', 'ticker')],
@@ -168,6 +182,11 @@ describe('contractTermOf', () => {
   it('counts a month short when the day isn\'t reached yet', () => {
     expect(contractTermOf('2026-01-01', '2027-01-10', '2026-10-20'))
       .toMatchObject({ yearsLeft: 0, monthsLeft: 2 });
+  });
+
+  it('counts a whole month on the same day of the month (R4 V7)', () => {
+    expect(contractTermOf('2026-01-01', '2027-01-20', '2026-10-20'))
+      .toMatchObject({ yearsLeft: 0, monthsLeft: 3 });
   });
 
   it('is fully run on and past the due date, and before the buy is not started', () => {
@@ -284,6 +303,15 @@ describe('allocationRowsOf, allocationsOf and isSplitChanged', () => {
     expect(isSplitChanged([{ ...saved[0]!, percent: 50 }], saved)).toBe(true);
     expect(isSplitChanged([{ ...saved[0]!, goalId: 'trip' }], saved)).toBe(true);
     expect(isSplitChanged([], saved)).toBe(true);
+  });
+
+  it('tells a change to one share of several (R4 V1)', () => {
+    const saved = allocationRowsOf([
+      { goalId: 'house', percentage: 45 },
+      { goalId: 'trip', percentage: 20 },
+    ], goals);
+
+    expect(isSplitChanged([saved[0]!, { ...saved[1]!, percent: 25 }], saved)).toBe(true);
   });
 });
 

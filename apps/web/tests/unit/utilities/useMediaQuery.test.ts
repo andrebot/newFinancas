@@ -60,6 +60,7 @@ describe('watchMedia', () => {
     media.flip(false);
 
     expect(onChange).toHaveBeenCalledTimes(1);
+    expect(media.list.addEventListener).toHaveBeenCalledWith('change', onChange);
     expect(media.list.removeEventListener).toHaveBeenCalledWith('change', onChange);
   });
 

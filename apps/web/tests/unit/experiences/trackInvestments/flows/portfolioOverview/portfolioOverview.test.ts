@@ -67,6 +67,19 @@ describe('familySharesOf', () => {
     ]);
   });
 
+  it('puts the largest first whichever order the slices come in (R4 V4)', () => {
+    const slices = [
+      {
+        kind: 'holding' as const, key: 'msft', currency: 'USD' as const, amount: 100,
+      },
+      {
+        kind: 'holding' as const, key: 'aapl', currency: 'USD' as const, amount: 300,
+      },
+    ];
+    const [usd] = familySharesOf(slices, HOLDINGS, 'stock');
+    expect(usd?.shares.map((share) => share.key)).toEqual(['aapl', 'msft']);
+  });
+
   it('keeps to the family and to Holding slices', () => {
     const [brl] = familySharesOf(OVERVIEW.allocations, HOLDINGS, 'fii');
     expect(brl?.shares.map((share) => [share.key, share.percent]))
@@ -110,6 +123,22 @@ describe('accountRowsOf', () => {
         key: 'savings:USD', name: 'Emergency Fund', currency: 'USD', amount: 500000, holdings: 1,
       },
     ]);
+  });
+
+  it('puts R$ first even when smaller, then the largest first (R4 V4)', () => {
+    const slices = [
+      {
+        kind: 'account' as const, key: 'checking', currency: 'USD' as const, amount: 900,
+      },
+      {
+        kind: 'account' as const, key: 'xp', currency: 'BRL' as const, amount: 100,
+      },
+      {
+        kind: 'account' as const, key: 'savings', currency: 'USD' as const, amount: 950,
+      },
+    ];
+    expect(accountRowsOf(slices, INVESTMENT_ACCOUNTS, []).map((row) => row.key))
+      .toEqual(['xp:BRL', 'savings:USD', 'checking:USD']);
   });
 
   it('names an account it doesn\'t know by nothing', () => {

@@ -37,6 +37,15 @@ describe('netWorthTileOf', () => {
       .toEqual({ amount: 3120000, comparedTo: 'ago.' });
   });
 
+  it('compares against the month before the newest of a longer series (R4 V7)', () => {
+    const series = [
+      { month: '2026-07', amount: 1 }, { month: '2026-08', amount: 2 },
+      { month: '2026-09', amount: 3 },
+    ];
+    expect(netWorthTileOf({ ...BRL, series }, translator, formatter).change?.comparedTo)
+      .toBe('Aug');
+  });
+
   it('has no change when the report leaves it out (a first month)', () => {
     const first = { currency: BRL.currency, amount: BRL.amount, series: BRL.series };
     expect(netWorthTileOf(first, translator, formatter).change).toBeUndefined();

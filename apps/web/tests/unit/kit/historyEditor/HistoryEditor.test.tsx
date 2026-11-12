@@ -116,6 +116,15 @@ const expectFocusOn = async (find: () => HTMLElement) => {
   await waitFor(() => expect(document.activeElement).toBe(find()));
 };
 
+/**
+ * Waits for the next animation frame, where the editor hands focus back.
+ *
+ * @returns Once the frame ran.
+ */
+const nextFrame = () => new Promise<void>((resolve) => {
+  requestAnimationFrame(() => resolve());
+});
+
 describe('changeToneOf', () => {
   it('colours a market value\'s rise and fall, never a rate or no change', () => {
     expect(changeToneOf({ unit: 'ratio', amount: 0.1 })).toBe('text-mint');
@@ -182,6 +191,13 @@ describe('HistoryEditor', () => {
   });
 
   describe('the list', () => {
+    it('takes focus only from the editor, never from Tab (R4 V8)', () => {
+      renderEditor();
+
+      expect(screen.getByRole('list', { name: 'Saved values' }).getAttribute('tabindex'))
+        .toBe('-1');
+    });
+
     it('lists the values newest first, each with what it changed', () => {
       renderEditor();
 
@@ -203,6 +219,13 @@ describe('HistoryEditor', () => {
       renderEditor({ entries: RATES, valueKind: { kind: 'rate' } }, 'pt-BR');
 
       expect(screen.getByText('+0,25 p.p.').className).toContain('text-muted');
+    });
+
+    it('adds a reason line only under a locked value (R4 V10)', () => {
+      renderEditor();
+
+      expect(within(rowOf('08/31/2026')).getByText(/110\.000,00/)
+        .parentElement?.childElementCount).toBe(1);
     });
 
     it('names each value\'s buttons by its date', () => {
@@ -360,6 +383,52 @@ describe('HistoryEditor', () => {
       expect(screen.getByText('Date is later than allowed.')).toBeTruthy();
       expect(screen.getByText('Required.')).toBeTruthy();
       await expectFocusOn(() => screen.getByRole('textbox', { name: 'Date' }));
+    });
+
+    it('opens again with no problem shown, and never reloads the page (R4 V5)', () => {
+      const { onSave } = renderEditor();
+      fireEvent.click(button('Edit value of 08/31/2026'));
+      typeInto('Value (R$)', '');
+      expect(fireEvent.submit(button('Save').closest('form') as HTMLFormElement)).toBe(false);
+      expect(screen.getByText('Required.')).toBeTruthy();
+
+      fireEvent.click(button('Cancel'));
+      fireEvent.click(button('Add a past value'));
+
+      expect(screen.queryByText('Required.')).toBeNull();
+      expect(onSave).not.toHaveBeenCalled();
+    });
+
+    it('moves the focus to the field at fault, not only the first (R4 V6)', async () => {
+      renderEditor();
+      fireEvent.click(button('Edit value of 08/31/2026'));
+      typeInto('Value (R$)', '');
+      screen.getByRole('textbox', { name: 'Date' }).focus();
+      fireEvent.click(button('Save'));
+
+      await expectFocusOn(() => screen.getByRole('textbox', { name: 'Value (R$)' }));
+    });
+
+    it('keeps the focus in the form it opened, and takes none on mount (R4 V6)', async () => {
+      renderEditor();
+      await act(nextFrame);
+      expect(document.activeElement).toBe(document.body);
+
+      fireEvent.click(button('Edit value of 08/31/2026'));
+      await act(nextFrame);
+      await act(nextFrame);
+
+      expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'Date' }));
+    });
+
+    it('takes a second value on a day already taken unless told otherwise (R4 V9)', async () => {
+      const { onSave } = renderEditor();
+      fireEvent.click(button('Add a past value'));
+      typeInto('Date', '08/31/2026');
+      typeInto('Value (R$)', '100.000,00');
+      await act(async () => fireEvent.click(button('Save')));
+
+      expect(onSave).toHaveBeenCalledWith({ date: '2026-08-31', value: 10000000 });
     });
 
     it('shows no problem before a save is tried', () => {

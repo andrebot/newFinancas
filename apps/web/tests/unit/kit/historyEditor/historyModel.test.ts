@@ -161,6 +161,10 @@ describe('draftErrorsOf', () => {
     expect(isDraftValid(errors)).toBe(false);
   });
 
+  it('holds back a draft whose only problem is its value (R4 V5)', () => {
+    expect(isDraftValid({ value: { code: 'number.min' } })).toBe(false);
+  });
+
   it('refuses a malformed day and one after today', () => {
     expect(draftErrorsOf({ date: '2026-0-', value: 1 }, contextOf()).date)
       .toEqual({ code: 'string.format', params: { format: 'date' } });

@@ -52,6 +52,19 @@ describe('PayoutThisMonth', () => {
     expect(screen.getByRole('status', { name: "Loading this month's payouts" })).toBeTruthy();
   });
 
+  it('shows one state at a time: placeholders, the empty line or the list (R4 V9)', () => {
+    const { rerenderInLocale } = renderInLocale(
+      <PayoutThisMonth period="September/2026" entries={[]} holdings={HOLDINGS} />,
+    );
+    expect(screen.queryByRole('status')).toBeNull();
+    expect(screen.queryByRole('list')).toBeNull();
+
+    rerenderInLocale(
+      <PayoutThisMonth period="September/2026" entries={undefined} holdings={HOLDINGS} />,
+    );
+    expect(screen.queryByText('No payouts yet this month.')).toBeNull();
+  });
+
   it('says so when nothing came in yet', () => {
     renderInLocale(<PayoutThisMonth period="September/2026" entries={[]} holdings={HOLDINGS} />);
     expect(screen.getByText('No payouts yet this month.')).toBeTruthy();

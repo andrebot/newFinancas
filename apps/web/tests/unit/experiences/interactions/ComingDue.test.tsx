@@ -33,11 +33,30 @@ describe('ComingDue', () => {
     expect(within(tesouro!).getByText(/Tesouro Direto · 2035/)).toBeTruthy();
   });
 
+  it('shows one state at a time: placeholders, the empty line or the list (R4 V9)', () => {
+    const { rerenderInLocale } = renderInLocale(
+      <ComingDue entries={OVERVIEW.comingDue} holdings={HOLDINGS} />,
+    );
+    expect(screen.queryByRole('status')).toBeNull();
+    expect(screen.getAllByRole('listitem')).toHaveLength(2);
+    const lines = screen.getAllByRole('paragraph').map((line) => line.textContent);
+
+    rerenderInLocale(<ComingDue entries={[]} holdings={HOLDINGS} />);
+    expect(screen.queryByRole('list')).toBeNull();
+    const empty = screen.getAllByRole('paragraph').map((line) => line.textContent);
+    expect(empty.filter((line) => !lines.includes(line))).toHaveLength(1);
+
+    rerenderInLocale(<ComingDue entries={undefined} holdings={HOLDINGS} />);
+    expect(screen.getByRole('status')).toBeTruthy();
+    expect(screen.queryByRole('list')).toBeNull();
+  });
+
   it('marks a Holding past its date, not yet redeemed, as overdue in coral', () => {
     const overdue = { ...OVERVIEW.comingDue[1]!, dueDate: '2026-09-15' };
     renderInLocale(<ComingDue entries={[overdue]} holdings={HOLDINGS} />);
     expect(screen.getByText('Overdue').className).toContain('text-coral');
     expect(screen.getByText('Sep').parentElement?.className).toContain('bg-coral/15');
+    expect(screen.getByText('Sep').parentElement?.textContent).toBe('Sep15');
   });
 
   it('keeps a Holding due later plain, by its year', () => {

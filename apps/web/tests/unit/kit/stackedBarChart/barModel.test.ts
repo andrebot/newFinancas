@@ -204,6 +204,12 @@ describe('buildBarsModel', () => {
     expect(model.columns.at(-3)?.labelled).toBe(false);
     expect(model.columns.some((column) => column.labelWide)).toBe(false);
   });
+
+  it('labels every third month of fourteen, counted back from the newest (R4 V9)', () => {
+    const model = buildBarsModel(windowOf(14), [paying('a', 1)], others);
+    expect(model.columns.flatMap((column, index) => (column.labelled ? [index] : [])))
+      .toEqual([1, 4, 7, 10, 13]);
+  });
 });
 
 describe('seriesColors', () => {
