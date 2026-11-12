@@ -7,7 +7,7 @@ import usePayoutSelection from '../usePayoutSelection';
 import {
   useGetInvestmentsOverviewQuery, useGetPayoutsQuery, useListHouseholdHoldingsQuery,
 } from './api';
-import type { PayoutsInput } from '../payoutPanel';
+import type { PayoutChartInput } from '../payoutPanel';
 import type { OverviewRead } from './overviewRead';
 import { overviewReadOf, payoutsReadOf } from './trackInvestments';
 
@@ -55,7 +55,7 @@ export const useOverview = (householdId: string): OverviewState => {
  * @param householdId - The household.
  * @returns What the payout panel takes.
  */
-export const usePayouts = (householdId: string): PayoutsInput => {
+export const usePayouts = (householdId: string): PayoutChartInput => {
   const memory = useMemo(() => safeStorage(
     () => window.localStorage,
     `${portfolio.payoutSelectionStorageKey}.${householdId}`,

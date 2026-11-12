@@ -9,7 +9,8 @@ import { ASSET_FAMILIES, assetFamilyOf, type AssetFamily } from './holdingNames'
 // OQ-233): the chart's series in the $ / R$ switch's currency — never summed
 // across currencies — each named by its Holding's ticker; the newest month's
 // total; the selector's groups by family; and this month's payout per
-// Holding, beside its checkbox. Pure, so it tests without React.
+// Holding, beside its checkbox; and the chart's part of a Flow's props.
+// Pure, so it tests without React.
 
 /** The payouts report, as the Experience's query holds it. */
 export type PayoutsRead = | { readonly status: 'loading' }
@@ -17,7 +18,7 @@ export type PayoutsRead = | { readonly status: 'loading' }
   | { readonly status: 'loaded'; readonly report: PayoutsReport };
 
 /** The payout chart's part of a Flow's props (FL18, FL21). */
-export interface PayoutsInput {
+export interface PayoutChartInput {
   /** The payouts report for the choice. */
   readonly read: PayoutsRead;
   /** The Holdings chosen, as the Experience resolved them. */

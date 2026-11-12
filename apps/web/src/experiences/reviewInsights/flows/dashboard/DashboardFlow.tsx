@@ -6,16 +6,15 @@ import { Card } from '../../../../kit/card/Card';
 import { EmptyState } from '../../../../kit/emptyState/EmptyState';
 import { useI18n } from '../../../../utilities/I18nProvider';
 import useFormatter from '../../../../utilities/useFormatter';
-import useToday from '../../../../utilities/useToday';
 import { balanceCardsOf } from '../../../balanceCards';
 import { ComingDue } from '../../../interactions/ComingDue';
 import { MonthRails, periodLabelOf } from '../../../interactions/MonthRails';
 import { NetWorthCards } from '../../../interactions/NetWorthCards';
 import { PayoutPanel } from '../../../interactions/PayoutPanel';
-import type { PayoutsInput } from '../../../payoutPanel';
+import type { PayoutChartInput } from '../../../payoutPanel';
 
 // The Dashboard Flow (FL21; mockup 20; FR-6.0, OQ-231, OQ-242): the v1
-// Dashboard's fixed panels for the current month — net worth per currency
+// Dashboard's fixed panels for the server's current month — net worth per currency
 // beside what comes due, the payout chart, and the month's Balance, Budget
 // and Goal rails (budgets over-budget first, the report's order). Every
 // panel is an Interaction shared with Track Investments' and Manage
@@ -50,7 +49,8 @@ export interface DashboardFlowProps {
   readonly onRetry: () => void;
   /** Opens Transactions, from the card a household with no Holding sees. */
   readonly onGoToTransactions: () => void;
-  readonly payouts: PayoutsInput;
+  /** The payout chart's choice, its report and its handlers. */
+  readonly payouts: PayoutChartInput;
 }
 
 /** What the panels show: the report and its Holdings, the report unknown while it loads. */
@@ -111,11 +111,14 @@ function NoInvestments({ onGoToTransactions }: Pick<DashboardFlowProps, 'onGoToT
  * @returns The investment panels.
  */
 function InvestmentPanels({ report, holdings, payouts }: LoadedParts & {
-  readonly payouts: PayoutsInput;
+  readonly payouts: PayoutChartInput;
 }) {
   return (
     <>
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+      {/* Coming Due keeps its column even when there are no net worth tiles (PR #171 review). */}
+      <div
+        className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_380px] xl:*:last:col-start-2"
+      >
         <NetWorthCards
           entries={report?.netWorth}
           chartHeightPx={dashboardSettings.netWorthChartHeightPx}
@@ -140,7 +143,7 @@ function InvestmentPanels({ report, holdings, payouts }: LoadedParts & {
 type LoadedDashboard = Extract<DashboardRead, { readonly status: 'loaded' }>;
 
 /**
- * Renders this month's rails: the balances across the page, the budgets
+ * Renders the report's month's rails: the balances across the page, the budgets
  * beside the Goals from `xl` (mockup 20).
  *
  * @param props - The loaded Dashboard; none while it loads.
@@ -149,12 +152,13 @@ type LoadedDashboard = Extract<DashboardRead, { readonly status: 'loaded' }>;
 function DashboardRails({ loaded }: { readonly loaded: LoadedDashboard | undefined }) {
   const translator = useI18n();
   const formatter = useFormatter();
-  const today = useToday();
+  const month = loaded?.report.month;
   return (
     <div className="grid grid-cols-1 gap-6 *:min-w-0 xl:grid-cols-2 xl:*:first:col-span-2">
       <MonthRails
-        period={periodLabelOf(translator, formatter, {
-          year: Number(today.slice(0, 4)), month: Number(today.slice(5, 7)),
+        // The report's month, never the browser's clock (PR #171 review).
+        period={month && periodLabelOf(translator, formatter, {
+          year: Number(month.slice(0, 4)), month: Number(month.slice(5, 7)),
         })}
         content={loaded && {
           balances: balanceCardsOf(loaded.report.balances, loaded.accounts, translator),

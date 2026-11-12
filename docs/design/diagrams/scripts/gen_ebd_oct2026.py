@@ -1223,23 +1223,43 @@ EXP-->>FLOW: ok / failed — a toast either way, K46 / the form answered done / 
 EXP->>API: refetch by tag (rates and Holdings — their expected payouts re-project, OQ-236)
 EXP-->>FLOW: state refreshed
 """, ["Values are × 10,000 on the wire; FormattingUtility shows 10.50%.", "Only an index's latest value feeds projections (FR-11.2), so the hint says that rather than \"re-projects\" (OQ-235).", "A Member changes only the values they recorded; an Owner or Admin any; a Viewer only reads (OQ-178)."]),
-    ("review-insights-dashboard", "Review Insights — Dashboard", f"{R('GET /households/:householdId/dashboard')}, {R('GET /households/:householdId/reports/payouts?holdingIds=')}.",
-     [("PN", "Panels"), ("HS", "Payout Holding Selector"), ("PC", "Payout Chart"), FLOW("Dashboard"), EXP("Review Insights"), API],
+    ("review-insights-dashboard", "Review Insights — Dashboard", f"{R('GET /households/:householdId/dashboard')} with {R('GET /households/:householdId/holdings?includeArchived=true')} and {R('GET /households/:householdId/accounts')}; {R('GET /households/:householdId/reports/payouts?holdingIds=')} (OQ-242).",
+     [("PN", "Net Worth / Coming Due /<br/>Month Rails"), ("HS", "Payout Holding Selector"), ("PC", "Payout Chart"), FLOW("Dashboard"), EXP("Review Insights"), API],
      """
 FLOW->>EXP: request dashboard
+par the Dashboard and what names it
 EXP->>API: GET /households/:householdId/dashboard
-API-->>EXP: fixed panels
+API-->>EXP: month, net worth + change, coming due, balances, budgets (over-budget first), active Goals
+EXP->>API: GET /households/:householdId/holdings?includeArchived=true
+API-->>EXP: every visible Holding: ticker, type, account
+EXP->>API: GET /households/:householdId/accounts
+API-->>EXP: accounts with their cards
+end
+alt all three loaded
+EXP-->>FLOW: state (report + Holdings, accounts)
+FLOW-->>PN: render net worth beside coming due, then the report month's rails
+else no Holding at all
+FLOW-->>PN: one card in place of net worth, coming due and the payout chart — "Go to Transactions", the rails as always
+User->>FLOW: Go to Transactions
+FLOW->>EXP: emit goToTransactions
+EXP-->>User: navigate to Transactions
+else failed
+EXP-->>FLOW: failed
+FLOW-->>PN: banner "Couldn't load your dashboard" + Try again, in place of every panel
+end
+FLOW->>EXP: request payouts(remembered choice — "all" the first time)
+EXP->>API: GET /households/:householdId/reports/payouts?months=12 (no holdingIds for "all" — a list waits for the Holdings)
+API-->>EXP: series per Holding and currency
 EXP-->>FLOW: state
-FLOW-->>PN: render net worth, coming due, rails (over-budget first)
-FLOW-->>PC: render payouts
-User->>HS: change holdings
+FLOW-->>PC: render the $ / R$ switch's currency: top 5 + Others
+User->>HS: search, family presets, check holdings
 HS->>FLOW: emit holdingsSelected
-FLOW->>EXP: request payouts(selected)
+FLOW->>EXP: request payouts(selected), remembered per household
 EXP->>API: GET /households/:householdId/reports/payouts?months=12&holdingIds=a,b (comma-joined)
 API-->>EXP: series
 EXP-->>FLOW: state
-FLOW-->>PC: re-render
-""", ["Widgets are v3, reports v2."]),
+FLOW-->>PC: re-render (only the chart refetches)
+""", ["Widgets are v3, reports v2. The page header (title, the month chip) is the Experience's (X8).", "OQ-242: the rails are titled with the report's `month`, never the browser's clock. The report's optional `payouts` block is X8's to use or drop; the chart reads `reports/payouts` with the remembered choice.", "The Dashboard sends no payout this month, so the selector's rows show no amount."]),
     ("app-shell-notification-routing", "App Shell — Notification Routing", f"{R('GET /notifications')}, {R('POST /notifications/seen')}, {R('DELETE /notifications/:id')} + the owning Experience's own endpoint.",
      [("BELL", "Notification Inbox<br/>(Review Insights)"), ("SHELL", "App Shell"), ("MP", "Manage Profile<br/>Experience"), ("TI", "Track Investments<br/>Experience"), API],
      """

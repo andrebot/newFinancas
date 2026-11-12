@@ -35,8 +35,8 @@ export interface MonthRailsContent {
 
 /** The rails' props. */
 export interface MonthRailsProps {
-  /** The month shown, already formatted, e.g. "September/2026". */
-  readonly period: string;
+  /** The month shown, already formatted, e.g. "September/2026"; unknown while it loads. */
+  readonly period: string | undefined;
   /** The month's cards; until then, placeholder cards. */
   readonly content: MonthRailsContent | undefined;
 }

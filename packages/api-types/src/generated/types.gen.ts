@@ -750,9 +750,13 @@ export type CardTransaction = {
 };
 
 /**
- * FR-6.0 — the v1 Dashboard's fixed panels for the current month: the investments overview's net worth and coming due, the last 12 months of payouts of every Holding, and the month's balances, budgets (over-budget first) and active Goals. Every field is required (OQ-242, pulled forward from task X8).
+ * FR-6.0 — the v1 Dashboard's fixed panels for the current month: the investments overview's net worth and coming due, and the month's balances, budgets (over-budget first) and active Goals (OQ-242, pulled forward from task X8).
  */
 export type DashboardReport = {
+    /**
+     * The month the panels are for, the server's current month: what the app titles them with, never the browser's clock (OQ-242)
+     */
+    month: string;
     /**
      * One entry per currency the visible Holdings held value in, never summed (FR-5.3): the Holdings' value — a market-priced one's latest snapshot, a fixed-term one's cost basis (FR-5.4, OQ-51) — not account balances (OQ-236)
      */
@@ -781,7 +785,10 @@ export type DashboardReport = {
         currency: Currency;
         amount: Money;
     }>;
-    payouts: PayoutsReport;
+    /**
+     * The last 12 months of payouts of every Holding. Optional: the payout chart reads `reports/payouts` with the user's remembered choice; task X8 decides whether to send and use this block when that choice is every Holding (OQ-242)
+     */
+    payouts?: PayoutsReport;
     /**
      * Each visible Account open at the month's end (one archived later included, OQ-206) with its balance then, and each of its cards' outstanding balance at the month's end (OQ-201). A credit_card_only Account's own row never moves; the app shows its cards' sum (OQ-175, OQ-221)
      */

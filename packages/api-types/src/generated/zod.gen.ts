@@ -927,9 +927,10 @@ export const zPayoutsReport = z.object({
 });
 
 /**
- * FR-6.0 — the v1 Dashboard's fixed panels for the current month: the investments overview's net worth and coming due, the last 12 months of payouts of every Holding, and the month's balances, budgets (over-budget first) and active Goals. Every field is required (OQ-242, pulled forward from task X8).
+ * FR-6.0 — the v1 Dashboard's fixed panels for the current month: the investments overview's net worth and coming due, and the month's balances, budgets (over-budget first) and active Goals (OQ-242, pulled forward from task X8).
  */
 export const zDashboardReport = z.object({
+    month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
     netWorth: z.array(z.object({
         currency: zCurrency,
         amount: zMoney,
@@ -946,7 +947,7 @@ export const zDashboardReport = z.object({
         currency: zCurrency,
         amount: zMoney
     })),
-    payouts: zPayoutsReport,
+    payouts: zPayoutsReport.optional(),
     balances: z.array(z.object({
         accountId: z.uuid(),
         creditCardId: z.uuid().nullable(),

@@ -11,7 +11,7 @@ import { ComingDue } from '../../../interactions/ComingDue';
 import { periodLabelOf } from '../../../interactions/MonthRails';
 import { NetWorthCards } from '../../../interactions/NetWorthCards';
 import { PayoutPanel } from '../../../interactions/PayoutPanel';
-import type { PayoutsInput } from '../../../payoutPanel';
+import type { PayoutChartInput } from '../../../payoutPanel';
 import type { OverviewRead } from '../../overviewRead';
 import {
   AccountAllocation, FamilyAllocation, GoalFunding, TypeAllocation,
@@ -43,7 +43,7 @@ export interface PortfolioOverviewFlowProps {
   readonly accounts: readonly Account[];
   /** The active Goals with their progress; unknown while they load. */
   readonly goals: readonly GoalWithProgress[] | undefined;
-  readonly payouts: PayoutsInput;
+  readonly payouts: PayoutChartInput;
 }
 
 /**
@@ -80,7 +80,7 @@ interface LoadedParts {
  * @returns The row.
  */
 function PayoutsRow({ report, holdings, payouts }: LoadedParts & {
-  readonly payouts: PayoutsInput;
+  readonly payouts: PayoutChartInput;
 }) {
   const translator = useI18n();
   const formatter = useFormatter();

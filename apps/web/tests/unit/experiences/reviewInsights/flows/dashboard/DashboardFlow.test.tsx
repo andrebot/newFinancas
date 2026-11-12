@@ -21,7 +21,8 @@ import { HOLDINGS, OVERVIEW, PAYOUTS } from '../../../portfolioFixtures';
 // payout chart's choice passed through; the Experience's reads and handlers
 // are the props it is handed. The translator, the kit's banner, empty state
 // and button, `periodLabelOf` and `balanceCardsOf` stay real; the clock is
-// fixed on 20 September 2026.
+// fixed on 1 October 2026, a month past the report's, to show the rails
+// take the report's month.
 
 vi.mock('../../../../../../src/experiences/interactions/NetWorthCards', () => ({
   /**
@@ -97,7 +98,7 @@ vi.mock('../../../../../../src/experiences/interactions/MonthRails', async (impo
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
-  vi.setSystemTime(new Date(2026, 8, 20, 12, 0, 0));
+  vi.setSystemTime(new Date(2026, 9, 1, 0, 30, 0));
 });
 
 afterEach(() => {
@@ -109,6 +110,7 @@ const MEMORY: PreferenceStorage = { read: () => null, write: vi.fn() };
 
 /** A Dashboard drawn from the overview's and the month's fixtures. */
 const DASHBOARD: DashboardReport = {
+  month: '2026-09',
   netWorth: OVERVIEW.netWorth,
   comingDue: OVERVIEW.comingDue,
   payouts: PAYOUTS,
@@ -174,7 +176,7 @@ describe('DashboardFlow', () => {
     expect(dataOf('payout-panel', 'this-month')).toBe('none');
   });
 
-  it('hands the rails this month, the balances named by their accounts, budgets and Goals', () => {
+  it('titles the rails by the report\'s month, with its balances, budgets and Goals', () => {
     renderFlow();
     expect(dataOf('rails', 'period')).toBe('September/2026');
     expect(dataOf('rails', 'balances')).toBe('Itaú Conta, Visa •••• 1111, Emergency Fund, Nubank');
@@ -212,6 +214,7 @@ describe('DashboardFlow', () => {
     expect(dataOf('coming-due', 'entries')).toBe('loading');
     expect(dataOf('payout-panel', 'holdings')).toBe('0');
     expect(dataOf('rails', 'balances')).toBe('loading');
+    expect(screen.getByTestId('rails').hasAttribute('data-period')).toBe(false);
     expect(screen.queryByText('No investments yet')).toBeNull();
   });
 
@@ -251,6 +254,34 @@ describe('DashboardFlow', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Go to Transactions' }));
     expect(onGoToTransactions).toHaveBeenCalledOnce();
+  });
+
+  it('keeps Coming Due in its own column, with or without net worth tiles', () => {
+    renderFlow();
+    expect(screen.getByTestId('coming-due').parentElement?.className)
+      .toContain('xl:*:last:col-start-2');
+  });
+
+  it('writes the no-Holding card in pt-BR', () => {
+    renderInLocale(
+      <DashboardFlow
+        dashboard={{
+          status: 'loaded', report: DASHBOARD, holdings: [], accounts: ACCOUNTS,
+        }}
+        onRetry={vi.fn()}
+        onGoToTransactions={vi.fn()}
+        payouts={{
+          read: { status: 'loading' },
+          chosen: [],
+          onChosenChange: vi.fn(),
+          onRetry: vi.fn(),
+          currencyMemory: MEMORY,
+        }}
+      />,
+      'pt-BR',
+    );
+    expect(screen.getByText('Nenhum investimento ainda')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Ir para Transações' })).toBeTruthy();
   });
 
   it('writes the Dashboard\'s texts in pt-BR', () => {

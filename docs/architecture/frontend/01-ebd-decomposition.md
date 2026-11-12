@@ -172,9 +172,9 @@ Diagram: `docs/design/diagrams/ebd-tiers/app-shell.html`; sequence:
 | Flow | Interactions | Sequence |
 |---|---|---|
 | Dashboard | Net Worth Cards, Coming Due, Payout Holding Selector, Payout Chart, Balance / Budget / Goal Rails | `docs/design/diagrams/ebd-sequences/review-insights-dashboard.html` |
-
-**OQ-242 (FL21):** `experiences/reviewInsights/flows/dashboard/DashboardFlow.tsx` composes the Interactions shared with Track Investments (Net Worth Cards, Coming Due, the payout panel) and Manage Finances (Month Rails). It shows the current month and takes the Dashboard with the household's Holdings and accounts, plus the payout chart's input as FL18 does. A household with no Holding sees one card pointing to Transactions in place of the investment panels.
 | *(standalone)* | Export Audit Log, Notification Inbox | — |
+
+**OQ-242 (FL21):** `experiences/reviewInsights/flows/dashboard/DashboardFlow.tsx` composes the Interactions shared with Track Investments (Net Worth Cards, Coming Due, the payout panel) and Manage Finances (Month Rails). It shows the report's month and takes the Dashboard with the household's Holdings and accounts, plus the payout chart's input as FL18 does. A household with no Holding sees one card pointing to Transactions in place of the investment panels.
 
 **Utilities:** AlertUtility, ThemeUtility, I18nUtility, FormattingUtility. Tier diagram: `docs/design/diagrams/ebd-tiers/review-insights.html`.
 
