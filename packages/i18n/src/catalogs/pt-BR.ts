@@ -922,6 +922,13 @@ const ptBR = {
     failed: 'Não foi possível carregar seus investimentos.',
     retry: 'Tentar de novo',
   },
+  dashboard: {
+    failed: 'Não foi possível carregar seu painel.',
+    retry: 'Tentar de novo',
+    'empty.title': 'Nenhum investimento ainda',
+    'empty.description': 'Patrimônio, proventos e vencimentos aparecem aqui quando você registrar uma compra de investimento em Transações.',
+    'empty.action': 'Ir para Transações',
+  },
   portfolioOverview: {
     failed: 'Não foi possível carregar seus investimentos.',
     retry: 'Tentar de novo',

@@ -907,6 +907,13 @@ const enUS: Catalog = {
     failed: "Couldn't load your investments.",
     retry: 'Try again',
   },
+  dashboard: {
+    failed: "Couldn't load your dashboard.",
+    retry: 'Try again',
+    'empty.title': 'No investments yet',
+    'empty.description': 'Net worth, payouts and what comes due show here once you record an investment buy in Transactions.',
+    'empty.action': 'Go to Transactions',
+  },
   portfolioOverview: {
     failed: "Couldn't load your investments.",
     retry: 'Try again',

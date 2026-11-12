@@ -7,7 +7,7 @@ import usePayoutSelection from '../usePayoutSelection';
 import {
   useGetInvestmentsOverviewQuery, useGetPayoutsQuery, useListHouseholdHoldingsQuery,
 } from './api';
-import type { PayoutsInput } from './flows/portfolioOverview/PortfolioOverviewFlow';
+import type { PayoutsInput } from '../payoutPanel';
 import type { OverviewRead } from './overviewRead';
 import { overviewReadOf, payoutsReadOf } from './trackInvestments';
 

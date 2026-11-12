@@ -1793,21 +1793,7 @@ paths:
           description: OK
           content:
             application/json:
-              schema:
-                type: object
-                properties:
-                  netWorth:
-                    $ref: '#/components/schemas/InvestmentsOverviewReport/properties/netWorth'
-                  comingDue:
-                    $ref: '#/components/schemas/InvestmentsOverviewReport/properties/comingDue'
-                  payouts:
-                    $ref: '#/components/schemas/PayoutsReport'
-                  balances:
-                    $ref: '#/components/schemas/MonthOverviewReport/properties/balances'
-                  budgets:
-                    $ref: '#/components/schemas/MonthOverviewReport/properties/budgets'
-                  goals:
-                    $ref: '#/components/schemas/MonthOverviewReport/properties/goals'
+              schema: { $ref: "#/components/schemas/DashboardReport" }
 
   /households/{householdId}/dashboard/widgets:
     parameters:
@@ -3426,6 +3412,29 @@ components:
             - card
 
     # ---------------------------------------------------- insights
+    DashboardReport:
+      type: object
+      description: >-
+        FR-6.0 — the v1 Dashboard's fixed panels for the current month: the
+        investments overview's net worth and coming due, the last 12 months
+        of payouts of every Holding, and the month's balances, budgets
+        (over-budget first) and active Goals. Every field is required
+        (OQ-242, pulled forward from task X8).
+      required: [netWorth, comingDue, payouts, balances, budgets, goals]
+      properties:
+        netWorth:
+          $ref: '#/components/schemas/InvestmentsOverviewReport/properties/netWorth'
+        comingDue:
+          $ref: '#/components/schemas/InvestmentsOverviewReport/properties/comingDue'
+        payouts:
+          $ref: '#/components/schemas/PayoutsReport'
+        balances:
+          $ref: '#/components/schemas/MonthOverviewReport/properties/balances'
+        budgets:
+          $ref: '#/components/schemas/MonthOverviewReport/properties/budgets'
+        goals:
+          $ref: '#/components/schemas/MonthOverviewReport/properties/goals'
+
     DashboardWidget:
       type: object
       properties:

@@ -2,6 +2,7 @@ import type {
   Currency, InvestmentHolding, InvestmentsOverviewReport, PayoutsReport,
 } from '@financas/api-types';
 import type { BarSeries } from '../kit/stackedBarChart/StackedBarChart';
+import type { PreferenceStorage } from '../utilities/safeStorage';
 import { ASSET_FAMILIES, assetFamilyOf, type AssetFamily } from './holdingNames';
 
 // What the payout panel reads (FL18, FL21; mockups 20, 50; FR-5.9, OQ-230,
@@ -14,6 +15,20 @@ import { ASSET_FAMILIES, assetFamilyOf, type AssetFamily } from './holdingNames'
 export type PayoutsRead = | { readonly status: 'loading' }
   | { readonly status: 'failed' }
   | { readonly status: 'loaded'; readonly report: PayoutsReport };
+
+/** The payout chart's part of a Flow's props (FL18, FL21). */
+export interface PayoutsInput {
+  /** The payouts report for the choice. */
+  readonly read: PayoutsRead;
+  /** The Holdings chosen, as the Experience resolved them. */
+  readonly chosen: readonly string[];
+  /** Emits a new choice. */
+  readonly onChosenChange: (ids: readonly string[]) => void;
+  /** Asks for the payouts again after they failed. */
+  readonly onRetry: () => void;
+  /** Where the chart's $ / R$ pick is remembered. */
+  readonly currencyMemory: PreferenceStorage;
+}
 
 /** One dividend or interest transaction this month, as the overview sends it. */
 export type PayoutThisMonthEntry = InvestmentsOverviewReport['payoutThisMonth'][number];
