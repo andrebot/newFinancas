@@ -5,16 +5,17 @@ import {
   accountNamed, isoDay, monthOverview, monthStart, recordTransaction,
 } from '../support/financeApi';
 import { createHousehold, registerUser } from '../support/identityApi';
+import { dashboard } from '../support/insightsApi';
 import brl from '../support/money';
 import { signInThroughUi } from '../support/signIn';
 import text from '../support/text';
 
 // I9 — Record Transaction (FL15) and Month Overview (FL17), in Manage
-// Finances (X6), against the real API: Core E2E journey #5 up to the Month
-// Overview — an expense recorded in the browser accrues on the Budget that
-// claims its Category and moves its account's balance, nothing mocked. The
-// Dashboard's half joins with I11 (OQ-201 F14). And the Month Overview per
-// period (Full E2E): the period bar moves the figures, the ledger stays whole.
+// Finances (X6), against the real API: Core E2E journey #5 — an expense
+// recorded in the browser accrues on the Budget that claims its Category and
+// moves its account's balance, nothing mocked, and the Dashboard (X8) shows
+// both (I11, OQ-201 F14). And the Month Overview per period (Full E2E): the
+// period bar moves the figures, the ledger stays whole.
 
 /**
  * The figure a Month Overview summary shows under one of its terms.
@@ -27,7 +28,7 @@ const figure = (page: Page, term: string) => (
   page.locator('dt', { hasText: new RegExp(`^${term}$`) }).locator('xpath=following-sibling::dd[1]')
 );
 
-test('an expense recorded in the browser accrues on its Budget and moves the balance', {
+test('an expense recorded in the browser reaches its Budget, the balance and the Dashboard', {
   tag: '@core',
 }, async ({ page, request }) => {
   const owner = await registerUser(request, { firstName: 'Eva', lastName: 'Expenses' });
@@ -63,6 +64,21 @@ test('an expense recorded in the browser accrues on its Budget and moves the bal
     budgetId: budget.id, spendAmount: 4550,
   })]);
   expect(overview.balances).toContainEqual(expect.objectContaining({
+    accountId: account.id, creditCardId: null, amount: -4550,
+  }));
+
+  // The Dashboard's rails show the same month (I11).
+  await page.goto('/');
+  const dashboardBudgets = page.getByRole('region', { name: text('monthRails', 'budgets') });
+  await expect(dashboardBudgets)
+    .toContainText(text('railCard', 'budget.left', { amount: brl(95_450) }));
+  const dashboardBalances = page.getByRole('region', { name: text('monthRails', 'balances') });
+  await expect(dashboardBalances).toContainText(brl(-4550));
+  const report = await dashboard(request, owner, household.id);
+  expect(report.budgets).toEqual([expect.objectContaining({
+    budgetId: budget.id, spendAmount: 4550,
+  })]);
+  expect(report.balances).toContainEqual(expect.objectContaining({
     accountId: account.id, creditCardId: null, amount: -4550,
   }));
 });

@@ -4,6 +4,7 @@ import {
   accountNamed, getAccount, isoDay, recordTransaction,
 } from './support/financeApi';
 import { createHousehold, registerUser, signInThroughApi } from './support/identityApi';
+import { dashboard } from './support/insightsApi';
 
 // Smoke (BDT plan): is the system fundamentally wired — not business rules.
 // Run on every PR.
@@ -20,6 +21,17 @@ test('api health endpoint is up', { tag: '@smoke' }, async ({ request }) => {
 
   expect(response.ok()).toBe(true);
   expect(await response.json()).toEqual({ status: 'ok' });
+});
+
+test('a new household\'s Dashboard answers', { tag: '@smoke' }, async ({ request }) => {
+  const user = await registerUser(request, { firstName: 'Dot', lastName: 'Smoke' });
+  const household = await createHousehold(request, user, 'Smoke Dashboard');
+
+  // dashboard fails on any non-2xx answer (I11): the Insights wiring, end to end.
+  const report = await dashboard(request, user, household.id);
+
+  expect(report.month).toMatch(/^\d{4}-\d{2}$/);
+  expect(report.balances).toHaveLength(1);
 });
 
 test('registering returns an MFA enrollment whose first code opens a session', {

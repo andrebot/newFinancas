@@ -7469,6 +7469,68 @@ forward with all the next phases"), from the review in
 
 **Task 139 (`X8`) is complete.**
 
+### OQ-244: The insights seam, end to end (task I11)
+**Confirmed with the stakeholder (Nov 2026):**
+- **Notification list/delete (Full E2E) is I11's**, not I12's: the inbox is
+  InsightsManager's; I12 keeps the bell's routing to other Experiences
+  (core #13's Archive, #14's Accept).
+- **I11 adds a Full E2E for the Dashboard's investment panels** (uc-01 View
+  Dashboard), so the `dashboard` report gets its one real run beyond core #5's
+  rails.
+
+**Design decisions** (following I8's method, OQ-200 — arranged and checked
+through the API, the browser does only the journey; helpers in
+`tests/e2e/support/insightsApi.ts`, `revokeInvitation` in `identityApi.ts`):
+- **Smoke #5** (`smoke.spec.ts`, API only): a new household's
+  `GET /households/{id}/dashboard` answers, with the month and its one balance.
+- **Core #5 `@core`, now whole** (`finances/monthOverview.spec.ts`, one journey
+  so one test): after the expense, the Dashboard's Budget and Balance rails
+  show it, and the `dashboard` report agrees.
+- **Core #12 `@core`** (`insights/auditExport.spec.ts`): **the drawer offers a
+  Viewer no export, so the 403 (`auth.forbidden`) is asked for through the
+  API** — the browser checks only that the option is absent. The Owner
+  exports through the drawer's dialog: a 440px card centred in the viewport,
+  the topmost element over the header the scrim (OQ-241; the header is found
+  by its tag, since the modal hides the page from the accessibility tree).
+  Last 30 days downloads `audit-log-<start>-<end>.csv`, byte-for-byte the API's
+  export for those days, holding `CreateHousehold`, `InviteUser` and the
+  Viewer's `AcceptInvitation`. The audit sink stores in the background
+  (OQ-110), so the journey polls the export for the last setup entry first.
+- **Notification list/delete** (`insights/notificationInbox.spec.ts`,
+  untagged): an invitation revoked before its answer; the invitee — given a
+  household of their own, since Household Setup has no bell — sees "1 unseen",
+  opens the bell on "This invitation is no longer open." with no Accept or
+  Decline, the notice marked seen on the server; reopened it reads "Seen ·",
+  the count gone; Delete empties the inbox and `GET /notifications`.
+- **The Dashboard's investment panels** (`insights/dashboard.spec.ts`,
+  untagged): a CDB and two dividend-paying stocks; TAEE11 left out of the
+  payout chart on Investments, the Dashboard asks `reports/payouts` for the
+  same `holdingIds` and draws only those (OQ-243); net worth R$ 15,000.00 (the
+  Holdings' value) and Coming Due the CDB at its R$ 10,000.00 principal, as the
+  report gives them (OQ-236).
+- **No diagram changes:** I11 adds tests only; no call, route, code or step moved.
+
+- **PR #173 review (an independent reviewer; all fixed):**
+  1. The Viewer's "no export" check passed with the drawer closed: the drawer
+     is now waited for, its Sign out shown, before the absences are checked.
+  2. "Last 30 days" was never checked — the dates came back from the file's
+     name: the file is now `audit-log-<29 days ago>-<today>.csv` (the kit's
+     `lastDays`, both ends included).
+  3. "Marked seen on the server" passed on an empty list: the poll now wants
+     exactly one notice with a `seenAt`.
+  4. The payout legend, the payout panel, the net-worth card and the
+     dividend-paying stock moved to `support/locators.ts` and
+     `support/investmentsApi.ts` (`stockPaying`), shared with
+     `payoutSelection.spec.ts` and `portfolioOverview.spec.ts`.
+  5. The export's setup polls today alone: the runner, the browser and the API
+     share São Paulo's calendar (`playwright.config.ts`), so the comment
+     claiming otherwise is gone.
+  6. Patterns built from catalog text are escaped (`startingWith`).
+  7. A section's heading must start with its title, not merely hold it — not
+     exact, since a SectionHeader's hint sits inside the heading.
+
+**Task 140 (`I11`) is complete.**
+
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
 *(None currently — OQ-29, the last item here, was resolved during data

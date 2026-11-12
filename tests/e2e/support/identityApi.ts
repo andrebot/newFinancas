@@ -331,3 +331,23 @@ export const listMembers = async (
   );
   return members.data ?? [];
 };
+
+/**
+ * Revokes a pending invitation, as Manage Household would.
+ *
+ * @param request - Playwright's API client.
+ * @param inviter - An Owner or Admin of the household.
+ * @param householdId - The household.
+ * @param invitationId - The invitation.
+ * @returns Resolves once it is revoked.
+ */
+export const revokeInvitation = async (
+  request: APIRequestContext,
+  inviter: TestUser,
+  householdId: string,
+  invitationId: string,
+): Promise<void> => {
+  await send(request, 'DELETE', `/households/${householdId}/invitations/${invitationId}`, {
+    accessToken: inviter.accessToken,
+  });
+};

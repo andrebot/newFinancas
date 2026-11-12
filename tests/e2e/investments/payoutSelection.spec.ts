@@ -1,10 +1,8 @@
-import {
-  expect, test, type Locator, type Page,
-} from '@playwright/test';
-import {
-  UNIT, accountNamed, isoDay, monthStart, recordTransaction,
-} from '../support/financeApi';
+import { expect, test } from '@playwright/test';
+import { accountNamed } from '../support/financeApi';
 import { createHousehold, registerUser } from '../support/identityApi';
+import { stockPaying } from '../support/investmentsApi';
+import { legendEntry, payoutPanel } from '../support/locators';
 import { signInThroughUi } from '../support/signIn';
 import text from '../support/text';
 
@@ -15,60 +13,18 @@ import text from '../support/text';
 // chosen, and the choice is kept across a reload (the per-household storage is
 // usePayoutSelection's unit tests').
 
-/**
- * A holding's entry in the payout chart's legend: a list item holding just its
- * ticker (the chart's own table and the holdings picker hold no list items).
- *
- * @param panel - The payout panel.
- * @param ticker - The holding's ticker.
- * @returns The entry.
- */
-const legendEntry = (panel: Locator, ticker: string) => (
-  panel.getByRole('listitem').filter({ hasText: new RegExp(`^${ticker}$`) })
-);
-
-/**
- * The payout panel: the section its heading opens.
- *
- * @param page - The browser page.
- * @returns The panel.
- */
-const payoutPanel = (page: Page) => page.locator('section', {
-  has: page.getByRole('heading', { name: text('payoutPanel', 'title') }),
-});
-
 test('the payout chart draws only the holdings chosen, and remembers them', async ({
   page, request,
 }) => {
   const owner = await registerUser(request, { firstName: 'Paulo', lastName: 'Payout' });
   const household = await createHousehold(request, owner, 'Payout Home');
   const account = await accountNamed(request, owner, household.id, 'Main Checking');
-  /** Buys a stock two months ago and records a dividend in each month since, one at a time. */
-  const stockPaying = async (ticker: string, dividend: number) => {
-    const buy = await recordTransaction(request, owner, household.id, {
-      kind: 'investment_buy',
-      accountId: account.id,
-      date: isoDay(monthStart(-2)),
-      amount: 250_000,
-      currency: 'BRL',
-      assetType: 'stock',
-      ticker,
-      quantity: 25 * UNIT,
-    });
-    const dividendOn = (date: Date) => recordTransaction(request, owner, household.id, {
-      kind: 'investment_dividend',
-      accountId: account.id,
-      date: isoDay(date),
-      amount: dividend,
-      currency: 'BRL',
-      holdingId: buy.holdingId!,
-    });
-    await dividendOn(monthStart(-1));
-    await dividendOn(new Date());
-    return buy.holdingId!;
-  };
-  const itsa = await stockPaying('ITSA4', 1_250);
-  await stockPaying('TAEE11', 2_100);
+  const itsa = await stockPaying(request, owner, household.id, {
+    accountId: account.id, ticker: 'ITSA4', dividend: 1_250,
+  });
+  await stockPaying(request, owner, household.id, {
+    accountId: account.id, ticker: 'TAEE11', dividend: 2_100,
+  });
 
   await signInThroughUi(page, owner);
   await page.goto('/investments');
