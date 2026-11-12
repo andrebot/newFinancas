@@ -3641,7 +3641,7 @@ not a hardcoded assumption.
     Delete User cascade).** Until then the API has no route for it and
     answers 404 `route.not_found`, which the Flow shows in its banner as
     "Not found.", the email kept, as OQ-151 places a failure. Task 142
-    (`I13`) checks the deletion end to end.
+    (`I13`) checks the deletion end to end. *Built in task 136 (OQ-240).*
 - **Contract fix:** `User`, `Session`, `ReceivedInvitation` and
   `MyHousehold.role` now list the fields the API always sends as required.
   The generated types had them all optional.
@@ -3828,7 +3828,7 @@ not a hardcoded assumption.
   task 136 (`M1D`), in slice 5. The page offered an action that failed.
   - Manage Profile takes a `deleteAccount` setting, defaulting to
     `profile.deleteAccount` in the web's `config/constants.ts` (off). Task
-    136 turns it on.
+    136 turns it on. *On since OQ-240.*
   - **A contract-routes check** (`apps/api/tests/integration/
     contractRoutes.test.ts`) compares `openapi.yaml` with the routes the
     API mounts: every operation is routed or listed as still on the plan
@@ -4001,7 +4001,8 @@ not a hardcoded assumption.
   NULL).
 - **Not here yet:** Delete User's cascade (personal Budgets deleted, shared
   ones' owner cleared) waits for `M1D` (task 136), like the other
-  Accessors.
+  Accessors. *Done: `forgetUser`, which also deletes a personal Budget's
+  periods, OQ-240.*
 - **Amended (PR #145, stakeholder report): a Budget counts the spend
   already recorded in its first month.** A spend accrues as it is
   written, so a Budget created mid-month missed the month's earlier
@@ -4098,7 +4099,7 @@ not a hardcoded assumption.
   personal ones, soonest due first, unpaginated as `GET /goals` is — and
   `listAllocations({ holdingId } | { goalIds })`.
 - **Deleting a user's Goals** (cascade personal, null `owner_user_id` on
-  shared) ships with `M1D`.
+  shared) ships with `M1D`. *Done: `forgetUser`, OQ-240.*
 
 ### OQ-169: AccountAccessor (task A5)
 **Confirmed with the stakeholder (Oct 2026):**
@@ -4195,7 +4196,7 @@ not a hardcoded assumption.
 - `CalendarMonth`/`monthOf` moved out of BudgetAccessor into
   `accessors/calendarMonth.ts`, shared by both month-row Accessors.
 - **Deleting a user's Accounts** (cascade personal, null `owner_user_id`
-  on shared — FR-1.17) ships with `M1D`.
+  on shared — FR-1.17) ships with `M1D`. *Done: `forgetUser`, OQ-240.*
 
 ### OQ-170: CreditCardAccessor (task A6)
 **Confirmed with the stakeholder (Oct 2026):**
@@ -7175,6 +7176,53 @@ forward with all the next phases"), from the review in
   Dialog-based forms are the likely trigger).
 
 **Gate R4 is complete.**
+
+### OQ-240: Delete User cascade, and the erasure on leaving (task M1D)
+**Confirmed with the stakeholder (Nov 2026):**
+- **"Personal" stays household-scoped.** A personal Account, Budget or Goal
+  is visible only to its owner *within its household* (FR-2.3/4.2/8.1); a
+  user in two households has two sets. Weighed and rejected: user-level
+  ("global") personal Goals — a Goal is funded only by Holdings, which live
+  in a household's Accounts, so it would follow the user out empty.
+- **One erasure, two triggers** (02-data-model.md's trigger equivalence,
+  until now unbuilt): Leave Household and Remove Member erase the member's
+  finances in that household; Delete User erases them everywhere — households
+  left before this task included — and then the user. Personal rows are
+  deleted; shared rows stay, no longer naming the user (FR-1.17, OQ-25).
+- **Each Accessor holding a user's rows has `forgetUser({userId,
+  householdId?})`** (`accessors/erasureScope.ts`), run by IdentityManager in
+  an order the foreign keys accept: AccountTransactionAccessor,
+  CardTransactionAccessor, GoalAccessor, BudgetAccessor, AccountAccessor,
+  IndexRateAccessor, InvitationAccessor. Holdings, cards, snapshots,
+  schedule entries, allocations, sessions, MFA codes, reset tokens and
+  notifications go by FK cascade — no `InvestmentHoldingAccessor` or
+  `SessionAccessor` call, unlike the design-time sequence. A pending
+  invitation the user sent still stands, unnamed.
+- **A transfer pair losing a side becomes a lone movement.** The side left
+  on a remaining Account gets no `transfer_id` and `effect = movement` — a
+  transfer recorded alone (FR-3.6) — so no edit or delete looks for a gone
+  partner.
+- **A personal Budget's periods are deleted with it** — history only its
+  owner could see. A Budget's own delete still keeps them (FR-4.10).
+- **Atomicity: departures, then one erasure.** Delete User departs each
+  household first (Leave's succession and retries, OQ-107), each committing
+  on its own; then the erasure and `UserAccessor.delete` run in one
+  transaction (UnitOfWorkUtility, OQ-175 — `IdentityDeps.inErasure`), whole
+  or not at all. A row still naming the user (`still_referenced`, the
+  database's rule-B safety net) rolls it back as a 500. Leave and Remove
+  Member erase in one transaction *before* the membership ends, so a
+  departure that fails (409) is simply retried. A membership gone between
+  attempts (removed meanwhile) ends the departure unaudited. This settles
+  the BDT plan's Option A/B question for the erasure without a load test.
+- **`DELETE /users/me` documents 409 `household.changed`** — contention, not
+  a refusal: nothing was erased and a retry finishes the deletion. The 500
+  stays implicit, as on every route.
+- **The Leave and Remove Member copy says what goes** (pt-BR and en-US):
+  `leave.member`, `leave.successor` and `remove.message` name the personal
+  accounts, budgets and goals deleted; `leave.last` already says the
+  household goes.
+- **The web's `profile.deleteAccount` is on** and `DELETE /users/me` left the
+  contract-routes plan list (OQ-163). Task 142 (`I13`) checks it end to end.
 
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 

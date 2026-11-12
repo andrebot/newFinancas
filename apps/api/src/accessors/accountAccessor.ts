@@ -7,6 +7,7 @@ import type { AccountType, Visibility } from '../db/schema/values';
 import {
   monthOf, monthsBetween, type CalendarMonth, type MonthRange,
 } from '../utilities/calendarMonth';
+import { inHousehold, type ErasureScope } from './erasureScope';
 
 // AccountAccessor (A5, VBD): Financial Accounts and their month balances (FR-2,
 // FR-5.4/FR-6.6, 02-data-model.md). It applies data changes only. Who may see or
@@ -449,6 +450,26 @@ const createAccountAccessor = (db: Database) => ({
         desc(accountMonthBalances.year),
         desc(accountMonthBalances.month),
       );
+  },
+
+  /**
+   * Erases a user's Accounts (FR-1.17/FR-1.11, OQ-240): their personal ones are
+   * deleted with everything under them (cards, Holdings, transactions, balances —
+   * FK cascade); shared ones stay and no longer name them. Run after
+   * AccountTransactionAccessor's `forgetUser`, which unpairs the transfers that
+   * reach into the personal ones.
+   *
+   * @param scope - Whose Accounts, and in which household (every one when left out).
+   */
+  forgetUser: async (scope: ErasureScope): Promise<void> => {
+    const theirs = and(
+      eq(accounts.ownerUserId, scope.userId),
+      inHousehold(accounts.householdId, scope),
+    );
+    await db.transaction(async (tx) => {
+      await tx.delete(accounts).where(and(theirs, eq(accounts.visibility, 'personal')));
+      await tx.update(accounts).set({ ownerUserId: null }).where(theirs);
+    });
   },
 });
 

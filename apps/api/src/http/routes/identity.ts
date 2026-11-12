@@ -106,6 +106,10 @@ const createIdentityRoutes = (identity: IdentityManager, verifyAccessToken: Veri
       const user = await identity.editProfile(signedInContextOf(httpContext), edit);
       return httpContext.json(toUserJson(user));
     })
+    .delete('/users/me', signedIn, async (httpContext) => {
+      await identity.deleteUser(signedInContextOf(httpContext));
+      return httpContext.body(null, 204);
+    })
     .get('/users/me/invitations', signedIn, async (httpContext) => {
       const invitations = await identity.listMyInvitations(signedInContextOf(httpContext));
       return httpContext.json({ data: invitations.map(toReceivedInvitationJson) });

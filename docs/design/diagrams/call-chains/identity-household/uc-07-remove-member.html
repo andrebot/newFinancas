@@ -135,8 +135,9 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain:</strong> <code>IdentityManager</code> &#9312; <code>AuthorizationUtility.authorize(members.manage)</code> &rarr; &#9313; <code>HouseholdAccessor.findMembership</code> (none &rarr; 404, the Owner &rarr; 403 &mdash; the Manager&#39;s rule, OQ-111), then <code>removeMember</code> (guarded, <code>stale</code> &rarr; 409) &rarr; &#9314; <code>LoggingUtility</code> audit.</p>
+    <p><strong>Chain:</strong> <code>IdentityManager</code> &#9312; <code>AuthorizationUtility.authorize(members.manage)</code> &rarr; &#9313; <code>HouseholdAccessor.findMembership</code> (none &rarr; 404, the Owner &rarr; 403 &mdash; the Manager&#39;s rule, OQ-111) &rarr; &#9314;&ndash;&#9320; the member&#39;s finances in the household erased: <code>forgetUser({userId, householdId})</code> on <code>AccountTransactionAccessor</code> (a transfer pair with a side on a personal Account loses that side; the other becomes a lone <code>movement</code>), <code>CardTransactionAccessor</code>, <code>GoalAccessor</code>, <code>BudgetAccessor</code> (personal Budgets with their periods), <code>AccountAccessor</code> (personal Accounts with everything under them), <code>IndexRateAccessor</code> and <code>InvitationAccessor</code> &mdash; personal rows deleted, shared ones no longer naming the user, all in one transaction (UnitOfWorkUtility, not drawn) &rarr; &#9321; <code>HouseholdAccessor.removeMember</code> (guarded, <code>stale</code> &rarr; 409) &rarr; &#9322; <code>LoggingUtility</code> audit.</p>
     <p>The Manager decides who may be removed; the Accessor applies it as a guarded write that also refuses an Owner (OQ-107). Synced with the code (task M1 audit, Oct 2026).</p>
+    <p><strong>Changed (task 136, OQ-240):</strong> a removed member takes their finances with them, as on Delete User (02-data-model.md&#39;s trigger equivalence). Erased first, so a removal that comes back <code>stale</code> is simply retried.</p>
   </div>
 
   <script>
@@ -149,7 +150,7 @@
       svg.style.width = containerRect.width + 'px';
       svg.style.height = containerRect.height + 'px';
 
-      var edges = [{"from": "mgr-identity", "to": "util-authz", "type": "sync", "order": 1}, {"from": "mgr-identity", "to": "acc-household", "type": "sync", "order": 2}, {"from": "mgr-identity", "to": "util-logging", "type": "async", "order": 3}];
+      var edges = [{"from": "mgr-identity", "to": "util-authz", "type": "sync", "order": 1}, {"from": "mgr-identity", "to": "acc-household", "type": "sync", "order": 2}, {"from": "mgr-identity", "to": "acc-accounttxn", "type": "sync", "order": 3}, {"from": "mgr-identity", "to": "acc-cardtxn", "type": "sync", "order": 4}, {"from": "mgr-identity", "to": "acc-goal", "type": "sync", "order": 5}, {"from": "mgr-identity", "to": "acc-budget", "type": "sync", "order": 6}, {"from": "mgr-identity", "to": "acc-account", "type": "sync", "order": 7}, {"from": "mgr-identity", "to": "acc-indexrate", "type": "sync", "order": 8}, {"from": "mgr-identity", "to": "acc-invitation", "type": "sync", "order": 9}, {"from": "mgr-identity", "to": "acc-household", "type": "sync", "order": 10}, {"from": "mgr-identity", "to": "util-logging", "type": "async", "order": 11}];
 
       var activeIds = {};
       edges.forEach(function (e) { activeIds[e.from] = true; activeIds[e.to] = true; });

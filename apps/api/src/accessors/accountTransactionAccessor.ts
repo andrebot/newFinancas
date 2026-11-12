@@ -1,6 +1,7 @@
 import type { TransactionEffect } from '@financas/reference';
 import {
-  and, asc, desc, eq, getTableColumns, gte, inArray, isNotNull, lte, ne, or, sql, type AnyColumn,
+  and, asc, desc, eq, getTableColumns, gte, inArray, isNotNull, lte, ne, notInArray, or, sql,
+  type AnyColumn,
 } from 'drizzle-orm';
 import type { Database } from '../db/database';
 import { accountTransactions, accounts, investmentHoldings } from '../db/schema';
@@ -10,6 +11,7 @@ import {
   type ClaimedCategories, type DayKindTotal, type LedgerCursor, type MonthCount,
   type MonthKindTotal,
 } from './ledgerQuery';
+import { inHousehold, type ErasureScope } from './erasureScope';
 
 export type {
   ClaimedCategories, DayKindTotal, LedgerCursor, MonthCount, MonthKindTotal,
@@ -726,6 +728,42 @@ const createAccountTransactionAccessor = (db: Database) => ({
       ))
       .groupBy(accountTransactions.holdingId);
     return rows.map((row) => ({ holdingId: row.holdingId!, costBasis: row.costBasis }));
+  },
+
+  /**
+   * Erases a user from the account ledger (FR-1.17/FR-1.11, OQ-240), before
+   * their personal Accounts are deleted (AccountAccessor's `forgetUser`):
+   * - a transfer pair with one side on one of those Accounts loses that side, so
+   *   the side that stays becomes a lone `movement` — a transfer recorded alone
+   *   (FR-3.6) — with no pair to edit or delete it with;
+   * - every row they recorded stays, no longer naming them.
+   *
+   * @param scope - Whose rows, and in which household (every one when left out).
+   */
+  forgetUser: async (scope: ErasureScope): Promise<void> => {
+    const personal = db.select({ id: accounts.id }).from(accounts).where(and(
+      eq(accounts.ownerUserId, scope.userId),
+      eq(accounts.visibility, 'personal'),
+      inHousehold(accounts.householdId, scope),
+    ));
+    const household = inHousehold(accounts.householdId, scope);
+    await db.transaction(async (tx) => {
+      await tx.update(accountTransactions).set({ transferId: null, effect: 'movement' }).where(and(
+        inArray(
+          accountTransactions.transferId,
+          tx.select({ id: accountTransactions.transferId }).from(accountTransactions)
+            .where(inArray(accountTransactions.accountId, personal)),
+        ),
+        notInArray(accountTransactions.accountId, personal),
+      ));
+      await tx.update(accountTransactions).set({ createdByUserId: null }).where(and(
+        eq(accountTransactions.createdByUserId, scope.userId),
+        household && inArray(
+          accountTransactions.accountId,
+          tx.select({ id: accounts.id }).from(accounts).where(household),
+        ),
+      ));
+    });
   },
 });
 

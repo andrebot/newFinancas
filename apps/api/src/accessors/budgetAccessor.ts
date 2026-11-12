@@ -7,6 +7,7 @@ import {
   budgetPeriods, budgetTargets, budgets, categories, subcategories,
 } from '../db/schema';
 import type { Visibility } from '../db/schema/values';
+import { inHousehold, type ErasureScope } from './erasureScope';
 import { monthOf, type CalendarMonth, type MonthRange } from '../utilities/calendarMonth';
 
 // BudgetAccessor (A10, VBD): Budgets, their Category/Subcategory targets and their
@@ -755,6 +756,34 @@ const createBudgetAccessor = (db: Database) => ({
       Promise.resolve(),
     );
   }),
+
+  /**
+   * Erases a user's Budgets (FR-1.17/FR-1.11, OQ-240): their personal ones are
+   * deleted with their claims and their periods — history only they could see,
+   * unlike a Budget's own delete, which keeps it (FR-4.10); shared ones and their
+   * claims stay and no longer name them.
+   *
+   * @param scope - Whose Budgets, and in which household (every one when left out).
+   */
+  forgetUser: async (scope: ErasureScope): Promise<void> => {
+    const theirs = and(
+      eq(budgets.ownerUserId, scope.userId),
+      inHousehold(budgets.householdId, scope),
+    );
+    const personal = and(theirs, eq(budgets.visibility, 'personal'));
+    await db.transaction(async (tx) => {
+      await tx.delete(budgetPeriods).where(inArray(
+        budgetPeriods.budgetId,
+        tx.select({ id: budgets.id }).from(budgets).where(personal),
+      ));
+      await tx.delete(budgets).where(personal);
+      await tx.update(budgets).set({ ownerUserId: null }).where(theirs);
+      await tx.update(budgetTargets).set({ ownerUserId: null }).where(and(
+        eq(budgetTargets.ownerUserId, scope.userId),
+        inHousehold(budgetTargets.householdId, scope),
+      ));
+    });
+  },
 });
 
 /** The BudgetAccessor's operations. */

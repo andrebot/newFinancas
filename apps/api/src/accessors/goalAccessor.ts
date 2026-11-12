@@ -4,6 +4,7 @@ import {
 import type { Database } from '../db/database';
 import { goalAllocations, goals, investmentHoldings } from '../db/schema';
 import type { Visibility } from '../db/schema/values';
+import { inHousehold, type ErasureScope } from './erasureScope';
 
 // GoalAccessor (A13, VBD): Goals and the Goal Allocations that fund them from
 // Investment Holdings (FR-8, 02-data-model.md). It applies data changes only.
@@ -405,6 +406,20 @@ const createGoalAccessor = (db: Database) => ({
       .where(and(eq(goalAllocations.holdingId, holdingId), eq(goalAllocations.validTo, asOf)))
       .returning({ id: goalAllocations.id })
   ).length > 0,
+
+  /**
+   * Erases a user's Goals (FR-1.17/FR-1.11, OQ-240): their personal ones are
+   * deleted with their allocations; shared ones stay and no longer name them.
+   *
+   * @param scope - Whose Goals, and in which household (every one when left out).
+   */
+  forgetUser: async (scope: ErasureScope): Promise<void> => {
+    const theirs = and(eq(goals.ownerUserId, scope.userId), inHousehold(goals.householdId, scope));
+    await db.transaction(async (tx) => {
+      await tx.delete(goals).where(and(theirs, eq(goals.visibility, 'personal')));
+      await tx.update(goals).set({ ownerUserId: null }).where(theirs);
+    });
+  },
 });
 
 /** The GoalAccessor's operations. */

@@ -20,6 +20,38 @@ P_CORE = """    actor User
     participant API as Hono route
     participant IM as IdentityManager"""
 
+# A user's erasure (task 136, OQ-240): the same seven Accessors, in the same
+# order, for Remove Member and Leave Household (one household) and Delete User
+# (everywhere).
+P_ERASURE = """
+    participant ATA as AccountTransactionAccessor
+    participant CTA as CardTransactionAccessor
+    participant GA as GoalAccessor
+    participant BA as BudgetAccessor
+    participant AA as AccountAccessor
+    participant IRA as IndexRateAccessor
+    participant INV as InvitationAccessor"""
+
+
+def erasure(scope: str, indent: str = "    ") -> str:
+    """The erasure's calls, in one transaction, for a scope written as `{userId…}`."""
+    steps = f"""Note over IM,INV: one transaction (UnitOfWorkUtility) &mdash; personal rows deleted,<br/>shared rows kept, no longer naming the user (FR-1.17, OQ-240)
+IM->>ATA: forgetUser({scope})
+ATA-->>IM: a transfer pair with a side on a personal Account:<br/>the other side becomes a lone movement, rows anonymized
+IM->>CTA: forgetUser({scope})
+CTA-->>IM: charges and refunds anonymized
+IM->>GA: forgetUser({scope})
+GA-->>IM: personal Goals deleted (allocations cascade), shared ones anonymized
+IM->>BA: forgetUser({scope})
+BA-->>IM: personal Budgets deleted with their periods, shared ones and claims anonymized
+IM->>AA: forgetUser({scope})
+AA-->>IM: personal Accounts deleted &mdash; cards, Holdings, transactions,<br/>balances, snapshots, allocations cascade, shared ones anonymized
+IM->>IRA: forgetUser({scope})
+IRA-->>IM: index rate values anonymized
+IM->>INV: forgetUser({scope})
+INV-->>IM: invitations sent anonymized (a pending one still stands)"""
+    return "\n".join(indent + line for line in steps.split("\n"))
+
 UCS = []
 
 # ---------------------------------------------------------------- UC-01
@@ -351,7 +383,7 @@ UCS.append(dict(
 sequenceDiagram
 """ + P_CORE + """
     participant AZ as AuthorizationUtility
-    participant HA as HouseholdAccessor
+    participant HA as HouseholdAccessor""" + P_ERASURE + """
     participant LOG as LoggingUtility
 
     User->>API: DELETE /households/:householdId/members/:userId
@@ -380,6 +412,7 @@ sequenceDiagram
             API-->>User: 403 auth.forbidden
         else another member
             HA-->>IM: role
+""" + erasure("{userId, householdId}", "            ") + """
             IM->>HA: removeMember(householdId, userId)
             Note over HA: guarded &mdash; never removes an Owner (OQ-107)
             alt stale (made Owner or gone meanwhile)
@@ -399,6 +432,7 @@ sequenceDiagram
     <ul>
       <li><strong>Revised (OQ-107):</strong> the Owner-immunity check is a business rule, so it lives in <code>IdentityManager</code>. <code>HouseholdAccessor.removeMember</code> only applies the change, guarded so it never removes the Owner even if a concurrent request made them one.</li>
       <li>Shares its Accessor call with Leave Household (UC-08) — same method, different actor/target relationship (VBD doc &sect;3.1a).</li>
+      <li><strong>Changed (task 136, OQ-240):</strong> a removed member takes their finances in the household with them &mdash; the same erasure as Delete User, scoped to this household (02-data-model.md&#39;s trigger equivalence). It runs before the removal, so a <code>stale</code> removal is simply retried; the erasure is whole either way.</li>
       <li>See FR-1.11, OQ-27.</li>
     </ul>
 """,
@@ -412,18 +446,27 @@ UCS.append(dict(
     mermaid="""
 sequenceDiagram
 """ + P_CORE + """
-    participant HA as HouseholdAccessor
+    participant HA as HouseholdAccessor""" + P_ERASURE + """
     participant LOG as LoggingUtility
 
     User->>API: DELETE /households/:householdId/members/:userId (userId = the caller)
     API->>IM: removeMember(actor, householdId, actor.userId)
-    Note over IM: self-service &mdash; no permission check. Each attempt decides from<br/>fresh facts, a stale guarded write starts it again, 3 attempts at most (OQ-107)
+    Note over IM: self-service &mdash; no permission check
+    IM->>HA: findMembership(householdId, actor.userId)
+    alt not a member
+        HA-->>IM: none
+        IM-->>API: NotFound
+        API-->>User: 404 household.not_found
+    else a member
+        HA-->>IM: membership
+    end
+""" + erasure("{userId: actor.userId, householdId}") + """
+    Note over IM: each attempt decides from fresh facts, a stale guarded write<br/>starts it again, 3 attempts at most (OQ-107)
     loop up to 3 attempts
         IM->>HA: findMembership(householdId, actor.userId)
-        alt not a member
+        alt gone meanwhile (removed by someone else)
             HA-->>IM: none
-            IM-->>API: NotFound
-            API-->>User: 404 household.not_found
+            Note over IM: done &mdash; no departure of theirs to audit
         else a member who is not the Owner
             HA-->>IM: Admin / Member / Viewer
             IM->>HA: removeMember(householdId, actor.userId)
@@ -457,6 +500,7 @@ sequenceDiagram
     notes="""
     <ul>
       <li><strong><strong>All branches return the same 204, but the decisions are <code>IdentityManager</code>&#39;s (OQ-107):</strong> who succeeds, and whether the household dissolves. <code>HouseholdAccessor</code> applies each step as a guarded write and says <code>stale</code> when the facts changed meanwhile &mdash; the whole decision then runs again from fresh facts, up to three times (<code>households.leaveAttempts</code>), before a 409. <code>dissolve</code> is guarded too (OQ-117): someone who joined a moment ago is never deleted with the household.</li>
+      <li><strong>Changed (task 136, OQ-240):</strong> leaving takes the caller&#39;s finances in the household with them &mdash; the same erasure as Delete User, scoped to this household (02-data-model.md&#39;s trigger equivalence). It runs before the departure, so a 409 is simply retried; the erasure is whole either way.</li>
       <li>This is the richest of the three "membership ends" flows (Remove Member, Leave, and — via FR-1.17 — Delete User) precisely because it&#39;s the one place FR-1.18&#39;s succession rule is directly, voluntarily triggered rather than a side effect of account deletion.</li>
       <li>See FR-1.11, FR-1.18, OQ-25, OQ-27.</li>
     </ul>
@@ -716,58 +760,51 @@ sequenceDiagram
 UCS.append(dict(
     filename="uc-12-delete-user.html",
     title="Delete User (GDPR Right-to-Erasure)",
-    subtitle='<span class="route">DELETE /users/me</span> &mdash; FR-1.17/FR-1.18/OQ-25. One of the two widest-fan-out flows in the system (the other is Record Transaction&#39;s investment-buy sub-case). Personal data is hard-deleted; shared data is anonymized, not deleted.',
+    subtitle='<span class="route">DELETE /users/me</span> &mdash; FR-1.17/FR-1.18/OQ-25/OQ-240. One of the two widest-fan-out flows in the system (the other is Record Transaction&#39;s investment-buy sub-case). Personal data is hard-deleted; shared data is anonymized, not deleted.',
     mermaid="""
 sequenceDiagram
 """ + P_CORE + """
-    participant HA as HouseholdAccessor
-    participant AA as AccountAccessor
-    participant IHA as InvestmentHoldingAccessor
-    participant ATA as AccountTransactionAccessor
-    participant CTA as CardTransactionAccessor
-    participant BA as BudgetAccessor
-    participant OA as GoalAccessor
+    participant HA as HouseholdAccessor""" + P_ERASURE + """
     participant UA as UserAccessor
-    participant SA as SessionAccessor
     participant LOG as LoggingUtility
 
     User->>API: DELETE /users/me
     API->>IM: deleteUser(actor)
-    loop for each household actor belongs to
-        Note over IM: same as Leave Household (UC-08) — the Manager decides:<br/>non-Owner → removeMember, Owner → findSuccessor then<br/>swapOwner + removeMember, or delete(householdId) if alone (OQ-107)
-        IM->>HA: findMembership / findSuccessor / swapOwner / removeMember / delete
-        HA-->>IM: applied
+    IM->>HA: listForUser(actor.userId)
+    HA-->>IM: the households
+    loop for each household, one after another
+        Note over IM: the departure of Leave Household (UC-08) &mdash; non-Owner &rarr; removeMember,<br/>Owner &rarr; findSuccessor then swapOwner + removeMember, or dissolve if alone,<br/>stale &rarr; again, 3 attempts at most (OQ-107)
+        IM->>HA: findMembership / findSuccessor / swapOwner / removeMember / dissolve
+        HA-->>IM: left or dissolved (audited)
     end
-    Note over IM: for every resource actor owns or contributed to,<br/>branch on personal vs. shared (FR-1.17)
-    IM->>AA: cascade-delete personal Accounts, null owner_user_id on shared Accounts
-    AA-->>IM: done (personal Accounts' own Holdings/balances go with them)
-    IM->>IHA: cascade-delete Holdings under deleted personal Accounts
-    IHA-->>IM: done (Valuation Snapshots, schedule entries, Goal allocations cascade too)
-    IM->>ATA: null actor reference on retained shared Account Transactions
-    ATA-->>IM: done
-    IM->>CTA: null actor reference on retained shared Card Transactions
-    CTA-->>IM: done
-    IM->>BA: cascade-delete personal Budgets, null owner_user_id on shared Budgets
-    BA-->>IM: done
-    IM->>OA: cascade-delete personal Goals, null owner_user_id on shared Goals
-    OA-->>IM: done
-    IM->>UA: delete(actor)
-    Note over UA: credentials, MFA secret/recovery codes — gone (NFR-COMP-4)
-    UA-->>IM: deleted
-    IM->>SA: deleteAllForUser(actor)
-    SA-->>IM: all sessions revoked
-    IM-->>LOG: logActivity(correlationId, actor, "DeleteUser")
-    IM-->>LOG: recordAudit(actor, "User", actor)
-    IM-->>API: deleted
-    API-->>User: 204 No Content
+    alt a household still stale after 3 attempts
+        IM-->>API: Conflict
+        API-->>User: 409 household.changed (nothing erased, the next try goes on)
+    end
+""" + erasure("{userId: actor.userId}") + """
+    IM->>UA: delete(actor.userId)
+    Note over UA: same transaction &mdash; credentials, MFA secret and recovery codes,<br/>sessions, reset tokens, notifications go with the row (FK cascade)
+    alt a row still names the user
+        UA-->>IM: still_referenced
+        Note over IM: the whole erasure rolls back
+        IM-->>API: Error
+        API-->>User: 500
+    else deleted (or already gone &mdash; a run cut short, finished)
+        UA-->>IM: deleted
+        IM-->>LOG: log.audit("DeleteUser", User actor.userId)
+        IM-->>API: deleted
+        API-->>User: 204 No Content
+    end
 """,
     notes="""
     <ul>
-      <li><strong>No alt/error branches shown</strong> &mdash; this is intentionally the one flow in this area with no rejection path: a user can always delete their own account, unconditionally (FR-1.17).</li>
-      <li><strong>Trigger equivalence:</strong> the personal-vs-shared branch fires identically whether triggered here (full account deletion) or by Leave/Remove Member (household departure alone) &mdash; see the cross-cutting note at the top of <code>docs/architecture/02-data-model.md</code>.</li>
+      <li><strong>No rule refuses it</strong> (FR-1.17): a user can always delete their own account. The 409 and 500 are not refusals &mdash; a household that kept changing, and the database&#39;s safety net (02-data-model.md rule B) &mdash; and in both the next try finishes the job.</li>
+      <li><strong>Departures first, then one erasure (OQ-240).</strong> Each departure commits on its own; the erasure and the user row go in one transaction (UnitOfWorkUtility), so the user&#39;s data is erased whole or not at all. The erasure runs everywhere, not per household: households the user left before task 136 shipped are covered too.</li>
+      <li><strong>Trigger equivalence:</strong> the same erasure, scoped to one household, runs on Leave Household and Remove Member (UC-07/UC-08) &mdash; see the cross-cutting note at the top of <code>docs/architecture/02-data-model.md</code>.</li>
+      <li><strong>Rebuilt (task 136):</strong> the design-time sequence called <code>InvestmentHoldingAccessor</code> and <code>SessionAccessor.deleteAllForUser</code> &mdash; both are FK cascades (Holdings with their personal Account, sessions with the user row).</li>
       <li><strong>Confirmed, not a gap:</strong> if a deleted user&#39;s personal Holding was funding a still-live <em>shared</em> Goal, that Goal survives and its progress simply recomputes from whatever Holdings remain &mdash; "the user removed their finances from the household."</li>
       <li><code>audit_log_entries.actor_id</code> is a plain value, not a foreign key &mdash; this row (and every other audit entry naming this actor) survives untouched; there is nothing to rewrite or purge (OQ-25/NFR-AUD-1).</li>
-      <li>See FR-1.17, FR-1.18, OQ-25.</li>
+      <li>See FR-1.17, FR-1.18, OQ-25, OQ-240.</li>
     </ul>
 """,
 ))

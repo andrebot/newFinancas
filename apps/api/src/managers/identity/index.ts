@@ -1,4 +1,5 @@
 import type { IdentityDeps } from './context';
+import createErasure from './erasure';
 import createHouseholds from './households';
 import createInvitations from './invitations';
 import createMembers from './members';
@@ -13,7 +14,7 @@ import createSignIn from './signIn';
 // apply (OQ-107). Built in parts so each stays small.
 
 export type {
-  AuthTokens, EnrollmentStart, IdentityDeps, RequestContext, SignedInContext,
+  AuthTokens, EnrollmentStart, ErasureStores, IdentityDeps, RequestContext, SignedInContext,
 } from './context';
 export type { Registered, Registration } from './registration';
 export type { SessionView } from './sessions';
@@ -46,6 +47,7 @@ export const createIdentityManager = (deps: IdentityDeps) => ({
   ...createProfile(deps),
   ...createHouseholds(deps),
   ...createMembers(deps),
+  deleteUser: createErasure(deps).deleteUser,
   ...createInvitations(deps),
 });
 

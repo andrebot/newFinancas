@@ -509,7 +509,7 @@ describe('ManageProfileExperience — invitations', () => {
 });
 
 describe('ManageProfileExperience — delete account', () => {
-  it('is not offered while its endpoint is still on the plan (task 136)', async () => {
+  it('is offered by default since its endpoint exists (task 136, OQ-240)', async () => {
     const fetchFn = fakeFetch(LOADED);
     const { store } = fakeStore({ fetchFn, refreshToken: 'r-0' });
     renderWithShell(
@@ -521,7 +521,7 @@ describe('ManageProfileExperience — delete account', () => {
     );
     await screen.findByRole('heading', { level: 1 });
 
-    expect(screen.queryByTestId('deleteAccount')).toBeNull();
+    expect(await screen.findByTestId('deleteAccount')).toBeTruthy();
   });
 
   it('gives the Flow the email and the households the user owns', async () => {

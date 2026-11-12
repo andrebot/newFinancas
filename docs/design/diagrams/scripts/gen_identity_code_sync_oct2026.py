@@ -4,8 +4,9 @@ The chains were drawn before the code and still named design-time methods
 (transitionStatus, transitionMembership, canManageMembers, ValidationUtility.check,
 generateMFASecret, ...). This rewrites every chain whose use case is built, from
 apps/api/src/managers/identity/. Login (uc-14) and MFA Recovery (uc-20) live in
-gen_login_lockout_oct2026.py; Delete User (uc-12) is still unbuilt (task 136,
-M1D) and is redrawn with it. Idempotent: rerunning produces the same output.
+gen_login_lockout_oct2026.py. Delete User (uc-12) and the erasure Remove Member
+and Leave Household gained with it are task 136 (M1D, OQ-240). Idempotent:
+rerunning produces the same output.
 """
 import pathlib
 import re
@@ -57,14 +58,25 @@ CHAINS = [
     ("uc-07-remove-member.html", "Call Chain — Remove Member from Household",
      "Use case 7 of 21 (FR-1.11). Owner/Admin removes another member; never the Owner.",
      E((1, "mgr-identity", "util-authz"), (2, "mgr-identity", "acc-household"),
-       (3, "mgr-identity", "util-logging", "a")),
-     ["<strong>Chain:</strong> <code>IdentityManager</code> &#9312; <code>AuthorizationUtility.authorize(members.manage)</code> &rarr; &#9313; <code>HouseholdAccessor.findMembership</code> (none &rarr; 404, the Owner &rarr; 403 &mdash; the Manager&#39;s rule, OQ-111), then <code>removeMember</code> (guarded, <code>stale</code> &rarr; 409) &rarr; &#9314; <code>LoggingUtility</code> audit.",
-      "The Manager decides who may be removed; the Accessor applies it as a guarded write that also refuses an Owner (OQ-107). " + SYNCED]),
+       (3, "mgr-identity", "acc-accounttxn"), (4, "mgr-identity", "acc-cardtxn"),
+       (5, "mgr-identity", "acc-goal"), (6, "mgr-identity", "acc-budget"),
+       (7, "mgr-identity", "acc-account"), (8, "mgr-identity", "acc-indexrate"),
+       (9, "mgr-identity", "acc-invitation"), (10, "mgr-identity", "acc-household"),
+       (11, "mgr-identity", "util-logging", "a")),
+     ["<strong>Chain:</strong> <code>IdentityManager</code> &#9312; <code>AuthorizationUtility.authorize(members.manage)</code> &rarr; &#9313; <code>HouseholdAccessor.findMembership</code> (none &rarr; 404, the Owner &rarr; 403 &mdash; the Manager&#39;s rule, OQ-111) &rarr; &#9314;&ndash;&#9320; the member&#39;s finances in the household erased: <code>forgetUser({userId, householdId})</code> on <code>AccountTransactionAccessor</code> (a transfer pair with a side on a personal Account loses that side; the other becomes a lone <code>movement</code>), <code>CardTransactionAccessor</code>, <code>GoalAccessor</code>, <code>BudgetAccessor</code> (personal Budgets with their periods), <code>AccountAccessor</code> (personal Accounts with everything under them), <code>IndexRateAccessor</code> and <code>InvitationAccessor</code> &mdash; personal rows deleted, shared ones no longer naming the user, all in one transaction (UnitOfWorkUtility, not drawn) &rarr; &#9321; <code>HouseholdAccessor.removeMember</code> (guarded, <code>stale</code> &rarr; 409) &rarr; &#9322; <code>LoggingUtility</code> audit.",
+      "The Manager decides who may be removed; the Accessor applies it as a guarded write that also refuses an Owner (OQ-107). " + SYNCED,
+      "<strong>Changed (task 136, OQ-240):</strong> a removed member takes their finances with them, as on Delete User (02-data-model.md&#39;s trigger equivalence). Erased first, so a removal that comes back <code>stale</code> is simply retried."]),
     ("uc-08-leave-household.html", "Call Chain — Leave Household",
      "Use case 8 of 21 (FR-1.11/1.18). Self-service; an Owner is succeeded, or the household dissolves.",
-     E((1, "mgr-identity", "acc-household"), (2, "mgr-identity", "util-logging", "a")),
-     ["<strong>Chain:</strong> <code>IdentityManager</code> &#9312; <code>HouseholdAccessor.findMembership</code> &rarr; a non-Owner: <code>removeMember</code>; the Owner: <code>findSuccessor</code>, then <code>swapOwner</code> + <code>removeMember</code>, or <code>dissolve</code> when nobody else is left &mdash; each a guarded write, the whole attempt retried on <code>stale</code> up to 3 times (OQ-107) &rarr; &#9313; <code>LoggingUtility</code> audit (<code>LeaveHousehold</code> or <code>DissolveHousehold</code>).",
-      "Corrected: the old chain had succession inside one Accessor call. The Manager decides succession (Manager decides, Accessor applies); the one edge to <code>HouseholdAccessor</code> carries several calls. " + SYNCED]),
+     E((1, "mgr-identity", "acc-household"),
+       (2, "mgr-identity", "acc-accounttxn"), (3, "mgr-identity", "acc-cardtxn"),
+       (4, "mgr-identity", "acc-goal"), (5, "mgr-identity", "acc-budget"),
+       (6, "mgr-identity", "acc-account"), (7, "mgr-identity", "acc-indexrate"),
+       (8, "mgr-identity", "acc-invitation"), (9, "mgr-identity", "acc-household"),
+       (10, "mgr-identity", "util-logging", "a")),
+     ["<strong>Chain:</strong> <code>IdentityManager</code> &#9312; <code>HouseholdAccessor.findMembership</code> (none &rarr; 404) &rarr; &#9313;&ndash;&#9319; the caller&#39;s finances in the household erased: <code>forgetUser({userId, householdId})</code> on <code>AccountTransactionAccessor</code> (a transfer pair with a side on a personal Account loses that side; the other becomes a lone <code>movement</code>), <code>CardTransactionAccessor</code>, <code>GoalAccessor</code>, <code>BudgetAccessor</code> (personal Budgets with their periods), <code>AccountAccessor</code> (personal Accounts with everything under them), <code>IndexRateAccessor</code> and <code>InvitationAccessor</code> &mdash; personal rows deleted, shared ones no longer naming the user, all in one transaction (UnitOfWorkUtility, not drawn) &rarr; &#9320; <code>HouseholdAccessor</code>: a non-Owner: <code>removeMember</code>; the Owner: <code>findSuccessor</code>, then <code>swapOwner</code> + <code>removeMember</code>, or <code>dissolve</code> when nobody else is left &mdash; each a guarded write, the whole attempt retried on <code>stale</code> up to 3 times (OQ-107) &rarr; &#9321; <code>LoggingUtility</code> audit (<code>LeaveHousehold</code> or <code>DissolveHousehold</code>).",
+      "Corrected: the old chain had succession inside one Accessor call. The Manager decides succession (Manager decides, Accessor applies); the edge to <code>HouseholdAccessor</code> carries several calls. " + SYNCED,
+      "<strong>Changed (task 136, OQ-240):</strong> leaving takes the caller&#39;s finances with them, as on Delete User (02-data-model.md&#39;s trigger equivalence). Erased first, so a departure that keeps coming back <code>stale</code> (409) is simply retried."]),
     ("uc-09-change-member-role.html", "Call Chain — Change a Member&#39;s Role",
      "Use case 9 of 21 (FR-1.12). Owner/Admin only; never the Owner&#39;s role.",
      E((1, "mgr-identity", "util-authz"), (2, "mgr-identity", "acc-household"),
@@ -84,6 +96,16 @@ CHAINS = [
      ["<strong>Chain:</strong> <code>IdentityManager</code> &#9312; <code>ValidationUtility</code> (a name blank once trimmed &rarr; 422 <code>validation.failed</code>; password &lt; 12 &rarr; 422 <code>password.too_short</code>, before any work) &rarr; &#9313; <code>AuthenticationUtility.enrollMfa(email)</code> (TOTP secret, sealed, + 10 recovery codes and their hashes) and <code>hashPassword</code> &rarr; &#9314; <code>UserAccessor.insert</code> (one transaction; the unique index on <code>lower(email)</code> decides a duplicate &rarr; 409) &rarr; &#9315; <code>LoggingUtility</code> audit; then &#9313; again, <code>signEnrollmentToken</code>, for the confirmation (OQ-149).",
       "<strong>Changed (U3, OQ-165):</strong> the contract validates the request&#39;s shape at the route; <code>ValidationUtility</code> covers what it can&#39;t say &mdash; a blank name, and the password length the Manager answers itself. " + SYNCED,
       "<strong>Changed (OQ-149):</strong> the first code is now checked by the backend, in a second request &mdash; Confirm MFA Enrollment (uc-11b) &mdash; with the <code>enrollmentToken</code> answered here. It replaces the M1 note that the verify step was the web Flow&#39;s alone: no endpoint existed to check it."]),
+    ("uc-12-delete-user.html", "Call Chain — Delete User (GDPR Right-to-Erasure)",
+     "Use case 12 of 21 (FR-1.17/1.18, OQ-25, OQ-240). Unconditional; the widest fan-out in IdentityManager.",
+     E((1, "mgr-identity", "acc-household"),
+       (2, "mgr-identity", "acc-accounttxn"), (3, "mgr-identity", "acc-cardtxn"),
+       (4, "mgr-identity", "acc-goal"), (5, "mgr-identity", "acc-budget"),
+       (6, "mgr-identity", "acc-account"), (7, "mgr-identity", "acc-indexrate"),
+       (8, "mgr-identity", "acc-invitation"), (9, "mgr-identity", "acc-user"),
+       (10, "mgr-identity", "util-logging", "a")),
+     ["<strong>Chain:</strong> <code>IdentityManager</code> &#9312; <code>HouseholdAccessor.listForUser</code>, then each household departed as on Leave Household (succession, or <code>dissolve</code> when alone; <code>stale</code> retried, 409 after 3) &rarr; &#9313;&ndash;&#9320; the erasure everywhere &mdash; <code>forgetUser({userId})</code> on <code>AccountTransactionAccessor</code> (a transfer pair with a side on a personal Account loses that side; the other becomes a lone <code>movement</code>), <code>CardTransactionAccessor</code>, <code>GoalAccessor</code>, <code>BudgetAccessor</code> (personal Budgets with their periods), <code>AccountAccessor</code> (personal Accounts with everything under them), <code>IndexRateAccessor</code> and <code>InvitationAccessor</code> &mdash; personal rows deleted, shared ones no longer naming the user, all in one transaction (UnitOfWorkUtility, not drawn) &mdash; households left before included &rarr; &#9321; <code>UserAccessor.delete</code>, in the same transaction (sessions, MFA codes, reset tokens and notifications go with the row, FK cascade; a row still naming the user rolls it all back, 500) &rarr; &#9322; <code>LoggingUtility</code> audit.",
+      "<strong>Rebuilt (task 136, OQ-240):</strong> the design-time chain named <code>SessionAccessor.deleteAllForUser</code> after the user delete &mdash; the FK cascade does it. No <code>InvestmentHoldingAccessor</code> call: Holdings go with their personal Account. Departures commit one by one, the erasure as a whole, so a run cut short is finished by the next."]),
     ("uc-13-edit-user.html", "Call Chain — Edit User (Profile)",
      "Use case 13 of 21 (FR-1.21). Names and preferences; the caller&#39;s own profile only.",
      E((1, "mgr-identity", "util-validation"), (2, "mgr-identity", "acc-user"),

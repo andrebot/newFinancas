@@ -22,7 +22,6 @@ const NOT_YET_ROUTED: readonly { readonly matches: RegExp; readonly lands: strin
   },
   { matches: /^\w+ \/notifications(\/|$)/, lands: 'slice 5' },
   { matches: /^GET \/households\/\{householdId\}\/audit-log(\/|$)/, lands: 'slice 5' },
-  { matches: /^DELETE \/users\/me$/, lands: 'task 136 (M1D, the Delete User cascade)' },
 ];
 
 /**

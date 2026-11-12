@@ -553,7 +553,7 @@ else confirm
     TC->>FLOW: emit confirm
     FLOW->>EXP: request deleteAccount()
     EXP->>API: DELETE /users/me
-    alt failure (network, 401)
+    alt failure (network, 401, 409 household.changed)
         API-->>EXP: error code
         EXP-->>FLOW: outcome: failed(code) — banner under the confirm, email kept
     else ok

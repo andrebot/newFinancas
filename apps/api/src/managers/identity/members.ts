@@ -1,19 +1,19 @@
 import type { AssignableRole } from '../../db/schema/values';
-import { households as householdSettings } from '../../config/constants';
 import { loggerFor, type IdentityDeps, type SignedInContext } from './context';
 import {
   forbidden, householdChanged, householdNotFound, memberNotFound,
 } from './errors';
+import createDeparture from './departure';
+import createErasure from './erasure';
 import { requireAccess } from './households';
 
 // Remove Member / Leave Household (uc-07/uc-08, FR-1.11/1.18), Change Role
 // (uc-09, FR-1.12) and Transfer Ownership (uc-10, FR-1.20). The Manager decides
-// — who may be removed (never the Owner by someone else, OQ-111), who succeeds
-// the Owner, when the household dissolves; HouseholdAccessor applies each step
-// as a guarded write and says `stale` when the facts changed meanwhile (OQ-107).
-
-/** What one attempt at leaving ended in. */
-type LeaveOutcome = 'left' | 'dissolved' | 'stale';
+// — who may be removed (never the Owner by someone else, OQ-111); the departure
+// (departure.ts) decides who succeeds the Owner. A member who leaves or is
+// removed takes their finances with them (erasure.ts, OQ-240). HouseholdAccessor
+// applies each step as a guarded write and says `stale` when the facts changed
+// meanwhile (OQ-107).
 
 /**
  * Builds the member use cases.
@@ -23,63 +23,23 @@ type LeaveOutcome = 'left' | 'dissolved' | 'stale';
  */
 const createMembers = (deps: IdentityDeps) => {
   const { households } = deps;
+  const { depart } = createDeparture(deps);
+  const { eraseFromHousehold } = createErasure(deps);
 
   /**
-   * The Owner leaves: hands the household to the longest-tenured member
-   * (Admin, then Member, then Viewer — FR-1.18), or dissolves it when nobody
-   * else is left.
-   *
-   * @param householdId - The household.
-   * @param ownerId - The leaving Owner.
-   * @returns The outcome; `stale` when someone joined, left or was promoted meanwhile.
-   */
-  const ownerLeaves = async (householdId: string, ownerId: string): Promise<LeaveOutcome> => {
-    const successor = await households.findSuccessor(householdId, ownerId);
-    if (!successor) return households.dissolve(householdId, ownerId);
-    const swapped = await households.swapOwner(householdId, ownerId, successor.userId);
-    if (swapped === 'stale') return 'stale';
-    // Now an Admin; if they were removed meanwhile, they have left all the same.
-    await households.removeMember(householdId, ownerId);
-    return 'left';
-  };
-
-  /**
-   * One attempt at leaving, from fresh facts.
-   *
-   * @param householdId - The household.
-   * @param userId - The member leaving.
-   * @returns The outcome.
-   * @throws {DomainError} `household.not_found` when not a member.
-   */
-  const attemptLeave = async (householdId: string, userId: string): Promise<LeaveOutcome> => {
-    const membership = await households.findMembership(householdId, userId);
-    if (!membership) throw householdNotFound();
-    if (membership.role === 'Owner') return ownerLeaves(householdId, userId);
-    return await households.removeMember(householdId, userId) === 'removed' ? 'left' : 'stale';
-  };
-
-  /**
-   * Leaves a household — self-service, no permission needed (uc-08). Retries
-   * from fresh facts while a concurrent change makes a step `stale` (OQ-107).
+   * Leaves a household — self-service, no permission needed (uc-08): the
+   * caller's finances there are erased (FR-1.11, OQ-240), then the membership
+   * ends, the Owner's handed on (FR-1.18).
    *
    * @param context - The signed-in request.
    * @param householdId - The household.
-   * @param attemptsLeft - Retries remaining.
    * @throws {DomainError} `household.not_found`; `household.changed`.
    */
-  const leave = async (
-    context: SignedInContext,
-    householdId: string,
-    attemptsLeft: number = householdSettings.leaveAttempts,
-  ): Promise<void> => {
-    if (attemptsLeft === 0) throw householdChanged();
-    const outcome = await attemptLeave(householdId, context.actor.userId);
-    if (outcome === 'stale') return leave(context, householdId, attemptsLeft - 1);
-    const action = outcome === 'dissolved' ? 'DissolveHousehold' : 'LeaveHousehold';
-    loggerFor(context).audit(action, {
-      entityType: 'Household', entityId: householdId, householdId,
-    });
-    return undefined;
+  const leave = async (context: SignedInContext, householdId: string): Promise<void> => {
+    const { userId } = context.actor;
+    if (!(await households.findMembership(householdId, userId))) throw householdNotFound();
+    await eraseFromHousehold(userId, householdId);
+    await depart(context, householdId);
   };
 
   /**
@@ -121,6 +81,7 @@ const createMembers = (deps: IdentityDeps) => {
     ): Promise<void> => {
       if (targetUserId === context.actor.userId) return leave(context, householdId);
       await requireManageableMember(context, householdId, targetUserId);
+      await eraseFromHousehold(targetUserId, householdId);
       const removed = await households.removeMember(householdId, targetUserId);
       if (removed === 'stale') throw householdChanged();
       loggerFor(context).audit('RemoveMember', {

@@ -1,5 +1,11 @@
 import { actorLabel, createLogger, type Logger } from '@financas/logging';
+import type { AccountAccessor } from '../../accessors/accountAccessor';
+import type { AccountTransactionAccessor } from '../../accessors/accountTransactionAccessor';
+import type { BudgetAccessor } from '../../accessors/budgetAccessor';
+import type { CardTransactionAccessor } from '../../accessors/cardTransactionAccessor';
+import type { GoalAccessor } from '../../accessors/goalAccessor';
 import type { HouseholdAccessor } from '../../accessors/householdAccessor';
+import type { IndexRateAccessor } from '../../accessors/indexRateAccessor';
 import type { InvitationAccessor } from '../../accessors/invitationAccessor';
 import type { SessionAccessor } from '../../accessors/sessionAccessor';
 import type { UserAccessor } from '../../accessors/userAccessor';
@@ -8,6 +14,7 @@ import type { NotificationEngine } from '../../engines/notification';
 import type { AuthenticationUtility } from '../../utilities/authentication';
 import type { AuthorizationUtility } from '../../utilities/authorization';
 import type { ServiceBus } from '../../utilities/serviceBus';
+import type { InTransaction } from '../../utilities/unitOfWork';
 import type { RequestContext } from '../requestContext';
 
 export type { RequestContext, SignedInContext } from '../requestContext';
@@ -15,6 +22,22 @@ export type { RequestContext, SignedInContext } from '../requestContext';
 // What every IdentityManager use case shares: its dependencies (the tier below,
 // injected so integration tests mock exactly that tier — BDT), the request it
 // runs for, and a logger carrying that request's correlation ID and actor.
+
+/**
+ * The Accessors a user's erasure writes through, sharing one transaction
+ * (FR-1.17/FR-1.11, OQ-240): personal rows deleted, shared ones anonymized, and —
+ * for Delete User — the user row last.
+ */
+export interface ErasureStores {
+  readonly accountTransactions: Pick<AccountTransactionAccessor, 'forgetUser'>;
+  readonly cardTransactions: Pick<CardTransactionAccessor, 'forgetUser'>;
+  readonly goals: Pick<GoalAccessor, 'forgetUser'>;
+  readonly budgets: Pick<BudgetAccessor, 'forgetUser'>;
+  readonly accounts: Pick<AccountAccessor, 'forgetUser'>;
+  readonly indexRates: Pick<IndexRateAccessor, 'forgetUser'>;
+  readonly invitations: Pick<InvitationAccessor, 'forgetUser'>;
+  readonly users: Pick<UserAccessor, 'delete'>;
+}
 
 /** The components IdentityManager calls. */
 export interface IdentityDeps {
@@ -26,6 +49,8 @@ export interface IdentityDeps {
   readonly authorization: AuthorizationUtility;
   readonly bus: Pick<ServiceBus, 'publish'>;
   readonly notifications: NotificationEngine;
+  /** Runs an erasure's writes in one transaction (UnitOfWorkUtility, OQ-175/OQ-240). */
+  readonly inErasure: InTransaction<ErasureStores>;
   /** Where the web app runs; email links point here (WEB_APP_URL). */
   readonly webAppUrl: string;
   readonly now: () => Date;

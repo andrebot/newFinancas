@@ -9,6 +9,7 @@ import {
   type ClaimedCategories, type DayKindTotal, type LedgerCursor, type MonthCount,
   type MonthKindTotal,
 } from './ledgerQuery';
+import { inHousehold, type ErasureScope } from './erasureScope';
 
 // CardTransactionAccessor (A8, VBD): the Card Transaction ledger, kept apart
 // from Account Transactions (OQ-16; FR-3.1, FR-3.2, FR-3.12, 02-data-model.md).
@@ -363,6 +364,26 @@ const createCardTransactionAccessor = (db: Database) => ({
         gte(cardTransactions.date, from),
       ))
       .groupBy(monthOfDate, cardTransactions.currency, cardTransactions.kind);
+  },
+
+  /**
+   * Erases a user as the recorder of card transactions (FR-1.17/FR-1.11, OQ-240):
+   * the rows stay, no longer naming them. Those on their personal Accounts' cards
+   * go with the Accounts (AccountAccessor's `forgetUser`).
+   *
+   * @param scope - Whose transactions, and in which household (every one when left out).
+   */
+  forgetUser: async (scope: ErasureScope): Promise<void> => {
+    const household = inHousehold(accounts.householdId, scope);
+    await db.update(cardTransactions).set({ createdByUserId: null }).where(and(
+      eq(cardTransactions.createdByUserId, scope.userId),
+      household && inArray(
+        cardTransactions.creditCardId,
+        db.select({ id: creditCards.id }).from(creditCards)
+          .innerJoin(accounts, eq(accounts.id, creditCards.accountId))
+          .where(household),
+      ),
+    ));
   },
 });
 

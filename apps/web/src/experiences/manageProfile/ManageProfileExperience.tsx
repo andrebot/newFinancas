@@ -287,7 +287,7 @@ function ProfilePage({ user, deleteAccount }: ProfilePageProps) {
 
 /** The Experience's configuration. */
 export interface ManageProfileExperienceProps {
-  /** Offer Delete Account; off until its endpoint exists (`profile.deleteAccount`). */
+  /** Offer Delete Account (`profile.deleteAccount`). */
   readonly deleteAccount?: boolean;
 }
 

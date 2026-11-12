@@ -35,6 +35,7 @@ export const mockIdentity = (): MockedIdentity => ({
   confirmPasswordReset: vi.fn(),
   getProfile: vi.fn(),
   editProfile: vi.fn(),
+  deleteUser: vi.fn(),
   listMyHouseholds: vi.fn(),
   listMyInvitations: vi.fn(),
   createHousehold: vi.fn(),
