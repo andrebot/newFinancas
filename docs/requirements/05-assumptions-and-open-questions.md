@@ -7094,7 +7094,7 @@ only the journey in the browser, and checks the end state through the API
 - **`AccountTransactionAccessor.listPayouts(holdingIds, from, to)`** is the one new read; the Engine sums in code (household scale).
 - **InsightsManager** serves all three report types under the membership check (`report.unknown_type_or_range` stays reserved in the contract, no longer thrown) and adds `listHouseholdHoldings` — the viewer's Accounts, their Holdings, projected as the per-account list is. The route came off the contract-routes plan list. The payouts' `months` is 1–24 in the contract (default 12); the Manager's default sits in `config/constants.ts`.
 - **A comma-joined list now reads as a list:** the contract's arrays are `explode: false`, and the API's query coercion took `a,b` as one value — so a ledger filter with two kinds (or accounts, or categories) matched nothing since X6. Found while building `holdingIds`; fixed in `http/queryCoercion.ts` for every list.
-- **The Experience** (`TrackInvestmentsExperience`) holds the open tab in the address (`?tab=overview|holdings|rates`, the other parameters kept, the entry replaced) and **mounts only the open tab**, unlike Account Setup (OQ-197): Holding and Rates Maintenance open drawers in portals, which a hidden tab would leave over the shown one, and RTK Query's cache makes a switch back immediate. The overview's read is loaded once the report, the household Holdings and the accounts are in, failed when any failed; Try again asks only for what failed. The payout choice is `usePayoutSelection` over one storage object per household (`financas.payouts.holdings.<householdId>`), memoized on the household; a list choice waits for the Holdings. Holding Maintenance's `details` slot reads the split, and for a market-priced Holding the value history and the latest `holdingMaintenance.activityCount` transactions. The members come from Manage Household's `listMembers` endpoint (the cache is shared with its header). `splitGoalsOf` moved from Manage Finances to `experiences/goalFunding.ts`, shared with Holding Maintenance.
+- **The Experience** (`TrackInvestmentsExperience`) holds the open tab in the address (`?tab=overview|holdings|rates`, the other parameters kept, the entry replaced) and **mounts only the open tab**, unlike Account Setup (OQ-197): Holding and Rates Maintenance open drawers in portals, which a hidden tab would leave over the shown one, and RTK Query's cache makes a switch back immediate. The overview's read is loaded once the report, the household Holdings and the accounts are in, failed when any failed; Try again asks only for what failed. The payout choice is `usePayoutSelection` over one storage object per household (`financas.payouts.holdings.<householdId>`), memoized on the household; a list choice waits for the Holdings. Holding Maintenance's `details` slot reads the split, and for a market-priced Holding the value history and the latest `holdingMaintenance.activityCount` transactions. The members come from Manage Household's `listMembers` endpoint (the cache is shared with its header) — moved to the shared `api/identityApi.ts` by the slice 4 review (A1, OQ-239). `splitGoalsOf` moved from Manage Finances to `experiences/goalFunding.ts`, shared with Holding Maintenance.
 - **Cache tags:** the overview and the household Holdings also provide `Accounts` (and the overview `Goals`), so a transaction recorded in Manage Finances refreshes them (PR #145); a market value write refetches the history, the overview and the Goals' progress; a split write the split and the Goals; a rate write the rates and the Holdings (OQ-235, narrowed in review round 1). The split read is `listHoldingSplit`, since Manage Finances already injects a `listHoldingAllocations` without tags.
 - **The v2 Portfolio Builders** are disabled buttons with a "v2" tag and "Coming in v2" as their title, **left out below `md`**: they don't fit a phone's header, and the new Playwright check caught them pushing a 320px page 161px sideways.
 - **Tests (BDT):** the Engine with its Accessor reads faked; the Accessor read against PGlite; the Manager with the Engine and Accessors mocked, and the I4 seam matrix extended; the routes over a mocked Manager; the Experience's endpoints through the real store with `fetch` faked; the Experience with its Flows stubbed; the pure model directly. 100% coverage. **Playwright** (`tests/e2e/investments/portfolioOverview.spec.ts`): a stock that paid dividends, the payout chart drawn, no sideways scroll at 320px.
@@ -7145,6 +7145,36 @@ only the journey in the browser, and checks the end state through the API
 - **Left as is:** #6 doesn't separate "latest by date" from "latest recorded" (the newer CDI value is both) — the Engine's rule, unit-tested; and a run crossing São Paulo midnight, as every journey.
 
 **Task 135 (`I10`) is complete.**
+
+### OQ-239: Slice 4 review decisions (gate R4)
+**Confirmed with the stakeholder (Nov 2026)** — the stakeholder handed the
+gate's fixes over in advance ("fix whatever you find relevant", then "move
+forward with all the next phases"), from the review in
+`docs/architecture/16-slice-4-review.md`:
+- **Phases 1–2 changed tests and docs only.** Phase 1's gaps (B1–B3, V1–V10)
+  got their tests; phase 2's E1 (uc-12's figures) and E2 (a journey that runs
+  investmentsDaily runs alone with it, `aloneWithTheJob`) are in the journeys
+  and the BDT plan.
+- **The members list is a shared identity read (A1).** Track Investments read
+  `GET /households/{id}/members` from Manage Household's API slice — the
+  sibling import OQ-163 moved the user and households out of. `listMembers`
+  now lives in `api/identityApi.ts`, returning the contract's
+  `HouseholdMembership` (Manage Household's field-for-field copy went); the
+  membership writes stay Manage Household's and invalidate the `Members` tag.
+  ESLint `project/experience-api-isolation` refuses an Experience importing
+  another Experience's `api.ts` (Flows and Interactions are left to
+  `project/ebd-backend-calls`, whose options a later block would replace).
+  OQ-236 is amended; the EBD doc's households lines, stale since OQ-163, are
+  corrected with it.
+- **The save lifecycle stays in each form (A2, a note).** Market Value Entry,
+  the Goal split editor, Rate Update Entry and the History editor each hold
+  "busy, problems after Save, focus on a refusal, clean after a save" — and
+  phase 1 found the same gaps in each. Left as it is: every copy is now
+  tested, and the forms differ in what "done" closes. Extract a shared hook
+  (a Utility) when the next form with that lifecycle lands (slice 5's
+  Dialog-based forms are the likely trigger).
+
+**Gate R4 is complete.**
 
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
