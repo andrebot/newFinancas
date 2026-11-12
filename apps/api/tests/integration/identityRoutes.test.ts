@@ -373,6 +373,13 @@ describe('identity routes — signed in', () => {
     });
   });
 
+  it('DELETE /users/me deletes the caller\'s account', async () => {
+    const { app, identity } = setup();
+
+    expect((await send(app, 'DELETE', '/users/me', SIGNED_IN)).status).toBe(204);
+    expect(identity.deleteUser).toHaveBeenCalledWith(expect.objectContaining({ actor: ACTOR }));
+  });
+
   it('DELETE /users/me/sessions signs out the others', async () => {
     const { app, identity } = setup();
 

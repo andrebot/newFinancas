@@ -51,7 +51,8 @@ describe('LeaveHousehold', () => {
     renderCard();
 
     expect(screen.getByRole('heading', { name: 'Leave household' })).toBeTruthy();
-    expect(screen.getByText(/You lose access to its shared accounts/)).toBeTruthy();
+    expect(screen.getByText(/Your personal accounts, budgets and goals here are deleted/))
+      .toBeTruthy();
     expect((openButton() as HTMLButtonElement).disabled).toBe(false);
   });
 

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>Call Chain — Delete User — New Finance App</title>
+<title>Call Chain — Delete User (GDPR Right-to-Erasure) — New Finance App</title>
 <style>
   :root {
     --bg: #0f1420; --panel: #1a2236; --panel-border: #2f3b56; --text: #eef1f8; --muted: #9aa4bb;
@@ -49,8 +49,8 @@
 </style>
 </head>
 <body>
-  <h1>Call Chain — Delete User</h1>
-  <p class="subtitle">Use case 12 of 20 in the Identity &amp; Household set (CUC-2, FR-1.17/OQ-25). Lifecycle Transition (User → deleted), the richest cascade set in the whole inventory — wide fan-out is expected here, not a smell.</p>
+  <h1>Call Chain — Delete User (GDPR Right-to-Erasure)</h1>
+  <p class="subtitle">Use case 12 of 21 (FR-1.17/1.18, OQ-25, OQ-240). Unconditional; the widest fan-out in IdentityManager.</p>
 
   <div class="architecture">
     <svg id="arrows-svg"></svg>
@@ -135,8 +135,8 @@
   </div>
 
   <div class="notes">
-    <p><strong>Chain:</strong> <code>IdentityManager</code> ① <code>HouseholdAccessor.transitionMembership(...,"removed")</code> for each household the actor is Owner of (succession per FR-1.18) → ②–⑤ anonymize actor references on shared records — <code>AccountTransactionAccessor</code>, <code>CardTransactionAccessor</code>, <code>BudgetAccessor</code>, <code>GoalAccessor</code> (sync, OQ-25) → ⑥ <code>UserAccessor.hardDelete(userId)</code> (sync) → ⑦ <code>SessionAccessor.revokeAll(userId)</code> (sync) → ⑧ <code>LoggingUtility</code> (async).</p>
-    <p><strong>Wide fan-out is expected here, not a smell:</strong> this is the one use case in the whole inventory where touching many Accessors is the honest shape of the requirement (per-household succession + anonymizing every shared-data type the user could have contributed to). The distinguishing check for a real smell isn't "how many Accessors," it's whether the Manager is making <em>business decisions</em> about each one beyond "which Accessor backs this data type" — it isn't; every step here is dispatch-and-delegate, same discipline as everywhere else.</p>
+    <p><strong>Chain:</strong> <code>IdentityManager</code> &#9312; <code>HouseholdAccessor.listForUser</code>, then each household departed as on Leave Household &mdash; erased with its departure, in one transaction (succession, or <code>dissolve</code> when alone; <code>stale</code> rolled back and retried, 409 after 3) &rarr; in one last transaction, <code>listForUser</code> again (joined one meanwhile &rarr; 409) and &#9313;&ndash;&#9320; the erasure everywhere &mdash; <code>forgetUser({userId})</code> on <code>AccountTransactionAccessor</code> (a transfer pair with a side on a personal Account loses that side; the other becomes a lone <code>movement</code>), <code>CardTransactionAccessor</code>, <code>GoalAccessor</code>, <code>BudgetAccessor</code> (personal Budgets with their periods), <code>AccountAccessor</code> (personal Accounts with everything under them), <code>IndexRateAccessor</code> and <code>InvitationAccessor</code> &mdash; personal rows deleted, shared ones no longer naming the user, all in one transaction (UnitOfWorkUtility, not drawn) &mdash; households left before included &rarr; &#9321; <code>UserAccessor.delete</code>, in the same transaction (sessions, MFA codes, reset tokens and notifications go with the row, FK cascade; a row still naming the user rolls it all back, 500) &rarr; &#9322; <code>LoggingUtility</code> audit.</p>
+    <p><strong>Rebuilt (task 136, OQ-240):</strong> the design-time chain named <code>SessionAccessor.deleteAllForUser</code> after the user delete &mdash; the FK cascade does it. No <code>InvestmentHoldingAccessor</code> call: Holdings go with their personal Account. Each departure commits with its household&#39;s erasure, the last erasure with the user row, so a run cut short is finished by the next.</p>
   </div>
 
   <script>
@@ -149,7 +149,7 @@
       svg.style.width = containerRect.width + 'px';
       svg.style.height = containerRect.height + 'px';
 
-      var edges = [{"from": "mgr-identity", "to": "acc-household", "type": "sync", "order": 1}, {"from": "mgr-identity", "to": "acc-accounttxn", "type": "sync", "order": 2}, {"from": "mgr-identity", "to": "acc-cardtxn", "type": "sync", "order": 3}, {"from": "mgr-identity", "to": "acc-budget", "type": "sync", "order": 4}, {"from": "mgr-identity", "to": "acc-goal", "type": "sync", "order": 5}, {"from": "mgr-identity", "to": "acc-user", "type": "sync", "order": 6}, {"from": "mgr-identity", "to": "acc-session", "type": "sync", "order": 7}, {"from": "mgr-identity", "to": "util-logging", "type": "async", "order": 8}];
+      var edges = [{"from": "mgr-identity", "to": "acc-household", "type": "sync", "order": 1}, {"from": "mgr-identity", "to": "acc-accounttxn", "type": "sync", "order": 2}, {"from": "mgr-identity", "to": "acc-cardtxn", "type": "sync", "order": 3}, {"from": "mgr-identity", "to": "acc-goal", "type": "sync", "order": 4}, {"from": "mgr-identity", "to": "acc-budget", "type": "sync", "order": 5}, {"from": "mgr-identity", "to": "acc-account", "type": "sync", "order": 6}, {"from": "mgr-identity", "to": "acc-indexrate", "type": "sync", "order": 7}, {"from": "mgr-identity", "to": "acc-invitation", "type": "sync", "order": 8}, {"from": "mgr-identity", "to": "acc-user", "type": "sync", "order": 9}, {"from": "mgr-identity", "to": "util-logging", "type": "async", "order": 10}];
 
       var activeIds = {};
       edges.forEach(function (e) { activeIds[e.from] = true; activeIds[e.to] = true; });

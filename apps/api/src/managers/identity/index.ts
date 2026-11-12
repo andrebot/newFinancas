@@ -1,4 +1,5 @@
 import type { IdentityDeps } from './context';
+import createErasure from './erasure';
 import createHouseholds from './households';
 import createInvitations from './invitations';
 import createMembers from './members';
@@ -13,7 +14,7 @@ import createSignIn from './signIn';
 // apply (OQ-107). Built in parts so each stays small.
 
 export type {
-  AuthTokens, EnrollmentStart, IdentityDeps, RequestContext, SignedInContext,
+  AuthTokens, EnrollmentStart, ErasureStores, IdentityDeps, RequestContext, SignedInContext,
 } from './context';
 export type { Registered, Registration } from './registration';
 export type { SessionView } from './sessions';
@@ -38,15 +39,19 @@ export type {
  * @param deps - The Accessors and Utilities it calls, and the clock.
  * @returns Every IdentityManager use case.
  */
-export const createIdentityManager = (deps: IdentityDeps) => ({
-  ...createRegistration(deps),
-  ...createSignIn(deps),
-  ...createSessions(deps),
-  ...createPasswords(deps),
-  ...createProfile(deps),
-  ...createHouseholds(deps),
-  ...createMembers(deps),
-  ...createInvitations(deps),
-});
+export const createIdentityManager = (deps: IdentityDeps) => {
+  const erasure = createErasure(deps);
+  return {
+    ...createRegistration(deps),
+    ...createSignIn(deps),
+    ...createSessions(deps),
+    ...createPasswords(deps),
+    ...createProfile(deps),
+    ...createHouseholds(deps),
+    ...createMembers(deps, erasure),
+    deleteUser: erasure.deleteUser,
+    ...createInvitations(deps),
+  };
+};
 
 export type IdentityManager = ReturnType<typeof createIdentityManager>;

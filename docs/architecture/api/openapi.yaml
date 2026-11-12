@@ -416,9 +416,14 @@ paths:
         Owner, FR-1.18's succession runs first, per household. One of
         the two widest-fan-out flows in the system — see
         docs/design/diagrams/sequences/identity-household/uc-12-delete-user.html for
-        the full cascade traced call-by-call.
+        the full cascade traced call-by-call. A 409 `household.changed` is
+        contention, not a refusal: a household kept changing through the
+        succession's retries, or the user joined one meanwhile. Households
+        already left were erased with their departure, nothing else was, and
+        trying again finishes the deletion (OQ-240).
       responses:
         "204": { description: No Content }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /users/me/sessions:
     get:
@@ -593,7 +598,10 @@ paths:
         `userId ==` the caller (Leave Household, self-service, no
         authorization check — if the leaver is the Owner, FR-1.18's
         succession runs atomically, or the household itself is deleted
-        if no member remains). See
+        if no member remains). Either way the member's personal
+        Accounts, Budgets and Goals in the household are deleted and the
+        shared data they added stops naming them (FR-1.17's erasure,
+        scoped to the household — OQ-240). See
         docs/design/diagrams/sequences/identity-household/uc-07-remove-member.html
         and uc-08-leave-household.html.
       responses:

@@ -5,6 +5,7 @@ import {
 import type { Database } from '../db/database';
 import { PG_UNIQUE_VIOLATION, pgErrorCode } from '../db/errors';
 import { indexRateValues } from '../db/schema';
+import { inHousehold, type ErasureScope } from './erasureScope';
 
 // IndexRateAccessor (A14, VBD): a household's Index Reference Rates — a dated
 // history of values per index (Selic, CDI, IPCA, IGP-M; FR-11.6, OQ-59).
@@ -236,6 +237,19 @@ const createIndexRateAccessor = (db: Database) => ({
       .where(eq(indexRateValues.householdId, householdId))
       .orderBy(asc(indexRateValues.indexCode), newestFirst);
     return rows.map(toRate);
+  },
+
+  /**
+   * Erases a user from the index rate values they recorded (FR-1.17/FR-1.11,
+   * OQ-240): the values are the household's and stay, no longer naming them.
+   *
+   * @param scope - Whose values, and in which household (every one when left out).
+   */
+  forgetUser: async (scope: ErasureScope): Promise<void> => {
+    await db.update(indexRateValues).set({ createdByUserId: null }).where(and(
+      eq(indexRateValues.createdByUserId, scope.userId),
+      inHousehold(indexRateValues.householdId, scope),
+    ));
   },
 });
 

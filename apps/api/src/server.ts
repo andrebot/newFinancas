@@ -39,6 +39,7 @@ import {
 import { startDailyScheduler, type DailySchedulerDeps } from './jobs/dailyScheduler';
 import { createManagers } from './managers';
 import type { AccountStores } from './managers/account';
+import type { ErasureStores } from './managers/identity';
 import type { TransactionStores } from './managers/transaction';
 import { createAuthenticationUtility } from './utilities/authentication';
 import { createAuthorizationUtility } from './utilities/authorization';
@@ -117,6 +118,25 @@ const transactionStoresOver = (over: Database): TransactionStores => ({
   valuations: createValuationSnapshotAccessor(over),
 });
 const indexRates = createIndexRateAccessor(db);
+
+/**
+ * The Accessors a user's erasure writes through, over a database or one
+ * transaction (OQ-240).
+ *
+ * @param over - The database, or a transaction.
+ * @returns The Accessors.
+ */
+const erasureStoresOver = (over: Database): ErasureStores => ({
+  accountTransactions: createAccountTransactionAccessor(over),
+  cardTransactions: createCardTransactionAccessor(over),
+  goals: createGoalAccessor(over),
+  budgets: createBudgetAccessor(over),
+  accounts: createAccountAccessor(over),
+  indexRates: createIndexRateAccessor(over),
+  invitations: createInvitationAccessor(over),
+  households: createHouseholdAccessor(over),
+  users: createUserAccessor(over),
+});
 // InsightsManager's reads (M4, OQ-201): ReportingEngine over the same
 // Accessors TransactionManager reads, shared with the Manager's own reads.
 const insightStores = transactionStoresOver(db);
@@ -151,6 +171,7 @@ const {
     authentication,
     authorization,
     notifications,
+    inErasure: createUnitOfWork(db, erasureStoresOver),
     webAppUrl: env.webAppUrl,
     now: () => new Date(),
   },

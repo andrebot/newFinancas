@@ -24,7 +24,8 @@ describe('RemoveMemberConfirm', () => {
     );
 
     expect(screen.getByText(
-      'Remove Sam Costa from the household? They lose access to its shared data.',
+      'Remove Sam Costa from the household? Their personal accounts, budgets and goals here'
+        + ' are deleted, and they lose access to its shared data.',
     )).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Remove' }));
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));

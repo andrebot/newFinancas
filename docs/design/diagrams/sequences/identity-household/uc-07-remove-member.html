@@ -64,6 +64,13 @@ sequenceDiagram
     participant IM as IdentityManager
     participant AZ as AuthorizationUtility
     participant HA as HouseholdAccessor
+    participant ATA as AccountTransactionAccessor
+    participant CTA as CardTransactionAccessor
+    participant GA as GoalAccessor
+    participant BA as BudgetAccessor
+    participant AA as AccountAccessor
+    participant IRA as IndexRateAccessor
+    participant INV as InvitationAccessor
     participant LOG as LoggingUtility
 
     User->>API: DELETE /households/:householdId/members/:userId
@@ -92,10 +99,27 @@ sequenceDiagram
             API-->>User: 403 auth.forbidden
         else another member
             HA-->>IM: role
+            Note over IM,INV: one transaction: the erasure and the removal commit together
+            Note over IM,INV: in the transaction (UnitOfWorkUtility) &mdash; personal rows deleted,<br/>shared rows kept, no longer naming the user (FR-1.17, OQ-240)
+            IM->>ATA: forgetUser({userId, householdId})
+            ATA-->>IM: a transfer pair with a side on a personal Account:<br/>the other side becomes a lone movement, rows anonymized
+            IM->>CTA: forgetUser({userId, householdId})
+            CTA-->>IM: charges and refunds anonymized
+            IM->>GA: forgetUser({userId, householdId})
+            GA-->>IM: personal Goals deleted (allocations cascade), shared ones anonymized
+            IM->>BA: forgetUser({userId, householdId})
+            BA-->>IM: personal Budgets deleted with their periods, shared ones and claims anonymized
+            IM->>AA: forgetUser({userId, householdId})
+            AA-->>IM: personal Accounts deleted &mdash; cards, Holdings, transactions,<br/>balances, snapshots, allocations cascade, shared ones anonymized
+            IM->>IRA: forgetUser({userId, householdId})
+            IRA-->>IM: index rate values anonymized
+            IM->>INV: forgetUser({userId, householdId})
+            INV-->>IM: invitations sent anonymized (a pending one still stands)
             IM->>HA: removeMember(householdId, userId)
             Note over HA: guarded &mdash; never removes an Owner (OQ-107)
             alt stale (made Owner or gone meanwhile)
                 HA-->>IM: stale
+                Note over IM: thrown inside the transaction &mdash; the erasure rolls back
                 IM-->>API: Conflict
                 API-->>User: 409 household.changed
             else removed
@@ -112,6 +136,7 @@ sequenceDiagram
     <ul>
       <li><strong>Revised (OQ-107):</strong> the Owner-immunity check is a business rule, so it lives in <code>IdentityManager</code>. <code>HouseholdAccessor.removeMember</code> only applies the change, guarded so it never removes the Owner even if a concurrent request made them one.</li>
       <li>Shares its Accessor call with Leave Household (UC-08) — same method, different actor/target relationship (VBD doc &sect;3.1a).</li>
+      <li><strong>Changed (task 136, OQ-240):</strong> a removed member takes their finances in the household with them &mdash; the same erasure as Delete User, scoped to this household (02-data-model.md&#39;s trigger equivalence). It commits in one transaction with the removal: a removal refused as <code>stale</code> (made Owner meanwhile) rolls the erasure back, so nobody is erased and kept.</li>
       <li>See FR-1.11, OQ-27.</li>
     </ul>
   </div>

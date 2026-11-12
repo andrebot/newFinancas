@@ -4,6 +4,7 @@ import type { Database } from '../db/database';
 import { PG_FOREIGN_KEY_VIOLATION, PG_UNIQUE_VIOLATION, pgErrorCode } from '../db/errors';
 import { households, invitations, users } from '../db/schema';
 import type { AssignableRole } from '../db/schema/values';
+import { inHousehold, type ErasureScope } from './erasureScope';
 
 // InvitationAccessor (A4, VBD): household invitations and their lifecycle,
 // pending → accepted | declined | revoked (FR-1.10). Applies data changes only:
@@ -193,6 +194,19 @@ const createInvitationAccessor = (db: Database) => ({
       .where(and(eq(invitations.id, invitationId), eq(invitations.status, 'pending')))
       .returning({ id: invitations.id });
     return resolved.length > 0 ? 'resolved' : 'stale';
+  },
+
+  /**
+   * Erases a user as the sender of invitations (FR-1.17/FR-1.11, OQ-240): the
+   * invitations stay — a pending one can still be accepted — no longer naming them.
+   *
+   * @param scope - Whose invitations, and in which household (every one when left out).
+   */
+  forgetUser: async (scope: ErasureScope): Promise<void> => {
+    await db.update(invitations).set({ invitedByUserId: null }).where(and(
+      eq(invitations.invitedByUserId, scope.userId),
+      inHousehold(invitations.householdId, scope),
+    ));
   },
 });
 

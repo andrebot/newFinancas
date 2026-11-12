@@ -466,11 +466,11 @@ export const recordTransaction = {
 /** Manage Profile (X3). */
 export const profile = {
   /**
-   * Whether the page offers Delete Account (FL8). Off until its endpoint
-   * exists: `DELETE /users/me` is the Delete User cascade, task 136 (M1D),
-   * which turns this on (code review A1, OQ-163).
+   * Whether the page offers Delete Account (FL8). On since task 136 (M1D)
+   * built its endpoint, `DELETE /users/me` — the Delete User cascade (OQ-163,
+   * OQ-240).
    */
-  deleteAccount: false,
+  deleteAccount: true,
 } as const;
 
 /** The product's identity, drawn by the brand mark (K34, OQ-135). A proper noun: not translated. */

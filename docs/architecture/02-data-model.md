@@ -74,7 +74,9 @@ household." `household_memberships` already treats both triggers as
 equivalent (see Identity & Household below, "deleted outright when a
 user leaves or is deleted"); this extends the same equivalence to every
 personal-data table in every domain below, including the Accounts
-section already written. Shared data the user contributed simply has its
+section already written. *(Built in task 136, OQ-240: each Accessor's
+`forgetUser`, run by IdentityManager on Leave, Remove Member and Delete
+User; "personal" stays household-scoped.)* Shared data the user contributed simply has its
 actor reference nulled and lives on either way, exactly as before — a
 shared Goal's allocations to a departing member's now-deleted
 Holdings just disappear along with the Holdings, and its progress

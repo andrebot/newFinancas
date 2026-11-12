@@ -34,13 +34,28 @@ describe('IdentityManager — Remove Member (uc-07, FR-1.11)', () => {
     });
   });
 
+  it('erases the member\'s finances in the household before removing them (OQ-240)', async () => {
+    const { deps, households, erasure } = fakeDeps();
+
+    await createIdentityManager(deps).removeMember(CONTEXT, HOME, BEN_ID);
+
+    const scope = { userId: BEN_ID, householdId: HOME };
+    Object.values(erasure).filter((store) => 'forgetUser' in store).forEach((store) => {
+      expect(store.forgetUser).toHaveBeenCalledWith(scope);
+    });
+    expect(erasure.accounts.forgetUser.mock.invocationCallOrder[0])
+      .toBeLessThan(households.removeMember.mock.invocationCallOrder[0]!);
+    expect(erasure.users.delete).not.toHaveBeenCalled();
+  });
+
   it('never removes the Owner (OQ-111)', async () => {
-    const { deps, households } = fakeDeps();
+    const { deps, households, inErasure } = fakeDeps();
     households.findMembership.mockResolvedValueOnce(OWNER);
 
     await expect(createIdentityManager(deps).removeMember(CONTEXT, HOME, BEN_ID))
       .rejects.toMatchObject(FORBIDDEN);
     expect(households.removeMember).not.toHaveBeenCalled();
+    expect(inErasure).not.toHaveBeenCalled();
   });
 
   it('answers 404 for someone who is not a member, 409 when it changed meanwhile', async () => {
@@ -53,6 +68,16 @@ describe('IdentityManager — Remove Member (uc-07, FR-1.11)', () => {
 
     households.removeMember.mockResolvedValueOnce('stale');
     await expect(identity.removeMember(CONTEXT, HOME, BEN_ID)).rejects.toMatchObject(CHANGED);
+  });
+
+  it('rolls the erasure back when the removal goes stale — made Owner meanwhile', async () => {
+    const { deps, households, inErasure } = fakeDeps();
+    households.removeMember.mockResolvedValueOnce('stale');
+
+    await expect(createIdentityManager(deps).removeMember(CONTEXT, HOME, BEN_ID))
+      .rejects.toMatchObject(CHANGED);
+    // The 409 is thrown inside the erasure's transaction, so it rolls back.
+    await expect(inErasure.mock.results[0]!.value).rejects.toMatchObject(CHANGED);
   });
 });
 
@@ -84,9 +109,46 @@ describe('IdentityManager — Leave Household (uc-08, FR-1.18, OQ-107)', () => {
     });
   });
 
+  it('erases the caller\'s finances in the household before leaving it (OQ-240)', async () => {
+    const { deps, households, erasure } = fakeDeps();
+
+    await leave(deps);
+
+    Object.values(erasure).filter((store) => 'forgetUser' in store).forEach((store) => {
+      expect(store.forgetUser).toHaveBeenCalledWith({ userId: ANA.id, householdId: HOME });
+      expect(store.forgetUser.mock.invocationCallOrder[0])
+        .toBeLessThan(households.removeMember.mock.invocationCallOrder[0]!);
+    });
+  });
+
+  it('rolls each stale attempt\'s erasure back, and erases nothing after three (409)', async () => {
+    const { deps, households, inErasure } = fakeDeps();
+    households.removeMember.mockResolvedValue('stale');
+
+    await expect(leave(deps)).rejects.toMatchObject(CHANGED);
+    expect(inErasure).toHaveBeenCalledTimes(3);
+    await Promise.all(inErasure.mock.results
+      .map((result) => expect(result.value).rejects.toThrow('stale departure')));
+  });
+
+  it('is done, unaudited, when the membership ended meanwhile', async () => {
+    const { deps, households } = fakeDeps();
+    households.removeMember.mockResolvedValueOnce('stale');
+    households.findMembership
+      .mockResolvedValueOnce({ role: 'Member', joinedAt: NOW })
+      .mockResolvedValueOnce({ role: 'Member', joinedAt: NOW })
+      .mockResolvedValueOnce(undefined);
+    const logs = captureLogs(onTestFinished);
+
+    await leave(deps);
+
+    expect(households.removeMember).toHaveBeenCalledOnce();
+    expect(logs.events.filter((event) => event.level === 'audit')).toEqual([]);
+  });
+
   it('hands the household to the successor before the Owner leaves', async () => {
     const { deps, households } = fakeDeps();
-    households.findMembership.mockResolvedValueOnce(OWNER);
+    households.findMembership.mockResolvedValue(OWNER);
     const logs = captureLogs(onTestFinished);
 
     await leave(deps);
@@ -106,7 +168,7 @@ describe('IdentityManager — Leave Household (uc-08, FR-1.18, OQ-107)', () => {
 
   it('dissolves the household when the Owner was the last member', async () => {
     const { deps, households } = fakeDeps();
-    households.findMembership.mockResolvedValueOnce(OWNER);
+    households.findMembership.mockResolvedValue(OWNER);
     households.findSuccessor.mockResolvedValueOnce(undefined);
     const logs = captureLogs(onTestFinished);
 
@@ -153,12 +215,13 @@ describe('IdentityManager — Leave Household (uc-08, FR-1.18, OQ-107)', () => {
     expect(households.removeMember).toHaveBeenCalledTimes(2);
   });
 
-  it('answers 404 to someone who is not a member', async () => {
-    const { deps, households } = fakeDeps();
+  it('answers 404 to someone who is not a member, erasing nothing', async () => {
+    const { deps, households, inErasure } = fakeDeps();
     households.findMembership.mockResolvedValueOnce(undefined);
 
     await expect(leave(deps))
       .rejects.toMatchObject({ domainError: { code: 'household.not_found' } });
+    expect(inErasure).not.toHaveBeenCalled();
   });
 });
 

@@ -186,6 +186,26 @@ export const fakeDeps = () => {
     hashRecoveryCode: vi.fn((code: string) => `code-hash(${code})`),
   };
   const notifications = { notify: vi.fn(async () => undefined) };
+  // The erasure's Accessors (OQ-240), handed to the work inside its transaction.
+  const forgetter = () => ({ forgetUser: vi.fn(async () => undefined) });
+  const erasure = {
+    accountTransactions: forgetter(),
+    cardTransactions: forgetter(),
+    goals: forgetter(),
+    budgets: forgetter(),
+    accounts: forgetter(),
+    indexRates: forgetter(),
+    invitations: forgetter(),
+    // The same mock as outside: a membership change commits with its erasure.
+    households,
+    users: {
+      delete: vi.fn(async (): Promise<'deleted' | 'not_found' | 'still_referenced'> => 'deleted'),
+    },
+  };
+  // Runs the work; a throw means the real transaction rolled back.
+  const inErasure = vi.fn(<Result>(work: (stores: typeof erasure) => Promise<Result>) => (
+    work(erasure)
+  ));
   const deps = {
     users,
     sessions,
@@ -195,6 +215,7 @@ export const fakeDeps = () => {
     bus,
     authentication,
     notifications,
+    inErasure,
     webAppUrl: 'http://web.test',
     now: () => NOW,
   } as unknown as IdentityDeps;
@@ -208,5 +229,7 @@ export const fakeDeps = () => {
     bus,
     authentication,
     notifications,
+    erasure,
+    inErasure,
   };
 };
