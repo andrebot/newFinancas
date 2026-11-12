@@ -1,5 +1,5 @@
 import type { Notification, ReceivedInvitation } from '@financas/api-types';
-import type { NotificationAction } from '../../shell/notificationRouting';
+import { paramText, type NotificationAction } from '../../shell/notificationRouting';
 import { fullName } from '../../utilities/personName';
 
 // What the Notification Inbox shows (task 139; mockup 23; FR-6.10, OQ-82,
@@ -54,18 +54,6 @@ interface StoredNotification {
 }
 
 /**
- * Reads a param as text.
- *
- * @param params - The notification's params.
- * @param key - The param.
- * @returns Its text, or undefined when it isn't one.
- */
-const textParam = (params: Readonly<Record<string, unknown>>, key: string) => {
-  const value = params[key];
-  return typeof value === 'string' ? value : undefined;
-};
-
-/**
  * Names an invitation from the ones still waiting.
  *
  * @param params - The notification's params.
@@ -76,7 +64,7 @@ const invitationNoticeOf = (
   params: Readonly<Record<string, unknown>>,
   invitations: readonly ReceivedInvitation[],
 ): InboxNotice => {
-  const invitation = invitations.find(({ id }) => id === textParam(params, 'invitationId'));
+  const invitation = invitations.find(({ id }) => id === paramText(params, 'invitationId'));
   if (!invitation) return { kind: 'staleInvitation' };
   const inviterName = invitation.inviterFirstName === null ? undefined : fullName({
     firstName: invitation.inviterFirstName, lastName: invitation.inviterLastName ?? '',
@@ -102,15 +90,15 @@ export const noticeOf = (
 ): InboxNotice => {
   const { params } = notification;
   if (notification.type === 'invitation.received') return invitationNoticeOf(params, invitations);
-  const holdingId = textParam(params, 'holdingId');
-  const dueDate = textParam(params, 'dueDate');
+  const holdingId = paramText(params, 'holdingId');
+  const dueDate = paramText(params, 'dueDate');
   if (notification.type !== 'holding.matured' || !holdingId || !dueDate) return { kind: 'other' };
   return {
     kind: 'matured',
     holdingId,
-    householdId: textParam(params, 'householdId'),
-    ticker: textParam(params, 'ticker') ?? null,
-    assetType: textParam(params, 'assetType'),
+    householdId: paramText(params, 'householdId'),
+    ticker: paramText(params, 'ticker') ?? null,
+    assetType: paramText(params, 'assetType'),
     dueDate,
   };
 };

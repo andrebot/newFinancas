@@ -32,6 +32,19 @@ export type NotificationHandler = (action: NotificationAction) => Promise<Handle
 export type NotificationRoutes = Partial<Record<NotificationType, NotificationHandler>>;
 
 /**
+ * Reads one of a notification's params as text — the inbox and the owning
+ * Experiences read the same untyped params.
+ *
+ * @param params - The notification's params.
+ * @param key - The param.
+ * @returns Its text, or undefined when it isn't one.
+ */
+export const paramText = (params: Readonly<Record<string, unknown>>, key: string) => {
+  const value = params[key];
+  return typeof value === 'string' ? value : undefined;
+};
+
+/**
  * Finds the handler that owns a notification's type.
  *
  * @param routes - The routing table.

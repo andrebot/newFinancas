@@ -918,7 +918,7 @@ const ptBR = {
     'builders.comingLater': 'Chega na v2',
     loading: 'Carregando seus investimentos',
     failed: 'Não foi possível carregar seus investimentos.',
-    'archive.done': '{name} arquivado.',
+    'archive.done': 'Investimento {name} arquivado.',
     retry: 'Tentar de novo',
   },
   reviewInsights: {
@@ -943,7 +943,8 @@ const ptBR = {
     delete: 'Excluir notificação',
     stale: 'Este convite não está mais aberto.',
     someone: 'Alguém',
-    unrouted: 'Isso ainda não pode ser feito daqui.',
+    unrouted: 'Isso não pode ser feito daqui.',
+    notMember: 'Você não faz mais parte dessa casa.',
     deleteFailed: 'Não foi possível excluir a notificação.',
   },
   auditExport: {

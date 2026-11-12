@@ -1,6 +1,6 @@
 import { vi } from 'vitest';
+import type { Role, InterestPayment } from '../../../../src/db/schema/values';
 import type { AccountDeps } from '../../../../src/managers/account';
-import type { InterestPayment } from '../../../../src/db/schema/values';
 
 // The tier below AccountManager, mocked (BDT: Managers are tested at the seam,
 // with their Accessors and Utilities mocked). Each test programs what it needs.
@@ -259,7 +259,9 @@ export const fakeDeps = () => {
     remove: vi.fn(async (): Promise<string> => 'deleted'),
   };
   const households = {
-    listMembers: vi.fn(async (): Promise<{ userId: string }[]> => [{ userId: ANA_ID }]),
+    listMembers: vi.fn(async (): Promise<{ userId: string; role: Role }[]> => [
+      { userId: ANA_ID, role: 'Owner' },
+    ]),
   };
   const notifications = { notify: vi.fn(async (..._call: unknown[]) => undefined) };
   const authorization = {

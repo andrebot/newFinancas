@@ -2,6 +2,7 @@ import {
   describe, expect, it, vi,
 } from 'vitest';
 import { investmentsApi } from '../../../../src/api/investmentsApi';
+import { trackInvestmentsApi } from '../../../../src/experiences/trackInvestments/api';
 import {
   archiveMaturedHolding, maturedHoldingName, maturedHoldingOf, maturedHoldingRoute,
   type MaturedHolding,
@@ -70,6 +71,39 @@ const calls = (fetchFn: ReturnType<typeof vi.fn<typeof fetch>>) => fetchFn.mock.
   ([input]) => `${(input as Request).method} ${new URL((input as Request).url).pathname}`,
 );
 
+/** The reads an archive makes stale, in the active household. */
+const READS = {
+  '/households/home/holdings': () => jsonResponse(200, { data: [] }),
+  '/households/home/reports/investments-overview': () => jsonResponse(200, {}),
+  '/households/home/holdings/cdb-1/allocations': () => jsonResponse(200, { allocations: [] }),
+};
+
+/** Each of them read again, sorted. */
+const REREAD = [
+  'GET /api/v1/households/home/holdings',
+  'GET /api/v1/households/home/holdings/cdb-1/allocations',
+  'GET /api/v1/households/home/reports/investments-overview',
+];
+
+/**
+ * Reads the Holdings, the overview and a split (which provides the Goals),
+ * once each, so the archive is the fourth call `fetch` gets.
+ *
+ * @param store - The page's store.
+ * @returns Unsubscribes the three reads.
+ */
+const subscribeToReads = async (store: ReturnType<typeof setUp>['store']) => {
+  const reads = [
+    store.dispatch(investmentsApi.endpoints.listHouseholdHoldings.initiate('home')),
+    store.dispatch(trackInvestmentsApi.endpoints.getInvestmentsOverview.initiate('home')),
+    store.dispatch(trackInvestmentsApi.endpoints.listHoldingSplit.initiate({
+      householdId: 'home', holdingId: 'cdb-1',
+    })),
+  ];
+  await Promise.all(reads);
+  return () => reads.forEach((read) => read.unsubscribe());
+};
+
 describe('maturedHoldingOf', () => {
   it('reads the Holding, its household, ticker and type', () => {
     expect(maturedHoldingOf({
@@ -96,26 +130,41 @@ describe('maturedHoldingName', () => {
 });
 
 describe('archiveMaturedHolding', () => {
-  it('archives in the notice\'s household, toasts it and reads the Holdings again', async () => {
+  it('archives in the notice\'s household, toasts it and reads what it changed again', async () => {
     const { store, fetchFn, feedback } = setUp({
-      '/households/home/holdings': () => jsonResponse(200, { data: [] }),
-      [RIVERA_ARCHIVE]: () => jsonResponse(204),
+      ...READS, [RIVERA_ARCHIVE]: () => jsonResponse(204),
     });
-    const subscription = store.dispatch(
-      investmentsApi.endpoints.listHouseholdHoldings.initiate('home'),
-    );
-    await subscription;
+    const unsubscribe = await subscribeToReads(store);
 
     const outcome = await store.dispatch(archiveMaturedHolding(CDB, feedback));
 
     expect(outcome).toBe('done');
     expect(feedback.alerts.success).toHaveBeenCalledWith('CDB Inter 2026 archived.');
-    await vi.waitFor(() => expect(calls(fetchFn)).toEqual([
-      'GET /api/v1/households/home/holdings',
-      `POST /api/v1${RIVERA_ARCHIVE}`,
-      'GET /api/v1/households/home/holdings',
-    ]));
-    subscription.unsubscribe();
+    await vi.waitFor(() => expect(calls(fetchFn).slice(4).sort()).toEqual(REREAD));
+    unsubscribe();
+  });
+
+  it('clears a notice whose Holding is gone, saying so, and reads again', async () => {
+    const { store, fetchFn, feedback } = setUp({
+      ...READS, [RIVERA_ARCHIVE]: () => jsonResponse(404, envelope('holding.not_found')),
+    });
+    const unsubscribe = await subscribeToReads(store);
+
+    const outcome = await store.dispatch(archiveMaturedHolding(CDB, feedback));
+
+    expect(outcome).toBe('done');
+    expect(feedback.alerts.error).toHaveBeenCalledWith('Holding not found.');
+    await vi.waitFor(() => expect(calls(fetchFn).slice(4).sort()).toEqual(REREAD));
+    unsubscribe();
+  });
+
+  it('clears a notice from a household the user left, saying so', async () => {
+    const { store, feedback } = setUp({
+      [RIVERA_ARCHIVE]: () => jsonResponse(404, envelope('household.not_found')),
+    });
+
+    expect(await store.dispatch(archiveMaturedHolding(CDB, feedback))).toBe('done');
+    expect(feedback.alerts.error).toHaveBeenCalledWith('Household not found.');
   });
 
   it('archives in the active household when the notice names none', async () => {
@@ -150,7 +199,7 @@ describe('archiveMaturedHolding', () => {
       409, 'holding.not_matured',
       'Only a matured holding that still has a position can be archived.',
     ],
-    [404, 'holding.not_found', 'Holding not found.'],
+    [403, 'auth.forbidden', "You don't have permission to do that."],
   ])('toasts a %i (%s) and fails', async (status, code, text) => {
     const { store, feedback } = setUp({
       [RIVERA_ARCHIVE]: () => jsonResponse(status, envelope(code)),

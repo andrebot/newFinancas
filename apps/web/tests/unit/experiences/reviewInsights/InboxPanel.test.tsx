@@ -2,7 +2,7 @@ import { screen } from '@testing-library/react';
 import {
   afterEach, beforeEach, describe, expect, it, vi,
 } from 'vitest';
-import InboxPanel, { inboxReadOf } from '../../../../src/experiences/reviewInsights/InboxPanel';
+import InboxPanel, { inboxReadOf, namesHouseholdLeft } from '../../../../src/experiences/reviewInsights/InboxPanel';
 import type { NotificationInboxProps } from '../../../../src/experiences/reviewInsights/interactions/NotificationInbox';
 import type { InboxPanelProps } from '../../../../src/shell/shellConfig';
 import { householdChosen, selectActiveHouseholdId } from '../../../../src/shell/shellState';
@@ -58,6 +58,11 @@ vi.mock('../../../../src/experiences/reviewInsights/interactions/NotificationInb
 const LOADED: Answers = {
   'GET /notifications': () => jsonResponse(200, { data: INBOX }),
   'GET /users/me/invitations': () => jsonResponse(200, { data: [INVITATION] }),
+  'GET /households': () => jsonResponse(200, {
+    data: [
+      { id: 'home', name: 'Home', role: 'Owner' }, { id: 'rivera', name: 'Rivera', role: 'Admin' },
+    ],
+  }),
   'POST /notifications/seen': () => jsonResponse(204),
   'DELETE /notifications/n-matured': () => jsonResponse(204),
 };
@@ -108,6 +113,15 @@ const seenCalls = async (fetchFn: ReturnType<typeof fakeFetch>) => (
   (await sent(fetchFn)).filter(({ route }) => route === 'POST /api/v1/notifications/seen')
     .map(({ body }) => body)
 );
+
+describe('namesHouseholdLeft', () => {
+  it('is true only for a named household missing from the list', () => {
+    expect(namesHouseholdLeft(undefined, undefined)).toBe(false);
+    expect(namesHouseholdLeft('home', [{ id: 'home' }])).toBe(false);
+    expect(namesHouseholdLeft('left', [{ id: 'home' }])).toBe(true);
+    expect(namesHouseholdLeft('home', undefined)).toBe(true);
+  });
+});
 
 describe('inboxReadOf', () => {
   it('is loaded once both reads are in and the panel knows what it opened with', () => {
@@ -242,7 +256,7 @@ describe('InboxPanel (FR-6.10, OQ-105)', () => {
     await press('archive');
 
     expect(onAction).toHaveBeenCalledWith(expect.objectContaining({ action: 'archive' }));
-    expect(screen.getByText('This can\'t be done from here yet.')).toBeTruthy();
+    expect(screen.getByText('This can\'t be done from here.')).toBeTruthy();
   });
 
   it('routes nothing for a notification no longer listed', async () => {
@@ -276,6 +290,20 @@ describe('InboxPanel (FR-6.10, OQ-105)', () => {
     expect(selectActiveHouseholdId(store.getState())).toBe('rivera');
     expect(screen.getByTestId('location').textContent)
       .toBe('/investments?tab=holdings&holding=cdb-1');
+  });
+
+  it('stays put for a household the user left, saying so (PR #174 review)', async () => {
+    const gone = maturedWith({ ...MATURED.params, householdId: 'left' });
+    const { props, store } = await renderPanel({
+      'GET /notifications': () => jsonResponse(200, { data: [gone, INVITED] }),
+    });
+
+    await press('view');
+
+    expect(screen.getByText('You\'re no longer a member of that household.')).toBeTruthy();
+    expect(props.close).not.toHaveBeenCalled();
+    expect(selectActiveHouseholdId(store.getState())).toBe('home');
+    expect(screen.getByTestId('location').textContent).toBe('/');
   });
 
   it('views nothing for a notice that isn\'t a matured Holding', async () => {

@@ -4286,6 +4286,7 @@ not a hardcoded assumption.
   owner and visibility; `AccountManager` notifies the owner of a personal
   Account and, for a shared one, the members from
   `HouseholdAccessor.listMembers` — the Accessor never reads memberships.
+  *(Narrowed by OQ-245: only the members who may archive a shared Holding.)*
   `markMaturedNotified` marks once.
 - **The rest:** `insert(holding)` opens a Holding with no position (its
   buy's `applyTrade` sets one) and refuses an Account that is
@@ -7389,7 +7390,7 @@ forward with all the next phases"), from the review in
   (`/investments?tab=holdings&holding=…`): its account chosen, its row open
   (Holding Maintenance's `openHoldingId`, the kit Table's `initialOpenKeys`).
   The notice carries no household, so this finds the Holding only in the
-  active household.
+  active household. *(Superseded by OQ-245: the notice names its household.)*
 - **The bell polls `GET /notifications` every 60s while the tab is in
   front**, and on focus (`inbox.pollIntervalMs`; `setupListeners` in
   `main.tsx`).
@@ -7583,6 +7584,33 @@ Holding* is built here.
 - **Diagrams:** the routing sequence (the household from the notice, Track
   Investments' outcome, View holding's switch, no more "until task 141"),
   uc-03's subtitle, and uc-11's sequence and call chain (the params).
+
+- **PR #174 review (an independent reviewer; fixed unless noted):**
+  1. A shared Holding's notice went to every member, but only the Owner, the
+     Admins and the Member who created the Account may archive
+     (`data.delete`): a Viewer's Archive was a 403 and their notice stuck.
+     **A shared Holding's notice now goes only to the members who may archive
+     it** (`decide` in `recipientsOf`) — this narrows OQ-171's "every member".
+     Rejected: hiding Archive per role in the inbox (the web can't tell a
+     creating Member) and treating a 403 as done.
+  2. A Holding gone — `holding.not_found`, or `household.not_found` for a
+     household the user left — kept its notice forever: the thunk now toasts
+     the refusal and answers `done`, so the shell clears it.
+  3. View holding switched to a household the user had left, and the gate
+     then moved them to their first household: it now checks the user's
+     households and toasts "You're no longer a member of that household."
+  4. Review Insights dispatches the shell's `switchHousehold` — **kept**, as
+     Onboard and Manage Household already do; recorded in the panel's comment.
+  5. The archive's refresh was half tested: the Holdings, the overview and a
+     split (the Goals) are now read again, also on a 404.
+  6. The routing sequence still deleted the notice unconditionally through the
+     shell: it now dismisses through Review Insights, only on `done`.
+  7. OQ-243's "active household only" and the EBD doc's View holding note
+     now point here.
+  8. One `paramText` in the shell's routing module for the inbox and Track
+     Investments; the unused `useArchiveHoldingMutation` dropped; pt-BR
+     "Investimento {name} arquivado." (a feminine asset name read wrong); the
+     unknown-type toast lost its "yet".
 
 **Task 141 (`I12`) is complete.**
 

@@ -928,7 +928,8 @@ const enUS: Catalog = {
     delete: 'Delete notification',
     stale: 'This invitation is no longer open.',
     someone: 'Someone',
-    unrouted: "This can't be done from here yet.",
+    unrouted: "This can't be done from here.",
+    notMember: "You're no longer a member of that household.",
     deleteFailed: "Couldn't delete the notification.",
   },
   auditExport: {

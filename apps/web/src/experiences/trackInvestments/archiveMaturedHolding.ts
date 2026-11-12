@@ -1,6 +1,8 @@
 import type { ThunkAction, UnknownAction } from '@reduxjs/toolkit';
 import { failureOf } from '../../api/outcome';
-import type { HandlerOutcome, NotificationHandler } from '../../shell/notificationRouting';
+import {
+  paramText, type HandlerOutcome, type NotificationHandler,
+} from '../../shell/notificationRouting';
 import { selectActiveHouseholdId, type ThunkExtra } from '../../shell/shellState';
 import type { RootState } from '../../store';
 import type { Alerts } from '../../utilities/AlertProvider';
@@ -15,7 +17,11 @@ import { trackInvestmentsApi } from './api';
 // again. The Holding is archived in the household the notice names — the
 // bell is the user's, not a household's — or, for a notice without one, in the
 // active household. The archive refreshes the Holdings, the overview and the
-// Goals by tag; the shell deletes the notice once this reports `done`.
+// Goals by tag; the shell deletes the notice once this reports `done` — also
+// when the Holding is gone, after saying so. Only members who may archive get
+// a shared Holding's notice (OQ-245), so a refusal is not expected.
+// Behind the household gate a household is always active, so a notice without
+// one never meets an empty selection; it fails quietly if it does.
 
 /** How the action tells the user what happened: the page's toasts, in their language. */
 export interface ArchiveFeedback {
@@ -36,16 +42,11 @@ export interface MaturedHolding {
 type ArchiveThunk = ThunkAction<Promise<HandlerOutcome>, RootState, ThunkExtra, UnknownAction>;
 
 /**
- * Reads a param as text.
- *
- * @param params - The notification's params.
- * @param key - The param.
- * @returns Its text, or undefined when it isn't one.
+ * The refusals that mean the Holding is gone for this user — deleted, or in a
+ * household they left: the notice has nothing left to act on, so it is
+ * cleared like a done one (PR #174 review).
  */
-const textParam = (params: Readonly<Record<string, unknown>>, key: string) => {
-  const value = params[key];
-  return typeof value === 'string' ? value : undefined;
-};
+const GONE_CODES: ReadonlySet<string> = new Set(['holding.not_found', 'household.not_found']);
 
 /**
  * Reads the Holding a `holding.matured` notice names.
@@ -56,13 +57,13 @@ const textParam = (params: Readonly<Record<string, unknown>>, key: string) => {
 export const maturedHoldingOf = (
   params: Readonly<Record<string, unknown>>,
 ): MaturedHolding | undefined => {
-  const holdingId = textParam(params, 'holdingId');
+  const holdingId = paramText(params, 'holdingId');
   if (holdingId === undefined) return undefined;
   return {
     holdingId,
-    householdId: textParam(params, 'householdId'),
-    ticker: textParam(params, 'ticker') ?? null,
-    assetType: textParam(params, 'assetType'),
+    householdId: paramText(params, 'householdId'),
+    ticker: paramText(params, 'ticker') ?? null,
+    assetType: paramText(params, 'assetType'),
   };
 };
 
@@ -82,7 +83,7 @@ export const maturedHoldingName = (holding: MaturedHolding, translator: Translat
  *
  * @param holding - The Holding the notice names.
  * @param feedback - The page's toasts and translator.
- * @returns The thunk; it resolves `done` once archived, else `failed`.
+ * @returns The thunk; it resolves `done` once archived or gone, else `failed`.
  */
 export const archiveMaturedHolding = (
   holding: MaturedHolding,
@@ -99,7 +100,7 @@ export const archiveMaturedHolding = (
   if (result.error !== undefined) {
     const failure = failureOf(result.error);
     alerts.error(translator.error(failure.code, failure.params));
-    return 'failed';
+    return GONE_CODES.has(failure.code) ? 'done' : 'failed';
   }
   alerts.success(translator.text('trackInvestments', 'archive.done', {
     name: maturedHoldingName(holding, translator),

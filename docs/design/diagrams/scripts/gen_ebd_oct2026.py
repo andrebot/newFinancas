@@ -1281,13 +1281,15 @@ else holding.matured — Archive holding
     BELL->>SHELL: emit action {type: holding.matured, archive, params}
     SHELL->>TI: route → Archive Matured Holding
     TI->>API: POST /households/:householdId/holdings/:holdingId/archive — the notice's householdId, else the active one (OQ-245)
-    TI-->>SHELL: done / failed (Track Investments toasts either — the Holdings, overview and Goals refetch by tag)
+    TI-->>SHELL: done / failed (Track Investments toasts either — the Holdings, overview and Goals refetch by tag, a Holding gone is done)
 end
-API-->>SHELL: done
-SHELL->>API: DELETE /notifications/:notificationId
+opt done
+    SHELL->>BELL: dismiss (Review Insights' own)
+    BELL->>API: DELETE /notifications/:notificationId
+end
 opt holding.matured — View holding (OQ-243)
     User->>BELL: View holding
-    BELL-->>User: close, switch to the notice's household if it names another (OQ-245), then navigate to /investments?tab=holdings&holding=:holdingId — its account chosen, its row open
+    BELL-->>User: close, switch to the notice's household if it names another the user still belongs to (else a toast, OQ-245), then navigate to /investments?tab=holdings&holding=:holdingId — its account chosen, its row open
 end
 opt the row's ✕
     User->>BELL: delete

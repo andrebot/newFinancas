@@ -1,9 +1,12 @@
+import { decide } from '../../utilities/authorization';
 import type { BusMessage, ServiceBus } from '../../utilities/serviceBus';
 import { loggerFor, type AccountDeps } from './context';
 
 /**
- * Who hears that a Holding matured: a personal Account's owner; every member of
- * the household for a shared one (OQ-171).
+ * Who hears that a Holding matured: a personal Account's owner; for a shared
+ * one, every member who may archive it — the Owner, the Admins and a Member
+ * who created the Account (OQ-171, OQ-245), so no notice offers an Archive
+ * its reader would be refused.
  *
  * @param deps - The tier below.
  * @param holding - The matured Holding, as the event carries it.
@@ -14,7 +17,11 @@ const recipientsOf = async (
   holding: BusMessage<'holding.matured'>['payload'],
 ): Promise<string[]> => {
   if (holding.visibility === 'shared') {
+    const archive = {
+      action: 'data.delete', visibility: 'shared', ownerUserId: holding.ownerUserId,
+    } as const;
     return (await deps.households.listMembers(holding.householdId))
+      .filter((member) => decide(member.role, member.userId, archive) === 'allowed')
       .map((member) => member.userId);
   }
   return holding.ownerUserId === null ? [] : [holding.ownerUserId];

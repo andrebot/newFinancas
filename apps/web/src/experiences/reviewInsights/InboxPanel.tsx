@@ -2,7 +2,7 @@ import type { Notification, ReceivedInvitation } from '@financas/api-types';
 import { createLogger } from '@financas/logging/browser';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { useListMyInvitationsQuery } from '../../api/identityApi';
+import { useListHouseholdsQuery, useListMyInvitationsQuery } from '../../api/identityApi';
 import { inbox as settings } from '../../config/constants';
 import type { InboxPanelProps } from '../../shell/shellConfig';
 import { switchHousehold } from '../../shell/shellState';
@@ -25,7 +25,9 @@ import { NotificationInbox, type InboxRead } from './interactions/NotificationIn
 // while it is open. Accept, Decline and Archive go to the shell, which hands
 // them to the Experience owning the notification and deletes it once that
 // succeeds; View holding opens the Holding in Investments, in the household
-// the notice names (OQ-245); delete is the inbox's own. A row whose action is running is disabled.
+// the notice names (OQ-245) — one the user still belongs to; delete is the
+// inbox's own. Switching is the shell's thunk, which Experiences dispatch as
+// Onboard and Manage Household do. A row whose action is running is disabled.
 
 const log = createLogger({ label: 'NotificationInbox' });
 
@@ -105,6 +107,18 @@ const useBusyRows = () => {
 };
 
 /**
+ * Whether a notice names a household the user no longer belongs to.
+ *
+ * @param householdId - The notice's household; undefined for one sent without it.
+ * @param households - The user's households, once listed.
+ * @returns True when it names one they aren't in (or the list isn't in yet).
+ */
+export const namesHouseholdLeft = (
+  householdId: string | undefined,
+  households: readonly { readonly id?: string }[] | undefined,
+) => householdId !== undefined && !households?.some((home) => home.id === householdId);
+
+/**
  * Renders the inbox in the bell's panel.
  *
  * @param props - The panel's close and the shell's action router.
@@ -118,6 +132,7 @@ export default function InboxPanel({ close, onAction }: InboxPanelProps) {
   const [now] = useState(() => new Date());
   const notifications = useListNotificationsQuery();
   const invitations = useListMyInvitationsQuery();
+  const households = useListHouseholdsQuery();
   const [deleteNotification] = useDeleteNotificationMutation();
   const freshIds = useMarkShownSeen(notifications.data, invitations.data !== undefined);
   const { busyIds, busyWith } = useBusyRows();
@@ -141,7 +156,9 @@ export default function InboxPanel({ close, onAction }: InboxPanelProps) {
 
   /**
    * Opens a matured Holding in Investments, closing the panel; first switches
-   * to the Holding's household when the notice names another (OQ-245).
+   * to the Holding's household when the notice names another (OQ-245). A
+   * household the user no longer belongs to is not switched to — the gate
+   * would move them elsewhere — the toast says so instead (PR #174 review).
    *
    * @param id - The notification.
    */
@@ -149,8 +166,13 @@ export default function InboxPanel({ close, onAction }: InboxPanelProps) {
     const notification = find(id);
     const notice = notification && noticeOf(notification, []);
     if (notice?.kind !== 'matured') return;
+    const { householdId } = notice;
+    if (namesHouseholdLeft(householdId, households.data)) {
+      alerts.error(translator.text('inbox', 'notMember'));
+      return;
+    }
     close();
-    if (notice.householdId !== undefined) dispatch(switchHousehold(notice.householdId));
+    if (householdId !== undefined) dispatch(switchHousehold(householdId));
     navigate(holdingLinkOf(notice.holdingId));
   };
 

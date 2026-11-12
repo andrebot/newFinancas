@@ -197,5 +197,4 @@ export const {
   useRecordIndexRateMutation,
   useEditIndexRateMutation,
   useDeleteIndexRateMutation,
-  useArchiveHoldingMutation,
 } = trackInvestmentsApi;
