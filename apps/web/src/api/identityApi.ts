@@ -1,5 +1,6 @@
 import type {
-  HouseholdMembership, ListHouseholdsResponse, ListMembersResponse, MyHousehold, User,
+  HouseholdMembership, ListHouseholdsResponse, ListMembersResponse, ListMyInvitationsResponse,
+  MyHousehold, ReceivedInvitation, User,
 } from '@financas/api-types';
 import backendApi from './backendApi';
 import type { SourceState } from '../utilities/sourceState';
@@ -14,11 +15,15 @@ import { toSourceState } from './sourceState';
 // members (`GET /households/:id/members`) joined them in the slice 4 review
 // (A1): Manage Household lists and changes them, Track Investments names a
 // rate's recorder from them; the membership writes stay Manage Household's
-// and fetch them again through the `Members` tag.
+// and fetch them again through the `Members` tag. The invitations waiting for
+// the user (`GET /users/me/invitations`) joined them with task 139 (OQ-243):
+// Manage Profile answers them, and Review Insights' inbox names an
+// invitation's household and inviter from them; answering stays Manage
+// Profile's and fetches them again through the `MyInvitations` tag.
 
 /** The shared identity reads. */
 export const identityApi = backendApi.enhanceEndpoints({
-  addTagTypes: ['Me', 'Households', 'Members'],
+  addTagTypes: ['Me', 'Households', 'Members', 'MyInvitations'],
 }).injectEndpoints({
   endpoints: (build) => ({
     getCurrentUser: build.query<User, void>({
@@ -36,11 +41,17 @@ export const identityApi = backendApi.enhanceEndpoints({
       transformResponse: (response: ListMembersResponse) => response.data ?? [],
       providesTags: (_result, _error, householdId) => [{ type: 'Members', id: householdId }],
     }),
+    listMyInvitations: build.query<readonly ReceivedInvitation[], void>({
+      query: () => '/users/me/invitations',
+      transformResponse: (response: ListMyInvitationsResponse) => response.data ?? [],
+      providesTags: ['MyInvitations'],
+    }),
   }),
 });
 
 export const {
   useGetCurrentUserQuery, useListHouseholdsQuery, useListMembersQuery, useLazyListMembersQuery,
+  useListMyInvitationsQuery,
 } = identityApi;
 
 /**

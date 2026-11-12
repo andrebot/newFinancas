@@ -150,8 +150,9 @@ INS = CC / "insights-reports"
 write(INS / "uc-01-view-dashboard.html", "Call Chain — View Dashboard", f"Use case 1 of 6 in the Insights &amp; Reports set (CUC-8), FR-6.0. View (fixed panels, v1). {REVIEW}",
       E((1, "mgr-insights", "util-authz"), (2, "mgr-insights", "eng-reporting"), (3, "eng-reporting", "acc-account"), (3, "eng-reporting", "acc-creditcard"), (3, "eng-reporting", "acc-accounttxn"),
         (3, "eng-reporting", "acc-holding"), (3, "eng-reporting", "acc-snapshot"), (3, "eng-reporting", "acc-budget"), (3, "eng-reporting", "acc-goal")),
-      ["<strong>Chain:</strong> <code>InsightsManager</code> ① <code>AuthorizationUtility</code> → ② <code>ReportingEngine</code> (net worth + change, coming due, payout series, balances, budgets over-budget first, goals) → ③ its reads.",
-       "<strong>Round 9:</strong> no <code>DashboardAccessor</code> read — the v1 Dashboard is fixed (OQ-67); the accessor is parked for v3."])
+      ["<strong>Chain:</strong> <code>InsightsManager</code> ① <code>AuthorizationUtility</code> (<code>memberOnly</code>) → ② <code>ReportingEngine.dashboard(viewer, today, 6)</code> (net worth + change, coming due, balances, budgets over-budget first, goals, and the month they are for) → ③ its reads.",
+       "<strong>Round 9:</strong> no <code>DashboardAccessor</code> read — the v1 Dashboard is fixed (OQ-67); the accessor is parked for v3.",
+       "<strong>Task 139 (OQ-243):</strong> no payout series — the chart reads the payouts report with the user's remembered choice of Holdings, so no <code>listPayouts</code> here."])
 
 IH = CC / "identity-household"
 # Revoke Session (uc-17) is gen_identity_code_sync_oct2026.py's.

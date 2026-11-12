@@ -309,6 +309,28 @@ export const dashboard = {
   readonly netWorthChartHeightPx: number;
 };
 
+/** Review Insights' Notification Inbox, in the bell (task 139; mockup 23; OQ-243). */
+export const inbox = {
+  /** How often the bell asks for the unseen count while the tab is in front. */
+  pollIntervalMs: 60_000,
+  /** The most notifications one "mark seen" sends — the contract's `maxItems`. */
+  markSeenBatch: 200,
+} as const satisfies {
+  readonly pollIntervalMs: number;
+  readonly markSeenBatch: number;
+};
+
+/** Review Insights' audit-log export (task 139; mockup 24; FR-7.2, OQ-243). */
+export const auditExport = {
+  /** The range presets the dialog offers, in order; Custom follows them. */
+  presets: ['last30Days', 'last90Days', 'thisYear'],
+  /** The preset the dialog opens on. */
+  initialPreset: 'last30Days',
+} as const satisfies {
+  readonly presets: readonly ('last30Days' | 'last90Days' | 'thisYear')[];
+  readonly initialPreset: 'last30Days' | 'last90Days' | 'thisYear';
+};
+
 /** The Holdings by account tab (FL19, mockups 51–52, OQ-234). */
 export const holdingMaintenance = {
   /** How many of a Holding's latest transactions its Activity card lists (mockup 51). */
@@ -551,6 +573,11 @@ export const shell = {
   },
   /** The search parameter naming a page's open section, e.g. `/account-setup?tab=budgets`. */
   tabParam: 'tab',
+  /**
+   * The search parameter naming the Holding Investments' Holdings tab opens
+   * on, its row open — the bell's "View holding" (OQ-243).
+   */
+  holdingParam: 'holding',
 } as const;
 
 /**

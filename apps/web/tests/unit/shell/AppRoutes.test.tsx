@@ -391,6 +391,15 @@ describe('AppShell — notification routing', () => {
   });
 });
 
+describe('AppShell — overlays (OQ-243)', () => {
+  it('mounts the Experiences\' overlays over every page', async () => {
+    renderRoutes(fakeConfig({ overlays: <aside>export dialog</aside> }), signedIn().store, '/');
+    await screen.findByRole('heading', { name: 'page:dashboard' });
+
+    expect(screen.getByText('export dialog')).toBeTruthy();
+  });
+});
+
 describe('AppShell — active household', () => {
   it('reads the chosen household from the store', async () => {
     const { store } = signedIn();

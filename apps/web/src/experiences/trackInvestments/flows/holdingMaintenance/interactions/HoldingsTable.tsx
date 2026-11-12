@@ -37,6 +37,8 @@ export interface HoldingsTableProps {
   readonly wide: boolean;
   /** The panel under an opened row. */
   readonly renderPanel: (row: HoldingRow) => ReactNode;
+  /** The Holding whose row is open at first — the one a link pointed at (OQ-243). */
+  readonly openHoldingId?: string | undefined;
 }
 
 /** The ticker chip's frame (mockup 51's `.ticker`), before its family's tint. */
@@ -208,11 +210,12 @@ function TypeBar({ groups }: { readonly groups: readonly HoldingGroup[] }) {
 /**
  * Renders one account's Holdings.
  *
- * @param props - The account's name, currency and groups, the screen's width and the panel.
+ * @param props - The account's name, currency and groups, the screen's width, the panel
+ *   and the row open at first.
  * @returns The table in its card.
  */
 export function HoldingsTable({
-  accountName, currency, groups, wide, renderPanel,
+  accountName, currency, groups, wide, renderPanel, openHoldingId,
 }: HoldingsTableProps) {
   const translator = useI18n();
   const text = (key: string) => translator.text('holdingMaintenance', key as 'column.value');
@@ -234,6 +237,7 @@ export function HoldingsTable({
         keyOf={(row) => holdingIdOf(row.holding)}
         renderItem={(row) => <RowCells row={row} currency={currency} wide={wide} />}
         renderPanel={renderPanel}
+        initialOpenKeys={openHoldingId === undefined ? [] : [openHoldingId]}
         footer={(
           <>
             <span className="type-body-sm text-muted">

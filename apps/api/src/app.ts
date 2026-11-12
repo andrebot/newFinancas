@@ -70,7 +70,7 @@ const createApp = (deps: AppDeps): Hono<AppEnv> => {
   app.route('/api/v1', createHoldingRoutes(deps.account));
   app.route('/api/v1', createIndexRateRoutes(deps.account));
   app.route('/api/v1', createTransactionRoutes(deps.transaction));
-  app.route('/api/v1', createInsightsRoutes(deps.insights));
+  app.route('/api/v1', createInsightsRoutes(deps.insights, deps.verifyAccessToken));
   return app;
 };
 

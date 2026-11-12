@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { goalsApi } from '../../../../src/api/goalsApi';
 import { manageFinancesApi } from '../../../../src/experiences/manageFinances/api';
-import {
-  activityPathOf, payoutsPathOf, trackInvestmentsApi,
-} from '../../../../src/experiences/trackInvestments/api';
+import { activityPathOf, trackInvestmentsApi } from '../../../../src/experiences/trackInvestments/api';
 import { jsonResponse } from '../../api/fakes';
 import { fakeFetch, sent, settle } from '../experienceFakes';
 import { fakeStore } from '../../shell/shellFakes';
@@ -19,21 +17,6 @@ type Store = ReturnType<typeof fakeStore>['store'];
 type Running = PromiseLike<unknown> & { unsubscribe: () => void };
 
 const HOLDING = { householdId: 'doe', holdingId: 'h-1' };
-
-describe('payoutsPathOf', () => {
-  it('asks for every Holding when none is chosen', () => {
-    expect(payoutsPathOf({ householdId: 'd o', holdingIds: undefined, months: 12 }))
-      .toBe('/households/d%20o/reports/payouts?months=12');
-  });
-
-  it('joins the chosen Holdings with commas (explode: false)', () => {
-    const url = new URL(
-      payoutsPathOf({ householdId: 'doe', holdingIds: ['a', 'b'], months: 3 }),
-      'http://app.test',
-    );
-    expect(Object.fromEntries(url.searchParams)).toEqual({ months: '3', holdingIds: 'a,b' });
-  });
-});
 
 describe('activityPathOf', () => {
   it('asks the ledger for the Holding\'s latest transactions', () => {

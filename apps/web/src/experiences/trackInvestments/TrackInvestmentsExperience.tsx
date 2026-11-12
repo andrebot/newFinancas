@@ -16,7 +16,8 @@ import { useActiveHousehold } from '../../shell/activeHousehold';
 import type { ShellHousehold } from '../../shell/shellConfig';
 import { useI18n } from '../../utilities/I18nProvider';
 import { splitGoalsOf } from '../goalFunding';
-import { useListHouseholdHoldingsQuery, useListIndexRatesQuery } from './api';
+import { useListHouseholdHoldingsQuery } from '../../api/investmentsApi';
+import { useListIndexRatesQuery } from './api';
 import { HoldingMaintenanceFlow } from './flows/holdingMaintenance/HoldingMaintenanceFlow';
 import { PortfolioOverviewFlow } from './flows/portfolioOverview/PortfolioOverviewFlow';
 import { RatesMaintenanceFlow } from './flows/ratesMaintenance/RatesMaintenanceFlow';
@@ -24,7 +25,9 @@ import type { HoldingDetails } from './flows/holdingMaintenance/HoldingPanel';
 import { HoldingDetailsReader } from './HoldingDetailsReader';
 import { TABS, tabOf, type InvestmentsTab } from './trackInvestments';
 import { useHoldingRequests, useRateRequests } from './useInvestmentRequests';
-import { useOverview, usePayouts } from './useInvestmentReads';
+import usePayoutChart from '../usePayoutChart';
+import useLinkedHolding from './useLinkedHolding';
+import { useOverview } from './useInvestmentReads';
 
 // The Track Investments Experience (X7, EBD; mockups 50–53; OQ-233..236):
 // the Investments page — its header, with the disabled v2 Portfolio Builders,
@@ -35,7 +38,10 @@ import { useOverview, usePayouts } from './useInvestmentReads';
 // argument), reads an open Holding's details through Holding Maintenance's
 // `details` slot, and answers every write; the cache tags refresh what a write
 // changed, so no Flow refreshes another. The open tab lives in the address
-// (`?tab=rates`); only the open tab is mounted, so a drawer of a hidden tab
+// (`?tab=rates`), and so does a Holding the Holdings tab opens on
+// (`?tab=holdings&holding=…`, the bell's "View holding", OQ-243 — taken once
+// and dropped from the address); only the
+// open tab is mounted, so a drawer of a hidden tab
 // never sits over the shown one, and RTK Query's cache makes a switch back
 // immediate (OQ-236). The page is keyed on the household, so a switch starts
 // it afresh.
@@ -55,7 +61,7 @@ interface InvestmentsPageProps {
  */
 function OverviewTab({ household }: { readonly household: ShellHousehold }) {
   const { overview, onRetry } = useOverview(household.id);
-  const payouts = usePayouts(household.id);
+  const payouts = usePayoutChart(household.id);
   const accounts = useListAccountsQuery(household.id);
   const goals = useListGoalProgressQuery({ householdId: household.id, status: 'active' });
   return (
@@ -85,12 +91,15 @@ const detailsSlotOf = (householdId: string) => function holdingDetails(
 
 /**
  * Renders the Holdings by account tab: Holding Maintenance with the
- * overview, the Goals a split names, the index rates and the open row's reads.
+ * overview, the Goals a split names, the index rates and the open row's reads,
+ * opened on the Holding a link names, if any — afresh for every link
+ * followed, even with the tab already open (OQ-243, PR #172 review).
  *
  * @param props - The household and the signed-in user.
  * @returns The Flow.
  */
 function HoldingsTab({ household, userId }: InvestmentsPageProps) {
+  const linked = useLinkedHolding();
   const { overview, onRetry } = useOverview(household.id);
   const accounts = useListAccountsQuery(household.id);
   const active = useListGoalProgressQuery({ householdId: household.id, status: 'active' });
@@ -100,6 +109,7 @@ function HoldingsTab({ household, userId }: InvestmentsPageProps) {
   const details = useMemo(() => detailsSlotOf(household.id), [household.id]);
   return (
     <HoldingMaintenanceFlow
+      key={linked.visit}
       overview={overview}
       onRetry={onRetry}
       accounts={accounts.data ?? []}
@@ -108,6 +118,7 @@ function HoldingsTab({ household, userId }: InvestmentsPageProps) {
       viewer={{ selfUserId: userId, role: household.role }}
       details={details}
       requests={requests}
+      openHoldingId={linked.holdingId}
     />
   );
 }

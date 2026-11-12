@@ -1,4 +1,5 @@
 import type { ThunkAction, UnknownAction } from '@reduxjs/toolkit';
+import { identityApi } from '../../api/identityApi';
 import { failureOf } from '../../api/outcome';
 import type { NotificationHandler, HandlerOutcome } from '../../shell/notificationRouting';
 import type { ThunkExtra } from '../../shell/shellState';
@@ -35,7 +36,7 @@ const DONE_KEYS = {
   decline: 'invitations.declined',
 } as const satisfies Record<InvitationAnswer, string>;
 
-const selectInvitations = manageProfileApi.endpoints.listMyInvitations.select();
+const selectInvitations = identityApi.endpoints.listMyInvitations.select();
 
 /** The root state as Manage Profile's endpoints type it, with their tags. */
 type ProfileApiState = Parameters<typeof selectInvitations>[0];

@@ -1259,17 +1259,17 @@ EXP->>API: GET /households/:householdId/reports/payouts?months=12&holdingIds=a,b
 API-->>EXP: series
 EXP-->>FLOW: state
 FLOW-->>PC: re-render (only the chart refetches)
-""", ["Widgets are v3, reports v2. The page header (title, the month chip) is the Experience's (X8).", "OQ-242: the rails are titled with the report's `month`, never the browser's clock. The report's optional `payouts` block is X8's to use or drop; the chart reads `reports/payouts` with the remembered choice.", "The Dashboard sends no payout this month, so the selector's rows show no amount."]),
+""", ["Widgets are v3, reports v2. The page header (title, the month chip) is the Experience's (X8), titled with the same report's `month`; no month while it loads.", "OQ-242: the rails are titled with the report's `month`, never the browser's clock. OQ-243: the report sends no payouts — the chart always reads `reports/payouts` with the remembered choice, sharing Track Investments' cache (`usePayoutChart`).", "The Dashboard sends no payout this month, so the selector's rows show no amount."]),
     ("app-shell-notification-routing", "App Shell — Notification Routing", f"{R('GET /notifications')}, {R('POST /notifications/seen')}, {R('DELETE /notifications/:id')} + the owning Experience's own endpoint.",
      [("BELL", "Notification Inbox<br/>(Review Insights)"), ("SHELL", "App Shell"), ("MP", "Manage Profile<br/>Experience"), ("TI", "Track Investments<br/>Experience"), API],
      """
-SHELL->>API: GET /notifications (via Review Insights) — read-only, polled
+SHELL->>API: GET /notifications (via Review Insights) — read-only, every 60s while the tab is in front, and on focus
 API-->>SHELL: [{id, type, params, seenAt}]
 SHELL-->>BELL: badge = count of seenAt null
 User->>BELL: open the bell
-BELL->>SHELL: emit inboxOpened
-SHELL-->>BELL: render each via I18nUtility (type → catalog string, IDs resolved)
-SHELL->>API: POST /notifications/seen {ids shown} (OQ-105)
+BELL->>API: GET /users/me/invitations — names an invitation notice (one no longer there: "no longer open", delete only)
+BELL-->>User: render each via I18nUtility (type → catalog string, IDs resolved)
+BELL->>API: POST /notifications/seen {ids unseen when it opened, ≤200 a call} (OQ-105) — they stay "new" while open
 alt invitation.received — Accept
     User->>BELL: Accept
     BELL->>SHELL: emit action {type: invitation.received, accept, params}
@@ -1284,7 +1284,15 @@ else holding.matured — Archive holding
 end
 API-->>SHELL: done
 SHELL->>API: DELETE /notifications/:notificationId
-""", ["The inbox never performs the action itself — the owning Experience does (Q3).", "A new type = one routing entry + one catalog string."]),
+opt holding.matured — View holding (OQ-243)
+    User->>BELL: View holding
+    BELL-->>User: close, then navigate to /investments?tab=holdings&holding=:holdingId — its account chosen, its row open
+end
+opt the row's ✕
+    User->>BELL: delete
+    BELL->>API: DELETE /notifications/:notificationId (Review Insights' own)
+end
+""", ["The inbox never performs the action itself — the owning Experience does (Q3). An action no Experience owns yet comes back `unrouted`: the inbox says so in a toast (Archive holding until task 141).", "A new type = one routing entry + one catalog string.", "The notice carries no household, so View holding opens the Holding when it is in the active household (OQ-243)."]),
 ]
 
 

@@ -55,7 +55,7 @@
 </head>
 <body>
   <h1>View Dashboard</h1>
-  <p class="subtitle"><span class="route">GET /households/:householdId/dashboard</span> &mdash; FR-6.0 (v1 fixed panels, OQ-67). Updated in the Oct 2026 sequence review: no stored layout &mdash; widgets are v3.</p>
+  <p class="subtitle"><span class="route">GET /households/:householdId/dashboard</span> &mdash; FR-6.0 (v1 fixed panels, OQ-67). Updated in the Oct 2026 sequence review: no stored layout &mdash; widgets are v3. As built in task 139 (OQ-242, OQ-243): the panels for the server&#39;s month, no payouts.</p>
   <div class="diagram-card">
     <pre class="mermaid">
 sequenceDiagram
@@ -66,20 +66,29 @@ sequenceDiagram
     participant RE as ReportingEngine
 
     User->>API: GET /households/:householdId/dashboard
-    API->>IM: getDashboard(actor)
-    IM->>AZ: visibleScope(actor)
-    AZ-->>IM: scope (personal + shared, FR-2.3/4.2/8.1)
-    IM->>RE: dashboard(scope, today)
-    Note over RE: net worth per currency + change vs previous month,<br/>coming-due fixed income, payout series (default holdings),<br/>balances, budgets (over-budget first), goals &mdash; the same<br/>shapes the month-overview / investments-overview reports and<br/>View Goals produce, composed once
-    RE-->>IM: panels
-    IM-->>API: dashboard {panels}
-    API-->>User: 200 OK
+    API->>IM: getDashboard(context, householdId)
+    IM->>AZ: authorize(actor, householdId, memberOnly)
+    alt not a member
+        AZ-->>IM: not_member
+        IM-->>API: household.not_found
+        API-->>User: 404 household.not_found
+    else any member &mdash; data.view is everyone&#39;s on shared data (OQ-111)
+        AZ-->>IM: allowed
+        Note over IM: today in the app&#39;s time zone (OQ-104)
+        IM->>RE: dashboard(viewer, today, 6)
+        Note over RE: net worth per currency over the last 6 months and Coming Due<br/>(the investments overview&#39;s, without its payouts and slices),<br/>month-end balances, budgets (over-budget first) and goals<br/>(the Month Overview&#39;s) &mdash; narrowed to the viewer (OQ-206)
+        RE-->>IM: {month, netWorth, comingDue, balances, budgets, goals}
+        IM-->>API: the panels
+        API-->>User: 200 OK DashboardReport
+    end
     </pre>
   </div>
   <div class="notes">
     <ul>
-      <li><strong>v1 = fixed panels (FR-6.0, OQ-67):</strong> no <code>DashboardAccessor</code> read (parked until v3). Changing which holdings the payout chart shows refetches <code>GET /households/:householdId/reports/payouts</code> only.</li>
-      <li>See FR-6.0, FR-5.3, FR-5.9, FR-4.3, FR-8.5, OQ-67.</li>
+      <li><strong>v1 = fixed panels (FR-6.0, OQ-67):</strong> no <code>DashboardAccessor</code> read (parked until v3).</li>
+      <li><strong>The server&#39;s month (OQ-242):</strong> the report carries <code>month</code> (<code>YYYY-MM</code>), and the app titles the page and the rails with it, never the browser&#39;s clock.</li>
+      <li><strong>No payouts (OQ-243):</strong> the payout chart shows the Holdings the user picked, remembered in the browser, which the server doesn&#39;t know &mdash; so it always reads <code>GET /households/:householdId/reports/payouts</code> with that choice, sharing Investments&#39; cache. Changing the choice refetches only that.</li>
+      <li>See FR-6.0, FR-5.3, FR-5.9, FR-4.3, FR-8.5, OQ-67, OQ-242, OQ-243.</li>
     </ul>
   </div>
   <script>

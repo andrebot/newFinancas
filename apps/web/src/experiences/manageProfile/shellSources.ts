@@ -2,8 +2,7 @@ import { useMemo } from 'react';
 import { toSourceState } from '../../api/sourceState';
 import type { SourceState } from '../../utilities/sourceState';
 import type { ShellIdentity } from '../../shell/shellConfig';
-import { useGetCurrentUserQuery } from '../../api/identityApi';
-import { useListMyInvitationsQuery } from './api';
+import { useGetCurrentUserQuery, useListMyInvitationsQuery } from '../../api/identityApi';
 
 // What Manage Profile hands the App Shell (X3, OQ-159): the signed-in user, for
 // the drawer's identity and for the saved theme and language the shell applies

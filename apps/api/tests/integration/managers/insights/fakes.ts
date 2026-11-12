@@ -1,11 +1,13 @@
 import { vi } from 'vitest';
 import type { Account } from '../../../../src/accessors/accountAccessor';
 import type { AccountTransaction } from '../../../../src/accessors/accountTransactionAccessor';
+import type { AuditEntry } from '../../../../src/accessors/auditLogAccessor';
 import type { Goal, GoalStatus } from '../../../../src/accessors/goalAccessor';
 import type { InvestmentHolding } from '../../../../src/accessors/investmentHoldingAccessor';
+import type { InboxNotification } from '../../../../src/accessors/notificationInboxAccessor';
 import type { ProjectResult } from '../../../../src/engines/investmentProduct';
 import type {
-  GoalWithProgress, InvestmentsOverview, MonthOverview, PayoutSeries,
+  Dashboard, GoalWithProgress, InvestmentsOverview, MonthOverview, PayoutSeries,
 } from '../../../../src/engines/reporting';
 import type { InsightsDeps } from '../../../../src/managers/insights';
 import type { Authorization } from '../../../../src/utilities/authorization';
@@ -120,6 +122,31 @@ export const SERIES: PayoutSeries[] = [{
   months: [{ month: '2026-10', amount: 1_000 }],
 }];
 
+/** The Dashboard the Engine answers with by default. */
+export const DASHBOARD: Dashboard = {
+  month: '2026-10', netWorth: [], comingDue: [], balances: [], budgets: [], goals: [],
+};
+
+/** A notification in Ana's inbox, unseen. */
+export const NOTIFICATION: InboxNotification = {
+  id: '0199c5a0-0000-7000-8000-0000000000c1',
+  type: 'holding.matured',
+  params: { holdingId: HOLDING.id, assetType: 'cdb', dueDate: '2026-10-01' },
+  seenAt: null,
+  createdAt: NOW,
+};
+
+/** An audit entry in the household's log. */
+export const AUDIT_ENTRY: AuditEntry = {
+  id: '0199c5a0-0000-7000-8000-0000000000d1',
+  householdId: HOUSEHOLD_ID,
+  actorId: ANA_ID,
+  action: 'create',
+  entityType: 'account',
+  entityId: ACCOUNT.id,
+  createdAt: NOW,
+};
+
 /**
  * InsightsManager's tier below, mocked; `deps` is what createInsightsManager takes.
  *
@@ -135,7 +162,8 @@ export const fakeDeps = () => {
     ),
     investmentsOverview: vi.fn(async (): Promise<InvestmentsOverview> => INVESTMENTS),
     payouts: vi.fn(async (): Promise<PayoutSeries[]> => SERIES),
-    auditLogCsv: vi.fn(),
+    dashboard: vi.fn(async (): Promise<Dashboard> => DASHBOARD),
+    auditLogCsv: vi.fn((): string => 'timestamp,actor_id\r\n'),
   };
   const investmentProducts = {
     project: vi.fn(async (): Promise<ProjectResult> => ({
@@ -159,6 +187,14 @@ export const fakeDeps = () => {
   const accountTransactions = {
     findBuys: vi.fn(async (): Promise<AccountTransaction[]> => [BUY]),
   };
+  const notifications = {
+    listByUser: vi.fn(async (): Promise<InboxNotification[]> => [NOTIFICATION]),
+    markSeen: vi.fn(async (): Promise<number> => 1),
+    deleteForUser: vi.fn(async (): Promise<boolean> => true),
+  };
+  const auditLog = {
+    listForExport: vi.fn(async (): Promise<AuditEntry[]> => [AUDIT_ENTRY]),
+  };
   const authorization = {
     authorize: vi.fn(
       async (): Promise<Authorization> => ({ outcome: 'allowed', role: 'Owner' }),
@@ -171,6 +207,8 @@ export const fakeDeps = () => {
     accounts,
     holdings,
     accountTransactions,
+    notifications,
+    auditLog,
     authorization,
     now: () => NOW,
   } as unknown as InsightsDeps;
@@ -182,6 +220,8 @@ export const fakeDeps = () => {
     accounts,
     holdings,
     accountTransactions,
+    notifications,
+    auditLog,
     authorization,
   };
 };

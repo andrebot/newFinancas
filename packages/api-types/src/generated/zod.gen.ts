@@ -811,6 +811,44 @@ export const zGoalWithProgress = zGoal.and(z.object({
 }));
 
 /**
+ * FR-6.0 — the v1 Dashboard's fixed panels for the current month: the investments overview's net worth and coming due, and the month's balances, budgets (over-budget first) and active Goals (OQ-242, pulled forward from task X8). No payouts: the payout chart reads `reports/payouts` with the user's remembered choice of Holdings, which the server doesn't know (OQ-243).
+ */
+export const zDashboardReport = z.object({
+    month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
+    netWorth: z.array(z.object({
+        currency: zCurrency,
+        amount: zMoney,
+        changeVsPreviousMonth: zMoney.optional(),
+        series: z.array(z.object({
+            month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
+            amount: zMoney
+        }))
+    })),
+    comingDue: z.array(z.object({
+        holdingId: z.uuid(),
+        name: z.string(),
+        dueDate: z.iso.date(),
+        currency: zCurrency,
+        amount: zMoney
+    })),
+    balances: z.array(z.object({
+        accountId: z.uuid(),
+        creditCardId: z.uuid().nullable(),
+        currency: zCurrency,
+        amount: zMoney
+    })),
+    budgets: z.array(z.object({
+        budgetId: z.uuid(),
+        name: z.string(),
+        currency: zCurrency,
+        visibility: z.enum(['personal', 'shared']),
+        targetAmount: zMoney,
+        spendAmount: zMoney
+    })),
+    goals: z.array(zGoalWithProgress)
+});
+
+/**
  * Both ledgers merged; `ledger` is `account` or `card`
  */
 export const zLedgerItem = z.discriminatedUnion('ledger', [
@@ -924,45 +962,6 @@ export const zPayoutsReport = z.object({
             amount: zMoney
         }))
     }))
-});
-
-/**
- * FR-6.0 — the v1 Dashboard's fixed panels for the current month: the investments overview's net worth and coming due, and the month's balances, budgets (over-budget first) and active Goals (OQ-242, pulled forward from task X8).
- */
-export const zDashboardReport = z.object({
-    month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
-    netWorth: z.array(z.object({
-        currency: zCurrency,
-        amount: zMoney,
-        changeVsPreviousMonth: zMoney.optional(),
-        series: z.array(z.object({
-            month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
-            amount: zMoney
-        }))
-    })),
-    comingDue: z.array(z.object({
-        holdingId: z.uuid(),
-        name: z.string(),
-        dueDate: z.iso.date(),
-        currency: zCurrency,
-        amount: zMoney
-    })),
-    payouts: zPayoutsReport.optional(),
-    balances: z.array(z.object({
-        accountId: z.uuid(),
-        creditCardId: z.uuid().nullable(),
-        currency: zCurrency,
-        amount: zMoney
-    })),
-    budgets: z.array(z.object({
-        budgetId: z.uuid(),
-        name: z.string(),
-        currency: zCurrency,
-        visibility: z.enum(['personal', 'shared']),
-        targetAmount: zMoney,
-        spendAmount: zMoney
-    })),
-    goals: z.array(zGoalWithProgress)
 });
 
 export const zInvitationReceivedNotification = z.object({
@@ -1844,8 +1843,8 @@ export const zExportAuditLogPath = z.object({
 });
 
 export const zExportAuditLogQuery = z.object({
-    startDate: z.iso.date().optional(),
-    endDate: z.iso.date().optional()
+    startDate: z.iso.date(),
+    endDate: z.iso.date()
 });
 
 /**

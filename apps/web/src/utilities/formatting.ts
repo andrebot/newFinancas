@@ -57,11 +57,23 @@ export interface Formatter {
   readonly ratePoints: (points: number) => string;
   readonly date: (isoDate: string, style?: DateStyle) => string;
   readonly list: (items: readonly string[]) => string;
+  readonly relativeTime: (instant: string, now: Date) => string;
 }
 
 const numberFormats = new Map<string, Intl.NumberFormat>();
 const dateFormats = new Map<string, Intl.DateTimeFormat>();
 const listFormats = new Map<string, Intl.ListFormat>();
+const relativeFormats = new Map<string, Intl.RelativeTimeFormat>();
+
+/** The units a relative time is told in, each with its length in seconds, largest first. */
+const RELATIVE_UNITS: readonly (readonly [Intl.RelativeTimeFormatUnit, number])[] = [
+  ['year', 31_536_000],
+  ['month', 2_592_000],
+  ['week', 604_800],
+  ['day', 86_400],
+  ['hour', 3_600],
+  ['minute', 60],
+];
 
 /**
  * Returns the cached value for a key, building and caching it on a miss.
@@ -305,6 +317,24 @@ export const formatList = (items: readonly string[], locale: Locale): string => 
 };
 
 /**
+ * Writes how long ago an instant was, in the largest whole unit — "2 hours
+ * ago", "há 3 dias"; under a minute, "now" (the inbox's times, mockup 23).
+ *
+ * @param instant - The instant, ISO 8601.
+ * @param now - The moment to measure from.
+ * @param locale - The interface locale.
+ * @returns E.g. `2 hours ago` (en-US), `há 2 horas` (pt-BR), `yesterday`.
+ */
+export const formatRelativeTime = (instant: string, now: Date, locale: Locale): string => {
+  const format = cached(relativeFormats, locale, () => (
+    new Intl.RelativeTimeFormat(locale, { numeric: 'auto' })
+  ));
+  const seconds = Math.max(0, Math.round((now.getTime() - Date.parse(instant)) / 1000));
+  const [unit, length] = RELATIVE_UNITS.find(([, size]) => seconds >= size) ?? ['second', 1];
+  return format.format(unit === 'second' ? 0 : -Math.floor(seconds / length), unit);
+};
+
+/**
  * Binds the formatters to one interface locale.
  *
  * @param locale - The interface locale.
@@ -318,4 +348,5 @@ export const createFormatter = (locale: Locale): Formatter => ({
   ratePoints: (points) => formatRatePoints(points, locale),
   date: (isoDate, style) => formatDate(isoDate, locale, style),
   list: (items) => formatList(items, locale),
+  relativeTime: (instant, now) => formatRelativeTime(instant, now, locale),
 });

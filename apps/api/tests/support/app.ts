@@ -127,6 +127,11 @@ export const mockInsights = (): MockedInsights => ({
   listHouseholdHoldings: vi.fn(),
   listHoldings: vi.fn(),
   getHolding: vi.fn(),
+  getDashboard: vi.fn(),
+  listNotifications: vi.fn(),
+  markNotificationsSeen: vi.fn(),
+  deleteNotification: vi.fn(),
+  exportAuditLog: vi.fn(),
 });
 
 /**

@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
-  marketValueBodyOf, overviewReadOf, payoutsReadOf, readsMarketDetails, tabOf, TABS,
+  marketValueBodyOf, overviewReadOf, readsMarketDetails, tabOf, TABS,
 } from '../../../../src/experiences/trackInvestments/trackInvestments';
+import { payoutsReadOf } from '../../../../src/experiences/payoutPanel';
 import { transactionsOfHolding } from '../../../../src/experiences/trackInvestments/useInvestmentRequests';
 import {
   HOLDINGS, holdingOf, holdingWithout, INVESTMENT_ACCOUNTS, OVERVIEW, PAYOUTS,

@@ -29,4 +29,14 @@ describe('downloadTextFile', () => {
     expect(await blob.text()).toBe('AAAA-BBBB\n');
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:codes');
   });
+
+  it('saves a CSV with its own type (OQ-243)', () => {
+    const createObjectURL = vi.fn((_blob: Blob) => 'blob:csv');
+    Object.assign(URL, { createObjectURL, revokeObjectURL: vi.fn() });
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+    downloadTextFile('audit-log.csv', 'a,b\r\n', 'text/csv');
+
+    expect(createObjectURL.mock.calls[0]![0].type).toBe('text/csv;charset=utf-8');
+  });
 });

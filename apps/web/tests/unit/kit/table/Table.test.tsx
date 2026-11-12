@@ -66,9 +66,14 @@ const ONE_GROUP: readonly TableGroup<SampleHolding>[] = [
  *
  * @param groups - The groups to show; defaults to both of mockup 51's.
  * @param footer - What sits at the table's end, when it has one.
+ * @param initialOpenKeys - The rows open at first, when any.
  * @returns The rendered table.
  */
-const renderTable = (groups: readonly TableGroup<SampleHolding>[] = GROUPS, footer?: ReactNode) => (
+const renderTable = (
+  groups: readonly TableGroup<SampleHolding>[] = GROUPS,
+  footer?: ReactNode,
+  initialOpenKeys?: readonly string[],
+) => (
   render(
     <Table<SampleHolding>
       columns={COLUMNS}
@@ -89,6 +94,7 @@ const renderTable = (groups: readonly TableGroup<SampleHolding>[] = GROUPS, foot
         </p>
       )}
       footer={footer}
+      initialOpenKeys={initialOpenKeys}
     />,
   )
 );
@@ -189,6 +195,16 @@ describe('Table', () => {
     expect(screen.getByText('Panel for Tesouro Selic 2029')).toBeTruthy();
     fireEvent.click(trigger);
     expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryByText(/Panel for/)).toBeNull();
+  });
+
+  it('opens the rows it is told to at first, which close like any other (OQ-243)', () => {
+    renderTable(GROUPS, undefined, ['xpml']);
+    const trigger = screen.getByRole('button', { name: /XP FII Fund/ });
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByText('Panel for XP FII Fund')).toBeTruthy();
+    expect(screen.queryByText('Panel for Tesouro Selic 2029')).toBeNull();
+    fireEvent.click(trigger);
     expect(screen.queryByText(/Panel for/)).toBeNull();
   });
 

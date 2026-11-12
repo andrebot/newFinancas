@@ -1,6 +1,7 @@
 import type { CalendarMonth } from '../../utilities/calendarMonth';
 import type { Goal } from '../../accessors/goalAccessor';
 import auditLogCsv from './auditLogReport';
+import { dashboard, type Dashboard } from './dashboard';
 import { goalProgress, visibleAccountIdsOf, type GoalWithProgress } from './goalProgress';
 import {
   investmentsOverview, payoutsReport, type InvestmentsDeps, type InvestmentsOverview,
@@ -14,11 +15,13 @@ import {
 // Holding data into the read-side reports InsightsManager serves — the only
 // Manager that calls it. Slice 3's part (OQ-206): the Month Overview and Goal
 // progress (current and by month), plus the audit-log CSV (OQ-104); slice 4's
-// (task 133, OQ-236): the investments overview and the payouts series. It reads
+// (task 133, OQ-236): the investments overview and the payouts series; slice
+// 5's (task 139, OQ-243): the Dashboard. It reads
 // through the Accessors; the caller decides which Goals the viewer sees and
 // which day "now" is.
 
 export type { Contribution, Funding, GoalWithProgress } from './goalProgress';
+export type { Dashboard } from './dashboard';
 export type {
   BudgetStatus, CurrencySummary, MonthEndBalance, MonthOverview, StripMonth, Viewer,
 } from './monthOverview';
@@ -34,7 +37,8 @@ export type ReportingEngineDeps = MonthOverviewDeps & InvestmentsDeps;
  * Creates the reporting engine.
  *
  * @param deps - The Accessor reads.
- * @returns `monthOverview`, `goalProgress`, `investmentsOverview`, `payouts` and `auditLogCsv`.
+ * @returns `monthOverview`, `goalProgress`, `investmentsOverview`, `payouts`,
+ *   `dashboard` and `auditLogCsv`.
  */
 export const createReportingEngine = (deps: ReportingEngineDeps) => ({
   /**
@@ -94,6 +98,19 @@ export const createReportingEngine = (deps: ReportingEngineDeps) => ({
    */
   payouts: (viewer: Viewer, query: PayoutsQuery): Promise<PayoutSeries[]> => (
     payoutsReport(deps, viewer, query)
+  ),
+
+  /**
+   * The v1 Dashboard's fixed panels as a member sees them, for today's month
+   * (FR-6.0, OQ-242, OQ-243).
+   *
+   * @param viewer - The household and member.
+   * @param today - `YYYY-MM-DD`.
+   * @param netWorthMonths - How many months the net worth series covers at most.
+   * @returns The panels.
+   */
+  dashboard: (viewer: Viewer, today: string, netWorthMonths: number): Promise<Dashboard> => (
+    dashboard(deps, viewer, { today, netWorthMonths })
   ),
 
   auditLogCsv,

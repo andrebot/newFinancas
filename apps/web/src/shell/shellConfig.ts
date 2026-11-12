@@ -83,8 +83,13 @@ export interface ShellConfig {
   readonly pages: Readonly<Record<RouteId, ReactNode>>;
   readonly sources: ShellSources;
   readonly actions: ShellActions;
-  /** The bell and its inbox; no bell until Review Insights provides one. */
+  /** The bell and its inbox (Review Insights); no bell without one. */
   readonly inbox?: ShellInbox | undefined;
+  /**
+   * What the chrome mounts over every page, e.g. Review Insights' audit-log
+   * export dialog, which the drawer opens (OQ-243).
+   */
+  readonly overlays?: ReactNode;
   /** Notification type → the owning Experience's handler. */
   readonly notificationRoutes: NotificationRoutes;
   /** The page's theme controller, to apply the user's saved theme. */

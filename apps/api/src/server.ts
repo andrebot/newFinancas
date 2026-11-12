@@ -74,8 +74,9 @@ logger.add(createAuditSink({
 const authentication = createAuthenticationUtility({
   jwtSecret: env.jwtSecret, mfaEncryptionKey: env.mfaEncryptionKey,
 });
+const inbox = createNotificationInboxAccessor(db);
 const notifications = createNotificationEngine({
-  insertNotification: createNotificationInboxAccessor(db).insert,
+  insertNotification: inbox.insert,
   sendEmail: createEmailAccessor(env.emailProvider).send,
 });
 const households = createHouseholdAccessor(db);
@@ -200,6 +201,8 @@ const {
     accounts: insightStores.accounts,
     holdings: insightStores.holdings,
     accountTransactions: insightStores.accountTransactions,
+    notifications: inbox,
+    auditLog,
     authorization,
     now: () => new Date(),
   },

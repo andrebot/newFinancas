@@ -43,10 +43,11 @@ vi.mock('../../../../../../src/experiences/trackInvestments/flows/holdingMainten
    * @returns The stub.
    */
   HoldingsTable: ({
-    accountName, currency, groups, wide, renderPanel,
+    accountName, currency, groups, wide, renderPanel, openHoldingId,
   }: HoldingsTableProps) => (
     <div
       data-testid="table"
+      data-open={openHoldingId}
       data-account={accountName}
       data-currency={currency}
       data-wide={String(wide)}
@@ -145,6 +146,20 @@ describe('HoldingMaintenanceFlow', () => {
     expect(screen.getByTestId('picker').dataset.selected).toBe('checking');
     expect(screen.getByTestId('table').dataset.currency).toBe('USD');
     expect(screen.getByTestId('table').dataset.groups).toBe('variableIncome:2');
+  });
+
+  it('opens on a linked Holding: its account chosen, its row open (OQ-243)', () => {
+    renderFlow({ openHoldingId: 'msft' });
+
+    expect(screen.getByTestId('picker').dataset.selected).toBe('checking');
+    expect(screen.getByTestId('table').dataset.open).toBe('msft');
+  });
+
+  it('opens on the first account when the linked Holding isn\'t the household\'s', () => {
+    renderFlow({ openHoldingId: 'elsewhere' });
+
+    expect(screen.getByTestId('picker').dataset.selected).toBe('xp');
+    expect(screen.getByTestId('table').dataset.open).toBe('elsewhere');
   });
 
   it('lets a Viewer only read', () => {

@@ -57,6 +57,8 @@ export interface TableProps<Item> {
   readonly renderPanel: (item: Item) => ReactNode;
   /** What sits at the table's end, e.g., a count and total line. */
   readonly footer?: ReactNode | undefined;
+  /** The rows open on the first render, by key — e.g., one a link pointed at. */
+  readonly initialOpenKeys?: readonly string[] | undefined;
 }
 
 // The header mirrors K42's row trigger (flex, gap-3, pl-5 pr-4) so its label
@@ -204,13 +206,15 @@ function TableRow({
  * while the Flow switches accounts and back.
  *
  * @param props - The columns, the groups and their rows, how to read and render them,
-   and the footer.
+   the footer and the rows open at first.
  * @returns The table.
  */
 export function Table<Item>({
-  columns, groups, keyOf, renderItem, renderPanel, footer,
+  columns, groups, keyOf, renderItem, renderPanel, footer, initialOpenKeys = [],
 }: TableProps<Item>) {
-  const [openKeys, setOpenKeys] = useState<Record<string, boolean>>({});
+  const [openKeys, setOpenKeys] = useState<Record<string, boolean>>(
+    () => Object.fromEntries(initialOpenKeys.map((key) => [key, true])),
+  );
   const template = gridTemplateOf(columns);
 
   return (

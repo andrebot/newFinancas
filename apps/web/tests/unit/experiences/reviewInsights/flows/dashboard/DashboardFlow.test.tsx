@@ -113,7 +113,6 @@ const DASHBOARD: DashboardReport = {
   month: '2026-09',
   netWorth: OVERVIEW.netWorth,
   comingDue: OVERVIEW.comingDue,
-  payouts: PAYOUTS,
   balances: REPORT.balances,
   budgets: REPORT.budgets,
   goals: REPORT.goals,

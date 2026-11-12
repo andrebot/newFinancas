@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { SignedInContext } from '../../../../src/managers/requestContext';
 import { createInsightsManager } from '../../../../src/managers/insights';
 import {
-  ACCOUNT, ANA_ID, BUY, GOAL, HOLDING, INVESTMENTS, OVERVIEW, SERIES, STOCK, fakeDeps,
+  ACCOUNT, ANA_ID, AUDIT_ENTRY, BUY, DASHBOARD, GOAL, HOLDING, INVESTMENTS, NOTIFICATION, NOW,
+  OVERVIEW, SERIES, STOCK, fakeDeps,
 } from './fakes';
 
 const context: SignedInContext = {
@@ -17,7 +18,8 @@ describe('createInsightsManager', () => {
   it('exposes every use case built so far on one object (VBD §2.1)', () => {
     const manager = createInsightsManager(fakeDeps().deps);
     for (const name of ['report', 'goalProgressList', 'goalProgressFor',
-      'listHouseholdHoldings', 'listHoldings', 'getHolding']) {
+      'listHouseholdHoldings', 'listHoldings', 'getHolding', 'getDashboard',
+      'listNotifications', 'markNotificationsSeen', 'deleteNotification', 'exportAuditLog']) {
       expect(typeof (manager as Record<string, unknown>)[name]).toBe('function');
     }
   });
@@ -484,5 +486,110 @@ describe('getHolding (FR-5.4)', () => {
 
     await expect(manager.getHolding(context, HOME, HOLDING.id))
       .rejects.toMatchObject({ domainError: { code: 'holding.not_found' } });
+  });
+});
+
+describe('getDashboard (FR-6.0, OQ-242)', () => {
+  it('answers the Engine\'s panels for today over the net worth window', async () => {
+    const tier = fakeDeps();
+    const manager = createInsightsManager(tier.deps);
+
+    const panels = await manager.getDashboard(context, HOME);
+
+    expect(panels).toEqual(DASHBOARD);
+    expect(tier.reporting.dashboard).toHaveBeenCalledWith(VIEWER, '2026-10-13', 6);
+  });
+
+  it('takes the day in the app\'s time zone, not UTC (OQ-104)', async () => {
+    const tier = fakeDeps();
+    // 01:00 UTC on Nov 1st is still Oct 31st in São Paulo.
+    const deps = { ...tier.deps, now: () => new Date('2026-11-01T01:00:00Z') };
+
+    await createInsightsManager(deps).getDashboard(context, HOME);
+
+    expect(tier.reporting.dashboard).toHaveBeenCalledWith(VIEWER, '2026-10-31', 6);
+  });
+});
+
+describe('the Notification Inbox (FR-6.10, OQ-105)', () => {
+  it('lists the caller\'s own inbox as the Accessor reads it', async () => {
+    const tier = fakeDeps();
+
+    const listed = await createInsightsManager(tier.deps).listNotifications(context);
+
+    expect(listed).toEqual([NOTIFICATION]);
+    expect(tier.notifications.listByUser).toHaveBeenCalledWith(ANA_ID);
+    expect(tier.notifications.markSeen).not.toHaveBeenCalled();
+  });
+
+  it('marks exactly the shown ones seen, now', async () => {
+    const tier = fakeDeps();
+
+    await createInsightsManager(tier.deps).markNotificationsSeen(context, ['n1', 'n2']);
+
+    expect(tier.notifications.markSeen).toHaveBeenCalledWith(ANA_ID, ['n1', 'n2'], NOW);
+  });
+
+  it('answers quietly when nothing changed — someone else\'s or already seen', async () => {
+    const tier = fakeDeps();
+    tier.notifications.markSeen.mockResolvedValue(0);
+
+    await expect(createInsightsManager(tier.deps).markNotificationsSeen(context, ['n1']))
+      .resolves.toBeUndefined();
+  });
+
+  it('deletes one of the caller\'s own notifications', async () => {
+    const tier = fakeDeps();
+
+    await createInsightsManager(tier.deps).deleteNotification(context, NOTIFICATION.id);
+
+    expect(tier.notifications.deleteForUser).toHaveBeenCalledWith(ANA_ID, NOTIFICATION.id);
+  });
+
+  it('answers notification.not_found for a missing or someone else\'s one', async () => {
+    const tier = fakeDeps();
+    tier.notifications.deleteForUser.mockResolvedValue(false);
+
+    await expect(createInsightsManager(tier.deps).deleteNotification(context, 'n1'))
+      .rejects.toMatchObject({ domainError: { code: 'notification.not_found' } });
+  });
+});
+
+describe('exportAuditLog (FR-7.2, OQ-104)', () => {
+  it('reads the range and hands the entries to the Engine\'s CSV, named by its days', async () => {
+    const tier = fakeDeps();
+    const range = { startDate: '2026-09-01', endDate: '2026-09-30' };
+
+    const exported = await createInsightsManager(tier.deps).exportAuditLog(context, HOME, range);
+
+    expect(tier.auditLog.listForExport).toHaveBeenCalledWith(HOME, '2026-09-01', '2026-09-30');
+    expect(tier.reporting.auditLogCsv).toHaveBeenCalledWith([AUDIT_ENTRY]);
+    expect(exported).toEqual({
+      csv: 'timestamp,actor_id\r\n',
+      filename: 'audit-log-2026-09-01-2026-09-30.csv',
+    });
+  });
+
+  it('takes a one-day range', async () => {
+    const tier = fakeDeps();
+    const range = { startDate: '2026-09-01', endDate: '2026-09-01' };
+
+    await createInsightsManager(tier.deps).exportAuditLog(context, HOME, range);
+
+    expect(tier.auditLog.listForExport).toHaveBeenCalledOnce();
+  });
+
+  it('refuses an end before the start, on endDate, before any read (OQ-243)', async () => {
+    const tier = fakeDeps();
+    const range = { startDate: '2026-09-02', endDate: '2026-09-01' };
+
+    await expect(createInsightsManager(tier.deps).exportAuditLog(context, HOME, range))
+      .rejects.toMatchObject({
+        domainError: {
+          code: 'validation.failed',
+          details: [{ field: 'endDate', code: 'date.before_start' }],
+        },
+      });
+    expect(tier.auditLog.listForExport).not.toHaveBeenCalled();
   });
 });
