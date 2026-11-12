@@ -184,6 +184,11 @@ describe('contractTermOf', () => {
       .toMatchObject({ yearsLeft: 0, monthsLeft: 2 });
   });
 
+  it('counts a whole month on the same day of the month (R4 V7)', () => {
+    expect(contractTermOf('2026-01-01', '2027-01-20', '2026-10-20'))
+      .toMatchObject({ yearsLeft: 0, monthsLeft: 3 });
+  });
+
   it('is fully run on and past the due date, and before the buy is not started', () => {
     expect(contractTermOf('2025-01-10', '2026-01-10', '2026-03-01')).toEqual({
       elapsedPercent: 100, yearsLeft: 0, monthsLeft: 0, daysLeft: 0, matured: true,

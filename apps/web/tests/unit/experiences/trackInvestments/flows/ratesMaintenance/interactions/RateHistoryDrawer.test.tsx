@@ -70,6 +70,12 @@ describe('RateHistoryDrawer', () => {
     expect(onSave).toHaveBeenCalledWith({ key: 'sep', date: '2026-09-29', value: 105000 });
   });
 
+  it('writes each change in points (R4 V7)', () => {
+    renderDrawer();
+
+    expect(screen.getByText('−0.25 pp')).toBeTruthy();
+  });
+
   it('only reads for a Viewer, and closes on Done', () => {
     const { onClose } = renderDrawer({ readOnly: true });
 

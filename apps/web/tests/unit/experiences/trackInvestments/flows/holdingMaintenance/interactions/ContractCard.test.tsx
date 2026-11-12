@@ -47,7 +47,8 @@ describe('ContractCard', () => {
     expect(screen.getByText('R$ 212.200,00')).toBeTruthy();
     expect(screen.getByText('−R$ 10.830,00')).toBeTruthy();
     expect(screen.getByText('2 yrs 5 mo to go')).toBeTruthy();
-    expect(screen.getByRole('progressbar', { name: 'Term elapsed' })).toBeTruthy();
+    expect(screen.getByRole('progressbar', { name: 'Term elapsed' })
+      .getAttribute('aria-valuenow')).toBe('41');
     expect(screen.getByText(
       'Estimate if Selic stays at 10.50% a year · net ≈ R$ 201.370,00',
     )).toBeTruthy();

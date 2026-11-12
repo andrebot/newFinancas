@@ -89,6 +89,16 @@ describe('PayoutPanel', () => {
     expect(screen.getByRole('group', { name: 'Payouts by month' })).toBeTruthy();
   });
 
+  it('writes a month\'s reading in the switch\'s currency (R4 V7)', () => {
+    renderPanel();
+    const plot = screen.getByRole('group', { name: 'Payouts by month' });
+
+    fireEvent.keyDown(plot, { key: 'ArrowLeft' });
+
+    expect(screen.getByTestId('stacked-bar-readout').textContent)
+      .toMatch(/^September 2026R\$\s1\.100,00XPML11/);
+  });
+
   it('switches to $ and remembers the pick', () => {
     const { currencyMemory } = renderPanel();
     fireEvent.click(screen.getByRole('radio', { name: '$' }));

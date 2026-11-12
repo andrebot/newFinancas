@@ -61,6 +61,15 @@ describe('MarketValueEntry', () => {
       .toBe('09/30/2026');
   });
 
+  it('reads the chart\'s values in money (R4 V7)', () => {
+    renderEntry();
+    const plot = screen.getByRole('group', { name: 'XPML11: market value history' });
+
+    fireEvent.keyDown(plot, { key: 'ArrowLeft' });
+
+    expect(screen.getByTestId('line-chart-readout').textContent).toMatch(/R\$\s/);
+  });
+
   it('asks for the history drawer', () => {
     const props = renderEntry();
 

@@ -38,6 +38,7 @@ describe('ComingDue', () => {
     renderInLocale(<ComingDue entries={[overdue]} holdings={HOLDINGS} />);
     expect(screen.getByText('Overdue').className).toContain('text-coral');
     expect(screen.getByText('Sep').parentElement?.className).toContain('bg-coral/15');
+    expect(screen.getByText('Sep').parentElement?.textContent).toBe('Sep15');
   });
 
   it('keeps a Holding due later plain, by its year', () => {

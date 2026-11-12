@@ -51,6 +51,13 @@ describe('ValueHistoryDrawer', () => {
     expect(screen.getByRole('button', { name: 'Edit value of 08/31/2026' })).toBeTruthy();
   });
 
+  it('writes the values in money, each change in percent (R4 V7)', () => {
+    renderDrawer();
+
+    expect(screen.getAllByText(/^R\$\s110\.000,00$/).length).toBeGreaterThan(0);
+    expect(screen.getByText('−1.5%')).toBeTruthy();
+  });
+
   it('tells what a save recalculates, from the value\'s month on', () => {
     renderDrawer();
 
