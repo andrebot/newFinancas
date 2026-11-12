@@ -52,7 +52,8 @@ export const createEventHandlers = (deps: AccountDeps) => ({
   /**
    * A fixed-term Holding passed its due date with a position: suggest each
    * recipient archives it (uc-11, FR-5.8, FR-6.5) — a type and params, never
-   * text (OQ-82). Marked notified only when every delivery succeeded; otherwise
+   * text (OQ-82); the household, as the bell is the user's, not a household's
+   * (OQ-245). Marked notified only when every delivery succeeded; otherwise
    * tomorrow's run tries again. Runs as the system.
    *
    * @param message - The `holding.matured` event.
@@ -61,6 +62,7 @@ export const createEventHandlers = (deps: AccountDeps) => ({
     const holding = message.payload;
     const params = {
       holdingId: holding.holdingId,
+      householdId: holding.householdId,
       assetType: holding.assetType,
       ticker: holding.ticker,
       dueDate: holding.dueDate,

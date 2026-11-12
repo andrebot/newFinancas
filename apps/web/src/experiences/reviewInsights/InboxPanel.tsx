@@ -5,6 +5,8 @@ import { useNavigate } from 'react-router';
 import { useListMyInvitationsQuery } from '../../api/identityApi';
 import { inbox as settings } from '../../config/constants';
 import type { InboxPanelProps } from '../../shell/shellConfig';
+import { switchHousehold } from '../../shell/shellState';
+import { useAppDispatch } from '../../store';
 import { useAlerts } from '../../utilities/AlertProvider';
 import { useI18n } from '../../utilities/I18nProvider';
 import holdingLinkOf from '../holdingLink';
@@ -22,8 +24,8 @@ import { NotificationInbox, type InboxRead } from './interactions/NotificationIn
 // marks exactly the notifications it showed unseen as seen — those stay "new"
 // while it is open. Accept, Decline and Archive go to the shell, which hands
 // them to the Experience owning the notification and deletes it once that
-// succeeds; View holding opens the Holding in Investments; delete is the
-// inbox's own. A row whose action is running is disabled.
+// succeeds; View holding opens the Holding in Investments, in the household
+// the notice names (OQ-245); delete is the inbox's own. A row whose action is running is disabled.
 
 const log = createLogger({ label: 'NotificationInbox' });
 
@@ -112,6 +114,7 @@ export default function InboxPanel({ close, onAction }: InboxPanelProps) {
   const translator = useI18n();
   const alerts = useAlerts();
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
   const [now] = useState(() => new Date());
   const notifications = useListNotificationsQuery();
   const invitations = useListMyInvitationsQuery();
@@ -137,7 +140,8 @@ export default function InboxPanel({ close, onAction }: InboxPanelProps) {
   };
 
   /**
-   * Opens a matured Holding in Investments, closing the panel.
+   * Opens a matured Holding in Investments, closing the panel; first switches
+   * to the Holding's household when the notice names another (OQ-245).
    *
    * @param id - The notification.
    */
@@ -146,6 +150,7 @@ export default function InboxPanel({ close, onAction }: InboxPanelProps) {
     const notice = notification && noticeOf(notification, []);
     if (notice?.kind !== 'matured') return;
     close();
+    if (notice.householdId !== undefined) dispatch(switchHousehold(notice.householdId));
     navigate(holdingLinkOf(notice.holdingId));
   };
 

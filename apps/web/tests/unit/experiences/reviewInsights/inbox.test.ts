@@ -38,10 +38,16 @@ describe('noticeOf (OQ-82, OQ-243)', () => {
     expect(noticeOf(MATURED, [])).toEqual({
       kind: 'matured',
       holdingId: 'cdb-1',
+      householdId: undefined,
       ticker: 'CDB Banco Inter 2026',
       assetType: 'cdb',
       dueDate: '2026-09-30',
     });
+  });
+
+  it('reads the household a matured notice names (OQ-245)', () => {
+    const named = maturedWith({ ...MATURED.params, householdId: 'rivera' });
+    expect(noticeOf(named, [])).toEqual(expect.objectContaining({ householdId: 'rivera' }));
   });
 
   it('reads a matured Holding with no ticker or type', () => {
@@ -49,6 +55,7 @@ describe('noticeOf (OQ-82, OQ-243)', () => {
     expect(noticeOf(bare, [])).toEqual({
       kind: 'matured',
       holdingId: 'cdb-1',
+      householdId: undefined,
       ticker: null,
       assetType: undefined,
       dueDate: '2026-09-30',

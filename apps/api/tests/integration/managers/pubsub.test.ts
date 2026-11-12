@@ -151,7 +151,11 @@ describe('I5 — holding.matured: the daily job → AccountManager (FR-5.8, uc-1
       'holding.matured',
       { userId: ANA.id },
       {
-        holdingId: CDB_ID, assetType: 'cdb', ticker: null, dueDate: '2026-10-01',
+        holdingId: CDB_ID,
+        householdId: HOUSEHOLD.id,
+        assetType: 'cdb',
+        ticker: null,
+        dueDate: '2026-10-01',
       },
     );
     expect(accountTier.holdings.markMaturedNotified).toHaveBeenCalledExactlyOnceWith(CDB_ID);

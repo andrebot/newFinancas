@@ -903,6 +903,7 @@ const enUS: Catalog = {
     'builders.comingLater': 'Coming in v2',
     loading: 'Loading your investments',
     failed: "Couldn't load your investments.",
+    'archive.done': '{name} archived.',
     retry: 'Try again',
   },
   reviewInsights: {

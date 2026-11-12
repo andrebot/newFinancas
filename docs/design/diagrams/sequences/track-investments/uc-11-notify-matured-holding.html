@@ -83,7 +83,7 @@ sequenceDiagram
             Note over AM: the recipient is ownerUserId (none if the owner is gone)
         end
         par for each recipient
-            AM->>NE: notify("holding.matured", {userId}, {holdingId, assetType, ticker, dueDate})
+            AM->>NE: notify("holding.matured", {userId}, {holdingId, householdId, assetType, ticker, dueDate})
             Note over NE: routing table: holding.matured &rarr; in-app
             NE->>NIA: insert(userId, "holding.matured", params)
             NIA-->>NE: stored

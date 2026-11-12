@@ -32,9 +32,13 @@ const MATURED_PAYLOAD = {
   ticker: null,
   dueDate: '2026-10-01',
 };
-/** What every recipient is told: a type and params, never text (OQ-82). */
+/** What every recipient is told: a type and params, never text (OQ-82), its household (OQ-245). */
 const MATURED_PARAMS = {
-  holdingId: CDB_ID, assetType: 'cdb', ticker: null, dueDate: '2026-10-01',
+  holdingId: CDB_ID,
+  householdId: HOUSEHOLD_ID,
+  assetType: 'cdb',
+  ticker: null,
+  dueDate: '2026-10-01',
 };
 
 /**

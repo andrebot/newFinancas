@@ -984,6 +984,7 @@ export const zHoldingMaturedNotification = z.object({
     type: z.enum(['holding.matured']),
     params: z.object({
         holdingId: z.uuid().optional(),
+        householdId: z.uuid().optional(),
         assetType: z.string().optional(),
         ticker: z.string().nullish(),
         dueDate: z.iso.date().optional()

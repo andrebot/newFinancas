@@ -5,6 +5,7 @@ import {
 import InboxPanel, { inboxReadOf } from '../../../../src/experiences/reviewInsights/InboxPanel';
 import type { NotificationInboxProps } from '../../../../src/experiences/reviewInsights/interactions/NotificationInbox';
 import type { InboxPanelProps } from '../../../../src/shell/shellConfig';
+import { householdChosen, selectActiveHouseholdId } from '../../../../src/shell/shellState';
 import { AlertProvider } from '../../../../src/utilities/AlertProvider';
 import { createAlertQueue } from '../../../../src/utilities/alerts';
 import { envelope, jsonResponse } from '../../api/fakes';
@@ -13,7 +14,7 @@ import {
 } from '../experienceFakes';
 import { fakeStore, renderWithShell } from '../../shell/shellFakes';
 import {
-  INBOX, INVITATION, INVITED, MATURED,
+  INBOX, INVITATION, INVITED, MATURED, maturedWith,
 } from './dashboardFixtures';
 
 // The bell's panel (BDT: integration at the Experience tier). The
@@ -75,7 +76,7 @@ afterEach(() => {
  *
  * @param answers - The API's answers, over the loaded panel's.
  * @param onAction - The shell's action router.
- * @returns The fake `fetch` and the panel's props.
+ * @returns The fake `fetch`, the panel's props and the store, the `home` household active.
  */
 const renderPanel = async (
   answers: Answers = {},
@@ -83,6 +84,7 @@ const renderPanel = async (
 ) => {
   const fetchFn = fakeFetch({ ...LOADED, ...answers });
   const { store } = fakeStore({ fetchFn, refreshToken: 'r-0' });
+  store.dispatch(householdChosen('home'));
   const props = { close: vi.fn(), onAction };
   renderWithShell(
     <AlertProvider queue={createAlertQueue(3)}>
@@ -93,7 +95,7 @@ const renderPanel = async (
   );
   await settle();
   await settle();
-  return { fetchFn, props };
+  return { fetchFn, props, store };
 };
 
 /**
@@ -253,11 +255,25 @@ describe('InboxPanel (FR-6.10, OQ-105)', () => {
   });
 
   it('opens a matured Holding in Investments, closing the panel', async () => {
-    const { props } = await renderPanel();
+    const { props, store } = await renderPanel();
 
     await press('view');
 
     expect(props.close).toHaveBeenCalled();
+    expect(screen.getByTestId('location').textContent)
+      .toBe('/investments?tab=holdings&holding=cdb-1');
+    expect(selectActiveHouseholdId(store.getState())).toBe('home');
+  });
+
+  it('opens it in the household the notice names, switching to it (OQ-245)', async () => {
+    const elsewhere = maturedWith({ ...MATURED.params, householdId: 'rivera' });
+    const { store } = await renderPanel({
+      'GET /notifications': () => jsonResponse(200, { data: [elsewhere, INVITED] }),
+    });
+
+    await press('view');
+
+    expect(selectActiveHouseholdId(store.getState())).toBe('rivera');
     expect(screen.getByTestId('location').textContent)
       .toBe('/investments?tab=holdings&holding=cdb-1');
   });

@@ -18,6 +18,7 @@ import {
 import { OnboardExperience } from './experiences/onboard/OnboardExperience';
 import { createReviewInsightsChrome } from './experiences/reviewInsights/chrome';
 import ReviewInsightsExperience from './experiences/reviewInsights/ReviewInsightsExperience';
+import { maturedHoldingRoute } from './experiences/trackInvestments/archiveMaturedHolding';
 import TrackInvestmentsExperience from './experiences/trackInvestments/TrackInvestmentsExperience';
 import { AppRoutes } from './shell/AppRoutes';
 import type { ShellConfig } from './shell/shellConfig';
@@ -81,6 +82,7 @@ export const shellConfigFor = (
     overlays: insights.overlays,
     notificationRoutes: {
       'invitation.received': invitationRoute(store.dispatch, feedback),
+      'holding.matured': maturedHoldingRoute(store.dispatch, feedback),
     },
     themeController,
   };

@@ -22,6 +22,8 @@ export type InboxNotice = | {
   | {
     readonly kind: 'matured';
     readonly holdingId: string;
+    /** The Holding's household; undefined for a notice sent without one (OQ-245). */
+    readonly householdId: string | undefined;
     readonly ticker: string | null;
     readonly assetType: string | undefined;
     readonly dueDate: string;
@@ -106,6 +108,7 @@ export const noticeOf = (
   return {
     kind: 'matured',
     holdingId,
+    householdId: textParam(params, 'householdId'),
     ticker: textParam(params, 'ticker') ?? null,
     assetType: textParam(params, 'assetType'),
     dueDate,

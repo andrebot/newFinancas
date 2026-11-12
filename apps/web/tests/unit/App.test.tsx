@@ -68,7 +68,8 @@ describe('shellConfigFor', () => {
     expect(config.sources).toEqual({
       useIdentity, useHouseholds, usePendingInvitationCount, useAccountInUse,
     });
-    expect(Object.keys(config.notificationRoutes)).toEqual(['invitation.received']);
+    expect(Object.keys(config.notificationRoutes))
+      .toEqual(['invitation.received', 'holding.matured']);
     expect(config.inbox?.useUnseenCount).toBe(useUnseenCount);
     expect(config.inbox?.Panel).toBe(InboxPanel);
     expect(config.overlays).toBeTruthy();
@@ -117,5 +118,26 @@ describe('shellConfigFor', () => {
     const request = fetchFn.mock.calls[0]?.[0] as Request;
     expect(new URL(request.url).pathname).toBe('/api/v1/invitations/inv-1/decline');
     expect(feedback.alerts.success).toHaveBeenCalledWith('Invitation declined.');
+  });
+
+  it('routes a matured Holding\'s archive to Track Investments (OQ-245)', async () => {
+    const fetchFn = vi.fn<typeof fetch>(async () => jsonResponse(204));
+    const { store } = fakeStore({ refreshToken: 'refresh-1', fetchFn });
+    const route = shellConfigFor(store, themeController, feedback)
+      .notificationRoutes['holding.matured'];
+
+    const outcome = await route?.({
+      notificationId: 'note-2',
+      type: 'holding.matured',
+      action: 'archive',
+      params: {
+        holdingId: 'cdb-1', householdId: 'home', ticker: 'CDB Inter', assetType: 'cdb',
+      },
+    });
+
+    expect(outcome).toBe('done');
+    const request = fetchFn.mock.calls[0]?.[0] as Request;
+    expect(new URL(request.url).pathname).toBe('/api/v1/households/home/holdings/cdb-1/archive');
+    expect(feedback.alerts.success).toHaveBeenCalledWith('CDB Inter archived.');
   });
 });

@@ -918,6 +918,7 @@ const ptBR = {
     'builders.comingLater': 'Chega na v2',
     loading: 'Carregando seus investimentos',
     failed: 'Não foi possível carregar seus investimentos.',
+    'archive.done': '{name} arquivado.',
     retry: 'Tentar de novo',
   },
   reviewInsights: {

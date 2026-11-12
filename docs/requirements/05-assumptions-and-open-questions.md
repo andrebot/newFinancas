@@ -7531,6 +7531,61 @@ through the API, the browser does only the journey; helpers in
 
 **Task 140 (`I11`) is complete.**
 
+### OQ-245: Shell notification routing (task I12)
+**Found while designing:** the routing table still held only
+`invitation.received` — X7 never added `holding.matured`, so the bell's
+Archive holding answered "This can't be done from here yet." (the S1 decision
+had X3 / X7 add their entries). Track Investments' standalone *Archive Matured
+Holding* is built here.
+
+**Confirmed with the stakeholder (Nov 2026):**
+- **A matured notice names its Holding's household.** The bell is the
+  user's, not a household's, while a Holding is household-scoped: a notice
+  about another household's Holding archived in the active one was a 404.
+  `AccountManager.notifyMaturedHolding` adds `householdId` (already on the
+  `holding.matured` event) to the params, and the contract documents it.
+  Archive holding archives there; View holding switches to it first
+  (`switchHousehold`, as the switcher does), then opens the Holding — this
+  replaces OQ-243's "active household only". A notice without one (sent
+  before OQ-245) uses the active household. Rejected: the active household
+  only, failing with a "switch first" toast.
+- **No confirm before archiving.** The notice is the question ("…still has a
+  position. Archive it?"), as the routing sequence draws it, even though the
+  archive is one-way.
+
+**Design decisions:**
+- **`archiveMaturedHolding.ts`** (Track Investments), shaped like Respond to
+  Invitation: the thunk sends `POST …/holdings/{id}/archive` through the
+  slice's new `archiveHolding` mutation, toasts "{name} archived." (the
+  ticker, else the asset type, as the notice names it) or the error code's
+  text, and answers `done` / `failed`; the shell then deletes the notice on
+  `done`. `maturedHoldingRoute` reads the params and fails an action other
+  than `archive`, or a notice naming no Holding, without a request.
+  `App.tsx` adds the entry.
+- **The archive invalidates the Holdings, the overview and the Goals** (and
+  does so on 404 `holding.not_found` too, the target gone): the Holdings list,
+  its archived section and the Dashboard, net worth and Coming Due, and the
+  Goals it may fund.
+- **Core #13 `@core`, now whole** (`investments/investmentsDaily.spec.ts`):
+  the notices are read through `GET /notifications`, their params now with
+  the household, and `tests/e2e/support/notificationsDb.ts` is gone — no E2E
+  read skips the API any more. After the job's part (still alone with the
+  job), the owner opens the bell on "CDB Daily reached its due date on
+  07/01/2020…", presses Archive holding, sees "CDB Daily archived." and an
+  empty inbox; the Holding reads `archivedBy: user` with its position, and
+  `GET /notifications` is empty.
+- **Core #14 `@core`** (`identity/bellInvitation.spec.ts`): the inviter is
+  renamed after the invite; the invitee's bell names them by the new name,
+  Accept goes through Manage Profile ("You joined Bell Home."), the inbox
+  empties, and the invitee is a Member of the household. `openInbox` moved to
+  `support/bell.ts`, shared with the inbox's own journey; `renameUser` joins
+  `identityApi.ts`.
+- **Diagrams:** the routing sequence (the household from the notice, Track
+  Investments' outcome, View holding's switch, no more "until task 141"),
+  uc-03's subtitle, and uc-11's sequence and call chain (the params).
+
+**Task 141 (`I12`) is complete.**
+
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
 *(None currently — OQ-29, the last item here, was resolved during data

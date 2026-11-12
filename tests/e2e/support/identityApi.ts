@@ -190,6 +190,22 @@ export const currentUser = (
 ): Promise<User> => send(request, 'GET', '/users/me', { accessToken });
 
 /**
+ * Renames the signed-in user, as Manage Profile would.
+ *
+ * @param request - Playwright's API client.
+ * @param user - The user.
+ * @param name - Their new first and last name.
+ * @returns Resolves once renamed.
+ */
+export const renameUser = async (
+  request: APIRequestContext,
+  user: Pick<TestUser, 'accessToken'>,
+  name: TestUserName,
+): Promise<void> => {
+  await send(request, 'PATCH', '/users/me', { data: name, accessToken: user.accessToken });
+};
+
+/**
  * Lists the invitations waiting for a user's answer.
  *
  * @param request - Playwright's API client.

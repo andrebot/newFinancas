@@ -1280,19 +1280,20 @@ else holding.matured — Archive holding
     User->>BELL: Archive holding
     BELL->>SHELL: emit action {type: holding.matured, archive, params}
     SHELL->>TI: route → Archive Matured Holding
-    TI->>API: POST /households/:householdId/holdings/:holdingId/archive
+    TI->>API: POST /households/:householdId/holdings/:holdingId/archive — the notice's householdId, else the active one (OQ-245)
+    TI-->>SHELL: done / failed (Track Investments toasts either — the Holdings, overview and Goals refetch by tag)
 end
 API-->>SHELL: done
 SHELL->>API: DELETE /notifications/:notificationId
 opt holding.matured — View holding (OQ-243)
     User->>BELL: View holding
-    BELL-->>User: close, then navigate to /investments?tab=holdings&holding=:holdingId — its account chosen, its row open
+    BELL-->>User: close, switch to the notice's household if it names another (OQ-245), then navigate to /investments?tab=holdings&holding=:holdingId — its account chosen, its row open
 end
 opt the row's ✕
     User->>BELL: delete
     BELL->>API: DELETE /notifications/:notificationId (Review Insights' own)
 end
-""", ["The inbox never performs the action itself — the owning Experience does (Q3). An action no Experience owns yet comes back `unrouted`: the inbox says so in a toast (Archive holding until task 141).", "A new type = one routing entry + one catalog string.", "The notice carries no household, so View holding opens the Holding when it is in the active household (OQ-243)."]),
+""", ["The inbox never performs the action itself — the owning Experience does (Q3). An action no Experience owns comes back `unrouted`: the inbox says so in a toast.", "A new type = one routing entry + one catalog string.", "The bell is the user's, not a household's: a matured notice names its Holding's household, which Archive holding archives in and View holding switches to (OQ-245)."]),
 ]
 
 
