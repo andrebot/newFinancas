@@ -36,6 +36,11 @@ export interface ErasureStores {
   readonly accounts: Pick<AccountAccessor, 'forgetUser'>;
   readonly indexRates: Pick<IndexRateAccessor, 'forgetUser'>;
   readonly invitations: Pick<InvitationAccessor, 'forgetUser'>;
+  /** The membership changes that commit with the erasure they cause. */
+  readonly households: Pick<
+    HouseholdAccessor,
+    'findMembership' | 'findSuccessor' | 'swapOwner' | 'removeMember' | 'dissolve' | 'listForUser'
+  >;
   readonly users: Pick<UserAccessor, 'delete'>;
 }
 

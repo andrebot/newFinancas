@@ -3,15 +3,15 @@ import { loggerFor, type IdentityDeps, type SignedInContext } from './context';
 import {
   forbidden, householdChanged, householdNotFound, memberNotFound,
 } from './errors';
-import createDeparture from './departure';
-import createErasure from './erasure';
+import type { Erasure } from './erasure';
 import { requireAccess } from './households';
 
 // Remove Member / Leave Household (uc-07/uc-08, FR-1.11/1.18), Change Role
 // (uc-09, FR-1.12) and Transfer Ownership (uc-10, FR-1.20). The Manager decides
 // — who may be removed (never the Owner by someone else, OQ-111); the departure
 // (departure.ts) decides who succeeds the Owner. A member who leaves or is
-// removed takes their finances with them (erasure.ts, OQ-240). HouseholdAccessor
+// removed takes their finances with them, in the same transaction (erasure.ts,
+// OQ-240). HouseholdAccessor
 // applies each step as a guarded write and says `stale` when the facts changed
 // meanwhile (OQ-107).
 
@@ -19,17 +19,19 @@ import { requireAccess } from './households';
  * Builds the member use cases.
  *
  * @param deps - The tier below.
+ * @param erasure - The departures and removals that erase as they go (OQ-240).
  * @returns `removeMember`, `changeMemberRole`, `transferOwnership`.
  */
-const createMembers = (deps: IdentityDeps) => {
+const createMembers = (
+  deps: IdentityDeps,
+  { departErased, removeErased }: Pick<Erasure, 'departErased' | 'removeErased'>,
+) => {
   const { households } = deps;
-  const { depart } = createDeparture(deps);
-  const { eraseFromHousehold } = createErasure(deps);
 
   /**
    * Leaves a household — self-service, no permission needed (uc-08): the
-   * caller's finances there are erased (FR-1.11, OQ-240), then the membership
-   * ends, the Owner's handed on (FR-1.18).
+   * membership ends, the Owner's handed on (FR-1.18), and the caller's
+   * finances there are erased with it, in one transaction (FR-1.11, OQ-240).
    *
    * @param context - The signed-in request.
    * @param householdId - The household.
@@ -38,8 +40,7 @@ const createMembers = (deps: IdentityDeps) => {
   const leave = async (context: SignedInContext, householdId: string): Promise<void> => {
     const { userId } = context.actor;
     if (!(await households.findMembership(householdId, userId))) throw householdNotFound();
-    await eraseFromHousehold(userId, householdId);
-    await depart(context, householdId);
+    await departErased(context, householdId);
   };
 
   /**
@@ -81,9 +82,7 @@ const createMembers = (deps: IdentityDeps) => {
     ): Promise<void> => {
       if (targetUserId === context.actor.userId) return leave(context, householdId);
       await requireManageableMember(context, householdId, targetUserId);
-      await eraseFromHousehold(targetUserId, householdId);
-      const removed = await households.removeMember(householdId, targetUserId);
-      if (removed === 'stale') throw householdChanged();
+      await removeErased(householdId, targetUserId);
       loggerFor(context).audit('RemoveMember', {
         entityType: 'User', entityId: targetUserId, householdId,
       });

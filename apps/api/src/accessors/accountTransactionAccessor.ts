@@ -741,13 +741,13 @@ const createAccountTransactionAccessor = (db: Database) => ({
    * @param scope - Whose rows, and in which household (every one when left out).
    */
   forgetUser: async (scope: ErasureScope): Promise<void> => {
-    const personal = db.select({ id: accounts.id }).from(accounts).where(and(
-      eq(accounts.ownerUserId, scope.userId),
-      eq(accounts.visibility, 'personal'),
-      inHousehold(accounts.householdId, scope),
-    ));
     const household = inHousehold(accounts.householdId, scope);
     await db.transaction(async (tx) => {
+      const personal = tx.select({ id: accounts.id }).from(accounts).where(and(
+        eq(accounts.ownerUserId, scope.userId),
+        eq(accounts.visibility, 'personal'),
+        household,
+      ));
       await tx.update(accountTransactions).set({ transferId: null, effect: 'movement' }).where(and(
         inArray(
           accountTransactions.transferId,

@@ -39,16 +39,19 @@ export type {
  * @param deps - The Accessors and Utilities it calls, and the clock.
  * @returns Every IdentityManager use case.
  */
-export const createIdentityManager = (deps: IdentityDeps) => ({
-  ...createRegistration(deps),
-  ...createSignIn(deps),
-  ...createSessions(deps),
-  ...createPasswords(deps),
-  ...createProfile(deps),
-  ...createHouseholds(deps),
-  ...createMembers(deps),
-  deleteUser: createErasure(deps).deleteUser,
-  ...createInvitations(deps),
-});
+export const createIdentityManager = (deps: IdentityDeps) => {
+  const erasure = createErasure(deps);
+  return {
+    ...createRegistration(deps),
+    ...createSignIn(deps),
+    ...createSessions(deps),
+    ...createPasswords(deps),
+    ...createProfile(deps),
+    ...createHouseholds(deps),
+    ...createMembers(deps, erasure),
+    deleteUser: erasure.deleteUser,
+    ...createInvitations(deps),
+  };
+};
 
 export type IdentityManager = ReturnType<typeof createIdentityManager>;

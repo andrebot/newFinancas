@@ -196,10 +196,13 @@ export const fakeDeps = () => {
     accounts: forgetter(),
     indexRates: forgetter(),
     invitations: forgetter(),
+    // The same mock as outside: a membership change commits with its erasure.
+    households,
     users: {
       delete: vi.fn(async (): Promise<'deleted' | 'not_found' | 'still_referenced'> => 'deleted'),
     },
   };
+  // Runs the work; a throw means the real transaction rolled back.
   const inErasure = vi.fn(<Result>(work: (stores: typeof erasure) => Promise<Result>) => (
     work(erasure)
   ));

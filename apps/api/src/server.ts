@@ -134,6 +134,7 @@ const erasureStoresOver = (over: Database): ErasureStores => ({
   accounts: createAccountAccessor(over),
   indexRates: createIndexRateAccessor(over),
   invitations: createInvitationAccessor(over),
+  households: createHouseholdAccessor(over),
   users: createUserAccessor(over),
 });
 // InsightsManager's reads (M4, OQ-201): ReportingEngine over the same

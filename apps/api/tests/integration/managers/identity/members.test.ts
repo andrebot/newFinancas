@@ -69,6 +69,16 @@ describe('IdentityManager — Remove Member (uc-07, FR-1.11)', () => {
     households.removeMember.mockResolvedValueOnce('stale');
     await expect(identity.removeMember(CONTEXT, HOME, BEN_ID)).rejects.toMatchObject(CHANGED);
   });
+
+  it('rolls the erasure back when the removal goes stale — made Owner meanwhile', async () => {
+    const { deps, households, inErasure } = fakeDeps();
+    households.removeMember.mockResolvedValueOnce('stale');
+
+    await expect(createIdentityManager(deps).removeMember(CONTEXT, HOME, BEN_ID))
+      .rejects.toMatchObject(CHANGED);
+    // The 409 is thrown inside the erasure's transaction, so it rolls back.
+    await expect(inErasure.mock.results[0]!.value).rejects.toMatchObject(CHANGED);
+  });
 });
 
 describe('IdentityManager — Leave Household (uc-08, FR-1.18, OQ-107)', () => {
@@ -104,10 +114,21 @@ describe('IdentityManager — Leave Household (uc-08, FR-1.18, OQ-107)', () => {
 
     await leave(deps);
 
-    expect(erasure.accountTransactions.forgetUser)
-      .toHaveBeenCalledWith({ userId: ANA.id, householdId: HOME });
-    expect(erasure.invitations.forgetUser.mock.invocationCallOrder[0])
-      .toBeLessThan(households.removeMember.mock.invocationCallOrder[0]!);
+    Object.values(erasure).filter((store) => 'forgetUser' in store).forEach((store) => {
+      expect(store.forgetUser).toHaveBeenCalledWith({ userId: ANA.id, householdId: HOME });
+      expect(store.forgetUser.mock.invocationCallOrder[0])
+        .toBeLessThan(households.removeMember.mock.invocationCallOrder[0]!);
+    });
+  });
+
+  it('rolls each stale attempt\'s erasure back, and erases nothing after three (409)', async () => {
+    const { deps, households, inErasure } = fakeDeps();
+    households.removeMember.mockResolvedValue('stale');
+
+    await expect(leave(deps)).rejects.toMatchObject(CHANGED);
+    expect(inErasure).toHaveBeenCalledTimes(3);
+    await Promise.all(inErasure.mock.results
+      .map((result) => expect(result.value).rejects.toThrow('stale departure')));
   });
 
   it('is done, unaudited, when the membership ended meanwhile', async () => {

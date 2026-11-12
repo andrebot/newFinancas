@@ -78,15 +78,24 @@ sequenceDiagram
     IM->>HA: listForUser(actor.userId)
     HA-->>IM: the households
     loop for each household, one after another
-        Note over IM: the departure of Leave Household (UC-08) &mdash; non-Owner &rarr; removeMember,<br/>Owner &rarr; findSuccessor then swapOwner + removeMember, or dissolve if alone,<br/>stale &rarr; again, 3 attempts at most (OQ-107)
+        Note over IM,INV: Leave Household (UC-08): each attempt one transaction &mdash; forgetUser({userId, householdId})<br/>on the seven Accessors, then the departure: non-Owner &rarr; removeMember, Owner &rarr; findSuccessor<br/>then swapOwner + removeMember, or dissolve if alone. Stale &rarr; rolled back, again, 3 at most (OQ-107)
         IM->>HA: findMembership / findSuccessor / swapOwner / removeMember / dissolve
-        HA-->>IM: left or dissolved (audited)
+        HA-->>IM: left or dissolved (audited), erased with it
     end
     alt a household still stale after 3 attempts
         IM-->>API: Conflict
-        API-->>User: 409 household.changed (nothing erased, the next try goes on)
+        API-->>User: 409 household.changed (households already left are erased, the next try goes on)
     end
-    Note over IM,INV: one transaction (UnitOfWorkUtility) &mdash; personal rows deleted,<br/>shared rows kept, no longer naming the user (FR-1.17, OQ-240)
+    Note over IM,UA: one last transaction
+    IM->>HA: listForUser(actor.userId)
+    alt joined a household meanwhile (another tab)
+        HA-->>IM: a membership
+        IM-->>API: Conflict
+        API-->>User: 409 household.changed (nothing more erased)
+    else none left
+        HA-->>IM: none
+    end
+    Note over IM,INV: in the transaction (UnitOfWorkUtility) &mdash; personal rows deleted,<br/>shared rows kept, no longer naming the user (FR-1.17, OQ-240)
     IM->>ATA: forgetUser({userId: actor.userId})
     ATA-->>IM: a transfer pair with a side on a personal Account:<br/>the other side becomes a lone movement, rows anonymized
     IM->>CTA: forgetUser({userId: actor.userId})
@@ -118,8 +127,8 @@ sequenceDiagram
   </div>
   <div class="notes">
     <ul>
-      <li><strong>No rule refuses it</strong> (FR-1.17): a user can always delete their own account. The 409 and 500 are not refusals &mdash; a household that kept changing, and the database&#39;s safety net (02-data-model.md rule B) &mdash; and in both the next try finishes the job.</li>
-      <li><strong>Departures first, then one erasure (OQ-240).</strong> Each departure commits on its own; the erasure and the user row go in one transaction (UnitOfWorkUtility), so the user&#39;s data is erased whole or not at all. The erasure runs everywhere, not per household: households the user left before task 136 shipped are covered too.</li>
+      <li><strong>No rule refuses it</strong> (FR-1.17): a user can always delete their own account. The 409 and 500 are not refusals &mdash; a household that kept changing or was joined meanwhile, and the database&#39;s safety net (02-data-model.md rule B) &mdash; and in both the next try finishes the job.</li>
+      <li><strong>Each departure commits with its erasure, then one last erasure (OQ-240).</strong> A household is erased in the same transaction (UnitOfWorkUtility) that ends the membership, so the user is never gone from it with their data left behind. The last transaction checks no membership is left (a household joined meanwhile would otherwise lose its member with the user row), erases everywhere &mdash; households the user left before task 136 shipped are covered too &mdash; and deletes the user, whole or not at all.</li>
       <li><strong>Trigger equivalence:</strong> the same erasure, scoped to one household, runs on Leave Household and Remove Member (UC-07/UC-08) &mdash; see the cross-cutting note at the top of <code>docs/architecture/02-data-model.md</code>.</li>
       <li><strong>Rebuilt (task 136):</strong> the design-time sequence called <code>InvestmentHoldingAccessor</code> and <code>SessionAccessor.deleteAllForUser</code> &mdash; both are FK cascades (Holdings with their personal Account, sessions with the user row).</li>
       <li><strong>Confirmed, not a gap:</strong> if a deleted user&#39;s personal Holding was funding a still-live <em>shared</em> Goal, that Goal survives and its progress simply recomputes from whatever Holdings remain &mdash; "the user removed their finances from the household."</li>

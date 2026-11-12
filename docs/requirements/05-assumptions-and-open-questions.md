@@ -7201,22 +7201,38 @@ forward with all the next phases"), from the review in
 - **A transfer pair losing a side becomes a lone movement.** The side left
   on a remaining Account gets no `transfer_id` and `effect = movement` — a
   transfer recorded alone (FR-3.6) — so no edit or delete looks for a gone
-  partner.
+  partner. This rewrites stored history (OQ-222 keeps the effect "in force at
+  the time"): the shared account's past In/Out now counts that side, as for
+  any money from or to outside the household.
+- **A personal account's bill payment to a shared card goes with the
+  account** (review finding, PR #169 — option a). The card's month balances
+  keep the payment, since the card really was paid and balances are running
+  deltas, never rebuilt from the ledger; the card's ledger just loses that
+  line. Reversing it would show a paid debt as owed. The reverse direction —
+  a shared account paying a personal card — keeps the payment with its card
+  cleared (OQ-95).
 - **A personal Budget's periods are deleted with it** — history only its
   owner could see. A Budget's own delete still keeps them (FR-4.10).
-- **Atomicity: departures, then one erasure.** Delete User departs each
-  household first (Leave's succession and retries, OQ-107), each committing
-  on its own; then the erasure and `UserAccessor.delete` run in one
-  transaction (UnitOfWorkUtility, OQ-175 — `IdentityDeps.inErasure`), whole
-  or not at all. A row still naming the user (`still_referenced`, the
-  database's rule-B safety net) rolls it back as a 500. Leave and Remove
-  Member erase in one transaction *before* the membership ends, so a
-  departure that fails (409) is simply retried. A membership gone between
-  attempts (removed meanwhile) ends the departure unaudited. This settles
-  the BDT plan's Option A/B question for the erasure without a load test.
+- **Atomicity: each membership change commits with its erasure** (amended
+  after PR #169's review). `IdentityDeps.inErasure` (UnitOfWorkUtility,
+  OQ-175) runs the erasure and the household steps on one transaction:
+  - Remove Member erases and removes together; a removal refused as `stale`
+    (made Owner meanwhile) rolls the erasure back — 409, nothing erased.
+  - Leave — and each household of Delete User — erases and departs in one
+    attempt; a `stale` step rolls the attempt back and the next decides from
+    fresh facts (OQ-107); after three, 409 with nothing of that household
+    erased. A membership gone between attempts (removed meanwhile) ends the
+    departure unaudited.
+  - Delete User then, in one last transaction, checks no membership is left
+    (joined one meanwhile, in another tab → 409), erases everywhere and
+    deletes the user row. A row still naming the user (`still_referenced`,
+    the database's rule-B safety net) rolls it back as a 500.
+  So a member is never erased and kept, nor gone and not erased. This
+  settles the BDT plan's Option A/B question without a load test.
 - **`DELETE /users/me` documents 409 `household.changed`** — contention, not
-  a refusal: nothing was erased and a retry finishes the deletion. The 500
-  stays implicit, as on every route.
+  a refusal: households already left were erased with their departure,
+  nothing else was, and a retry finishes the deletion. The 500 stays
+  implicit, as on every route.
 - **The Leave and Remove Member copy says what goes** (pt-BR and en-US):
   `leave.member`, `leave.successor` and `remove.message` name the personal
   accounts, budgets and goals deleted; `leave.last` already says the

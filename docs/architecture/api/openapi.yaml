@@ -418,8 +418,9 @@ paths:
         docs/design/diagrams/sequences/identity-household/uc-12-delete-user.html for
         the full cascade traced call-by-call. A 409 `household.changed` is
         contention, not a refusal: a household kept changing through the
-        succession's retries, nothing was erased, and trying again finishes
-        the deletion (OQ-240).
+        succession's retries, or the user joined one meanwhile. Households
+        already left were erased with their departure, nothing else was, and
+        trying again finishes the deletion (OQ-240).
       responses:
         "204": { description: No Content }
         "409": { $ref: "#/components/responses/Conflict" }
