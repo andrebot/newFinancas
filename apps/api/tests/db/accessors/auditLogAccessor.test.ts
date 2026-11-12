@@ -3,6 +3,7 @@ import {
   afterAll, beforeAll, describe, expect, it,
 } from 'vitest';
 import createAuditLogAccessor from '../../../src/accessors/auditLogAccessor';
+import { logging } from '../../../src/config/constants';
 import type { Database } from '../../../src/db/database';
 import { auditLogEntries } from '../../../src/db/schema';
 import { createMigratedDatabase, withRollback } from '../support/database';
@@ -93,6 +94,19 @@ describe('AuditLogAccessor', () => {
     expect(await audit.insertMany([entry(1), entry(2), entry(3)])).toBe(2);
     expect(await audit.insertMany([])).toBe(0);
     expect(await audit.listForExport(HOME, '2026-10-08', '2026-10-08')).toHaveLength(3);
+  }));
+
+  it('inserts more than one batch holds, past the parameter cap', test(async (audit) => {
+    // Twice PostgreSQL's 65,535 parameters at 7 an entry, in several batches.
+    const count = 2 * Math.ceil(65_535 / 7);
+    const many = Array.from({ length: count }, (_, sequence) => entry(0, {
+      id: `0199c5a0-0000-7000-8001-${sequence.toString(16).padStart(12, '0')}`,
+    }));
+    // One already stored, in a later batch than the first.
+    await audit.insert(many[logging.auditBatchSize + 1]!);
+
+    expect(await audit.insertMany(many)).toBe(count - 1);
+    expect(await audit.listForExport(HOME, '2026-10-08', '2026-10-08')).toHaveLength(count);
   }));
 
   it('exposes no way to change or remove entries', () => {

@@ -2,7 +2,7 @@ import {
   describe, expect, it, vi,
 } from 'vitest';
 import {
-  logFileLister, logFilesFor, parseAuditRecords, reconcileAudit,
+  logFileLister, logFilesFor, parseAuditRecords, reconcileAudit, reconcileFailureDetails,
 } from '../../../../src/utilities/logging/reconcile';
 
 const audit = (sequence: number) => JSON.stringify({
@@ -58,5 +58,42 @@ describe('log files', () => {
 
     expect(await present()).toEqual(['/logs/api-2026-10-09.log']);
     expect(await missing()).toEqual([]);
+  });
+});
+
+describe('reconcileFailureDetails', () => {
+  it('logs a wrapped database refusal by its cause, never the batch query', () => {
+    const refusal = Object.assign(new Error('insert violates foreign key constraint'), {
+      code: '23503',
+      detail: 'Key (actor_id)=(u9) is not present in table "users".',
+      constraint: 'audit_log_entries_actor_id_users_id_fk',
+    });
+    const wrapped = new Error('Failed query: insert into "audit_log_entries" … params: u9,…', {
+      cause: refusal,
+    });
+
+    expect(reconcileFailureDetails(wrapped)).toEqual({
+      error: 'Error: insert violates foreign key constraint',
+      code: '23503',
+      detail: 'Key (actor_id)=(u9) is not present in table "users".',
+      constraint: 'audit_log_entries_actor_id_users_id_fk',
+    });
+  });
+
+  it('keeps only the database fields a cause has', () => {
+    const wrapped = new Error('Failed query', { cause: new Error('connection terminated') });
+
+    expect(reconcileFailureDetails(wrapped)).toEqual({ error: 'Error: connection terminated' });
+  });
+
+  it('writes a cause that isn\'t an object as text', () => {
+    expect(reconcileFailureDetails(new Error('Failed query', { cause: 'timeout' })))
+      .toEqual({ error: 'timeout' });
+  });
+
+  it('logs an unwrapped failure as it is', () => {
+    expect(reconcileFailureDetails(new Error('ENOENT: no log directory')))
+      .toEqual({ error: 'Error: ENOENT: no log directory' });
+    expect(reconcileFailureDetails('boom')).toEqual({ error: 'boom' });
   });
 });

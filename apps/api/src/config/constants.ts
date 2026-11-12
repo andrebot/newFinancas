@@ -135,6 +135,11 @@ export const logging = {
   apiFilePrefix: 'api',
   /** Waits between attempts to store an audit entry, in milliseconds. */
   auditRetryDelaysMs: [1_000, 5_000, 30_000],
+  /**
+   * Entries per insert when reconciliation restores many: PostgreSQL takes at
+   * most 65,535 parameters a statement, and an entry is 7.
+   */
+  auditBatchSize: 1_000,
 } as const;
 
 /**

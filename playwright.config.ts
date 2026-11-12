@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { defineConfig, devices } from '@playwright/test';
 
 // E2E reads the same root .env as the apps (CI creates it from .env.example).
@@ -12,6 +13,12 @@ try {
 // runner, a journey run near midnight would otherwise land a day apart.
 const TIME_ZONE = 'America/Sao_Paulo';
 process.env.TZ = TIME_ZONE;
+
+// The API under test, and the `pnpm investments:run` a journey starts, log to
+// a folder of their own: on start the API restores into its database the
+// audit entries its log files hold (OQ-110), so sharing the dev API's files
+// would send the test database's entries to the dev one, which refuses them.
+process.env.LOG_DIR = path.resolve('.e2e-logs');
 
 const API_URL = 'http://localhost:3000';
 const WEB_URL = 'http://localhost:5173';

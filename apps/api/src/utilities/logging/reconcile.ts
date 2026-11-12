@@ -67,3 +67,28 @@ export const logFileLister = (
   readDir: (dir: string) => Promise<string[]>,
 ) => async (): Promise<string[]> => logFilesFor(await readDir(logDir).catch(() => []), prefix)
   .map((name) => path.join(logDir, name));
+
+/** The fields of a PostgreSQL error worth a log line. */
+const DATABASE_FIELDS = ['code', 'detail', 'constraint'] as const;
+
+/**
+ * What a log line records about a failed reconciliation. Drizzle wraps the
+ * database's refusal in an error whose message holds the whole batch insert —
+ * every entry's values, megabytes for a day's log — so a wrapped failure is
+ * logged by its cause alone: its text and PostgreSQL's code, detail and
+ * constraint, when it has them.
+ *
+ * @param error - Anything `reconcileAudit` rejected with.
+ * @returns The details to log.
+ */
+export const reconcileFailureDetails = (error: unknown): Record<string, unknown> => {
+  const cause: unknown = error instanceof Error ? error.cause : undefined;
+  if (cause === undefined) return { error: String(error) };
+  const fields = typeof cause === 'object' && cause !== null
+    ? DATABASE_FIELDS.flatMap((field) => {
+      const value: unknown = (cause as Record<string, unknown>)[field];
+      return value === undefined ? [] : [[field, value] as const];
+    })
+    : [];
+  return { error: String(cause), ...Object.fromEntries(fields) };
+};

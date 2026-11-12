@@ -10,7 +10,7 @@ import createAuditLogAccessor from '../../accessors/auditLogAccessor';
 import { logging } from '../../config/constants';
 import loadEnv from '../../config/env';
 import { newCorrelationId } from '../correlationId';
-import { logFileLister, reconcileAudit } from './reconcile';
+import { logFileLister, reconcileAudit, reconcileFailureDetails } from './reconcile';
 
 const pool = new pg.Pool({ connectionString: loadEnv(process.env).databaseUrl });
 const auditLog = createAuditLogAccessor(drizzle(pool));
@@ -26,9 +26,7 @@ reconcileAudit({
 })
   .then((restored) => log.info('Audit reconciled', { restored, logDir }))
   .catch((error: unknown) => {
-    // Drizzle wraps the database error; its cause holds the actual reason.
-    const cause = error instanceof Error && error.cause ? String(error.cause) : undefined;
-    log.error('Audit reconciliation failed', { error: String(error), cause });
+    log.error('Audit reconciliation failed', reconcileFailureDetails(error));
     process.exitCode = 1;
   })
   .finally(async () => {
