@@ -30,8 +30,19 @@ describe('noticeOf (OQ-82, OQ-243)', () => {
     expect(noticeOf(INVITED, [single])).toEqual(expect.objectContaining({ inviterName: 'Alex' }));
   });
 
-  it('calls an invitation no longer waiting stale', () => {
+  it('names the invitation it was sent for, among several waiting', () => {
+    const other = {
+      ...INVITATION, id: 'inv-0', householdId: 'lee', householdName: 'The Lee Household',
+    };
+    expect(noticeOf(INVITED, [other, INVITATION])).toEqual(expect.objectContaining({
+      householdName: 'The Rivera Household',
+    }));
+  });
+
+  it('calls an invitation no longer waiting stale, even while others wait', () => {
     expect(noticeOf(INVITED, [])).toEqual({ kind: 'staleInvitation' });
+    expect(noticeOf(INVITED, [{ ...INVITATION, id: 'inv-0' }]))
+      .toEqual({ kind: 'staleInvitation' });
   });
 
   it('reads a matured Holding from its params', () => {

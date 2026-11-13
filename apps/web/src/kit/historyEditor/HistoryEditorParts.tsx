@@ -2,6 +2,7 @@ import { useEffect, useRef, type FormEvent } from 'react';
 import { formatting } from '../../config/constants';
 import { moneyConventions } from '../../utilities/formatting';
 import { useI18n } from '../../utilities/I18nProvider';
+import useFocusFirstInvalid from '../../utilities/useFocusFirstInvalid';
 import useFormatter from '../../utilities/useFormatter';
 import { Button } from '../button/Button';
 import { IconButton } from '../button/IconButton';
@@ -300,9 +301,7 @@ export function HistoryForm({
     formRef.current?.querySelector('input')?.focus();
   }, []);
 
-  useEffect(() => {
-    if (refusals > 0) formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
-  }, [refusals]);
+  useFocusFirstInvalid(refusals, formRef);
 
   return (
     // Escape reaches the form from its fields and buttons; it isn't itself interactive.

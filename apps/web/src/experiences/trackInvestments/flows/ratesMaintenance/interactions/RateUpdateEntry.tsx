@@ -11,6 +11,7 @@ import {
 } from '../../../../../kit/historyEditor/historyModel';
 import { NumberInput } from '../../../../../kit/numberInput/NumberInput';
 import { useI18n } from '../../../../../utilities/I18nProvider';
+import useFocusFirstInvalid from '../../../../../utilities/useFocusFirstInvalid';
 
 // Rate Update Entry (FL20; mockup 53; FR-11.6, OQ-172, OQ-235): the inline
 // form a rate card opens on Update — the new value, the day it is for (today
@@ -61,9 +62,7 @@ export function RateUpdateEntry({
     formRef.current?.querySelector('input')?.focus();
   }, []);
 
-  useEffect(() => {
-    if (refusals > 0) formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
-  }, [refusals]);
+  useFocusFirstInvalid(refusals, formRef);
 
   /**
    * Saves the typed value when it passes its checks; otherwise shows the problems.

@@ -149,6 +149,7 @@ describe('formatRelativeTime (OQ-243)', () => {
     expect(formatRelativeTime('2026-10-10T11:00:00Z', NOW, 'en-US')).toBe('3 days ago');
     expect(formatRelativeTime('2026-10-12T11:00:00Z', NOW, 'en-US')).toBe('yesterday');
     expect(formatRelativeTime('2026-10-13T11:55:00Z', NOW, 'pt-BR')).toBe('há 5 minutos');
+    expect(formatRelativeTime('2026-09-29T12:00:00Z', NOW, 'en-US')).toBe('2 weeks ago');
     expect(formatRelativeTime('2026-09-01T12:00:00Z', NOW, 'en-US')).toBe('last month');
     expect(formatRelativeTime('2024-10-01T12:00:00Z', NOW, 'en-US')).toBe('2 years ago');
   });

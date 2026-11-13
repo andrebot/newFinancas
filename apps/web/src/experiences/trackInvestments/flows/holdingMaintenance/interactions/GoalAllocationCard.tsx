@@ -1,5 +1,5 @@
 import type { HoldingAllocation } from '@financas/api-types';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { InlineBanner } from '../../../../../kit/alert/InlineBanner';
 import { AllocationEditor } from '../../../../../kit/allocationEditor/AllocationEditor';
 import { isAllocationValid, type AllocationRow } from '../../../../../kit/allocationEditor/allocation';
@@ -8,6 +8,7 @@ import type { HistoryOutcome } from '../../../../../kit/historyEditor/historyMod
 import { SkeletonRows } from '../../../../../kit/skeleton/Skeleton';
 import { useI18n } from '../../../../../utilities/I18nProvider';
 import type { SourceState } from '../../../../../utilities/sourceState';
+import useFocusFirstInvalid from '../../../../../utilities/useFocusFirstInvalid';
 import useFormatter from '../../../../../utilities/useFormatter';
 import {
   allocationRowsOf, allocationsOf, isSplitChanged, type HoldingGoal,
@@ -80,7 +81,10 @@ function SplitEditor({ data, goals, onSave }: Omit<GoalAllocationCardProps, 'rea
   // The split a save succeeded on: Save waits until the refetch replaces it,
   // so a second click can't resend it (review round 1).
   const [savedOn, setSavedOn] = useState<readonly HoldingAllocation[] | null>(null);
-  const [showErrors, setShowErrors] = useState(false);
+  // Problems show once Save was refused; each refusal moves the focus to the first (OQ-192).
+  const [refusals, setRefusals] = useState(0);
+  const editorRef = useRef<HTMLDivElement>(null);
+  useFocusFirstInvalid(refusals, editorRef);
   const waiting = busy || savedOn === data;
   const saved = allocationRowsOf(data, goals);
   const rows = draft?.basis === data ? draft.rows : saved;
@@ -89,26 +93,29 @@ function SplitEditor({ data, goals, onSave }: Omit<GoalAllocationCardProps, 'rea
   /** Sends the split when K47 calls it valid; otherwise shows why not. */
   const save = async () => {
     if (!isAllocationValid(rows)) {
-      setShowErrors(true);
+      setRefusals((count) => count + 1);
       return;
     }
     setBusy(true);
     const outcome = await onSave(allocationsOf(rows)).catch(() => 'refused');
     setBusy(false);
     if (outcome === 'done') {
-      setShowErrors(false);
+      setRefusals(0);
       setSavedOn(data);
     }
   };
 
   return (
     <>
-      <AllocationEditor
-        rows={rows}
-        goals={goals.filter((goal) => !goal.completed)}
-        showErrors={showErrors}
-        onChange={(next) => setDraft({ basis: data, rows: next })}
-      />
+      {/* `contents`: the scope of the focus, adding no box to the card's layout. */}
+      <div ref={editorRef} className="contents">
+        <AllocationEditor
+          rows={rows}
+          goals={goals.filter((goal) => !goal.completed)}
+          showErrors={refusals > 0}
+          onChange={(next) => setDraft({ basis: data, rows: next })}
+        />
+      </div>
       <div className="mt-auto flex justify-end gap-2">
         <Button
           variant="ghost"
@@ -116,7 +123,7 @@ function SplitEditor({ data, goals, onSave }: Omit<GoalAllocationCardProps, 'rea
           disabled={!changed || waiting}
           onClick={() => {
             setDraft(null);
-            setShowErrors(false);
+            setRefusals(0);
           }}
         >
           {translator.text('holdingMaintenance', 'goals.reset')}

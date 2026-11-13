@@ -30,7 +30,7 @@ vi.mock('../../../../src/experiences/reviewInsights/interactions/NotificationInb
    * @returns The stub.
    */
   NotificationInbox: ({
-    read, busyIds, onRetry, onAnswer, onArchive, onView, onDelete,
+    read, now, busyIds, onRetry, onAnswer, onArchive, onView, onDelete,
   }: NotificationInboxProps) => (
     <Stub
       name="inbox"
@@ -40,6 +40,7 @@ vi.mock('../../../../src/experiences/reviewInsights/interactions/NotificationInb
           ? read.entries.map(({ id, fresh, notice }) => ({ id, fresh, kind: notice.kind }))
           : null,
         busyIds,
+        now: now.toISOString(),
       }}
       events={{
         retry: onRetry,
@@ -154,6 +155,8 @@ describe('InboxPanel (FR-6.10, OQ-105)', () => {
         { id: 'n-other', fresh: false, kind: 'other' },
       ],
       busyIds: [],
+      // Times are told from the moment the panel opened.
+      now: '2026-10-13T12:00:00.000Z',
     });
   });
 
@@ -203,6 +206,36 @@ describe('InboxPanel (FR-6.10, OQ-105)', () => {
       'GET /notifications': () => jsonResponse(200, { data: seen }),
     });
 
+    expect(await seenCalls(fetchFn)).toEqual([]);
+  });
+
+  it('waits for the notifications when the invitations come in first', async () => {
+    let release: () => void = () => {};
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const { fetchFn } = await renderPanel({
+      'GET /notifications': async () => {
+        await held;
+        return jsonResponse(200, { data: INBOX });
+      },
+    });
+    expect(shownBy('inbox')).toEqual(expect.objectContaining({ status: 'loading' }));
+
+    release();
+    await settle();
+    await settle();
+
+    expect(shownBy('inbox')).toEqual(expect.objectContaining({ status: 'loaded' }));
+    expect(await seenCalls(fetchFn)).toEqual([{ notificationIds: ['n-matured', 'n-invite'] }]);
+  });
+
+  it('marks nothing seen while the invitations can\'t be read: nothing was shown', async () => {
+    const { fetchFn } = await renderPanel({
+      'GET /users/me/invitations': () => jsonResponse(500, envelope('internal.unexpected')),
+    });
+
+    expect(shownBy('inbox')).toEqual(expect.objectContaining({ status: 'failed' }));
     expect(await seenCalls(fetchFn)).toEqual([]);
   });
 
@@ -257,6 +290,16 @@ describe('InboxPanel (FR-6.10, OQ-105)', () => {
 
     expect(onAction).toHaveBeenCalledWith(expect.objectContaining({ action: 'archive' }));
     expect(screen.getByText('This can\'t be done from here.')).toBeTruthy();
+  });
+
+  it('says nothing when the owning Experience handles the action', async () => {
+    const onAction = vi.fn(async () => 'done' as const);
+    await renderPanel({}, onAction);
+
+    await press('archive');
+
+    expect(onAction).toHaveBeenCalledWith(expect.objectContaining({ action: 'archive' }));
+    expect(screen.queryByText('This can\'t be done from here.')).toBeNull();
   });
 
   it('routes nothing for a notification no longer listed', async () => {

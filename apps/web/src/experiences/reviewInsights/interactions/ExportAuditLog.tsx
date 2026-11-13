@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { auditExport as settings } from '../../../config/constants';
 import { Button } from '../../../kit/button/Button';
 import { Dialog } from '../../../kit/dialog/Dialog';
@@ -7,6 +7,7 @@ import {
   choosePreset, type DateRange, type DateRangeValue,
 } from '../../../kit/dateRangePicker/dateRangePresets';
 import { useI18n } from '../../../utilities/I18nProvider';
+import useFocusFirstInvalid from '../../../utilities/useFocusFirstInvalid';
 import useToday from '../../../utilities/useToday';
 import {
   dateRangeEnd, firstError, isoDate, required, type FieldError,
@@ -67,8 +68,11 @@ export function ExportAuditLog({
   const [range, setRange] = useState<DateRangeValue>(() => (
     choosePreset({ preset: 'custom', from: '', to: '' }, settings.initialPreset, today)
   ));
-  const [checked, setChecked] = useState(false);
-  const problems = checked ? rangeProblemsOf(range) : {};
+  // Problems show once Download was refused; each refusal moves the focus to the first (OQ-192).
+  const [refusals, setRefusals] = useState(0);
+  const rangeRef = useRef<HTMLDivElement>(null);
+  useFocusFirstInvalid(refusals, rangeRef);
+  const problems = refusals > 0 ? rangeProblemsOf(range) : {};
   const errorOf = (problem: FieldError | undefined) => (
     problem && translator.field(problem.code, problem.params)
   );
@@ -76,8 +80,10 @@ export function ExportAuditLog({
   /** Sends the range once it holds, else shows what is wrong. */
   const download = () => {
     const found = rangeProblemsOf(range);
-    setChecked(true);
-    if (found.from || found.to) return;
+    if (found.from || found.to) {
+      setRefusals((count) => count + 1);
+      return;
+    }
     onDownload({ startDate: range.from, endDate: range.to });
   };
 
@@ -99,7 +105,7 @@ export function ExportAuditLog({
         </>
       )}
     >
-      <div className="flex flex-col gap-5">
+      <div ref={rangeRef} className="flex flex-col gap-5">
         <DateRangePicker
           label={translator.text('auditExport', 'range')}
           labelHidden

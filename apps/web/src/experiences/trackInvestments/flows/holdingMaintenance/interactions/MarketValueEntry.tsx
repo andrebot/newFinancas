@@ -1,5 +1,5 @@
 import type { Currency } from '@financas/api-types';
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { holdingMaintenance as settings } from '../../../../../config/constants';
 import { Amount } from '../../../../../kit/amount/Amount';
 import { Button } from '../../../../../kit/button/Button';
@@ -15,6 +15,7 @@ import { MoneyInput } from '../../../../../kit/moneyInput/MoneyInput';
 import { useI18n } from '../../../../../utilities/I18nProvider';
 import { moneyConventions } from '../../../../../utilities/formatting';
 import type { Translator } from '../../../../../utilities/i18n';
+import useFocusFirstInvalid from '../../../../../utilities/useFocusFirstInvalid';
 import useFormatter from '../../../../../utilities/useFormatter';
 import { valueChangeOf } from '../holdingMaintenance';
 import { DetailCard } from './DetailCard';
@@ -119,7 +120,11 @@ function ValueForm({
 }: FormProps) {
   const translator = useI18n();
   const [busy, setBusy] = useState(false);
-  const [showErrors, setShowErrors] = useState(false);
+  // Problems show once Save was refused; each refusal moves the focus to the first (OQ-192).
+  const [refusals, setRefusals] = useState(0);
+  const formRef = useRef<HTMLFormElement>(null);
+  useFocusFirstInvalid(refusals, formRef);
+  const showErrors = refusals > 0;
   const errors = draftErrorsOf(draft, {
     today, valueKind: { kind: 'money', currency }, entries, uniqueDays: false,
   });
@@ -136,20 +141,21 @@ function ValueForm({
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (!isDraftValid(errors) || draft.value === null) {
-      setShowErrors(true);
+      setRefusals((count) => count + 1);
       return;
     }
     setBusy(true);
     const outcome = await onSave({ date: draft.date, value: draft.value }).catch(() => 'refused');
     setBusy(false);
     if (outcome === 'done') {
-      setShowErrors(false);
+      setRefusals(0);
       onDraft({ date: today, value: null });
     }
   };
 
   return (
     <form
+      ref={formRef}
       noValidate
       className="flex flex-col gap-3"
       onSubmit={(event) => {

@@ -327,6 +327,28 @@ describe('dashboardInvestments (OQ-242, OQ-243)', () => {
     expect(panels.comingDue).toHaveLength(1);
     expect(deps.listPayouts).toHaveBeenCalledTimes(1);
   });
+
+  it('leaves an archived Holding out of Coming Due, its value kept in the series', async () => {
+    // Archived from its matured notice, a CDB still holds its position (FR-5.8).
+    const matured = aHolding({
+      id: 'matured',
+      assetType: 'cdb',
+      dueDate: '2026-10-01',
+      archivedAt: new Date('2026-10-05T12:00:00Z'),
+    });
+    const deps = householdWith([CDB, matured]);
+    deps.costBasisAsOf.mockImplementation(async (ids) => ids.map((holdingId) => (
+      { holdingId, costBasis: holdingId === 'cdb' ? 1_000 : 500 }
+    )));
+
+    const panels = await dashboardInvestments(deps, VIEWER, { today: TODAY, months: 2 });
+
+    expect(panels.comingDue.map(({ holdingId }) => holdingId)).toEqual(['cdb']);
+    expect(panels.netWorth[0]?.series).toEqual([
+      { month: '2026-09', amount: 1_500 },
+      { month: '2026-10', amount: 1_000 },
+    ]);
+  });
 });
 
 describe('payoutSeriesOf (FR-5.9)', () => {

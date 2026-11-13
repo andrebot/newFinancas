@@ -90,6 +90,8 @@ describe('ExportAuditLog', () => {
 
     expect(screen.getByRole('dialog', { name: 'Export audit log' })).toBeTruthy();
     expect(screen.getByText('The Doe Household · CSV')).toBeTruthy();
+    // The range's label is hidden: it is the chips' and dates' only name.
+    expect(screen.getByRole('group', { name: 'Date range' })).toBeTruthy();
     const chips = screen.getAllByRole('radio').map((radio) => radio.closest('label')?.textContent);
     expect(chips).toEqual(['Last 30 days', 'Last 90 days', 'This year', 'Custom']);
     const first = screen.getByRole<HTMLInputElement>('radio', { name: 'Last 30 days' });
@@ -116,6 +118,8 @@ describe('ExportAuditLog', () => {
     expect(errorUnder('To')).toBe('Can\'t be before the start date.');
     expect(errorUnder('From')).toBeFalsy();
     expect(props.onDownload).not.toHaveBeenCalled();
+    // The refusal moves the focus to the date at fault (OQ-192, R5 A1).
+    expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'To' }));
 
     typeDate('From', '10/01/2026');
     expect(errorUnder('To')).toBeFalsy();

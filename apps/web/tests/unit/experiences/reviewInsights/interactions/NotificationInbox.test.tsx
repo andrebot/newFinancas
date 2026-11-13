@@ -81,6 +81,14 @@ describe('NotificationInbox', () => {
     expect(rowOf(/^Alex Rivera/).className).not.toContain('opacity-60');
   });
 
+  it('wraps the actions of a row that has some, and adds no empty actions row', () => {
+    renderInbox();
+
+    // The actions row is the one wrapping element of the buttons (`flex-wrap`).
+    expect(rowOf(/^Alex Rivera/).querySelector('.flex-wrap')?.textContent).toBe('AcceptDecline');
+    expect(rowOf('You have a new notification.').querySelector('.flex-wrap')).toBeNull();
+  });
+
   it('emits an invitation\'s answers and a matured Holding\'s actions', () => {
     const props = renderInbox();
 
