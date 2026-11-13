@@ -7614,6 +7614,50 @@ Holding* is built here.
 
 **Task 141 (`I12`) is complete.**
 
+### OQ-246: Delete account end to end (task I13)
+**Confirmed with the stakeholder (Nov 2026):**
+- **Checked through the API only.** Core #8 says the user's personal
+  Accounts, Budgets and Goals are gone, but no one else may see them, so no
+  route shows it. The journey proves less, and says so: its personal
+  Account, Budget and Goal show only that none still names the user — every
+  user reference is a restrict foreign key, so a row left naming them blocks
+  the user row's delete, a 500 the browser step shows — and the transfer from
+  the personal account to a shared one shows the pair undone (a lone
+  movement: `effect = movement`, no `transfer` — OQ-240). That personal rows
+  are deleted rather than unnamed stays with M1D's integration suite
+  (`forgetUser` per Accessor). Rejected: a read-only test-database helper,
+  as `notificationsDb.ts` was (dropped in OQ-245).
+
+**Design decisions:**
+- **`tests/e2e/identity/deleteAccount.spec.ts`, one `@core` journey.** The
+  user owns a household with one other Member and is a Member of another.
+  In the first they hold a personal Account, Budget and Goal; a shared
+  Account, Budget and Goal; a withdrawal they recorded on the shared
+  account; a transfer from the personal account to the shared one; and a
+  CDI value they recorded. Through Manage Profile, the danger zone lists
+  only the household they own, the confirm stays locked on an almost-right
+  email and opens on theirs, and the delete lands on Sign In with "Your
+  account was deleted." Afterwards: their credentials are refused and
+  another device's refresh is 401; the other Member is the first
+  household's only member and Owner, the other household's Owner its only
+  member; the shared Account, Budget and Goal (`ownerUserId`), the
+  withdrawal and the CDI value (`createdByUserId`) stay, naming no one; the
+  audit export holds every line it held before the delete (read as the
+  Owner then), plus their departure, `LeaveHousehold`, with their id.
+- **The audit export spans yesterday to tomorrow**, so a run across
+  midnight still finds the departure, and its poll waits 10s, past the audit
+  sink's retries (1s, then 5s).
+- **Support helpers:** `createAccount` and an optional `visibility` on
+  `createBudget` (`accountApi.ts`); `accountTransactions`, one Account's
+  ledger (`financeApi.ts`).
+- **Review (PR #175, an independent reviewer):** the erasure claim was
+  narrowed as above; shared Budget and Goal checks added; the audit check
+  made a before/after superset; the other household's members, the danger
+  zone's list and the locked confirm checked exactly; the midnight range
+  and the poll timeout added.
+
+**Task 142 (`I13`) is complete.**
+
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
 *(None currently — OQ-29, the last item here, was resolved during data

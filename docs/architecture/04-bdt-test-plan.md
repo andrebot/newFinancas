@@ -484,6 +484,8 @@ Browse & Filter with paging, Month Overview per period and Goal progress (a CDB 
 
 **I12 (OQ-245)** finishes #13 — after the job's part, the owner presses the matured notice's Archive holding in the bell: the Holding archived by `user`, the notice gone, every notice read through the API (`notificationsDb.ts` dropped) — and adds #14, tagged `@core`, in `tests/e2e/identity/bellInvitation.spec.ts`: the inviter renamed after the invite, the bell names them as they are now, Accept goes through Manage Profile, and the notice is deleted. The routing seam itself (Archive Matured Holding's thunk, the `holding.matured` entry) is unit-tested over the real store with only `fetch` faked.
 
+**I13 (OQ-246)** adds #8, tagged `@core`, in `tests/e2e/identity/deleteAccount.spec.ts`: the user deletes their account through Manage Profile (the ownership note listing only the household they own, the confirm locked until their exact email, Sign In after), then, through the API, their sign-in and other session refused, the owned household passed to its other member, the other household without them, the shared Account, Budget, Goal, withdrawal and CDI value kept with no user named, and the audit log holding every line it held before plus their departure. Personal rows can't be seen by anyone else: the journey proves only that none still names the user (a restrict foreign key would block the delete) and that the transfer from the personal account is undone into a lone movement; that they are deleted stays with M1D's integration suite.
+
 ### Full E2E — nightly / pre-release gate, the remaining coverage
 
 Not a fresh list — a **coverage-completion policy** applied to inventory

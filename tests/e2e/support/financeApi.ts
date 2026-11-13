@@ -344,6 +344,30 @@ export const holdingTransactions = async (
 };
 
 /**
+ * Lists an Account's transactions, as the ledger filtered to it reads them.
+ *
+ * @param request - Playwright's API client.
+ * @param member - A member who sees the Account.
+ * @param householdId - The household.
+ * @param accountId - The Account.
+ * @returns Its transactions (one page is plenty for a journey's Account).
+ */
+export const accountTransactions = async (
+  request: APIRequestContext,
+  member: Member,
+  householdId: string,
+  accountId: string,
+): Promise<readonly AccountTransaction[]> => {
+  const page = await send<TransactionPage>(
+    request,
+    'GET',
+    `/households/${householdId}/transactions?accountIds=${accountId}&limit=100`,
+    { accessToken: member.accessToken },
+  );
+  return (page.items ?? []).filter((item) => item.ledger === 'account');
+};
+
+/**
  * Deletes a transaction, as its detail's Delete would.
  *
  * @param request - Playwright's API client.

@@ -136,26 +136,56 @@ export const seededCategories = async (
 };
 
 /**
- * Creates a shared BRL Budget claiming whole Categories, through the API —
- * what any member's own Budget Management would send.
+ * Creates a BRL checking Account with no cards, through the API — what any
+ * member's own Account & Card Management would send.
  *
  * @param request - Playwright's API client.
  * @param member - A member who may create it.
  * @param householdId - The household.
- * @param budget - Its name and the Categories it claims.
+ * @param account - Its name and visibility.
+ * @returns The new Account.
+ */
+export const createAccount = (
+  request: APIRequestContext,
+  member: Pick<TestUser, 'accessToken'>,
+  householdId: string,
+  account: { readonly name: string; readonly visibility: 'personal' | 'shared' },
+): Promise<Account> => send<Account>(request, 'POST', `/households/${householdId}/accounts`, {
+  data: {
+    name: account.name,
+    type: 'checking',
+    currency: 'BRL',
+    visibility: account.visibility,
+    cards: [],
+  },
+  accessToken: member.accessToken,
+});
+
+/**
+ * Creates a BRL Budget claiming whole Categories, through the API — what any
+ * member's own Budget Management would send. Shared unless asked otherwise.
+ *
+ * @param request - Playwright's API client.
+ * @param member - A member who may create it.
+ * @param householdId - The household.
+ * @param budget - Its name, the Categories it claims and, optionally, its visibility.
  * @returns The new Budget.
  */
 export const createBudget = (
   request: APIRequestContext,
   member: Pick<TestUser, 'accessToken'>,
   householdId: string,
-  budget: { readonly name: string; readonly categoryIds: readonly string[] },
+  budget: {
+    readonly name: string;
+    readonly categoryIds: readonly string[];
+    readonly visibility?: 'personal' | 'shared';
+  },
 ): Promise<Budget> => send<Budget>(request, 'POST', `/households/${householdId}/budgets`, {
   data: {
     name: budget.name,
     targetAmount: 100_000,
     currency: 'BRL',
-    visibility: 'shared',
+    visibility: budget.visibility ?? 'shared',
     targets: budget.categoryIds.map((categoryId) => ({ categoryId })),
   },
   accessToken: member.accessToken,
