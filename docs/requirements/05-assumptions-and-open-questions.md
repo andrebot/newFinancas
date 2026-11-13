@@ -7181,7 +7181,10 @@ forward with all the next phases"), from the review in
   phase 1 found the same gaps in each. Left as it is: every copy is now
   tested, and the forms differ in what "done" closes. Extract a shared hook
   (a Utility) when the next form with that lifecycle lands (slice 5's
-  Dialog-based forms are the likely trigger).
+  Dialog-based forms are the likely trigger). *Corrected by OQ-247 (R5 A1):
+  only Rate Update Entry and the History editor moved the focus; all five
+  forms now use `useFocusFirstInvalid`, and no save-lifecycle hook is
+  extracted.*
 
 **Gate R4 is complete.**
 
@@ -7657,6 +7660,32 @@ Holding* is built here.
   and the poll timeout added.
 
 **Task 142 (`I13`) is complete.**
+
+### OQ-247: Slice 5 review decisions (gate R5)
+**Confirmed with the stakeholder (Nov 2026)**, phase by phase, from the
+review in `docs/architecture/17-slice-5-review.md`:
+- **Phase 1 changed tests only.** Every gap got its test (B1, V1–V9), each
+  checked by hand against its mutants and then by a second run; no
+  production code changed.
+- **Phase 2 found nothing to fix**, so it has no PR of its own: its write-up
+  rides in phase 3's.
+- **A refused submit moves the focus in every form (A1, amends OQ-192 and
+  OQ-239).** The Audit Log export, Market Value Entry and the Goal split
+  editor left the focus where it was; Rate Update Entry and the History
+  editor copied the effect inline. `useFocusFirstInvalid` now takes an
+  optional ref for its scope — read when the focus moves, the page when
+  unmounted — so a form that can sit beside another looks only inside
+  itself, and all five use it (each counting its refusals). This settles R4's
+  A2: the shared piece is this Utility, not a whole save-lifecycle hook — who
+  holds `busy` and what "done" closes still differ per form. OQ-239's A2
+  said all four slice-4 forms focus the field at fault; only two did.
+- **The erasure rule stays in each Accessor (A2, a note).** "Personal rows
+  go, shared rows lose the user's name" is each `forgetUser`'s, as OQ-240
+  decided: it follows FR-1.17, not a feature, and each table's visibility and
+  foreign keys are its own Accessor's facts. Revisit if erasure gets a policy
+  of its own.
+
+**Gate R5 is complete.**
 
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 

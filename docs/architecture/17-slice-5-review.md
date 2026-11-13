@@ -5,7 +5,7 @@ cascade, the Dialog, the Dashboard, the notification inbox, the audit-log
 export, the bell's routing and delete account — tasks 136–142), run by the
 method in `13-slice-review.md` (OQ-164). Work happens on the `review/slice-5`
 branch, cut from `main` after PR #175 (`I13`).
-**Status: in progress — phase 1 in PR #176, phase 2 done (no findings), phase 3 next.**
+**Status: complete — phase 1 in PR #176, phases 2–3 in phase 3's PR (OQ-247).**
 
 ## Scope
 
@@ -179,4 +179,52 @@ in the app a page change is a client route, not a reload. Left as is.
 
 ## Phase 3 — code and architecture
 
+The `harmonic-review` lenses over slice 5's code, with the import graph per
+layer (every changed file's imports read).
+
+**Boundaries hold.**
+- **VBD:** no Engine → Engine or Accessor → Accessor at runtime — the
+  Accessors share `erasureScope.ts`, a query helper like `ledgerQuery.ts`;
+  routes call only Managers. The cross-tier imports in the slice are all
+  `import type` (`insightsJson.ts` → `notificationInboxAccessor`,
+  `engines/reporting`; `reconcile.ts` → `auditLogAccessor`; Identity's
+  `departure.ts`/`erasure.ts` → their Accessors' types). The Insights Managers
+  are thin: one access check, then one Engine or Accessor read; the export's
+  `date.before_start` is the Manager's (OQ-243).
+- **EBD:** only Experiences call the backend (ESLint); no Flow imports a
+  sibling; Review Insights reaches Investments only through the shared
+  `experiences/` pieces (`usePayoutChart`, the panels in
+  `experiences/interactions/`, `holdingLink`) and an address — never Track
+  Investments' modules. The bell's actions reach their Experiences through
+  the shell's routing table (OQ-245); the inbox panel is Review Insights'
+  Experience tier, handed to the shell through `chrome.tsx`.
+- **BDT:** each new test mocks only the tier below — the Dashboard Flow its
+  four Interactions, the Experience its Flow, the inbox panel its Interaction,
+  the export its browser-download Utility; the Insights Manager suite fakes
+  the Engine and Accessors.
+- **Plan vs code:** tasks 136–142 are done; the contract-routes test (OQ-163)
+  lists only v2/v3 operations as unrouted.
+
+| # | Finding | Severity | Proposed fix |
+|---|---|---|---|
+| A1 | **A refused submit leaves focus where it was in three forms (OQ-192).** OQ-192 settled it in slice 2: after a refused submit, the first invalid field takes the focus, so a message below the fold isn't missed — `utilities/useFocusFirstInvalid.ts`, used by seven forms. The Audit Log export (`ExportAuditLog.tsx`), Market Value Entry and the Goal split editor (`GoalAllocationCard.tsx`) never move it; Rate Update Entry and the history editor (`HistoryEditorParts.tsx:304`) copy the effect inline. *Cause (EBD):* the "refused submit" axis has a Utility, but nothing points a new form at it — slice 4 re-derived it twice and dropped it twice, slice 5 dropped it once. *Counterpart (BDT):* mutation testing can't find a behaviour that was never written; each copy tested focus on its own (R4's V6). **Correction to R4's A2:** it said all four slice-4 forms focus the field at fault — only two do. | Medium | Give the Utility a scope a form can pass as it renders (its form element, or a ref) and use it in all five: the three forms gain the focus, the two inline copies go. Its own suite tests the focus once; each form's test checks one refused submit focuses its field. This settles R4's A2: the shared piece is this Utility, not a whole save-lifecycle hook — who holds `busy` (the export's caller, the forms themselves) and what "done" closes still differ. |
+| A2 | **Note — the erasure rule in seven Accessors.** "Personal rows go, shared rows lose the user's name" is written in each `forgetUser` (Accounts, both ledgers, Budgets, Goals, index rates, invitations), and the transfer unpairing ("a transfer losing its side becomes a lone movement") sits in `accountTransactionAccessor`. *Volatility:* the rule is FR-1.17's (GDPR) and changes with the law, not with a feature; what is personal and how rows link is each table's own storage fact; the order and the transaction are the Manager's (`erasure.ts`, OQ-240). | Note | **Leave it** (recommended): decided in OQ-240; one verb per Accessor keeps each table's foreign keys and visibility in the one place that knows them. Revisit if erasure ever gets a policy of its own (e.g. keeping personal rows for a grace period). |
+
+Decisions (OQ-247): fix A1 through the Utility; leave A2 as a note.
+
+### Phase 3 — fixes (2026-11-13)
+
+- **A1:** `useFocusFirstInvalid` takes an optional ref for its scope, read
+  when the focus moves (the page when unmounted); its suite checks the
+  unmounted case. The Audit Log export, Market Value Entry and the Goal split
+  editor count their refusals (in place of a shown-problems flag) and use it,
+  scoped to their own fields; Rate Update Entry and the History editor drop
+  their inline copies for it. Each form's test checks a refused submit
+  focuses the field at fault, and fails with the form's call removed (all
+  five hand-checked). OQ-192 and OQ-239 amended through OQ-247.
+
 ## Closing (OQ-164)
+
+R5 is complete: phase 1 in PR #176, phases 2 and 3 in phase 3's PR (phase 2
+found nothing to fix). Nothing stays open as work: A2 is a note. The next
+slice starts at task 143 (`N10`).
