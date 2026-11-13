@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import { setupApi } from '../../../../src/api/setupApi';
 import { manageFinancesApi } from '../../../../src/experiences/manageFinances/api';
 import {
   attachmentNameOf, auditExportPathOf, reviewInsightsApi,
 } from '../../../../src/experiences/reviewInsights/api';
+import { trackInvestmentsApi } from '../../../../src/experiences/trackInvestments/api';
 import { envelope, jsonResponse } from '../../api/fakes';
 import {
   fakeFetch, sent, settle, type Answers,
@@ -193,6 +195,51 @@ describe('a transaction recorded in Manage Finances', () => {
 
     await store.dispatch(manageFinancesApi.endpoints.deleteTransaction
       .initiate({ householdId: 'doe', transactionId: 't-1' }));
+    await settle();
+    reading.unsubscribe();
+
+    expect(await readsOf(fetchFn, '/households/doe/dashboard')).toBe(2);
+  });
+});
+
+describe('a write elsewhere that changes what the Dashboard shows', () => {
+  // Each write invalidates one of the Dashboard's tags alone (R5 V3).
+  it.each([
+    {
+      tag: 'Accounts',
+      route: 'PATCH /households/doe/accounts/a-1',
+      write: (store: Store) => store.dispatch(setupApi.endpoints.editAccount
+        .initiate({ householdId: 'doe', accountId: 'a-1', name: 'Checking' })),
+    },
+    {
+      tag: 'Budgets',
+      route: 'DELETE /households/doe/budgets/b-1',
+      write: (store: Store) => store.dispatch(setupApi.endpoints.deleteBudget
+        .initiate({ householdId: 'doe', budgetId: 'b-1' })),
+    },
+    {
+      tag: 'Goals',
+      route: 'PATCH /households/doe/holdings/h-1',
+      write: (store: Store) => store.dispatch(trackInvestmentsApi.endpoints.saveHoldingAllocations
+        .initiate({ householdId: 'doe', holdingId: 'h-1', allocations: [] })),
+    },
+    {
+      tag: 'Holdings',
+      route: 'POST /households/doe/index-rates/cdi/values',
+      write: (store: Store) => store.dispatch(trackInvestmentsApi.endpoints.recordIndexRate
+        .initiate({
+          householdId: 'doe', index: 'cdi', value: 104_000, asOf: '2026-10-01',
+        })),
+    },
+  ])('reads the Dashboard again through $tag', async ({ route, write }) => {
+    const { store, fetchFn } = storeWith({
+      'GET /households/doe/dashboard': () => jsonResponse(200, DASHBOARD),
+      [route]: () => jsonResponse(200, {}),
+    });
+    const reading = store.dispatch(reviewInsightsApi.endpoints.getDashboard.initiate('doe'));
+    await reading;
+
+    await write(store);
     await settle();
     reading.unsubscribe();
 
