@@ -118,8 +118,11 @@ describe('MarketValueEntry', () => {
 
     expect(props.onSave).not.toHaveBeenCalled();
     expect(screen.getByText('Date is later than allowed.')).toBeTruthy();
-    expect(screen.getAllByRole('textbox')
-      .filter((input) => input.getAttribute('aria-invalid') === 'true')).toHaveLength(2);
+    const invalid = screen.getAllByRole('textbox')
+      .filter((input) => input.getAttribute('aria-invalid') === 'true');
+    expect(invalid).toHaveLength(2);
+    // The refusal moves the focus to the first field at fault (OQ-192, R5 A1).
+    expect(document.activeElement).toBe(invalid[0]);
   });
 
   it('holds a problem back until Save, and flags only the field at fault (R4 V5)', () => {

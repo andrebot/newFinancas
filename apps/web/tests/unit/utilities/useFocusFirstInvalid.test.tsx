@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import { useRef } from 'react';
 import { describe, expect, it } from 'vitest';
 import useFocusFirstInvalid from '../../../src/utilities/useFocusFirstInvalid';
 
@@ -17,13 +18,13 @@ interface HostProps {
  * @returns The fields.
  */
 function Host({ refusals, scoped = false }: HostProps) {
-  const scope = scoped ? document.getElementById('scope') ?? undefined : undefined;
-  useFocusFirstInvalid(refusals, scope);
+  const scope = useRef<HTMLDivElement>(null);
+  useFocusFirstInvalid(refusals, scoped ? scope : undefined);
   return (
     <>
       <input aria-label="valid" />
       <input aria-label="outside" aria-invalid="true" />
-      <div id="scope">
+      <div ref={scope}>
         <input aria-label="inside" aria-invalid="true" />
       </div>
     </>
@@ -49,6 +50,16 @@ describe('useFocusFirstInvalid', () => {
     const { rerender } = render(<Host refusals={0} scoped />);
     rerender(<Host refusals={1} scoped />);
     expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'inside' }));
+  });
+
+  it('looks over the page when its scope isn\'t mounted', () => {
+    function Unmounted() {
+      const scope = useRef<HTMLDivElement>(null);
+      useFocusFirstInvalid(1, scope);
+      return <input aria-label="page" aria-invalid="true" />;
+    }
+    render(<Unmounted />);
+    expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'page' }));
   });
 
   it('moves nothing when no field is invalid', () => {
