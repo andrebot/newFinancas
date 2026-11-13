@@ -5,7 +5,7 @@ cascade, the Dialog, the Dashboard, the notification inbox, the audit-log
 export, the bell's routing and delete account — tasks 136–142), run by the
 method in `13-slice-review.md` (OQ-164). Work happens on the `review/slice-5`
 branch, cut from `main` after PR #175 (`I13`).
-**Status: in progress — phase 1 done (its PR), phase 2 next.**
+**Status: in progress — phase 1 in PR #176, phase 2 done (no findings), phase 3 next.**
 
 ## Scope
 
@@ -131,6 +131,51 @@ survivor is new: every one left is a triaged non-gap. Phase 1 closes with its
 PR.
 
 ## Phase 2 — the Playwright suite
+
+The slice's journeys: 5 new tests and 5 changed. Tagged `@core`: #8 delete
+account (I13), #12 the audit export (I11), #14 invite → bell → accept and #13
+finished in the bell (I12), #5 finished on the Dashboard (I11). Smoke #5 (a
+new household's Dashboard answers) is `@smoke`. Untagged (Full E2E): the
+inbox's list/delete on a revoked invitation's notice, and the Dashboard's
+investment panels with the payout choice shared with Investments. The Drawer
+journey also checks its scrim starts under the header (OQ-241).
+Preconditions are arranged through the API, the browser does only the
+journey, and every end state is read back through the API: the Holding
+`archivedBy: 'user'` and the notice gone (#13), the membership and the notice
+gone (#14), the CSV equal to the API's for those days (#12), the members, the
+shared rows naming no one and the audit log a superset of before (#8), the
+Dashboard report's figures (#5, panels).
+
+**Runs (2026-11-12, local, 16 workers):** the slice and smoke 3× — 63/63 in
+23 s; 10× — 210/210 in 1.1 min; the whole suite 3× — 168/168 in 1.6 min. No
+journey failed or was retried.
+
+**CI cadence holds.** `ci.yml` runs `@smoke` on every PR and `@core` after
+merge on `main`; `nightly.yml` runs everything at 06:00 UTC and on demand —
+unchanged in slice 5. The BDT plan's slice-5 paragraphs (I11–I13) are written,
+and all 14 core journeys are now tagged.
+
+**No findings.** Checked and left as they are:
+- **#8 proves personal rows only unnamed, not deleted** — decided in OQ-246:
+  no one else can see them through the API; M1D's integration suite proves
+  the deletion. The plan's I13 paragraph says so, though its core list still
+  reads "personal Accounts/Budgets/Goals gone" for the journey as a whole.
+- **#12's CSV compared with an export made after the download** — safe: an
+  export writes no audit entry, and the journey waits for the setup's last
+  entry before the Owner asks.
+- **The Dashboard journey checks the payout chart by its legend and the
+  Holdings asked for, not its bars' amounts** — the seam it adds is the choice
+  shared with Investments; the payouts report's figures are R4 E1's check on
+  Investments.
+
+**Note — an aborted read logged as an API failure.** Each run logged a few
+`API request failed … status: 200, code: internal.unexpected` for
+`listHouseholds`, always in #5. The API answered 200 in 2–7 ms (its log, by
+correlation ID); the journey's `page.goto` reloaded the page 1.4 s after
+sign-in, while the app's first household read was still being read, and the
+cut-short body read surfaced as a `PARSING_ERROR`. No test is flaky because
+of it and no user sees it: the browser logger writes only to the console, and
+in the app a page change is a client route, not a reload. Left as is.
 
 ## Phase 3 — code and architecture
 
