@@ -7614,6 +7614,37 @@ Holding* is built here.
 
 **Task 141 (`I12`) is complete.**
 
+### OQ-246: Delete account end to end (task I13)
+**Confirmed with the stakeholder (Nov 2026):**
+- **Checked through the API only.** Core #8 says the user's personal
+  Accounts, Budgets and Goals are gone, but no one else may see them, so no
+  route shows it. The journey shows the personal account's erasure through
+  what it leaves behind on a shared one: its transfer to a shared account is
+  now a lone movement (`effect = movement`, no `transfer` — OQ-240). That
+  personal Budgets and Goals go stays with M1D's integration suite
+  (`forgetUser` per Accessor). Rejected: a read-only test-database helper,
+  as `notificationsDb.ts` was (dropped in OQ-245).
+
+**Design decisions:**
+- **`tests/e2e/identity/deleteAccount.spec.ts`, one `@core` journey.** The
+  user owns a household with one other Member and is a Member of another.
+  In the first they hold a personal Account, Budget and Goal, a shared
+  Account with a withdrawal they recorded, a transfer from the personal
+  account to the shared one, and a CDI value they recorded. Through Manage
+  Profile, the danger zone names the household they own, the confirm stays
+  locked until their email is typed, and the delete lands on Sign In with
+  "Your account was deleted." Afterwards: their credentials are refused and
+  another device's refresh is 401; the other Member is the household's only
+  Owner and member; the other household no longer lists them; the shared
+  Account (`ownerUserId`), the withdrawal and the CDI value
+  (`createdByUserId`) stay, naming no one; the audit export keeps their id on
+  `CreateHousehold` and on the departure, `LeaveHousehold`.
+- **Support helpers:** `createAccount` and an optional `visibility` on
+  `createBudget` (`accountApi.ts`); `accountTransactions`, one Account's
+  ledger (`financeApi.ts`).
+
+**Task 142 (`I13`) is complete.**
+
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
 *(None currently — OQ-29, the last item here, was resolved during data
