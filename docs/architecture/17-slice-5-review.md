@@ -5,7 +5,7 @@ cascade, the Dialog, the Dashboard, the notification inbox, the audit-log
 export, the bell's routing and delete account — tasks 136–142), run by the
 method in `13-slice-review.md` (OQ-164). Work happens on the `review/slice-5`
 branch, cut from `main` after PR #175 (`I13`).
-**Status: in progress — phase 1.**
+**Status: in progress — phase 1 done (its PR), phase 2 next.**
 
 ## Scope
 
@@ -70,6 +70,12 @@ mutant.
 - **Not worth a test — an error message** (`managers/insights/errors.ts` L41)
   — 1. The web reads the code; the message is never shown.
 
+#### Fixed (2026-11-12) — stakeholder agreed the triage
+
+B1: `investments.test.ts` — an archived matured CDB with a value is left out
+of the Dashboard's Coming Due and kept in the net worth series. Hand-applied,
+the mutant fails it.
+
 ### Step 2 — web and packages (`pnpm mutation:web`)
 
 **Run (2026-11-12, `BASE=8f3a6a8`):** 46 changed files, one Stryker run each
@@ -100,6 +106,29 @@ invalidates is a gap, `addTagTypes` is not; accessible names are gaps).
 | Copy and logs (10) | Logger labels, the warnings logged when marking seen or deleting a handled notice fails, the Dashboard's empty-state description (secondary copy). |
 | Equivalent (29) | RTK `addTagTypes` (13); the `Payouts` and `Dashboard` tags no write invalidates (2); `attachmentNameOf`'s `?? ''` (no match either way); the export's seed range, overwritten by `choosePreset` (4), and its `checked` start (the initial preset is valid, so nothing shows) (1); `inboxReadOf`'s `&&` (`freshIds` is only set once both reads are in, and RTK keeps data); `noticeOf(…, [])` for a matured notice (invitations unread); Table's and HoldingsTable's open keys (a key no row has opens nothing) (3); `useLinkedHolding` dropping an absent parameter; Archive's `request.reset()` (a cache entry nothing reads); `useRole`'s default role is `dialog`. |
 | Defensive (8) | `meta?.response?.` on a response RTK always passes (2); `?.` on a notice found from a rendered row (2); `noticeOf`'s type check (the contract has only two types, the other handled first); `holdings ?? []` before the Holdings load (the chart waits or shows all) (3). |
+
+#### Fixed (2026-11-12) — all groups, stakeholder decision
+
+Every group has its tests, each checked against its own mutants applied by
+hand (all killed); the whole suite passes, typechecks and lints, coverage
+100%.
+
+| Group | Where the tests went |
+|---|---|
+| V1, V5, V6 | `InboxPanel.test.tsx` — a handled action toasts nothing; the invitations answered before the notifications (loading, then loaded and marked once); nothing marked seen while the invitations fail; the stub shows the panel's `now` |
+| V2 | `inbox.test.ts` — the notice names its own invitation among several; stale while only others wait |
+| V3 | `reviewInsights/api.test.ts` — one write per tag (`editAccount`, `deleteBudget`, `saveHoldingAllocations`, `recordIndexRate`), each invalidating only that Dashboard tag, reads the Dashboard again |
+| V4 | `usePayoutChart.test.tsx` (new) — after a rerender with another household, its own remembered choice is read, and a new choice written under its key |
+| V7 | `formatting.test.ts` — 14 days is "2 weeks ago" |
+| V8, V9 | `ExportAuditLog.test.tsx` (the range named "Date range"), `NotificationInbox.test.tsx` (an actions row only around actions) |
+
+### Phase 1 — where it stands
+
+**Second runs (2026-11-12, `BASE=8f3a6a8`):** backend 251 mutants, 242
+killed, **9 survived — 96.4%** (from 95.6%); web 911 mutants, 838 killed,
+**73 survived — 92.0%** (from 90.4%). All 15 gap mutants are killed and no
+survivor is new: every one left is a triaged non-gap. Phase 1 closes with its
+PR.
 
 ## Phase 2 — the Playwright suite
 
