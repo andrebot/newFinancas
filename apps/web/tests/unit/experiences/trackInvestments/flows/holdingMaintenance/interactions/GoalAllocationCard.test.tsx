@@ -124,8 +124,10 @@ describe('GoalAllocationCard', () => {
     typePercent('House Down Payment', '');
     fireEvent.click(button('Save'));
     expect(onSave).not.toHaveBeenCalled();
-    expect(screen.getByRole('textbox', { name: 'Percentage for House Down Payment' })
-      .getAttribute('aria-invalid')).toBe('true');
+    const share = screen.getByRole('textbox', { name: 'Percentage for House Down Payment' });
+    expect(share.getAttribute('aria-invalid')).toBe('true');
+    // The refusal moves the focus to the share at fault (OQ-192, R5 A1).
+    expect(document.activeElement).toBe(share);
 
     typePercent('House Down Payment', '30');
     fireEvent.click(button('Save'));

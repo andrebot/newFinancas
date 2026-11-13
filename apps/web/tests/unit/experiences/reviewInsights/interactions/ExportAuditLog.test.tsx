@@ -118,6 +118,8 @@ describe('ExportAuditLog', () => {
     expect(errorUnder('To')).toBe('Can\'t be before the start date.');
     expect(errorUnder('From')).toBeFalsy();
     expect(props.onDownload).not.toHaveBeenCalled();
+    // The refusal moves the focus to the date at fault (OQ-192, R5 A1).
+    expect(document.activeElement).toBe(screen.getByRole('textbox', { name: 'To' }));
 
     typeDate('From', '10/01/2026');
     expect(errorUnder('To')).toBeFalsy();
