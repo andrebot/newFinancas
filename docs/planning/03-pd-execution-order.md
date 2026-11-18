@@ -210,7 +210,7 @@ identity screens, the rest as later slices use them.
 
 *Done when:* reviews, full test suites, then your real data.
 
-- [ ] **143.** `N10` Security review (light) — findings and decisions in
+- [x] **143.** `N10` Security review (light) — findings and decisions in
   `docs/architecture/18-security-review.md` (OQ-249); S1, self-hosting
   (OQ-250), is done inside this task:
   - [x] Findings, decisions; S2, S3, S7 fixed
@@ -224,7 +224,7 @@ identity screens, the rest as later slices use them.
   - [x] LXC: Docker + Tailscale, subnet route `192.168.68.65/32` approved
   - [x] Cloudflare: A record `financas` → 192.168.68.65 (DNS only) + DNS-edit API token
   - [x] Router: reserve 192.168.68.65
-  - [ ] First deploy and checks (LAN, Tailscale away, certificate, headers)
+  - [x] First deploy and checks (LAN, Tailscale away, certificate, headers) — live 2026-11-18
 - [ ] **144.** `N11` Accessibility audit
 - [ ] **145.** `V1` Smoke suite
 - [ ] **146.** `V2` Core E2E (14 journeys)

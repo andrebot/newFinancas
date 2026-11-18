@@ -6,7 +6,7 @@ dependency audit (`01-pd-activity-list.md`). The method is the same as the
 slice gates: **findings first, then the stakeholder's decisions (OQ), then the
 fixes.** It doesn't include a scanner run. OWASP ZAP against the running app
 is deferred to a later pass (stakeholder, Nov 2026).
-**Status: S2, S3 and S7 fixed; S1 (self-hosting, OQ-250) in progress inside this task; the rest decided (OQ-249).**
+**Status: S2, S3 and S7 fixed; S1 (self-hosting, OQ-250) done, live since 2026-11-18; the rest decided (OQ-249). Complete.**
 
 ## Threat model
 
@@ -97,11 +97,11 @@ From the stakeholder (Nov 2026), refining OQ-88:
 
 | # | Decision | What changed |
 |---|---|---|
-| S1 | **Self-hosting on Proxmox, done inside N10 (OQ-250).** | In progress; the steps are in the checklist under task 143. |
+| S1 | **Self-hosting on Proxmox, done inside N10 (OQ-250).** | Live at `https://financas.andrealmeida.tech` (2026-11-18): Let's Encrypt certificate, HTTP → HTTPS, every security header and the CSP checked on the server. Runbook: `docs/operations/self-hosting.md`. |
 | S2 | Fix | `zod` 4.6.6, `hono` 4.13.16, `@hono/node-server` 2.1.6, plus transitive dev updates. `pnpm audit --prod` is clean; 31 advisories in total are down to 11, all dev-only and pinned by their parents. New `pnpm check:deps`, run by a `dependency-audit` job in `ci.yml` and `nightly.yml`. |
 | S3 | Fix | `http/bodySize.ts`: Hono `bodyLimit` on `/api/*` at `http.maxBodyBytes` (1 MB), refusing with the new generic code `request.too_large` (413; both catalogs, `STATUS_OF`). New passwords are at most 128 (`authentication.password.maxLength`): the contract, the route overrides in `routes/identity.ts`, the web `password` rule. The identity sequences and call chains for uc-11, uc-18 and uc-19 show the route's check. |
 | S4 | Won't fix | The real database is never seeded. |
 | S5 | Won't fix | Real secrets come from `pnpm env:secrets`. |
-| S6 | Accept | NFR-SEC-3 at the storage layer: the encrypted dataset for the database (OQ-250). Encrypted backups come later, with the backup setup. |
+| S6 | Accept | NFR-SEC-3 at the storage layer: the database lives on `fastpool/financas-db` (AES-256-GCM, key file on `rpool`, unlocked at boot by `zfs-load-financas-key.service`). Encrypted backups come later, with the backup setup. |
 | S7 | Fix | `tests/integration/routeGuards.test.ts`: 79 protected operations, each 401 `auth.unauthenticated` with no Manager reached. Dropping the `/households/*` guard fails 65 of them. |
 | S8 | Accept for v1 | Revisit with a real email provider. |
