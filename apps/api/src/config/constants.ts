@@ -117,6 +117,27 @@ export const http = {
     hashedAssets: 'public, max-age=31536000, immutable',
     everythingElse: 'no-cache',
   },
+  /**
+   * Security headers on every response (N10 S1, OQ-250), over Hono's
+   * secureHeaders defaults. The CSP allows only this origin: the built app has
+   * no inline script or style, and its fonts are data: URIs in the CSS (OQ-125).
+   */
+  securityHeaders: {
+    contentSecurityPolicy: {
+      defaultSrc: ["'self'"],
+      imgSrc: ["'self'", 'data:'],
+      fontSrc: ["'self'", 'data:'],
+      objectSrc: ["'none'"],
+      baseUri: ["'none'"],
+      formAction: ["'self'"],
+      frameAncestors: ["'none'"],
+    },
+    /** HTTPS only from the first visit on; browsers ignore it over plain HTTP. */
+    strictTransportSecurity: 'max-age=31536000; includeSubDomains',
+    xFrameOptions: 'DENY',
+    /** Features the app never uses, switched off for every page. */
+    permissionsPolicy: { camera: [], microphone: [], geolocation: [] },
+  },
 } as const;
 
 /** Calendar settings (OQ-104). */

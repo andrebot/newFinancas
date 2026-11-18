@@ -6,6 +6,7 @@ import correlationIdMiddleware from './http/correlation';
 import { createErrorHandler, handleNotFound, type AppEnv } from './http/errorHandler';
 import type { VerifyAccessToken } from './http/authentication';
 import createRequestLogger from './http/requestLog';
+import createSecurityHeaders from './http/securityHeaders';
 import createWebApp from './http/webApp';
 import createAccountRoutes from './http/routes/accounts';
 import createBudgetRoutes from './http/routes/budgets';
@@ -61,6 +62,7 @@ const createApp = (deps: AppDeps): Hono<AppEnv> => {
   const app = new Hono<AppEnv>();
   app.onError(createErrorHandler(logUnexpectedError));
   app.notFound(handleNotFound);
+  app.use(createSecurityHeaders());
   app.use(correlationIdMiddleware);
   app.use(createRequestLogger());
   app.use('/api/*', createBodySizeLimit(http.maxBodyBytes));
