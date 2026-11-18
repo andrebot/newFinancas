@@ -68,7 +68,7 @@ sequenceDiagram
     participant LOG as LoggingUtility
 
     User->>API: POST /auth/register {email, password, firstName, lastName, language?}
-    Note over API: validated against the contract (OQ-93): a well-formed email,<br/>names of at least one character
+    Note over API: validated against the contract (OQ-93): a well-formed email,<br/>names of at least one character, a password of at most 128 (OQ-249)
     alt request invalid
         API-->>User: 422 validation.failed {details}
     else valid

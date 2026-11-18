@@ -65,9 +65,13 @@ export const authentication = {
     /** 80 bits → 16 Crockford base32 characters. */
     bytes: 10,
   },
-  /** FR-1.1: the shortest password accepted (register, change, reset). */
+  /**
+   * FR-1.1: the shortest password accepted (register, change, reset), and the
+   * longest a new one may be (N10 S3, OQ-249).
+   */
   password: {
     minLength: 12,
+    maxLength: 128,
   },
   /** Password reset (FR-1.13, OQ-115): the emailed link works once, for this long. */
   passwordReset: {
@@ -99,6 +103,11 @@ export const households = {
 export const http = {
   /** Request/response header carrying the correlation ID (OQ-99). */
   correlationIdHeader: 'X-Correlation-Id',
+  /**
+   * The largest request body read, in bytes (N10 S3, OQ-249). The biggest real
+   * bodies (a transaction with its Goal split, an export range) are a few KB.
+   */
+  maxBodyBytes: 1024 * 1024,
 } as const;
 
 /** Calendar settings (OQ-104). */

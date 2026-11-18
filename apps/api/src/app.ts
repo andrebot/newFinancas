@@ -1,5 +1,7 @@
 import { createLogger } from '@financas/logging';
 import { Hono } from 'hono';
+import { http } from './config/constants';
+import createBodySizeLimit from './http/bodySize';
 import correlationIdMiddleware from './http/correlation';
 import { createErrorHandler, handleNotFound, type AppEnv } from './http/errorHandler';
 import type { VerifyAccessToken } from './http/authentication';
@@ -58,6 +60,7 @@ const createApp = (deps: AppDeps): Hono<AppEnv> => {
   app.notFound(handleNotFound);
   app.use(correlationIdMiddleware);
   app.use(createRequestLogger());
+  app.use('/api/*', createBodySizeLimit(http.maxBodyBytes));
   app.get('/health', (httpContext) => httpContext.json({ status: 'ok' }));
   app.route('/api/v1', createIdentityRoutes(deps.identity, deps.verifyAccessToken));
   // The household routes' `/households/*` guard also admits the household-data

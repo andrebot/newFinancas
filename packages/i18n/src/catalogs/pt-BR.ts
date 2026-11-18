@@ -21,6 +21,7 @@ const ptBR = {
     fallback: 'Algo deu errado.',
     'validation.failed': 'Alguns campos precisam de correção.',
     'request.invalid': 'Não foi possível processar a solicitação.',
+    'request.too_large': 'Isso é grande demais para enviar de uma vez.',
     'route.not_found': 'Recurso não encontrado.',
     'internal.unexpected': 'Algo deu errado. Tente novamente.',
     'network.unavailable': 'Não foi possível conectar. Verifique sua conexão e tente novamente.',

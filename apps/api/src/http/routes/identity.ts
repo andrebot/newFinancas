@@ -6,6 +6,7 @@ import {
 } from '@financas/api-types/zod';
 import { Hono } from 'hono';
 import { z } from 'zod';
+import { authentication } from '../../config/constants';
 import type { IdentityManager } from '../../managers/identity';
 import { requireSystemRole, type VerifyAccessToken } from '../authentication';
 import type { AppEnv } from '../errorHandler';
@@ -23,15 +24,17 @@ import { publicContextOf, signedInContextOf } from './requestContext';
 // The minimum length is IdentityManager's rule, answered as `password.too_short`
 // (BDT plan), not as a generic validation failure. A blank name is too: the
 // Manager trims it and checks it with ValidationUtility (OQ-116, OQ-165).
-const registerBody = zRegisterUserBody.extend({ password: z.string() });
+// The upper bound stays a validation failure (`string.max`, OQ-249).
+const newPassword = z.string().max(authentication.password.maxLength);
+const registerBody = zRegisterUserBody.extend({ password: newPassword });
 const validProfileEdit = validate('json', zEditCurrentUserBody);
 const validPasswordChange = validate(
   'json',
-  zChangePasswordBody.extend({ newPassword: z.string() }),
+  zChangePasswordBody.extend({ newPassword }),
 );
 const validResetConfirmation = validate(
   'json',
-  zConfirmPasswordResetBody.extend({ newPassword: z.string() }),
+  zConfirmPasswordResetBody.extend({ newPassword }),
 );
 const validResetRequest = validate('json', zRequestPasswordResetBody);
 const validEnrollmentConfirmation = validate('json', zConfirmMfaEnrollmentBody);

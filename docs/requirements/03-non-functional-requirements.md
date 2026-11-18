@@ -13,7 +13,8 @@ backend decomposition rather than logic embedded in each Manager/Engine.
 - **NFR-SEC-4** Passwords are stored using a strong adaptive hash
   (e.g., Argon2/bcrypt) — never plaintext or reversibly encrypted.
   Passwords must be **at least 12 characters** — enforced on registration,
-  password change, and password reset (see OQ-64). The UI shows a strength
+  password change, and password reset (see OQ-64) — and a new one at most
+  128 (OQ-249). The UI shows a strength
   indicator; the 12-character minimum is the only hard rule.
 - **NFR-SEC-5** Users can view and revoke their own active sessions/devices
   (supports FR-1.3).

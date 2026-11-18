@@ -1,5 +1,6 @@
 # Hosted twin of the local hooks (BDT cadence, docs/architecture/04-bdt-test-plan.md):
 #   every PR      -> check (lint, typecheck, unit + integration, 100% coverage) + smoke
+#                    + the production dependency audit
 #   push to main  -> the same, plus Core E2E (post-merge, never blocks a merge)
 #   nightly       -> Full E2E (nightly.yml); load stays on demand.
 name: CI
@@ -29,6 +30,17 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
+
+  # Production dependencies with a high or critical advisory fail the run (N10, OQ-249).
+  dependency-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - run: pnpm check:deps
 
   smoke:
     needs: check

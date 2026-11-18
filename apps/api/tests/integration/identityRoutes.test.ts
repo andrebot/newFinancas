@@ -210,6 +210,43 @@ describe('identity routes — passwords and recovery (OQ-115)', () => {
   });
 });
 
+describe('identity routes — a new password\'s upper bound (N10 S3, OQ-249)', () => {
+  const TOO_LONG = 'a'.repeat(129);
+
+  it.each([
+    ['/auth/register', { ...REGISTRATION, password: TOO_LONG }, {}],
+    ['/auth/password-reset/confirm', { token: 't', newPassword: TOO_LONG }, {}],
+    ['/auth/change-password', { currentPassword: 'old', newPassword: TOO_LONG }, SIGNED_IN],
+  ])('POST %s refuses 129 characters as string.max before the Manager', async (
+    path,
+    body,
+    auth,
+  ) => {
+    const { app, identity } = setup();
+
+    const response = await send(app, 'POST', path, { body, ...auth });
+
+    expect(response.status).toBe(422);
+    expect(await errorOf(response)).toMatchObject({
+      code: 'validation.failed',
+      details: [expect.objectContaining({ code: 'string.max', params: { max: 128 } })],
+    });
+    expect(identity.register).not.toHaveBeenCalled();
+    expect(identity.confirmPasswordReset).not.toHaveBeenCalled();
+    expect(identity.changePassword).not.toHaveBeenCalled();
+  });
+
+  it('lets exactly 128 characters through to the Manager', async () => {
+    const { app, identity } = setup();
+    const body = { token: 't', newPassword: 'a'.repeat(128) };
+
+    const response = await send(app, 'POST', '/auth/password-reset/confirm', { body });
+
+    expect(response.status).toBe(200);
+    expect(identity.confirmPasswordReset).toHaveBeenCalledWith(expect.anything(), body);
+  });
+});
+
 describe('identity routes — profile and lists (OQ-116)', () => {
   const USER = {
     id: USER_ID,

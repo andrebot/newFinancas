@@ -7702,6 +7702,43 @@ review in `docs/architecture/17-slice-5-review.md`:
   FR-5.4 for the account balance route (FR-6.6) or a single Holding
   (mockup 52) are not net worth; they get fixed in that v2 work.
 
+### OQ-249: Security review decisions (task 143, `N10`)
+**Confirmed with the stakeholder (Nov 2026)**, from the findings in
+`docs/architecture/18-security-review.md`:
+- **Threat model.** Self-hosted on the stakeholder's Proxmox server, used
+  mostly on the home network and from outside only through Tailscale; never
+  published to the internet. This refines OQ-88.
+- **S1, self-hosting (TLS, security headers, CSP): open, to discuss later.**
+  The app has no way to run outside development yet. Until that's decided,
+  NFR-SEC-2 is unmet on the LAN, and OQ-124's `localStorage` trade-off has no
+  CSP behind it.
+- **S2, fixed.** `zod` 4.6.6, `hono` 4.13.16, `@hono/node-server` 2.1.6;
+  transitive dev tooling updated where its parents allow. `pnpm check:deps`
+  (`pnpm audit --prod --audit-level high`) runs in CI and nightly. The dev-only
+  advisories left (`js-yaml`, `picomatch`, `esbuild`, `glob`, `minimatch`,
+  `qs`) are pinned by their parents and only read the repo's own files.
+- **S3, fixed.** Request bodies over 1 MB (`http.maxBodyBytes`) are refused
+  on `/api/*` as the new generic code `request.too_large` (413) before any
+  route reads them. A new password is at most 128 characters (register, reset,
+  change), refused at the route as `validation.failed` / `string.max`, and
+  the web forms check it too. Sign-in stays unbounded (the body limit bounds
+  it), so it never refuses an existing password.
+- **S4 (demo seed) and S5 (example secrets): won't fix.** The stakeholder
+  generates the real secrets with `pnpm env:secrets` and never seeds the
+  real database, so neither applies.
+- **S6, accepted: NFR-SEC-3 is met at the storage layer for v1.** An
+  encrypted disk or dataset for the database and encrypted backups, set up
+  with S1's hosting. Only the TOTP secret is encrypted by the app.
+- **S7, fixed.** `tests/integration/routeGuards.test.ts` calls every
+  operation in `openapi.yaml` with no token. Only the contract's
+  `security: []` operations (all `/auth/*`) may answer anything but 401, and
+  none of the rest may reach a Manager. Checked: dropping the `/households/*`
+  guard fails 65 cases.
+- **S8, accepted for v1.** Only the sign-in steps are rate-limited. Revisit
+  when a real email provider is configured.
+- **OWASP ZAP** against the running app is deferred to a later pass, once S1
+  gives it something to run against.
+
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
 *(None currently — OQ-29, the last item here, was resolved during data

@@ -642,7 +642,7 @@ sequenceDiagram
     participant LOG as LoggingUtility
 
     User->>API: POST /auth/register {email, password, firstName, lastName, language?}
-    Note over API: validated against the contract (OQ-93): a well-formed email,<br/>names of at least one character
+    Note over API: validated against the contract (OQ-93): a well-formed email,<br/>names of at least one character, a password of at most 128 (OQ-249)
     alt request invalid
         API-->>User: 422 validation.failed {details}
     else valid
@@ -1185,6 +1185,7 @@ sequenceDiagram
 
     Note over User,API: Step 2 — submit token + new password
     User->>API: POST /auth/password-reset/confirm {token, newPassword}
+    Note over API: newPassword over 128 characters &rarr; 422 validation.failed<br/>(string.max) before the Manager (OQ-249)
     API->>IM: confirmPasswordReset(token, newPassword)
     alt newPassword shorter than 12 characters
         Note over IM: checked first, so a too-short password<br/>never uses up a valid link (OQ-103)
@@ -1242,6 +1243,7 @@ sequenceDiagram
     participant LOG as LoggingUtility
 
     User->>API: POST /auth/change-password {currentPassword, newPassword}
+    Note over API: newPassword over 128 characters &rarr; 422 validation.failed<br/>(string.max) before the Manager (OQ-249)
     API->>IM: changePassword(actor, input)
     alt newPassword shorter than 12 characters
         Note over IM: checked first &mdash; no secret involved

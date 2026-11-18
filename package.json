@@ -22,6 +22,7 @@
     "db:backup": "pnpm --filter @financas/ops ops backup",
     "db:restore": "pnpm --filter @financas/ops ops restore",
     "db:restore-drill": "pnpm --filter @financas/ops ops restore-drill",
+    "check:deps": "pnpm audit --prod --audit-level high",
     "audit:reconcile": "pnpm --filter @financas/api audit:reconcile",
     "investments:run": "pnpm --filter @financas/api investments:run",
     "lint": "eslint .",

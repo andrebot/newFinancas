@@ -65,6 +65,14 @@ describe('password', () => {
     expect(password('a'.repeat(12))).toBeUndefined();
   });
 
+  it('passes exactly 128 characters', () => {
+    expect(password('a'.repeat(128))).toBeUndefined();
+  });
+
+  it('fails 129 characters with the maximum as a param (OQ-249)', () => {
+    expect(password('a'.repeat(129))).toEqual({ code: 'string.max', params: { max: 128 } });
+  });
+
   it('counts spaces — passwords are never trimmed', () => {
     expect(password('          ab')).toBeUndefined();
   });

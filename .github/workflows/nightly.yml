@@ -1,6 +1,8 @@
 # Full E2E (BDT cadence, docs/architecture/04-bdt-test-plan.md, OQ-161): every
 # journey, the untagged ones included, against the real API and database —
 # nightly on main, and on demand. A release gate, never a merge gate.
+# The production dependency audit runs here too, so an advisory published
+# between PRs still surfaces (N10, OQ-249).
 name: Nightly
 
 on:
@@ -16,6 +18,16 @@ permissions:
   contents: read
 
 jobs:
+  dependency-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - run: pnpm check:deps
+
   full-e2e:
     runs-on: ubuntu-latest
     steps:

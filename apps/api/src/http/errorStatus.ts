@@ -54,6 +54,7 @@ const STATUS_OF: Readonly<Record<ErrorCode, ContentfulStatusCode>> = {
   'password_reset.token_invalid': 400,
   'report.unknown_type_or_range': 400,
   'request.invalid': 400,
+  'request.too_large': 413,
   'route.not_found': 404,
   'session.not_found': 404,
   'snapshot.automatic_not_editable': 409,
