@@ -692,6 +692,9 @@ provider yet:** the email channel (`EmailAccessor` since OQ-113) uses a
 language, body) to the log. Because the provider is configuration
 (OQ-84), hooking up a real one later changes no call site. The
 `investmentsDaily` trigger runs in-process (a local scheduler).
+*(Refined by OQ-250: "local" now means self-hosted on the stakeholder's
+Proxmox server, reached on the LAN and over Tailscale — still no public
+hosting and no deployment pipeline. Runbook: `docs/operations/self-hosting.md`.)*
 
 ### OQ-89: Is a regulatory compliance review in scope?
 **Confirmed, project design (Oct 2026): no.** v1 is for the

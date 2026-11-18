@@ -14,6 +14,8 @@ in `docs/README.md`.
 - `docs/design/diagrams/` — generated HTML diagrams. Never hand-edit:
   change the generator in `scripts/` and rerun it.
 - `docs/planning/03-pd-execution-order.md` — **the task checklist**.
+- `docs/operations/self-hosting.md` — how the app runs for real (Proxmox
+  LXC, Caddy, Tailscale; OQ-250).
 
 ## How we work
 
