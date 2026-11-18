@@ -7687,6 +7687,21 @@ review in `docs/architecture/17-slice-5-review.md`:
 
 **Gate R5 is complete.**
 
+### OQ-248: Slice 6 order and FR-5.4 (Nov 2026)
+**Confirmed with the stakeholder:**
+- **V4 runs before N13.** The checklist had first real use (N13) before the
+  load tests (V4); the dependency network puts V4 at L14 and N13 at L15.
+  The network is right: real data goes in once the load tests pass, so
+  tasks 148 and 149 swap.
+- **FR-5.4 is deferred to v2** (decided 2026-11-06, tagged now). v1 shows
+  net worth for the last 6 months only, on the Dashboard tile; no screen
+  browses past periods. Nothing is lost by waiting: Valuation Snapshots are
+  already a history (FR-5.2). In v2 it is designed together with the
+  tile's user-chosen window (OQ-231): both need a period on the report and
+  K38 labels that thin out with the plot's width. The docs that cite
+  FR-5.4 for the account balance route (FR-6.6) or a single Holding
+  (mockup 52) are not net worth; they get fixed in that v2 work.
+
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
 *(None currently — OQ-29, the last item here, was resolved during data
