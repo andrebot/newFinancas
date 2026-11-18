@@ -222,7 +222,7 @@ identity screens, the rest as later slices use them.
   - [x] Proxmox: encrypted dataset `fastpool/financas-db`, key file on `rpool`, unlocked at boot
   - [x] Proxmox: LXC 104 `financas` (192.168.68.65, tun, `mp0`, `onboot`)
   - [x] LXC: Docker + Tailscale, subnet route `192.168.68.65/32` approved
-  - [ ] Cloudflare: A record `financas` → 192.168.68.65 (DNS only) + DNS-edit API token
+  - [x] Cloudflare: A record `financas` → 192.168.68.65 (DNS only) + DNS-edit API token
   - [x] Router: reserve 192.168.68.65
   - [ ] First deploy and checks (LAN, Tailscale away, certificate, headers)
 - [ ] **144.** `N11` Accessibility audit
