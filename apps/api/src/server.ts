@@ -25,6 +25,7 @@ import createSessionAccessor from './accessors/sessionAccessor';
 import createUserAccessor from './accessors/userAccessor';
 import createValuationSnapshotAccessor from './accessors/valuationSnapshotAccessor';
 import createApp from './app';
+import { requireWebBuild } from './http/webApp';
 import { logging } from './config/constants';
 import loadEnv from './config/env';
 import { createInvestmentProductEngine } from './engines/investmentProduct';
@@ -232,9 +233,15 @@ if (process.argv.includes('--investments-daily')) {
     },
   });
 } else {
+  if (env.webDistDir) await requireWebBuild(env.webDistDir);
   serve({
     fetch: createApp({
-      identity, account, transaction, insights, verifyAccessToken: authentication.verifyAccessToken,
+      identity,
+      account,
+      transaction,
+      insights,
+      verifyAccessToken: authentication.verifyAccessToken,
+      webDistDir: env.webDistDir,
     }).fetch,
     port: env.port,
   });

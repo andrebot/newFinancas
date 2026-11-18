@@ -214,7 +214,7 @@ identity screens, the rest as later slices use them.
   `docs/architecture/18-security-review.md` (OQ-249); S1, self-hosting
   (OQ-250), is done inside this task:
   - [x] Findings, decisions; S2, S3, S7 fixed
-  - [ ] API serves the built web app (`http/webApp.ts`, `WEB_DIST_DIR`)
+  - [x] API serves the built web app (`http/webApp.ts`, `WEB_DIST_DIR`)
   - [ ] Security headers and CSP (`http/securityHeaders.ts`)
   - [ ] Smoke suite in production mode (built app, headers on, no CSP violations), in CI
   - [ ] Container build: `Dockerfile`, Caddy image + `Caddyfile`, `compose.prod.yaml`, `.env.production.example`

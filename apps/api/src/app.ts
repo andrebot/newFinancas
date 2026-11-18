@@ -6,6 +6,7 @@ import correlationIdMiddleware from './http/correlation';
 import { createErrorHandler, handleNotFound, type AppEnv } from './http/errorHandler';
 import type { VerifyAccessToken } from './http/authentication';
 import createRequestLogger from './http/requestLog';
+import createWebApp from './http/webApp';
 import createAccountRoutes from './http/routes/accounts';
 import createBudgetRoutes from './http/routes/budgets';
 import createCategoryRoutes from './http/routes/categories';
@@ -28,6 +29,8 @@ export interface AppDeps {
   readonly transaction: TransactionManager;
   readonly insights: InsightsManager;
   readonly verifyAccessToken: VerifyAccessToken;
+  /** The built web app to serve on the same origin (OQ-250); unset in development. */
+  readonly webDistDir?: string | undefined;
 }
 
 /**
@@ -74,6 +77,7 @@ const createApp = (deps: AppDeps): Hono<AppEnv> => {
   app.route('/api/v1', createIndexRateRoutes(deps.account));
   app.route('/api/v1', createTransactionRoutes(deps.transaction));
   app.route('/api/v1', createInsightsRoutes(deps.insights, deps.verifyAccessToken));
+  if (deps.webDistDir) app.use(createWebApp(deps.webDistDir));
   return app;
 };
 

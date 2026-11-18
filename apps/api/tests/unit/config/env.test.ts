@@ -26,7 +26,15 @@ describe('loadEnv', () => {
       investmentsDailyTimer: false,
       jwtSecret: JWT_SECRET,
       mfaEncryptionKey: MFA_ENCRYPTION_KEY,
+      webDistDir: undefined,
     });
+  });
+
+  it('takes an absolute WEB_DIST_DIR, and rejects a relative one (OQ-250)', () => {
+    expect(loadEnv({ DATABASE_URL, WEB_DIST_DIR: '/srv/web', ...SECRETS }).webDistDir)
+      .toBe('/srv/web');
+    expect(() => loadEnv({ DATABASE_URL, WEB_DIST_DIR: 'apps/web/dist', ...SECRETS }))
+      .toThrow(/absolute path[\s\S]*WEB_DIST_DIR/);
   });
 
   it('defaults PORT, EMAIL_PROVIDER, WEB_APP_URL and turns the daily timer on', () => {
@@ -52,7 +60,7 @@ describe('loadEnv', () => {
     expect(Object.keys(config).sort())
       .toEqual([
         'databaseUrl', 'emailProvider', 'investmentsDailyTimer', 'jwtSecret', 'mfaEncryptionKey',
-        'port', 'webAppUrl',
+        'port', 'webAppUrl', 'webDistDir',
       ]);
   });
 

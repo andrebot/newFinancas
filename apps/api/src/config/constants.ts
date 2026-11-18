@@ -108,6 +108,15 @@ export const http = {
    * bodies (a transaction with its Goal split, an export range) are a few KB.
    */
   maxBodyBytes: 1024 * 1024,
+  /**
+   * Caching of the web app the API serves (OQ-250): Vite names every file
+   * under assets/ by its content hash, so it never changes; everything else,
+   * index.html above all, is checked on each load so a deploy shows at once.
+   */
+  webAppCache: {
+    hashedAssets: 'public, max-age=31536000, immutable',
+    everythingElse: 'no-cache',
+  },
 } as const;
 
 /** Calendar settings (OQ-104). */
