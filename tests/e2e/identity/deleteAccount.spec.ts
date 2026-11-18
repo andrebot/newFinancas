@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../support/test';
 import {
   createAccount, createBudget, createGoal, listBudgets, listGoals, seededCategories,
 } from '../support/accountApi';

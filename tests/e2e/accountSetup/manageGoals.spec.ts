@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
+import { type Page } from '@playwright/test';
+import { expect, test } from '../support/test';
 import { listGoals } from '../support/accountApi';
 import { cardNamed, pick } from '../support/controls';
 import { createHousehold, registerUser } from '../support/identityApi';

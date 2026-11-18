@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../support/test';
 import { typeDate } from '../support/controls';
 import {
   accountBalances, accountNamed, isoDay, isoMonth, monthStart, recordTransaction,

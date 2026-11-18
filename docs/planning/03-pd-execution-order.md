@@ -216,7 +216,7 @@ identity screens, the rest as later slices use them.
   - [x] Findings, decisions; S2, S3, S7 fixed
   - [x] API serves the built web app (`http/webApp.ts`, `WEB_DIST_DIR`)
   - [x] Security headers and CSP (`http/securityHeaders.ts`)
-  - [ ] Smoke suite in production mode (built app, headers on, no CSP violations), in CI
+  - [x] Smoke suite in production mode (built app, headers on, no CSP violations), in CI
   - [ ] Container build: `Dockerfile`, Caddy image + `Caddyfile`, `compose.prod.yaml`, `.env.production.example`
   - [ ] Runbook `docs/operations/self-hosting.md`; docs (OQ-88, NFR-SEC-2/3, S1/S6 closed)
   - [ ] Proxmox: encrypted dataset `fastpool/financas-db`, key file on `rpool`, unlocked at boot

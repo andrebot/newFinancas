@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../support/test';
 import openInbox from '../support/bell';
 import {
   createHousehold, inviteUser, listHouseholds, registerUser, renameUser,

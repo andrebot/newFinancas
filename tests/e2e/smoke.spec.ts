@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, watchCspViolations } from './support/test';
 import { categoryShapes, defaultCategoryShapes } from './support/accountApi';
 import {
   accountNamed, getAccount, isoDay, recordTransaction,
@@ -66,6 +66,8 @@ for (const locale of ['en-US', 'pt-BR'] as const) {
       await context.addInitScript((saved) => {
         localStorage.setItem('financas.theme', saved);
       }, theme);
+      // Its own context, so the automatic CSP check doesn't see it: watch it here.
+      const cspViolations = watchCspViolations(context);
       const page = await context.newPage();
       // The web app warns through its logger when a catalog key is missing or broken.
       const i18nWarnings: string[] = [];
@@ -89,6 +91,7 @@ for (const locale of ['en-US', 'pt-BR'] as const) {
       await expect(page.locator('html')).toHaveAttribute('lang', locale);
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
       expect(i18nWarnings).toEqual([]);
+      expect(cspViolations).toEqual([]);
       await context.close();
     });
   }

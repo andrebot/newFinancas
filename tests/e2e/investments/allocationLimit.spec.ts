@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../support/test';
 import { createGoal } from '../support/accountApi';
 import { pick } from '../support/controls';
 import {
