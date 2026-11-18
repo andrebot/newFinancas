@@ -2,8 +2,8 @@
 
 How the app runs for real (N10 S1, OQ-250): LXC 104 `financas` on the
 Proxmox host, at `https://financas.andrealmeida.tech`, the same address on
-the LAN and over Tailscale. The progress of the first setup is tracked in the
-checklist under task 143 (`docs/planning/03-pd-execution-order.md`).
+the LAN and over Tailscale. Live since 2026-11-18 (first setup: the checklist
+under task 143 in `docs/planning/03-pd-execution-order.md`).
 
 ```
 LAN device ───────────────────────────────┐
@@ -131,15 +131,25 @@ install -d -o 1000 -g 1000 /opt/financas/logs   # the API runs as uid 1000
 cd /opt/financas/app
 cp .env.production.example .env.production && chmod 600 .env.production
 # Fill in every value; the file says how to generate each secret.
-docker compose -f compose.prod.yaml --env-file .env.production up -d --build
+# Plain `docker compose` commands then use the production files (new shells):
+cat >> /root/.bashrc <<'EOF2'
+export COMPOSE_FILE=/opt/financas/app/compose.prod.yaml
+export COMPOSE_ENV_FILES=/opt/financas/app/.env.production
+EOF2
+. /root/.bashrc
+docker compose up -d --build
 ```
+
+Without those two variables, every compose command needs
+`-f compose.prod.yaml --env-file .env.production`: the compose file refuses to
+read without its settings.
 
 The first build takes a few minutes. The API runs the migrations before it
 starts; Caddy asks Let's Encrypt for the certificate on its first start.
 
 ### 6. Checks
 
-- `docker compose -f compose.prod.yaml ps`: `api` and `db` healthy, `caddy` up.
+- `docker compose ps`: `api` and `db` healthy, `caddy` up.
 - On a LAN device without Tailscale, open `https://financas.andrealmeida.tech`:
   the padlock shows a valid certificate and Sign In loads.
 - On a phone with Wi-Fi off and Tailscale on: the same address loads.
@@ -153,7 +163,7 @@ starts; Caddy asks Let's Encrypt for the certificate on its first start.
 ```sh
 cd /opt/financas/app
 git pull
-docker compose -f compose.prod.yaml --env-file .env.production up -d --build
+docker compose up -d --build
 ```
 
 Migrations run on the API's start. The page is never cached, so browsers pick
@@ -163,15 +173,22 @@ up the new version on their next load.
 
 | To | Run (inside the LXC, in `/opt/financas/app`) |
 |---|---|
-| See the state | `docker compose -f compose.prod.yaml ps` |
-| Follow the API's log | `docker compose -f compose.prod.yaml logs -f api` |
-| Restart everything | `docker compose -f compose.prod.yaml --env-file .env.production restart` |
-| Stop / start | `… down` / `… up -d` (the data stays on the dataset) |
+| See the state | `docker compose ps` |
+| Follow the API's log | `docker compose logs -f api` |
+| Restart everything | `docker compose restart` |
+| Stop / start | `docker compose down` / `docker compose up -d` (the data stays on the dataset) |
 
 ## Troubleshooting
 
-- **No certificate / Caddy errors:** `docker compose -f compose.prod.yaml logs
-  caddy`. Usually the API token's permissions, or the A record missing.
+- **No certificate / Caddy errors:** `docker compose logs caddy`. Usually the
+  API token's permissions, or the A record missing. On the first start Caddy
+  logs a "no such file" error while it creates its ACME account: that's normal.
+- **"Site can't be found" right after creating the record:** a resolver that
+  looked the name up *before* the record existed remembers "doesn't exist" for
+  up to 30 minutes (Cloudflare's negative TTL), the router and the ISP's DNS
+  included. Check with `dig financas.andrealmeida.tech @192.168.68.1`: an
+  `NXDOMAIN` with an `SOA` line shows the seconds left. It clears by itself;
+  then clear the browser's own cache (Chrome: `chrome://net-internals/#dns`).
 - **The name doesn't resolve on the LAN:** some routers refuse DNS answers that
   point to a private IP (DNS rebinding protection). Check with
   `nslookup financas.andrealmeida.tech 1.1.1.1` and again with the router as
