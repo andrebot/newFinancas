@@ -215,6 +215,6 @@ identity screens, the rest as later slices use them.
 - [ ] **145.** `V1` Smoke suite
 - [ ] **146.** `V2` Core E2E (14 journeys)
 - [ ] **147.** `V3` Full E2E (incl. the password-reset journey, once a test email sink is chosen — OQ-164)
-- [ ] **148.** `N13` First real use + stabilization
-- [ ] **149.** `V4` Load tests (k6)
+- [ ] **148.** `V4` Load tests (k6)
+- [ ] **149.** `N13` First real use + stabilization (last: real data goes in once the load tests pass — OQ-248)
 - [ ] **R6.** Slice 6 review (gate — before the release)

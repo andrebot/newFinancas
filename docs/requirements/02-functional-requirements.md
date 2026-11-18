@@ -414,7 +414,7 @@ vice versa; only a Credit Card Bill Payment (FR-3.7) bridges the two.
   month** for each currency (see OQ-62). **On the Investments page and the
   Dashboard, net worth is the Holdings' value (FR-5.4) — account balances
   and card debts are left out (OQ-236).**
-- **FR-5.4** A user can view historical net worth snapshots by month, for
+- **FR-5.4** **[Deferred to v2 — OQ-248]** A user can view historical net worth snapshots by month, for
   any past year. For a given month, each Holding's contribution uses its
   latest Valuation Snapshot at or before that month's end (FR-5.2) — there
   is no requirement that a snapshot exists for every single month; the
