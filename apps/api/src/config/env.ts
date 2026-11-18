@@ -1,3 +1,4 @@
+import { isAbsolute } from 'node:path';
 import { z } from 'zod';
 import { KEY_BYTES } from '../utilities/authentication/secretBox';
 import { authentication } from './constants';
@@ -19,6 +20,10 @@ const envSchema = z.object({
   WEB_APP_URL: z.url({ protocol: /^https?$/ }).default('http://localhost:5173'),
   INVESTMENTS_DAILY_TIMER: z.enum(['on', 'off']).default('on'),
   JWT_SECRET: z.string().min(authentication.accessToken.minSecretLength),
+  // The built web app the API serves when self-hosted (OQ-250); unset in
+  // development, where Vite serves it. Its contents are checked at startup
+  // (`requireWebBuild`).
+  WEB_DIST_DIR: z.string().refine(isAbsolute, 'must be an absolute path').optional(),
   MFA_ENCRYPTION_KEY: z.base64().refine(
     (value) => Buffer.from(value, 'base64').length === KEY_BYTES,
     `must be ${KEY_BYTES} bytes, base64-encoded`,
@@ -39,6 +44,7 @@ export interface Env {
   readonly investmentsDailyTimer: boolean;
   readonly jwtSecret: string;
   readonly mfaEncryptionKey: string;
+  readonly webDistDir: string | undefined;
 }
 
 /**
@@ -67,6 +73,7 @@ const loadEnv = (env: Record<string, string | undefined>): Env => {
     investmentsDailyTimer: result.data.INVESTMENTS_DAILY_TIMER === 'on',
     jwtSecret: result.data.JWT_SECRET,
     mfaEncryptionKey: result.data.MFA_ENCRYPTION_KEY,
+    webDistDir: result.data.WEB_DIST_DIR,
   };
 };
 

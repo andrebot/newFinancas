@@ -7,13 +7,17 @@ backend decomposition rather than logic embedded in each Manager/Engine.
 ## Security
 
 - **NFR-SEC-1** MFA is mandatory for every user account (TOTP at minimum).
-- **NFR-SEC-2** All data in transit is encrypted via TLS 1.2+.
+- **NFR-SEC-2** All data in transit is encrypted via TLS 1.2+. *(Self-hosted
+  v1, OQ-250: Caddy terminates TLS for the LAN and the tailnet alike, and HTTP
+  only redirects to HTTPS.)*
 - **NFR-SEC-3** Sensitive data at rest (credentials, Open Banking tokens,
-  PII) is encrypted at rest.
+  PII) is encrypted at rest. *(Self-hosted v1, OQ-250: the database sits on an
+  encrypted ZFS dataset; the app encrypts the TOTP secret itself.)*
 - **NFR-SEC-4** Passwords are stored using a strong adaptive hash
   (e.g., Argon2/bcrypt) — never plaintext or reversibly encrypted.
   Passwords must be **at least 12 characters** — enforced on registration,
-  password change, and password reset (see OQ-64). The UI shows a strength
+  password change, and password reset (see OQ-64) — and a new one at most
+  128 (OQ-249). The UI shows a strength
   indicator; the 12-character minimum is the only hard rule.
 - **NFR-SEC-5** Users can view and revoke their own active sessions/devices
   (supports FR-1.3).

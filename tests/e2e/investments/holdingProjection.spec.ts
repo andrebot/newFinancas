@@ -1,5 +1,6 @@
-import { expect, test, type Page } from '@playwright/test';
+import { type Page } from '@playwright/test';
 import type { InvestmentHolding } from '@financas/api-types';
+import { expect, test } from '../support/test';
 import { pick } from '../support/controls';
 import {
   accountNamed, daysAgo, isoDay, recordTransaction,

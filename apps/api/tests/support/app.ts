@@ -138,10 +138,12 @@ export const mockInsights = (): MockedInsights => ({
  * Builds the app over mocked Managers and a programmable token check.
  *
  * @param verifyAccessToken - Token verification (default: every token is invalid).
+ * @param webDistDir - A built web app to serve (OQ-250); none by default.
  * @returns The app and its mocks.
  */
 export const appWithMocks = (
   verifyAccessToken: VerifyAccessToken = vi.fn(async () => undefined),
+  webDistDir?: string,
 ) => {
   const identity = mockIdentity();
   const account = mockAccount();
@@ -149,7 +151,7 @@ export const appWithMocks = (
   const insights = mockInsights();
   return {
     app: createApp({
-      identity, account, transaction, insights, verifyAccessToken,
+      identity, account, transaction, insights, verifyAccessToken, webDistDir,
     }),
     identity,
     account,

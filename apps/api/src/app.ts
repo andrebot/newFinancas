@@ -1,9 +1,13 @@
 import { createLogger } from '@financas/logging';
 import { Hono } from 'hono';
+import { http } from './config/constants';
+import createBodySizeLimit from './http/bodySize';
 import correlationIdMiddleware from './http/correlation';
 import { createErrorHandler, handleNotFound, type AppEnv } from './http/errorHandler';
 import type { VerifyAccessToken } from './http/authentication';
 import createRequestLogger from './http/requestLog';
+import createSecurityHeaders from './http/securityHeaders';
+import createWebApp from './http/webApp';
 import createAccountRoutes from './http/routes/accounts';
 import createBudgetRoutes from './http/routes/budgets';
 import createCategoryRoutes from './http/routes/categories';
@@ -26,6 +30,8 @@ export interface AppDeps {
   readonly transaction: TransactionManager;
   readonly insights: InsightsManager;
   readonly verifyAccessToken: VerifyAccessToken;
+  /** The built web app to serve on the same origin (OQ-250); unset in development. */
+  readonly webDistDir?: string | undefined;
 }
 
 /**
@@ -56,8 +62,10 @@ const createApp = (deps: AppDeps): Hono<AppEnv> => {
   const app = new Hono<AppEnv>();
   app.onError(createErrorHandler(logUnexpectedError));
   app.notFound(handleNotFound);
+  app.use(createSecurityHeaders());
   app.use(correlationIdMiddleware);
   app.use(createRequestLogger());
+  app.use('/api/*', createBodySizeLimit(http.maxBodyBytes));
   app.get('/health', (httpContext) => httpContext.json({ status: 'ok' }));
   app.route('/api/v1', createIdentityRoutes(deps.identity, deps.verifyAccessToken));
   // The household routes' `/households/*` guard also admits the household-data
@@ -71,6 +79,7 @@ const createApp = (deps: AppDeps): Hono<AppEnv> => {
   app.route('/api/v1', createIndexRateRoutes(deps.account));
   app.route('/api/v1', createTransactionRoutes(deps.transaction));
   app.route('/api/v1', createInsightsRoutes(deps.insights, deps.verifyAccessToken));
+  if (deps.webDistDir) app.use(createWebApp(deps.webDistDir));
   return app;
 };
 

@@ -84,14 +84,17 @@ export const email: Rule<string | undefined> = (value) => {
  * Checks a new password's length (FR-1.1). Strength is PasswordStrengthUtility's.
  *
  * @param value - The typed password.
- * @returns `string.min` with `{min}` when shorter than the minimum.
+ * @returns `string.min` with `{min}` when shorter than the minimum, `string.max`
+ * with `{max}` when longer than the maximum (OQ-249).
  */
 export const password: Rule<string | undefined> = (value) => {
-  const { minLength } = validation.password;
+  const { minLength, maxLength } = validation.password;
 
-  if (isEmpty(value) || value.length >= minLength) return undefined;
+  if (isEmpty(value)) return undefined;
+  if (value.length < minLength) return { code: 'string.min', params: { min: minLength } };
+  if (value.length > maxLength) return { code: 'string.max', params: { max: maxLength } };
 
-  return { code: 'string.min', params: { min: minLength } };
+  return undefined;
 };
 
 /**

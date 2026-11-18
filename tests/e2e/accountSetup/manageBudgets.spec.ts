@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../support/test';
 import { createBudget, listBudgets, seededCategories } from '../support/accountApi';
 import { cardNamed, pick } from '../support/controls';
 import { createHousehold, registerUser } from '../support/identityApi';

@@ -23,6 +23,22 @@ process.env.LOG_DIR = path.resolve('.e2e-logs');
 const API_URL = 'http://localhost:3000';
 const WEB_URL = 'http://localhost:5173';
 
+// `E2E_TARGET=production` (N10 S1, OQ-250) runs the suite against the deployed
+// shape: the built web app served by the API on one origin, with the security
+// headers and CSP on (tests/e2e/support/test.ts fails a journey on any CSP
+// violation). It always starts its own server, so it can never quietly test a
+// dev API that serves no build.
+const PRODUCTION = process.env.E2E_TARGET === 'production';
+const WEB_DIST_DIR = path.resolve('apps/web/dist');
+
+// The API under test uses the test database, never the dev one. Its daily
+// timer is off: only a journey runs investmentsDaily, as of the day it picks
+// (OQ-237) — the timer would run it on the real date mid-suite.
+const API_ENV = {
+  DATABASE_URL: process.env.DATABASE_TEST_URL ?? '',
+  INVESTMENTS_DAILY_TIMER: 'off',
+};
+
 // Opt-in: run against a locally installed Chromium (e.g. /usr/bin/chromium)
 // when Playwright's own browser download is unavailable.
 const chromiumPath = process.env.PLAYWRIGHT_CHROMIUM_PATH;
@@ -38,7 +54,7 @@ export default defineConfig({
   // in again may wait up to one 30-second step for a fresh code.
   timeout: 60_000,
   use: {
-    baseURL: WEB_URL,
+    baseURL: PRODUCTION ? API_URL : WEB_URL,
     // Something to replay when a journey fails (uploaded by CI with the report).
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
@@ -48,16 +64,21 @@ export default defineConfig({
     ...(chromiumPath ? { launchOptions: { executablePath: chromiumPath } } : {}),
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
-  webServer: [
-    {
-      command: 'pnpm --filter @financas/api start',
+  webServer: PRODUCTION
+    ? [{
+      command: 'pnpm --filter @financas/web build && pnpm --filter @financas/api start',
       url: `${API_URL}/health`,
-      // The API under test uses the test database, never the dev one. Its daily
-      // timer is off: only a journey runs investmentsDaily, as of the day it
-      // picks (OQ-237) — the timer would run it on the real date mid-suite.
-      env: { DATABASE_URL: process.env.DATABASE_TEST_URL ?? '', INVESTMENTS_DAILY_TIMER: 'off' },
-      reuseExistingServer: true,
-    },
-    { command: 'pnpm --filter @financas/web dev', url: WEB_URL, reuseExistingServer: true },
-  ],
+      env: { ...API_ENV, WEB_DIST_DIR },
+      reuseExistingServer: false,
+      timeout: 180_000,
+    }]
+    : [
+      {
+        command: 'pnpm --filter @financas/api start',
+        url: `${API_URL}/health`,
+        env: API_ENV,
+        reuseExistingServer: true,
+      },
+      { command: 'pnpm --filter @financas/web dev', url: WEB_URL, reuseExistingServer: true },
+    ],
 });

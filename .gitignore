@@ -19,3 +19,7 @@ openapi-ts-error-*.log
 # Mutation testing (StrykerJS)
 reports/
 .stryker-tmp/
+
+# Self-hosting (OQ-250): the real settings and the API logs on the server.
+.env.production
+/logs/

@@ -6,6 +6,7 @@ const enUS: Catalog = {
     fallback: 'Something went wrong.',
     'validation.failed': 'Some fields need your attention.',
     'request.invalid': 'The request could not be processed.',
+    'request.too_large': 'This is too much to send at once.',
     'route.not_found': 'Not found.',
     'internal.unexpected': 'Something went wrong. Please try again.',
     'network.unavailable': "Couldn't connect. Check your connection and try again.",

@@ -1060,7 +1060,7 @@ export const zIndexValueId = z.uuid();
 
 export const zRegisterUserBody = z.object({
     email: z.email(),
-    password: z.string().min(12),
+    password: z.string().min(12).max(128),
     firstName: z.string().min(1),
     lastName: z.string().min(1),
     language: z.enum(['pt-BR', 'en-US']).optional()
@@ -1126,7 +1126,7 @@ export const zRefreshTokensResponse = zAuthTokens;
 
 export const zChangePasswordBody = z.object({
     currentPassword: z.string(),
-    newPassword: z.string().min(12)
+    newPassword: z.string().min(12).max(128)
 });
 
 export const zRequestPasswordResetBody = z.object({
@@ -1135,7 +1135,7 @@ export const zRequestPasswordResetBody = z.object({
 
 export const zConfirmPasswordResetBody = z.object({
     token: z.string(),
-    newPassword: z.string().min(12)
+    newPassword: z.string().min(12).max(128)
 });
 
 export const zRecoverWithMfaCodeBody = z.object({

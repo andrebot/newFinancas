@@ -692,6 +692,9 @@ provider yet:** the email channel (`EmailAccessor` since OQ-113) uses a
 language, body) to the log. Because the provider is configuration
 (OQ-84), hooking up a real one later changes no call site. The
 `investmentsDaily` trigger runs in-process (a local scheduler).
+*(Refined by OQ-250: "local" now means self-hosted on the stakeholder's
+Proxmox server, reached on the LAN and over Tailscale — still no public
+hosting and no deployment pipeline. Runbook: `docs/operations/self-hosting.md`.)*
 
 ### OQ-89: Is a regulatory compliance review in scope?
 **Confirmed, project design (Oct 2026): no.** v1 is for the
@@ -7701,6 +7704,74 @@ review in `docs/architecture/17-slice-5-review.md`:
   K38 labels that thin out with the plot's width. The docs that cite
   FR-5.4 for the account balance route (FR-6.6) or a single Holding
   (mockup 52) are not net worth; they get fixed in that v2 work.
+
+### OQ-249: Security review decisions (task 143, `N10`)
+**Confirmed with the stakeholder (Nov 2026)**, from the findings in
+`docs/architecture/18-security-review.md`:
+- **Threat model.** Self-hosted on the stakeholder's Proxmox server, used
+  mostly on the home network and from outside only through Tailscale; never
+  published to the internet. This refines OQ-88.
+- **S1, self-hosting (TLS, security headers, CSP): open, to discuss later.**
+  The app has no way to run outside development yet. Until that's decided,
+  NFR-SEC-2 is unmet on the LAN, and OQ-124's `localStorage` trade-off has no
+  CSP behind it.
+- **S2, fixed.** `zod` 4.6.6, `hono` 4.13.16, `@hono/node-server` 2.1.6;
+  transitive dev tooling updated where its parents allow. `pnpm check:deps`
+  (`pnpm audit --prod --audit-level high`) runs in CI and nightly. The dev-only
+  advisories left (`js-yaml`, `picomatch`, `esbuild`, `glob`, `minimatch`,
+  `qs`) are pinned by their parents and only read the repo's own files.
+- **S3, fixed.** Request bodies over 1 MB (`http.maxBodyBytes`) are refused
+  on `/api/*` as the new generic code `request.too_large` (413) before any
+  route reads them. A new password is at most 128 characters (register, reset,
+  change), refused at the route as `validation.failed` / `string.max`, and
+  the web forms check it too. Sign-in stays unbounded (the body limit bounds
+  it), so it never refuses an existing password.
+- **S4 (demo seed) and S5 (example secrets): won't fix.** The stakeholder
+  generates the real secrets with `pnpm env:secrets` and never seeds the
+  real database, so neither applies.
+- **S6, accepted: NFR-SEC-3 is met at the storage layer for v1.** An
+  encrypted disk or dataset for the database and encrypted backups, set up
+  with S1's hosting. Only the TOTP secret is encrypted by the app.
+- **S7, fixed.** `tests/integration/routeGuards.test.ts` calls every
+  operation in `openapi.yaml` with no token. Only the contract's
+  `security: []` operations (all `/auth/*`) may answer anything but 401, and
+  none of the rest may reach a Manager. Checked: dropping the `/households/*`
+  guard fails 65 cases.
+- **S8, accepted for v1.** Only the sign-in steps are rate-limited. Revisit
+  when a real email provider is configured.
+- **OWASP ZAP** against the running app is deferred to a later pass, once S1
+  gives it something to run against.
+
+### OQ-250: Self-hosting (N10 S1, task 143)
+**Confirmed with the stakeholder (Nov 2026):**
+- **Where:** LXC 104 `financas` on the Proxmox host (192.168.68.63), like the
+  existing LXCs: unprivileged Ubuntu, `nesting=1,keyctl=1`, Docker inside,
+  plus the `/dev/net/tun` passthrough for Tailscale. Static `192.168.68.65`,
+  reserved in the router. Not the VPS: LAN devices without Tailscale would
+  make it public, and the data would sit with a third party.
+- **One name for LAN and Tailscale:** `https://financas.andrealmeida.tech`.
+  A Cloudflare DNS-only record points it to `192.168.68.65`; tailnet
+  devices away from home reach that IP through a subnet route the LXC
+  advertises (`192.168.68.65/32`). One origin, so one sign-in, and the
+  reset and invitation links (`WEB_APP_URL`) work everywhere. LAN devices
+  without Tailscale are expected, so the LAN needs TLS too (NFR-SEC-2;
+  clipboard and Web Locks also need a secure origin).
+- **TLS:** Caddy, with a Let's Encrypt certificate through Cloudflare's
+  DNS-01 challenge (a DNS-edit API token, no tunnel, no open router port). Caddy
+  only terminates TLS. The API serves the built web app and sets the security
+  headers and CSP itself (`secureHeaders`), so they are tested.
+- **Containers:** `compose.prod.yaml` with `caddy`, `api` and `db`; only
+  Caddy publishes ports (80 → redirect, 443).
+- **Data at rest (S6):** the database lives on a ZFS dataset encrypted with
+  `aes-256-gcm` (`fastpool/financas-db`), its key file on `rpool`, unlocked at
+  boot. It protects against a stolen or discarded data disk, not a stolen
+  server.
+- **Backups:** deferred; the stakeholder sets them up later. When they are
+  done, they should be encrypted (S6), with an off-site copy (e.g. the VPS
+  over Tailscale).
+- **Updates** are manual: `git pull` and `docker compose up --build`.
+- **Limit, accepted:** when the internet is down, a device with no cached DNS
+  answer can't resolve the name. The router can't override DNS locally.
 
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 

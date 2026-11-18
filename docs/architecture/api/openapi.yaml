@@ -65,7 +65,7 @@ paths:
               required: [email, password, firstName, lastName]
               properties:
                 email: { type: string, format: email }
-                password: { type: string, minLength: 12 }
+                password: { type: string, minLength: 12, maxLength: 128 }
                 firstName: { type: string, minLength: 1, description: "Trimmed — must not be blank" }
                 lastName: { type: string, minLength: 1, description: "Trimmed — must not be blank" }
                 language:
@@ -267,7 +267,7 @@ paths:
               required: [currentPassword, newPassword]
               properties:
                 currentPassword: { type: string }
-                newPassword: { type: string, minLength: 12 }
+                newPassword: { type: string, minLength: 12, maxLength: 128 }
       responses:
         "200": { description: OK }
         "401": { $ref: "#/components/responses/Unauthorized" }
@@ -320,7 +320,7 @@ paths:
               required: [token, newPassword]
               properties:
                 token: { type: string }
-                newPassword: { type: string, minLength: 12 }
+                newPassword: { type: string, minLength: 12, maxLength: 128 }
       responses:
         "200": { description: OK }
         "422":

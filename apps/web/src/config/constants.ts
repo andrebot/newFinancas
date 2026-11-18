@@ -12,9 +12,10 @@ type AccountType = Account['type'];
 
 /** Form field rules (FU1 ValidationUtility). */
 export const validation = {
-  /** FR-1.1: the shortest password accepted (mirrors the API's `authentication.password`). */
+  /** FR-1.1: a new password's length bounds (the API's `authentication.password`, OQ-249). */
   password: {
     minLength: 12,
+    maxLength: 128,
   },
   /** A whole percent (Goal allocations, OQ-87) — the contract's `percentage` bounds. */
   wholePercent: {

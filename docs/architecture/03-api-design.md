@@ -107,7 +107,8 @@ exist for either.
   its own (a UUID) to tie a user action to the server logs (OQ-99). The
   generic codes
   (`validation.failed`, `request.invalid`, `route.not_found`,
-  `internal.unexpected`) and the field-level `details[].code` values are
+  `internal.unexpected`, and `request.too_large` — 413, a body over
+  `http.maxBodyBytes`, OQ-249) and the field-level `details[].code` values are
   listed in OQ-93.
 - **Status code conventions, applied consistently rather than per-file:**
   `403` for "authenticated but not permitted" (authorization failures —
@@ -264,7 +265,10 @@ itself when it was first introduced:
 - `openapi.yaml` has no example values on most schemas — worth adding
   before handing this to a frontend team for parallel mock-based
   development, not blocking backend implementation.
-- Rate limiting, request-size limits, and CORS policy are infrastructure
+- ~~Request-size limits~~: done in N10, 1 MB on `/api/*` (OQ-249). CORS
+  isn't needed (same origin, OQ-124). Rate limiting beyond the login lockout
+  is accepted as absent for v1 (OQ-249). Hosting (TLS, headers) is still to
+  be decided (N10 S1). These were infrastructure
   decisions, not modeled here — same category as the scheduled-trigger
   infrastructure questions already parked in the VBD backend doc's §7.
 - ~~No `operationId` values are set~~: done in N7. Every operation has

@@ -1,6 +1,5 @@
-import {
-  expect, test, type Browser, type Page,
-} from '@playwright/test';
+import { type Browser, type Page } from '@playwright/test';
+import { expect, test } from '../support/test';
 import {
   addMember, createHousehold, inviteUser, listHouseholds, listMembers, pendingInvitations,
   registerUser, type TestUser,

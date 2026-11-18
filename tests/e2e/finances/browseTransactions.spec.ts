@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../support/test';
 import { seededCategories } from '../support/accountApi';
 import {
   accountNamed, isoDay, monthStart, recordTransaction,

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../support/test';
 import { pick, typeDate } from '../support/controls';
 import {
   UNIT, accountNamed, daysAgo, isoDay, recordTransaction, usDate, valuationSnapshots,
