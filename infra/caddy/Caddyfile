@@ -1,0 +1,20 @@
+# TLS in front of the API (OQ-250). Caddy only terminates TLS and passes every
+# request on: the API serves the web app and sets the security headers itself.
+# HTTP on port 80 is redirected to HTTPS automatically.
+
+(tls_cloudflare) {
+	tls {
+		dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+	}
+}
+
+# Local trial runs only: a certificate from Caddy's own CA (browsers warn).
+(tls_internal) {
+	tls internal
+}
+
+{$SITE_ADDRESS} {
+	import tls_{$TLS_MODE:cloudflare}
+	reverse_proxy api:3000
+	header -Server
+}
