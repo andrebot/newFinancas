@@ -7739,6 +7739,37 @@ review in `docs/architecture/17-slice-5-review.md`:
 - **OWASP ZAP** against the running app is deferred to a later pass, once S1
   gives it something to run against.
 
+### OQ-250: Self-hosting (N10 S1, task 143)
+**Confirmed with the stakeholder (Nov 2026):**
+- **Where:** LXC 104 `financas` on the Proxmox host (192.168.68.63), like the
+  existing LXCs: unprivileged Ubuntu, `nesting=1,keyctl=1`, Docker inside,
+  plus the `/dev/net/tun` passthrough for Tailscale. Static `192.168.68.65`,
+  reserved in the router. Not the VPS: LAN devices without Tailscale would
+  make it public, and the data would sit with a third party.
+- **One name for LAN and Tailscale:** `https://financas.andrealmeida.tech`.
+  A Cloudflare DNS-only record points it to `192.168.68.65`; tailnet
+  devices away from home reach that IP through a subnet route the LXC
+  advertises (`192.168.68.65/32`). One origin, so one sign-in, and the
+  reset and invitation links (`WEB_APP_URL`) work everywhere. LAN devices
+  without Tailscale are expected, so the LAN needs TLS too (NFR-SEC-2;
+  clipboard and Web Locks also need a secure origin).
+- **TLS:** Caddy, with a Let's Encrypt certificate through Cloudflare's
+  DNS-01 challenge (a DNS-edit API token, no tunnel, no open router port). Caddy
+  only terminates TLS. The API serves the built web app and sets the security
+  headers and CSP itself (`secureHeaders`), so they are tested.
+- **Containers:** `compose.prod.yaml` with `caddy`, `api` and `db`; only
+  Caddy publishes ports (80 → redirect, 443).
+- **Data at rest (S6):** the database lives on a ZFS dataset encrypted with
+  `aes-256-gcm` (`fastpool/financas-db`), its key file on `rpool`, unlocked at
+  boot. It protects against a stolen or discarded data disk, not a stolen
+  server.
+- **Backups:** deferred; the stakeholder sets them up later. When they are
+  done, they should be encrypted (S6), with an off-site copy (e.g. the VPS
+  over Tailscale).
+- **Updates** are manual: `git pull` and `docker compose up --build`.
+- **Limit, accepted:** when the internet is down, a device with no cached DNS
+  answer can't resolve the name. The router can't override DNS locally.
+
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
 *(None currently — OQ-29, the last item here, was resolved during data

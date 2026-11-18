@@ -210,7 +210,21 @@ identity screens, the rest as later slices use them.
 
 *Done when:* reviews, full test suites, then your real data.
 
-- [ ] **143.** `N10` Security review (light)
+- [ ] **143.** `N10` Security review (light) — findings and decisions in
+  `docs/architecture/18-security-review.md` (OQ-249); S1, self-hosting
+  (OQ-250), is done inside this task:
+  - [x] Findings, decisions; S2, S3, S7 fixed
+  - [ ] API serves the built web app (`http/webApp.ts`, `WEB_DIST_DIR`)
+  - [ ] Security headers and CSP (`http/securityHeaders.ts`)
+  - [ ] Smoke suite in production mode (built app, headers on, no CSP violations), in CI
+  - [ ] Container build: `Dockerfile`, Caddy image + `Caddyfile`, `compose.prod.yaml`, `.env.production.example`
+  - [ ] Runbook `docs/operations/self-hosting.md`; docs (OQ-88, NFR-SEC-2/3, S1/S6 closed)
+  - [ ] Proxmox: encrypted dataset `fastpool/financas-db`, key file on `rpool`, unlocked at boot
+  - [ ] Proxmox: LXC 104 `financas` (192.168.68.65, tun, `mp0`, `onboot`)
+  - [ ] LXC: Docker + Tailscale, subnet route `192.168.68.65/32` approved
+  - [ ] Cloudflare: A record `financas` → 192.168.68.65 (DNS only) + DNS-edit API token
+  - [ ] Router: reserve 192.168.68.65
+  - [ ] First deploy and checks (LAN, Tailscale away, certificate, headers)
 - [ ] **144.** `N11` Accessibility audit
 - [ ] **145.** `V1` Smoke suite
 - [ ] **146.** `V2` Core E2E (14 journeys)
