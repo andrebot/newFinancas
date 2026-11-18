@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Currency } from '@financas/api-types';
 import { money } from '../../../../../config/constants';
 import { Button } from '../../../../../kit/button/Button';
+import { DateInput } from '../../../../../kit/dateInput/DateInput';
 import { Drawer } from '../../../../../kit/drawer/Drawer';
 import { MoneyInput } from '../../../../../kit/moneyInput/MoneyInput';
 import { SegmentedControl } from '../../../../../kit/segmentedControl/SegmentedControl';
@@ -9,10 +10,12 @@ import { Select } from '../../../../../kit/select/Select';
 import { TextField } from '../../../../../kit/textField/TextField';
 import { InlineBanner } from '../../../../../kit/alert/InlineBanner';
 import { useI18n } from '../../../../../utilities/I18nProvider';
+import type { Translator } from '../../../../../utilities/i18n';
 import useFocusFirstInvalid from '../../../../../utilities/useFocusFirstInvalid';
-import { nonBlank } from '../../../../../utilities/validation';
+import useToday from '../../../../../utilities/useToday';
+import { nonBlank, type FieldError } from '../../../../../utilities/validation';
 import {
-  takesCards, type AccountType, type NewAccount, type Visibility,
+  startingDateRule, takesCards, type AccountType, type NewAccount, type Visibility,
 } from '../accountManagementState';
 import {
   CardFields, draftsOf, EMPTY_CARD_FORM, withoutObjections, type CardFormState,
@@ -22,7 +25,8 @@ import { LockedField } from '../../../../../kit/field/LockedField';
 
 // The create-account drawer (FL11, mockup 40; OQ-169): the name, the type and
 // currency — locked in once created — the visibility (fixed at Personal for a
-// Viewer, who can't share), today's opening balance and, on a type that takes
+// Viewer, who can't share), the opening balance and the day it was true (today
+// unless changed, never after — OQ-252) and, on a type that takes
 // them (FR-2.7), its cards. Cards typed under a type that doesn't are neither
 // checked nor sent. It holds what is typed, checks it before emitting, and
 // shows the server's objections in its banner. The drawer itself (open/close)
@@ -30,6 +34,17 @@ import { LockedField } from '../../../../../kit/field/LockedField';
 
 const TYPES: readonly AccountType[] = ['checking', 'savings', 'credit_card_only', 'investment'];
 const VISIBILITIES: readonly Visibility[] = ['personal', 'shared'];
+
+/**
+ * Translates a field's problem for the field to show.
+ *
+ * @param translator - The translator.
+ * @param problem - The problem, if any.
+ * @returns The message, or `undefined` when the field passes.
+ */
+const messageOf = (translator: Translator, problem: FieldError | undefined) => (
+  problem && translator.field(problem.code, problem.params)
+);
 
 /** CreateAccountDrawer's props. */
 export interface CreateAccountDrawerProps {
@@ -62,6 +77,9 @@ export function CreateAccountDrawer({
   const [currency, setCurrency] = useState<Currency>('BRL');
   const [visibility, setVisibility] = useState<Visibility>('personal');
   const [openingBalance, setOpeningBalance] = useState<number | null>(null);
+  const today = useToday();
+  const [startingDate, setStartingDate] = useState(today);
+  const [dateError, setDateError] = useState<string>();
   const [cards, setCards] = useState<readonly CardFormState[]>([]);
   const [nameError, setNameError] = useState<string>();
   const [cardErrors, setCardErrors] = useState<readonly (CardObjections | undefined)[]>([]);
@@ -76,6 +94,16 @@ export function CreateAccountDrawer({
   const changeName = (value: string) => {
     setName(value);
     setNameError(undefined);
+  };
+
+  /**
+   * Keeps the typed starting-balance date and drops its error.
+   *
+   * @param value - The new date.
+   */
+  const changeStartingDate = (value: string) => {
+    setStartingDate(value);
+    setDateError(undefined);
   };
 
   /**
@@ -111,10 +139,12 @@ export function CreateAccountDrawer({
    */
   const submit = () => {
     const foundName = nonBlank(name);
-    setNameError(foundName && translator.field(foundName.code, foundName.params));
+    setNameError(messageOf(translator, foundName));
+    const foundDate = startingDateRule(today)(startingDate);
+    setDateError(messageOf(translator, foundDate));
     const { drafts, errors } = draftsOf(showCards ? cards : []);
     setCardErrors(errors);
-    if (foundName || errors.some((error) => error !== undefined)) {
+    if (foundName || foundDate || errors.some((error) => error !== undefined)) {
       setRefusals((count) => count + 1);
       return;
     }
@@ -124,6 +154,7 @@ export function CreateAccountDrawer({
       currency,
       visibility: personalOnly ? 'personal' : visibility,
       openingBalance,
+      startingBalanceDate: startingDate,
       cards: drafts,
     });
   };
@@ -194,6 +225,13 @@ export function CreateAccountDrawer({
           allowNegative
           value={openingBalance}
           onChange={setOpeningBalance}
+        />
+        <DateInput
+          label={translator.text('accountSetup', 'field.startingBalanceDate')}
+          hint={translator.text('accountSetup', 'startingBalanceDate.hint')}
+          value={startingDate}
+          onChange={changeStartingDate}
+          error={dateError}
         />
         {showCards && (
           <div className="flex flex-col gap-4">

@@ -145,6 +145,7 @@ describe('account routes (OQ-174: under /households/:householdId)', () => {
       currency: 'BRL',
       visibility: 'shared',
       openingBalance: 5000,
+      startingBalanceDate: '2026-10-06',
       cards: [NEW_CARD],
     };
 
@@ -153,6 +154,22 @@ describe('account routes (OQ-174: under /households/:householdId)', () => {
     expect(response.status).toBe(201);
     expect(await response.json()).toEqual({ ...ACCOUNT_JSON, archivedAt: null });
     expect(account.createAccount).toHaveBeenCalledWith(signedIn(), HOME, body);
+  });
+
+  it('POST …/accounts refuses a malformed starting-balance date before the Manager', async () => {
+    const { app, account } = setup();
+
+    const response = await send(app, 'POST', ACCOUNTS, {
+      name: 'Main',
+      type: 'checking',
+      currency: 'BRL',
+      visibility: 'shared',
+      startingBalanceDate: '2026-02-30',
+    });
+
+    expect(response.status).toBe(422);
+    expect(await failingFields(response)).toEqual(['startingBalanceDate']);
+    expect(account.createAccount).not.toHaveBeenCalled();
   });
 
   it.each([

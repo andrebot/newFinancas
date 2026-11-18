@@ -2788,7 +2788,7 @@ components:
         type: { type: string, enum: [checking, savings, credit_card_only, investment], description: "Immutable once set, OQ-32. Four types since OQ-76." }
         currency: { $ref: "#/components/schemas/Currency", description: "Immutable once set, FR-2.2" }
         visibility: { type: string, enum: [personal, shared] }
-        startingBalanceDate: { type: string, format: date, description: "The day the starting balance was true — the creation day. Earlier transactions only rebuild history (OQ-169)" }
+        startingBalanceDate: { type: string, format: date, description: "The day the starting balance was true — chosen at creation, today by default (OQ-252). Earlier transactions only rebuild history (OQ-169)" }
         archivedAt: { type: [string, "null"], format: date-time, description: "One-way, FR-2.4/OQ-34" }
         createdAt: { type: string, format: date-time }
         currentBalance: { $ref: "#/components/schemas/Money", description: "The balance as of today's month — the stored month row, not a computation (OQ-175)" }
@@ -2805,7 +2805,8 @@ components:
         type: { type: string, enum: [checking, savings, credit_card_only, investment] }
         currency: { $ref: "#/components/schemas/Currency" }
         visibility: { type: string, enum: [personal, shared] }
-        openingBalance: { $ref: "#/components/schemas/Money", description: "Today's balance (OQ-169); 0 when left out" }
+        openingBalance: { $ref: "#/components/schemas/Money", description: "The balance on startingBalanceDate (OQ-169); 0 when left out" }
+        startingBalanceDate: { type: string, format: date, description: "The day the opening balance was true, not after today — 422 date.max (OQ-252); today when left out. Not editable later" }
         cards:
           type: array
           items: { $ref: "#/components/schemas/CreditCardNew" }

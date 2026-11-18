@@ -56,6 +56,18 @@ export const monthsBetween = (from: CalendarMonth, to: CalendarMonth): CalendarM
 };
 
 /**
+ * The month after a given one.
+ *
+ * @param month - The month.
+ * @returns The next month, rolling December into the next year's January.
+ */
+export const nextMonth = (month: CalendarMonth): CalendarMonth => (
+  month.month === MONTHS_PER_YEAR
+    ? { year: month.year + 1, month: 1 }
+    : { year: month.year, month: month.month + 1 }
+);
+
+/**
  * Formats a month as reports key it (OQ-201).
  *
  * @param month - The month.

@@ -7,7 +7,7 @@ import type {
 } from '../../accessors/creditCardAccessor';
 import type { AccountType, Visibility } from '../../db/schema/values';
 import type { DataAction } from '../../utilities/authorization';
-import { checkFields, nonBlank } from '../../utilities/validation';
+import { checkFields, dateWithin, nonBlank } from '../../utilities/validation';
 import {
   accessToOwned, forbidden, memberOnly, requireAccess,
 } from '../access';
@@ -42,8 +42,10 @@ export interface AccountInput {
   readonly type: AccountType;
   readonly currency: string;
   readonly visibility: Visibility;
-  /** Minor units: the balance today (OQ-169); 0 when left out. */
+  /** Minor units: the balance on `startingBalanceDate` (OQ-169); 0 when left out. */
   readonly openingBalance?: number | undefined;
+  /** `YYYY-MM-DD`, not after today (OQ-252); today when left out. */
+  readonly startingBalanceDate?: string | undefined;
   readonly cards?: readonly CardInput[] | undefined;
 }
 
@@ -282,14 +284,15 @@ const createAccounts = (deps: AccountDeps) => ({
 
   /**
    * Creates an Account, owned by its creator, and attaches its cards — together
-   * or not at all (uc-01, FR-2.1/2.7, OQ-175). The opening balance is today's.
+   * or not at all (uc-01, FR-2.1/2.7, OQ-175). The opening balance is the one on
+ * the starting-balance date — today unless one is given, never after (OQ-252).
    *
    * @param context - The signed-in request.
    * @param householdId - The household.
    * @param input - The Account; its name is trimmed and must not be blank.
    * @returns The Account, its balance the opening one and its cards owing nothing.
    * @throws {DomainError} `household.not_found`; `auth.forbidden`;
-   *   `validation.failed` / `account.cards_not_allowed`.
+   *   `validation.failed` (incl. `date.max`) / `account.cards_not_allowed`.
    */
   createAccount: async (
     context: SignedInContext,
@@ -300,10 +303,12 @@ const createAccounts = (deps: AccountDeps) => ({
     await requireAccess(deps.authorization, ownerUserId, householdId, {
       action: 'data.create', visibility: input.visibility, ownerUserId,
     });
-    requireValidFields(input, { name: nonBlank });
-    const { cards = [], openingBalance: startingBalance = 0, ...fields } = input;
-    if (cards.length > 0 && !CARD_ACCOUNT_TYPES.has(input.type)) throw cardsNotAllowed();
     const today = todayOf(deps);
+    requireValidFields(input, { name: nonBlank, startingBalanceDate: dateWithin({ max: today }) });
+    const {
+      cards = [], openingBalance: startingBalance = 0, startingBalanceDate = today, ...fields
+    } = input;
+    if (cards.length > 0 && !CARD_ACCOUNT_TYPES.has(input.type)) throw cardsNotAllowed();
     const created = await deps.inTransaction(async (stores) => {
       const account = await stores.accounts.insert({
         ...fields,
@@ -311,7 +316,7 @@ const createAccounts = (deps: AccountDeps) => ({
         ownerUserId,
         name: input.name.trim(),
         startingBalance,
-        startingBalanceDate: today,
+        startingBalanceDate,
       });
       const attached = await inSequence(cards, (card) => (
         stores.creditCards.insert({ ...card, accountId: account.id }, today)

@@ -76,6 +76,7 @@ vi.mock('../../../../../../src/experiences/accountSetup/flows/accountManagement/
           currency: 'BRL',
           visibility: 'personal',
           openingBalance: null,
+          startingBalanceDate: '2026-11-06',
           cards: [],
         })}
       >
@@ -288,6 +289,7 @@ describe('creating an account', () => {
       currency: 'BRL',
       visibility: 'personal',
       openingBalance: null,
+      startingBalanceDate: '2026-11-06',
       cards: [],
     });
     expect(panel().dataset.accounts).toBe('chk|ccr|new');

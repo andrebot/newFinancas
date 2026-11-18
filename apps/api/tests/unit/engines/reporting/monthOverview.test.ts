@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  budgetStatusOf, cashFlowOf, flowsOf, monthOverview, movedInside, openAtMonthEnd,
+  billCycleOf, budgetStatusOf, cashFlowOf, flowsOf, monthOverview, movedInside, openAtMonthEnd,
   overBudgetFirst, type BudgetStatus,
 } from '../../../../src/engines/reporting/monthOverview';
 import {
@@ -8,6 +8,7 @@ import {
 } from './fakes';
 
 const MARCH = { year: 2026, month: 3 };
+const APRIL = { year: 2026, month: 4 };
 
 /**
  * One month's sum of a kind, as the ledgers' `monthlySums` answer it.
@@ -53,6 +54,18 @@ describe('movedInside (OQ-222)', () => {
     expect(movedInside({
       ...sum, kind: 'transfer_received', effect: 'movement', pairInView: false,
     })).toBe(false);
+  });
+});
+
+describe('billCycleOf (OQ-251)', () => {
+  it('shows next month\'s cycle when the bill is due in the month it closes', () => {
+    expect(billCycleOf({ closingDay: 3, dueDay: 7 }, { year: 2026, month: 12 }))
+      .toEqual({ year: 2027, month: 1 });
+  });
+
+  it('shows this month\'s cycle when the bill is due the month after it closes', () => {
+    expect(billCycleOf({ closingDay: 25, dueDay: 5 }, MARCH)).toEqual(MARCH);
+    expect(billCycleOf({ closingDay: 10, dueDay: 10 }, MARCH)).toEqual(MARCH);
   });
 });
 
@@ -231,7 +244,7 @@ describe('monthOverview', () => {
     ]);
     deps.cardBalancesAsOf.mockResolvedValue([{
       creditCardId: 'visa',
-      ...MARCH,
+      ...APRIL,
       openingOutstandingBalance: 0,
       endingOutstandingBalance: 1_200,
       updatedAt: NOW,
@@ -251,7 +264,34 @@ describe('monthOverview', () => {
       },
     ]);
     expect(deps.accountBalancesAsOf).toHaveBeenCalledWith(['checking', 'new', 'later'], MARCH);
-    expect(deps.cardBalancesAsOf).toHaveBeenCalledWith(['visa', 'master'], MARCH);
+    expect(deps.cardBalancesAsOf).toHaveBeenCalledWith(['visa', 'master'], APRIL);
+  });
+
+  it('shows each card the bill due the month after, one read per cycle (OQ-251)', async () => {
+    const deps = fakeDeps();
+    deps.listAccounts.mockResolvedValue([anAccount()]);
+    deps.listCreditCards.mockResolvedValue([
+      { ...aCard('early', 'checking'), closingDay: 3, dueDay: 7 },
+      { ...aCard('late', 'checking'), closingDay: 25, dueDay: 5 },
+    ]);
+    deps.accountBalancesAsOf.mockResolvedValue([{
+      accountId: 'checking', ...MARCH, openingBalance: 0, endingBalance: 5_000, updatedAt: NOW,
+    }]);
+    deps.cardBalancesAsOf.mockImplementation(async (ids, cycle) => ids.map((creditCardId) => ({
+      creditCardId,
+      ...cycle,
+      openingOutstandingBalance: 0,
+      endingOutstandingBalance: cycle.month * 100,
+      updatedAt: NOW,
+    })));
+
+    const { balances } = await monthOverview(deps, VIEWER, MARCH);
+
+    expect(balances.map(({ creditCardId, amount }) => [creditCardId, amount])).toEqual([
+      [null, 5_000], ['early', 400], ['late', 300],
+    ]);
+    expect(deps.cardBalancesAsOf).toHaveBeenCalledWith(['early'], APRIL);
+    expect(deps.cardBalancesAsOf).toHaveBeenCalledWith(['late'], MARCH);
   });
 
   it('shows a card issued by the month\'s end with no charges as owing 0 (OQ-222)', async () => {

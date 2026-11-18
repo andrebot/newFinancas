@@ -52,6 +52,7 @@ vi.mock('../../../../src/experiences/onboard/flows/guidedSetup/GuidedSetupFlow',
             currency: 'BRL',
             visibility: 'shared',
             openingBalance: 1000,
+            startingBalanceDate: '2026-11-06',
             cards: [],
           }),
           createBudget: () => onCreateBudget({
@@ -276,6 +277,7 @@ describe('OnboardExperience — Guided Setup', () => {
         currency: 'BRL',
         visibility: 'shared',
         openingBalance: 1000,
+        startingBalanceDate: '2026-11-06',
         cards: [],
       },
     });

@@ -538,7 +538,7 @@ sequenceDiagram
     RE->>CTA: monthlySums(creditCardIds, from, to) &mdash; charge / refund by month, currency and kind
     Note over RE: in / out / net per currency &mdash; excluding own-account<br/>transfers and bill payments (effect column, FR-3.6/3.11)
     RE->>AA: balancesAsOf(accountIds, month) &mdash; month-end balances (FR-6.6)
-    RE->>CCA: balancesAsOf(cardIds, month) &mdash; month-end outstanding (OQ-201)
+    RE->>CCA: balancesAsOf(cardIds, cycle) per bill cycle &mdash; the bill due next month (billCycleOf, OQ-251)
     RE->>BA: list(householdId, viewerUserId) + periodsAsOf(householdId, budgetIds, month) &mdash; target in effect, spend (over-budget first)
     RE->>GA: list(householdId, viewerUserId, active) + listAllocations({goalIds}, monthEnd) &mdash; the split then
     RE->>IHA: findByIds(householdId, allocated holdingIds) &mdash; with their currency

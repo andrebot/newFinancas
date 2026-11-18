@@ -4,6 +4,7 @@ import type {
 import type {
   DataOutcome, RequestFailure, RequestOutcome,
 } from '../../../../utilities/requestOutcome';
+import { firstError, isoDate, required } from '../../../../utilities/validation';
 
 // The Account & Card Management Flow's state (FL11; OQ-175): the household's
 // accounts as the Flow last fetched them, the request that is out, the open
@@ -55,10 +56,24 @@ export interface NewAccount {
   readonly type: AccountType;
   readonly currency: Currency;
   readonly visibility: Visibility;
-  /** Today's balance in minor units, or `null` when left out — the API stores 0. */
+  /**
+   * The balance on `startingBalanceDate` in minor units, or `null` when left
+   * out — the API stores 0.
+   */
   readonly openingBalance: number | null;
+  /** `YYYY-MM-DD`: the day the opening balance was true, not after today (OQ-252). */
+  readonly startingBalanceDate: string;
   readonly cards: CardDraft[];
 }
+
+/**
+ * The starting-balance date's rule on both create forms (OQ-252): required, a
+ * real date, and not after today — what the API refuses with `date.max`.
+ *
+ * @param today - Today, `YYYY-MM-DD`.
+ * @returns The rule.
+ */
+export const startingDateRule = (today: string) => firstError(required, isoDate({ max: today }));
 
 /** A card slot in the edit drawer: an attached card (with its id) or a new one. An
  * attached card's network and last four digits are fixed (OQ-192). */

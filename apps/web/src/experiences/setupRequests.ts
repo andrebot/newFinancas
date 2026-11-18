@@ -57,6 +57,7 @@ export const useAccountRequests = (
       currency: account.currency,
       visibility: account.visibility,
       ...(account.openingBalance === null ? {} : { openingBalance: account.openingBalance }),
+      startingBalanceDate: account.startingBalanceDate,
       cards: account.cards,
     })),
     onEdit: async (edit) => toDataOutcome(await editAccount({

@@ -48,6 +48,7 @@ vi.mock(
             currency: 'BRL',
             visibility: 'personal',
             openingBalance: null,
+            startingBalanceDate: '2026-11-06',
             cards: [],
           }),
           createFunded: () => onCreate({
@@ -56,6 +57,7 @@ vi.mock(
             currency: 'BRL',
             visibility: 'shared',
             openingBalance: 150,
+            startingBalanceDate: '2026-11-06',
             cards: [],
           }),
           editPlain: () => onEdit({ accountId: 'chk', name: 'Renamed' }),
@@ -383,14 +385,19 @@ describe('the accounts it answers for its flow', () => {
     expect(outcomeOf('accounts')).toEqual({ ok: false, error: { code, params: {} } });
   });
 
-  it('creates without an opening balance when there is none', async () => {
+  it('creates without an opening balance when there is none, with its date', async () => {
     const { fetchFn } = await renderExperience({
       'POST /households/doe/accounts': () => jsonResponse(201, ACCOUNT),
     });
     await press('createZero');
     expect(outcomeOf('accounts')).toEqual({ ok: true, data: ACCOUNT });
     expect(await lastBody(fetchFn)).toEqual({
-      name: 'Main Checking', type: 'checking', currency: 'BRL', visibility: 'personal', cards: [],
+      name: 'Main Checking',
+      type: 'checking',
+      currency: 'BRL',
+      visibility: 'personal',
+      startingBalanceDate: '2026-11-06',
+      cards: [],
     });
   });
 
@@ -409,6 +416,7 @@ describe('the accounts it answers for its flow', () => {
       currency: 'BRL',
       visibility: 'shared',
       openingBalance: 150,
+      startingBalanceDate: '2026-11-06',
       cards: [],
     });
   });

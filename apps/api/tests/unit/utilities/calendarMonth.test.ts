@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  monthEnd, monthKey, monthOf, monthOrdinal, monthsBetween,
+  monthEnd, monthKey, monthOf, monthOrdinal, monthsBetween, nextMonth,
 } from '../../../src/utilities/calendarMonth';
 
 describe('monthOf', () => {
@@ -35,6 +35,16 @@ describe('monthsBetween', () => {
 
   it('lists nothing when the end is before the start', () => {
     expect(monthsBetween({ year: 2026, month: 5 }, { year: 2026, month: 4 })).toEqual([]);
+  });
+});
+
+describe('nextMonth', () => {
+  it('moves to the following month within the year', () => {
+    expect(nextMonth({ year: 2026, month: 11 })).toEqual({ year: 2026, month: 12 });
+  });
+
+  it('rolls December into the next year\'s January', () => {
+    expect(nextMonth({ year: 2026, month: 12 })).toEqual({ year: 2027, month: 1 });
   });
 });
 

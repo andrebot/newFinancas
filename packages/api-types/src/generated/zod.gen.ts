@@ -240,6 +240,7 @@ export const zAccountCreateRequest = z.object({
     currency: zCurrency,
     visibility: z.enum(['personal', 'shared']),
     openingBalance: zMoney.optional(),
+    startingBalanceDate: z.iso.date().optional(),
     cards: z.array(zCreditCardNew).optional()
 });
 

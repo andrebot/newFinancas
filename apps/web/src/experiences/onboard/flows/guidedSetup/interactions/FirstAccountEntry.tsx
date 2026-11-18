@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import type { Currency } from '@financas/api-types';
 import { accounts, money } from '../../../../../config/constants';
 import { InlineBanner } from '../../../../../kit/alert/InlineBanner';
+import { DateInput } from '../../../../../kit/dateInput/DateInput';
 import { LockedField } from '../../../../../kit/field/LockedField';
 import { Icon, type IconName } from '../../../../../kit/icons/Icon';
 import { MoneyInput } from '../../../../../kit/moneyInput/MoneyInput';
@@ -10,9 +11,11 @@ import { SegmentedControl } from '../../../../../kit/segmentedControl/SegmentedC
 import { TextField } from '../../../../../kit/textField/TextField';
 import { useI18n } from '../../../../../utilities/I18nProvider';
 import useFocusFirstInvalid from '../../../../../utilities/useFocusFirstInvalid';
+import useToday from '../../../../../utilities/useToday';
 import { nonBlank } from '../../../../../utilities/validation';
 import {
-  takesCards, type AccountType, type CardDraft, type NewAccount, type Visibility,
+  startingDateRule, takesCards, type AccountType, type CardDraft, type NewAccount,
+  type Visibility,
 } from '../../../../accountSetup/flows/accountManagement/accountManagementState';
 import {
   cardDraftOf, cardObjectionsOf, EMPTY_CARD_FORM, withoutObjections, type CardFormState,
@@ -231,6 +234,9 @@ export function FirstAccountEntry({
   const [currency, setCurrency] = useState<Currency>('BRL');
   const [visibility, setVisibility] = useState<Visibility>(personalOnly ? 'personal' : 'shared');
   const [openingBalance, setOpeningBalance] = useState<number | null>(null);
+  const today = useToday();
+  const [startingDate, setStartingDate] = useState(today);
+  const [dateError, setDateError] = useState<string>();
   const cards = useCardsState();
   const [refusals, setRefusals] = useState(0);
   useFocusFirstInvalid(refusals);
@@ -253,8 +259,10 @@ export function FirstAccountEntry({
     const blank = nonBlank(name);
     const pending = showCards ? pendingCardOf(cards.form) : {};
     setNameError(blank && translator.field(blank.code, blank.params));
+    const badDate = startingDateRule(today)(startingDate);
+    setDateError(badDate && translator.field(badDate.code, badDate.params));
     cards.setErrors(pending.errors);
-    if (blank || pending.errors) {
+    if (blank || badDate || pending.errors) {
       setRefusals((count) => count + 1);
       return;
     }
@@ -265,6 +273,7 @@ export function FirstAccountEntry({
       currency,
       visibility,
       openingBalance,
+      startingBalanceDate: startingDate,
       cards: cardsSent(showCards, cards.saved, pending),
     });
   };
@@ -335,6 +344,17 @@ export function FirstAccountEntry({
           onChange={setOpeningBalance}
         />
       </div>
+      <DateInput
+        label={translator.text('accountSetup', 'field.startingBalanceDate')}
+        hint={translator.text('accountSetup', 'startingBalanceDate.hint')}
+        value={startingDate}
+        onChange={(value) => {
+          setStartingDate(value);
+          setDateError(undefined);
+        }}
+        error={dateError}
+        className="sm:w-60"
+      />
       <StartingBalanceExplainer />
       {showCards && (
         <AccountCardsField
