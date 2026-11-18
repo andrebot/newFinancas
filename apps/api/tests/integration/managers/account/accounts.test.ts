@@ -249,6 +249,43 @@ describe('AccountManager — Create Account (financial-accounts/uc-01, FR-2.1/2.
     expect(inTransaction).not.toHaveBeenCalled();
   });
 
+  it('anchors the opening balance on a past starting-balance date (OQ-252)', async () => {
+    const { deps, accounts } = fakeDeps();
+
+    await createAccountManager(deps).createAccount(CONTEXT, HOUSEHOLD_ID, {
+      ...NEW_ACCOUNT, openingBalance: 1500, startingBalanceDate: '2026-10-06',
+    });
+
+    expect(accounts.insert).toHaveBeenCalledWith(expect.objectContaining({
+      startingBalance: 1500, startingBalanceDate: '2026-10-06',
+    }));
+  });
+
+  it('takes today as the starting-balance date itself (OQ-252)', async () => {
+    const { deps, accounts } = fakeDeps();
+
+    await createAccountManager(deps).createAccount(CONTEXT, HOUSEHOLD_ID, {
+      ...NEW_ACCOUNT, startingBalanceDate: TODAY,
+    });
+
+    expect(accounts.insert)
+      .toHaveBeenCalledWith(expect.objectContaining({ startingBalanceDate: TODAY }));
+  });
+
+  it('refuses a starting-balance date after today 422 date.max, writing nothing', async () => {
+    const { deps, inTransaction } = fakeDeps();
+
+    await expect(createAccountManager(deps).createAccount(CONTEXT, HOUSEHOLD_ID, {
+      ...NEW_ACCOUNT, startingBalanceDate: '2026-10-14',
+    })).rejects.toMatchObject({
+      domainError: {
+        code: 'validation.failed',
+        details: [{ field: 'startingBalanceDate', code: 'date.max', params: { max: TODAY } }],
+      },
+    });
+    expect(inTransaction).not.toHaveBeenCalled();
+  });
+
   it('refuses a blank name with 422, writing nothing', async () => {
     const { deps, inTransaction } = fakeDeps();
 

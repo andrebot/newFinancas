@@ -1,6 +1,6 @@
 import { act, fireEvent, screen } from '@testing-library/react';
 import {
-  describe, expect, it, vi,
+  afterEach, beforeEach, describe, expect, it, vi,
 } from 'vitest';
 import type { CardDraft, NewAccount } from '../../../../../../../src/experiences/accountSetup/flows/accountManagement/accountManagementState';
 import { EMPTY_CARD_FORM } from '../../../../../../../src/experiences/accountSetup/flows/accountManagement/interactions/CardFields';
@@ -13,9 +13,33 @@ import { renderInLocale } from '../../../../../../support/renderInLocale';
 // translator; only the Flow's handlers are stand-ins. Mockup 11 (OQ-196): the
 // type as tiles, Shared to start, the starting balance explained, cards saved
 // one at a time — and one left open goes with the account once it passes.
+// Today is fixed at 18 Nov 2026 (the starting-balance date's default).
 
+const TODAY = '2026-11-18';
 const VISA = '4111111111111111';
-const YEAR = new Date().getFullYear() + 3;
+const YEAR = 2029;
+
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date(2026, 10, 18, 12, 0, 0));
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+/**
+ * Types into a masked field as a user would: the text, the caret at its end.
+ *
+ * @param name - The field's label.
+ * @param text - What is typed.
+ */
+const typeMasked = (name: string, text: string) => {
+  const input = screen.getByRole<HTMLInputElement>('textbox', { name });
+  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(input, text);
+  input.setSelectionRange(text.length, text.length);
+  fireEvent.input(input);
+};
 
 const CARD: CardDraft = {
   network: 'visa',
@@ -108,7 +132,10 @@ describe('the form', () => {
     expect(screen.getByRole('radio', { name: /Checking/ })).toHaveProperty('checked', true);
     expect(screen.getByRole('radio', { name: 'BRL' })).toHaveProperty('checked', true);
     expect(screen.getByRole('radio', { name: 'Shared' })).toHaveProperty('checked', true);
-    expect(screen.getByText('Spent or invested before today? Record it anyway.')).toBeTruthy();
+    expect(screen.getByText('Spent or invested before the balance date? Record it anyway.'))
+      .toBeTruthy();
+    expect(screen.getByRole<HTMLInputElement>('textbox', { name: 'Balance date' }).value)
+      .toBe('11/18/2026');
     expect(screen.getByText(/only the uninvested cash/)).toBeTruthy();
     expect(screen.getByText('An account is required to get started.')).toBeTruthy();
   });
@@ -190,8 +217,28 @@ describe('its submit', () => {
       currency: 'BRL',
       visibility: 'shared',
       openingBalance: null,
+      startingBalanceDate: TODAY,
       cards: [],
     } satisfies NewAccount);
+  });
+
+  it('emits an earlier starting-balance date typed in (OQ-252)', () => {
+    const handlers = renderEntry();
+    typeMasked('Balance date', '11/06/2026');
+    submitNamed('Banco');
+    expect(handlers.onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+      startingBalanceDate: '2026-11-06',
+    }));
+  });
+
+  it('refuses a starting-balance date after today, until it is changed', () => {
+    const handlers = renderEntry();
+    typeMasked('Balance date', '11/19/2026');
+    submitNamed('Banco');
+    expect(handlers.onSubmit).not.toHaveBeenCalled();
+    expect(screen.getByText('Date is later than allowed.')).toBeTruthy();
+    typeMasked('Balance date', '11/17/2026');
+    expect(screen.queryByText('Date is later than allowed.')).toBeNull();
   });
 
   it('emits the picked type, currency and visibility', () => {

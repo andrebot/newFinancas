@@ -5,7 +5,7 @@ import {
 import {
   INITIAL_ACCOUNTS, afterAction, afterLoad, archiveConfirmCancelled, archiveConfirmOpened,
   cardChangesOf, drawerClosed, drawerOpened, loadingAccounts, mayChangeVisibility, mayCreate,
-  mayEdit, mayShare, sparseCardChanges, splitAccounts, started, takesCards,
+  mayEdit, mayShare, sparseCardChanges, splitAccounts, started, startingDateRule, takesCards,
   type AccountManagementState,
 } from '../../../../../../src/experiences/accountSetup/flows/accountManagement/accountManagementState';
 
@@ -360,5 +360,20 @@ describe('the card changes an edit sends (OQ-35)', () => {
       }],
       remove: ['gone'],
     });
+  });
+});
+
+describe('startingDateRule (OQ-252)', () => {
+  const rule = startingDateRule('2026-11-18');
+
+  it('takes today and any earlier real date', () => {
+    expect(rule('2026-11-18')).toBeUndefined();
+    expect(rule('2020-01-31')).toBeUndefined();
+  });
+
+  it('refuses a date after today, an empty one and a malformed one', () => {
+    expect(rule('2026-11-19')).toEqual({ code: 'date.max', params: { max: '2026-11-18' } });
+    expect(rule('')).toEqual({ code: 'field.required' });
+    expect(rule('2026-02-30')).toMatchObject({ code: 'string.format' });
   });
 });

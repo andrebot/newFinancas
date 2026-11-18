@@ -4,7 +4,9 @@ import type {
   AccountTransactionAccessor, MonthKindSum, MonthKindTotal,
 } from '../../accessors/accountTransactionAccessor';
 import type { Budget, BudgetAccessor, BudgetPeriodOf } from '../../accessors/budgetAccessor';
-import { monthEnd, monthKey, type CalendarMonth } from '../../utilities/calendarMonth';
+import {
+  monthEnd, monthKey, nextMonth, type CalendarMonth,
+} from '../../utilities/calendarMonth';
 import type { CardTransactionAccessor } from '../../accessors/cardTransactionAccessor';
 import type { CreditCard, CreditCardAccessor } from '../../accessors/creditCardAccessor';
 import type { GoalAccessor } from '../../accessors/goalAccessor';
@@ -26,7 +28,8 @@ import yearMonths from './months';
 // them the money came from, or went, outside (OQ-222). Card charges and
 // refunds and investment trades count.
 // Past months read as they were: an Account archived later still shows its
-// balance for a month it was open (OQ-206).
+// balance for a month it was open (OQ-206). A card shows the bill paid the
+// month after — the cycle due then (OQ-251), its running outstanding.
 
 /** What the Month Overview reads. */
 export interface MonthOverviewDeps extends GoalProgressDeps {
@@ -218,10 +221,54 @@ export const issuedByMonthEnd = (card: CreditCard, month: CalendarMonth): boolea
 );
 
 /**
- * Reads the balance of each Account open at the month's end and its cards'
- * outstanding then (F10, D16). An Account with no history by then is left
- * out, its cards with it; a card with none owes nothing yet — 0 once issued
- * by then (OQ-222), a card's history starting only with its first charge.
+ * The billing cycle whose bill a card shows on a month's Balance rail: the
+ * one due the month after (OQ-251). A cycle is named by the month it closes
+ * in (OQ-170); a due day after the closing day falls in that same month, any
+ * other in the next. So a card closing on the 3rd and due on the 7th shows
+ * the next month's cycle, and one closing on the 25th and due on the 5th
+ * shows this month's.
+ *
+ * @param card - The card's closing and due days.
+ * @param month - The month on view.
+ * @returns The cycle (its closing month).
+ */
+export const billCycleOf = (
+  card: Pick<CreditCard, 'closingDay' | 'dueDay'>,
+  month: CalendarMonth,
+): CalendarMonth => (card.dueDay > card.closingDay ? nextMonth(month) : month);
+
+/**
+ * Reads each card's outstanding as of the cycle it shows for a month
+ * (`billCycleOf`) — one read per cycle, as the Accounts page groups them.
+ *
+ * @param deps - The card balance read.
+ * @param cards - The cards.
+ * @param month - The month on view.
+ * @returns Outstanding by card id; a card with no cycle by then is missing.
+ */
+const cardBillsOf = async (
+  deps: MonthOverviewDeps,
+  cards: readonly CreditCard[],
+  month: CalendarMonth,
+): Promise<(readonly [string, number])[]> => {
+  const groups = new Map<string, { cycle: CalendarMonth; ids: string[] }>();
+  cards.forEach((card) => {
+    const cycle = billCycleOf(card, month);
+    const group = groups.get(monthKey(cycle)) ?? { cycle, ids: [] };
+    group.ids.push(card.id);
+    groups.set(monthKey(cycle), group);
+  });
+  const rows = await Promise.all([...groups.values()].map(({ cycle, ids }) => (
+    deps.cardBalancesAsOf(ids, cycle))));
+  return rows.flat().map((row) => [row.creditCardId, row.endingOutstandingBalance] as const);
+};
+
+/**
+ * Reads the balance of each Account open at the month's end and the bill
+ * each of its cards shows (F10, D16 as amended by OQ-251). An Account with
+ * no history by then is left out, its cards with it; a card with none owes
+ * nothing yet — 0 once issued by then (OQ-222), a card's history starting
+ * only with its first charge.
  *
  * @param deps - The balance reads.
  * @param accounts - The viewer's Accounts, in display order.
@@ -237,13 +284,13 @@ const balancesOf = async (
 ): Promise<MonthEndBalance[]> => {
   const open = accounts.filter((account) => openAtMonthEnd(account, month));
   const openCards = cards.filter((card) => open.some((account) => account.id === card.accountId));
-  const [accountRows, cardRows] = await Promise.all([
+  const [accountRows, cardBills] = await Promise.all([
     deps.accountBalancesAsOf(open.map((account) => account.id), month),
-    deps.cardBalancesAsOf(openCards.map((card) => card.id), month),
+    cardBillsOf(deps, openCards, month),
   ]);
   const ending = new Map([
     ...accountRows.map((row) => [row.accountId, row.endingBalance] as const),
-    ...cardRows.map((row) => [row.creditCardId, row.endingOutstandingBalance] as const),
+    ...cardBills,
   ]);
   return open.flatMap((account) => {
     const balance = ending.get(account.id);

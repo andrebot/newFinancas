@@ -1,6 +1,6 @@
 import { act, fireEvent, screen } from '@testing-library/react';
 import {
-  describe, expect, it, vi,
+  afterEach, beforeEach, describe, expect, it, vi,
 } from 'vitest';
 import type { NewAccount } from '../../../../../../../src/experiences/accountSetup/flows/accountManagement/accountManagementState';
 import { renderInLocale } from '../../../../../../support/renderInLocale';
@@ -10,7 +10,31 @@ import {
 
 // The create drawer (BDT: unit): the real kit and translator; only the Flow's
 // handlers are stand-ins. A card is added through its fields, picked one by
-// one.
+// one. Today is fixed at 18 Nov 2026 (the starting-balance date's default).
+
+const TODAY = '2026-11-18';
+
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date(2026, 10, 18, 12, 0, 0));
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+/**
+ * Types into a masked field as a user would: the text, the caret at its end.
+ *
+ * @param name - The field's label.
+ * @param text - What is typed.
+ */
+const typeMasked = (name: string, text: string) => {
+  const input = screen.getByRole<HTMLInputElement>('textbox', { name });
+  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set?.call(input, text);
+  input.setSelectionRange(text.length, text.length);
+  fireEvent.input(input);
+};
 
 const VISA = '4111111111111111';
 
@@ -56,8 +80,11 @@ describe('the form’s fields', () => {
     const visibility = screen.getByRole('radiogroup', { name: 'Visibility' });
     expect(visibility.textContent).toContain('Personal');
     expect(visibility.textContent).toContain('Shared');
-    expect(screen.getByRole('textbox', { name: "Today's balance" })).toBeTruthy();
-    expect(screen.getByText(/What is in this account today/)).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: 'Opening balance' })).toBeTruthy();
+    expect(screen.getByText(/What was in this account on the balance date/)).toBeTruthy();
+    expect(screen.getByRole<HTMLInputElement>('textbox', { name: 'Balance date' }).value)
+      .toBe('11/18/2026');
+    expect(screen.getByText(/It can't change later/)).toBeTruthy();
     expect(screen.queryByRole('alert')).toBeNull();
   });
 
@@ -108,8 +135,36 @@ describe('its submit', () => {
       currency: 'BRL',
       visibility: 'personal',
       openingBalance: null,
+      startingBalanceDate: TODAY,
       cards: [],
     } satisfies NewAccount);
+  });
+
+  it('emits an earlier starting-balance date typed in (OQ-252)', () => {
+    const handlers = renderDrawer();
+    typeMasked('Balance date', '11/06/2026');
+    submitNamed('Banco');
+    expect(handlers.onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+      startingBalanceDate: '2026-11-06',
+    }));
+  });
+
+  it('refuses a starting-balance date after today, until it is changed', () => {
+    const handlers = renderDrawer();
+    typeMasked('Balance date', '11/19/2026');
+    submitNamed('Banco');
+    expect(handlers.onSubmit).not.toHaveBeenCalled();
+    expect(screen.getByText('Date is later than allowed.')).toBeTruthy();
+    typeMasked('Balance date', '11/18/2026');
+    expect(screen.queryByText('Date is later than allowed.')).toBeNull();
+  });
+
+  it('refuses an empty starting-balance date', () => {
+    const handlers = renderDrawer();
+    typeMasked('Balance date', '');
+    submitNamed('Banco');
+    expect(handlers.onSubmit).not.toHaveBeenCalled();
+    expect(screen.getByText('Required.')).toBeTruthy();
   });
 
   it('emits the picked currency and visibility', async () => {
@@ -141,6 +196,7 @@ describe('its submit', () => {
       currency: 'BRL',
       visibility: 'personal',
       openingBalance: null,
+      startingBalanceDate: TODAY,
       cards: [{
         network: 'visa',
         last4: '1111',

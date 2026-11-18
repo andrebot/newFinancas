@@ -4112,7 +4112,8 @@ not a hardcoded assumption.
 - **The starting balance is the balance on the day the Account is
   created (an anchor).** That day is stored as
   `accounts.starting_balance_date` (the Manager sets it to the creation
-  day). A movement dated **on or after** it moves the balance as usual,
+  day). *(Amended in OQ-252: the user picks it at creation, today by
+  default, never after today.)* A movement dated **on or after** it moves the balance as usual,
   from its month on. A movement dated **before** it was already in the
   starting balance, so it only rebuilds the history behind it: its month
   opens `amount` lower and every earlier month opens and ends `amount`
@@ -5363,7 +5364,8 @@ fixes and doc drift they bring, is `docs/planning/04-slice-3-readiness.md`.
 - **Month Overview** (D15, D16): a Goal funded in other currencies shows
   the progress of its own currency plus a "needs an exchange rate" note
   (the rate stays on the Goals page, FR-9); a credit card shows its
-  outstanding balance at the month's end.
+  outstanding balance at the month's end. *(Amended in OQ-251: the bill paid the
+  month after.)*
 - **The fixes F1–F15 and drift R1–R5 are approved as written** — among
   them a creator column on both ledgers (OQ-111's Member rule needs it),
   a bill payment carrying `accountId` + `creditCardId`, `M4` split across
@@ -7772,6 +7774,37 @@ review in `docs/architecture/17-slice-5-review.md`:
 - **Updates** are manual: `git pull` and `docker compose up --build`.
 - **Limit, accepted:** when the internet is down, a device with no cached DNS
   answer can't resolve the name. The router can't override DNS locally.
+
+### OQ-251: A card on the Month Overview shows the bill paid next month
+**Confirmed with the stakeholder (Nov 2026), from a bug on the first deploy.**
+OQ-201 D16 said a card shows "its outstanding balance at the month's end",
+but the Engine read the cycle *closing* in the month: a card closing on the
+3rd showed only the charges up to the 3rd, and the rest of the month's
+charges went to next month's view.
+- **A card shows the bill that will be paid the month after** — the cycle
+  whose due date falls in the next month, with its running outstanding
+  (unpaid earlier bills carried in, OQ-170). Cycles stay named by their
+  closing month (OQ-170); a due day after the closing day falls in that same
+  month, any other in the next. So in November a card closing on the 3rd and
+  due on the 7th shows the cycle closing 3 Dec, and one closing on the 25th
+  and due on the 5th shows the cycle closing 25 Nov.
+- `ReportingEngine.billCycleOf(card, month)` picks the cycle; the cards are
+  read one `CreditCardAccessor.balancesAsOf` per cycle, as the Accounts page
+  already groups them by current cycle.
+
+### OQ-252: The starting-balance date is chosen when the Account is created
+**Confirmed with the stakeholder (Nov 2026), from a bug on the first deploy.**
+OQ-169 fixed the starting-balance date to the creation day, so a balance
+known for an earlier day (e.g. typed on 18 Nov from a 6 Nov statement) was
+stored as 18 Nov's, and the transactions of 6–17 Nov only rebuilt history.
+- **Create Account takes an optional `startingBalanceDate`** (both the
+  Accounts page and onboarding ask for it), today by default. A date after
+  today is refused, `422 date.max`, as market values and index rates are.
+- **It cannot be edited later.** Moving it would rebuild the whole balance
+  chain; an Account entered with the wrong date is archived and created again.
+- **The anchor rule is unchanged (OQ-169):** a movement dated on or after the
+  date moves the balance, one dated before only rebuilds history — so a
+  transaction on the starting day itself is not in the starting balance.
 
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 

@@ -225,7 +225,7 @@ export type Account = {
     currency: Currency;
     visibility: 'personal' | 'shared';
     /**
-     * The day the starting balance was true — the creation day. Earlier transactions only rebuild history (OQ-169)
+     * The day the starting balance was true — chosen at creation, today by default (OQ-252). Earlier transactions only rebuild history (OQ-169)
      */
     startingBalanceDate: string;
     /**
@@ -249,9 +249,13 @@ export type AccountCreateRequest = {
     currency: Currency;
     visibility: 'personal' | 'shared';
     /**
-     * Today's balance (OQ-169); 0 when left out
+     * The balance on startingBalanceDate (OQ-169); 0 when left out
      */
     openingBalance?: Money;
+    /**
+     * The day the opening balance was true, not after today — 422 date.max (OQ-252); today when left out. Not editable later
+     */
+    startingBalanceDate?: string;
     cards?: Array<CreditCardNew>;
 };
 

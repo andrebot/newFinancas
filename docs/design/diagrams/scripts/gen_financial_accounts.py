@@ -41,8 +41,8 @@ sequenceDiagram
     participant CA as CreditCardAccessor
     participant LOG as LoggingUtility
 
-    User->>API: POST /households/:householdId/accounts {name, type, currency, visibility, openingBalance?, cards?: [{network, last4, closingDay, dueDay, expirationMonth, expirationYear}]}
-    Note over API: contract check first: type, currency, CardNetwork,<br/>last4 = 4 digits, days 1&ndash;31, month 1&ndash;12 &rarr; 422 validation.failed
+    User->>API: POST /households/:householdId/accounts {name, type, currency, visibility, openingBalance?, startingBalanceDate?, cards?: [{network, last4, closingDay, dueDay, expirationMonth, expirationYear}]}
+    Note over API: contract check first: type, currency, CardNetwork,<br/>last4 = 4 digits, days 1&ndash;31, month 1&ndash;12,<br/>startingBalanceDate a real date &rarr; 422 validation.failed
     API->>AM: createAccount(context, householdId, input)
     AM->>AU: authorize(actor, householdId, {data.create, visibility, ownerUserId: actor})
     alt not a member
@@ -53,16 +53,16 @@ sequenceDiagram
         AM-->>API: 403 auth.forbidden
     else allowed (a personal Account is anyone&#39;s own)
         AU-->>AM: allowed
-        AM->>VU: checkFields({name: nonBlank})
-        alt blank name
-            AM-->>API: 422 validation.failed {name}
+        AM->>VU: checkFields({name: nonBlank, startingBalanceDate: dateWithin({max: today})})
+        alt blank name, or a starting-balance date after today (OQ-252)
+            AM-->>API: 422 validation.failed {name} / {startingBalanceDate: date.max}
         else cards on an investment Account (FR-2.7)
             AM-->>API: 422 account.cards_not_allowed
         else valid
             AM->>UW: inTransaction(work)
             Note over UW,CA: one DB transaction &mdash; the work gets both Accessors over it
-            AM->>AA: insert({householdId, ownerUserId: actor, name, type, currency, visibility, startingBalance, startingBalanceDate: today})
-            Note over AA: also writes the first account_month_balances row,<br/>opening and ending at the opening balance (OQ-169)
+            AM->>AA: insert({householdId, ownerUserId: actor, name, type, currency, visibility, startingBalance, startingBalanceDate: given or today})
+            Note over AA: also writes the first account_month_balances row,<br/>in the starting-balance date&#39;s month, opening and ending<br/>at the opening balance (OQ-169, OQ-252)
             loop each card, one at a time
                 AM->>CA: insert({accountId, ...card}, today)
                 Note over CA: first credit_card_month_balances row at 0,<br/>in the billing cycle today falls in (OQ-170)

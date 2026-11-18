@@ -51,6 +51,7 @@ vi.mock('../../../../../../src/experiences/onboard/flows/guidedSetup/interaction
           currency: 'BRL',
           visibility: 'shared',
           openingBalance: null,
+          startingBalanceDate: '2026-11-06',
           cards: [],
         })}
       >
