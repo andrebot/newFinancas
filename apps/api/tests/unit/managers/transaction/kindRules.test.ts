@@ -27,11 +27,13 @@ describe('fieldsForKind', () => {
   it.each([
     ['charge', ['creditCardId'], COMMON],
     ['refund', ['creditCardId'], COMMON],
+    ['card_fee', ['creditCardId'], COMMON],
     ['withdrawal', ['accountId'], COMMON],
     ['deposit', ['accountId'], COMMON],
     ['boleto_payment', ['accountId'], COMMON],
     ['pix_payment', ['accountId'], COMMON],
     ['pix_receipt', ['accountId'], COMMON],
+    ['bank_fee', ['accountId'], COMMON],
     ['transfer_sent', ['accountId'], [...COMMON, 'toAccountId', 'receivedAmount']],
     ['transfer_received', ['accountId'], COMMON],
     ['credit_card_bill_payment', ['accountId', 'creditCardId'], COMMON],

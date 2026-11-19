@@ -20,7 +20,7 @@
   Financial Account (withdrawal, deposit, boleto, Pix, transfer, credit
   card bill payment, or investment activity). Entered through one unified
   entry point regardless of kind (FR-3.1–FR-3.8).
-- **Card Transaction** — A purchase (charge) or refund recorded directly
+- **Card Transaction** — A purchase (charge), refund or card fee (OQ-258) recorded directly
   against a Credit Card. A separate ledger from Account Transactions —
   never appears in the parent account's history and never directly changes
   the account's balance; only a Credit Card Bill Payment bridges the two

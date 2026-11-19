@@ -123,15 +123,17 @@ function FilterButton({ count, onOpen, compact }: {
  * failed read leaves the split without Goals to add. The Goals are read only
  * while it is open.
  *
- * @param props - The household, the lists, the open drawer and the Flow's requests.
+ * @param props - The household, the lists, the open drawer, what the last record left
+ *   and the Flow's requests.
  * @returns The drawer, or nothing while the Goals load.
  */
 function OpenRecordDrawer({
-  householdId, lists, transaction, requests,
+  householdId, lists, transaction, startWith, requests,
 }: {
   readonly householdId: string;
   readonly lists: PageLists;
   readonly transaction: EditedTransaction | undefined;
+  readonly startWith: RecordDrawer['startWith'];
   readonly requests: RecordDrawer['requests'];
 }) {
   const active = useListGoalProgressQuery({ householdId, status: 'active' });
@@ -140,6 +142,7 @@ function OpenRecordDrawer({
   return (
     <RecordTransactionFlow
       transaction={transaction}
+      startWith={startWith}
       accounts={lists.accounts}
       categories={lists.categories}
       goals={splitGoalsOf(active.data ?? [], completed.data ?? [])}
@@ -168,6 +171,7 @@ function RecordDrawerHost({ householdId, lists, record }: {
       householdId={householdId}
       lists={lists}
       transaction={drawer.transaction}
+      startWith={record.startWith}
       requests={record.requests}
     />
   );

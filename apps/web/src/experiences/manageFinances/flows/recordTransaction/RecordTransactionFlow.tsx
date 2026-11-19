@@ -18,7 +18,7 @@ import {
   withOwnTransfer, withToAccount,
 } from './transactionForm';
 import useRecordTransaction, {
-  type RecordTransactionController, type RecordTransactionRequests,
+  type RecordTransactionController, type RecordTransactionInput, type RecordTransactionRequests,
 } from './useRecordTransaction';
 import { GoalAllocationEntry } from './interactions/GoalAllocationEntry';
 import { HoldingSelection } from './interactions/HoldingSelection';
@@ -40,10 +40,14 @@ import {
 // Month Overview (EBD: no Flow talks to a sibling). A success is toasted; a
 // failure shows in the drawer's banner. A transfer asks whether it is between
 // the user's own accounts (OQ-222): then it goes From → To, with no category,
-// and what arrived when the currencies differ. It never calls the backend.
+// and what arrived when the currencies differ. A new transaction opens on
+// what the last one recorded on the page left — kind, targets, date — and
+// "Record and add another" asks the Experience for a fresh drawer instead of
+// closing (OQ-257). It never calls the backend.
 
 /** What the Flow asks of the Experience. */
-export interface RecordTransactionFlowProps extends RecordTransactionRequests {
+export interface RecordTransactionFlowProps
+  extends RecordTransactionRequests, Pick<RecordTransactionInput, 'startWith'> {
   /** The row an edit is about; a new transaction has none. */
   readonly transaction?: EditedTransaction | undefined;
   /** The accounts the user can see, archived ones included, with their cards. */
@@ -371,6 +375,48 @@ function Banners({ controller }: { readonly controller: RecordTransactionControl
 }
 
 /**
+ * Renders the drawer's footer: the month the transaction lands in, Cancel,
+ * and the submit — with "Record and add another" before it on a new
+ * transaction (OQ-257).
+ *
+ * @param props - The Flow's controller and the cancel.
+ * @returns The footer's items.
+ */
+function Footer({ controller, onCancel }: {
+  readonly controller: RecordTransactionController;
+  readonly onCancel: () => void;
+}) {
+  const translator = useI18n();
+  const { state } = controller;
+  const mode = state.original ? 'edit' : 'record';
+  return (
+    <>
+      <LandsIn date={state.form.date} />
+      <Button variant="secondary" disabled={state.out} onClick={onCancel}>
+        {recordText(translator, 'cancel')}
+      </Button>
+      {mode === 'record' && (
+        <Button
+          variant="secondary"
+          disabled={state.out}
+          onClick={() => controller.submit(true)}
+        >
+          {recordText(translator, 'record.another')}
+        </Button>
+      )}
+      <Button
+        variant="primary"
+        busy={state.out}
+        disabled={awaitsSchedule(state)}
+        onClick={() => controller.submit()}
+      >
+        {recordText(translator, `${mode}.submit`)}
+      </Button>
+    </>
+  );
+}
+
+/**
  * Renders the record drawer, holds its form and runs its reads and its write.
  *
  * @param props - The edited row, the lists, and the Experience's reads, writes and close.
@@ -399,22 +445,7 @@ export function RecordTransactionFlow(props: RecordTransactionFlowProps) {
       onClose={close}
       caption={recordText(translator, `${mode}.caption`)}
       title={recordText(translator, `${mode}.title`)}
-      footer={(
-        <>
-          <LandsIn date={form.date} />
-          <Button variant="secondary" disabled={state.out} onClick={onClose}>
-            {recordText(translator, 'cancel')}
-          </Button>
-          <Button
-            variant="primary"
-            busy={state.out}
-            disabled={awaitsSchedule(state)}
-            onClick={controller.submit}
-          >
-            {recordText(translator, `${mode}.submit`)}
-          </Button>
-        </>
-      )}
+      footer={<Footer controller={controller} onCancel={onClose} />}
     >
       <div className="flex flex-col gap-5">
         <Banners controller={controller} />

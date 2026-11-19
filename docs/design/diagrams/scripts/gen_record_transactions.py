@@ -52,7 +52,7 @@ sequenceDiagram
     else authorized, target is a Credit Card
         AZ-->>TM: allowed
         alt kind not in {charge, refund}
-            TM-->>API: ValidationError (FR-3.1 &mdash; a Credit Card target only offers charge/refund)
+            TM-->>API: ValidationError (FR-3.1 &mdash; a Credit Card target only offers charge, refund and card fee — OQ-258)
             API-->>User: 422 transaction.kind_not_allowed_for_target
         else charge or refund
             TM->>CCA: applyMovement(cardId, {signedAmount, currency, date})
@@ -289,7 +289,7 @@ sequenceDiagram
         else was an investment trade
             TM->>AA: applyMovement(accountId, {&plusmn;oldAmount reversed, currency, oldDate})
             TM->>IHA: applyTrade(holdingId, {-oldQuantityDelta, -oldCostBasisDelta})
-        else was a card charge/refund
+        else was a card kind (charge, refund, card fee)
             TM->>CCA: applyMovement(cardId, {-oldSignedAmount, currency, oldDate})
         end
         TM->>BA: accrueIfClaimed({accountScope, currency, oldCategoryId, oldSubcategoryId, &mp;oldAmount, oldDate})
@@ -325,7 +325,7 @@ sequenceDiagram
                 TM->>IHA: unarchiveIfSystemArchived(holdingId)
                 Note over IHA: undoes only a system-made archive (OQ-80)
             end
-        else new effect is a card charge/refund
+        else new effect is a card kind (charge, refund, card fee)
             TM->>CCA: applyMovement(cardId, {newSignedAmount, currency, newDate})
         end
         TM->>BA: accrueIfClaimed({accountScope, currency, newCategoryId, newSubcategoryId, &plusmn;newAmount, newDate})
@@ -417,7 +417,7 @@ sequenceDiagram
                 TM->>IHA: unarchiveIfSystemArchived(holdingId)
                 Note over IHA: if this was the sell/redemption that zeroed the<br/>Holding, it comes back (OQ-80) &mdash; user archives stay,<br/>and its automatic snapshot dies with the row (OQ-56)
             end
-        else was a card charge/refund
+        else was a card kind (charge, refund, card fee)
             TM->>CCA: applyMovement(cardId, {-signedAmount, currency, date})
         end
         TM->>BA: accrueIfClaimed({accountScope, currency, categoryId, subcategoryId, &mp;amount, date})
@@ -537,7 +537,7 @@ sequenceDiagram
     RE->>AA: list(householdId, viewerUserId) &mdash; the Accounts the viewer sees
     RE->>CCA: listByAccounts(accountIds)
     RE->>ATA: monthlySums(accountIds, Jan 1, Dec 31) &mdash; by month, currency, kind and stored effect
-    RE->>CTA: monthlySums(creditCardIds, from, to) &mdash; charge / refund by month, currency and kind
+    RE->>CTA: monthlySums(creditCardIds, from, to) &mdash; card kinds by month, currency and kind
     Note over RE: in / out / net per currency &mdash; excluding own-account<br/>transfers and bill payments (effect column, FR-3.6/3.11)
     RE->>AA: balancesAsOf(accountIds, month) &mdash; month-end balances (FR-6.6)
     RE->>CCA: balancesAsOf(cardIds, cycle) per bill cycle &mdash; the bill due next month (billCycleOf, OQ-251)

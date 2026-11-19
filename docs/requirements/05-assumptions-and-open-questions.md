@@ -7853,6 +7853,40 @@ month.
   Accessor over the Accounts and cards the member sees. The web app keeps
   the last answer while another month loads, so the bar's reach is steady.
 
+### OQ-257: Record Transaction keeps the last record's kind, target and date
+**Confirmed with the stakeholder (Nov 2026).** Entering many similar
+transactions meant picking the same kind, account and date each time.
+- **A new Record Transaction drawer opens on what the last transaction
+  recorded on the page left**: its kind, its account or card (a bill
+  payment's card and payer; a transfer between own accounts' From, To and
+  the switch) and its date. Amount, description, category, Holding and
+  every other field start empty. A remembered account or card that is no
+  longer offered (archived, or not fit for the kind) falls back as a fresh
+  pick would.
+- **"Record and add another"** (new transactions only, beside Record
+  Transaction) records, toasts, and opens a fresh drawer on the same
+  entry; Record Transaction records and closes as before.
+- **It lasts until the page reloads**, held by the Manage Finances
+  Experience per household — never stored in the browser, so an old date
+  doesn't reach another day's entries. Edits are never remembered.
+
+### OQ-258: Fees have kinds of their own
+**Confirmed with the stakeholder (Nov 2026).** A bank or a card can charge
+a fee, and there was no kind for it.
+- **Bank fee** (`bank_fee`, "Bank fee" / "Tarifa bancária"): Cash group,
+  on an account, money out, a plain `movement` — counted in Out, moves the
+  balance, may take a category. It covers every fee an account is charged,
+  brokerage and custody fees on an investment account included.
+- **Card fee** (`card_fee`, "Card fee" / "Tarifa do cartão"): Credit card
+  group, on the card's ledger, money out — on the bill like a charge
+  (annual fee, interest, IOF).
+- Not Transfer: that group's `transfer` effect and "Between your
+  accounts?" are about money moving, and own transfers leave In/Out. A
+  waived card fee is recorded as a Refund, a returned bank fee as a
+  Deposit — no reversal kinds.
+- Reference data only (FR-3.1): the kinds, their names and icons, and the
+  API's per-kind fields; no schema change.
+
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
 *(None currently — OQ-29, the last item here, was resolved during data

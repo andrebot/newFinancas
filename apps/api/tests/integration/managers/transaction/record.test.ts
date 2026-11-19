@@ -111,6 +111,23 @@ describe('recordTransaction', () => {
       expect(fake.accounts.applyMovement).not.toHaveBeenCalled();
     });
 
+    it('raises the outstanding balance for a card fee, like a charge (OQ-258)', async () => {
+      const fake = fakeDeps();
+      fake.accounts.findById.mockResolvedValue(CHECKING);
+      await recordOf(fake).recordTransaction(context, HOUSEHOLD_ID, cashRequest({
+        kind: 'card_fee',
+        accountId: undefined,
+        creditCardId: CARD.id,
+      }));
+      expect(fake.cardTransactions.insert).toHaveBeenCalledWith(expect.objectContaining({
+        creditCardId: CARD.id, kind: 'card_fee', amount: 5_000,
+      }));
+      expect(fake.creditCards.applyMovement).toHaveBeenCalledWith(CARD.id, {
+        amount: 5_000, currency: 'BRL', date: '2026-10-13',
+      });
+      expect(fake.accounts.applyMovement).not.toHaveBeenCalled();
+    });
+
     it('lowers the outstanding balance for a refund', async () => {
       const fake = fakeDeps();
       fake.accounts.findById.mockResolvedValue(CHECKING);
@@ -1572,6 +1589,7 @@ describe('the kinds no other test records (review B14)', () => {
     ['boleto_payment', {}, -5_000],
     ['pix_payment', {}, -5_000],
     ['pix_receipt', {}, 5_000],
+    ['bank_fee', {}, -5_000],
     ['investment_dividend', { holdingId: MARKET_HOLDING.id }, 5_000],
     ['investment_tax', { holdingId: MARKET_HOLDING.id }, -5_000],
   ])('records a %s and moves the balance its way', async (kind, extra, movement) => {

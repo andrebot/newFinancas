@@ -86,7 +86,7 @@ sequenceDiagram
     else authorized, target is a Credit Card
         AZ-->>TM: allowed
         alt kind not in {charge, refund}
-            TM-->>API: ValidationError (FR-3.1 &mdash; a Credit Card target only offers charge/refund)
+            TM-->>API: ValidationError (FR-3.1 &mdash; a Credit Card target only offers charge, refund and card fee — OQ-258)
             API-->>User: 422 transaction.kind_not_allowed_for_target
         else charge or refund
             TM->>CCA: applyMovement(cardId, {signedAmount, currency, date})

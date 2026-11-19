@@ -209,16 +209,21 @@ vice versa; only a Credit Card Bill Payment (FR-3.7) bridges the two.
   **Card Transaction**, FR-3.9) — through **one combined entry point**:
   date, amount, currency, category, description, **target** (which
   account or card), and **kind**. Kind is reference data (e.g. withdrawal,
-  deposit, boleto payment, Pix payment, Pix receipt, transfer sent,
-  transfer received, credit card bill payment, investment buy, investment
-  sell, investment dividend, investment interest, investment redemption,
-  investment tax, card charge, card refund) — not a hardcoded enum baked
+  deposit, boleto payment, Pix payment, Pix receipt, bank fee, transfer
+  sent, transfer received, credit card bill payment, investment buy,
+  investment sell, investment dividend, investment interest, investment
+  redemption, investment tax, card charge, card refund, card fee — fees:
+  OQ-258) — not a hardcoded enum baked
   into branching logic. **Target narrows which kinds are valid** (e.g.
   investment kinds apply to any account except a credit-card-only one; a
-  Credit Card target only offers charge/refund) — that narrowing is itself
+  Credit Card target only offers charge/refund/card fee) — that narrowing is itself
   data-driven, not a second code path (see OQ-39). A new kind, for either
   target, is a data addition, not a schema/code change. **Every kind may
   carry a category (OQ-201)** — FR-4.5 says how it counts toward a Budget.
+  To enter a batch of similar transactions, a new entry opens on the
+  **kind, target and date of the last one recorded** on the page, and
+  "Record and add another" records and opens the next straight away
+  (OQ-257).
   A sell, redemption, dividend, interest or tax entry names its Holding by
   picking it from the account's Holdings (a fixed-term ticker can match
   several, OQ-50); only a buy names an asset type and ticker (OQ-201).

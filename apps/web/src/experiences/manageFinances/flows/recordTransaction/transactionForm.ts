@@ -619,25 +619,72 @@ export const withAllocations = (
 ): TransactionForm => ({ ...form, allocations: rows, allocationsEdited: true });
 
 /**
+ * What a recorded transaction leaves for the next one (OQ-257): its kind,
+ * where it went — account, card, or a transfer's From and To — and its date.
+ */
+export type RecordedEntry = Pick<
+  TransactionForm, 'kind' | 'accountId' | 'creditCardId' | 'ownTransfer' | 'toAccountId' | 'date'
+>;
+
+/**
+ * Reads what a form just recorded leaves for the next one (OQ-257).
+ *
+ * @param form - The form recorded.
+ * @returns Its kind, targets and date.
+ */
+export const entryOf = (form: TransactionForm): RecordedEntry => ({
+  kind: form.kind,
+  accountId: form.accountId,
+  creditCardId: form.creditCardId,
+  ownTransfer: form.ownTransfer,
+  toAccountId: form.toAccountId,
+  date: form.date,
+});
+
+/**
+ * Fits a remembered transfer's To account: kept while it is still offered,
+ * else as a fresh pick would be (OQ-257).
+ *
+ * @param form - The form, its From account fitted.
+ * @param accounts - The accounts the user can see.
+ * @returns The form with a fitting To account.
+ */
+const withFittedToAccount = (form: TransactionForm, accounts: readonly Account[]) => {
+  if (!form.ownTransfer) return { ...form, toAccountId: undefined };
+  const choices = toAccountChoicesOf(form, accounts).map((account) => account.id);
+  return { ...form, toAccountId: fittedChoice(form.toAccountId, choices) };
+};
+
+/**
  * Builds the form a new transaction opens with (mockup 31): the Cash group's
- * first kind, today's date, the only account when there is one.
+ * first kind, today's date, the only account when there is one — or, after a
+ * transaction recorded on this page, its kind, targets and date (OQ-257). A
+ * remembered account or card that is no longer offered falls back as a fresh
+ * pick would.
  *
  * @param accounts - The accounts the user can see.
  * @param today - Today, `YYYY-MM-DD`.
- * @returns The empty form.
+ * @param entry - What the last recorded transaction left, if any.
+ * @returns The new form.
  */
-export const newFormOf = (accounts: readonly Account[], today: string): TransactionForm => (
+export const newFormOf = (
+  accounts: readonly Account[],
+  today: string,
+  entry?: RecordedEntry,
+): TransactionForm => withFittedToAccount(
   withFittedTargets({
     kind: TRANSACTION_KINDS[0].code,
-    amount: null,
     date: today,
+    ownTransfer: false,
+    ...entry,
+    amount: null,
     description: '',
     quantity: null,
     ticker: '',
     terms: EMPTY_TERMS,
     allocations: [],
     allocationsEdited: false,
-    ownTransfer: false,
     receivedAmount: null,
-  }, accounts)
+  }, accounts),
+  accounts,
 );

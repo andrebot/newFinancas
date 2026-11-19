@@ -10,7 +10,8 @@ const SEPTEMBER = { year: 2026, month: 9 };
 
 describe('kind groups', () => {
   it("lists a group's kinds in picker order", () => {
-    expect(kindCodesOf('credit_card')).toEqual(['credit_card_bill_payment', 'charge', 'refund']);
+    expect(kindCodesOf('credit_card'))
+      .toEqual(['credit_card_bill_payment', 'charge', 'refund', 'card_fee']);
   });
 
   it("picks a group's ticked kinds", () => {

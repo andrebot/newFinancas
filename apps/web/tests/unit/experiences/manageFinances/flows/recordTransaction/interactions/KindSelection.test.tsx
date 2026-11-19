@@ -30,7 +30,7 @@ describe('KindSelection', () => {
       .toHaveLength(4);
     expect(screen.getByRole<HTMLInputElement>('radio', { name: 'Cash' }).checked).toBe(true);
     const kinds = screen.getByRole('radiogroup', { name: 'Kind' });
-    expect(kinds.textContent).toBe('DepositWithdrawalBoletoPix paymentPix receipt');
+    expect(kinds.textContent).toBe('DepositWithdrawalBoletoPix paymentPix receiptBank fee');
     expect(screen.getByRole<HTMLInputElement>('radio', { name: 'Pix payment' }).checked).toBe(true);
   });
 

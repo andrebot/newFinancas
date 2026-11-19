@@ -30,6 +30,11 @@ const BUY: LedgerItem = {
   ledger: 'account', id: 't-2', kind: 'investment_buy', holdingId: 'h-1', date: '2026-09-10',
 };
 
+/** What a recorded transaction leaves for the next one (OQ-257). */
+const ENTRY = {
+  kind: 'pix_payment', accountId: 'itau', ownTransfer: false, date: '2026-09-12',
+};
+
 vi.mock(
   '../../../../src/experiences/manageFinances/flows/monthOverview/MonthOverviewFlow',
   () => ({
@@ -122,13 +127,13 @@ vi.mock(
      * @returns The stub.
      */
     RecordTransactionFlow: ({
-      transaction, accounts, categories, goals, onLoadHoldings, onLoadSplit, onLoadSchedule,
-      onRecord, onSave, onClose,
+      transaction, startWith, accounts, categories, goals, onLoadHoldings, onLoadSplit,
+      onLoadSchedule, onRecord, onSave, onClose, onRecorded,
     }: RecordTransactionFlowProps) => (
       <Stub
         name="record"
         shows={{
-          transaction, goals, accounts: accounts.length, categories: categories.length,
+          transaction, startWith, goals, accounts: accounts.length, categories: categories.length,
         }}
         requests={{
           loadHoldings: () => onLoadHoldings('inv'),
@@ -139,7 +144,11 @@ vi.mock(
           } as never),
           saveOne: () => onSave('t-1', { description: 'Lunch' }),
         }}
-        events={{ close: onClose }}
+        events={{
+          close: onClose,
+          recorded: () => onRecorded(ENTRY, false),
+          recordedAnother: () => onRecorded(ENTRY, true),
+        }}
       />
     ),
   }),
@@ -684,6 +693,56 @@ describe('the record drawer', () => {
     expect(outcomeOf('record')).toEqual({
       ok: false, error: { code: 'holding.not_found', params: {} },
     });
+  });
+});
+
+describe('the last record\'s entry (OQ-257)', () => {
+  it('closes after a record, and the next new drawer opens on its entry', async () => {
+    await renderExperience();
+    await click('Record Transaction');
+    await settle();
+    expect(shownBy('record')).not.toHaveProperty('startWith');
+    await press('recorded');
+    expect(screen.queryByTestId('record')).toBeNull();
+    await click('Record Transaction');
+    await settle();
+    expect(shownBy('record')).toEqual(expect.objectContaining({ startWith: ENTRY }));
+  });
+
+  it('opens a fresh drawer on the entry when the user asks for another', async () => {
+    await renderExperience();
+    await click('Record Transaction');
+    await settle();
+    const first = screen.getByTestId('record');
+    await press('recordedAnother');
+    await settle();
+    const next = screen.getByTestId('record');
+    expect(next).not.toBe(first);
+    expect(shownBy('record')).toEqual(expect.objectContaining({ startWith: ENTRY }));
+  });
+
+  it('is not carried to another household', async () => {
+    const { store } = await renderExperience({
+      'GET /households': () => jsonResponse(200, {
+        data: [DOE, { ...DOE, id: 'rivera', name: 'Rivera' }],
+      }),
+      'GET /households/rivera/accounts': () => jsonResponse(200, { data: ACCOUNTS }),
+      'GET /households/rivera/categories': () => jsonResponse(200, { data: [] }),
+      'GET /households/rivera/transactions': () => jsonResponse(200, pageOf('r-1', null)),
+      'GET /households/rivera/reports/month-overview': () => jsonResponse(200, REPORT),
+      'GET /households/rivera/goal-progress': () => jsonResponse(200, { data: [] }),
+    });
+    await click('Record Transaction');
+    await settle();
+    await press('recorded');
+    await act(async () => {
+      store.dispatch(switchHousehold('rivera'));
+    });
+    await settle();
+    await settle();
+    await click('Record Transaction');
+    await settle();
+    expect(shownBy('record')).not.toHaveProperty('startWith');
   });
 });
 

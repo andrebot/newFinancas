@@ -974,8 +974,9 @@ end
      """
 EXP->>API: GET …/goal-progress?status=active and ?status=completed — the Goals a split names
 API-->>EXP: Goals with their progress (a failed read: none to add)
-EXP-->>FLOW: mount the drawer — accounts, categories, Goals
+EXP-->>FLOW: mount the drawer — accounts, categories, Goals (+ a new one: what the last record on the page left — OQ-257)
 alt record
+    FLOW-->>KS: open on the last record's kind, account / card and date, else Cash's first kind and today
     User->>KS: group (Cash / Transfer / Credit card / Investment), then kind
     KS->>FLOW: emit kindSelected — amount, date, description and category carry over
 else edit (from a ledger row, via the Experience)
@@ -992,7 +993,7 @@ else edit (from a ledger row, via the Experience)
         EXP-->>FLOW: state: an entry posted? → amount, date, units and terms locked (D8)
     end
 end
-FLOW-->>TE: render the target — a card for charge/refund, a card then its payer (open, not credit-card-only, in the card's currency — OQ-219) for a bill payment, else an open account that isn't credit-card-only
+FLOW-->>TE: render the target — a card for a card kind (charge, refund, card fee), a card then its payer (open, not credit-card-only, in the card's currency — OQ-219) for a bill payment, else an open account that isn't credit-card-only
 User->>TE: amount (currency from the target), date, description, category + subcategory (optional, every kind)
 TE->>FLOW: emit fields
 alt investment buy
@@ -1025,9 +1026,16 @@ alt 4xx (e.g. goal.allocation_exceeds_100, transaction.kind_not_allowed_for_targ
     EXP-->>FLOW: state: error — I18nUtility renders it in the drawer's banner
 else 201 / 200
     API-->>EXP: the transaction
-    EXP-->>FLOW: done → toast, close — the ledger, the month, the accounts' balances and the goals invalidated (cache tags), so Browse + Month Overview refetch
+    EXP-->>FLOW: done → toast — the ledger, the month, the accounts' balances and the goals invalidated (cache tags), so Browse + Month Overview refetch
+    alt an edit
+        FLOW->>EXP: close
+    else a record
+        FLOW->>EXP: recorded(kind, account / card, transfer's To, date — another?)
+        Note over EXP: remembers it for the page's next new drawer (OQ-257) — until the page reloads, per household
+        EXP-->>FLOW: "Record and add another": a fresh drawer on it, amount empty — else close
+    end
 end
-""", ["No recurring option (OQ-55).", "The Experience, not this Flow, refreshes the sibling Flows on completion — by invalidating their cache tags (OQ-222).", "OQ-201: the Holding is picked, never typed, for every investment kind but a buy, a category is offered for every kind but a transfer between own accounts. OQ-222: a transfer is to or from someone else unless \"Between your accounts?\" is on — then From → To, both sides recorded and edited as one, with the amount received across currencies.", "OQ-219: any open account but a credit-card-only one pays a card's bill, in the card's currency. Accounts, cards and categories are chips up to 10, a select beyond."]),
+""", ["No recurring option (OQ-55).", "The Experience, not this Flow, refreshes the sibling Flows on completion — by invalidating their cache tags (OQ-222).", "OQ-201: the Holding is picked, never typed, for every investment kind but a buy, a category is offered for every kind but a transfer between own accounts. OQ-222: a transfer is to or from someone else unless \"Between your accounts?\" is on — then From → To, both sides recorded and edited as one, with the amount received across currencies.", "OQ-219: any open account but a credit-card-only one pays a card's bill, in the card's currency. Accounts, cards and categories are chips up to 10, a select beyond.", "OQ-257: a new drawer opens on the kind, account or card (a transfer's To too) and date the last record on the page left — a target no longer offered falls back as a fresh pick would; \"Record and add another\" records and opens a fresh drawer on them. Edits are never remembered."]),
     ("manage-finances-browse-transactions", "Manage Finances — Browse Transactions", f"{R('GET /households/:householdId/transactions?…&cursor=')}, {R('GET …/holdings/:holdingId')}, {R('DELETE /households/:householdId/transactions/:id')}.",
      [("FP", "Filter Panel"), ("LG", "Ledger"), ("XR", "Expanded Row"), ("DC", "Delete Confirm"), FLOW("Browse Transactions"), EXP("Manage Finances"), API],
      """
