@@ -51,11 +51,15 @@ export const TRANSACTION_KINDS = [
   defineKind('boleto_payment', 'cash', 'account', 'out', 'movement'),
   defineKind('pix_payment', 'cash', 'account', 'out', 'movement'),
   defineKind('pix_receipt', 'cash', 'account', 'in', 'movement'),
+  // Any fee an account is charged, brokerage and custody included (OQ-258).
+  defineKind('bank_fee', 'cash', 'account', 'out', 'movement'),
   defineKind('transfer_sent', 'transfer', 'account', 'out', 'transfer'),
   defineKind('transfer_received', 'transfer', 'account', 'in', 'transfer'),
   defineKind('credit_card_bill_payment', 'credit_card', 'account', 'out', 'bill_payment'),
   defineKind('charge', 'credit_card', 'card', 'out'),
   defineKind('refund', 'credit_card', 'card', 'in'),
+  // A fee on the card's bill: annual fee, interest, IOF (OQ-258).
+  defineKind('card_fee', 'credit_card', 'card', 'out'),
   defineKind('investment_buy', 'investment', 'account', 'out', 'investment_trade'),
   defineKind('investment_sell', 'investment', 'account', 'in', 'investment_trade'),
   defineKind('investment_dividend', 'investment', 'account', 'in', 'movement'),

@@ -6,8 +6,8 @@ import {
 const codes = (kinds: readonly { code: string }[]) => kinds.map((kind) => kind.code);
 
 describe('TRANSACTION_KINDS', () => {
-  it('has the 16 FR-3.1 kinds, each code once', () => {
-    expect(new Set(codes(TRANSACTION_KINDS)).size).toBe(16);
+  it('has the 18 FR-3.1 kinds, each code once (fees: OQ-258)', () => {
+    expect(new Set(codes(TRANSACTION_KINDS)).size).toBe(18);
   });
 
   it('gives every account kind an effect and no card kind one', () => {
@@ -28,7 +28,7 @@ describe('TRANSACTION_KINDS', () => {
     ['investment_buy', 'investment_trade'], ['investment_sell', 'investment_trade'],
     ['investment_redemption', 'investment_trade'],
     ['investment_dividend', 'movement'], ['investment_interest', 'movement'],
-    ['investment_tax', 'movement'], ['pix_payment', 'movement'],
+    ['investment_tax', 'movement'], ['pix_payment', 'movement'], ['bank_fee', 'movement'],
   ])('maps %s to the %s effect (EFFECT_BY_KIND)', (code, effect) => {
     expect(findKind(code)?.effect).toBe(effect);
   });
@@ -36,6 +36,7 @@ describe('TRANSACTION_KINDS', () => {
   it.each([
     ['deposit', 'in'], ['withdrawal', 'out'], ['pix_receipt', 'in'], ['charge', 'out'],
     ['refund', 'in'], ['investment_buy', 'out'], ['investment_sell', 'in'],
+    ['bank_fee', 'out'], ['card_fee', 'out'],
   ])('%s moves money %s', (code, direction) => {
     expect(findKind(code)?.direction).toBe(direction);
   });
@@ -48,12 +49,12 @@ describe('findKind', () => {
 });
 
 describe('kind/target rules (FR-3.1, OQ-76)', () => {
-  it('offers only charge and refund on a credit card', () => {
-    expect(codes(kindsFor({ target: 'card' }))).toEqual(['charge', 'refund']);
+  it('offers only charge, refund and card fee on a credit card (OQ-258)', () => {
+    expect(codes(kindsFor({ target: 'card' }))).toEqual(['charge', 'refund', 'card_fee']);
   });
 
   it('offers every account kind on a checking account', () => {
-    expect(kindsFor({ target: 'account', accountType: 'checking' })).toHaveLength(14);
+    expect(kindsFor({ target: 'account', accountType: 'checking' })).toHaveLength(15);
   });
 
   it('offers nothing on a credit_card_only account — another pays its bills (OQ-219)', () => {

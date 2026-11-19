@@ -21,11 +21,13 @@ interface KindFields {
 const KIND_FIELDS: Record<string, KindFields> = {
   charge: { required: ['creditCardId'], optional: COMMON_OPTIONAL },
   refund: { required: ['creditCardId'], optional: COMMON_OPTIONAL },
+  card_fee: { required: ['creditCardId'], optional: COMMON_OPTIONAL },
   withdrawal: { required: ['accountId'], optional: COMMON_OPTIONAL },
   deposit: { required: ['accountId'], optional: COMMON_OPTIONAL },
   boleto_payment: { required: ['accountId'], optional: COMMON_OPTIONAL },
   pix_payment: { required: ['accountId'], optional: COMMON_OPTIONAL },
   pix_receipt: { required: ['accountId'], optional: COMMON_OPTIONAL },
+  bank_fee: { required: ['accountId'], optional: COMMON_OPTIONAL },
   // `toAccountId` makes it a transfer between the household's own accounts (OQ-222).
   transfer_sent: {
     required: ['accountId'], optional: [...COMMON_OPTIONAL, 'toAccountId', 'receivedAmount'],

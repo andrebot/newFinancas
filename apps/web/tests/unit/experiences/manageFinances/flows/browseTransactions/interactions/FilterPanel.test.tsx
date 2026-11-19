@@ -129,13 +129,14 @@ describe('FilterPanel', () => {
     expect(lastDraft(onDraftChange).kinds).toEqual(['deposit', 'charge']);
     fireEvent.click(screen.getByRole('button', { name: 'Select all Cash kinds' }));
     expect(lastDraft(onDraftChange).kinds).toEqual([
-      'deposit', 'withdrawal', 'boleto_payment', 'pix_payment', 'pix_receipt', 'charge',
+      'deposit', 'withdrawal', 'boleto_payment', 'pix_payment', 'pix_receipt', 'bank_fee',
+      'charge',
     ]);
   });
 
   it('offers Clear once a group is all ticked', () => {
     const { onDraftChange } = renderPanel({
-      draft: { ...NO_FILTERS, kinds: ['credit_card_bill_payment', 'charge', 'refund'] },
+      draft: { ...NO_FILTERS, kinds: ['credit_card_bill_payment', 'charge', 'refund', 'card_fee'] },
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'Clear Credit card kinds' }));
@@ -186,7 +187,9 @@ describe('FilterPanel', () => {
     renderPanel({
       draft: {
         ...NO_FILTERS,
-        kinds: ['deposit', 'withdrawal', 'boleto_payment', 'pix_payment', 'pix_receipt'],
+        kinds: [
+          'deposit', 'withdrawal', 'boleto_payment', 'pix_payment', 'pix_receipt', 'bank_fee',
+        ],
       },
     });
     expect(screen.getByRole('button', { name: 'Clear Cash kinds' }).textContent).toBe('Clear');

@@ -17,7 +17,8 @@ import {
 import { recordText } from './recordText';
 import { isClear, problemsOf, type CheckedField } from './transactionChecks';
 import {
-  currencyOf, isBuy, isTrade, namesHolding, newFormOf, receivingAccountOf, withHoldingSplit,
+  currencyOf, entryOf, isBuy, isTrade, namesHolding, newFormOf, receivingAccountOf,
+  withHoldingSplit, type RecordedEntry,
   type TransactionForm,
 } from './transactionForm';
 import { changesOf, createRequestOf, editFormOf } from './transactionRequest';
@@ -48,13 +49,20 @@ export interface RecordTransactionRequests {
     transactionId: string,
     changes: TransactionUpdateRequest,
   ) => Promise<RequestOutcome>;
-  /** Closes the drawer — after a success too, so the Experience refreshes. */
+  /** Closes the drawer — after a saved edit too. */
   readonly onClose: () => void;
+  /**
+   * A new transaction was recorded: what it leaves for the next one, and
+   * whether the user asked to add another — else the drawer is done (OQ-257).
+   */
+  readonly onRecorded: (entry: RecordedEntry, another: boolean) => void;
 }
 
 /** What the controller works from: the edited row, the lists and the requests. */
 export interface RecordTransactionInput extends RecordTransactionRequests {
   readonly transaction?: EditedTransaction | undefined;
+  /** What the last transaction recorded on the page left, for a new one (OQ-257). */
+  readonly startWith?: RecordedEntry | undefined;
   readonly accounts: readonly Account[];
   readonly goals: readonly SplitGoal[];
 }
@@ -68,8 +76,8 @@ export interface RecordTransactionController {
   readonly retryHoldings: () => void;
   /** Asks for the chosen Holding's split again. */
   readonly retrySplit: () => void;
-  /** Checks the form and sends it. */
-  readonly submit: () => void;
+  /** Checks the form and sends it; `another` keeps a new transaction's drawer going (OQ-257). */
+  readonly submit: (another?: boolean) => void;
 }
 
 /** A state update, as `setState` takes it. */
@@ -176,18 +184,18 @@ const useScheduleRead = (
 /**
  * Builds the state a drawer opens with: the row's form on an edit, else a new one.
  *
- * @param transaction - The row an edit is about, if any.
- * @param accounts - The accounts the user can see.
+ * @param input - The row an edit is about, if any, the accounts and what the last record left.
  * @param today - Today, `YYYY-MM-DD`.
  * @returns The opening state.
  */
 const openingStateOf = (
-  transaction: EditedTransaction | undefined,
-  accounts: readonly Account[],
+  { transaction, accounts, startWith }: Pick<
+    RecordTransactionInput, 'transaction' | 'accounts' | 'startWith'
+  >,
   today: string,
 ) => (transaction
   ? openedWith(editFormOf(transaction.item, transaction.holding), true)
-  : openedWith(newFormOf(accounts, today), false));
+  : openedWith(newFormOf(accounts, today, startWith), false));
 
 /**
  * Builds the request a passing form sends: an edit's changes — `null` when
@@ -207,8 +215,15 @@ const requestOf = (state: RecordTransactionState, input: RecordTransactionInput)
   }
   const currency = currencyOf(form, input.accounts);
   if (!currency) return undefined;
-  return { done: 'recorded', send: () => input.onRecord(createRequestOf(form, currency)) } as const;
+  return {
+    done: 'recorded',
+    send: () => input.onRecord(createRequestOf(form, currency)),
+    entry: entryOf(form),
+  } as const;
 };
+
+/** A request ready to send: a record carries what it leaves for the next one. */
+type SendableRequest = NonNullable<ReturnType<typeof requestOf>>;
 
 /**
  * Holds the Flow's state and runs its reads and its write.
@@ -220,12 +235,12 @@ export default function useRecordTransaction(
   input: RecordTransactionInput,
 ): RecordTransactionController {
   const {
-    transaction, accounts, goals, onLoadHoldings, onLoadSplit, onLoadSchedule, onClose,
+    goals, onLoadHoldings, onLoadSplit, onLoadSchedule, onClose,
   } = input;
   const translator = useI18n();
   const alerts = useAlerts();
   const today = useToday();
-  const [state, setState] = useState(() => openingStateOf(transaction, accounts, today));
+  const [state, setState] = useState(() => openingStateOf(input, today));
   useFocusFirstInvalid(state.refusals);
   useScheduleRead(state, setState, onLoadSchedule);
 
@@ -250,27 +265,31 @@ export default function useRecordTransaction(
   };
 
   /**
-   * Sends the record or save: a success is toasted and closes the drawer; a
-   * failure stays in its banner.
+   * Sends the record or save: a success is toasted, then a saved edit closes
+   * the drawer and a record tells the Experience what it leaves and whether
+   * another follows (OQ-257); a failure stays in its banner.
    *
-   * @param send - The Experience's request.
-   * @param done - The success toast's key.
+   * @param request - The Experience's request, its toast and a record's entry.
+   * @param another - Whether the user asked to add another.
    */
-  const run = async (send: () => Promise<RequestOutcome>, done: 'recorded' | 'saved') => {
+  const run = async (request: SendableRequest, another: boolean) => {
     setState(requestStarted);
-    const outcome = await send();
+    const outcome = await request.send();
     setState((current) => requestEnded(current, outcome.ok ? undefined : outcome.error));
     if (!outcome.ok) return;
-    alerts.success(recordText(translator, done));
-    onClose();
+    alerts.success(recordText(translator, request.done));
+    if (request.done === 'recorded') input.onRecorded(request.entry, another);
+    else onClose();
   };
 
   /**
    * Checks the form and sends it; an edit with no change just closes. The
    * button is busy while a request is out and disabled while an edit's
    * schedule is read, so neither reaches here.
+   *
+   * @param another - Whether to add another after a record (OQ-257).
    */
-  const submit = () => {
+  const submit = (another = false) => {
     const editable = state.original ? editableNow(state) : undefined;
     const problems = problemsOf(state.form, {
       holdings: loadedHoldingsOf(state),
@@ -284,7 +303,7 @@ export default function useRecordTransaction(
     }
     const request = requestOf(state, input);
     if (request === null) onClose();
-    else if (request) run(request.send, request.done);
+    else if (request) run(request, another);
   };
 
   return {

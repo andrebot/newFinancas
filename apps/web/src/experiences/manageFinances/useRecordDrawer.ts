@@ -10,6 +10,7 @@ import {
   useLazyListScheduleEntriesQuery, useRecordTransactionMutation, useSaveTransactionMutation,
 } from './api';
 import type { EditedTransaction } from './flows/recordTransaction/recordTransactionState';
+import type { RecordedEntry } from './flows/recordTransaction/transactionForm';
 import type { RecordTransactionRequests } from './flows/recordTransaction/useRecordTransaction';
 import { holdingToReadFor } from './manageFinances';
 
@@ -21,7 +22,9 @@ import { holdingToReadFor } from './manageFinances';
 // returns after the user moved on — opened another row, Record, or closed —
 // is dropped, and each opening mounts a fresh drawer (PR #145 review). A write
 // refreshes the ledger, the month and the Goals by its cache tags, so closing
-// only unmounts the drawer.
+// only unmounts the drawer. A recorded transaction leaves its kind, targets
+// and date for the next new one until the page reloads, per household; "Record
+// and add another" opens a fresh drawer on them instead of closing (OQ-257).
 
 /**
  * The drawer: closed, or open on a new transaction or an edit — each opening
@@ -40,8 +43,16 @@ export interface RecordDrawer {
   readonly openNew: () => void;
   /** Opens it on a ledger row: a buy once its Holding is read. */
   readonly openEdit: (item: LedgerItem) => Promise<void>;
+  /** What the last transaction recorded here left, for a new one (OQ-257). */
+  readonly startWith: RecordedEntry | undefined;
   /** The Flow's reads, writes and close. */
   readonly requests: RecordTransactionRequests;
+}
+
+/** The last recorded entry, with the household it was recorded in. */
+interface Remembered {
+  readonly householdId: string;
+  readonly entry: RecordedEntry;
 }
 
 /**
@@ -54,6 +65,7 @@ export default function useRecordDrawer(householdId: string): RecordDrawer {
   const alerts = useAlerts();
   const translator = useI18n();
   const [drawer, setDrawer] = useState<DrawerState>({ open: false });
+  const [remembered, setRemembered] = useState<Remembered | undefined>();
   // Counts the user's moves: an Edit, Record or close each takes the next one.
   const latest = useRef(0);
   const [readHolding] = useLazyGetHoldingQuery();
@@ -98,10 +110,30 @@ export default function useRecordDrawer(householdId: string): RecordDrawer {
     setDrawer({ open: true, opening: move, transaction: { item, holding: result.data } });
   };
 
+  /** Closes the drawer, as a move of its own. */
+  const close = () => {
+    nextMove();
+    setDrawer({ open: false });
+  };
+
+  /**
+   * Remembers what a recorded transaction left, then opens a fresh drawer on
+   * it when the user asked for another, else closes (OQ-257).
+   *
+   * @param entry - Its kind, targets and date.
+   * @param another - Whether the user asked to add another.
+   */
+  const recorded = (entry: RecordedEntry, another: boolean) => {
+    setRemembered({ householdId, entry });
+    if (another) setDrawer({ open: true, opening: nextMove() });
+    else close();
+  };
+
   return {
     drawer,
     openNew: () => setDrawer({ open: true, opening: nextMove() }),
     openEdit,
+    startWith: remembered?.householdId === householdId ? remembered.entry : undefined,
     requests: {
       onLoadHoldings: async (accountId) => toDataOutcome(await (
         readHoldings({ householdId, accountId }) as Promise<
@@ -122,10 +154,8 @@ export default function useRecordDrawer(householdId: string): RecordDrawer {
       onSave: async (transactionId, changes) => toRequestOutcome(
         await save({ householdId, transactionId, changes }),
       ),
-      onClose: () => {
-        nextMove();
-        setDrawer({ open: false });
-      },
+      onClose: close,
+      onRecorded: recorded,
     },
   };
 }

@@ -327,6 +327,7 @@ const renderFlow = (
     onRecord: vi.fn(async (): Promise<RequestOutcome> => ({ ok: true })),
     onSave: vi.fn(async (): Promise<RequestOutcome> => ({ ok: true })),
     onClose: vi.fn(),
+    onRecorded: vi.fn(),
   };
   prepare(requests);
   /**
@@ -422,8 +423,8 @@ describe('recording a new transaction', () => {
     expect(screen.queryByText('Lands in')).toBeNull();
   });
 
-  it('records a cash kind, toasts it and closes', async () => {
-    const { onRecord, onClose } = renderFlow();
+  it('records a cash kind, toasts it and hands up what it leaves (OQ-257)', async () => {
+    const { onRecord, onClose, onRecorded } = renderFlow();
 
     await press('kind pix_payment');
     await press('account itau');
@@ -445,7 +446,49 @@ describe('recording a new transaction', () => {
       description: 'Feira',
     });
     expect(toasts()).toEqual(['Transaction recorded.']);
-    expect(onClose).toHaveBeenCalledOnce();
+    expect(onRecorded).toHaveBeenCalledExactlyOnceWith({
+      kind: 'pix_payment',
+      accountId: 'itau',
+      creditCardId: undefined,
+      ownTransfer: false,
+      toAccountId: undefined,
+      date: '2026-09-02',
+    }, false);
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('asks for another after "Record and add another" (OQ-257)', async () => {
+    const { onRecord, onRecorded, onClose } = renderFlow();
+
+    await press('account itau');
+    await press('amount');
+    await press('Record and add another');
+
+    expect(onRecord).toHaveBeenCalledOnce();
+    expect(toasts()).toEqual(['Transaction recorded.']);
+    expect(onRecorded).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ accountId: 'itau' }),
+      true,
+    );
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('opens on what the last record left (OQ-257)', async () => {
+    const { onRecord } = renderFlow({
+      startWith: {
+        kind: 'boleto_payment', accountId: 'itau', ownTransfer: false, date: '2026-08-30',
+      },
+    });
+
+    expect(attr('kind', 'kind')).toBe('boleto_payment');
+    expect(attr('details', 'date')).toBe('2026-08-30');
+    expect(attr('amount', 'currency')).toBe('BRL');
+    await press('amount');
+    await press('Record Transaction');
+
+    expect(onRecord).toHaveBeenCalledWith(expect.objectContaining({
+      kind: 'boleto_payment', accountId: 'itau', date: '2026-08-30',
+    }));
   });
 
   it('records a bill payment on its card and payer (OQ-219)', async () => {
@@ -679,9 +722,10 @@ describe('a sell (mockup 35, OQ-206)', () => {
 
 describe('editing a ledger row (OQ-201 D6)', () => {
   it('opens the row with its kind and targets locked, and sends only what changed', async () => {
-    const { onSave, onClose } = renderFlow({ transaction: { item: accountRowOf() } });
+    const { onSave, onClose, onRecorded } = renderFlow({ transaction: { item: accountRowOf() } });
 
     expect(screen.getByRole('dialog', { name: 'Edit Transaction' })).toBeDefined();
+    expect(screen.queryByRole('button', { name: 'Record and add another' })).toBeNull();
     expect(attr('kind', 'locked')).toBe('true');
     expect(attr('targets', 'locked')).toBe('true');
     await press('amount');
@@ -690,6 +734,7 @@ describe('editing a ledger row (OQ-201 D6)', () => {
     expect(onSave).toHaveBeenCalledExactlyOnceWith('t1', { amount: 5_000 });
     expect(toasts()).toEqual(['Transaction saved.']);
     expect(onClose).toHaveBeenCalledOnce();
+    expect(onRecorded).not.toHaveBeenCalled();
   });
 
   it('just closes an edit with no change', async () => {

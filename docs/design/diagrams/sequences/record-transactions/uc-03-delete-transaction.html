@@ -112,7 +112,7 @@ sequenceDiagram
                 TM->>IHA: unarchiveIfSystemArchived(holdingId)
                 Note over IHA: if this was the sell/redemption that zeroed the<br/>Holding, it comes back (OQ-80) &mdash; user archives stay,<br/>and its automatic snapshot dies with the row (OQ-56)
             end
-        else was a card charge/refund
+        else was a card kind (charge, refund, card fee)
             TM->>CCA: applyMovement(cardId, {-signedAmount, currency, date})
         end
         TM->>BA: accrueIfClaimed({accountScope, currency, categoryId, subcategoryId, &mp;amount, date})

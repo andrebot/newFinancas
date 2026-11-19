@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   INTEREST_PAYMENTS, RATE_TYPES, accountChoicesOf, assetTypesFor,
-  cardEntriesOf, cardEntryOf, currencyOf, directionOf, groupOf,
+  cardEntriesOf, cardEntryOf, currencyOf, directionOf, entryOf, groupOf,
   isBillPayment, isBuy, isCardKind, isDebentureBuy, isFixedTermBuy, isTrade, kindsOfGroup,
   isOwnTransfer, namesCard, namesHolding, newFormOf, receivingAccountOf, takesHoldingSplit,
   takesSpread, toAccountChoicesOf, withAccount, withAllocations, withCard, withCategory,
@@ -22,10 +22,10 @@ describe('kind shape (FR-3.1, OQ-201)', () => {
   it('groups kinds and lists a group in picker order', () => {
     expect(groupOf('pix_payment')).toBe('cash');
     expect(kindsOfGroup('cash').map((kind) => kind.code)).toEqual([
-      'deposit', 'withdrawal', 'boleto_payment', 'pix_payment', 'pix_receipt',
+      'deposit', 'withdrawal', 'boleto_payment', 'pix_payment', 'pix_receipt', 'bank_fee',
     ]);
     expect(kindsOfGroup('credit_card').map((kind) => kind.code)).toEqual([
-      'credit_card_bill_payment', 'charge', 'refund',
+      'credit_card_bill_payment', 'charge', 'refund', 'card_fee',
     ]);
   });
 
@@ -147,6 +147,87 @@ describe('newFormOf', () => {
 
   it('picks the only account there is', () => {
     expect(newFormOf([ITAU], '2026-09-14').accountId).toBe('itau');
+  });
+
+  it('opens on what the last record left, every other field empty (OQ-257)', () => {
+    const form = newFormOf(ACCOUNTS, '2026-09-14', {
+      kind: 'pix_payment', accountId: 'chase', ownTransfer: false, date: '2026-09-02',
+    });
+
+    expect(form).toMatchObject({
+      kind: 'pix_payment',
+      accountId: 'chase',
+      date: '2026-09-02',
+      amount: null,
+      description: '',
+      toAccountId: undefined,
+    });
+    expect(form.categoryId).toBeUndefined();
+  });
+
+  it('keeps a remembered card, and a bill payment\'s card and payer (OQ-257)', () => {
+    expect(newFormOf(ACCOUNTS, '2026-09-14', {
+      kind: 'charge', creditCardId: 'nu1', ownTransfer: false, date: '2026-09-02',
+    })).toMatchObject({ kind: 'charge', creditCardId: 'nu1', accountId: undefined });
+    expect(newFormOf(ACCOUNTS, '2026-09-14', {
+      kind: 'credit_card_bill_payment',
+      accountId: 'itau',
+      creditCardId: 'visa1',
+      ownTransfer: false,
+      date: '2026-09-02',
+    })).toMatchObject({ creditCardId: 'visa1', accountId: 'itau' });
+  });
+
+  it('keeps a transfer\'s From and To while both are offered (OQ-257)', () => {
+    const second = accountOf('second', { name: 'Second' });
+    const form = newFormOf([...ACCOUNTS, second], '2026-09-14', {
+      kind: 'transfer_sent',
+      accountId: 'itau',
+      ownTransfer: true,
+      toAccountId: 'second',
+      date: '2026-09-02',
+    });
+
+    expect(form).toMatchObject({ ownTransfer: true, accountId: 'itau', toAccountId: 'second' });
+  });
+
+  it('falls back as a fresh pick would once a remembered target is gone (OQ-257)', () => {
+    expect(newFormOf(ACCOUNTS, '2026-09-14', {
+      kind: 'pix_payment', accountId: 'old', ownTransfer: false, date: '2026-09-02',
+    }).accountId).toBeUndefined();
+    expect(newFormOf([ITAU], '2026-09-14', {
+      kind: 'pix_payment', accountId: 'chase', ownTransfer: false, date: '2026-09-02',
+    }).accountId).toBe('itau');
+    expect(newFormOf([ITAU, CHASE], '2026-09-14', {
+      kind: 'transfer_sent',
+      accountId: 'itau',
+      ownTransfer: true,
+      toAccountId: 'gone',
+      date: '2026-09-02',
+    }).toAccountId).toBe('chase');
+  });
+});
+
+describe('entryOf', () => {
+  it('keeps a form\'s kind, targets and date, nothing else (OQ-257)', () => {
+    const form = formOf({
+      kind: 'transfer_sent',
+      accountId: 'itau',
+      ownTransfer: true,
+      toAccountId: 'chase',
+      date: '2026-09-02',
+      amount: 5_000,
+      description: 'Rent',
+    });
+
+    expect(entryOf(form)).toEqual({
+      kind: 'transfer_sent',
+      accountId: 'itau',
+      creditCardId: undefined,
+      ownTransfer: true,
+      toAccountId: 'chase',
+      date: '2026-09-02',
+    });
   });
 });
 
