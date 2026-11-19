@@ -37,7 +37,6 @@ const renderPanel = (over: Partial<FilterPanelProps> = {}) => {
       draft={NO_FILTERS}
       accounts={ACCOUNTS}
       categories={CATEGORIES}
-      showRangeErrors={false}
       {...handlers}
       {...over}
     />,
@@ -199,43 +198,11 @@ describe('FilterPanel', () => {
     expect(screen.queryByText(/selected/)).toBeNull();
   });
 
-  it('picks a date range, and shows its errors once Show was refused', () => {
-    const reversed = {
-      ...NO_FILTERS, range: { preset: 'custom' as const, from: '2026-02-01', to: '2026-01-01' },
-    };
-    const { onDraftChange } = renderPanel({ draft: reversed, showRangeErrors: true });
-
-    expect(screen.getByText('Editing From or To switches the preset to Custom.')).toBeDefined();
-    expect(screen.getByRole('textbox', { name: /To/ }).getAttribute('aria-invalid')).toBe('true');
-    fireEvent.click(screen.getByRole('radio', { name: 'Any time' }));
-    expect(lastDraft(onDraftChange).range).toEqual({ preset: 'anyTime', from: '', to: '' });
-  });
-
-  it('offers every range preset, then Custom (review V4)', () => {
+  it('offers no date range: the period bar picks the month (OQ-255)', () => {
     renderPanel();
 
-    const range = screen.getByRole('group', { name: 'Date range' });
-    expect(within(range).getAllByRole('radio').map((radio) => radio.getAttribute('aria-label')
-      ?? radio.closest('label')?.textContent)).toEqual([
-      'Any time', 'This month', 'Last 30 days', 'Last 90 days', 'This year', 'Custom',
-    ]);
-  });
-
-  it('shows a malformed From once Show was refused (review V4)', () => {
-    renderPanel({
-      draft: { ...NO_FILTERS, range: { preset: 'custom', from: '2026-13-01', to: '' } },
-      showRangeErrors: true,
-    });
-
-    expect(screen.getByRole('textbox', { name: /From/ }).getAttribute('aria-invalid')).toBe('true');
-  });
-
-  it('keeps the range quiet until Show is refused', () => {
-    renderPanel({
-      draft: { ...NO_FILTERS, range: { preset: 'custom', from: '2026-13-01', to: '' } },
-    });
-
-    expect(screen.getByRole('textbox', { name: /From/ }).getAttribute('aria-invalid')).toBeNull();
+    expect(screen.queryByRole('group', { name: 'Date range' })).toBeNull();
+    expect(screen.queryByRole('textbox', { name: /From/ })).toBeNull();
   });
 
   it('emits Show and Clear all', () => {

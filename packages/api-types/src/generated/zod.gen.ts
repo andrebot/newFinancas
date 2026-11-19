@@ -879,6 +879,7 @@ export const zMoneyByCurrency = z.object({
  * FR-6.11 / FR-6.6 / FR-4.3 / FR-8.5
  */
 export const zMonthOverviewReport = z.object({
+    firstDate: z.iso.date().nullable(),
     reportType: z.enum(['month-overview']),
     summary: z.array(z.object({
         currency: zCurrency,

@@ -91,7 +91,10 @@ sequenceDiagram
     RE->>VSA: latestAsOf(market-priced holdingIds, monthEnd)
     RE->>ATA: costBasisAsOf(fixed-term holdingIds, monthEnd) &mdash; OQ-206
     Note over RE: funding in an Account the viewer can't see counts, unnamed (OQ-206)
-    RE-->>IM: {summaryByCurrency, yearStrip, balances, budgets, goals}
+    RE->>ATA: firstDate(accountIds) &mdash; the oldest day (OQ-256)
+    RE->>CTA: firstDate(creditCardIds)
+    Note over RE: firstDate: the earlier of the two, or null &mdash; the period bar reaches its year
+    RE-->>IM: {summaryByCurrency, yearStrip, balances, budgets, goals, firstDate}
     IM-->>API: report
     API-->>User: 200 OK
     </pre>
@@ -102,7 +105,8 @@ sequenceDiagram
       <li>One currency is shown at a time in the UI ($/R$ switch) &mdash; the response carries every currency, never summed (FR-2.2).</li>
       <li><strong>OQ-201:</strong> In/Out count card charges and refunds and investment buys and sells, leave out transfers and bill payments; a card shows its outstanding balance at the month&#39;s end; each Budget item carries its id, name, currency and visibility, and one with no period opened that month shows the target in effect and zero spend; Goals come per currency &mdash; the frontend shows the Goal&#39;s own currency and a note when others fund it. Archived Accounts are left out.</li>
       <li><strong>OQ-206:</strong> the strip is January&ndash;December of the selected year; a fixed-term Holding&#39;s value at the month&#39;s end is its trades&#39; cost basis by then; a Goal&#39;s funding in an Account the viewer can&#39;t see counts with no id or name; Goal progress reads the split in effect at the month&#39;s end; an Account archived after the month still shows on its Balance rail.</li>
-      <li>See FR-6.11, FR-6.6, FR-4.3, FR-8.5, OQ-74, OQ-206.</li>
+      <li><strong>OQ-256:</strong> <code>firstDate</code> is the day of the oldest transaction on the Accounts and cards the viewer sees, so the period bar reaches back to backdated history now that the ledger lists one month (OQ-255).</li>
+      <li>See FR-6.11, FR-6.6, FR-4.3, FR-8.5, OQ-74, OQ-206, OQ-256.</li>
     </ul>
   </div>
   <script>

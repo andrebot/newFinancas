@@ -19,6 +19,19 @@ const context: SignedInContext = {
 const editOf = (fake: ReturnType<typeof fakeDeps>) => createEdit(fake.deps);
 
 describe('editTransaction', () => {
+  it('refuses a new date after today 422 date.max, writing nothing (OQ-253)', async () => {
+    const fake = fakeDeps();
+    await expect(editOf(fake).editTransaction(context, HOUSEHOLD_ID, ROW.id, {
+      date: '2026-10-14',
+    })).rejects.toMatchObject({
+      domainError: {
+        code: 'validation.failed',
+        details: [{ field: 'date', code: 'date.max', params: { max: '2026-10-13' } }],
+      },
+    });
+    expect(fake.accountTransactions.update).not.toHaveBeenCalled();
+  });
+
   it('refuses a transaction on neither ledger', async () => {
     const fake = fakeDeps();
     fake.accountTransactions.findById.mockResolvedValue(undefined);
@@ -132,11 +145,11 @@ describe('editTransaction', () => {
 
     it('reapplies the movement on the new date when only the date changes', async () => {
       const fake = fakeDeps();
-      await editOf(fake).editTransaction(context, HOUSEHOLD_ID, ROW.id, { date: '2026-10-14' });
+      await editOf(fake).editTransaction(context, HOUSEHOLD_ID, ROW.id, { date: '2026-10-12' });
       expect(fake.accounts.applyMovement).toHaveBeenNthCalledWith(2, ACCOUNT.id, {
         amount: -5_000,
         currency: 'BRL',
-        date: '2026-10-14',
+        date: '2026-10-12',
       });
     });
 
@@ -852,10 +865,10 @@ describe('editTransaction', () => {
       const fake = fakeDeps();
       fake.accountTransactions.findById.mockResolvedValue(buyRow);
       fake.holdings.findById.mockResolvedValue(FIXED_HOLDING);
-      await editOf(fake).editTransaction(context, HOUSEHOLD_ID, buyRow.id, { date: '2026-10-14' });
+      await editOf(fake).editTransaction(context, HOUSEHOLD_ID, buyRow.id, { date: '2026-10-12' });
       expect(fake.investmentProducts.schedule).toHaveBeenCalledWith(
         HOUSEHOLD_ID,
-        expect.objectContaining({ date: '2026-10-14' }),
+        expect.objectContaining({ date: '2026-10-12' }),
       );
     });
 

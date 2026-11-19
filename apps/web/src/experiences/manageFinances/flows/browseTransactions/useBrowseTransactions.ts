@@ -4,19 +4,17 @@ import { useAlerts } from '../../../../utilities/AlertProvider';
 import { useI18n } from '../../../../utilities/I18nProvider';
 import type { RequestOutcome } from '../../../../utilities/requestOutcome';
 import {
-  applyRefused, deleteAsked, deleteCancelled, deleteEnded, deleteStarted, draftChanged,
+  deleteAsked, deleteCancelled, deleteEnded, deleteStarted, draftChanged,
   draftOpened, INITIAL_BROWSE_STATE, rowToggled, type BrowseState,
 } from './browseState';
 import { browseText } from './browseText';
-import {
-  isRangeClear, NO_FILTERS, rangeProblemsOf, type LedgerFilters,
-} from './ledgerFilters';
+import { NO_FILTERS, type LedgerFilters } from './ledgerFilters';
 
 // The Browse Transactions Flow's controller (FL16, OQ-220): the open row and
 // its delete, sent through the Experience and toasted once done — the
 // Experience's refetch takes the row away — and the filter drawer's draft,
 // started from the applied filters each time the drawer opens and handed up
-// by Show once its range is sound. Neither this nor the Flow calls the backend.
+// by Show. Neither this nor the Flow calls the backend.
 
 /** What the Experience holds and does for the Flow. */
 export interface BrowseTransactionsRequests {
@@ -45,7 +43,7 @@ export interface BrowseTransactionsController {
   readonly confirmDelete: (item: LedgerItem) => void;
   /** Takes the drawer's edited draft. */
   readonly changeDraft: (draft: LedgerFilters) => void;
-  /** Applies the draft, once its range is sound. */
+  /** Applies the draft and closes the drawer. */
   readonly apply: () => void;
   /** Empties the draft — the Holding too. */
   readonly clearDraft: () => void;
@@ -100,12 +98,8 @@ export default function useBrowseTransactions(
     setState((current) => deleteEnded(current, outcome.ok ? undefined : outcome.error));
   };
 
-  /** Hands the draft up and closes the drawer — or, with an unsound range, shows why. */
+  /** Hands the draft up and closes the drawer. */
   const apply = () => {
-    if (!isRangeClear(rangeProblemsOf(state.draft.range))) {
-      setState(applyRefused);
-      return;
-    }
     onFiltersChange(state.draft);
     onFilterClose();
   };

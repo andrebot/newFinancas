@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  applyRefused, deleteAsked, deleteCancelled, deleteEnded, deleteStarted, draftChanged,
+  deleteAsked, deleteCancelled, deleteEnded, deleteStarted, draftChanged,
   draftOpened, INITIAL_BROWSE_STATE, rowToggled,
 } from '../../../../../../src/experiences/manageFinances/flows/browseTransactions/browseState';
 import {
@@ -56,20 +56,17 @@ describe('the delete', () => {
 });
 
 describe('the draft', () => {
-  it('starts from the applied filters, its errors hidden', () => {
-    const refused = applyRefused(INITIAL_BROWSE_STATE);
-    expect(refused.showRangeErrors).toBe(true);
-
-    const opened = draftOpened(refused, holdingFilters('bbas3'));
-    expect(opened).toMatchObject({ draft: holdingFilters('bbas3'), showRangeErrors: false });
+  it('starts from the applied filters', () => {
+    const opened = draftOpened(INITIAL_BROWSE_STATE, holdingFilters('bbas3'));
+    expect(opened).toMatchObject({ draft: holdingFilters('bbas3') });
     expect(draftChanged(opened, NO_FILTERS).draft).toBe(NO_FILTERS);
   });
 });
 
 describe('the initial state (review V4)', () => {
-  it('opens nothing, confirms nothing and shows no range error', () => {
+  it('opens nothing and confirms nothing', () => {
     expect(INITIAL_BROWSE_STATE).toEqual({
-      confirming: false, deleting: false, draft: NO_FILTERS, showRangeErrors: false,
+      confirming: false, deleting: false, draft: NO_FILTERS,
     });
   });
 });

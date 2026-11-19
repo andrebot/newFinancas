@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  billCycleOf, budgetStatusOf, cashFlowOf, flowsOf, monthOverview, movedInside, openAtMonthEnd,
+  billCycleOf, budgetStatusOf, cashFlowOf, firstDateOf, flowsOf, monthOverview, movedInside,
+  openAtMonthEnd,
   overBudgetFirst, type BudgetStatus,
 } from '../../../../src/engines/reporting/monthOverview';
 import {
@@ -189,6 +190,29 @@ describe('budgetStatusOf', () => {
   });
 });
 
+describe('firstDateOf', () => {
+  it('answers the earlier ledger\'s oldest day, asking for what the member sees', async () => {
+    const deps = fakeDeps();
+    deps.accountFirstDate.mockResolvedValue('2024-05-01');
+    deps.cardFirstDate.mockResolvedValue('2023-11-30');
+
+    expect(await firstDateOf(deps, [anAccount()], [aCard('visa', 'checking')])).toBe('2023-11-30');
+    expect(deps.accountFirstDate).toHaveBeenCalledWith(['checking']);
+    expect(deps.cardFirstDate).toHaveBeenCalledWith(['visa']);
+
+    deps.cardFirstDate.mockResolvedValue('2025-01-01');
+    expect(await firstDateOf(deps, [anAccount()], [])).toBe('2024-05-01');
+  });
+
+  it('answers the one ledger that has transactions, or null when neither has', async () => {
+    const deps = fakeDeps();
+    expect(await firstDateOf(deps, [], [])).toBeNull();
+
+    deps.cardFirstDate.mockResolvedValue('2025-02-03');
+    expect(await firstDateOf(deps, [], [])).toBe('2025-02-03');
+  });
+});
+
 describe('monthOverview', () => {
   // Own transfers and bill payments are left out by their stored effect, never by kind.
   it('sums the year of every visible Account and card, by stored effect', async () => {
@@ -219,6 +243,14 @@ describe('monthOverview', () => {
     expect(deps.cardMonthlySums).toHaveBeenCalledWith(['visa'], '2026-01-01', '2026-12-31');
     expect(deps.listCreditCards).toHaveBeenCalledWith(['checking', 'old']);
     expect(deps.listAccounts).toHaveBeenCalledWith(HOUSEHOLD_ID, 'ana');
+    expect(overview.firstDate).toBeNull();
+  });
+
+  it('carries the oldest day the member sees, for the period bar (OQ-256)', async () => {
+    const deps = fakeDeps();
+    deps.accountFirstDate.mockResolvedValue('2024-05-01');
+
+    expect((await monthOverview(deps, VIEWER, MARCH)).firstDate).toBe('2024-05-01');
   });
 
   it('lists Accounts open at the month\'s end, each followed by its cards (F10, D16)', async () => {
@@ -393,7 +425,7 @@ describe('monthOverview', () => {
 
   it('is empty for a new household', async () => {
     expect(await monthOverview(fakeDeps(), VIEWER, MARCH)).toEqual({
-      summary: [], yearStrip: [], balances: [], budgets: [], goals: [],
+      summary: [], yearStrip: [], balances: [], budgets: [], goals: [], firstDate: null,
     });
   });
 });

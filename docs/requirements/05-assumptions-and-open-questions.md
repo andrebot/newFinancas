@@ -483,7 +483,8 @@ balances, budgets, and goals overview, but the transaction list shows
 **all** transactions, newest first, loaded incrementally. Filters can use
 any date range (not limited to the selected month) and can filter by
 investment Holding, which is how a Holding links to its transactions
-(FR-3.12).
+(FR-3.12). *(Reversed in OQ-255: the list shows the selected month; only
+the Holding filter spans every month, and the date range is gone.)*
 
 ### OQ-62: Smaller UI-driven requirements confirmed in the design round
 **Confirmed:**
@@ -7805,6 +7806,52 @@ stored as 18 Nov's, and the transactions of 6–17 Nov only rebuilt history.
 - **The anchor rule is unchanged (OQ-169):** a movement dated on or after the
   date moves the balance, one dated before only rebuilds history — so a
   transaction on the starting day itself is not in the starting balance.
+
+### OQ-253: No transaction is dated after today
+**Confirmed with the stakeholder (Nov 2026), after a charge saved with a
+mistyped year stretched its card's cycle rows to 2060.**
+- **Recording or editing a transaction dated after today is refused**,
+  `422 validation.failed` with `date.max` on `date` — today in the app's
+  time zone (OQ-104), as market values and index rates already are
+  (OQ-172, OQ-178). Both ledgers, every kind, both sides of an own
+  transfer. The Record/Edit drawer checks it first with the same rule.
+- Not affected: a fixed-term buy's due date (it is in the future by nature),
+  and the schedule's postings, which the daily job writes on their day.
+- Rows already stored are left as they are (none was future-dated when this
+  shipped); the 2060 cycle rows are flat and harmless.
+
+### OQ-254: Every Month rail wraps
+**Confirmed with the stakeholder (Nov 2026).** The Balance and Budget rails
+scrolled sideways and overflowed; like the Goals (PR #145) they now wrap
+their cards onto new rows — no scrolling, arrows or fade — on the
+Transactions page and the Dashboard (`MonthRails` passes `wrap` to all three
+`CardRail`s). The kit's scrolling rail stays for other callers.
+
+### OQ-255: The Transactions ledger shows the selected month
+**Confirmed with the stakeholder (Nov 2026); reverses OQ-61.** Changing the
+month on the period bar left the ledger unchanged, which read as a bug.
+- **The ledger lists the month the period bar selects**, newest first, still
+  paged and under its month header; changing the month asks again. The
+  Experience sends that month's first and last day as `from`/`to` (the API
+  is unchanged).
+- **The filter drawer has no date range any more** — the period bar picks the
+  month. Kinds, accounts and cards, and categories apply within the month.
+- **A Holding filter spans every month** ("See in Transactions" shows all of
+  a Holding's trades) until its chip is removed; then the month applies again.
+
+### OQ-256: The period bar reaches the oldest transaction
+**Confirmed with the stakeholder (Nov 2026), completing OQ-255.** The bar
+reached back only to the household's creation or an account's starting
+balance, so a transaction backdated before both — history rebuilt after
+the fact (OQ-252) — could no longer be found once the ledger showed one
+month.
+- **The bar's earliest year is the earliest of** the household's creation,
+  an account's starting balance and **the oldest transaction the member
+  sees** on either ledger.
+- The `month-overview` report carries it as `firstDate` (the day, or `null`
+  with no transactions), read by `ReportingEngine` from each ledger's
+  Accessor over the Accounts and cards the member sees. The web app keeps
+  the last answer while another month loads, so the bar's reach is steady.
 
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 

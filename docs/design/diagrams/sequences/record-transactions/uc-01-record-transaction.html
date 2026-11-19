@@ -76,6 +76,7 @@ sequenceDiagram
 
     User->>API: POST /households/:householdId/transactions {accountId | creditCardId, kind, date, amount, currency, categoryId?, description, holdingId? | assetType + ticker?, quantity?, rate?, dueDate?, interestPayment?, incentivised?, allocations?}
     API->>TM: record(actor, input)
+    Note over TM: a date after today (app time zone) &rarr; 422 validation.failed {date: date.max}, before anything is read (OQ-253)
     Note over TM: loads the target (Account or card + its Account &mdash; a bill payment's card may sit on any Account<br/>the actor may record on, open and in the payment's currency, checked after the payer, OQ-219) and, if given, the Category &mdash;<br/>an archived Account or a newly used archived Category is refused (OQ-169, OQ-201)
     TM->>AZ: canRecord(actor, targetId)? &mdash; creating on its Account: any Member on a shared one (OQ-223)
     alt not authorized

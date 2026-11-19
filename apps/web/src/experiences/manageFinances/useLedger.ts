@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router';
 import { skipToken } from '@reduxjs/toolkit/query/react';
 import type { LedgerItem } from '@financas/api-types';
 import { toRequestOutcome } from '../../api/outcome';
+import type { Period } from '../../kit/periodBar/periodBar';
 import { manageFinances } from '../../config/constants';
 import type { RequestOutcome } from '../../utilities/requestOutcome';
 import {
@@ -14,7 +15,8 @@ import { ledgerStatusOf } from './manageFinances';
 
 // The ledger the Manage Finances Experience holds for Browse Transactions (X6,
 // OQ-220, OQ-222): the applied filters, the pages for them — an infinite
-// query keyed by the filters, refetched whole after every write — the filter
+// query keyed by the filters and the period bar's month (OQ-255; a Holding's
+// trades span every month), refetched whole after every write — the filter
 // drawer's open state and the delete. A Holding filter lives in the address
 // (`?holding=<id>`, what a Holding's "See in Transactions" links to), so it
 // survives a reload; the other filters are this page's state alone. The
@@ -77,14 +79,21 @@ const useHoldingParam = (fromThisHousehold: boolean) => {
  * @param householdId - The household.
  * @param holdingFromAddress - Whether the address's Holding is this household's:
  *   it is the household the page opened in.
+ * @param period - The month the period bar selects; the ledger lists its days.
  * @returns The filters, the pages and the Flow's handlers.
  */
-export default function useLedger(householdId: string, holdingFromAddress: boolean): LedgerSource {
+export default function useLedger(
+  householdId: string,
+  holdingFromAddress: boolean,
+  period: Period,
+): LedgerSource {
   const { holdingId, setHoldingId } = useHoldingParam(holdingFromAddress);
   const [others, setOthers] = useState<LedgerFilters>(NO_FILTERS);
   const [filterOpen, setFilterOpen] = useState(false);
   const filters: LedgerFilters = { ...others, holdingId };
-  const query = useListTransactionsInfiniteQuery({ householdId, query: queryOf(filters) });
+  const query = useListTransactionsInfiniteQuery({
+    householdId, query: queryOf(filters, period),
+  });
   const holding = useGetHoldingQuery(
     holdingId === undefined ? skipToken : { householdId, holdingId },
   );

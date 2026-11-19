@@ -57,6 +57,21 @@ const sellRequest = (over: Partial<TransactionCreate> = {}): TransactionCreate =
 });
 
 describe('recordTransaction', () => {
+  it('refuses a date after today 422 date.max, writing nothing (OQ-253)', async () => {
+    const fake = fakeDeps();
+    await expect(recordOf(fake).recordTransaction(
+      context,
+      HOUSEHOLD_ID,
+      cashRequest({ date: '2026-10-14' }),
+    )).rejects.toMatchObject({
+      domainError: {
+        code: 'validation.failed',
+        details: [{ field: 'date', code: 'date.max', params: { max: '2026-10-13' } }],
+      },
+    });
+    expect(fake.inTransaction).not.toHaveBeenCalled();
+  });
+
   it('refuses a kind the reference data does not know', async () => {
     const fake = fakeDeps();
     await expect(recordOf(fake).recordTransaction(

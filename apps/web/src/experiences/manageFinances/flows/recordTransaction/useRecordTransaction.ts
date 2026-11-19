@@ -276,6 +276,7 @@ export default function useRecordTransaction(
       holdings: loadedHoldingsOf(state),
       editable,
       receivesOtherCurrency: receivingAccountOf(state.form, input.accounts) !== undefined,
+      today,
     });
     if (!isClear(problems)) {
       setState((current) => submitRefused(current, problems));

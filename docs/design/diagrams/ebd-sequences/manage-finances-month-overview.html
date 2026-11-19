@@ -67,8 +67,8 @@ sequenceDiagram
     participant EXP as Manage Finances<br/>Experience
     participant API as Backend API
     EXP->>API: GET /households/:householdId/reports/month-overview?year=&month= (today's month)
-    API-->>EXP: summary per currency, year strip, balances, budgets, goals
-    EXP-->>FLOW: period, report (loading / failed / loaded), accounts
+    API-->>EXP: summary per currency, year strip, balances, budgets, goals, firstDate
+    EXP-->>FLOW: period, report (loading / failed / loaded), accounts, firstDate (kept while a month loads)
     FLOW-->>PB: render year + 12 months in the switch's currency
     FLOW-->>CS: render In / Out / Total (R$ the first time, then the remembered pick)
     FLOW-->>RL: render rails labelled 'Month/Year' (placeholders while loading)
@@ -90,7 +90,7 @@ sequenceDiagram
     </pre>
   </div>
   <div class="notes">
-<ul><li>FormattingUtility formats every amount in its own currency; nothing is summed across currencies.</li><li>OQ-201: a Goal funded in other currencies shows its own currency's progress and a note pointing to Goals (the exchange rate lives there); a card shows its outstanding at the month's end.</li><li>OQ-221: the Experience holds the month (its query's argument) and refetches it after a record, edit or delete; the Flow keeps only the $ / R$ switch. Its two regions (bar, rails) are placed by the Experience's page grid around Browse's ledger. A failed month never shows the previous month's figures.</li></ul>
+<ul><li>FormattingUtility formats every amount in its own currency; nothing is summed across currencies.</li><li>OQ-201: a Goal funded in other currencies shows its own currency's progress and a note pointing to Goals (the exchange rate lives there); a card shows its outstanding at the month's end.</li><li>OQ-221: the Experience holds the month (its query's argument) and refetches it after a record, edit or delete; the Flow keeps only the $ / R$ switch. Its two regions (bar, rails) are placed by the Experience's page grid around Browse's ledger. A failed month never shows the previous month's figures.</li><li>OQ-256: the bar reaches back to the earliest of the household's creation, an account's starting balance and the oldest transaction (the report's firstDate), so backdated history stays browsable month by month.</li></ul>
   </div>
   <script>
     mermaid.initialize({

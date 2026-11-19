@@ -6,8 +6,6 @@ import { Button } from '../../../../../kit/button/Button';
 import { ChipChecks } from '../../../../../kit/chipGroup/ChipChecks';
 import type { Chip } from '../../../../../kit/chipGroup/ChipGroup';
 import { MultiChoiceField } from '../../../../../kit/choiceField/MultiChoiceField';
-import { DateRangePicker } from '../../../../../kit/dateRangePicker/DateRangePicker';
-import type { RelativePreset } from '../../../../../kit/dateRangePicker/dateRangePresets';
 import { Drawer } from '../../../../../kit/drawer/Drawer';
 import { useI18n } from '../../../../../utilities/I18nProvider';
 import type { Translator } from '../../../../../utilities/i18n';
@@ -17,13 +15,14 @@ import {
 } from '../../../../transactionNames';
 import { browseText } from '../browseText';
 import {
-  chosenInGroup, kindCodesOf, rangeProblemsOf, withGroupKinds, type LedgerFilters,
+  chosenInGroup, kindCodesOf, withGroupKinds, type LedgerFilters,
 } from '../ledgerFilters';
 
 // Filter Panel (FL16, mockup 33; FR-3.12, OQ-204, OQ-220): the drawer that
 // edits a draft of the ledger's filters — kinds by group (each with Select all
 // or Clear; Transfer and Investment folded until opened or used), accounts and
-// cards in one picker, categories, and a date range of any span. Archived
+// cards in one picker, and categories — the month comes from the period bar
+// (OQ-255), so there is no date range. Archived
 // accounts, cards and categories are offered after the open ones, tagged.
 // Show hands the draft up; Clear all empties it, the Holding too. It renders
 // and emits; the Flow holds the draft.
@@ -38,16 +37,9 @@ export interface FilterPanelProps {
   readonly accounts: readonly Account[];
   /** The household's categories, archived ones included. */
   readonly categories: readonly Category[];
-  /** Whether Show was refused, so the range's errors show. */
-  readonly showRangeErrors: boolean;
   readonly onApply: () => void;
   readonly onClearAll: () => void;
 }
-
-/** The range presets mockup 33 offers; Custom follows them. */
-const PRESETS: readonly RelativePreset[] = [
-  'anyTime', 'thisMonth', 'last30Days', 'last90Days', 'thisYear',
-];
 
 /** The groups shown open at first (mockup 33); the others fold until used. */
 const OPEN_GROUPS: readonly KindGroup[] = ['cash', 'credit_card'];
@@ -377,41 +369,6 @@ function ListFilters({
 }
 
 /**
- * Renders the date range with its hint, and its errors once Show was refused.
- *
- * @param props - The draft, its handler and whether the errors show.
- * @returns The date range.
- */
-function RangeFilter({
-  draft, onDraftChange, showRangeErrors,
-}: Pick<FilterPanelProps, 'draft' | 'onDraftChange' | 'showRangeErrors'>) {
-  const translator = useI18n();
-  const problems = showRangeErrors ? rangeProblemsOf(draft.range) : {};
-  /**
-   * Translates one end's refusal.
-   *
-   * @param end - From or To.
-   * @returns Its message, or nothing.
-   */
-  const errorOf = (end: 'from' | 'to') => {
-    const problem = problems[end];
-    return problem && translator.field(problem.code, problem.params);
-  };
-  return (
-    <div className="flex flex-col gap-2">
-      <DateRangePicker
-        label={browseText(translator, 'filter.dateRange')}
-        presets={PRESETS}
-        value={draft.range}
-        onChange={(range) => onDraftChange({ ...draft, range })}
-        errors={{ from: errorOf('from'), to: errorOf('to') }}
-      />
-      <p className="type-caption text-muted">{browseText(translator, 'filter.rangeHint')}</p>
-    </div>
-  );
-}
-
-/**
  * Renders the filter drawer.
  *
  * @param props - The open state, the draft, the lists and the handlers.
@@ -442,7 +399,6 @@ export function FilterPanel(props: FilterPanelProps) {
       <div className="flex flex-col gap-6">
         <KindFilter {...props} />
         <ListFilters {...props} />
-        <RangeFilter {...props} />
       </div>
     </Drawer>
   );

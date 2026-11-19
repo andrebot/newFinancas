@@ -21,6 +21,8 @@ import { ownFundingOf } from '../goalFunding';
 // A rail with nothing to show keeps its title and says so in one line, so
 // the column keeps its shape from month to month. On a phone the period
 // chips are left out: the period bar above names the month (mockup 34).
+// Every rail wraps its cards onto new rows rather than scrolling sideways
+// (stakeholder: the Goals in PR #145, the Balances and Budgets in OQ-254).
 // Display only.
 
 /** A budget's month, as the report sends it. */
@@ -98,6 +100,7 @@ export function MonthRails({ period, content }: MonthRailsProps) {
         periodFromXl
         loading={loading}
         placeholderClassName={RAIL_CARD_PLACEHOLDERS.balance}
+        wrap
       >
         {content && cardsOr(content.balances.map((card) => (
           <BalanceRailCard
@@ -117,6 +120,7 @@ export function MonthRails({ period, content }: MonthRailsProps) {
         periodFromXl
         loading={loading}
         placeholderClassName={RAIL_CARD_PLACEHOLDERS.ring}
+        wrap
       >
         {content && cardsOr(content.budgets.map((budget) => (
           <BudgetRailCard
@@ -134,7 +138,6 @@ export function MonthRails({ period, content }: MonthRailsProps) {
         periodFromXl
         loading={loading}
         placeholderClassName={RAIL_CARD_PLACEHOLDERS.ring}
-        // The Goals wrap downwards rather than scroll (stakeholder, PR #145).
         wrap
       >
         {content && cardsOr(content.goals.map((goal) => (

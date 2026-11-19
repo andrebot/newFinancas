@@ -582,6 +582,26 @@ describe('monthCounts', () => {
   }));
 });
 
+describe('firstDate', () => {
+  it('answers the oldest day on the given ledgers only', scenario(async ({
+    record, ledger, checking, savings,
+  }) => {
+    await recordAll(record, [
+      { date: '2026-10-01', amount: 100 },
+      { date: '2024-03-15', amount: 200 },
+      { accountId: savings, date: '2020-01-02', amount: 1 },
+    ]);
+
+    expect(await ledger.firstDate([checking])).toBe('2024-03-15');
+    expect(await ledger.firstDate([checking, savings])).toBe('2020-01-02');
+  }));
+
+  it('answers null for none, or for no transactions', scenario(async ({ ledger, checking }) => {
+    expect(await ledger.firstDate([])).toBeNull();
+    expect(await ledger.firstDate([checking])).toBeNull();
+  }));
+});
+
 describe('monthlySums', () => {
   it('sums by month, currency, kind and stored effect within the range', scenario(async ({
     record, ledger, checking, savings,

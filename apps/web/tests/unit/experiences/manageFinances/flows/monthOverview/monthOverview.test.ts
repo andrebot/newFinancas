@@ -32,7 +32,7 @@ describe('figuresOf', () => {
 describe('firstYearOf', () => {
   it('reaches the household\'s creation when it comes first', () => {
     const accounts = [accountOf('a', { startingBalanceDate: '2025-03-01' })];
-    expect(firstYearOf(accounts, '2024-06-01T00:00:00Z')).toBe(2024);
+    expect(firstYearOf(accounts, '2024-06-01T00:00:00Z', null)).toBe(2024);
   });
 
   it('reaches the earliest account\'s starting balance when it comes first', () => {
@@ -40,10 +40,15 @@ describe('firstYearOf', () => {
       accountOf('a', { startingBalanceDate: '2025-03-01' }),
       accountOf('b', { startingBalanceDate: '2019-11-30' }),
     ];
-    expect(firstYearOf(accounts, '2026-01-10T00:00:00Z')).toBe(2019);
+    expect(firstYearOf(accounts, '2026-01-10T00:00:00Z', '2022-04-01')).toBe(2019);
   });
 
   it('is the household\'s year with no accounts', () => {
-    expect(firstYearOf([], '2026-01-10T00:00:00Z')).toBe(2026);
+    expect(firstYearOf([], '2026-01-10T00:00:00Z', null)).toBe(2026);
+  });
+
+  it('reaches the oldest transaction when it comes first (OQ-256)', () => {
+    const accounts = [accountOf('a', { startingBalanceDate: '2025-03-01' })];
+    expect(firstYearOf(accounts, '2026-01-10T00:00:00Z', '2021-12-31')).toBe(2021);
   });
 });

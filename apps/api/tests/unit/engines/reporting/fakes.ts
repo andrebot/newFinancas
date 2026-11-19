@@ -174,6 +174,8 @@ export const fakeDeps = () => ({
   cardBalancesAsOf: vi.fn<ReportingEngineDeps['cardBalancesAsOf']>(async () => []),
   accountMonthlySums: vi.fn<ReportingEngineDeps['accountMonthlySums']>(async () => []),
   cardMonthlySums: vi.fn<ReportingEngineDeps['cardMonthlySums']>(async () => []),
+  accountFirstDate: vi.fn<ReportingEngineDeps['accountFirstDate']>(async () => null),
+  cardFirstDate: vi.fn<ReportingEngineDeps['cardFirstDate']>(async () => null),
   listBudgets: vi.fn<ReportingEngineDeps['listBudgets']>(async () => []),
   budgetPeriodsAsOf: vi.fn<ReportingEngineDeps['budgetPeriodsAsOf']>(async () => []),
   listGoals: vi.fn<ReportingEngineDeps['listGoals']>(async () => []),

@@ -42,6 +42,7 @@ sequenceDiagram
 
     User->>API: POST /households/:householdId/transactions {accountId | creditCardId, kind, date, amount, currency, categoryId?, description, holdingId? | assetType + ticker?, quantity?, rate?, dueDate?, interestPayment?, incentivised?, allocations?}
     API->>TM: record(actor, input)
+    Note over TM: a date after today (app time zone) &rarr; 422 validation.failed {date: date.max}, before anything is read (OQ-253)
     Note over TM: loads the target (Account or card + its Account &mdash; a bill payment's card may sit on any Account<br/>the actor may record on, open and in the payment's currency, checked after the payer, OQ-219) and, if given, the Category &mdash;<br/>an archived Account or a newly used archived Category is refused (OQ-169, OQ-201)
     TM->>AZ: canRecord(actor, targetId)? &mdash; creating on its Account: any Member on a shared one (OQ-223)
     alt not authorized
@@ -259,6 +260,7 @@ sequenceDiagram
         TM-->>API: NotFound
         API-->>User: 404 household.not_found to a non-member, else 404 transaction.not_found (OQ-117, OQ-223)
     end
+    Note over TM: a new date after today (app time zone) &rarr; 422 validation.failed {date: date.max}, nothing written (OQ-253)
     TM->>AZ: canWrite(actor, transactionId)? &mdash; data.edit: on a shared Account its recorder's, on a personal one its owner's (OQ-223)
     opt a bill payment's card's Account, or a transfer's other side
         TM->>AZ: canWrite(actor, that Account)? &mdash; the same request, so an Account gone personal never hands over the other (OQ-223)
@@ -497,7 +499,7 @@ sequenceDiagram
 """,
     notes="""
     <ul>
-      <li><strong>Not scoped to the period bar (OQ-61):</strong> any date range, including none.</li>
+      <li><strong>Scoped to the period bar (OQ-255, reversing OQ-61):</strong> the web app sends the selected month&#39;s from/to; a Holding filter sends none and spans every month.</li>
       <li>Filtering by <code>holdingId</code> returns the investment transactions linked to it &mdash; the holding row's "See in Transactions" link.</li>
       <li><strong>Filters (OQ-201):</strong> combined with AND; accounts and cards are one picker (a row matches when its account or card is selected, a card's rows also when its Account is &mdash; OQ-204; none = all); a Category includes its Subcategories.</li>
       <li>No logging/audit &mdash; a plain read (FR-7.1 audits mutations only).</li>
@@ -545,7 +547,10 @@ sequenceDiagram
     RE->>VSA: latestAsOf(market-priced holdingIds, monthEnd)
     RE->>ATA: costBasisAsOf(fixed-term holdingIds, monthEnd) &mdash; OQ-206
     Note over RE: funding in an Account the viewer can't see counts, unnamed (OQ-206)
-    RE-->>IM: {summaryByCurrency, yearStrip, balances, budgets, goals}
+    RE->>ATA: firstDate(accountIds) &mdash; the oldest day (OQ-256)
+    RE->>CTA: firstDate(creditCardIds)
+    Note over RE: firstDate: the earlier of the two, or null &mdash; the period bar reaches its year
+    RE-->>IM: {summaryByCurrency, yearStrip, balances, budgets, goals, firstDate}
     IM-->>API: report
     API-->>User: 200 OK
 """,
@@ -555,7 +560,8 @@ sequenceDiagram
       <li>One currency is shown at a time in the UI ($/R$ switch) &mdash; the response carries every currency, never summed (FR-2.2).</li>
       <li><strong>OQ-201:</strong> In/Out count card charges and refunds and investment buys and sells, leave out transfers and bill payments; a card shows its outstanding balance at the month&#39;s end; each Budget item carries its id, name, currency and visibility, and one with no period opened that month shows the target in effect and zero spend; Goals come per currency &mdash; the frontend shows the Goal&#39;s own currency and a note when others fund it. Archived Accounts are left out.</li>
       <li><strong>OQ-206:</strong> the strip is January&ndash;December of the selected year; a fixed-term Holding&#39;s value at the month&#39;s end is its trades&#39; cost basis by then; a Goal&#39;s funding in an Account the viewer can&#39;t see counts with no id or name; Goal progress reads the split in effect at the month&#39;s end; an Account archived after the month still shows on its Balance rail.</li>
-      <li>See FR-6.11, FR-6.6, FR-4.3, FR-8.5, OQ-74, OQ-206.</li>
+      <li><strong>OQ-256:</strong> <code>firstDate</code> is the day of the oldest transaction on the Accounts and cards the viewer sees, so the period bar reaches back to backdated history now that the ledger lists one month (OQ-255).</li>
+      <li>See FR-6.11, FR-6.6, FR-4.3, FR-8.5, OQ-74, OQ-206, OQ-256.</li>
     </ul>
 """,
 ))

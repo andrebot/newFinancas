@@ -45,17 +45,24 @@ export const figuresOf = (
 };
 
 /**
- * Reads the earliest year the period bar reaches: the household's creation
- * or an account's starting-balance date, whichever is first. History
- * backdated before both stays in the ledger (OQ-221).
+ * Reads the earliest year the period bar reaches: the household's creation,
+ * an account's starting-balance date or the oldest transaction the user sees,
+ * whichever is first — so backdated history can be browsed month by month
+ * (OQ-256).
  *
  * @param accounts - The accounts the user can see, archived ones included.
  * @param householdCreatedAt - When the household was created, ISO.
+ * @param firstDate - The oldest transaction's day, or `null` when unknown or none.
  * @returns The year.
  */
-export const firstYearOf = (accounts: readonly Account[], householdCreatedAt: string) => (
+export const firstYearOf = (
+  accounts: readonly Account[],
+  householdCreatedAt: string,
+  firstDate: string | null,
+) => (
   Math.min(
     Number(householdCreatedAt.slice(0, 4)),
     ...accounts.map((account) => Number(account.startingBalanceDate.slice(0, 4))),
+    ...(firstDate === null ? [] : [Number(firstDate.slice(0, 4))]),
   )
 );

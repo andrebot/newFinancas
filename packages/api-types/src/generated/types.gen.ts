@@ -574,6 +574,9 @@ export type TransactionCreateRequest = {
      * Reference data (`@financas/reference`, OQ-98), e.g. withdrawal, pix_payment, transfer_sent, credit_card_bill_payment, charge, investment_buy — FR-3.1
      */
     kind: string;
+    /**
+     * Not after today — 422 date.max (OQ-253)
+     */
     date: string;
     amount: PositiveMoney;
     currency: Currency;
@@ -644,6 +647,9 @@ export type InterestPayment = 'at_maturity' | 'monthly' | 'semiannual';
  *
  */
 export type TransactionUpdateRequest = {
+    /**
+     * Not after today — 422 date.max (OQ-253)
+     */
     date?: string;
     amount?: PositiveMoney;
     categoryId?: string | null;
@@ -1012,6 +1018,10 @@ export type MoneyByCurrency = {
  * FR-6.11 / FR-6.6 / FR-4.3 / FR-8.5
  */
 export type MonthOverviewReport = {
+    /**
+     * OQ-256 — the day of the oldest transaction on the Accounts and cards the caller sees (both ledgers), or null when there is none; the period bar reaches back to its year.
+     */
+    firstDate: string | null;
     reportType: 'month-overview';
     /**
      * Per currency, never summed

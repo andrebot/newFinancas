@@ -1,13 +1,14 @@
 import { type Page } from '@playwright/test';
 import { expect, test } from '../support/test';
 import { createBudget, seededCategories } from '../support/accountApi';
-import { pick } from '../support/controls';
+import { pick, showMonth } from '../support/controls';
 import {
   accountNamed, isoDay, monthOverview, monthStart, recordTransaction,
 } from '../support/financeApi';
 import { createHousehold, registerUser } from '../support/identityApi';
 import { dashboard } from '../support/insightsApi';
 import brl from '../support/money';
+import { sectionOf } from '../support/locators';
 import { signInThroughUi } from '../support/signIn';
 import text from '../support/text';
 
@@ -55,9 +56,10 @@ test('an expense recorded in the browser reaches its Budget, the balance and the
   await record.getByRole('button', { name: text('recordTransaction', 'record.submit') }).click();
   await expect(page.getByText(text('recordTransaction', 'recorded'))).toBeVisible();
 
-  const budgets = page.getByRole('region', { name: text('monthRails', 'budgets') });
+  // Every Month rail wraps (OQ-254): found as the section its heading opens.
+  const budgets = sectionOf(page, text('monthRails', 'budgets'));
   await expect(budgets).toContainText(text('railCard', 'budget.left', { amount: brl(95_450) }));
-  const balances = page.getByRole('region', { name: text('monthRails', 'balances') });
+  const balances = sectionOf(page, text('monthRails', 'balances'));
   await expect(balances).toContainText(brl(-4550));
 
   const overview = await monthOverview(request, owner, household.id, new Date());
@@ -70,10 +72,10 @@ test('an expense recorded in the browser reaches its Budget, the balance and the
 
   // The Dashboard's rails show the same month (I11).
   await page.goto('/');
-  const dashboardBudgets = page.getByRole('region', { name: text('monthRails', 'budgets') });
+  const dashboardBudgets = sectionOf(page, text('monthRails', 'budgets'));
   await expect(dashboardBudgets)
     .toContainText(text('railCard', 'budget.left', { amount: brl(95_450) }));
-  const dashboardBalances = page.getByRole('region', { name: text('monthRails', 'balances') });
+  const dashboardBalances = sectionOf(page, text('monthRails', 'balances'));
   await expect(dashboardBalances).toContainText(brl(-4550));
   const report = await dashboard(request, owner, household.id);
   expect(report.budgets).toEqual([expect.objectContaining({
@@ -103,22 +105,22 @@ test('the period bar moves the Month Overview to another month, the ledger stayi
   await expect(figure(page, text('monthOverview', 'in'))).toHaveText(brl(0));
   await expect(figure(page, text('monthOverview', 'out'))).toHaveText(brl(-4_550));
 
+  // The ledger lists the month on view (OQ-255): this month's Lunch only.
+  const rows = page.getByRole('button', { name: /Salary|Lunch/ });
+  await expect(rows).toHaveCount(1);
+  await expect(rows).toHaveAccessibleName(/Lunch/);
+
   const previous = monthStart(-1);
-  if (previous.getFullYear() !== new Date().getFullYear()) {
-    await page.getByRole('button', { name: text('periodBar', 'previousYear') }).click();
-  }
-  // A month's button is named by it and its figures, e.g. `Sep 2026: in …`.
-  const short = new Intl.DateTimeFormat('en-US', { month: 'short' }).format(previous);
-  await page.getByRole('button', { name: new RegExp(`^${short} ${previous.getFullYear()}:`) })
-    .click();
+  await showMonth(page, previous);
 
   await expect(figure(page, text('monthOverview', 'in'))).toHaveText(`+${brl(500_000)}`);
   await expect(figure(page, text('monthOverview', 'out'))).toHaveText(brl(0));
   // The account opened today, so both rows predate its anchor and walk its
   // history backward (OQ-169): the rail shows that month's end as the API has it.
   const [ending] = (await monthOverview(request, owner, household.id, previous)).balances;
-  const balances = page.getByRole('region', { name: text('monthRails', 'balances') });
+  const balances = sectionOf(page, text('monthRails', 'balances'));
   await expect(balances).toContainText(brl(ending!.amount));
-  // The ledger isn't scoped by the period: both months' rows stay listed.
-  await expect(page.getByRole('button', { name: /Salary|Lunch/ })).toHaveCount(2);
+  // Last month's ledger: its Salary only.
+  await expect(rows).toHaveCount(1);
+  await expect(rows).toHaveAccessibleName(/Salary/);
 });

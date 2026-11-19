@@ -1,4 +1,5 @@
 import type { Locator, Page } from '@playwright/test';
+import text from './text';
 
 // Driving the kit's controls as a user does (I8): a Select is a button that
 // opens a listbox, a segmented control is a radio group whose inputs are hidden
@@ -62,3 +63,21 @@ export const typeDate = async (field: Locator, date: string): Promise<void> => {
 export const cardNamed = (page: Page, name: string): Locator => (
   page.getByRole('button').filter({ has: page.getByText(name, { exact: true }) })
 );
+
+/**
+ * Picks a month on the period bar, as a user does: back a year first when it
+ * is in last year, then the month's button — named by it and its figures,
+ * e.g. `Sep 2026: in …` (en-US).
+ *
+ * @param page - The browser page, on a page with the period bar.
+ * @param month - Any day of the month to show.
+ * @returns Resolves once the month is picked.
+ */
+export const showMonth = async (page: Page, month: Date): Promise<void> => {
+  if (month.getFullYear() !== new Date().getFullYear()) {
+    await page.getByRole('button', { name: text('periodBar', 'previousYear') }).click();
+  }
+  const short = new Intl.DateTimeFormat('en-US', { month: 'short' }).format(month);
+  await page.getByRole('button', { name: new RegExp(`^${short} ${month.getFullYear()}:`) })
+    .click();
+};

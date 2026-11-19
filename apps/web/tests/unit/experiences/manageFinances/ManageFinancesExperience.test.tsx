@@ -40,7 +40,8 @@ vi.mock(
      * @returns The stub.
      */
     MonthOverviewFlow: ({
-      period, onPeriodChange, overview, onRetry, accounts, householdCreatedAt, currencyMemory,
+      period, onPeriodChange, overview, onRetry, accounts, householdCreatedAt, firstDate,
+      currencyMemory,
     }: MonthOverviewFlowProps) => (
       <div data-region="overview-bar">
         <Stub
@@ -50,6 +51,7 @@ vi.mock(
             overview: overview.status,
             accounts: accounts.length,
             householdCreatedAt,
+            firstDate,
             currency: currencyMemory.read(),
           }}
           events={{
@@ -259,6 +261,7 @@ describe('the page', () => {
       overview: 'loaded',
       accounts: ACCOUNTS.length,
       householdCreatedAt: DOE.createdAt,
+      firstDate: null,
       currency: 'USD',
     });
     expect(shownBy('browse')).toEqual({
@@ -267,9 +270,6 @@ describe('the page', () => {
         accountIds: [],
         creditCardIds: [],
         categoryIds: [],
-        range: {
-          preset: 'anyTime', from: '', to: '',
-        },
       },
       pages: 1,
       hasMore: true,
@@ -350,6 +350,23 @@ describe('the month', () => {
     expect(calls(fetchFn)).toContain(`${MONTH}?year=2026&month=10`);
   });
 
+  it('keeps the oldest transaction\'s day while another month loads (OQ-256)', async () => {
+    const { fetchFn } = await renderExperience({
+      'GET /households/doe/reports/month-overview': () => (
+        jsonResponse(200, { ...REPORT, firstDate: '2024-05-01' })
+      ),
+    });
+    expect(shownBy('month')).toEqual(expect.objectContaining({ firstDate: '2024-05-01' }));
+    const hold = deferred();
+    fetchFn.mockImplementationOnce(() => hold.promise);
+    await press('nextMonth');
+    expect(shownBy('month')).toEqual(expect.objectContaining({
+      overview: 'loading', firstDate: '2024-05-01',
+    }));
+    await settleWith(hold, jsonResponse(200, REPORT));
+    expect(shownBy('month')).toEqual(expect.objectContaining({ firstDate: null }));
+  });
+
   it('reads a failed month as failed and asks again on retry', async () => {
     let failing = true;
     await renderExperience({
@@ -365,17 +382,26 @@ describe('the month', () => {
 });
 
 describe('the ledger', () => {
+  it('lists the selected month: another month asks the ledger again (OQ-255)', async () => {
+    const { fetchFn } = await renderExperience();
+    await press('nextMonth');
+    expect(calls(fetchFn))
+      .toContain('GET /households/doe/transactions?from=2026-10-01&to=2026-10-31');
+  });
+
   it('asks for the next page by its cursor', async () => {
     const { fetchFn } = await renderExperience();
     await press('reachEnd');
-    expect(calls(fetchFn)).toContain('GET /households/doe/transactions?cursor=c-1');
+    expect(calls(fetchFn))
+      .toContain('GET /households/doe/transactions?from=2026-09-01&to=2026-09-30&cursor=c-1');
     expect(shownBy('browse')).toEqual(expect.objectContaining({ pages: 2, hasMore: false }));
   });
 
   it('asks again from the start when the filters change', async () => {
     const { fetchFn } = await renderExperience();
     await press('filterKinds');
-    expect(calls(fetchFn)).toContain('GET /households/doe/transactions?kinds=expense');
+    expect(calls(fetchFn))
+      .toContain('GET /households/doe/transactions?kinds=expense&from=2026-09-01&to=2026-09-30');
     expect(shownBy('browse')).toEqual(expect.objectContaining({
       filters: expect.objectContaining({ kinds: ['expense'] }), pages: 1,
     }));
@@ -487,7 +513,7 @@ describe('the Holding filter across households', () => {
     await settle();
     expect(screen.getByTestId('location').textContent).toBe('/transactions');
     expect(calls(fetchFn).filter((call) => call.startsWith('GET /households/rivera/transactions')))
-      .toEqual(['GET /households/rivera/transactions']);
+      .toEqual(['GET /households/rivera/transactions?from=2026-09-01&to=2026-09-30']);
     expect(shownBy('browse')).toEqual(expect.objectContaining({
       filters: expect.not.objectContaining({ holdingId: 'h-1' }),
     }));

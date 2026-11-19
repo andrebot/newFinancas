@@ -77,6 +77,7 @@ export const goalOf = (
 /** September 2026, in both currencies. */
 export const REPORT: MonthOverviewReport = {
   reportType: 'month-overview',
+  firstDate: null,
   summary: [
     {
       currency: 'USD', in: 320000, out: 83139, net: 236861,
