@@ -82,6 +82,7 @@ sequenceDiagram
         TM-->>API: NotFound
         API-->>User: 404 household.not_found to a non-member, else 404 transaction.not_found (OQ-117, OQ-223)
     end
+    Note over TM: a new date after today (app time zone) &rarr; 422 validation.failed {date: date.max}, nothing written (OQ-253)
     TM->>AZ: canWrite(actor, transactionId)? &mdash; data.edit: on a shared Account its recorder's, on a personal one its owner's (OQ-223)
     opt a bill payment's card's Account, or a transfer's other side
         TM->>AZ: canWrite(actor, that Account)? &mdash; the same request, so an Account gone personal never hands over the other (OQ-223)

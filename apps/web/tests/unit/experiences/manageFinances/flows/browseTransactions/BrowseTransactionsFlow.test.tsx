@@ -61,24 +61,15 @@ vi.mock('../../../../../../src/experiences/manageFinances/flows/browseTransactio
    * @returns The stub.
    */
   FilterPanel: ({
-    open, draft, showRangeErrors, onDraftChange, onApply, onClearAll, onClose,
+    open, draft, onDraftChange, onApply, onClearAll, onClose,
   }: FilterPanelProps) => (
     <div
       data-testid="filters"
       data-open={String(open)}
       data-draft={JSON.stringify(draft)}
-      data-errors={String(showRangeErrors)}
     >
       <button type="button" onClick={() => onDraftChange({ ...draft, kinds: ['charge'] })}>
         tick charge
-      </button>
-      <button
-        type="button"
-        onClick={() => onDraftChange({
-          ...draft, range: { preset: 'custom', from: '2026-02-01', to: '2026-01-01' },
-        })}
-      >
-        reverse range
       </button>
       <button type="button" onClick={onApply}>show</button>
       <button type="button" onClick={onClearAll}>clear all</button>
@@ -178,7 +169,7 @@ describe('the ledger', () => {
     renderFlow();
 
     expect(screen.getByRole('heading', { level: 2 }).textContent)
-      .toBe('All transactions newest first');
+      .toBe("The month's transactions newest first");
     expect(screen.getByRole('heading', { name: /September 2026/ }).parentElement?.textContent)
       .toContain('7 transactions');
     expect(screen.getByTestId('row c1')).toBeDefined();
@@ -198,7 +189,7 @@ describe('the ledger', () => {
 
   it('shows the empty ledger, or the empty filtered one', () => {
     const { rerender } = renderFlow({ ledger: { pages: [], hasMore: false, status: 'idle' } });
-    expect(screen.getByText('No transactions yet')).toBeDefined();
+    expect(screen.getByText('No transactions in this month')).toBeDefined();
 
     rerender({
       ledger: { pages: [], hasMore: false, status: 'idle' }, filters: holdingFilters('h'),
@@ -373,15 +364,6 @@ describe('the filters', () => {
     fireEvent.click(screen.getByText('show'));
     expect(onFiltersChange).toHaveBeenCalledWith({ ...NO_FILTERS, kinds: ['charge'] });
     expect(onFilterClose).toHaveBeenCalled();
-  });
-
-  it('refuses an unsound range, showing why', () => {
-    const { onFiltersChange } = renderFlow({ filterOpen: true });
-
-    fireEvent.click(screen.getByText('reverse range'));
-    fireEvent.click(screen.getByText('show'));
-    expect(onFiltersChange).not.toHaveBeenCalled();
-    expect(screen.getByTestId('filters').getAttribute('data-errors')).toBe('true');
   });
 
   it('starts the draft from the applied filters when it mounts with the drawer open', () => {

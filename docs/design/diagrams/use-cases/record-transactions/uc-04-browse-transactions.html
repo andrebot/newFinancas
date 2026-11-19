@@ -55,7 +55,7 @@ flowchart LR
         direction TB
         FE1(["Start"])
         FE2["Open Transactions page (or 'See in<br/>Transactions' from a holding)"]
-        FE3["Optionally open Filter: kinds, accounts,<br/>cards, categories, holding, date range<br/>(any months)"]
+        FE3["Pick the month in the period bar; optionally<br/>open Filter: kinds, accounts, cards,<br/>categories, holding (any months)"]
         FE4["Request a page of transactions"]
         FE5["Receive page + next cursor"]
         FE6["Render grouped by month and day;<br/>load the next page on scroll"]
@@ -81,7 +81,7 @@ flowchart LR
   </div>
 
   <div class="notes">
-    <p><strong>Not scoped to the period bar (OQ-61):</strong> the list shows all transactions, lazily loaded; the month selector only drives the overview (UC-5).</p>
+    <p><strong>Scoped to the period bar (OQ-255, reversing OQ-61):</strong> the list shows the selected month, lazily loaded; a Holding filter spans every month.</p>
     <p>Filtering by holding is how a holding links to its own transactions.</p>
   </div>
 

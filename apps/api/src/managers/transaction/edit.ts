@@ -15,13 +15,15 @@ import type { SignedInContext } from '../requestContext';
 import inSequence from '../sequence';
 import { requireNoProblems } from '../validation';
 import { inLockOrder } from './lockOrder';
-import { requestLogger, type TransactionDeps, type TransactionStores } from './context';
+import {
+  requestLogger, todayOf, type TransactionDeps, type TransactionStores,
+} from './context';
 import {
   accountMovementOf, accrueBudget, budgetAccrualOf, cardMovementOf, type EffectValues,
 } from './effects';
 import { engineRateOf, holdingRateOf, type RequestRate } from '../holdingRates';
 import { restateHoldingValues } from '../holdingValues';
-import { fixedTermProblems } from './kindRules';
+import { fixedTermProblems, futureDateProblems } from './kindRules';
 import {
   categoryNotFound, holdingArchived, indexRateMissing, scheduleStarted, subcategoryMismatch,
   transactionChanged, tradeRefusal,
@@ -616,6 +618,7 @@ const createEdit = (deps: TransactionDeps) => ({
     update: TransactionEdit,
   ): Promise<EditedTransaction> => {
     const row = await loadEditable(deps, context, householdId, transactionId, 'data.edit');
+    requireNoProblems(futureDateProblems(update.date, todayOf(deps)));
     const kind = findKind(row.transaction.kind);
     if (!kind) throw validationFailed([{ field: 'kind', code: 'field.invalid_option' }]);
     const pair = await loadPairSide(deps, context, householdId, row, 'data.edit');

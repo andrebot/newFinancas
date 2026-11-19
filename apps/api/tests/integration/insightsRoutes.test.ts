@@ -146,6 +146,7 @@ const WITH_PROGRESS_OVERVIEW = () => ({
   balances: [],
   budgets: [],
   goals: [WITH_PROGRESS],
+  firstDate: '2024-05-01',
 });
 
 describe('insights routes (OQ-201, under /households/:householdId — OQ-174)', () => {
@@ -172,6 +173,7 @@ describe('insights routes (OQ-201, under /households/:householdId — OQ-174)', 
       balances: [],
       budgets: [],
       goals: [GOAL_WITH_PROGRESS_JSON],
+      firstDate: '2024-05-01',
     });
     expect(insights.report).toHaveBeenCalledWith(
       signedIn(),

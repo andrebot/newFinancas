@@ -1,6 +1,6 @@
 import { type Page } from '@playwright/test';
 import { expect, test } from '../support/test';
-import { pick } from '../support/controls';
+import { pick, showMonth } from '../support/controls';
 import {
   UNIT, accountNamed, archiveHolding, getHolding, isoDay, monthStart, recordTransaction,
 } from '../support/financeApi';
@@ -111,6 +111,8 @@ test('a Holding its user archived stays archived when a trade on it is deleted',
   await archiveHolding(request, owner, household.id, buy.holdingId!);
   await signInThroughUi(page, owner);
   await page.goto('/transactions');
+  // The ledger lists the month on view (OQ-255): the sell is a year back.
+  await showMonth(page, monthStart(-12));
 
   await deleteRow(page, text('browseTransactions', 'title.trade', {
     kind: text('transactions', 'kind.investment_sell'), ticker: 'CDB Matured',

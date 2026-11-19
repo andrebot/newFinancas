@@ -1,5 +1,5 @@
 import {
-  and, desc, eq, getTableColumns, gte, inArray, lte,
+  and, desc, eq, getTableColumns, gte, inArray, lte, min,
 } from 'drizzle-orm';
 import type { Database } from '../db/database';
 import { accounts, cardTransactions, creditCards } from '../db/schema';
@@ -305,6 +305,21 @@ const createCardTransactionAccessor = (db: Database) => ({
       .from(cardTransactions)
       .where(and(filterCondition(db, filter), inMonths(cardTransactions.date, months)))
       .groupBy(monthOfDate);
+  },
+
+  /**
+   * The day of the oldest transaction on some cards — how far back the
+   * period bar reaches (OQ-256).
+   *
+   * @param creditCardIds - The cards.
+   * @returns The day (`YYYY-MM-DD`), or `null` when they have none.
+   */
+  firstDate: async (creditCardIds: readonly string[]): Promise<string | null> => {
+    if (creditCardIds.length === 0) return null;
+    const [row] = await db.select({ first: min(cardTransactions.date) })
+      .from(cardTransactions)
+      .where(inArray(cardTransactions.creditCardId, [...creditCardIds]));
+    return row?.first ?? null;
   },
 
   /**

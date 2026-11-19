@@ -1,11 +1,13 @@
 import { TRANSACTION_KINDS, type KindGroup } from '@financas/reference';
-import type { DateRangeValue } from '../../../../kit/dateRangePicker/dateRangePresets';
-import { dateRangeEnd, isoDate, type FieldError } from '../../../../utilities/validation';
+import type { Period } from '../../../../kit/periodBar/periodBar';
+import { monthEnd } from '../../../reportMonths';
 
 // The ledger's filters (FL16, mockup 33; FR-3.12, OQ-201, OQ-204, OQ-220):
 // kinds, accounts and cards (one picker — a card's rows also match its
-// account), categories (each with its subcategories), a Holding and a date
-// range of any span. All combine with AND; an empty list filters nothing.
+// account), categories (each with its subcategories) and a Holding. All
+// combine with AND; an empty list filters nothing. The ledger shows the month
+// the period bar selects (OQ-255) — except on a Holding, whose trades show
+// across every month until that filter goes.
 // Pure: the drawer edits a draft of these, the Experience keeps the applied
 // ones and turns them into its query through `queryOf`.
 
@@ -17,7 +19,6 @@ export interface LedgerFilters {
   readonly categoryIds: readonly string[];
   /** Set from a Holding's "See in Transactions"; never picked in the drawer. */
   readonly holdingId?: string | undefined;
-  readonly range: DateRangeValue;
 }
 
 /** The query the Experience sends: only what filters something. */
@@ -31,19 +32,12 @@ export interface LedgerQuery {
   readonly to?: string;
 }
 
-/** A date range's refusals, by end. */
-export interface RangeProblems {
-  readonly from?: FieldError;
-  readonly to?: FieldError;
-}
-
-/** No filter: every transaction, any time. */
+/** No filter: every transaction of the month. */
 export const NO_FILTERS: LedgerFilters = {
   kinds: [],
   accountIds: [],
   creditCardIds: [],
   categoryIds: [],
-  range: { preset: 'anyTime', from: '', to: '' },
 };
 
 /**
@@ -96,7 +90,7 @@ export const withGroupKinds = (
 
 /**
  * Counts the filters in use — the Filter button's badge: kinds, accounts and
- * cards, categories, the date range and the Holding each count once.
+ * cards, categories and the Holding each count once.
  *
  * @param filters - The applied filters.
  * @returns How many are in use.
@@ -105,18 +99,30 @@ export const activeFilterCount = (filters: LedgerFilters) => [
   filters.kinds.length > 0,
   filters.accountIds.length + filters.creditCardIds.length > 0,
   filters.categoryIds.length > 0,
-  filters.range.from !== '' || filters.range.to !== '',
   filters.holdingId !== undefined,
 ].filter(Boolean).length;
 
 /**
- * Turns the filters into the query: a list only when it has something, a date
- * only when it is set.
+ * Bounds a period to its first and last day.
+ *
+ * @param period - The month.
+ * @returns `from` and `to`, `YYYY-MM-DD`.
+ */
+export const monthBoundsOf = (period: Period): { from: string; to: string } => {
+  const month = `${period.year}-${String(period.month).padStart(2, '0')}`;
+  return { from: `${month}-01`, to: monthEnd(month) };
+};
+
+/**
+ * Turns the filters into the query: a list only when it has something, and
+ * the selected month's days — none on a Holding, whose trades show across
+ * every month (OQ-255).
  *
  * @param filters - The applied filters.
+ * @param period - The month the period bar selects.
  * @returns The query.
  */
-export const queryOf = (filters: LedgerFilters): LedgerQuery => {
+export const queryOf = (filters: LedgerFilters, period: Period): LedgerQuery => {
   const lists = {
     kinds: filters.kinds,
     accountIds: filters.accountIds,
@@ -126,33 +132,7 @@ export const queryOf = (filters: LedgerFilters): LedgerQuery => {
   const used = Object.entries(lists).filter(([, values]) => values.length > 0);
   return {
     ...Object.fromEntries(used),
-    ...(filters.holdingId === undefined ? {} : { holdingId: filters.holdingId }),
-    ...(filters.range.from === '' ? {} : { from: filters.range.from }),
-    ...(filters.range.to === '' ? {} : { to: filters.range.to }),
+    ...(filters.holdingId === undefined
+      ? monthBoundsOf(period) : { holdingId: filters.holdingId }),
   };
 };
-
-/**
- * Checks the date range: each end a real date, To not before From.
- *
- * @param range - The drawer's range.
- * @returns Each end's refusal; empty when the range is fine.
- */
-export const rangeProblemsOf = (range: DateRangeValue): RangeProblems => {
-  const from = isoDate()(range.from);
-  const to = dateRangeEnd(range.from)(range.to);
-  return {
-    ...(from === undefined ? {} : { from }),
-    ...(to === undefined ? {} : { to }),
-  };
-};
-
-/**
- * Tells whether a range has no refusal.
- *
- * @param problems - The range's refusals.
- * @returns `true` when both ends are fine.
- */
-export const isRangeClear = (problems: RangeProblems) => (
-  problems.from === undefined && problems.to === undefined
-);

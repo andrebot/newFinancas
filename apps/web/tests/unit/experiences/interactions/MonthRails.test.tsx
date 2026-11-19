@@ -50,15 +50,15 @@ describe('MonthRails', () => {
     });
   });
 
-  it('scrolls the balances and the budgets, and wraps the goals (PR #145)', () => {
+  it('wraps every rail onto new rows, none scrolling sideways (OQ-254)', () => {
     renderInLocale(<MonthRails period="September/2026" content={CONTENT} />);
-    expect(screen.getAllByRole('region').map((rail) => rail.getAttribute('aria-label')))
-      .toEqual(['Balances', 'Budgets']);
+    expect(screen.queryByRole('region')).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Scroll / })).toBeNull();
   });
 
   it('draws a card per balance, a card\'s outstanding captioned', () => {
     renderInLocale(<MonthRails period="September/2026" content={CONTENT} />);
-    const balances = screen.getByRole('region', { name: 'Balances' });
+    const balances = screen.getByRole('heading', { name: /^Balances/ }).closest('section')!;
     expect(balances.textContent).toContain('Itaú Conta');
     expect(balances.textContent).toContain('Nubank');
     expect(screen.getAllByText('Outstanding')).toHaveLength(2);

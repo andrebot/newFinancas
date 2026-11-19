@@ -183,8 +183,8 @@ function FinancesPage({
   household, userId, createdAt, holdingFromAddress, lists,
 }: FinancesPageProps & { readonly lists: PageLists }) {
   const translator = useI18n();
-  const ledger = useLedger(household.id, holdingFromAddress);
   const month = useMonthOverview(household.id);
+  const ledger = useLedger(household.id, holdingFromAddress, month.period);
   const record = useRecordDrawer(household.id);
   const [gridRef, barHeight] = useChildHeight(BAR_REGION);
   const filterCount = activeFilterCount(ledger.filters);

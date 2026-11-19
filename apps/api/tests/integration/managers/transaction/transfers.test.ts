@@ -308,10 +308,10 @@ describe('editing a transfer between own accounts (OQ-222)', () => {
   it('edits both sides as one — the amount is what was sent', async () => {
     const fake = fakeWith();
     const edited = await createEdit(fake.deps).editTransaction(context, HOUSEHOLD_ID, RECEIVED.id, {
-      amount: 7_000, date: '2026-10-14', description: 'Reserve',
+      amount: 7_000, date: '2026-10-12', description: 'Reserve',
     });
     const changes = {
-      date: '2026-10-14',
+      date: '2026-10-12',
       amount: 7_000,
       categoryId: null,
       subcategoryId: null,
@@ -362,7 +362,7 @@ describe('editing a transfer between own accounts (OQ-222)', () => {
     };
     const fake = fakeWith(undefined, [SENT, received]);
     await createEdit(fake.deps)
-      .editTransaction(context, HOUSEHOLD_ID, SENT.id, { date: '2026-10-20' });
+      .editTransaction(context, HOUSEHOLD_ID, SENT.id, { date: '2026-10-11' });
     expect(fake.accountTransactions.update)
       .toHaveBeenCalledWith(RECEIVED.id, expect.anything(), expect.objectContaining({
         amount: 950,

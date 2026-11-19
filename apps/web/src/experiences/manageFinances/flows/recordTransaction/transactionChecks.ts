@@ -42,10 +42,21 @@ export interface CheckContext {
   readonly editable?: Editable | undefined;
   /** A transfer between own accounts reaches another currency: what arrived is asked (OQ-222). */
   readonly receivesOtherCurrency?: boolean | undefined;
+  /** Today, `YYYY-MM-DD`: no transaction is dated after it (OQ-253). */
+  readonly today: string;
 }
 
 /** A date's rule: required, and a real calendar date. */
 const DATE_RULE = firstError(required, isoDate());
+
+/**
+ * A transaction date's rule: required, a real calendar date, and not after
+ * today — the API refuses it with `date.max` (OQ-253).
+ *
+ * @param today - Today, `YYYY-MM-DD`.
+ * @returns The rule.
+ */
+const transactionDateRule = (today: string) => firstError(required, isoDate({ max: today }));
 
 /**
  * Builds a field's refusal from one of the drawer's own codes.
@@ -213,33 +224,31 @@ const ownTransferProblemsOf = (form: TransactionForm, receivesOtherCurrency: boo
 };
 
 /**
- * Checks the amount and the date: more than zero, a real calendar date.
+ * Checks the amount and the date: more than zero, a real calendar date not
+ * after today (OQ-253).
  *
  * @param form - The form.
+ * @param today - Today, `YYYY-MM-DD`.
  * @returns Their refusals.
  */
-const valueProblemsOf = (form: TransactionForm): Problems => ({
+const valueProblemsOf = (form: TransactionForm, today: string): Problems => ({
   ...entry('amount', form.amount === null || form.amount < 1 ? own('amount') : undefined),
-  ...entry('date', ruled(DATE_RULE(form.date))),
+  ...entry('date', ruled(transactionDateRule(today)(form.date))),
 });
 
 /**
  * Checks everything a new transaction needs.
  *
  * @param form - The form.
- * @param holdings - The account's Holdings.
+ * @param context - The account's Holdings, the receiving currency and today.
  * @returns The refusals by field.
  */
-const newProblemsOf = (
-  form: TransactionForm,
-  holdings: readonly InvestmentHolding[],
-  receivesOtherCurrency: boolean,
-): Problems => ({
+const newProblemsOf = (form: TransactionForm, context: CheckContext): Problems => ({
   ...targetProblemsOf(form),
-  ...ownTransferProblemsOf(form, receivesOtherCurrency),
+  ...ownTransferProblemsOf(form, !!context.receivesOtherCurrency),
   ...assetProblemsOf(form),
-  ...valueProblemsOf(form),
-  ...entry('quantity', quantityProblemOf(form, holdings)),
+  ...valueProblemsOf(form, context.today),
+  ...entry('quantity', quantityProblemOf(form, context.holdings)),
   ...termProblemsOf(form),
   ...entry('allocations', splitProblemOf(form)),
 });
@@ -248,19 +257,19 @@ const newProblemsOf = (
  * Checks only what an edit may change; its identity is the server's (OQ-201).
  *
  * @param form - The form.
- * @param holdings - The account's Holdings.
+ * @param context - The account's Holdings, the receiving currency and today.
  * @param editable - What may change.
  * @returns The refusals by field.
  */
 const editProblemsOf = (
   form: TransactionForm,
-  holdings: readonly InvestmentHolding[],
+  context: CheckContext,
   editable: Editable,
-  receivesOtherCurrency: boolean,
 ): Problems => ({
-  ...(editable.amountAndDate ? valueProblemsOf(form) : {}),
-  ...(editable.amountAndDate ? ownTransferProblemsOf(form, receivesOtherCurrency) : {}),
-  ...(editable.quantity ? entry('quantity', editedQuantityProblemOf(form, holdings)) : {}),
+  ...(editable.amountAndDate ? valueProblemsOf(form, context.today) : {}),
+  ...(editable.amountAndDate ? ownTransferProblemsOf(form, !!context.receivesOtherCurrency) : {}),
+  ...(editable.quantity
+    ? entry('quantity', editedQuantityProblemOf(form, context.holdings)) : {}),
   ...(editable.terms ? termProblemsOf(form) : {}),
 });
 
@@ -273,8 +282,8 @@ const editProblemsOf = (
  */
 export const problemsOf = (form: TransactionForm, context: CheckContext): Problems => (
   context.editable
-    ? editProblemsOf(form, context.holdings, context.editable, !!context.receivesOtherCurrency)
-    : newProblemsOf(form, context.holdings, !!context.receivesOtherCurrency)
+    ? editProblemsOf(form, context, context.editable)
+    : newProblemsOf(form, context)
 );
 
 /**

@@ -1,7 +1,7 @@
 import { findKind } from '@financas/reference';
 import { describe, expect, it } from 'vitest';
 import {
-  createProblems, fieldsForKind, type CreateRequestFields,
+  createProblems, fieldsForKind, futureDateProblems, type CreateRequestFields,
 } from '../../../../src/managers/transaction/kindRules';
 
 // The per-kind field rules (FR-3.1/OQ-201): a missing required field and a field
@@ -236,5 +236,19 @@ describe('createProblems', () => {
 
     });
     expect(createProblems(request, BUY)).toEqual([]);
+  });
+});
+
+describe('futureDateProblems (OQ-253)', () => {
+  it('takes today, an earlier day and no date at all', () => {
+    expect(futureDateProblems('2026-10-13', '2026-10-13')).toEqual([]);
+    expect(futureDateProblems('2025-01-31', '2026-10-13')).toEqual([]);
+    expect(futureDateProblems(undefined, '2026-10-13')).toEqual([]);
+  });
+
+  it('refuses a day after today with date.max', () => {
+    expect(futureDateProblems('2026-10-14', '2026-10-13')).toEqual([
+      { field: 'date', code: 'date.max', params: { max: '2026-10-13' } },
+    ]);
   });
 });

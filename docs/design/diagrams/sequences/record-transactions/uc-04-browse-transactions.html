@@ -92,7 +92,7 @@ sequenceDiagram
   </div>
   <div class="notes">
     <ul>
-      <li><strong>Not scoped to the period bar (OQ-61):</strong> any date range, including none.</li>
+      <li><strong>Scoped to the period bar (OQ-255, reversing OQ-61):</strong> the web app sends the selected month&#39;s from/to; a Holding filter sends none and spans every month.</li>
       <li>Filtering by <code>holdingId</code> returns the investment transactions linked to it &mdash; the holding row's "See in Transactions" link.</li>
       <li><strong>Filters (OQ-201):</strong> combined with AND; accounts and cards are one picker (a row matches when its account or card is selected, a card's rows also when its Account is &mdash; OQ-204; none = all); a Category includes its Subcategories.</li>
       <li>No logging/audit &mdash; a plain read (FR-7.1 audits mutations only).</li>

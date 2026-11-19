@@ -82,6 +82,7 @@ const renderFlow = (over: Partial<MonthOverviewFlowProps> = {}) => {
     onRetry: vi.fn(),
     accounts: ACCOUNTS,
     householdCreatedAt: '2026-01-05T10:00:00Z',
+    firstDate: null,
     currencyMemory: memoryOf(null),
     ...over,
   };
@@ -166,6 +167,12 @@ describe('MonthOverviewFlow', () => {
     const props = renderFlow({
       accounts: [...ACCOUNTS, { ...ACCOUNTS[0]!, id: 'old', startingBalanceDate: '2024-02-01' }],
     });
+    fireEvent.click(screen.getByRole('button', { name: 'Previous year' }));
+    expect(props.onPeriodChange).toHaveBeenCalledWith({ year: 2025, month: 9 });
+  });
+
+  it('reaches back to the oldest transaction, before any account (OQ-256)', () => {
+    const props = renderFlow({ firstDate: '2025-06-30' });
     fireEvent.click(screen.getByRole('button', { name: 'Previous year' }));
     expect(props.onPeriodChange).toHaveBeenCalledWith({ year: 2025, month: 9 });
   });

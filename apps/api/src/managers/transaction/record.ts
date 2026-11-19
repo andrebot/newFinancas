@@ -34,7 +34,7 @@ import {
   investmentNotAllowedOnAccount, kindNotAllowedForTarget, subcategoryMismatch,
   transactionChanged, tradeRefusal,
 } from './errors';
-import { createProblems } from './kindRules';
+import { createProblems, futureDateProblems } from './kindRules';
 import { accountsInLockOrder } from './lockOrder';
 import requirePaidCard from './paidCard';
 
@@ -1018,7 +1018,8 @@ const createRecord = (deps: TransactionDeps) => ({
    * @param householdId - The household.
    * @param request - What to record, as the route validated it.
    * @returns The recorded transaction, on its ledger.
-   * @throws {DomainError} `validation.failed`; `auth.forbidden` /\
+   * @throws {DomainError} `validation.failed` (a date after today is
+   *   `date.max`, OQ-253); `auth.forbidden` /\
    *   `household.not_found` / `account.not_found` / `credit_card.not_found` /\
    *   `category.not_found` / `goal.not_found`; the target and split's 409s;
    *   `index_rate.missing`.
@@ -1030,7 +1031,9 @@ const createRecord = (deps: TransactionDeps) => ({
   ): Promise<RecordedTransaction> => {
     const kind = findKind(request.kind);
     if (!kind) throw validationFailed([{ field: 'kind', code: 'field.invalid_option' }]);
-    requireNoProblems(createProblems(request, kind));
+    requireNoProblems([
+      ...createProblems(request, kind), ...futureDateProblems(request.date, todayOf(deps)),
+    ]);
     const transaction = request.toAccountId === undefined
       ? await recordCore(
         deps,

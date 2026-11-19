@@ -107,7 +107,7 @@ export const BUY: AccountTransaction = {
 
 /** The Month Overview the Engine answers with by default. */
 export const OVERVIEW: MonthOverview = {
-  summary: [], yearStrip: [], balances: [], budgets: [], goals: [],
+  summary: [], yearStrip: [], balances: [], budgets: [], goals: [], firstDate: null,
 };
 
 /** The Investments overview the Engine answers with by default. */

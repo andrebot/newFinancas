@@ -1,6 +1,6 @@
 import type { TransactionEffect } from '@financas/reference';
 import {
-  and, asc, desc, eq, getTableColumns, gte, inArray, isNotNull, lte, ne, notInArray, or, sql,
+  and, asc, desc, eq, getTableColumns, gte, inArray, isNotNull, lte, min, ne, notInArray, or, sql,
   type AnyColumn,
 } from 'drizzle-orm';
 import type { Database } from '../db/database';
@@ -625,6 +625,21 @@ const createAccountTransactionAccessor = (db: Database) => ({
       .from(accountTransactions)
       .where(and(filterCondition(db, filter), inMonths(accountTransactions.date, months)))
       .groupBy(monthOfDate);
+  },
+
+  /**
+   * The day of the oldest transaction on some Accounts — how far back the
+   * period bar reaches (OQ-256).
+   *
+   * @param accountIds - The Accounts.
+   * @returns The day (`YYYY-MM-DD`), or `null` when they have none.
+   */
+  firstDate: async (accountIds: readonly string[]): Promise<string | null> => {
+    if (accountIds.length === 0) return null;
+    const [row] = await db.select({ first: min(accountTransactions.date) })
+      .from(accountTransactions)
+      .where(inArray(accountTransactions.accountId, [...accountIds]));
+    return row?.first ?? null;
   },
 
   /**

@@ -264,7 +264,6 @@ export function BrowseTransactionsFlow(props: BrowseTransactionsFlowProps) {
         onDraftChange={controller.changeDraft}
         accounts={accounts}
         categories={categories}
-        showRangeErrors={state.showRangeErrors}
         onApply={controller.apply}
         onClearAll={controller.clearDraft}
       />

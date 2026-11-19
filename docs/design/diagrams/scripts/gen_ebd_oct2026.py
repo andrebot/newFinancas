@@ -1078,13 +1078,13 @@ else delete
         EXP->>API: refetch every loaded page (and Month Overview)
     end
 end
-""", ["Not scoped to the period bar (OQ-61).", "Edit goes through the Experience to Record Transaction — no Flow-to-Flow call.", "OQ-201: month headers show the month's count (monthCounts); accounts and cards are one filter picker; a Category includes its Subcategories.", "OQ-220: the Experience keeps the applied filters and the pages (an RTK Query infinite query, refetched whole after a record, edit or delete); the Flow keeps the drawer's draft and the open row. A Holding filter shows as a removable chip, never picked in the drawer.", "OQ-222: the Holding filter lives in the address (?holding=), dropped by replacing the entry when its chip is removed; the other filters are the page's state."]),
+""", ["Scoped to the period bar (OQ-255, reversing OQ-61): the Experience sends the month&#39;s from/to; a Holding filter spans every month. No date range in the filter drawer.", "Edit goes through the Experience to Record Transaction — no Flow-to-Flow call.", "OQ-201: month headers show the month's count (monthCounts); accounts and cards are one filter picker; a Category includes its Subcategories.", "OQ-220: the Experience keeps the applied filters and the pages (an RTK Query infinite query, refetched whole after a record, edit or delete); the Flow keeps the drawer's draft and the open row. A Holding filter shows as a removable chip, never picked in the drawer.", "OQ-222: the Holding filter lives in the address (?holding=), dropped by replacing the entry when its chip is removed; the other filters are the page's state."]),
     ("manage-finances-month-overview", "Manage Finances — Month Overview", f"{R('GET /households/:householdId/reports/month-overview?year=&month=')}.",
      [("PB", "Period Bar"), ("CS", "Period Summary<br/>($ / R$ switch)"), ("RL", "Balance / Budget /<br/>Goal Rails"), FLOW("Month Overview"), EXP("Manage Finances"), API],
      """
 EXP->>API: GET /households/:householdId/reports/month-overview?year=&month= (today's month)
-API-->>EXP: summary per currency, year strip, balances, budgets, goals
-EXP-->>FLOW: period, report (loading / failed / loaded), accounts
+API-->>EXP: summary per currency, year strip, balances, budgets, goals, firstDate
+EXP-->>FLOW: period, report (loading / failed / loaded), accounts, firstDate (kept while a month loads)
 FLOW-->>PB: render year + 12 months in the switch's currency
 FLOW-->>CS: render In / Out / Total (R$ the first time, then the remembered pick)
 FLOW-->>RL: render rails labelled 'Month/Year' (placeholders while loading)
@@ -1103,7 +1103,7 @@ else the month fails
     FLOW->>EXP: retry
     EXP->>API: GET /households/:householdId/reports/month-overview?year=&month=
 end
-""", ["FormattingUtility formats every amount in its own currency; nothing is summed across currencies.", "OQ-201: a Goal funded in other currencies shows its own currency's progress and a note pointing to Goals (the exchange rate lives there); a card shows its outstanding at the month's end.", "OQ-221: the Experience holds the month (its query's argument) and refetches it after a record, edit or delete; the Flow keeps only the $ / R$ switch. Its two regions (bar, rails) are placed by the Experience's page grid around Browse's ledger. A failed month never shows the previous month's figures."]),
+""", ["FormattingUtility formats every amount in its own currency; nothing is summed across currencies.", "OQ-201: a Goal funded in other currencies shows its own currency's progress and a note pointing to Goals (the exchange rate lives there); a card shows its outstanding at the month's end.", "OQ-221: the Experience holds the month (its query's argument) and refetches it after a record, edit or delete; the Flow keeps only the $ / R$ switch. Its two regions (bar, rails) are placed by the Experience's page grid around Browse's ledger. A failed month never shows the previous month's figures.", "OQ-256: the bar reaches back to the earliest of the household's creation, an account's starting balance and the oldest transaction (the report's firstDate), so backdated history stays browsable month by month."]),
     ("track-investments-portfolio-overview", "Track Investments — Portfolio Overview", f"{R('GET /households/:householdId/reports/investments-overview')} with {R('GET /households/:householdId/holdings?includeArchived=true')}, {R('GET /households/:householdId/accounts')} and {R('GET /households/:householdId/goal-progress?status=active')}; {R('GET /households/:householdId/reports/payouts?holdingIds=')} (OQ-233).",
      [("NW", "Net Worth / Allocation /<br/>Coming Due cards"), ("PT", "Payout This Month"), ("HS", "Payout Holding Selector"), ("PC", "Payout Chart"), FLOW("Portfolio Overview"), EXP("Track Investments"), API],
      """

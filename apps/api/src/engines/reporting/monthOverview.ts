@@ -39,6 +39,8 @@ export interface MonthOverviewDeps extends GoalProgressDeps {
   readonly cardBalancesAsOf: CreditCardAccessor['balancesAsOf'];
   readonly accountMonthlySums: AccountTransactionAccessor['monthlySums'];
   readonly cardMonthlySums: CardTransactionAccessor['monthlySums'];
+  readonly accountFirstDate: AccountTransactionAccessor['firstDate'];
+  readonly cardFirstDate: CardTransactionAccessor['firstDate'];
   readonly listBudgets: BudgetAccessor['list'];
   readonly budgetPeriodsAsOf: BudgetAccessor['periodsAsOf'];
   readonly listGoals: GoalAccessor['list'];
@@ -94,6 +96,8 @@ export interface MonthOverview {
   readonly balances: readonly MonthEndBalance[];
   readonly budgets: readonly BudgetStatus[];
   readonly goals: readonly GoalWithProgress[];
+  /** The day of the oldest transaction the member sees, or `null` (OQ-256). */
+  readonly firstDate: string | null;
 }
 
 /**
@@ -379,6 +383,28 @@ const budgetsOf = async (
 };
 
 /**
+ * The day of the oldest transaction on the Accounts and cards a member sees,
+ * so the period bar reaches back to it (OQ-256).
+ *
+ * @param deps - The Accessor reads.
+ * @param accounts - The Accounts the member sees.
+ * @param cards - Their cards.
+ * @returns The earlier of the two ledgers' oldest days, or `null` when both are empty.
+ */
+export const firstDateOf = async (
+  deps: MonthOverviewDeps,
+  accounts: readonly Account[],
+  cards: readonly CreditCard[],
+): Promise<string | null> => {
+  const days = await Promise.all([
+    deps.accountFirstDate(accounts.map((account) => account.id)),
+    deps.cardFirstDate(cards.map((card) => card.id)),
+  ]);
+  const present = days.filter((day): day is string => day !== null);
+  return present.length === 0 ? null : present.reduce((first, day) => (day < first ? day : first));
+};
+
+/**
  * Builds a month's overview as a member sees it (FR-6.11).
  *
  * @param deps - The Accessor reads.
@@ -398,15 +424,16 @@ export const monthOverview = async (
     deps.listGoals(householdId, viewerUserId, 'active'),
   ]);
   const cards = await deps.listCreditCards(accounts.map((account) => account.id));
-  const [sums, balances, statuses, progress] = await Promise.all([
+  const [sums, balances, statuses, progress, firstDate] = await Promise.all([
     yearSums(deps, accounts, cards, month.year),
     balancesOf(deps, accounts, cards, month),
     budgetsOf(deps, householdId, budgets, month),
     goalProgress(deps, goals, {
       householdId, visibleAccountIds: visibleAccountIdsOf(accounts), date: monthEnd(month),
     }),
+    firstDateOf(deps, accounts, cards),
   ]);
   return {
-    ...flowsOf(sums, month), balances, budgets: statuses, goals: progress,
+    ...flowsOf(sums, month), balances, budgets: statuses, goals: progress, firstDate,
   };
 };

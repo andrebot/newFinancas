@@ -123,7 +123,7 @@ sequenceDiagram
         RE-->>IM: the overview as this member sees it
         IM-->>API: the overview, tagged reportType: month-overview
     end
-    API-->>User: 200 OK {reportType, summary, yearStrip, balances, budgets, goals}
+    API-->>User: 200 OK {reportType, summary, yearStrip, balances, budgets, goals, firstDate}
 """,
     notes="""
     <ul>

@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
-  activeFilterCount, chosenInGroup, holdingFilters, isRangeClear, kindCodesOf, NO_FILTERS,
-  queryOf, rangeProblemsOf, withGroupKinds,
+  activeFilterCount, chosenInGroup, holdingFilters, kindCodesOf, monthBoundsOf, NO_FILTERS,
+  queryOf, withGroupKinds,
 } from '../../../../../../src/experiences/manageFinances/flows/browseTransactions/ledgerFilters';
 
 // The ledger's filters (BDT: Flow rules, unit — pure).
 
-const range = (from: string, to: string) => ({ preset: 'custom' as const, from, to });
+const SEPTEMBER = { year: 2026, month: 9 };
 
 describe('kind groups', () => {
   it("lists a group's kinds in picker order", () => {
@@ -37,55 +37,40 @@ describe('activeFilterCount', () => {
       creditCardIds: ['visa1'],
       categoryIds: ['groceries'],
       holdingId: 'bbas3',
-      range: range('2026-01-01', ''),
-    })).toBe(5);
+    })).toBe(4);
     expect(activeFilterCount({ ...NO_FILTERS, creditCardIds: ['visa1'] })).toBe(1);
-    expect(activeFilterCount({ ...NO_FILTERS, range: range('', '2026-01-01') })).toBe(1);
   });
 });
 
-describe('queryOf', () => {
-  it('sends nothing for no filter', () => {
-    expect(queryOf(NO_FILTERS)).toEqual({});
+describe('monthBoundsOf', () => {
+  it('bounds a month to its first and last day', () => {
+    expect(monthBoundsOf(SEPTEMBER)).toEqual({ from: '2026-09-01', to: '2026-09-30' });
+    expect(monthBoundsOf({ year: 2028, month: 2 })).toEqual({
+      from: '2028-02-01', to: '2028-02-29',
+    });
+  });
+});
+
+describe('queryOf (OQ-255)', () => {
+  it('sends only the month for no filter', () => {
+    expect(queryOf(NO_FILTERS, SEPTEMBER)).toEqual({ from: '2026-09-01', to: '2026-09-30' });
   });
 
-  it('sends only the lists with something, the Holding and the set dates', () => {
-    expect(queryOf({
-      ...NO_FILTERS,
-      kinds: ['charge'],
-      creditCardIds: ['visa1'],
-      holdingId: 'bbas3',
-      range: range('2026-01-01', ''),
-    })).toEqual({
-      kinds: ['charge'], creditCardIds: ['visa1'], holdingId: 'bbas3', from: '2026-01-01',
-    });
-    expect(queryOf({ ...NO_FILTERS, range: range('', '2026-02-01') }))
-      .toEqual({ to: '2026-02-01' });
+  it('sends only the lists with something, within the month', () => {
+    expect(queryOf({ ...NO_FILTERS, kinds: ['charge'], creditCardIds: ['visa1'] }, SEPTEMBER))
+      .toEqual({
+        kinds: ['charge'], creditCardIds: ['visa1'], from: '2026-09-01', to: '2026-09-30',
+      });
+  });
+
+  it('sends a Holding across every month: no dates', () => {
+    expect(queryOf({ ...NO_FILTERS, holdingId: 'bbas3' }, SEPTEMBER))
+      .toEqual({ holdingId: 'bbas3' });
   });
 });
 
 describe('holdingFilters', () => {
   it('filters by the Holding alone', () => {
     expect(holdingFilters('bbas3')).toEqual({ ...NO_FILTERS, holdingId: 'bbas3' });
-  });
-});
-
-describe('the range check', () => {
-  it('passes an open or ordered range', () => {
-    expect(isRangeClear(rangeProblemsOf(NO_FILTERS.range))).toBe(true);
-    expect(isRangeClear(rangeProblemsOf(range('2026-01-01', '2026-01-01')))).toBe(true);
-  });
-
-  it('refuses a malformed date and a To before From', () => {
-    expect(rangeProblemsOf(range('2026-13-01', ''))).toEqual({
-      from: { code: 'string.format', params: { format: 'date' } },
-    });
-    const reversed = rangeProblemsOf(range('2026-02-01', '2026-01-01'));
-    expect(reversed).toEqual({ to: { code: 'date.before_start' } });
-    expect(isRangeClear(reversed)).toBe(false);
-  });
-
-  it('refuses a range with only its From wrong (review V4)', () => {
-    expect(isRangeClear(rangeProblemsOf(range('2026-13-01', '')))).toBe(false);
   });
 });

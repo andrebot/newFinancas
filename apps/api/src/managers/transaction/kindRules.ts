@@ -1,5 +1,5 @@
 import { isFixedTerm, type TransactionKind } from '@financas/reference';
-import type { FieldDetail } from '../../utilities/validation';
+import { checkFields, dateWithin, type FieldDetail } from '../../utilities/validation';
 
 // The fields each transaction kind takes (FR-3.1, OQ-201): a missing required
 // field and a field the kind has no use for are both 422 `validation.failed`
@@ -201,3 +201,18 @@ export const createProblems = (
   }
   return [...createFieldProblems(request, kind), ...fixedTermProblems(request)];
 };
+
+/**
+ * A transaction's date problem: none may be dated after today (OQ-253) —
+ * money that hasn't moved yet isn't recorded. Today is the app's (OQ-104).
+ *
+ * @param date - The date sent, if any (an edit may leave it out).
+ * @param today - Today, `YYYY-MM-DD`.
+ * @returns `date.max` on `date`, or nothing.
+ */
+export const futureDateProblems = (
+  date: string | undefined,
+  today: string,
+): readonly FieldDetail[] => (
+  checkFields({ date }, { date: dateWithin({ max: today }) })
+);

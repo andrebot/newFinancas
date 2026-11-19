@@ -1,5 +1,5 @@
 import { expect, test } from '../support/test';
-import { typeDate } from '../support/controls';
+import { showMonth, typeDate } from '../support/controls';
 import {
   accountBalances, accountNamed, isoDay, isoMonth, monthStart, recordTransaction,
 } from '../support/financeApi';
@@ -54,6 +54,8 @@ test('an expense moved three months back shifts every balance it passes over', {
   const landing = new Date(monthStart(-4).getFullYear(), monthStart(-4).getMonth(), 15);
   await signInThroughUi(page, owner);
   await page.goto('/transactions');
+  // The ledger lists the month on view (OQ-255): Rent is last month's.
+  await showMonth(page, monthStart(-1));
 
   await page.getByRole('button', { name: /Rent/ }).click();
   await page.getByRole('button', { name: text('browseTransactions', 'edit') }).click();

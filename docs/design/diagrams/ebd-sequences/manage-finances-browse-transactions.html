@@ -117,7 +117,7 @@ sequenceDiagram
     </pre>
   </div>
   <div class="notes">
-<ul><li>Not scoped to the period bar (OQ-61).</li><li>Edit goes through the Experience to Record Transaction — no Flow-to-Flow call.</li><li>OQ-201: month headers show the month's count (monthCounts); accounts and cards are one filter picker; a Category includes its Subcategories.</li><li>OQ-220: the Experience keeps the applied filters and the pages (an RTK Query infinite query, refetched whole after a record, edit or delete); the Flow keeps the drawer's draft and the open row. A Holding filter shows as a removable chip, never picked in the drawer.</li><li>OQ-222: the Holding filter lives in the address (?holding=), dropped by replacing the entry when its chip is removed; the other filters are the page's state.</li></ul>
+<ul><li>Scoped to the period bar (OQ-255, reversing OQ-61): the Experience sends the month&#39;s from/to; a Holding filter spans every month. No date range in the filter drawer.</li><li>Edit goes through the Experience to Record Transaction — no Flow-to-Flow call.</li><li>OQ-201: month headers show the month's count (monthCounts); accounts and cards are one filter picker; a Category includes its Subcategories.</li><li>OQ-220: the Experience keeps the applied filters and the pages (an RTK Query infinite query, refetched whole after a record, edit or delete); the Flow keeps the drawer's draft and the open row. A Holding filter shows as a removable chip, never picked in the drawer.</li><li>OQ-222: the Holding filter lives in the address (?holding=), dropped by replacing the entry when its chip is removed; the other filters are the page's state.</li></ul>
   </div>
   <script>
     mermaid.initialize({

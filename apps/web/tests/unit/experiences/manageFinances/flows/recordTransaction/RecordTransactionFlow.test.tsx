@@ -154,7 +154,7 @@ vi.mock('../../../../../../src/experiences/manageFinances/flows/recordTransactio
       data-error={dateError ?? ''}
       data-disabled={String(Boolean(dateDisabled))}
     >
-      <button type="button" onClick={() => onDate('2026-10-02')}>date</button>
+      <button type="button" onClick={() => onDate('2026-09-02')}>date</button>
       <button type="button" onClick={() => onDate('')}>clear date</button>
       <button type="button" onClick={() => onDescription(' Feira ')}>description</button>
     </div>
@@ -436,7 +436,7 @@ describe('recording a new transaction', () => {
 
     expect(onRecord).toHaveBeenCalledExactlyOnceWith({
       kind: 'pix_payment',
-      date: '2026-10-02',
+      date: '2026-09-02',
       amount: 5_000,
       currency: 'BRL',
       accountId: 'itau',

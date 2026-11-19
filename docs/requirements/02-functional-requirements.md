@@ -298,13 +298,13 @@ vice versa; only a Credit Card Bill Payment (FR-3.7) bridges the two.
   when the bill is later paid. The corresponding Credit Card Bill Payment
   (FR-3.7) does **not** count again as spend, to avoid double-counting the
   same expense once as a charge and once as a payment (see FR-4.5).
-- **FR-3.12** A user can browse **all** their Account and Card
-  Transactions in one list, newest first, loaded incrementally — the list
-  is not limited to a single month. A user can filter it by any
-  combination of: kind, account, credit card, category, **investment
-  Holding**, and a date range that may span any months (presets such as
-  "last 90 days" plus a custom From/To). Filtering by Holding is how a
-  Holding's page links to "its" transactions (see OQ-61).
+- **FR-3.12** A user can browse their Account and Card Transactions of the
+  month selected in the period bar in one list, newest first, loaded
+  incrementally (OQ-255, replacing "all transactions"). A user can filter
+  it by any combination of: kind, account, credit card, category and
+  **investment Holding**. Filtering by Holding is how a Holding's page
+  links to "its" transactions; that filter spans every month (see OQ-61,
+  OQ-255).
 
 ## FR-4: Budgeting (CUC-5)
 

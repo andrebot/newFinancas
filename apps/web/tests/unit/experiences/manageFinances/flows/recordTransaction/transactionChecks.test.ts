@@ -8,11 +8,23 @@ import { CDB, STOCK, formOf } from './fixtures';
 // The Record Transaction form's checks (BDT: Flow tier, pure → unit): what
 // each kind needs before it is sent, and what an edit may still change — no mocks.
 
-const NONE = { holdings: [] };
+/** Today in these checks; the fixtures' forms are dated 14 Sep 2026. */
+const TODAY = '2026-10-13';
+const NONE = { today: TODAY, holdings: [] };
 const OPEN = { amountAndDate: true, quantity: true, terms: true };
 const FULL_SHARE = [{ goalId: 'house', name: 'House', percent: 60 }];
 
 describe('problemsOf — a new transaction', () => {
+  it('refuses a date after today, on a new transaction and on an edit (OQ-253)', () => {
+    const tomorrow = formOf({
+      kind: 'deposit', accountId: 'itau', amount: 1, date: '2026-10-14',
+    });
+    const refused = { date: { rule: { code: 'date.max', params: { max: TODAY } } } };
+    expect(problemsOf(tomorrow, NONE)).toEqual(refused);
+    expect(problemsOf(tomorrow, { ...NONE, editable: OPEN })).toEqual(refused);
+    expect(problemsOf({ ...tomorrow, date: TODAY }, NONE)).toEqual({});
+  });
+
   it('refuses a missing account, amount and a malformed date', () => {
     expect(problemsOf(formOf({ kind: 'deposit', date: '--1' }), NONE)).toEqual({
       account: { code: 'account' },
@@ -74,7 +86,7 @@ describe('problemsOf — a new transaction', () => {
 
   it('asks a sell for its Holding and units, no more than held', () => {
     const sell = formOf({ kind: 'investment_sell', accountId: 'itau', amount: 1 });
-    const holdings = { holdings: [STOCK] };
+    const holdings = { today: TODAY, holdings: [STOCK] };
 
     expect(problemsOf(sell, holdings)).toEqual({
       holding: { code: 'holding' }, quantity: { code: 'quantity' },
@@ -113,7 +125,7 @@ describe('problemsOf — an edit', () => {
   it('checks only what may change, never the identity', () => {
     const edit = formOf({ kind: 'investment_sell', amount: null, quantity: 0 });
 
-    expect(problemsOf(edit, { holdings: [], editable: OPEN })).toEqual({
+    expect(problemsOf(edit, { today: TODAY, holdings: [], editable: OPEN })).toEqual({
       amount: { code: 'amount' }, quantity: { code: 'quantity' },
     });
   });
@@ -124,8 +136,8 @@ describe('problemsOf — an edit', () => {
     });
     const locked = { amountAndDate: false, quantity: false, terms: false };
 
-    expect(problemsOf(cdb, { holdings: [CDB], editable: locked })).toEqual({});
-    expect(problemsOf(cdb, { holdings: [CDB], editable: OPEN })).toMatchObject({
+    expect(problemsOf(cdb, { today: TODAY, holdings: [CDB], editable: locked })).toEqual({});
+    expect(problemsOf(cdb, { today: TODAY, holdings: [CDB], editable: OPEN })).toMatchObject({
       amount: { code: 'amount' }, rateValue: { code: 'rate' },
     });
   });
@@ -137,7 +149,7 @@ describe('problemsOf — an edit\'s units', () => {
       kind: 'investment_buy', assetType: 'cdb', quantity: null, ticker: 'CDB',
     });
 
-    expect(problemsOf(cdb, { holdings: [CDB], editable: OPEN }).quantity)
+    expect(problemsOf(cdb, { today: TODAY, holdings: [CDB], editable: OPEN }).quantity)
       .toEqual({ code: 'quantity' });
     expect(problemsOf(cdb, NONE).quantity).toBeUndefined();
   });
@@ -167,11 +179,11 @@ describe('problemsOf — a transfer between own accounts (OQ-222)', () => {
   });
 
   it('asks where it goes, and what arrived across currencies', () => {
-    expect(problemsOf(own, { holdings: [], receivesOtherCurrency: true })).toEqual({
+    expect(problemsOf(own, { today: TODAY, holdings: [], receivesOtherCurrency: true })).toEqual({
       toAccount: { code: 'toAccount' }, receivedAmount: { code: 'receivedAmount' },
     });
     expect(problemsOf({ ...own, toAccountId: 'chase', receivedAmount: 0 }, {
-      holdings: [], receivesOtherCurrency: true,
+      today: TODAY, holdings: [], receivesOtherCurrency: true,
     })).toEqual({ receivedAmount: { code: 'receivedAmount' } });
   });
 
@@ -180,7 +192,9 @@ describe('problemsOf — a transfer between own accounts (OQ-222)', () => {
   });
 
   it('checks what arrived on an edit too, while amounts may change', () => {
-    const edit = { holdings: [], editable: OPEN, receivesOtherCurrency: true };
+    const edit = {
+      today: TODAY, holdings: [], editable: OPEN, receivesOtherCurrency: true,
+    };
     expect(problemsOf({ ...own, toAccountId: 'chase' }, edit))
       .toEqual({ receivedAmount: { code: 'receivedAmount' } });
     expect(problemsOf({ ...own, toAccountId: 'chase' }, {
@@ -200,18 +214,19 @@ describe('problemsOf — at the edges (review V2)', () => {
     const sell = formOf({
       kind: 'investment_sell', accountId: 'itau', amount: 1, holdingId: STOCK.id,
     });
-    expect(problemsOf({ ...sell, quantity: 0 }, { holdings: [STOCK] }).quantity)
+    expect(problemsOf({ ...sell, quantity: 0 }, { today: TODAY, holdings: [STOCK] }).quantity)
       .toEqual({ code: 'quantity' });
-    expect(problemsOf({ ...sell, quantity: null }, { holdings: [STOCK] }).quantity)
+    expect(problemsOf({ ...sell, quantity: null }, { today: TODAY, holdings: [STOCK] }).quantity)
       .toEqual({ code: 'quantity' });
-    expect(problemsOf({ ...sell, quantity: 1 }, { holdings: [STOCK] }).quantity).toBeUndefined();
+    expect(problemsOf({ ...sell, quantity: 1 }, { today: TODAY, holdings: [STOCK] }).quantity)
+      .toBeUndefined();
   });
 
   it('passes an edited sell\'s units when they are there', () => {
     const sell = formOf({
       kind: 'investment_sell', amount: 1, holdingId: STOCK.id, quantity: 1,
     });
-    expect(problemsOf(sell, { holdings: [STOCK], editable: OPEN })).toEqual({});
+    expect(problemsOf(sell, { today: TODAY, holdings: [STOCK], editable: OPEN })).toEqual({});
   });
 
   it('refuses a ticker of spaces', () => {
@@ -230,6 +245,7 @@ describe('problemsOf — at the edges (review V2)', () => {
       toAccountId: 'chase',
       receivedAmount: 1,
     });
-    expect(problemsOf(own, { holdings: [], receivesOtherCurrency: true })).toEqual({});
+    expect(problemsOf(own, { today: TODAY, holdings: [], receivesOtherCurrency: true }))
+      .toEqual({});
   });
 });

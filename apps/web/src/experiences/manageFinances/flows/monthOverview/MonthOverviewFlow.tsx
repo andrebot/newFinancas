@@ -54,6 +54,11 @@ export interface MonthOverviewFlowProps {
   readonly accounts: readonly Account[];
   /** When the household was created, ISO: with the accounts, how far back the bar reaches. */
   readonly householdCreatedAt: string;
+  /**
+   * The oldest transaction's day the user sees, or `null` when there is none
+   * or it isn't known yet: the bar reaches back to its year too (OQ-256).
+   */
+  readonly firstDate: string | null;
   /** Where the switch's last pick is remembered. */
   readonly currencyMemory: PreferenceStorage;
 }
@@ -89,7 +94,8 @@ function FailedMonth({ period, onRetry }: {
  * @returns The Flow's two regions.
  */
 export function MonthOverviewFlow({
-  period, onPeriodChange, overview, onRetry, accounts, householdCreatedAt, currencyMemory,
+  period, onPeriodChange, overview, onRetry, accounts, householdCreatedAt, firstDate,
+  currencyMemory,
 }: MonthOverviewFlowProps) {
   const translator = useI18n();
   const formatter = useFormatter();
@@ -104,7 +110,7 @@ export function MonthOverviewFlow({
           periodLabel={label}
           months={report && stripOf(report.yearStrip, currency)}
           currency={currency}
-          firstYear={firstYearOf(accounts, householdCreatedAt)}
+          firstYear={firstYearOf(accounts, householdCreatedAt, firstDate)}
           onChange={onPeriodChange}
           summary={(
             <PeriodSummary

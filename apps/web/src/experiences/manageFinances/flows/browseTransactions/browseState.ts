@@ -19,8 +19,6 @@ export interface BrowseState {
   readonly deleteFailure?: RequestFailure | undefined;
   /** The drawer's filters, applied by Show. */
   readonly draft: LedgerFilters;
-  /** Whether Show was refused, so the range's errors show. */
-  readonly showRangeErrors: boolean;
 }
 
 /** Nothing open, the drawer's draft empty. */
@@ -28,7 +26,6 @@ export const INITIAL_BROWSE_STATE: BrowseState = {
   confirming: false,
   deleting: false,
   draft: NO_FILTERS,
-  showRangeErrors: false,
 };
 
 /**
@@ -103,7 +100,7 @@ export const deleteEnded = (
  * @returns The next state.
  */
 export const draftOpened = (state: BrowseState, filters: LedgerFilters): BrowseState => ({
-  ...state, draft: filters, showRangeErrors: false,
+  ...state, draft: filters,
 });
 
 /**
@@ -115,14 +112,4 @@ export const draftOpened = (state: BrowseState, filters: LedgerFilters): BrowseS
  */
 export const draftChanged = (state: BrowseState, draft: LedgerFilters): BrowseState => ({
   ...state, draft,
-});
-
-/**
- * Marks Show as refused: the range's errors show.
- *
- * @param state - The state.
- * @returns The next state.
- */
-export const applyRefused = (state: BrowseState): BrowseState => ({
-  ...state, showRangeErrors: true,
 });

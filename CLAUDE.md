@@ -74,8 +74,10 @@ in `docs/README.md`.
   (In/Out/Total uses a $ / R$ switch). Goals are the one scoped exception
   (manual FX input).
 - UI says "Goals", never "Objectives". No recurring transactions.
-- The Transactions ledger is NOT scoped by the period bar — it lists all
-  transactions (lazy-loaded, month headers).
+- The Transactions ledger IS scoped by the period bar: it lists the
+  selected month (lazy-loaded); a Holding's "See in Transactions" filter
+  spans every month (OQ-255, reversing OQ-61).
+- No transaction may be dated after today (OQ-253).
 - Mockups show representative states; build the FULL forms from the
   requirements (e.g. every investment kind on Record Transaction).
 - Locales pt-BR (primary) and en-US from day one; no hard-coded UI strings.

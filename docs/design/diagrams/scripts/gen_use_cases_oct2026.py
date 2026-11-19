@@ -185,9 +185,9 @@ use_case(INS / "uc-05-view-notifications.html", "UC-5: View Notifications",
 # ---------------------------------------------------------------- 4. new use cases
 use_case(RT / "uc-04-browse-transactions.html", "UC-4: Browse &amp; Filter Transactions",
          sub(4, 5, *R, "<code>FR-3.12</code> (OQ-61)", ADDED),
-         [S, "Open Transactions page (or 'See in<br/>Transactions' from a holding)", "Optionally open Filter: kinds, accounts,<br/>cards, categories, holding, date range<br/>(any months)", "Request a page of transactions", "Receive page + next cursor", "Render grouped by month and day;<br/>load the next page on scroll", E],
+         [S, "Open Transactions page (or 'See in<br/>Transactions' from a holding)", "Pick the month in the period bar; optionally<br/>open Filter: kinds, accounts, cards,<br/>categories, holding (any months)", "Request a page of transactions", "Receive page + next cursor", "Render grouped by month and day;<br/>load the next page on scroll", E],
          REQ + ["Apply visibility rules (personal / shared)", "Apply filters", "Return newest-first page from both<br/>ledgers merged, with day totals and<br/>month counts", "Send response"],
-         ["<strong>Not scoped to the period bar (OQ-61):</strong> the list shows all transactions, lazily loaded; the month selector only drives the overview (UC-5).",
+         ["<strong>Scoped to the period bar (OQ-255, reversing OQ-61):</strong> the list shows the selected month, lazily loaded; a Holding filter spans every month.",
           "Filtering by holding is how a holding links to its own transactions."], fe_split=4)
 use_case(RT / "uc-05-view-month-overview.html", "UC-5: View Month Overview",
          sub(5, 5, *R, "<code>FR-6.11</code>, <code>FR-6.6</code>, <code>FR-4.3</code>, <code>FR-8.5</code> (OQ-74)", ADDED),

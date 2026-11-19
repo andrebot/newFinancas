@@ -151,6 +151,8 @@ const reporting = createReportingEngine({
   cardBalancesAsOf: insightStores.creditCards.balancesAsOf,
   accountMonthlySums: insightStores.accountTransactions.monthlySums,
   cardMonthlySums: insightStores.cardTransactions.monthlySums,
+  accountFirstDate: insightStores.accountTransactions.firstDate,
+  cardFirstDate: insightStores.cardTransactions.firstDate,
   listBudgets: insightStores.budgets.list,
   budgetPeriodsAsOf: insightStores.budgets.periodsAsOf,
   listGoals: insightStores.goals.list,

@@ -95,12 +95,15 @@ variable-based form; `22-dashboard-light-theme.html` is the proof.
 - **Time context bar** (Transactions): year switcher + 12-month strip with
   in/out mini bars + In/Out/Total summary (single currency at a time via a
   $/R$ switch — built as the `.seg` look at `xs` size, not the pages' solid
-  mint pill, OQ-127). Drives balances, budgets and goals — **not** the ledger.
-- **Ledger**: all transactions, newest first, lazily loaded, sticky month
+  mint pill, OQ-127). Drives balances, budgets and goals — and the ledger
+  (OQ-255, reversing the mockups).
+- **Ledger**: the selected month's transactions (a Holding filter spans every
+  month, OQ-255), newest first, lazily loaded, sticky month
   headers + day headers with day totals. Rows expand on click to reveal
   details and Edit/Delete.
-- **Card rails**: horizontally scrolling rows of fixed-width cards
-  (balances, budgets, goals) with snap, edge fade and arrow buttons.
+- **Card rails**: rows of fixed-width cards (balances, budgets, goals). The
+  mockups scroll them sideways with snap, edge fade and arrows; the app
+  wraps all three onto new rows instead (OQ-254).
 - **Progress**: rings for budget/goal cards in rails; pill bars with the
   amount inside for goal lists.
 - **Drawers**: right-side drawer for every focused form (Record, Filter,
@@ -130,7 +133,7 @@ variable-based form; `22-dashboard-light-theme.html` is the proof.
 | 01–09 | Auth | Brand panel with product preview; sign in, register (first/last name, 12-char min password with strength meter), forgot/reset, MFA method/setup/backup codes/code entry. |
 | 10–14 | Guided setup | Name household → mandatory first account (4 types: checking, savings, credit card only, investment; add-card form + live card preview; the starting balance is explained — today's balance, investment accounts count only uninvested cash, earlier transactions can be recorded and never change it, OQ-169) → review starter categories → optional budget → setup complete with next steps. Main nav hidden. |
 | 20–24 | Dashboard | Net worth per currency with month-over-month badge, coming-due list, payout over time, balance/budget/goal rails (over-budget first). Variants: nav menu open, light theme, notifications open, audit-log export dialog. |
-| 30–35 | Transactions | Main page, Record drawer (cash), Investment buy drawer (full fixed-income incl. when interest is paid, optional quantity, optional category, goal allocation), Filter drawer (any date range), mobile layout, Investment sell drawer (the Holding picked from the account's list — sell, redemption, dividend, interest and tax all pick it, OQ-201). No Import button (Open Banking is v2, OQ-69). Edit reuses the Record drawer with kind and target read-only (OQ-201). |
+| 30–35 | Transactions | Main page, Record drawer (cash), Investment buy drawer (full fixed-income incl. when interest is paid, optional quantity, optional category, goal allocation), Filter drawer (no date range since OQ-255 — the period bar picks the month), mobile layout, Investment sell drawer (the Holding picked from the account's list — sell, redemption, dividend, interest and tax all pick it, OQ-201). No Import button (Open Banking is v2, OQ-69). Edit reuses the Record drawer with kind and target read-only (OQ-201). |
 | 40–43 | Account Setup | Accounts (card grid, mini credit cards, edit drawer form style; **Add Account** reuses page 11's form — the starting-balance hint under the field plus a "How does this work?" popover with the same three points, OQ-169), Categories (icon + colour, inline subcategories), Budgets (claim-aware category picker), Goals (progress + funded by, Active/Completed, mixed-currency goal with an on-the-fly exchange-rate input). |
 | 50–53 | Investments | Overview (payout this month from transactions + payout chart; Portfolio Builders disabled — v2), Holdings by account (read-only positions; fixed-income Contract panel; market value with history chart; editable goal allocation), Value history drawer (edit/delete snapshots), Rates (manual Selic/CDI/IPCA/IGP-M). |
 | 60 | Household | Members with role menu, invite + pending invitations, danger zone. |
