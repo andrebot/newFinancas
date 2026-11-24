@@ -33,7 +33,7 @@
     "test:coverage": "vitest run --coverage",
     "test:smoke": "playwright test --grep @smoke",
     "test:smoke:prod": "E2E_TARGET=production playwright test --grep @smoke",
-    "test:e2e:core": "playwright test --grep @core --pass-with-no-tests",
+    "test:e2e:core": "playwright test --grep @core",
     "test:e2e": "playwright test",
     "generate:api": "pnpm --filter @financas/api-types generate",
     "check:contract": "pnpm --filter @financas/api-types lint:spec && pnpm generate:api && (git diff --quiet -- packages/api-types/src/generated && test -z \"$(git ls-files --others --exclude-standard -- packages/api-types/src/generated)\" || (echo 'Generated API code is stale: commit the regenerated packages/api-types/src/generated' && exit 1))",

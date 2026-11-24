@@ -486,6 +486,25 @@ Browse & Filter with paging, Month Overview per period and Goal progress (a CDB 
 
 **I13 (OQ-246)** adds #8, tagged `@core`, in `tests/e2e/identity/deleteAccount.spec.ts`: the user deletes their account through Manage Profile (the ownership note listing only the household they own, the confirm locked until their exact email, Sign In after), then, through the API, their sign-in and other session refused, the owned household passed to its other member, the other household without them, the shared Account, Budget, Goal, withdrawal and CDI value kept with no user named, and the audit log holding every line it held before plus their departure. Personal rows can't be seen by anyone else: the journey proves only that none still names the user (a restrict foreign key would block the delete) and that the transfer from the personal account is undone into a lone movement; that they are deleted stays with M1D's integration suite.
 
+**V2 (Nov 2026)** closes the list: all 14 journeys are written and tagged `@core` — 16 tests, since #3 and #4 and #11's two halves are separate tests — and `pnpm test:e2e:core` passes on its own and five times over (`--repeat-each=5`). `--pass-with-no-tests` is dropped from that script: it only made sense before the first `@core` test existed, and now it would let a broken tag filter pass with nothing run. Where each journey lives:
+
+| # | Test (`tests/e2e/…`) |
+|---|---|
+| 1 | `identity/onboard.spec.ts` |
+| 2 | `identity/manageHousehold.spec.ts` — invited user accepts |
+| 3 | `identity/manageHousehold.spec.ts` — Owner leaves |
+| 4 | `identity/manageHousehold.spec.ts` — Owner hands ownership over |
+| 5 | `finances/monthOverview.spec.ts` |
+| 6 | `finances/fixedTermBuy.spec.ts` (Holding, schedule, no snapshot) + `investments/holdingProjection.spec.ts` (projection) |
+| 7 | `finances/editTransaction.spec.ts` |
+| 8 | `identity/deleteAccount.spec.ts` |
+| 9 | `accountSetup/manageBudgets.spec.ts` |
+| 10 | `investments/allocationLimit.spec.ts` |
+| 11 | `finances/sellAndUndo.spec.ts` (both tests) |
+| 12 | `insights/auditExport.spec.ts` |
+| 13 | `investments/investmentsDaily.spec.ts` |
+| 14 | `identity/bellInvitation.spec.ts` |
+
 ### Full E2E — nightly / pre-release gate, the remaining coverage
 
 Not a fresh list — a **coverage-completion policy** applied to inventory
