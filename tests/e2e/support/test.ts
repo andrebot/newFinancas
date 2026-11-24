@@ -1,4 +1,6 @@
-import { expect, test as base, type BrowserContext } from '@playwright/test';
+import {
+  expect, test as base, type BrowserContext, type Page,
+} from '@playwright/test';
 
 // Every journey's `test` (N10 S1, OQ-250): Playwright's, plus an automatic
 // check that no page broke the Content Security Policy. The CSP is sent only
@@ -22,6 +24,21 @@ export const watchCspViolations = (context: BrowserContext): string[] => {
     }
   });
   return violations;
+};
+
+/**
+ * Collects the warnings the web app logs (through its logger, `[I18nUtility]`)
+ * when a page asks for a catalog message that is missing or fails to format.
+ *
+ * @param page - The page to watch.
+ * @returns The list the warnings are added to, as they happen.
+ */
+export const watchI18nWarnings = (page: Page): string[] => {
+  const warnings: string[] = [];
+  page.on('console', (message) => {
+    if (message.text().startsWith('[I18nUtility]')) warnings.push(message.text());
+  });
+  return warnings;
 };
 
 export const test = base.extend<{ cspViolations: string[] }>({

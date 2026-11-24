@@ -1,9 +1,13 @@
-import { expect, test, watchCspViolations } from './support/test';
+import {
+  expect, test, watchCspViolations, watchI18nWarnings,
+} from './support/test';
 import { categoryShapes, defaultCategoryShapes } from './support/accountApi';
 import {
   accountNamed, getAccount, isoDay, recordTransaction,
 } from './support/financeApi';
 import { createHousehold, registerUser, signInThroughApi } from './support/identityApi';
+import { signInThroughUi } from './support/signIn';
+import { textIn } from './support/text';
 import { dashboard } from './support/insightsApi';
 
 // Smoke (BDT plan): is the system fundamentally wired — not business rules.
@@ -69,11 +73,7 @@ for (const locale of ['en-US', 'pt-BR'] as const) {
       // Its own context, so the automatic CSP check doesn't see it: watch it here.
       const cspViolations = watchCspViolations(context);
       const page = await context.newPage();
-      // The web app warns through its logger when a catalog key is missing or broken.
-      const i18nWarnings: string[] = [];
-      page.on('console', (message) => {
-        if (message.text().startsWith('[I18nUtility]')) i18nWarnings.push(message.text());
-      });
+      const i18nWarnings = watchI18nWarnings(page);
 
       /**
        * Opens a page and waits for its heading.
@@ -95,6 +95,76 @@ for (const locale of ['en-US', 'pt-BR'] as const) {
       await context.close();
     });
   }
+}
+
+/** A signed-in page to check: its address and, for a tabbed page, the tab it opens on. */
+interface SignedInPage {
+  readonly path: string;
+  readonly tab?: string;
+}
+
+// Every signed-in page a member of a household with an account reaches, each
+// tab included, as a new household first sees it (OQ-259). Onboard and Guided
+// Setup need a user without a household or an account, so their journeys cover them.
+const SIGNED_IN_PAGES: readonly SignedInPage[] = [
+  { path: '/' },
+  { path: '/transactions' },
+  ...['accounts', 'categories', 'budgets', 'goals'].map((tab) => ({ path: '/account-setup', tab })),
+  ...['overview', 'holdings', 'rates'].map((tab) => ({ path: '/investments', tab })),
+  { path: '/household' },
+  { path: '/profile' },
+  { path: '/households/new' },
+];
+
+for (const locale of ['en-US', 'pt-BR'] as const) {
+  test(`the signed-in pages load in ${locale} with no missing text`, {
+    tag: '@smoke',
+  }, async ({ page, request }) => {
+    // The app takes the language the user registered in once they sign in;
+    // Sign In itself runs in the browser's en-US, as signInThroughUi expects.
+    const user = await registerUser(request, { firstName: 'Lia', lastName: 'Smoke' }, locale);
+    await createHousehold(request, user, 'Smoke Pages');
+    const i18nWarnings = watchI18nWarnings(page);
+    const localText = textIn(locale);
+
+    /**
+     * Opens a signed-in page and waits until it shows what was asked for — the
+     * address and tab, not a fallback — in the user's language, with its data.
+     *
+     * @param target - The page, and the tab it opens on.
+     */
+    const open = async ({ path, tab }: SignedInPage) => {
+      const address = tab ? `${path}?tab=${tab}` : path;
+      await page.goto(address);
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+      // An unknown address goes to the Dashboard, an unknown tab to the first one.
+      expect(new URL(page.url()).pathname).toBe(path);
+      if (tab) await expect(page.locator(`input[type="radio"][value="${tab}"]`)).toBeChecked();
+      await expect(page.locator('html')).toHaveAttribute('lang', locale);
+      // Let the page's data arrive, so the texts it renders are checked too.
+      await page.waitForLoadState('networkidle');
+    };
+
+    await signInThroughUi(page, user);
+    // One page after the other (no await in a loop — Airbnb): each page is
+    // checked once the one before it settled.
+    await SIGNED_IN_PAGES.reduce(
+      (previous, target) => previous.then(() => open(target)),
+      Promise.resolve(),
+    );
+    // The drawers every member opens: the navigation menu and Record Transaction.
+    await page.goto('/transactions');
+    await page.getByRole('button', { name: localText('manageFinances', 'record') }).click();
+    await expect(page.getByRole('dialog', { name: localText('recordTransaction', 'record.title') }))
+      .toBeVisible();
+    await page.waitForLoadState('networkidle');
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: localText('shell', 'header.openMenu') }).click();
+    await expect(page.getByRole('button', { name: localText('shell', 'account.signOut') }))
+      .toBeVisible();
+
+    expect(i18nWarnings).toEqual([]);
+  });
 }
 
 test('a new household holds the default Categories in its creator\'s language', {

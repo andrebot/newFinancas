@@ -7887,6 +7887,33 @@ a fee, and there was no kind for it.
 - Reference data only (FR-3.1): the kinds, their names and icons, and the
   API's per-kind fields; no schema change.
 
+### OQ-259: Smoke checks the signed-in pages for missing text
+**Decided with the stakeholder (Nov 2026, V1).** Smoke check 6 (the app
+loads in both locales without a missing catalog key) covered only the
+signed-out pages, so a missing key on a signed-in page passed every gate.
+- **Two more `@smoke` tests**, one per locale (`smoke.spec.ts`): a user
+  registered in that language, with a household, signs in through the
+  browser and opens each signed-in page **as a new household first sees
+  it** — Dashboard, Transactions, Account Setup (all four tabs),
+  Investments (all three tabs), Household, Profile, Create Household — then
+  the navigation menu and the Record Transaction drawer. Each page must
+  land on the address and tab asked for (an unknown one falls back
+  silently), in the user's language, with its data loaded; any
+  `[I18nUtility]` warning fails the test, and the CSP check runs as on
+  every journey. Proven to fail on a removed pt-BR key on a tab and in the
+  drawer, and on a mistyped tab.
+- **Not covered, on purpose:** texts that show only with data (rows,
+  charts, filled cards) or behind other drawers and dialogs — seeding them
+  would make smoke a Core E2E; the typecheck already fails on a key one
+  catalog lacks. Onboard and Guided Setup need a user without a household
+  or an account (their identity journeys cover them); Reset Password needs
+  a reset token.
+- **Theme stays on the signed-out test:** it changes no text, so the
+  signed-in pages run in one theme.
+- **No live-server smoke:** smoke writes users and households, so it never
+  runs against the deployed instance; it runs on a local production build
+  (`pnpm test:smoke:prod`), as CI does.
+
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
 *(None currently — OQ-29, the last item here, was resolved during data
