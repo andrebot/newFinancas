@@ -443,7 +443,7 @@ enough to gate every merge without anyone noticing the wait:
 3. Create a household → default Categories exist.
 4. Record one simple transaction → account balance reflects it.
 5. Backend health check / a Dashboard request returns `200`.
-6. The frontend loads in both themes and both locales without a missing catalog key (the contract check's runtime twin).
+6. The frontend loads in both themes and both locales without a missing catalog key (the contract check's runtime twin): the signed-out pages in each locale × theme, and every signed-in page and tab in each locale (OQ-259).
 
 ### Core E2E — post-merge on `main`, the 14 highest-risk journeys
 

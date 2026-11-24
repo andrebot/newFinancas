@@ -7887,6 +7887,23 @@ a fee, and there was no kind for it.
 - Reference data only (FR-3.1): the kinds, their names and icons, and the
   API's per-kind fields; no schema change.
 
+### OQ-259: Smoke checks every signed-in page for missing text
+**Decided with the stakeholder (Nov 2026, V1).** Smoke check 6 (the app
+loads in both locales without a missing catalog key) covered only the
+signed-out pages, so a missing key on a signed-in page passed every gate.
+- **Two more `@smoke` tests**, one per locale (`smoke.spec.ts`): a user
+  registered in that language, with a household, signs in through the
+  browser and opens every signed-in page — Dashboard, Transactions, Account
+  Setup (all four tabs), Investments (all three tabs), Household, Profile —
+  waiting for each page's data; any `[I18nUtility]` warning fails the test,
+  and the CSP check runs as on every journey. Proven to fail on one removed
+  pt-BR key on the Investments Rates tab.
+- **Theme stays on the signed-out test:** it changes no text, so the
+  signed-in pages run in one theme.
+- **No live-server smoke:** smoke writes users and households, so it never
+  runs against the deployed instance; it runs on a local production build
+  (`pnpm test:smoke:prod`), as CI does.
+
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
 *(None currently — OQ-29, the last item here, was resolved during data

@@ -4,6 +4,7 @@ import {
   accountNamed, getAccount, isoDay, recordTransaction,
 } from './support/financeApi';
 import { createHousehold, registerUser, signInThroughApi } from './support/identityApi';
+import { signInThroughUi } from './support/signIn';
 import { dashboard } from './support/insightsApi';
 
 // Smoke (BDT plan): is the system fundamentally wired — not business rules.
@@ -95,6 +96,54 @@ for (const locale of ['en-US', 'pt-BR'] as const) {
       await context.close();
     });
   }
+}
+
+// Every signed-in page, each tab included: the address each opens at.
+const SIGNED_IN_PAGES = [
+  '/',
+  '/transactions',
+  ...['accounts', 'categories', 'budgets', 'goals'].map((tab) => `/account-setup?tab=${tab}`),
+  ...['overview', 'holdings', 'rates'].map((tab) => `/investments?tab=${tab}`),
+  '/household',
+  '/profile',
+];
+
+for (const locale of ['en-US', 'pt-BR'] as const) {
+  test(`the signed-in pages load in ${locale} with no missing text`, {
+    tag: '@smoke',
+  }, async ({ page, request }) => {
+    // The app takes the language the user registered in once they sign in;
+    // Sign In itself runs in the browser's en-US, as signInThroughUi expects.
+    const user = await registerUser(request, { firstName: 'Lia', lastName: 'Smoke' }, locale);
+    await createHousehold(request, user, 'Smoke Pages');
+    // The web app warns through its logger when a catalog key is missing or broken.
+    const i18nWarnings: string[] = [];
+    page.on('console', (message) => {
+      if (message.text().startsWith('[I18nUtility]')) i18nWarnings.push(message.text());
+    });
+
+    /**
+     * Opens a signed-in page and waits for its heading, its language and its data.
+     *
+     * @param address - The page's address.
+     */
+    const open = async (address: string) => {
+      await page.goto(address);
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+      await expect(page.locator('html')).toHaveAttribute('lang', locale);
+      // Let the page's data arrive, so the texts it renders are checked too.
+      await page.waitForLoadState('networkidle');
+    };
+
+    await signInThroughUi(page, user);
+    // One page after the other: a page is checked in the language it settled in.
+    await SIGNED_IN_PAGES.reduce(
+      (previous, address) => previous.then(() => open(address)),
+      Promise.resolve(),
+    );
+
+    expect(i18nWarnings).toEqual([]);
+  });
 }
 
 test('a new household holds the default Categories in its creator\'s language', {

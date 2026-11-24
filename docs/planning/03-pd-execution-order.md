@@ -226,7 +226,7 @@ identity screens, the rest as later slices use them.
   - [x] Router: reserve 192.168.68.65
   - [x] First deploy and checks (LAN, Tailscale away, certificate, headers) — live 2026-11-18
 - [ ] **144.** `N11` Accessibility audit
-- [ ] **145.** `V1` Smoke suite
+- [x] **145.** `V1` Smoke suite (every signed-in page checked for missing text — OQ-259)
 - [ ] **146.** `V2` Core E2E (14 journeys)
 - [ ] **147.** `V3` Full E2E (incl. the password-reset journey, once a test email sink is chosen — OQ-164)
 - [ ] **148.** `V4` Load tests (k6)
