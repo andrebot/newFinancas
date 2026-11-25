@@ -1,5 +1,8 @@
 # Project Design — Step 3: Execution order (v1)
 
+**v1 is complete (OQ-261, 2026-11-25), tagged `v1.0.0`.** Tasks 144, 148,
+149 and R6 were dropped, not deferred; the app is in real use.
+
 **Stakeholder decision (Oct 2026):** no effort estimates or schedule
 options — one developer + Claude, **one task at a time**. This list is
 the plan: a topological order of the dependency network
@@ -225,10 +228,10 @@ identity screens, the rest as later slices use them.
   - [x] Cloudflare: A record `financas` → 192.168.68.65 (DNS only) + DNS-edit API token
   - [x] Router: reserve 192.168.68.65
   - [x] First deploy and checks (LAN, Tailscale away, certificate, headers) — live 2026-11-18
-- [ ] **144.** `N11` Accessibility audit
+- [ ] ~~**144.** `N11` Accessibility audit~~ — dropped (OQ-261)
 - [x] **145.** `V1` Smoke suite (signed-in pages checked for missing text — OQ-259)
 - [x] **146.** `V2` Core E2E (14 journeys — all written by the I-tasks; the suite run five times over, `--pass-with-no-tests` dropped)
 - [x] **147.** `V3` Full E2E (password reset through a file outbox — OQ-260; ledger delete and an additional household added; the rest mapped)
-- [ ] **148.** `V4` Load tests (k6)
-- [ ] **149.** `N13` First real use + stabilization (last: real data goes in once the load tests pass — OQ-248)
-- [ ] **R6.** Slice 6 review (gate — before the release)
+- [ ] ~~**148.** `V4` Load tests (k6)~~ — dropped (OQ-261)
+- [ ] ~~**149.** `N13` First real use + stabilization (last: real data goes in once the load tests pass — OQ-248)~~ — dropped: in real use since 2026-11-18 (OQ-261)
+- [ ] ~~**R6.** Slice 6 review (gate — before the release)~~ — dropped (OQ-261)

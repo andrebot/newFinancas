@@ -6,8 +6,9 @@ and the US (USD). Open Banking sync is planned for v2.
 
 ## Status
 
-**Implementation in progress — see the checklist for the next task.** No application code is
-written until the design is done, by project convention. As of
+**v1 complete (2026-11-25, tag `v1.0.0`, OQ-261)** — live and in real use
+since 2026-11-18. No application code was written until the design was
+done, by project convention. As of
 2026-10-02 every design artifact has been reviewed against the approved
 October 2026 UI design:
 
@@ -25,7 +26,7 @@ October 2026 UI design:
 | Frontend sequences | ✅ 22 (21 Flows + shell notification routing) | `docs/design/diagrams/ebd-sequences/` |
 | Test plan (BDT) | ✅ revised — unit / integration / contract checks / smoke / 14 Core E2E / full E2E / load | `docs/architecture/04-bdt-test-plan.md` |
 | Project design (PD) | ✅ activity list (149, incl. a 50-component UI kit) → dependency network → execution order in 7 vertical slices | `docs/planning/01-` … `03-pd-*.md`, `docs/design/diagrams/scripts/pd_network.py` |
-| **Implementation** | **in progress** — one task at a time, in the order of `docs/planning/03-pd-execution-order.md` | — |
+| **Implementation** | ✅ **v1 complete** — built one task at a time in the order of `docs/planning/03-pd-execution-order.md`; 144, 148, 149 and R6 dropped (OQ-261) | tag `v1.0.0` |
 
 The design-round tracker, D1–D24, is
 `docs/architecture/00-design-round-change-log.md`.
