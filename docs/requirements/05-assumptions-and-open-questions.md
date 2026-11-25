@@ -7937,6 +7937,25 @@ shows it in the terminal alone.
   A real provider, when one comes, is a new entry beside these two and
   brings its own sink.
 
+### OQ-261: v1 is complete
+**Decided with the stakeholder (Nov 2026).** The app has been live and in
+real use since 2026-11-18 (OQ-250), so v1 closes as it is and is tagged
+`v1.0.0`. Four tasks left on the checklist are dropped, not deferred — a
+single developer working with Claude on a personal app, already in use,
+doesn't need them:
+- **144 `N11` Accessibility audit** — the kit's Storybook a11y checks
+  (OQ-128) and the Playwright journeys, which find elements by role and
+  label, stay as they are.
+- **148 `V4` Load tests (k6)** — one household on its own server; the
+  load-testing section of the BDT plan stays as the reference if that
+  changes. OQ-248's "V4 before N13" lapses with it.
+- **149 `N13` First real use + stabilization** — real use has already
+  begun; bugs are fixed as they come.
+- **R6 Slice 6 review** — the gate (OQ-164) is not run for slice 6.
+
+Work after v1 (v2 items such as FR-5.4, OQ-248; bugs from real use) is
+planned on its own.
+
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
 *(None currently — OQ-29, the last item here, was resolved during data
