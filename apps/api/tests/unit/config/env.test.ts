@@ -21,7 +21,7 @@ describe('loadEnv', () => {
     expect(config).toEqual({
       port: 4000,
       databaseUrl: DATABASE_URL,
-      emailProvider: 'console',
+      email: { provider: 'console' },
       webAppUrl: 'https://financas.example.com',
       investmentsDailyTimer: false,
       jwtSecret: JWT_SECRET,
@@ -42,7 +42,7 @@ describe('loadEnv', () => {
 
     expect(config.investmentsDailyTimer).toBe(true);
     expect(config.port).toBe(3000);
-    expect(config.emailProvider).toBe('console');
+    expect(config.email).toEqual({ provider: 'console' });
     expect(config.webAppUrl).toBe('http://localhost:5173');
   });
 
@@ -59,7 +59,7 @@ describe('loadEnv', () => {
 
     expect(Object.keys(config).sort())
       .toEqual([
-        'databaseUrl', 'emailProvider', 'investmentsDailyTimer', 'jwtSecret', 'mfaEncryptionKey',
+        'databaseUrl', 'email', 'investmentsDailyTimer', 'jwtSecret', 'mfaEncryptionKey',
         'port', 'webAppUrl', 'webDistDir',
       ]);
   });
@@ -97,6 +97,31 @@ describe('loadEnv', () => {
   it('rejects an unknown EMAIL_PROVIDER', () => {
     expect(() => loadEnv({ DATABASE_URL, EMAIL_PROVIDER: 'smtp', ...SECRETS }))
       .toThrow(/EMAIL_PROVIDER/);
+  });
+
+  it('takes the outbox provider with its absolute folder (OQ-260)', () => {
+    const config = loadEnv({
+      DATABASE_URL, EMAIL_PROVIDER: 'outbox', EMAIL_OUTBOX_DIR: '/tmp/outbox', ...SECRETS,
+    });
+
+    expect(config.email).toEqual({ provider: 'outbox', outboxDir: '/tmp/outbox' });
+  });
+
+  it.each([
+    ['without a folder', {}, /EMAIL_OUTBOX_DIR/],
+    ['with a relative folder', { EMAIL_OUTBOX_DIR: '.e2e-mail' },
+      /absolute path[\s\S]*EMAIL_OUTBOX_DIR/],
+    ['in production', { EMAIL_OUTBOX_DIR: '/tmp/outbox', NODE_ENV: 'production' },
+      /never production[\s\S]*EMAIL_PROVIDER/],
+  ])('rejects the outbox provider %s', (_case, override, message) => {
+    expect(() => loadEnv({
+      DATABASE_URL, EMAIL_PROVIDER: 'outbox', ...SECRETS, ...override,
+    })).toThrow(message);
+  });
+
+  it('keeps the console provider in production', () => {
+    expect(loadEnv({ DATABASE_URL, NODE_ENV: 'production', ...SECRETS }).email)
+      .toEqual({ provider: 'console' });
   });
 
   it('takes INVESTMENTS_DAILY_TIMER=on as on', () => {

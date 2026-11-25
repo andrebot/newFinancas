@@ -1,9 +1,13 @@
+import { randomUUID } from 'node:crypto';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { createLogger } from '@financas/logging';
 
 // EmailAccessor (U7, OQ-113): sends an already-rendered email through the
 // configured provider — the external system. It knows how to send, never what
 // to say: composing the email is NotificationEngine's. The provider is this
-// Accessor's configuration (EMAIL_PROVIDER); v1 has only `console` (OQ-88).
+// Accessor's configuration (EMAIL_PROVIDER); v1 sends through `console`
+// (OQ-88), and the E2E API through `outbox`, a test sink (OQ-260).
 
 /** A rendered email. */
 export interface EmailMessage {
@@ -29,21 +33,44 @@ export const createConsoleProvider = (): SendEmail => {
   };
 };
 
-/** Every provider by its EMAIL_PROVIDER name; a real one is a new entry. */
-export const EMAIL_PROVIDERS = {
-  console: createConsoleProvider,
-} as const satisfies Record<string, () => SendEmail>;
+/**
+ * The outbox provider (OQ-260), the E2E suite's email sink: writes each email as
+ * a JSON file of its own into a folder, where a journey reads the reset link
+ * back. It keeps live links on disk, so the config refuses it in production.
+ *
+ * @param outboxDir - The folder to write into, created when missing.
+ * @returns The provider's send function.
+ */
+export const createOutboxProvider = (outboxDir: string): SendEmail => async (message) => {
+  await mkdir(outboxDir, { recursive: true });
+  const fileName = `${Date.now()}-${randomUUID()}.json`;
+  await writeFile(join(outboxDir, fileName), JSON.stringify(message));
+};
 
-export type EmailProviderName = keyof typeof EMAIL_PROVIDERS;
+/** The provider EMAIL_PROVIDER names, with what it needs to run. */
+export type EmailSettings = | { readonly provider: 'console' }
+  | { readonly provider: 'outbox'; readonly outboxDir: string };
+
+/**
+ * The provider the settings name, ready to send.
+ *
+ * @param settings - The provider and its settings.
+ * @returns The provider's send function.
+ */
+const providerFor = (settings: EmailSettings): SendEmail => (
+  settings.provider === 'outbox'
+    ? createOutboxProvider(settings.outboxDir)
+    : createConsoleProvider()
+);
 
 /**
  * Builds the EmailAccessor over the configured provider.
  *
- * @param provider - EMAIL_PROVIDER.
+ * @param settings - EMAIL_PROVIDER and its settings.
  * @returns The accessor's operations.
  */
-const createEmailAccessor = (provider: EmailProviderName) => {
-  const sendThroughProvider = EMAIL_PROVIDERS[provider]();
+const createEmailAccessor = (settings: EmailSettings) => {
+  const sendThroughProvider = providerFor(settings);
   return {
     /**
      * Sends an email.

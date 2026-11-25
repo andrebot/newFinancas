@@ -128,7 +128,7 @@ the rest).
 | `GoalAccessor` *(renamed from `ObjectiveAccessor`)* | `replaceAllocations` with **whole-percent integers** (OQ-87, OQ-168): exactly 100 (success), 101 (rejected, FR-8.3, with the current and requested totals — set up at least two prior rows), 0 per row rejected by the CHECK; replace-all drops left-out pairs; another household's Goal → `goal_not_found`, nothing written; personal/completed Goals accepted (those rules are the Managers'); complete/reopen (the one reversible pair) vs. delete (hard, allocations cascade away, Holdings untouched) |
 | `AuditLogAccessor` | Insert (via `recordAudit` only — never directly); `exportCsv` over a date range. The no-`UPDATE`/`DELETE` privilege is verified by the schema checks (`apps/api/tests/db/`, OQ-95), not by this Accessor's tests. |
 | `NotificationInboxAccessor` | Insert stores `type` + `params` JSON (no text column exists — OQ-82); `listByUser`; `markAllSeen` (bulk); delete (hard) |
-| `EmailAccessor` *(OQ-113)* | `send({to, subject, body})` reaches the configured provider unchanged; the `console` provider shows the email in the terminal only (`consoleOnly`, OQ-112); `EMAIL_PROVIDER` picks the provider, so switching it changes no caller |
+| `EmailAccessor` *(OQ-113)* | `send({to, subject, body})` reaches the configured provider unchanged; the `console` provider shows the email in the terminal only (`consoleOnly`, OQ-112); the `outbox` provider writes each email to a file of its own in its folder, creating it (OQ-260); `EMAIL_PROVIDER` picks the provider, so switching it changes no caller |
 
 ### Managers — integration, mock the Engines/Accessors they call directly
 
@@ -523,6 +523,39 @@ preferences (theme/language), one report per v1 `reportType`, password
 reset (email via the configured provider's test sink)/change, MFA
 recovery, additional household from the switcher. Slow
 and expensive by design — that's exactly why it doesn't gate a merge.
+
+**V3 (Nov 2026)** closes the list. Most of it was already written by the
+I-tasks; V3 added the three journeys still missing — password reset, deleting
+a ledger row, and an additional household from the switcher — and the email
+sink the first one needed (OQ-260). Dashboard layout (uc-02, v3, OQ-67) and
+CSV export (uc-04, v2, OQ-71) are deferred, so they have no journey; MFA
+recovery (uc-20) is Login's second step with a recovery code. The whole suite
+(62 tests) runs nightly (`.github/workflows/nightly.yml`). Where each item
+lives (`tests/e2e/…`):
+
+| Item | Test |
+|---|---|
+| Category/Subcategory create-edit-archive | `accountSetup/manageCategories.spec.ts` |
+| Financial Account + Credit Card create-edit-archive | `accountSetup/manageAccounts.spec.ts` |
+| Budget create-edit-delete | `accountSetup/manageBudgets.spec.ts` |
+| Goal create-edit-complete-reopen(-delete) | `accountSetup/manageGoals.spec.ts` |
+| Market value record-edit-delete + Value history | `investments/marketValues.spec.ts` |
+| Index rate record-edit-delete | `investments/indexRates.spec.ts` |
+| Browse & Filter with cursor paging | `finances/browseTransactions.spec.ts` |
+| Delete a transaction from the ledger (uc-03) | `finances/deleteTransaction.spec.ts` *(V3)* |
+| Month Overview per period | `finances/monthOverview.spec.ts` — the period bar |
+| Payout chart holding selection | `investments/payoutSelection.spec.ts` |
+| Notification list/delete | `insights/notificationInbox.spec.ts` |
+| Session view/revoke + sign out all others | `identity/manageProfile.spec.ts` |
+| Preferences (theme/language) | `identity/manageProfile.spec.ts` |
+| One report per v1 `reportType` | `month-overview`: `finances/monthOverview.spec.ts`; `investments-overview`: `investments/portfolioOverview.spec.ts`; `payouts`: `investments/payoutSelection.spec.ts` |
+| Password reset (uc-18) | `identity/resetPassword.spec.ts` *(V3 — the link read from the outbox, OQ-260; works once; every session ends)* |
+| Password change (uc-19) | `identity/manageProfile.spec.ts` |
+| MFA recovery (uc-20) | `identity/authenticate.spec.ts` — a recovery code, once only |
+| Additional household from the switcher (uc-01) | `identity/manageHousehold.spec.ts` *(V3 — through Guided Setup)* |
+| Membership: role change, remove, revoke, decline, switch, delete household | `identity/manageHousehold.spec.ts` |
+| Holding allocations (uc-02 Edit Holding) | `investments/allocationLimit.spec.ts`, `finances/goalProgress.spec.ts` |
+| Archive a matured Holding (uc-03) | `investments/investmentsDaily.spec.ts` — from the bell |
 
 ## Load Testing — a different axis: capacity, not correctness
 
