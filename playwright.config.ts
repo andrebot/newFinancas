@@ -20,6 +20,11 @@ process.env.TZ = TIME_ZONE;
 // would send the test database's entries to the dev one, which refuses them.
 process.env.LOG_DIR = path.resolve('.e2e-logs');
 
+// The API under test sends email through the outbox provider (OQ-260): each
+// one lands as a JSON file here, where the password-reset journey reads its
+// link (tests/e2e/support/outbox.ts). Global setup empties it on every run.
+process.env.EMAIL_OUTBOX_DIR = path.resolve('.e2e-mail');
+
 const API_URL = 'http://localhost:3000';
 const WEB_URL = 'http://localhost:5173';
 
@@ -37,6 +42,8 @@ const WEB_DIST_DIR = path.resolve('apps/web/dist');
 const API_ENV = {
   DATABASE_URL: process.env.DATABASE_TEST_URL ?? '',
   INVESTMENTS_DAILY_TIMER: 'off',
+  EMAIL_PROVIDER: 'outbox',
+  EMAIL_OUTBOX_DIR: process.env.EMAIL_OUTBOX_DIR,
 };
 
 // Opt-in: run against a locally installed Chromium (e.g. /usr/bin/chromium)

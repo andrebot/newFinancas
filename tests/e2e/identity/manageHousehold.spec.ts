@@ -158,6 +158,32 @@ test('the Owner switches to another of their households', async ({ page, request
   await expect(page.getByRole('heading', { level: 1, name: 'Second Home' })).toBeVisible();
 });
 
+test('the Owner creates another household from the switcher and sets it up', async ({
+  page, request,
+}) => {
+  await page.getByRole('button', { name: text('shell', 'header.openMenu') }).click();
+  const drawer = page.getByRole('navigation', { name: text('shell', 'drawer.label') });
+  await drawer.getByRole('button', {
+    name: `${text('shell', 'household.label')} Shared Home`,
+  }).click();
+  await drawer.getByRole('button', { name: text('shell', 'household.create') }).click();
+
+  await page.getByLabel(text('householdSetup', 'name')).fill('Beach House');
+  await page.getByRole('button', { name: text('householdSetup', 'submit') }).click();
+  // The new household is the active one: Guided Setup sets it up.
+  await expect(page).toHaveURL(/\/setup\/guided$/);
+  await page.getByLabel(text('guidedSetup', 'account.name')).fill('Beach Checking');
+  await page.getByRole('button', { name: text('guidedSetup', 'account.submit') }).click();
+  await page.getByRole('button', { name: text('guidedSetup', 'categories.continue') }).click();
+  await page.getByRole('button', { name: text('guidedSetup', 'finish') }).click();
+  await expect(page.getByRole('heading', {
+    name: text('guidedSetup', 'complete.title', { household: 'Beach House' }),
+  })).toBeVisible();
+
+  expect((await listHouseholds(request, owner)).map(({ name }) => name).sort())
+    .toEqual(['Beach House', 'Shared Home']);
+});
+
 test('the Owner hands ownership over and becomes an Admin', { tag: '@core' }, async ({
   page, request,
 }) => {

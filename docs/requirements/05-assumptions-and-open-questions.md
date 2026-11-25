@@ -696,6 +696,8 @@ language, body) to the log. Because the provider is configuration
 *(Refined by OQ-250: "local" now means self-hosted on the stakeholder's
 Proxmox server, reached on the LAN and over Tailscale — still no public
 hosting and no deployment pipeline. Runbook: `docs/operations/self-hosting.md`.)*
+*(OQ-260 adds an `outbox` provider, the E2E suite's sink only — refused in
+production.)*
 
 ### OQ-89: Is a regulatory compliance review in scope?
 **Confirmed, project design (Oct 2026): no.** v1 is for the
@@ -7913,6 +7915,27 @@ signed-out pages, so a missing key on a signed-in page passed every gate.
 - **No live-server smoke:** smoke writes users and households, so it never
   runs against the deployed instance; it runs on a local production build
   (`pnpm test:smoke:prod`), as CI does.
+
+### OQ-260: The E2E email sink is a file outbox
+**Decided with the stakeholder (Nov 2026, V3).** The password-reset journey
+needs the email the API really sends, and v1's only provider, `console`,
+shows it in the terminal alone.
+- **A second `EMAIL_PROVIDER`, `outbox`:** `EmailAccessor` writes each email
+  as a JSON file of its own (`{to, subject, body}`) into `EMAIL_OUTBOX_DIR`,
+  an absolute folder it creates when missing. Only the API that Playwright
+  starts uses it (`.e2e-mail/`, git-ignored, emptied by global setup); the
+  journey reads the newest email to the address and opens the link's path
+  on the origin it runs against, dev or the production shape.
+- **Never in production:** the outbox keeps live reset links on disk, so the
+  config refuses it when `NODE_ENV=production` (the container's), and
+  refuses it without a folder. The live app stays on `console` (OQ-88).
+- **Not chosen:** a real SMTP provider with Mailpit as the sink — it would
+  test the transport, but v1 has none, and it would add a dependency, a
+  service in CI and a relay for the live app; reading the API's terminal
+  output — brittle, and blind when Playwright reuses a running server.
+- **What it leaves untested:** the transport itself, which v1 doesn't have.
+  A real provider, when one comes, is a new entry beside these two and
+  brings its own sink.
 
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 

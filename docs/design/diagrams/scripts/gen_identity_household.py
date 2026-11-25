@@ -1177,7 +1177,7 @@ sequenceDiagram
         IM->>NE: notify("password.reset", recipient = {email, language}, params = {resetLink, expiresInMinutes: 30})
         Note over NE: resetLink = WEB_APP_URL + /reset-password?token=&hellip; &mdash;<br/>routed to email, rendered in the recipient&#39;s language (OQ-113)
         NE->>EA: send({to, subject, body})
-        Note over EA: only sends &mdash; provider = configuration (EMAIL_PROVIDER),<br/>v1 console, terminal only (OQ-112)
+        Note over EA: only sends &mdash; provider = configuration (EMAIL_PROVIDER),<br/>v1 console, terminal only (OQ-112), E2E outbox (OQ-260)
         EA-->>NE: sent
         IM-->>LOG: log.info("Password reset link sent")
     end

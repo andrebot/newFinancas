@@ -228,7 +228,7 @@ identity screens, the rest as later slices use them.
 - [ ] **144.** `N11` Accessibility audit
 - [x] **145.** `V1` Smoke suite (signed-in pages checked for missing text — OQ-259)
 - [x] **146.** `V2` Core E2E (14 journeys — all written by the I-tasks; the suite run five times over, `--pass-with-no-tests` dropped)
-- [ ] **147.** `V3` Full E2E (incl. the password-reset journey, once a test email sink is chosen — OQ-164)
+- [x] **147.** `V3` Full E2E (password reset through a file outbox — OQ-260; ledger delete and an additional household added; the rest mapped)
 - [ ] **148.** `V4` Load tests (k6)
 - [ ] **149.** `N13` First real use + stabilization (last: real data goes in once the load tests pass — OQ-248)
 - [ ] **R6.** Slice 6 review (gate — before the release)

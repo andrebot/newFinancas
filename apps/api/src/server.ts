@@ -78,7 +78,7 @@ const authentication = createAuthenticationUtility({
 const inbox = createNotificationInboxAccessor(db);
 const notifications = createNotificationEngine({
   insertNotification: inbox.insert,
-  sendEmail: createEmailAccessor(env.emailProvider).send,
+  sendEmail: createEmailAccessor(env.email).send,
 });
 const households = createHouseholdAccessor(db);
 const bus = createServiceBus({
