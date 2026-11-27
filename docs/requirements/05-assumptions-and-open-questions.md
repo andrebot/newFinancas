@@ -8072,10 +8072,9 @@ run refreshes only the markets the household holds (OQ-266).
   which the fetch cuts at today.
 - **Not in the export:** FII segment, mono/multi asset, tenant and
   record-date day (the management column comes back empty); a Brazilian
-  stock's company name and segment; a US stock's sector. Whether the
-  export's `Segment`/`Sector` search filters can place tickers in Builder
-  Categories automatically is probed in detail design; whatever can't be
-  filled is household reference data (FR-12.7, FR-12.12).
+  stock's company name and segment; a US stock's sector. **Superseded by
+  OQ-268:** the same page's JSON endpoint carries names, sectors and
+  segments and replaces the CSV export as the source.
 
 ### OQ-265: Index rates are fetched automatically (reverses OQ-59)
 **Confirmed with the stakeholder (2026-11-27).** The stakeholder entered
@@ -8159,6 +8158,37 @@ set of gaps. **Confirmed with the stakeholder (2026-11-27):**
 - **Screener settings are per household and market**, shared by the
   household's Portfolios of that market, like the saved FII valuations —
   one household, one view of the market.
+
+### OQ-268: Market data comes from Status Invest's JSON; FII segments map to categories
+**Confirmed with the stakeholder (2026-11-27)**, after probing the
+provider (OQ-264 left the category placement to this probe).
+- **Source: the advanced-search JSON endpoint** behind the same page
+  (`category/advancedsearchresultpaginated`, same `search` and
+  `CategoryType` parameters as the CSV export), replacing the CSV export.
+  It returns the same indicators as JSON numbers (no pt-BR or
+  Windows-1252 parsing; a missing field is "no data") plus each ticker's
+  company name, sector, subsector and segment. FIIs (608) and Brazilian
+  stocks (617) come in one request each. **US stocks are capped at 99
+  results per unfiltered request** (paging doesn't go past it), but a
+  `Sector` filter returns a sector's full list, so the US list is one
+  request per sector (~10). Checked live on 2026-11-27. Weighed and
+  rejected: CSV for the numbers plus JSON for the names (two formats, two
+  places to break) — both endpoints are equally unofficial.
+- **Category placement (FR-12.7):** stocks by their segment (Brazil, 82
+  segments) or sector (US, ~10); FIIs by a fixed map from the provider's
+  segment to the default categories. Papéis (108 FIIs), Misto (61) and
+  Indefinido (87, where Fiagro funds land) go to the user — the segment
+  doesn't say the receivables indexer, and mixed or undefined funds need
+  a person's look; the few non-FII segments the list carries (~25) go to
+  "other".
+- **Still not provided:** an FII's mono/multi asset, tenant and
+  record-date day (management is filled for 26 of 608), and a stock's
+  payout; these stay household reference data or derived values, as
+  FR-12 already states.
+- *Claude's calls:* placement runs once per ticker, when it is first seen,
+  so a user's move is never overwritten by the next fetch; a stock
+  category is created the first time its segment or sector appears; a
+  category the user removed is not re-created by placement.
 
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 

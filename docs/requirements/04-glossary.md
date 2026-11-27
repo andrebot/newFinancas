@@ -100,7 +100,8 @@
   is worth, and how far below it the price is: (fair value − price) ÷ fair
   value (FR-12.6, FR-12.8).
 - **Market Data** — Ticker prices and indicators fetched by the backend
-  from an external provider and cached (FR-12.12).
+  from an external provider and cached (FR-12.12; today Status Invest's
+  advanced-search JSON, OQ-268).
 - **Goal** *(called "Objective" before October 2026 — renamed, OQ-66)* —
   A financial goal with a name, target amount, target
   currency, and due date, funded by allocating a percentage of one or more

@@ -869,9 +869,21 @@ data), OQ-266 (automatic market values), OQ-267 (review round).
   malls, logistics/industrial, fund of funds, hospital, hotel, bank
   branches, education, development, agro, residential, other; **Brazilian
   stocks** — the B3 segment; **US stocks** — the provider's sector. A
-  ticker is placed automatically where the provider's data allows; a newly
-  fetched ticker without a category shows under **Uncategorized** until
-  the user assigns one. An FII category also carries its **valuation
+  newly fetched ticker is placed automatically from the provider's
+  segment or sector (OQ-268): a stock in the category of its segment
+  (Brazil) or sector (US), created on first use; an FII by this map —
+  offices ← Lajes Corporativas; shopping malls ← Shoppings, Varejo;
+  logistics/industrial ← Imóveis Industriais e Logísticos, Logística;
+  fund of funds ← Fundo de Fundos; hospital ← Hospitalar; hotel ← Hotéis;
+  bank branches ← Agências de Bancos; education ← Educacional;
+  development ← Fundo de Desenvolvimento; residential ← Imóveis
+  Residenciais; **none** for Papéis, Misto and Indefinido (the user picks
+  the receivables indexer, or the category of a mixed or agro fund); other
+  ← any other segment. Placement happens once, when the ticker is first
+  seen: a ticker the user moved stays where they put it, and a removed
+  category is not re-created (its tickers stay Uncategorized). A ticker
+  without a category shows under **Uncategorized** until the user assigns
+  one. An FII category also carries its **valuation
   model** (FR-12.8) — defaults: brick-and-mortar for offices, shopping
   malls, logistics/industrial, hospital, hotel, bank branches, education
   and residential; paper for the three receivables categories; none for
@@ -944,7 +956,8 @@ data), OQ-266 (automatic market values), OQ-267 (review round).
   time**, per the same rules as net worth (FR-5.4) and payouts (FR-5.9).
 - **FR-12.12 Market data.** Ticker data (prices and indicators) is
   **fetched by the backend** from an external provider behind a **pluggable
-  boundary**, and **cached** — today Status Invest's CSV export (OQ-264). Opening the
+  boundary**, and **cached** — today Status Invest's advanced-search JSON
+  (OQ-264, OQ-268). Opening the
   builder refreshes the market's data when the cache is older than a set
   limit; the daily run (FR-12.13) refreshes the markets the household holds.
   A field the provider doesn't carry is reference data the household
