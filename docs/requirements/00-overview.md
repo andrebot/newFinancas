@@ -47,8 +47,8 @@ These decisions were made explicitly and constrain everything below:
   stocks — were deferred from v1 and are specified for **v2** (FR-12,
   OQ-263). External analysis/recommendation APIs (e.g.,
   "best FIIs to invest," stock graph analysis) are an explicit **future
-  phase**, isolated behind a swappable boundary so they don't entangle with
-  v1.
+  phase**, isolated behind a swappable boundary — the same one v2's market
+  data sits behind (OQ-264).
 - **Investment Goals:** a user can define a goal (target amount,
   currency, due date) and fund it by allocating a percentage of one or more
   Investment Holdings to it, even across different currencies — contributions

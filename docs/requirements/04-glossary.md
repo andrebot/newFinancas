@@ -59,7 +59,7 @@
   amount(s) a Budget actually had in effect that month (FR-4.9). Editing a
   Budget only changes current/future periods; past Budget Periods never
   change retroactively, so multi-year budget history stays trustworthy.
-- **Investment Holding** — A manually tracked position in an asset (stock,
+- **Investment Holding** — A tracked position in an asset (stock,
   FII, fund, other) with quantity and cost basis. Always belongs to
   exactly one checking, savings, or investment Financial Account — not a
   standalone record

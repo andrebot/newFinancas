@@ -177,9 +177,11 @@ instruments, funds, other) by recording a buy transaction (CUC-4) — which
 creates the Holding automatically (a pre-existing investment is just a
 buy dated in the past, OQ-53). A Holding's position changes only through
 its transactions; market-priced Holdings (stocks, FIIs, funds) also get
-manually entered market values, which the user can later correct. The
-user maintains the index rates (Selic, CDI, IPCA, IGP-M) used to project
-fixed-income payouts, and views net worth (assets minus liabilities)
+manually entered market values, which the user can later correct — and,
+from v2, automatic ones from fetched quotes (FR-12.13). The index rates
+(Selic, CDI, IPCA, IGP-M) used to project fixed-income payouts were
+maintained by the user in v1 and are fetched automatically from v2
+(OQ-265); the user views net worth (assets minus liabilities)
 trended over time, reported per currency. Payout (dividends, interest) is
 derived from the transactions linked to each Holding (FR-5.9), and the
 investment engine projects each fixed-term Holding's expected payout and
