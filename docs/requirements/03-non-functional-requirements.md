@@ -72,6 +72,10 @@ backend decomposition rather than logic embedded in each Manager/Engine.
   status/staleness to the user.
 - **NFR-REL-2** Sync jobs use retry-with-backoff and never block core
   manual-entry functionality when a provider is unavailable.
+- **NFR-REL-3** *(v2, OQ-267)* External data — market data and index rates
+  (FR-11.6, FR-12.12) — never blocks the app: when a provider is down or
+  slow, the last fetched data is used, its age is shown wherever it is
+  used, and the fetch is retried on the next run.
 
 ## Performance
 
@@ -83,7 +87,10 @@ backend decomposition rather than logic embedded in each Manager/Engine.
 ## Scalability
 
 - **NFR-SCALE-1** The data model and API are household-scoped so the system
-  scales horizontally by household, without cross-tenant coupling.
+  scales horizontally by household, without cross-tenant coupling. **v2 exception (OQ-265, OQ-264):** public reference data that is the
+  same for everyone — index rates and the market-data cache — is
+  system-wide and read-only to households; every household's own data
+  stays household-scoped.
 
 ## Maintainability / Engineering Constraints
 

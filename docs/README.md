@@ -2,7 +2,8 @@
 
 A household finance application: personal and shared budgeting, expense
 tracking, and investment / net-worth tracking for Brazil (BRL, primary)
-and the US (USD). Open Banking sync is planned for v2.
+and the US (USD). v2 brings the Portfolio Builders, net worth history and
+reporting; Open Banking sync stays deferred.
 
 ## Status
 
@@ -42,8 +43,12 @@ with expected payout and taxes computed from manually entered index rates
 cash events and maturity notifications; a fixed dashboard, month
 overview and payout charts; audit-log CSV export; pt-BR + en-US.
 
-**Deferred, not dropped:** Open Banking, Portfolio Builders, ad-hoc
-reports + CSV export (v2); customizable dashboard widgets (v3).
+**v2 in requirements (OQ-262):** Portfolio Builders — FII, Brazilian and
+US stocks (FR-12, OQ-263), with market data fetched by the backend,
+automatic market values and index rates (OQ-264–266); net worth history
+(FR-5.4); ad-hoc reports + CSV export (parked until the builders are
+specified). **Deferred, not dropped:** Open Banking; customizable dashboard
+widgets (v3).
 **Removed:** recurring transactions (OQ-55).
 
 **Runs locally** (OQ-88): no hosting; email prints to the console until a
