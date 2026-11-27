@@ -8022,7 +8022,8 @@ Brazilian and US stock valuation monitors):
   minimums **adjustable right in the screener**.
 - **Builder Categories** are the household's, per market: defaults from
   the stakeholder's 15 FII categories, the B3 segment and the provider's
-  sector; uncategorized tickers wait for the user.
+  sector (stocks: created on first use, OQ-268); uncategorized tickers
+  wait for the user.
 
 **Claude's calls (for review):**
 - **One open (draft or recording) version per Portfolio** — two parallel
@@ -8055,7 +8056,8 @@ when the builder opens and the cache is older than a set limit; the daily
 run refreshes only the markets the household holds (OQ-266).
 
 **Provider — confirmed with the stakeholder (2026-11-27):**
-- **Ticker data: Status Invest's advanced-search CSV export**, the same
+- *Superseded by OQ-268 (source: the JSON endpoint; the US list's
+  request):* **Ticker data: Status Invest's advanced-search CSV export**, the same
   link the stakeholder's spreadsheets refresh through ("Atualizar Dados"
   is an Excel Power Query on it): one request per market returns the whole
   universe — `CategoryType` 2 FIIs (~608 tickers, 14 columns), 1 Brazilian
@@ -8072,10 +8074,9 @@ run refreshes only the markets the household holds (OQ-266).
   which the fetch cuts at today.
 - **Not in the export:** FII segment, mono/multi asset, tenant and
   record-date day (the management column comes back empty); a Brazilian
-  stock's company name and segment; a US stock's sector. Whether the
-  export's `Segment`/`Sector` search filters can place tickers in Builder
-  Categories automatically is probed in detail design; whatever can't be
-  filled is household reference data (FR-12.7, FR-12.12).
+  stock's company name and segment; a US stock's sector. **Superseded by
+  OQ-268:** the same page's JSON endpoint carries names, sectors and
+  segments and replaces the CSV export as the source.
 
 ### OQ-265: Index rates are fetched automatically (reverses OQ-59)
 **Confirmed with the stakeholder (2026-11-27).** The stakeholder entered
@@ -8136,7 +8137,7 @@ set of gaps. **Confirmed with the stakeholder (2026-11-27):**
   BRL Account against the Brazilian lists, a stock in a USD Account
   against the US list; anything else stays manual, so no FX ever enters a
   value. The daily run fetches the markets the household holds (one
-  request each), so a value is never a stale cached price; no new quote,
+  request each; the US request's filter, OQ-268), so a value is never a stale cached price; no new quote,
   no automatic value that day.
 - **Formulas made exact,** following the stakeholder's sheets: fractions
   in formulas; not applicable when a fair price is ≤ 0 or can't be computed,
@@ -8159,6 +8160,59 @@ set of gaps. **Confirmed with the stakeholder (2026-11-27):**
 - **Screener settings are per household and market**, shared by the
   household's Portfolios of that market, like the saved FII valuations —
   one household, one view of the market.
+
+### OQ-268: Market data comes from Status Invest's JSON; FII segments map to categories
+**Confirmed with the stakeholder (2026-11-27)**, after probing the
+provider (OQ-264 left the category placement to this probe).
+- **Source: the advanced-search JSON endpoint** behind the same page
+  (`category/advancedsearchresultpaginated`, same `search` and
+  `CategoryType` parameters as the CSV export), replacing the CSV export.
+  It returns the same indicators as JSON numbers (no pt-BR or
+  Windows-1252 parsing; a missing field is "no data") plus each ticker's
+  company name, sector, subsector and segment. FIIs (608) and Brazilian
+  stocks (617) come in one request each. **US stocks are capped at 99
+  results per unfiltered request** (paging doesn't go past it); any
+  filter lifts the cap. **The stakeholder asked for one request per
+  market**, so the US request filters on market value ≥ 0: 5,701 tickers
+  in one request. It leaves out ~580 tickers with no market value at all —
+  almost all priced at zero or never paying (expired SPACs, warrants,
+  delisted names) — which the screener would hide anyway; a held one gets
+  no quote and keeps manual values (FR-12.13). Weighed and rejected: one
+  request per sector (~10, complete — 6,283 tickers, every CSV ticker but
+  one), rejected by the stakeholder for the request count; CSV for the
+  numbers plus JSON for the names (two formats, two places to break) —
+  both endpoints are equally unofficial. Checked live on 2026-11-27.
+- **Category placement (FR-12.7):** stocks by their segment (Brazil, 82
+  segments) or sector (US, ~10); FIIs by a fixed map from the provider's
+  segment to the default categories. Papéis (108 FIIs), Misto (61) and
+  Indefinido (87, where Fiagro funds land) go to the user — the segment
+  doesn't say the receivables indexer, and mixed or undefined funds need
+  a person's look. The FII list also carries 31 tickers under stock
+  segments: Logística (7) maps to logistics/industrial, the other 24 go to
+  "other"; an FII with no segment waits for the user.
+- **The segment map is the provider's**, not household data: its keys are
+  Status Invest's segment names, so it lives behind the pluggable
+  provider boundary (CUC-7), and a new provider brings its own map.
+- **Still not provided:** an FII's mono/multi asset, tenant and
+  record-date day (management is filled for 26 of 608), and a stock's
+  payout; these stay household reference data or derived values, as
+  FR-12 already states.
+- *Claude's calls* (fixed after an independent review):
+  - placement runs **once per ticker per household**, when that
+    household's builder first loads it — not when the system cache first
+    sees it, which would leave later households unplaced; a user's move,
+    or a later change of the provider's segment, is never overwritten;
+  - a category keeps the **provider segment or default key** it came
+    from and placement matches on the key, so renaming is safe; a removed
+    category leaves a marker so placement doesn't re-create it;
+  - stocks have **no seeded categories**: one is created when the
+    household first meets its segment or sector, **named as the provider
+    names it (Portuguese)**, renameable — translating 82 B3 segments and
+    the sectors is a table to maintain for little gain; FII defaults stay
+    seeded in the household's language;
+  - where the provider fills a field for some tickers only (an FII's
+    management, 26 of 608), the household's entry wins over the
+    provider's, as manual beats automatic elsewhere (OQ-267).
 
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 

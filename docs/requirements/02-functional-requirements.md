@@ -771,7 +771,8 @@ tickers into a cart, value them, decide how many of each to hold, then buy
 and record what was actually bought. Three builders share one design: **FII**
 (Brazil, BRL), **Brazilian stocks** (BRL) and **US stocks** (USD) — the
 **market** of a portfolio. Decisions: OQ-263 (builder), OQ-264 (market
-data), OQ-266 (automatic market values), OQ-267 (review round).
+data), OQ-266 (automatic market values), OQ-267 (review round), OQ-268
+(provider and category placement).
 
 - **FR-12.1 Portfolio.** A Portfolio belongs to the household and is
   **personal or shared**, with the same visibility and permission rules as
@@ -863,15 +864,37 @@ data), OQ-266 (automatic market values), OQ-267 (review round).
   liquidity, US below US$ 2 billion or US$ 10 million; a toggle shows them.
 - **FR-12.7 Builder Categories.** Each household organizes its own
   categories **per market** — add, rename, remove (its tickers go to
-  Uncategorized), and move a ticker between them. Defaults, seeded in the
-  household's language as the default Categories are (FR-10.1): **FII** —
+  Uncategorized), and move a ticker between them. **FII** defaults, seeded
+  in the household's language as the default Categories are (FR-10.1):
   receivables IPCA, receivables IGP-M, receivables CDI, offices, shopping
   malls, logistics/industrial, fund of funds, hospital, hotel, bank
-  branches, education, development, agro, residential, other; **Brazilian
-  stocks** — the B3 segment; **US stocks** — the provider's sector. A
-  ticker is placed automatically where the provider's data allows; a newly
-  fetched ticker without a category shows under **Uncategorized** until
-  the user assigns one. An FII category also carries its **valuation
+  branches, education, development, agro, residential, other. **Stocks**
+  have no seeded categories: one is created the first time the household
+  meets a ticker of a new B3 segment (Brazil) or provider sector (US),
+  named as the provider names it (Portuguese) — the user may rename it.
+  A ticker is placed automatically from the provider's segment or sector
+  (OQ-268): a stock in the category created for its segment or sector; an
+  FII by this map —
+  offices ← Lajes Corporativas; shopping malls ← Shoppings, Varejo;
+  logistics/industrial ← Imóveis Industriais e Logísticos, Logística;
+  fund of funds ← Fundo de Fundos; hospital ← Hospitalar; hotel ← Hotéis;
+  bank branches ← Agências de Bancos; education ← Educacional;
+  development ← Fundo de Desenvolvimento; residential ← Imóveis
+  Residenciais; **none** for Papéis, Misto and Indefinido (the user picks
+  the receivables indexer, or the category of a mixed or agro fund); other
+  ← any other segment; no segment → none. **Placement rules:**
+  - a category remembers the provider segment or default it came from,
+    and placement matches on that, never on the name — a renamed category
+    still receives its tickers;
+  - each ticker is placed **once per household**, when the household's
+    builder for that market first loads it (opening the builder); a later
+    move by the user, or a later change of the provider's segment, never
+    moves it again;
+  - a removed category is remembered as removed: placement doesn't
+    re-create it, and its tickers stay Uncategorized.
+
+  A ticker without a category shows under **Uncategorized** until the
+  user assigns one. An FII category also carries its **valuation
   model** (FR-12.8) — defaults: brick-and-mortar for offices, shopping
   malls, logistics/industrial, hospital, hotel, bank branches, education
   and residential; paper for the three receivables categories; none for
@@ -944,11 +967,15 @@ data), OQ-266 (automatic market values), OQ-267 (review round).
   time**, per the same rules as net worth (FR-5.4) and payouts (FR-5.9).
 - **FR-12.12 Market data.** Ticker data (prices and indicators) is
   **fetched by the backend** from an external provider behind a **pluggable
-  boundary**, and **cached** — today Status Invest's CSV export (OQ-264). Opening the
+  boundary**, and **cached** — today Status Invest's advanced-search JSON
+  (OQ-264, OQ-268). Opening the
   builder refreshes the market's data when the cache is older than a set
   limit; the daily run (FR-12.13) refreshes the markets the household holds.
   A field the provider doesn't carry is reference data the household
-  maintains (e.g. the FII record-date day).
+  maintains (e.g. the FII record-date day); where the provider fills a
+  field only for some tickers (an FII's management), the household's
+  entry wins over the provider's. Each market is **one request**; a US
+  ticker without a market value is not in it (OQ-268) and gets no quote.
 - **FR-12.13 Automatic market values.** When the server starts and then
   once a day, the system fetches the quotes of every market the household
   holds and gives each held market-priced Holding an **automatic Valuation
