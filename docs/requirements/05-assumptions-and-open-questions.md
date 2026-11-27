@@ -470,6 +470,7 @@ needs the index's current value — see OQ-59.
 Rates screen, as a dated, editable history per index (FR-11.6). The engine
 uses the latest value. An automated feed may come later; the engine reads
 "latest value of index X" so the source can change without touching it.
+*(Superseded for v2 by OQ-265: fetched automatically, manual entry removed.)*
 
 ### OQ-60: How does a user switch between households (FR-1.8)?
 **Confirmed:** from the main navigation menu (the hamburger drawer), where
@@ -536,7 +537,7 @@ position (OQ-72). The app header gets the notification bell.
 
 ### OQ-70: Portfolio Builders in v1?
 **Confirmed: deferred to v2** (FR-5.5, FR-5.6). The entry buttons on
-Investments stay, disabled.
+Investments stay, disabled. *(v2: specified in FR-12 — OQ-263.)*
 
 ### OQ-71: Reporting in v1?
 **Confirmed: deferred to v2** — spending by category, income vs expense,
@@ -7956,7 +7957,134 @@ doesn't need them:
 Work after v1 (v2 items such as FR-5.4, OQ-248; bugs from real use) is
 planned on its own.
 
+### OQ-262: v2 scope and net worth history (Nov 2026)
+**Confirmed with the stakeholder (2026-11-27):**
+- **v2 is the Portfolio Builders, net worth history and Reporting.**
+  Reporting (FR-6.2–6.4) is parked until the builders' requirements are
+  done. Open Banking stays deferred. Order: requirements first, then
+  Harmonic Design (mockups, EBD, VBD, detail design, plan).
+- **Net worth history (FR-5.4) is a period selector on the Investments
+  page's net worth tile** — last 6 months (default), last 12 months, a
+  calendar year, all time — which also settles OQ-231's "let the user
+  choose the window". The Dashboard tile stays at 6 months. Weighed and
+  rejected: a separate net worth report (two places for one series).
+  OQ-231's note stands: K38's month labels must thin out with the plot's
+  width for the longer periods.
+
+### OQ-263: Portfolio Builder requirements (FR-12)
+**Confirmed with the stakeholder (2026-11-27),** from the stakeholder's own
+spreadsheets (FII monitor with valuation sheets, FII portfolio sheet,
+Brazilian and US stock valuation monitors):
+- **The builder is a guided monthly review, not an allocation optimizer.**
+  The stakeholder reviews the portfolio every month and replaces
+  underperformers (price falling, a management change). Flow: screener →
+  (FII) valuation → allocation → recording → lock. The guiding happens in
+  the frontend; the backend saves portfolios and versions, fetches market
+  data and tracks the portfolio from real data.
+- **Three markets, one design:** FII, Brazilian stocks, US stocks, all in
+  v2. A Portfolio is the household's, personal or shared; one market, so
+  one currency; it covers the Accounts picked at creation.
+- **The review starts from what is held:** the cart is filled with the
+  Holdings' tickers; allocation pre-fills the quantity held, new tickers
+  start empty. The plan is in **quantities**, as in the stakeholder's
+  sheet, not percentages; % of the portfolio is derived.
+- **Versions:** draft (saved in the backend) → recording → locked. Each
+  change after a lock is a new version.
+- **Recording is asynchronous and creates the transactions:** the user
+  buys over the following days and, per ticker, enters the real price,
+  quantity, account and date; confirming records the buy/sell
+  transaction. A ticker may be changed or skipped; once all are done the
+  version locks with what was actually done. Weighed and rejected: typing
+  the trades again on the Transactions page and locking by reading them
+  back (double entry).
+- **Screener presentation:** need not be a table; tickers grouped by
+  Builder Category (diversifying across categories is how the stakeholder
+  adjusts to the economy); colour coding required; most greens first;
+  filters to zoom in.
+- **FII primary indicators:** DY, P/VP, 3-year dividend CAGR, 3-year price
+  CAGR; the others refine. DY > 6% and P/VP < 1 highlighted, thresholds
+  adjustable; CAGR sign fixed (green above zero, red otherwise). Liquidity
+  and market-value filters exist for FIIs but are off by default (the
+  market is too small for a standing filter).
+- **FII valuation:** both models of the stakeholder's sheet — brick-and-
+  mortar (10-year dividend discount + terminal cap rate) and paper (by
+  composition). Optional per ticker; inputs and results saved per ticker
+  in the household. The model is a setting of the FII category, with the
+  defaults in FR-12.7; so is the cap-rate premium (sheet: shopping 2%,
+  logistics 3%, offices 4%).
+- **Stocks:** valuations in the screener, no separate step — Bazin,
+  Graham, Gordon discounts and PEG primary, average growth as extra
+  information, the inputs hidden. Risk rate per market (Brazil 13.21%, the
+  FGV equity risk the sheet links to; US 6%) and Bazin yield (6%)
+  adjustable. Small caps and illiquid tickers hidden by default (Brazil
+  R$ 2 bi / R$ 5 mi a day, US US$ 2 bi / US$ 10 mi a day), with the
+  minimums **adjustable right in the screener**.
+- **Builder Categories** are the household's, per market: defaults from
+  the stakeholder's 15 FII categories, the B3 segment and the provider's
+  sector; uncategorized tickers wait for the user.
+
+**Claude's calls (for review):**
+- **One open (draft or recording) version per Portfolio** — two parallel
+  plans of the same portfolio would contradict each other.
+- **Ties in "most greens first" go by DY, highest first.**
+- **Every screener threshold and assumption is adjustable in the screener
+  and remembered** (the FII DY/P/VP thresholds, risk rate and Bazin yield
+  too, not only the small-cap minimums), stored per household and market,
+  since the saved valuations depend on them.
+- **The other brick-and-mortar categories start at a 4% cap-rate
+  premium**, the sheet's most conservative value.
+- **Two formula fixes against the sheet:** PEG is P/L ÷ earnings growth
+  (%) — the sheet computed (P/L ÷ LPA) ÷ 100; Gordon is not applicable when
+  growth is negative or reaches the risk rate, instead of a meaningless
+  number. Also seen, not carried over: three FII sector averages in the
+  sheet pointed at the wrong rows.
+- **Colour never carries meaning alone** — the value is always written
+  (precedent: OQ-231's delta pill).
+- **Analysis/recommendation APIs (FR-5.7's suggestions) stay a future
+  phase**; v2 fetches data only.
+
+### OQ-264: Market data is fetched by the backend
+**Confirmed with the stakeholder (2026-11-27).** The stakeholder first
+proposed fetching in the frontend; agreed instead that the backend fetches,
+normalizes and caches: provider keys stay secret, CORS and rate limits are
+the server's, one cache serves every member and device, and a provider
+change touches one boundary instead of the UI (CUC-7's pluggable boundary;
+EBD: only Experiences call the backend). The builder's data is refreshed
+when the builder opens and the cache is older than a set limit — not daily
+for ~430 FIIs and thousands of stocks nobody looks at. **Open:** the
+provider — see the Open section.
+
+### OQ-265: Index rates are fetched automatically (reverses OQ-59)
+**Confirmed with the stakeholder (2026-11-27).** The stakeholder entered
+rates by hand only to avoid an automatic feed in v1; with one, manual entry
+is meaningless and is removed, while the history is still kept as a data
+point. Source: the Banco Central's SGS series (official, free, no key).
+**When:** on server start, filling every missing date, then once a day —
+the server is switched off at times, so start-up is the catch-up, the same
+pattern as `investmentsDaily` (OQ-227). Weighed and rejected: fetching on
+the first sign-in of the day (it ties a data refresh to authentication).
+**Rates become system-wide**, and the hand-typed v1 values are replaced by
+the official backfill. *Claude's call:* a failed fetch keeps the last known
+values and retries on the next run.
+
+### OQ-266: Automatic market values (amends OQ-56, OQ-222)
+**Confirmed with the stakeholder (2026-11-27).** With live prices fetched
+anyway, each held market-priced Holding the feed quotes gets an automatic
+Valuation Snapshot — quoted price × quantity — on server start and once a
+day, so net worth and portfolio tracking stay current without typing.
+Manual market values stay (to correct one, and for Holdings the feed
+doesn't quote: funds, crypto, real estate…). This amends OQ-222's "the
+quantity never sets the value": it still doesn't for a manual or
+trade-recorded value, but a quoted price does.
+
 ## Open (genuinely unresolved — not blocking, tracked so it isn't lost)
 
-*(None currently — OQ-29, the last item here, was resolved during data
-modeling; see below.)*
+- **Market data provider (OQ-264).** Status Invest, which the
+  stakeholder's sheets use, has no official API (an unofficial CSV export
+  link). A research step before detail design compares providers for FII
+  indicators, Brazilian stock fundamentals and US stocks — fields covered,
+  terms of use, cost, limits — and settles which fields become
+  household-maintained reference data.
+
+*(OQ-29, the last earlier item here, was resolved during data modeling; see
+below.)*

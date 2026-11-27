@@ -69,19 +69,38 @@
   market value — entered manually for market-priced Holdings (stock, FII,
   fund, other), where manual snapshots can be edited/deleted to fix
   mistakes, plus one recorded automatically by every buy/sell/redemption
-  (FR-5.2). Fixed-term
+  (FR-5.2), plus — v2 — a daily **automatic market value** (quoted price ×
+  quantity) when the market-data feed quotes the ticker (FR-12.13). Fixed-term
   Holdings never have snapshots (FR-5.4). A Holding's "current" value is just its
   latest snapshot; "value as of month M" is its latest snapshot at or
   before that month's end. The single mechanism behind net worth history
   (FR-5.4) and Goal progress-by-month (FR-8.7).
 - **FII (Fundo de Investimento Imobiliário)** — A Brazilian real-estate
-  investment fund; a first-class investment holding type and the subject of
-  the v1 Portfolio Builder.
+  investment fund; a first-class investment holding type and one of the
+  Portfolio Builder's three markets (FR-12).
 - **Net Worth** — Total assets minus liabilities, computed and reported per
   currency (no cross-currency conversion — see OQ-3).
-- **Portfolio Builder** — A tool that helps a user compose a target
-  allocation of holdings. The FII Portfolio Builder ships in v1; a Stock
-  Portfolio Builder follows later, same design shape.
+- **Portfolio Builder** — The guided monthly review of a Portfolio (v2,
+  FR-12): screen the market, pick tickers into a cart, value them, allocate
+  target quantities, then record the real trades and lock the version. One
+  design for three **markets**: FII, Brazilian stocks, US stocks.
+- **Portfolio** — A household's (personal or shared) investment plan for
+  one market, covering the Accounts picked for it, with an optional
+  monthly yield goal (FR-12.1). A history of Portfolio Versions.
+- **Portfolio Version** — One plan of a Portfolio: tickers with target
+  quantities, moving draft → recording → locked (FR-12.2). A locked version
+  holds what was actually bought and is the base of the next review.
+- **Screener** — The builder's view of every ticker of a market with its
+  indicators, colour-coded and grouped by Builder Category (FR-12.4–12.6).
+- **Builder Category** — A household's own grouping of a market's tickers
+  (e.g. FII "logistics/industrial", a B3 segment) used to diversify a
+  Portfolio; an FII category also carries its valuation model (FR-12.7).
+  Unrelated to transaction Categories.
+- **Fair Value / Discount** — A valuation model's estimate of what a ticker
+  is worth, and how far below it the price is: (fair value − price) ÷ fair
+  value (FR-12.6, FR-12.8).
+- **Market Data** — Ticker prices and indicators fetched by the backend
+  from an external provider and cached (FR-12.12).
 - **Goal** *(called "Objective" before October 2026 — renamed, OQ-66)* —
   A financial goal with a name, target amount, target
   currency, and due date, funded by allocating a percentage of one or more
@@ -97,8 +116,9 @@
   **only** to convert Investment Holding contributions into a Goal's
   target currency for progress calculations (FR-9). Never automated, and
   never used for account balances, transactions, or net worth.
-- **Index Reference Rate** — A manually entered, dated value of a market
-  index (Selic, CDI, IPCA, IGP-M), kept as a history. The investment engine
+- **Index Reference Rate** — A dated value of a market index (Selic, CDI,
+  IPCA, IGP-M), kept as a history — entered by hand in v1, fetched
+  automatically from the Banco Central and system-wide in v2 (OQ-265). The investment engine
   uses the latest value to project expected payout and taxes for
   fixed-term Holdings whose rate tracks that index (FR-11.6). Unrelated to
   Currency Reference Rates.

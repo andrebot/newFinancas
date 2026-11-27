@@ -225,21 +225,34 @@ taxes (FR-11.2).
 
 ## CUC-7: Build FII / Stock Portfolios
 
-**Deferred to v2 (OQ-70).** Entry points stay visible on Investments,
-disabled.
+**v2 (OQ-263).** Specified in FR-12. Deferred in v1 (OQ-70).
 
-A user uses a Portfolio Builder to compose a target allocation across FIIs
-(v1) and, later, stocks — first purely from user-provided data, later
-augmented by external analysis/recommendation APIs (e.g., suggested FIIs,
-graph-based stock analysis).
+A user reviews an investment portfolio every month with a Portfolio Builder
+— one for FIIs, one for Brazilian stocks, one for US stocks. The review
+starts from what the user holds: they screen the whole market by its
+indicators (colour-coded, grouped by their own categories), drop
+underperformers and pick new tickers into a cart, value FIIs with a
+brick-and-mortar or paper model (stocks are valued automatically in the
+screener), and decide how many of each to hold. Then they buy over the
+following days, recording each real trade from the builder, and the
+version locks once every ticker is done. The portfolio's value and income
+are tracked from the real Holdings and transactions.
 
 - **Primary actor:** Household Member (investment-focused)
-- **Volatility: [volatile]** The most explicitly forward-looking use case in
-  scope: the external analysis/recommendation integration is named as
-  future work by the stakeholder. The v1 Portfolio Builder logic must be
-  designed so that "analysis provider" is a pluggable boundary, not
-  hardcoded, so its later arrival doesn't require reworking the builder
-  itself.
+- **Volatility: [volatile] — market data source.** The data comes from an
+  external provider (none official for FII indicators; US stocks may need
+  another one), fetched by the backend and cached (OQ-264). Providers
+  change, so the source is a pluggable boundary, not hard-coded — the
+  same boundary a future analysis/recommendation API (FR-5.7) would use.
+- **Volatility: valuation methods and screening criteria.** The models
+  (Bazin, Graham, Gordon, PEG, brick-and-mortar, paper), their thresholds
+  and the categories are the user's investing method, which changes with
+  the economy; thresholds and assumptions are adjustable settings, and
+  categories are household data, not code.
+- **Note — the plan becomes real transactions:** recording a bought
+  ticker in the builder records the same investment transaction as the
+  Transactions page (CUC-4), so the portfolio, net worth and income are
+  all read from one ledger, never typed twice.
 
 ## CUC-8: View Insights & Reports
 

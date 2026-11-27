@@ -39,12 +39,13 @@ These decisions were made explicitly and constrain everything below:
   Exact regulatory scope (LGPD + applicable US rules) still needs legal
   review, but doesn't block architecture work.
 - **Investments:** manually entered only for v1. No live market data feed in
-  v1. Every Investment Holding lives under exactly one checking, savings,
+  v1 — **v2 adds one** (market data for the Portfolio Builder, automatic
+  market values and index rates — OQ-264–266). Every Investment Holding lives under exactly one checking, savings,
   or investment Account (OQ-76) — not standalone (confirmed — see OQ-14) — so buy/sell/dividend/
   interest/redemption/tax all flow through that account like any other
-  transaction. A **FII Portfolio Builder** (Brazilian real-estate-fund
-  portfolio construction tool) ships in v1; a **Stock Portfolio Builder**
-  follows in a later phase. External analysis/recommendation APIs (e.g.,
+  transaction. The **Portfolio Builders** — FII, Brazilian stocks and US
+  stocks — were deferred from v1 and are specified for **v2** (FR-12,
+  OQ-263). External analysis/recommendation APIs (e.g.,
   "best FIIs to invest," stock graph analysis) are an explicit **future
   phase**, isolated behind a swappable boundary so they don't entangle with
   v1.

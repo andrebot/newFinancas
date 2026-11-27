@@ -412,15 +412,23 @@ vice versa; only a Credit Card Bill Payment (FR-3.7) bridges the two.
   history and Goal progress-by-month (FR-8.7) possible. **A user can edit
   (date, value) or delete any manually entered Valuation Snapshot** to
   correct mistakes; net worth and Goal progress for every month the
-  change affects are recomputed (see OQ-56).
+  change affects are recomputed (see OQ-56). **v2 (OQ-266):** a
+  market-priced Holding whose ticker the market-data feed quotes (FR-12.12)
+  also gets an **automatic market value** — quoted price × quantity — on
+  server start and once a day (FR-12.13); manual market values stay
+  possible, to correct one or for a Holding the feed doesn't quote.
 - **FR-5.3** The system computes and displays net worth (assets minus
   liabilities), trended over time, **reported per currency** (no
   cross-currency aggregation), including the **change versus the previous
   month** for each currency (see OQ-62). **On the Investments page and the
   Dashboard, net worth is the Holdings' value (FR-5.4) — account balances
   and card debts are left out (OQ-236).**
-- **FR-5.4** **[Deferred to v2 — OQ-248]** A user can view historical net worth snapshots by month, for
-  any past year. For a given month, each Holding's contribution uses its
+- **FR-5.4** **[v2 — OQ-248, OQ-262]** A user can view historical net worth by month, for
+  any past period: the **Investments page's net worth tile** gets a
+  **period selector** — last 6 months (the default), last 12 months, a
+  calendar year the user picks, or all time (from the first month with
+  value). The Dashboard's tile stays at the last 6 months. Net worth stays
+  the Holdings' value (FR-5.3, OQ-236). For a given month, each Holding's contribution uses its
   latest Valuation Snapshot at or before that month's end (FR-5.2) — there
   is no requirement that a snapshot exists for every single month; the
   last known value simply carries forward, the same way a brokerage
@@ -430,15 +438,15 @@ vice versa; only a Credit Card Bill Payment (FR-3.7) bridges the two.
   (principal), constant from purchase until a redemption schedule entry
   zeroes it out, since nothing about its value changes between
   contractual cash events.
-- **FR-5.5** **[Deferred to v2 — OQ-70]** A user can use the **FII Portfolio Builder** to compose a
-  target portfolio of FIIs based on allocation goals, using manually
-  entered/available data (v1).
-- **FR-5.6** **[Deferred to v2 — OQ-70]** A user can use a **Stock Portfolio Builder**, equivalent to
-  FR-5.5 for stocks (later phase, same design shape as FR-5.5).
-- **FR-5.7** *(Future phase, explicitly out of scope for v1)* The system
-  integrates external market/analysis APIs to suggest FIIs/stocks and
-  provide graph-based analysis. The v1 Portfolio Builder must not hardcode
-  assumptions that would block this later addition.
+- **FR-5.5** **[v2 — moved to FR-12, OQ-263]** The **FII Portfolio
+  Builder** — specified in full in FR-12.
+- **FR-5.6** **[v2 — moved to FR-12, OQ-263]** The **Stock Portfolio
+  Builder**, Brazilian and US stocks — the same builder as FR-5.5 with its
+  own screener and valuations (FR-12).
+- **FR-5.7** **[v2 — replaced by FR-12.12, OQ-264]** External market data
+  is fetched by the backend from a provider behind a pluggable boundary.
+  Suggestions or graph-based analysis from an analysis API stay a future
+  phase, not v2.
 - **FR-5.8** An Investment Holding is **archived automatically** when an
   investment transaction brings its quantity to zero (full sell or
   redemption) — no separate user action. For a fixed-term Holding whose
@@ -733,11 +741,160 @@ data. The engine owns both the schedule and every tax/payout calculation
   otherwise, is created transaction-driven, and its schedule is always
   computed by `InvestmentProductEngine` (FR-11.2), never manually
   entered.
-- **FR-11.6** A user can manually maintain **Index Reference Rates** —
-  Selic, CDI, IPCA, IGP-M in v1 (reference data; the list can grow) —
-  each as a dated history of values (annual % for Selic/CDI, trailing
-  12-month % for IPCA/IGP-M). The user can add a new value and edit or
-  delete past ones. The latest value of each index feeds FR-11.2's
-  projections for Holdings whose rate tracks that index. There is no
-  automated feed in v1 (see OQ-59). Rates are household-scoped, like the
-  Category taxonomy.
+- **FR-11.6** **Index Reference Rates** — Selic, CDI, IPCA, IGP-M
+  (reference data; the list can grow) — are kept as a dated history of
+  values (annual % for Selic/CDI, trailing 12-month % for IPCA/IGP-M). The
+  latest value of each index feeds FR-11.2's projections for Holdings whose
+  rate tracks that index, and FR-12.8's valuation assumptions.
+  **v2 (OQ-265) — fetched automatically, replacing v1's manual entry:** the
+  system fetches them from the Banco Central's official series, filling
+  every missing date **when the server starts** and then **once a day**
+  (the server is not always on, so start-up is the catch-up). Manual add,
+  edit and delete are removed; the user sees the history read-only. Rates
+  become **system-wide** — an official value is the same for every
+  household — and the values typed by hand in v1 are replaced by the
+  official history. A failed fetch keeps the last known values and is
+  retried on the next run. *(v1: entered manually, household-scoped — OQ-59.)*
+
+## FR-12: Portfolio Builder (CUC-7) — v2
+
+A guided monthly review of an investment portfolio: screen the market, pick
+tickers into a cart, value them, decide how many of each to hold, then buy
+and record what was actually bought. Three builders share one design: **FII**
+(Brazil, BRL), **Brazilian stocks** (BRL) and **US stocks** (USD) — the
+**market** of a portfolio. Decisions: OQ-263 (builder), OQ-264 (market
+data), OQ-266 (automatic market values).
+
+- **FR-12.1 Portfolio.** A Portfolio belongs to the household and is
+  **personal or shared**, with the same visibility and permission rules as
+  Budgets and Goals (FR-4.2, FR-8.1). It has a name, one **market** (FII,
+  Brazilian stocks or US stocks — the market fixes its currency, no FX), the
+  investment **Account(s) it covers** (picked at creation, editable; only
+  Accounts in the market's currency that can hold investments, OQ-76) and
+  an optional **monthly yield goal** (e.g. 0.6% a month).
+- **FR-12.2 Versions.** A Portfolio is a history of **Portfolio Versions**.
+  A version lists tickers, each with a **target quantity**. A version moves
+  **draft → recording → locked**:
+  - *draft* — being built; the user moves freely between the review's
+    steps (FR-12.3–FR-12.9) and the draft is **saved in the backend**, so
+    it survives sessions and devices;
+  - *recording* — the user has finished the plan and is buying
+    (FR-12.10); this can take days;
+  - *locked* — every ticker is recorded; the version is frozen and is the
+    base of the next review. A change after that is a new version.
+
+  A Portfolio has **at most one draft or recording version at a time**.
+- **FR-12.3 Starting a review.** A new draft opens with a **cart filled
+  with the tickers held** in the Portfolio's Accounts (Holdings of the
+  market's asset type with a position). The user drops tickers (e.g.
+  underperformers) and adds new ones from the screener.
+- **FR-12.4 Screener — common rules.** The screener lists **every ticker of
+  the market** with the market's indicators, **grouped by Builder
+  Category** (FR-12.7) — variety across categories is the point, so the
+  user can rebalance by category as the economy changes. It need not be a
+  table; it must make the indicators easy to read and compare. Rules:
+  - **Colour coding** on the primary indicators (FR-12.5, FR-12.6) is
+    required; colour never carries meaning alone (the value is written).
+  - Within a category, tickers with the **most green primary values come
+    first**; ties by DY, highest first.
+  - **Filters** on any indicator (ranges) to zoom in on tickers.
+  - The **thresholds and assumptions** behind the colours and valuations
+    (DY and P/VP thresholds, risk rate, Bazin yield, small-cap minimums)
+    are **adjustable right in the screener** and remembered for the next
+    review.
+  - Picking a ticker adds it to the cart; the cart is visible throughout.
+- **FR-12.5 FII screener.** Primary indicators: **DY, P/VP, 3-year dividend
+  CAGR, 3-year price CAGR**. Further indicators: price, cash %, equity, mono
+  or multi asset, single or multi tenant, management (active/passive),
+  record-date business day, shareholders, average daily liquidity, market
+  value, segment. Each category shows the **average of its tickers**.
+  Colours: DY **above** its threshold (default 6%) and P/VP **below** its
+  threshold (default 1) highlighted; each CAGR **green when positive, red
+  when zero or negative**. Filters on liquidity and market value exist but
+  are **off by default**.
+- **FR-12.6 Stock screener (Brazil and US).** Valuations are computed for
+  every ticker and shown in the screener — stocks have no separate
+  valuation step. Primary indicators, each with its fair price:
+  - **Bazin discount** — fair price = DPA ÷ Bazin yield (default 6%), where
+    DPA = price × DY;
+  - **Graham discount** — fair price = √(22.5 × LPA × VPA); not applicable
+    when LPA or VPA is negative;
+  - **Gordon discount** — fair price = DPA × (1 + g) ÷ (risk − g), where g
+    is the 5-year earnings CAGR and the risk rate is per market (default
+    Brazil 13.21%, US 6%); not applicable when g is negative or reaches
+    the risk rate;
+  - **PEG** — P/L ÷ earnings growth (%).
+
+  Discount = (fair price − price) ÷ fair price. Colours: a discount **above
+  30% green, 0–30% yellow, below 0 red**; PEG **0–0.5 green, 0.5–2 yellow,
+  below 0 or above 2 red**. Further information: **average growth** — the
+  mean of the 5-year earnings CAGR and the expected growth (1 − payout) ×
+  ROE, payout = DPA ÷ LPA — **above 20% green, 10–20% blue, 0–10% amber,
+  below 0 red**. The inputs (LPA, VPA, DPA, payout, ROE, CAGR) only feed the
+  calculations. **Small caps and illiquid tickers are hidden by default**:
+  Brazil below R$ 2 billion market value or R$ 5 million daily liquidity,
+  US below US$ 2 billion or US$ 10 million; a toggle shows them.
+- **FR-12.7 Builder Categories.** Each household organizes its own
+  categories **per market** — add, rename, remove, and move a ticker
+  between them. Defaults: **FII** — receivables IPCA, receivables IGP-M,
+  receivables CDI, offices, shopping malls, logistics/industrial, fund of
+  funds, hospital, hotel, bank branches, education, development, agro,
+  residential, other; **Brazilian stocks** — the B3 segment; **US stocks**
+  — the provider's sector. A ticker is placed automatically where the
+  provider's data allows; a newly fetched ticker without a category shows
+  under **Uncategorized** until the user assigns one. An FII category also
+  carries its **valuation model** (FR-12.8) — defaults: brick-and-mortar for
+  offices, shopping malls, logistics/industrial, hospital, hotel, bank
+  branches, education and residential; paper for the three receivables
+  categories; none for fund of funds, development, agro and other — and a
+  brick-and-mortar category its **cap-rate risk premium** (defaults:
+  shopping malls 2%, logistics/industrial 3%, the rest 4%). Builder
+  Categories are unrelated to transaction Categories (FR-10).
+- **FR-12.8 FII valuation (optional step).** After the cart, each FII in it
+  shows its **last saved fair value and discount**; the user opens the
+  model of its category to re-check one, or skips the step. Models:
+  - **Brick-and-mortar** — the monthly dividend (price × DY ÷ 12) grows for
+    10 years, either at a constant rate or by a yearly IPCA path the user
+    enters; each year is discounted at long-term IPCA + the category's
+    cap-rate premium + a discount premium; a terminal sale value (the last
+    year's income ÷ the terminal cap rate) is added. Result: **fair value**
+    and **discount** = (fair value − price) ÷ fair value.
+  - **Paper** — the fund's composition by indexer (CDI, IPCA, IGP-M,
+    IGP-DI, INPC, fixed rate, other FIIs, cash) as % of equity, each with
+    its spread; projected yearly income = Σ (index + spread − expenses) ×
+    share × NAV per share. Result: **projected DY** at today's price, and
+    the price that gives each dividend level.
+
+  Index assumptions are **pre-filled from the latest Index Reference Rates**
+  (FR-11.6) and editable. The user's **inputs and results are saved per
+  ticker** in the household, so the next review starts from them.
+- **FR-12.9 Allocation.** For each ticker in the cart: **target quantity**
+  (pre-filled with the quantity held; empty for a new ticker), price,
+  total, **% of the portfolio**, dividend per share, monthly yield
+  (dividend ÷ price), monthly income (dividend × quantity), and **to buy /
+  to sell** = target − held (a dropped ticker is a full sell). Totals: the
+  portfolio's value, its monthly income and yield **against the yield
+  goal**, and the **weight of each Builder Category**.
+- **FR-12.10 Recording and lock.** Finishing the plan moves the version to
+  *recording*. For each ticker to buy or sell the user enters what was
+  actually done — **price, quantity, account and date** — and confirms;
+  the confirmation **records the buy or sell transaction** through the
+  unified Record Transaction pipeline (FR-3.8), as if entered on the
+  Transactions page. The user may **change the quantity or skip a ticker**
+  while recording. When every ticker is recorded or skipped the version is
+  **locked**, holding what was actually done.
+- **FR-12.11 Tracking.** A Portfolio shows its **version history** and,
+  from real data — Holdings, Valuation Snapshots and payout transactions
+  in its Accounts, for its tickers — its **value and income over time**,
+  per the same rules as net worth (FR-5.4) and payouts (FR-5.9).
+- **FR-12.12 Market data.** Ticker data (prices and indicators) is
+  **fetched by the backend** from an external provider behind a **pluggable
+  boundary** — the browser never calls the provider — and **cached**.
+  Opening the builder refreshes the market's data when the cache is older
+  than a set limit. The provider is still to be chosen (OQ-264, open); a
+  field the provider doesn't carry is reference data the household
+  maintains (e.g. the FII record-date day).
+- **FR-12.13 Automatic market values.** When the server starts and then
+  once a day, each held market-priced Holding whose ticker the feed quotes
+  gets an **automatic Valuation Snapshot** — quoted price × quantity —
+  for that day (FR-5.2, OQ-266).
